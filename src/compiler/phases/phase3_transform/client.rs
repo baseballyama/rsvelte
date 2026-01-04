@@ -7,7 +7,7 @@ use super::js_ast::parse_and_generate;
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, Component, EachBlock,
     ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, RegularElement, RenderTag, SnippetBlock,
-    TemplateNode, Text,
+    SvelteDynamicElement, TemplateNode, Text,
 };
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
@@ -91,6 +91,13 @@ enum NodeType {
 
 use std::collections::HashMap;
 
+/// Represents a svelte:element for client-side code generation.
+#[derive(Debug, Clone)]
+struct SvelteElementInfo {
+    /// The tag expression (e.g., "tag")
+    tag_expr: String,
+}
+
 /// Represents an each block for client-side code generation.
 #[derive(Debug, Clone)]
 struct EachBlockInfo {
@@ -136,6 +143,8 @@ struct ClientCodeGenerator {
     each_block_counter: usize,
     /// Each blocks collected for code generation
     each_blocks: Vec<EachBlockInfo>,
+    /// Svelte:element blocks collected for code generation
+    svelte_elements: Vec<SvelteElementInfo>,
 }
 
 impl ClientCodeGenerator {
@@ -164,6 +173,7 @@ impl ClientCodeGenerator {
             state_vars,
             each_block_counter: 0,
             each_blocks: Vec::new(),
+            svelte_elements: Vec::new(),
         }
     }
 
@@ -226,6 +236,7 @@ impl ClientCodeGenerator {
             TemplateNode::SnippetBlock(block) => self.generate_snippet_block(block),
             TemplateNode::RenderTag(tag) => self.generate_render_tag(tag),
             TemplateNode::HtmlTag(tag) => self.generate_html_tag(tag),
+            TemplateNode::SvelteElement(elem) => self.generate_svelte_element(elem),
             _ => Ok(()),
         }
     }
@@ -735,6 +746,29 @@ impl ClientCodeGenerator {
         Ok(())
     }
 
+    fn generate_svelte_element(
+        &mut self,
+        elem: &SvelteDynamicElement,
+    ) -> Result<(), TransformError> {
+        // svelte:element generates a comment placeholder like other control blocks
+        // The actual element is created at runtime via $.element()
+
+        // Extract the tag expression
+        let tag_start = elem.tag.start().unwrap_or(0) as usize;
+        let tag_end = elem.tag.end().unwrap_or(0) as usize;
+        let tag_expr = if tag_end > tag_start && tag_end <= self.source.len() {
+            self.source[tag_start..tag_end].trim().to_string()
+        } else {
+            "null".to_string()
+        };
+
+        // Store the svelte:element info
+        self.svelte_elements.push(SvelteElementInfo { tag_expr });
+
+        // Don't output anything in the template - $.element() handles it
+        Ok(())
+    }
+
     fn build(self) -> String {
         let html = self.html_parts.join("");
         let is_fragment = self.root_element_count > 1;
@@ -812,7 +846,29 @@ impl ClientCodeGenerator {
         // Generate each block code
         let each_code = self.generate_each_block_code();
 
-        let raw_output = if has_each_blocks && (html.is_empty() || html.trim().is_empty()) {
+        // Generate svelte:element code
+        let has_svelte_elements = !self.svelte_elements.is_empty();
+        let svelte_element_code = self.generate_svelte_element_code();
+
+        let raw_output = if has_svelte_elements && (html.is_empty() || html.trim().is_empty()) {
+            // Only svelte:element, no other HTML
+            format!(
+                r#"{system_imports}
+{hoisted_imports}
+export default function {component_name}({fn_params}) {{
+{script_code}	var fragment = $.comment();
+	var node = $.first_child(fragment);
+{svelte_element_code}	$.append($$anchor, fragment);
+}}{delegation_code}"#,
+                system_imports = system_imports,
+                hoisted_imports = hoisted_imports,
+                component_name = self.component_name,
+                fn_params = fn_params,
+                script_code = script_code,
+                svelte_element_code = svelte_element_code,
+                delegation_code = delegation_code
+            )
+        } else if has_each_blocks && (html.is_empty() || html.trim().is_empty()) {
             // Only each blocks, no other HTML
             format!(
                 r#"{system_imports}
@@ -908,6 +964,17 @@ export default function {component_name}({fn_params}) {{
             Ok(normalized) => normalized,
             Err(_) => raw_output, // Fall back to raw output if parsing fails
         }
+    }
+
+    /// Generate code for svelte:element blocks.
+    fn generate_svelte_element_code(&self) -> String {
+        let mut code = String::new();
+
+        for elem in &self.svelte_elements {
+            code.push_str(&format!("\n\t$.element(node, {}, false);\n", elem.tag_expr));
+        }
+
+        code
     }
 
     /// Generate code for each blocks.
