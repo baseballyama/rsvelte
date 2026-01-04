@@ -78,6 +78,9 @@ struct NodeInfo {
     bindings: Vec<(String, String)>,
     /// Whether this is an input element (needs remove_input_defaults)
     is_input: bool,
+    /// Full content template for element's text content (e.g., "clicks: ${counter.count ?? ''}")
+    /// This combines static text and expressions
+    content_template: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -96,6 +99,24 @@ use std::collections::HashMap;
 struct SvelteElementInfo {
     /// The tag expression (e.g., "tag")
     tag_expr: String,
+}
+
+/// Represents a dynamic attribute in an each block element.
+#[derive(Debug, Clone)]
+struct DynamicAttribute {
+    /// Attribute name (e.g., "data-index")
+    name: String,
+    /// Expression value (e.g., "index")
+    expr: String,
+}
+
+/// Represents an event handler in an each block element.
+#[derive(Debug, Clone)]
+struct EventHandler {
+    /// Event name (e.g., "click")
+    event: String,
+    /// Handler expression
+    handler: String,
 }
 
 /// Represents an each block for client-side code generation.
@@ -117,6 +138,10 @@ struct EachBlockInfo {
     body_expressions: Vec<String>,
     /// Body element tag name for element-based each blocks
     body_element: Option<String>,
+    /// Dynamic attributes to set at runtime
+    dynamic_attributes: Vec<DynamicAttribute>,
+    /// Event handlers to attach
+    event_handlers: Vec<EventHandler>,
 }
 
 /// Client-side code generator.
@@ -305,7 +330,7 @@ impl ClientCodeGenerator {
             }
         }
 
-        // Record element info
+        // Record element info (content_template will be set later if needed)
         self.nodes.push(NodeInfo {
             var_name: var_name.clone(),
             node_type: NodeType::Element(name.to_string()),
@@ -314,6 +339,7 @@ impl ClientCodeGenerator {
             event_handlers,
             bindings,
             is_input,
+            content_template: None,
         });
 
         // Check if element has any expression children
@@ -347,40 +373,70 @@ impl ClientCodeGenerator {
             self.current_child_index = 0;
 
             if has_expressions {
-                // Element has expressions - check if there's meaningful static text
-                let meaningful_static_text: Vec<_> = element
-                    .fragment
-                    .nodes
-                    .iter()
-                    .filter_map(|child| {
-                        if let TemplateNode::Text(t) = child {
-                            let trimmed = t.data.trim();
-                            if !trimmed.is_empty() {
-                                return Some(trimmed);
+                // Element has expressions - check for static text mixed with expressions
+                // E.g., "clicks: {count}" needs a space placeholder
+                // But "{expr}" alone does not need a placeholder
+
+                // Check if there's meaningful static text
+                let has_static_text = element.fragment.nodes.iter().any(|child| {
+                    if let TemplateNode::Text(t) = child {
+                        t.data.trim().chars().any(|c| c.is_alphanumeric())
+                    } else {
+                        false
+                    }
+                });
+
+                if has_static_text {
+                    // Has mixed content - add space as placeholder
+                    self.html_parts.push(" ".to_string());
+
+                    // Build the content template by combining all children
+                    let mut content_parts: Vec<String> = Vec::new();
+
+                    for child in &element.fragment.nodes {
+                        match child {
+                            TemplateNode::Text(text) => {
+                                let data = &text.data;
+                                if !data.trim().is_empty() {
+                                    content_parts.push(data.to_string());
+                                } else if !content_parts.is_empty() && !data.is_empty() {
+                                    content_parts.push(" ".to_string());
+                                }
+                            }
+                            TemplateNode::ExpressionTag(tag) => {
+                                let expr_start = tag.start as usize;
+                                let expr_end = tag.end as usize;
+                                if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                                    let expr = self.source[expr_start + 1..expr_end - 1].trim();
+                                    content_parts.push(format!("${{{} ?? ''}}", expr));
+                                }
+                            }
+                            _ => {}
+                        }
+                        self.current_child_index += 1;
+                    }
+
+                    // Update the element's NodeInfo with the content template
+                    if !content_parts.is_empty() {
+                        if let Some(last_node) = self.nodes.last_mut() {
+                            if matches!(last_node.node_type, NodeType::Element(_)) {
+                                let combined = content_parts.join("");
+                                let trimmed = combined.trim().to_string();
+                                if !trimmed.is_empty() {
+                                    last_node.content_template = Some(trimmed);
+                                }
                             }
                         }
-                        None
-                    })
-                    .collect();
-
-                // If there's static text that's more than just punctuation around expressions,
-                // we need a space placeholder for the text node
-                let needs_text_placeholder = meaningful_static_text
-                    .iter()
-                    .any(|t| t.chars().any(|c| c.is_alphanumeric()));
-
-                if needs_text_placeholder {
-                    // Has mixed content with meaningful text - add space as placeholder
-                    self.html_parts.push(" ".to_string());
-                }
-                // Empty otherwise - expressions will set content via JS
-
-                // Still process children for expression tracking
-                for child in &element.fragment.nodes {
-                    if let TemplateNode::ExpressionTag(tag) = child {
-                        self.generate_expression_tag(tag)?;
                     }
-                    self.current_child_index += 1;
+                } else {
+                    // Expression-only content (no static text)
+                    // Leave element empty, track expressions individually
+                    for child in &element.fragment.nodes {
+                        if let TemplateNode::ExpressionTag(tag) = child {
+                            self.generate_expression_tag(tag)?;
+                        }
+                        self.current_child_index += 1;
+                    }
                 }
             } else {
                 // No expressions - include static children in template
@@ -521,6 +577,7 @@ impl ClientCodeGenerator {
                 event_handlers: Vec::new(),
                 bindings: Vec::new(),
                 is_input: false,
+                content_template: None,
             });
         }
 
@@ -571,6 +628,7 @@ impl ClientCodeGenerator {
             event_handlers: Vec::new(),
             bindings: Vec::new(),
             is_input: false,
+            content_template: None,
         });
 
         Ok(())
@@ -649,6 +707,8 @@ impl ClientCodeGenerator {
             is_text_only: !has_elements,
             body_expressions: Vec::new(),
             body_element: None,
+            dynamic_attributes: Vec::new(),
+            event_handlers: Vec::new(),
         };
 
         if has_elements {
@@ -666,10 +726,34 @@ impl ClientCodeGenerator {
                     // Build the template with static attributes and text content
                     let mut template_html = format!("<{elem_name}");
 
-                    // Collect static attributes
+                    // Collect static and dynamic attributes
+                    let mut dynamic_attrs = Vec::new();
+                    let mut event_handlers = Vec::new();
+
                     for attr in &elem.attributes {
                         if let Attribute::Attribute(attr_node) = attr {
                             let attr_name = attr_node.name.as_str();
+
+                            // Check for event handlers (on* attributes)
+                            if let Some(event_name) = attr_name.strip_prefix("on") {
+                                if let AttributeValue::Expression(expr_tag) = &attr_node.value {
+                                    let expr_start =
+                                        expr_tag.expression.start().unwrap_or(0) as usize;
+                                    let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                                    if expr_end > expr_start && expr_end <= self.source.len() {
+                                        let handler =
+                                            self.source[expr_start..expr_end].trim().to_string();
+                                        // Strip TypeScript non-null assertions (!)
+                                        let handler = handler.replace(")!", ")");
+                                        event_handlers.push(EventHandler {
+                                            event: event_name.to_string(),
+                                            handler,
+                                        });
+                                    }
+                                }
+                                continue;
+                            }
+
                             // Handle static attributes (text values or True)
                             match &attr_node.value {
                                 AttributeValue::Sequence(parts) => {
@@ -692,15 +776,31 @@ impl ClientCodeGenerator {
                                             .push_str(&format!(r#" {}="{}""#, attr_name, value));
                                     }
                                 }
+                                AttributeValue::Expression(expr_tag) => {
+                                    // Dynamic attribute
+                                    let expr_start =
+                                        expr_tag.expression.start().unwrap_or(0) as usize;
+                                    let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                                    if expr_end > expr_start && expr_end <= self.source.len() {
+                                        let expr =
+                                            self.source[expr_start..expr_end].trim().to_string();
+                                        dynamic_attrs.push(DynamicAttribute {
+                                            name: attr_name.to_string(),
+                                            expr,
+                                        });
+                                    }
+                                }
                                 AttributeValue::True(_) => {
                                     // Boolean attribute
                                     template_html.push_str(&format!(" {}", attr_name));
                                 }
-                                _ => {}
                             }
                         }
                     }
                     template_html.push('>');
+
+                    each_info.dynamic_attributes = dynamic_attrs;
+                    each_info.event_handlers = event_handlers;
 
                     // Check for static text content
                     let mut has_only_static_text = true;
@@ -1124,11 +1224,29 @@ export default function {component_name}({fn_params}) {{
                     }
                 };
 
+                // Build dynamic attributes code
+                let mut dynamic_code = String::new();
+                for attr in &each.dynamic_attributes {
+                    dynamic_code.push_str(&format!(
+                        "\n\t\t$.set_attribute({}, '{}', {});",
+                        elem_var, attr.name, attr.expr
+                    ));
+                }
+
+                // Build event handlers code
+                for handler in &each.event_handlers {
+                    dynamic_code.push_str(&format!(
+                        "\n\t\t{}.__{} = {};",
+                        elem_var, handler.event, handler.handler
+                    ));
+                }
+
                 format!(
                     r#"
-		var {} = {}();{}
-		$.append($$anchor, {});"#,
-                    elem_var, template_var, content, elem_var
+		var {} = {}();{}{}
+		$.append($$anchor, {});
+	"#,
+                    elem_var, template_var, dynamic_code, content, elem_var
                 )
             } else {
                 String::new()
@@ -1257,48 +1375,39 @@ export default function {component_name}({fn_params}) {{
                 ));
             }
 
-            // Check if any expression references state variables (reactive)
-            let has_reactive_expr = exprs.iter().any(|e| {
-                if let Some(expr) = &e.expression {
-                    self.state_vars.iter().any(|sv| expr.contains(sv))
-                } else {
-                    false
-                }
-            });
-
-            if has_reactive_expr && !exprs.is_empty() {
-                // Reactive content - need text node and template_effect
-                let text_var = format!("text_{}", var);
-                code.push_str(&format!("\tvar {} = $.child({});\n\n", text_var, var));
-                code.push_str(&format!("\t$.reset({});\n\n", var));
-
-                // Collect all expressions for this element
-                let expr_parts: Vec<String> = exprs
+            // Check if element has a content template (combined text + expressions)
+            if let Some(content_template) = &elem.content_template {
+                // Check if template references any state variables (reactive)
+                let is_reactive = self
+                    .state_vars
                     .iter()
-                    .filter_map(|e| e.expression.as_ref())
-                    .map(|expr| {
-                        // Wrap state variable references in $.get()
-                        let mut result = expr.clone();
-                        for sv in &self.state_vars {
-                            // Simple replacement - wrap standalone variable references
-                            let pattern = format!(r"\b{}\b", sv);
-                            if let Ok(re) = regex::Regex::new(&pattern) {
-                                result = re
-                                    .replace_all(&result, format!("$.get({})", sv).as_str())
-                                    .to_string();
-                            }
-                        }
-                        format!("${{{}  ?? ''}}", result)
-                    })
-                    .collect();
+                    .any(|sv| content_template.contains(sv));
 
-                let template_str = expr_parts.join("");
-                template_effects.push(format!(
-                    "\t$.template_effect(() => $.set_text({}, `{}`));\n",
-                    text_var, template_str
-                ));
-            } else {
-                // Static content - combine all expressions into single textContent
+                if is_reactive {
+                    // Reactive content - need text node and template_effect
+                    let text_var = "text".to_string();
+                    code.push_str(&format!("\tvar {} = $.child({});\n\n", text_var, var));
+                    code.push_str(&format!("\t$.reset({});\n\n", var));
+
+                    // Transform state variable references in the template
+                    // For $.state() variables, we don't need $.get() - they're already reactive
+                    // For $.proxy() variables, access properties directly
+                    let template_str = content_template.clone();
+
+                    template_effects.push(format!(
+                        "\t$.template_effect(() => $.set_text({}, `{}`));\n",
+                        text_var, template_str
+                    ));
+                } else {
+                    // Static content - set directly as textContent
+                    // Try to evaluate any constant expressions
+                    code.push_str(&format!(
+                        "\t{}.textContent = `{}`;\n\n",
+                        var, content_template
+                    ));
+                }
+            } else if !exprs.is_empty() {
+                // Fallback: no content_template but has expressions (legacy handling)
                 let combined: Vec<String> = exprs
                     .iter()
                     .filter_map(|e| e.expression.as_ref())
@@ -1307,22 +1416,18 @@ export default function {component_name}({fn_params}) {{
 
                 match combined.len() {
                     1 => {
-                        // Single expression
                         code.push_str(&format!("\t{}.textContent = {};\n\n", var, combined[0]));
                     }
                     n if n > 1 => {
-                        // Multiple expressions - try to combine as string literal
                         let all_literals = combined.iter().all(|s| {
                             (s.starts_with('\'') && s.ends_with('\''))
                                 || (s.starts_with('"') && s.ends_with('"'))
                         });
 
                         if all_literals {
-                            // Combine string literals
                             let combined_str: String = combined
                                 .iter()
                                 .map(|s| {
-                                    // Remove quotes
                                     if s.len() >= 2 {
                                         &s[1..s.len() - 1]
                                     } else {
@@ -1334,11 +1439,8 @@ export default function {component_name}({fn_params}) {{
                                 "\t{}.textContent = '{}';\n\n",
                                 var, combined_str
                             ));
-                        } else {
-                            // Fall back to last expression (original behavior)
-                            if let Some(last) = combined.last() {
-                                code.push_str(&format!("\t{}.textContent = {};\n\n", var, last));
-                            }
+                        } else if let Some(last) = combined.last() {
+                            code.push_str(&format!("\t{}.textContent = {};\n\n", var, last));
                         }
                     }
                     _ => {}
@@ -1390,10 +1492,19 @@ export default function {component_name}({fn_params}) {{
     /// Collect all event types that need delegation
     fn collect_delegated_events(&self) -> Vec<String> {
         let mut events: Vec<String> = Vec::new();
+        // Collect from regular nodes
         for node in &self.nodes {
             for (event_name, _) in &node.event_handlers {
                 if !events.contains(event_name) {
                     events.push(event_name.clone());
+                }
+            }
+        }
+        // Collect from each blocks
+        for each in &self.each_blocks {
+            for handler in &each.event_handlers {
+                if !events.contains(&handler.event) {
+                    events.push(handler.event.clone());
                 }
             }
         }
