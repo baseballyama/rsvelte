@@ -144,6 +144,15 @@ struct EachBlockInfo {
     event_handlers: Vec<EventHandler>,
 }
 
+/// Represents a component with bind:this directive.
+#[derive(Debug, Clone)]
+struct BindThisComponent {
+    /// Component name (e.g., "Foo")
+    component_name: String,
+    /// The variable being bound to (e.g., "foo")
+    bind_var: String,
+}
+
 /// Client-side code generator.
 struct ClientCodeGenerator {
     component_name: String,
@@ -172,6 +181,8 @@ struct ClientCodeGenerator {
     each_blocks: Vec<EachBlockInfo>,
     /// Svelte:element blocks collected for code generation
     svelte_elements: Vec<SvelteElementInfo>,
+    /// Components with bind:this directive (for special code generation)
+    bind_this_components: Vec<BindThisComponent>,
 }
 
 impl ClientCodeGenerator {
@@ -204,6 +215,7 @@ impl ClientCodeGenerator {
             each_block_counter: 0,
             each_blocks: Vec::new(),
             svelte_elements: Vec::new(),
+            bind_this_components: Vec::new(),
         }
     }
 
@@ -608,10 +620,42 @@ impl ClientCodeGenerator {
     }
 
     fn generate_component_usage(&mut self, component: &Component) -> Result<(), TransformError> {
+        let comp_name = component.name.to_string();
+
+        // Check for bind:this directive
+        let mut bind_this_var: Option<String> = None;
+        let mut has_other_attrs = false;
+
+        for attr in &component.attributes {
+            match attr {
+                Attribute::BindDirective(bind) if bind.name == "this" => {
+                    // Extract the variable name from the expression
+                    let expr_start = bind.expression.start().unwrap_or(0) as usize;
+                    let expr_end = bind.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        bind_this_var = Some(self.source[expr_start..expr_end].trim().to_string());
+                    }
+                }
+                Attribute::Attribute(_) => has_other_attrs = true,
+                _ => {}
+            }
+        }
+
+        // If component has only bind:this and no other attributes, use special handling
+        if let Some(bind_var) = bind_this_var {
+            if !has_other_attrs {
+                // Don't add template placeholder - component will be called directly
+                self.bind_this_components.push(BindThisComponent {
+                    component_name: comp_name,
+                    bind_var,
+                });
+                return Ok(());
+            }
+        }
+
         // Components are rendered as comment placeholders
         self.html_parts.push("<!>".to_string());
 
-        let comp_name = component.name.to_string();
         let var_name = self.next_node_var();
 
         // Extract props from attributes
@@ -1064,7 +1108,31 @@ impl ClientCodeGenerator {
         let has_svelte_elements = !self.svelte_elements.is_empty();
         let svelte_element_code = self.generate_svelte_element_code();
 
-        let raw_output = if has_svelte_elements && (html.is_empty() || html.trim().is_empty()) {
+        // Check for bind:this only components (special case)
+        let has_bind_this_only =
+            !self.bind_this_components.is_empty() && html.is_empty() && self.nodes.is_empty();
+
+        let raw_output = if has_bind_this_only {
+            // Component with only bind:this - no template needed
+            let bind_comp = &self.bind_this_components[0];
+            let legacy_prop = if self.uses_runes {
+                ""
+            } else {
+                ", { $$legacy: true }"
+            };
+            format!(
+                r#"{system_imports}
+
+export default function {component_name}($$anchor) {{
+	$.bind_this({comp_name}($$anchor{legacy_prop}), ($$value) => {bind_var} = $$value, () => {bind_var});
+}}"#,
+                system_imports = system_imports,
+                component_name = self.component_name,
+                comp_name = bind_comp.component_name,
+                legacy_prop = legacy_prop,
+                bind_var = bind_comp.bind_var
+            )
+        } else if has_svelte_elements && (html.is_empty() || html.trim().is_empty()) {
             // Only svelte:element, no other HTML
             format!(
                 r#"{system_imports}
