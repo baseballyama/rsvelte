@@ -6,7 +6,7 @@ use super::TransformError;
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, BindDirective,
     Component, EachBlock, ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, RegularElement,
-    RenderTag, Script, SnippetBlock, TemplateNode, Text,
+    RenderTag, Script, SnippetBlock, SvelteDynamicElement, TemplateNode, Text,
 };
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
@@ -69,6 +69,10 @@ enum OutputPart {
         index_name: Option<String>,
         body: Vec<OutputPart>,
     },
+    /// svelte:element - dynamic element
+    SvelteElement {
+        tag_expr: String,
+    },
 }
 
 impl<'a> ServerCodeGenerator<'a> {
@@ -113,6 +117,7 @@ impl<'a> ServerCodeGenerator<'a> {
             TemplateNode::SnippetBlock(block) => self.generate_snippet_block(block),
             TemplateNode::RenderTag(tag) => self.generate_render_tag(tag),
             TemplateNode::HtmlTag(tag) => self.generate_html_tag(tag),
+            TemplateNode::SvelteElement(elem) => self.generate_svelte_element(elem),
             _ => Ok(()),
         }
     }
@@ -227,7 +232,21 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
                 Ok(Some(format!(" {}=\"{}\"", name, value)))
             }
-            AttributeValue::Expression(_) => Ok(None),
+            AttributeValue::Expression(expr_tag) => {
+                // Skip event handler attributes (onclick, onmousedown, etc.)
+                if name.starts_with("on") {
+                    return Ok(None);
+                }
+                // Generate $.attr() call for expression attributes
+                let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                if expr_end > expr_start && expr_end <= self.source.len() {
+                    let expr = self.source[expr_start..expr_end].trim().to_string();
+                    Ok(Some(format!("${{$.attr('{}', {})}}", name, expr)))
+                } else {
+                    Ok(None)
+                }
+            }
         }
     }
 
@@ -273,11 +292,17 @@ impl<'a> ServerCodeGenerator<'a> {
             if let Attribute::Attribute(node) = attr {
                 let name = node.name.as_str();
                 if let AttributeValue::Expression(expr_tag) = &node.value {
-                    let start = expr_tag.start as usize;
-                    let end = expr_tag.end as usize;
-                    if start + 1 < end && end <= self.source.len() {
-                        let expr_source = self.source[start + 1..end - 1].trim().to_string();
-                        props.push(format!("{}: {}", name, expr_source));
+                    // Get expression from ExpressionTag's expression field
+                    let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                    let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let expr_source = self.source[expr_start..expr_end].trim().to_string();
+                        // Check if it's a shorthand property (name equals expression)
+                        if expr_source == name {
+                            props.push(name.to_string());
+                        } else {
+                            props.push(format!("{}: {}", name, expr_source));
+                        }
                     }
                 }
             }
@@ -298,21 +323,11 @@ impl<'a> ServerCodeGenerator<'a> {
     }
 
     fn generate_each_block(&mut self, block: &EachBlock) -> Result<(), TransformError> {
-        // Get the iterable expression
+        // Get the iterable expression from the parser
         let start = block.expression.start().unwrap_or(0) as usize;
         let end = block.expression.end().unwrap_or(0) as usize;
         let iterable = if end > start && end <= self.source.len() {
-            let raw = self.source[start..end].trim();
-            // If no context and expression contains ", identifier", strip the index part
-            if block.context.is_none() && raw.contains(", ") {
-                if let Some(comma_pos) = raw.rfind(", ") {
-                    raw[..comma_pos].trim().to_string()
-                } else {
-                    raw.to_string()
-                }
-            } else {
-                raw.to_string()
-            }
+            self.source[start..end].trim().to_string()
         } else {
             "[]".to_string()
         };
@@ -324,40 +339,14 @@ impl<'a> ServerCodeGenerator<'a> {
             if ctx_end > ctx_start && ctx_end <= self.source.len() {
                 Some(self.source[ctx_start..ctx_end].trim().to_string())
             } else {
-                Some("item".to_string())
-            }
-        } else {
-            None
-        };
-
-        // Get optional index name
-        // If no context but expression had ", identifier", extract the index name
-        let index_name = if let Some(ref idx) = block.index {
-            Some(idx.to_string())
-        } else if block.context.is_none() {
-            // Check if expression source had a comma - extract index from there
-            let raw_start = block.expression.start().unwrap_or(0) as usize;
-            let raw_end = block.expression.end().unwrap_or(0) as usize;
-            if raw_end > raw_start && raw_end <= self.source.len() {
-                let raw = self.source[raw_start..raw_end].trim();
-                if let Some(comma_pos) = raw.rfind(", ") {
-                    let idx_part = raw[comma_pos + 2..].trim();
-                    if !idx_part.is_empty()
-                        && idx_part.chars().all(|c| c.is_alphanumeric() || c == '_')
-                    {
-                        Some(idx_part.to_string())
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            } else {
                 None
             }
         } else {
             None
         };
+
+        // Get optional index name from the parser
+        let index_name = block.index.as_ref().map(|idx| idx.to_string());
 
         // Filter body nodes - skip leading/trailing whitespace
         let body_nodes: Vec<_> = block.body.nodes.iter().collect();
@@ -435,6 +424,25 @@ impl<'a> ServerCodeGenerator<'a> {
 
     fn generate_html_tag(&mut self, _tag: &HtmlTag) -> Result<(), TransformError> {
         self.output_parts.push(OutputPart::Comment);
+        Ok(())
+    }
+
+    fn generate_svelte_element(
+        &mut self,
+        elem: &SvelteDynamicElement,
+    ) -> Result<(), TransformError> {
+        // Extract the tag expression from the source
+        let start = elem.tag.start().unwrap_or(0) as usize;
+        let end = elem.tag.end().unwrap_or(0) as usize;
+
+        let tag_expr = if end > start && end <= self.source.len() {
+            self.source[start..end].trim().to_string()
+        } else {
+            "null".to_string()
+        };
+
+        self.output_parts
+            .push(OutputPart::SvelteElement { tag_expr });
         Ok(())
     }
 
@@ -574,6 +582,18 @@ export default function {component_name}($$renderer{props_param}) {{
 
                     // Closing marker
                     body_code.push_str(&format!("{}$$renderer.push(`<!--]-->`);\n", indent));
+                }
+                OutputPart::SvelteElement { tag_expr } => {
+                    // Flush current HTML before svelte:element
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+
+                    // Generate $.element call
+                    body_code
+                        .push_str(&format!("{}$.element($$renderer, {});\n", indent, tag_expr));
                 }
             }
         }
@@ -811,7 +831,7 @@ fn format_js_line(line: &str) -> String {
             continue;
         }
 
-        // Add space around = in assignments (but not == or ===)
+        // Add space around = in assignments (but not == or ===, +=, -=, *=, /=, =>)
         if c == '=' {
             let next = chars.get(i + 1).copied();
             let prev = if !result.is_empty() {
@@ -820,15 +840,23 @@ fn format_js_line(line: &str) -> String {
                 None
             };
 
-            // Check if this is == or ===
-            if next == Some('=') {
+            // Check if this is == or === or =>
+            if next == Some('=') || next == Some('>') {
                 result.push(c);
             } else if prev == Some('=')
                 || prev == Some('!')
                 || prev == Some('<')
                 || prev == Some('>')
+                || prev == Some('+')
+                || prev == Some('-')
+                || prev == Some('*')
+                || prev == Some('/')
+                || prev == Some('%')
+                || prev == Some('&')
+                || prev == Some('|')
+                || prev == Some('^')
             {
-                // Part of ==, !=, <=, >=
+                // Part of ==, !=, <=, >=, +=, -=, *=, /=, %=, &=, |=, ^=
                 result.push(c);
             } else {
                 // Regular assignment - ensure spaces

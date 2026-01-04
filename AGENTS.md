@@ -156,7 +156,7 @@ cargo test --test compiler_fixtures -- --nocapture
 
 Current status:
 - **Parser**: 22/22 modern mode tests passing (100%)
-- **Compiler**: Total 2/25 (Client 2/25, Server 9/25) tests passing
+- **Compiler**: Total 2/25 (Client 2/25, Server 11/25) tests passing
 
 ## Current Progress
 
@@ -175,7 +175,7 @@ Current status:
 - [x] Script/Style parsing
 - [x] CSS parsing
 
-### Compiler (Total: 2/25, Client: 2/25, Server: 9/25 tests passing)
+### Compiler (Total: 2/25, Client: 2/25, Server: 11/25 tests passing)
 
 **Passing tests:**
 - hello-world (client + server)
@@ -187,6 +187,8 @@ Current status:
 - each-index-non-null (server only)
 - text-nodes-deriveds (server only)
 - state-proxy-literal (server only)
+- svelte-element (server only)
+- delegated-locally-declared-shadowed (server only)
 
 **Implemented features:**
 - [x] Compiler fixture test infrastructure
@@ -203,6 +205,9 @@ Current status:
 - [x] Basic script block processing (`$state` → value, `$props()` → `$$props`)
 - [x] JS formatting for script content
 - [x] Bind directive handling (`bind:value` → `$.attr`)
+- [x] Expression attributes (`$.attr()` for dynamic attributes)
+- [x] `svelte:element` dynamic elements (`$.element()`)
+- [x] Each block with object literal expressions
 
 **Pending features:**
 - [ ] Props destructuring with defaults
@@ -210,6 +215,7 @@ Current status:
 - [ ] Control flow blocks (`{#if}`, `{#await}`)
 - [ ] CSS scoping and transformation
 - [ ] Client-side bindings
+- [ ] Component children/slots
 
 ### Integration
 

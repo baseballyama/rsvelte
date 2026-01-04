@@ -12,7 +12,7 @@ use crate::ast::{
     AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, Comment, Component,
     CustomElementOptions, EachBlock, ExpressionTag, Fragment, FragmentType, HtmlTag, IfBlock,
     RegularElement, RenderTag, Root, RootType, ScriptContext, SlotElement, SnippetBlock,
-    SvelteElement, SvelteOptions, TemplateNode, Text, TitleElement,
+    SvelteDynamicElement, SvelteElement, SvelteOptions, TemplateNode, Text, TitleElement,
 };
 use crate::error::{ParseError, ParseResult};
 
@@ -488,6 +488,32 @@ impl<'a> Parser<'a> {
                 attributes,
                 fragment,
             }),
+            ElementType::SvelteElement => {
+                // Extract the "this" attribute to get the tag expression
+                let tag = self.extract_this_attribute(&attributes);
+
+                // Filter out the "this" attribute from the list
+                let filtered_attrs: Vec<_> = attributes
+                    .into_iter()
+                    .filter(|attr| {
+                        if let crate::ast::Attribute::Attribute(node) = attr {
+                            node.name.as_str() != "this"
+                        } else {
+                            true
+                        }
+                    })
+                    .collect();
+
+                TemplateNode::SvelteElement(SvelteDynamicElement {
+                    start: start as u32,
+                    end,
+                    name: name.clone(),
+                    name_loc: Some(name_loc_with_char),
+                    attributes: filtered_attrs,
+                    fragment,
+                    tag,
+                })
+            }
             _ => TemplateNode::RegularElement(RegularElement {
                 start: start as u32,
                 end,
@@ -499,6 +525,22 @@ impl<'a> Parser<'a> {
         };
 
         Ok(Some(node))
+    }
+
+    /// Extract the "this" attribute from a svelte:element to get the tag expression.
+    fn extract_this_attribute(&self, attributes: &[crate::ast::Attribute]) -> Expression {
+        for attr in attributes {
+            if let crate::ast::Attribute::Attribute(node) = attr {
+                if node.name.as_str() == "this" {
+                    if let AttributeValue::Expression(expr_tag) = &node.value {
+                        return expr_tag.expression.clone();
+                    }
+                }
+            }
+        }
+
+        // Default to null expression if no "this" attribute found
+        Expression::from_json(serde_json::json!(null))
     }
 
     /// Create name_loc with character field for Svelte compatibility.
@@ -1331,19 +1373,34 @@ impl<'a> Parser<'a> {
     fn parse_each_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
         self.skip_whitespace();
 
-        // Parse the iterable expression (up to " as ")
+        // Parse the iterable expression (up to " as " or closing "}")
         let expr_start = self.index;
 
-        // Find " as " to get the expression
+        // Find " as " to get the expression, tracking brace depth
         let mut found_as = false;
+        let mut depth = 0;
         while !self.is_eof() {
-            if self.match_str(" as ") {
+            let c = self.current_char();
+
+            // Track brace depth
+            if c == '{' || c == '(' || c == '[' {
+                depth += 1;
+            } else if c == ')' || c == ']' {
+                depth -= 1;
+            } else if c == '}' {
+                if depth == 0 {
+                    // This is the closing brace of {#each}, not a nested brace
+                    break;
+                }
+                depth -= 1;
+            }
+
+            // Check for " as " at top level
+            if depth == 0 && self.match_str(" as ") {
                 found_as = true;
                 break;
             }
-            if self.current_char() == '}' {
-                break;
-            }
+
             self.advance();
         }
 
@@ -1352,7 +1409,41 @@ impl<'a> Parser<'a> {
         let expression = self.parse_js_expression(expr_content, expr_start);
 
         if !found_as {
-            // No "as" found - still create an EachBlock with context: null
+            // No "as" found - check for ", identifier" index syntax
+            // For "{#each expr, index}", expr_content contains "expr, index"
+            let (final_expr, index_name) = {
+                let s = expr_content.to_string();
+                // Find the last top-level comma (not inside braces, brackets, or parens)
+                let mut depth = 0;
+                let mut last_comma = None;
+                for (i, c) in s.char_indices() {
+                    match c {
+                        '(' | '[' | '{' => depth += 1,
+                        ')' | ']' | '}' => depth -= 1,
+                        ',' if depth == 0 => last_comma = Some(i),
+                        _ => {}
+                    }
+                }
+
+                if let Some(comma_pos) = last_comma {
+                    let expr_part = s[..comma_pos].trim();
+                    let idx_part = s[comma_pos + 1..].trim();
+                    // Check if idx_part is a simple identifier
+                    if !idx_part.is_empty()
+                        && idx_part.chars().all(|c| c.is_alphanumeric() || c == '_')
+                    {
+                        (
+                            self.parse_js_expression(expr_part, expr_start),
+                            Some(CompactString::from(idx_part)),
+                        )
+                    } else {
+                        (expression, None)
+                    }
+                } else {
+                    (expression, None)
+                }
+            };
+
             // Consume the closing }
             if self.current_char() == '}' {
                 self.advance();
@@ -1374,9 +1465,9 @@ impl<'a> Parser<'a> {
             return Ok(Some(TemplateNode::EachBlock(EachBlock {
                 start: start as u32,
                 end: self.index as u32,
-                expression,
+                expression: final_expr,
                 context: None, // No context when no "as" clause
-                index: None,
+                index: index_name,
                 key: None,
                 body,
                 fallback: None,
