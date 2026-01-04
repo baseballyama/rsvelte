@@ -191,6 +191,16 @@ struct ComponentWithBinding {
     bind_var: String,
 }
 
+/// Represents an await block for client-side code generation.
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+struct AwaitBlockInfo {
+    /// Promise expression (e.g., "promise")
+    promise_expr: String,
+    /// Then value variable name (e.g., "counter")
+    then_value: Option<String>,
+}
+
 /// Client-side code generator.
 struct ClientCodeGenerator {
     component_name: String,
@@ -227,6 +237,8 @@ struct ClientCodeGenerator {
     snippets: Vec<SnippetInfo>,
     /// Components with value bindings (for getter/setter generation)
     components_with_bindings: Vec<ComponentWithBinding>,
+    /// Await blocks for runtime code generation
+    await_blocks: Vec<AwaitBlockInfo>,
 }
 
 impl ClientCodeGenerator {
@@ -263,6 +275,7 @@ impl ClientCodeGenerator {
             components_with_children: Vec::new(),
             snippets: Vec::new(),
             components_with_bindings: Vec::new(),
+            await_blocks: Vec::new(),
         }
     }
 
@@ -1073,7 +1086,35 @@ impl ClientCodeGenerator {
         Ok(())
     }
 
-    fn generate_await_block(&mut self, _block: &AwaitBlock) -> Result<(), TransformError> {
+    fn generate_await_block(&mut self, block: &AwaitBlock) -> Result<(), TransformError> {
+        // Extract promise expression
+        let expr_start = block.expression.start().unwrap_or(0) as usize;
+        let expr_end = block.expression.end().unwrap_or(0) as usize;
+        let promise_expr = if expr_end > expr_start && expr_end <= self.source.len() {
+            self.source[expr_start..expr_end].trim().to_string()
+        } else {
+            "null".to_string()
+        };
+
+        // Extract then value variable name (e.g., "counter" from "{#await promise then counter}")
+        let then_value = if let Some(ref value) = block.value {
+            let val_start = value.start().unwrap_or(0) as usize;
+            let val_end = value.end().unwrap_or(0) as usize;
+            if val_end > val_start && val_end <= self.source.len() {
+                Some(self.source[val_start..val_end].trim().to_string())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        // Store await block info
+        self.await_blocks.push(AwaitBlockInfo {
+            promise_expr,
+            then_value,
+        });
+
         self.html_parts.push("<!>".to_string());
         Ok(())
     }
@@ -1611,6 +1652,31 @@ export default function {component_name}({fn_params}) {{
 
 "#,
                 comp.component_name, comp.bind_name, comp.bind_var, comp.bind_name, comp.bind_var
+            ));
+        }
+
+        code
+    }
+
+    /// Generate code for await blocks.
+    #[allow(dead_code)]
+    fn generate_await_block_code(&self) -> String {
+        let mut code = String::new();
+
+        for await_block in &self.await_blocks {
+            // Wrap promise expression in $.get() if it's a derived value
+            let promise_getter = format!("() => $.get({})", await_block.promise_expr);
+
+            // Generate then callback
+            let then_callback = if let Some(ref then_val) = await_block.then_value {
+                format!("($$anchor, {}) => {{}}", then_val)
+            } else {
+                "($$anchor) => {}".to_string()
+            };
+
+            code.push_str(&format!(
+                "\t$.await(node, {}, null, {});\n\n",
+                promise_getter, then_callback
             ));
         }
 
