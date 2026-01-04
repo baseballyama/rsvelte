@@ -90,6 +90,8 @@ enum NodeType {
     ExpressionInElement,
     Component(String), // component name
     Anchor,
+    AwaitBlock,
+    RootExpression, // Expression at root level (not inside an element)
 }
 
 use std::collections::HashMap;
@@ -656,23 +658,40 @@ impl ClientCodeGenerator {
         if start + 1 < end && end <= self.source.len() {
             let expr_source = self.source[start + 1..end - 1].trim().to_string();
 
-            // Record this expression for runtime code generation
-            let var_name = if let Some(parent) = self.element_stack.last() {
-                parent.clone()
+            // Check if this is a root-level expression (no parent element)
+            if self.element_stack.is_empty() {
+                // Root-level expression - needs its own text node
+                // Count existing root expressions to get correct index
+                let root_expr_count = self
+                    .nodes
+                    .iter()
+                    .filter(|n| matches!(n.node_type, NodeType::RootExpression))
+                    .count();
+                let var_name = format!("text_{}", root_expr_count + 1);
+                self.nodes.push(NodeInfo {
+                    var_name,
+                    node_type: NodeType::RootExpression,
+                    expression: Some(expr_source),
+                    child_index: self.current_child_index,
+                    event_handlers: Vec::new(),
+                    bindings: Vec::new(),
+                    is_input: false,
+                    content_template: None,
+                });
             } else {
-                format!("node_{}", self.node_var_index)
-            };
-
-            self.nodes.push(NodeInfo {
-                var_name,
-                node_type: NodeType::ExpressionInElement,
-                expression: Some(expr_source),
-                child_index: self.current_child_index,
-                event_handlers: Vec::new(),
-                bindings: Vec::new(),
-                is_input: false,
-                content_template: None,
-            });
+                // Expression inside an element
+                let var_name = self.element_stack.last().unwrap().clone();
+                self.nodes.push(NodeInfo {
+                    var_name,
+                    node_type: NodeType::ExpressionInElement,
+                    expression: Some(expr_source),
+                    child_index: self.current_child_index,
+                    event_handlers: Vec::new(),
+                    bindings: Vec::new(),
+                    is_input: false,
+                    content_template: None,
+                });
+            }
         }
 
         // Don't output anything in template - the element will be empty
@@ -1111,8 +1130,22 @@ impl ClientCodeGenerator {
 
         // Store await block info
         self.await_blocks.push(AwaitBlockInfo {
-            promise_expr,
-            then_value,
+            promise_expr: promise_expr.clone(),
+            then_value: then_value.clone(),
+        });
+
+        // Track await block as a node for navigation
+        self.node_var_index += 1;
+        let var_name = "node".to_string();
+        self.nodes.push(NodeInfo {
+            var_name,
+            node_type: NodeType::AwaitBlock,
+            expression: Some(promise_expr),
+            child_index: self.current_child_index,
+            event_handlers: Vec::new(),
+            bindings: Vec::new(),
+            is_input: false,
+            content_template: then_value,
         });
 
         self.html_parts.push("<!>".to_string());
@@ -1317,14 +1350,14 @@ impl ClientCodeGenerator {
             let has_root_expressions = self
                 .nodes
                 .iter()
-                .any(|n| matches!(n.node_type, NodeType::ExpressionInElement));
+                .any(|n| matches!(n.node_type, NodeType::RootExpression));
 
             let expression_code = if has_root_expressions {
                 // Get the expression from the first root-level expression node
                 let expr = self
                     .nodes
                     .iter()
-                    .find(|n| matches!(n.node_type, NodeType::ExpressionInElement))
+                    .find(|n| matches!(n.node_type, NodeType::RootExpression))
                     .and_then(|n| n.expression.as_ref())
                     .cloned()
                     .unwrap_or_default();
@@ -1887,185 +1920,237 @@ export default function {component_name}({fn_params}) {{
 
     fn generate_runtime_code(&self, root_var: &str) -> String {
         let mut code = String::new();
-
-        // Collect all elements that need runtime code (expressions, events, or bindings)
-        let mut elements_needing_runtime: Vec<(&NodeInfo, Vec<&NodeInfo>)> = Vec::new();
-
-        let mut i = 0;
-        while i < self.nodes.len() {
-            if let NodeType::Element(_) = &self.nodes[i].node_type {
-                let elem = &self.nodes[i];
-                let mut exprs = Vec::new();
-
-                // Look for expressions that belong to this element
-                for j in (i + 1)..self.nodes.len() {
-                    if let NodeType::Element(_) = &self.nodes[j].node_type {
-                        break;
-                    }
-                    if let NodeType::ExpressionInElement = &self.nodes[j].node_type {
-                        if self.nodes[j].var_name == elem.var_name {
-                            exprs.push(&self.nodes[j]);
-                        }
-                    }
-                }
-
-                // Include element if it has expressions, event handlers, bindings, or content_template
-                let needs_runtime = !exprs.is_empty()
-                    || !elem.event_handlers.is_empty()
-                    || !elem.bindings.is_empty()
-                    || elem.is_input
-                    || elem.content_template.is_some();
-
-                if needs_runtime {
-                    elements_needing_runtime.push((elem, exprs));
-                }
-            }
-            i += 1;
-        }
-
-        // Generate navigation and runtime code
-        let mut prev_var: Option<&str> = None;
         let is_fragment = root_var == "fragment";
         let mut bindings_code = String::new();
-        let mut template_effects: Vec<String> = Vec::new();
+        let mut template_effect_parts: Vec<(String, String)> = Vec::new(); // (var_name, template_str)
+        let mut prev_var: Option<String> = None;
+        let mut first_nav = true;
 
-        for (idx, (elem, exprs)) in elements_needing_runtime.iter().enumerate() {
-            let var = &elem.var_name;
-
-            // Check if this is the root element (already assigned from root())
-            let is_root_element = var == root_var;
-
-            // Navigation code - skip for root element as it's already assigned
-            if !is_root_element {
-                if idx == 0 || (is_fragment && prev_var.is_none()) {
-                    code.push_str(&format!("\tvar {} = $.first_child({});\n\n", var, root_var));
-                } else if let Some(prev) = prev_var {
-                    // Offset is 2 because of text nodes (spaces) between elements
-                    code.push_str(&format!("\tvar {} = $.sibling({}, 2);\n\n", var, prev));
-                }
+        // Build a map of elements to their expressions
+        let mut element_expressions: HashMap<String, Vec<&NodeInfo>> = HashMap::new();
+        for node in &self.nodes {
+            if let NodeType::ExpressionInElement = &node.node_type {
+                element_expressions
+                    .entry(node.var_name.clone())
+                    .or_default()
+                    .push(node);
             }
-
-            // Remove input defaults for input elements
-            if elem.is_input {
-                code.push_str(&format!("\t$.remove_input_defaults({});\n\n", var));
-            }
-
-            // Event handlers
-            for (event_name, handler) in &elem.event_handlers {
-                // Transform state variable operations in handler expression
-                let transformed_handler = transform_state_assignments(handler, &self.state_vars);
-                code.push_str(&format!(
-                    "\t{}.__{} = {};\n",
-                    var, event_name, transformed_handler
-                ));
-            }
-
-            // Check if element has a content template (combined text + expressions)
-            if let Some(content_template) = &elem.content_template {
-                // Check if template references any state variables (reactive)
-                let is_reactive = self
-                    .state_vars
-                    .iter()
-                    .any(|sv| content_template.contains(sv));
-
-                if is_reactive {
-                    // Reactive content - need text node and template_effect
-                    let text_var = "text".to_string();
-                    code.push_str(&format!("\tvar {} = $.child({});\n\n", text_var, var));
-                    code.push_str(&format!("\t$.reset({});\n\n", var));
-
-                    // Transform state variable references in the template
-                    // Wrap state variables in $.get() inside template expressions
-                    let template_str = wrap_state_vars_in_get(content_template, &self.state_vars);
-
-                    template_effects.push(format!(
-                        "\t$.template_effect(() => $.set_text({}, `{}`));\n",
-                        text_var, template_str
-                    ));
-                } else {
-                    // Static content - set directly as textContent
-                    // Evaluate constant expressions at compile time
-                    let evaluated = evaluate_constant_template(content_template, &self.const_vars);
-                    code.push_str(&format!("\t{}.textContent = '{}';\n\n", var, evaluated));
-                }
-            } else if !exprs.is_empty() {
-                // Fallback: no content_template but has expressions (legacy handling)
-                let combined: Vec<String> = exprs
-                    .iter()
-                    .filter_map(|e| e.expression.as_ref())
-                    .map(|expr| try_constant_fold(expr))
-                    .collect();
-
-                match combined.len() {
-                    1 => {
-                        code.push_str(&format!("\t{}.textContent = {};\n\n", var, combined[0]));
-                    }
-                    n if n > 1 => {
-                        let all_literals = combined.iter().all(|s| {
-                            (s.starts_with('\'') && s.ends_with('\''))
-                                || (s.starts_with('"') && s.ends_with('"'))
-                        });
-
-                        if all_literals {
-                            let combined_str: String = combined
-                                .iter()
-                                .map(|s| {
-                                    if s.len() >= 2 {
-                                        &s[1..s.len() - 1]
-                                    } else {
-                                        s.as_str()
-                                    }
-                                })
-                                .collect();
-                            code.push_str(&format!(
-                                "\t{}.textContent = '{}';\n\n",
-                                var, combined_str
-                            ));
-                        } else if let Some(last) = combined.last() {
-                            code.push_str(&format!("\t{}.textContent = {};\n\n", var, last));
-                        }
-                    }
-                    _ => {}
-                }
-            }
-
-            // Bindings (collect for after navigation)
-            for (bind_name, bind_expr) in &elem.bindings {
-                if bind_name == "value" {
-                    bindings_code.push_str(&format!(
-                        "\t$.bind_value({}, () => $.get({}), ($$value) => $.set({}, $$value));\n",
-                        var, bind_expr, bind_expr
-                    ));
-                }
-            }
-
-            prev_var = Some(var);
         }
 
-        // Handle components at the end
+        // Process all nodes in order
         for node in &self.nodes {
-            if let NodeType::Component(name) = &node.node_type {
-                if prev_var.is_some() {
-                    code.push_str(&format!(
-                        "\tvar {} = $.sibling({}, 2);\n\n",
-                        node.var_name,
-                        prev_var.unwrap()
-                    ));
+            match &node.node_type {
+                NodeType::Element(_) => {
+                    let var = &node.var_name;
+                    let is_root_element = var == root_var;
+
+                    // Get expressions for this element
+                    let exprs = element_expressions.get(var).cloned().unwrap_or_default();
+                    let has_exprs = !exprs.is_empty();
+
+                    // Check if this element needs runtime code
+                    let needs_runtime = has_exprs
+                        || !node.event_handlers.is_empty()
+                        || !node.bindings.is_empty()
+                        || node.is_input
+                        || node.content_template.is_some();
+
+                    if !needs_runtime {
+                        continue;
+                    }
+
+                    // Navigation code - skip for root element as it's already assigned
+                    if !is_root_element {
+                        if first_nav || (is_fragment && prev_var.is_none()) {
+                            code.push_str(&format!(
+                                "\tvar {} = $.first_child({});\n\n",
+                                var, root_var
+                            ));
+                            first_nav = false;
+                        } else if let Some(ref prev) = prev_var {
+                            code.push_str(&format!("\tvar {} = $.sibling({}, 2);\n\n", var, prev));
+                        }
+                    }
+
+                    // Remove input defaults for input elements
+                    if node.is_input {
+                        code.push_str(&format!("\t$.remove_input_defaults({});\n\n", var));
+                    }
+
+                    // Event handlers
+                    for (event_name, handler) in &node.event_handlers {
+                        let transformed_handler =
+                            transform_state_assignments(handler, &self.state_vars);
+                        code.push_str(&format!(
+                            "\t{}.__{} = {};\n",
+                            var, event_name, transformed_handler
+                        ));
+                    }
+
+                    // Check if element has a content template (combined text + expressions)
+                    if let Some(content_template) = &node.content_template {
+                        let is_reactive = self
+                            .state_vars
+                            .iter()
+                            .any(|sv| content_template.contains(sv));
+
+                        if is_reactive {
+                            let text_var = "text".to_string();
+                            code.push_str(&format!("\tvar {} = $.child({});\n\n", text_var, var));
+                            code.push_str(&format!("\t$.reset({});\n\n", var));
+                            let template_str =
+                                wrap_state_vars_in_get(content_template, &self.state_vars);
+                            template_effect_parts.push((text_var, template_str));
+                        } else {
+                            let evaluated =
+                                evaluate_constant_template(content_template, &self.const_vars);
+                            code.push_str(&format!("\t{}.textContent = '{}';\n\n", var, evaluated));
+                        }
+                    } else if has_exprs {
+                        // Handle expressions without content_template
+                        let combined: Vec<String> = exprs
+                            .iter()
+                            .filter_map(|e| e.expression.as_ref())
+                            .map(|expr| try_constant_fold(expr))
+                            .collect();
+
+                        match combined.len() {
+                            1 => {
+                                code.push_str(&format!(
+                                    "\t{}.textContent = {};\n\n",
+                                    var, combined[0]
+                                ));
+                            }
+                            n if n > 1 => {
+                                let all_literals = combined.iter().all(|s| {
+                                    (s.starts_with('\'') && s.ends_with('\''))
+                                        || (s.starts_with('"') && s.ends_with('"'))
+                                });
+
+                                if all_literals {
+                                    let combined_str: String = combined
+                                        .iter()
+                                        .map(|s| {
+                                            if s.len() >= 2 {
+                                                &s[1..s.len() - 1]
+                                            } else {
+                                                s.as_str()
+                                            }
+                                        })
+                                        .collect();
+                                    code.push_str(&format!(
+                                        "\t{}.textContent = '{}';\n\n",
+                                        var, combined_str
+                                    ));
+                                } else if let Some(last) = combined.last() {
+                                    code.push_str(&format!(
+                                        "\t{}.textContent = {};\n\n",
+                                        var, last
+                                    ));
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    // Bindings
+                    for (bind_name, bind_expr) in &node.bindings {
+                        if bind_name == "value" {
+                            bindings_code.push_str(&format!(
+                                "\t$.bind_value({}, () => $.get({}), ($$value) => $.set({}, $$value));\n",
+                                var, bind_expr, bind_expr
+                            ));
+                        }
+                    }
+
+                    prev_var = Some(var.clone());
                 }
-                if let Some(expr) = &node.expression {
-                    code.push_str(&format!("\t{}({}, {{ {} }});\n", name, node.var_name, expr));
-                } else {
-                    code.push_str(&format!("\t{}({});\n", name, node.var_name));
+                NodeType::ExpressionInElement => {
+                    // Handled as part of the element above
                 }
+                NodeType::AwaitBlock => {
+                    let var = &node.var_name;
+
+                    // Navigate to await anchor
+                    if let Some(ref prev) = prev_var {
+                        code.push_str(&format!("\tvar {} = $.sibling({}, 2);\n\n", var, prev));
+                    } else if first_nav {
+                        code.push_str(&format!("\tvar {} = $.first_child({});\n\n", var, root_var));
+                        first_nav = false;
+                    }
+
+                    // Generate $.await() call
+                    if let Some(ref promise_expr) = node.expression {
+                        let then_callback = if let Some(ref then_val) = node.content_template {
+                            format!("($$anchor, {}) => {{}}", then_val)
+                        } else {
+                            "($$anchor) => {}".to_string()
+                        };
+                        code.push_str(&format!(
+                            "\t$.await({}, () => $.get({}), null, {});\n\n",
+                            var, promise_expr, then_callback
+                        ));
+                    }
+
+                    prev_var = Some(var.clone());
+                }
+                NodeType::RootExpression => {
+                    let var = &node.var_name;
+
+                    // Navigate to text position
+                    if let Some(ref prev) = prev_var {
+                        code.push_str(&format!("\tvar {} = $.sibling({});\n\n", var, prev));
+                    }
+
+                    // Add to template effects
+                    if let Some(ref expr) = node.expression {
+                        let template_str = format!(" ${{{} ?? ''}}", expr);
+                        template_effect_parts.push((var.clone(), template_str));
+                    }
+
+                    prev_var = Some(var.clone());
+                }
+                NodeType::Component(name) => {
+                    if let Some(ref prev) = prev_var {
+                        code.push_str(&format!(
+                            "\tvar {} = $.sibling({}, 2);\n\n",
+                            node.var_name, prev
+                        ));
+                    }
+                    if let Some(ref expr) = node.expression {
+                        code.push_str(&format!("\t{}({}, {{ {} }});\n", name, node.var_name, expr));
+                    } else {
+                        code.push_str(&format!("\t{}({});\n", name, node.var_name));
+                    }
+                    prev_var = Some(node.var_name.clone());
+                }
+                NodeType::Anchor => {}
             }
         }
 
         // Add bindings after all navigation
         code.push_str(&bindings_code);
 
-        // Add template effects at the end
-        for effect in template_effects {
-            code.push_str(&effect);
+        // Generate combined template_effect if there are multiple reactive parts
+        match template_effect_parts.len() {
+            0 => {}
+            1 => {
+                let (var_name, template_str) = &template_effect_parts[0];
+                code.push_str(&format!(
+                    "\t$.template_effect(() => $.set_text({}, `{}`));\n",
+                    var_name, template_str
+                ));
+            }
+            _ => {
+                code.push_str("\t$.template_effect(() => {\n");
+                for (var_name, template_str) in &template_effect_parts {
+                    code.push_str(&format!(
+                        "\t\t$.set_text({}, `{}`);\n",
+                        var_name, template_str
+                    ));
+                }
+                code.push_str("\t});\n");
+            }
         }
 
         code

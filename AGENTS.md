@@ -156,7 +156,7 @@ cargo test --test compiler_fixtures -- --nocapture
 
 Current status:
 - **Parser**: 22/22 modern mode tests passing (100%)
-- **Compiler**: Total 12/25 (Client 13/25, Server 17/25) tests passing
+- **Compiler**: Total 13/25 (Client 14/25, Server 17/25) tests passing
 
 ## Current Progress
 
@@ -175,7 +175,7 @@ Current status:
 - [x] Script/Style parsing
 - [x] CSS parsing
 
-### Compiler (Total: 12/25, Client: 13/25, Server: 17/25 tests passing)
+### Compiler (Total: 13/25, Client: 14/25, Server: 17/25 tests passing)
 
 **Passing tests (client + server):**
 - hello-world
@@ -191,6 +191,7 @@ Current status:
 - bind-this
 - function-prop-no-getter
 - bind-component-snippet (client only)
+- await-block-scope (client only)
 
 **Server (17/25 passing):**
 
@@ -232,15 +233,18 @@ Current status:
 - [x] `bind:this` support for components (`$.bind_this()`)
 - [x] Arrow function state transformation in component props
 - [x] Component children callback with `$.next()`, `$.text()`, `$.template_effect()`
+- [x] Client-side `{#await}` block runtime code (`$.await()`, navigation)
+- [x] Root-level expressions with navigation (`$.sibling()`)
+- [x] Combined `$.template_effect()` for multiple reactive text nodes
 
 **Pending features:**
 - [ ] Props destructuring with defaults (partial)
-- [ ] Reactive effects (`$.template_effect`)
-- [ ] Control flow blocks (`{#if}`, `{#await}`)
+- [ ] Class field transformation (`$state`, `$derived` in classes)
+- [ ] Server-side component binding settling (do/while pattern)
+- [ ] Function array pattern for `$.template_effect`
+- [ ] `{#if}` block client-side code generation
 - [ ] CSS scoping and transformation
-- [ ] Client-side bindings
-- [ ] Snippet blocks
-- [ ] Component bindings with getter/setter
+- [ ] Complex navigation for skip-static-subtree pattern
 
 ### Integration
 
