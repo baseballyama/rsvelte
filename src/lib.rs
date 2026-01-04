@@ -17,7 +17,9 @@
 //! ```
 
 pub mod ast;
+pub mod compiler;
 pub mod error;
 pub mod parser;
 
+pub use compiler::{CompileError, CompileOptions, CompileResult, GenerateMode, compile};
 pub use parser::{ParseOptions, parse, parse_parallel};
