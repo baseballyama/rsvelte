@@ -9,6 +9,7 @@
 //! - **Thread safety**: Parser state is isolated, enabling parallel parsing of multiple files
 //! - **Compatibility**: Output matches the official Svelte compiler's AST format
 
+mod expression;
 mod lexer;
 mod state;
 

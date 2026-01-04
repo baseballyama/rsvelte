@@ -17,22 +17,24 @@ use super::span::SourceLocation;
 /// The root node of a Svelte component AST.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Root {
-    #[serde(rename = "type")]
-    pub node_type: RootType,
+    /// CSS stylesheet, or null if none.
+    pub css: Option<Box<StyleSheet>>,
+    /// JS comments (for modern AST format, represented as empty array).
+    #[serde(default)]
+    pub js: Vec<serde_json::Value>,
     pub start: u32,
     pub end: u32,
+    #[serde(rename = "type")]
+    pub node_type: RootType,
     pub fragment: Fragment,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Component options, or null if none.
     pub options: Option<Box<SvelteOptions>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub css: Option<Box<StyleSheet>>,
+    /// Instance script, serialized only if present.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub instance: Option<Box<Script>>,
+    /// Module script, serialized only if present.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub module: Option<Box<Script>>,
-    /// JS comments (for modern AST format, represented as empty array)
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub js: Vec<()>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -181,12 +183,11 @@ pub struct AttachTag {
 /// An if block: `{#if condition}...{:else if}...{:else}...{/if}`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IfBlock {
+    pub elseif: bool,
     pub start: u32,
     pub end: u32,
-    pub elseif: bool,
     pub test: Expression,
     pub consequent: Fragment,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub alternate: Option<Fragment>,
 }
 
