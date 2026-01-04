@@ -662,35 +662,99 @@ impl ClientCodeGenerator {
                     let elem_name = elem.name.as_str();
                     each_info.body_element = Some(elem_name.to_string());
                     each_info.template_var = Some(template_var.clone());
-                    each_info.template_html = Some(format!("<{elem_name}></{elem_name}>"));
 
-                    // Check for expressions inside the element - build text template
-                    let mut text_parts = Vec::new();
-                    for child in &elem.fragment.nodes {
-                        if let TemplateNode::ExpressionTag(tag) = child {
-                            let expr_start = tag.start as usize;
-                            let expr_end = tag.end as usize;
-                            if expr_start + 1 < expr_end && expr_end <= self.source.len() {
-                                let expr =
-                                    self.source[expr_start + 1..expr_end - 1].trim().to_string();
-                                text_parts.push(format!("${{{}}}", expr));
-                            }
-                        } else if let TemplateNode::Text(text) = child {
-                            // Include text as-is (don't trim)
-                            let data = &text.data;
-                            if !data.is_empty() {
-                                text_parts.push(data.to_string());
+                    // Build the template with static attributes and text content
+                    let mut template_html = format!("<{elem_name}");
+
+                    // Collect static attributes
+                    for attr in &elem.attributes {
+                        if let Attribute::Attribute(attr_node) = attr {
+                            let attr_name = attr_node.name.as_str();
+                            // Handle static attributes (text values or True)
+                            match &attr_node.value {
+                                AttributeValue::Sequence(parts) => {
+                                    // Check if all parts are text (no expressions)
+                                    let all_text = parts
+                                        .iter()
+                                        .all(|p| matches!(p, AttributeValuePart::Text(_)));
+                                    if all_text && !parts.is_empty() {
+                                        let value: String = parts
+                                            .iter()
+                                            .filter_map(|p| {
+                                                if let AttributeValuePart::Text(t) = p {
+                                                    Some(t.data.as_str())
+                                                } else {
+                                                    None
+                                                }
+                                            })
+                                            .collect();
+                                        template_html
+                                            .push_str(&format!(r#" {}="{}""#, attr_name, value));
+                                    }
+                                }
+                                AttributeValue::True(_) => {
+                                    // Boolean attribute
+                                    template_html.push_str(&format!(" {}", attr_name));
+                                }
+                                _ => {}
                             }
                         }
                     }
-                    // Join all parts - this gives us the full template like "index: ${i}"
-                    if !text_parts.is_empty() {
-                        let combined = text_parts.join("");
-                        let trimmed = combined.trim().to_string();
-                        if !trimmed.is_empty() {
-                            each_info
-                                .body_expressions
-                                .push(format!("TEMPLATE:{}", trimmed));
+                    template_html.push('>');
+
+                    // Check for static text content
+                    let mut has_only_static_text = true;
+                    let mut static_text = String::new();
+                    for child in &elem.fragment.nodes {
+                        match child {
+                            TemplateNode::Text(text) => {
+                                let trimmed = text.data.trim();
+                                if !trimmed.is_empty() {
+                                    static_text.push_str(trimmed);
+                                }
+                            }
+                            TemplateNode::ExpressionTag(_) => {
+                                has_only_static_text = false;
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    if has_only_static_text && !static_text.is_empty() {
+                        template_html.push_str(&static_text);
+                    }
+
+                    template_html.push_str(&format!("</{elem_name}>"));
+                    each_info.template_html = Some(template_html);
+
+                    // Check for dynamic expressions inside the element - build text template
+                    if !has_only_static_text {
+                        let mut text_parts = Vec::new();
+                        for child in &elem.fragment.nodes {
+                            if let TemplateNode::ExpressionTag(tag) = child {
+                                let expr_start = tag.start as usize;
+                                let expr_end = tag.end as usize;
+                                if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                                    let expr = self.source[expr_start + 1..expr_end - 1]
+                                        .trim()
+                                        .to_string();
+                                    text_parts.push(format!("${{{}}}", expr));
+                                }
+                            } else if let TemplateNode::Text(text) = child {
+                                let data = &text.data;
+                                if !data.is_empty() {
+                                    text_parts.push(data.to_string());
+                                }
+                            }
+                        }
+                        if !text_parts.is_empty() {
+                            let combined = text_parts.join("");
+                            let trimmed = combined.trim().to_string();
+                            if !trimmed.is_empty() {
+                                each_info
+                                    .body_expressions
+                                    .push(format!("TEMPLATE:{}", trimmed));
+                            }
                         }
                     }
                     break;
