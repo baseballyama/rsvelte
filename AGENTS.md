@@ -156,7 +156,7 @@ cargo test --test compiler_fixtures -- --nocapture
 
 Current status:
 - **Parser**: 22/22 modern mode tests passing (100%)
-- **Compiler**: Total 10/25 (Client 10/25, Server 17/25) tests passing
+- **Compiler**: Total 12/25 (Client 12/25, Server 17/25) tests passing
 
 ## Current Progress
 
@@ -175,9 +175,9 @@ Current status:
 - [x] Script/Style parsing
 - [x] CSS parsing
 
-### Compiler (Total: 10/25, Client: 10/25, Server: 17/25 tests passing)
+### Compiler (Total: 12/25, Client: 12/25, Server: 17/25 tests passing)
 
-**Passing tests (client):**
+**Passing tests (client + server):**
 - hello-world
 - purity
 - svelte-element
@@ -188,8 +188,10 @@ Current status:
 - imports-in-modules
 - each-string-template
 - each-index-non-null
+- bind-this
+- function-prop-no-getter
 
-**Server (17/25 passing)**
+**Server (17/25 passing):**
 
 **Implemented features:**
 - [x] Compiler fixture test infrastructure
@@ -223,6 +225,9 @@ Current status:
 - [x] Constant folding for template expressions with nullish coalescing
 - [x] `$.get()` wrapper for state variables in template effects
 - [x] `$.update()` for increment/decrement operations
+- [x] `bind:this` support for components (`$.bind_this()`)
+- [x] Arrow function state transformation in component props
+- [x] Component children callback with `$.next()`, `$.text()`, `$.template_effect()`
 
 **Pending features:**
 - [ ] Props destructuring with defaults (partial)
