@@ -54,11 +54,27 @@ src/
 │   ├── mod.rs          # Public API: parse(), parse_parallel()
 │   ├── lexer.rs        # Tokenization utilities
 │   └── state.rs        # Parser state machine
+├── compiler/           # Compiler implementation
+│   ├── mod.rs          # Public API: compile()
+│   └── phases/         # Compiler phases (matching Svelte's architecture)
+│       ├── mod.rs
+│       ├── phase1_parse.rs     # Phase 1: Parsing
+│       ├── phase2_analyze/     # Phase 2: Analysis
+│       │   ├── mod.rs
+│       │   ├── scope.rs        # Scope tracking
+│       │   ├── types.rs        # Analysis types
+│       │   └── visitors.rs     # AST visitors
+│       └── phase3_transform/   # Phase 3: Code generation
+│           ├── mod.rs
+│           ├── client.rs       # Client-side JS generation
+│           ├── server.rs       # Server-side JS generation
+│           └── css.rs          # CSS transformation
 └── error/              # Error types
     └── mod.rs
 
 tests/
-└── parser_fixtures.rs  # Fixture tests against Svelte test suite
+├── parser_fixtures.rs    # Parser fixture tests
+└── compiler_fixtures.rs  # Compiler fixture tests
 
 benches/
 └── parser.rs           # Performance benchmarks
@@ -131,13 +147,20 @@ cargo bench
 
 Track progress by running:
 ```bash
+# Parser tests
 cargo test test_parser_modern_fixtures -- --nocapture
-cargo test test_parser_legacy_fixtures -- --nocapture
+
+# Compiler tests
+cargo test --test compiler_fixtures -- --nocapture
 ```
 
-Current status: Parser skeleton implemented, full implementation pending.
+Current status:
+- **Parser**: 22/22 modern mode tests passing (100%)
+- **Compiler**: Total 2/25 (Client 2/25, Server 5/25) tests passing
 
 ## Current Progress
+
+### Parser (22/22 modern mode tests passing)
 
 - [x] Project structure
 - [x] AST type definitions
@@ -145,11 +168,43 @@ Current status: Parser skeleton implemented, full implementation pending.
 - [x] Basic text parsing
 - [x] Pre-commit hooks (fmt + clippy)
 - [x] GitHub Actions CI
-- [ ] Element parsing
-- [ ] Block parsing ({#if}, {#each}, etc.)
-- [ ] Expression parsing
-- [ ] Directive parsing
-- [ ] Script/Style parsing
-- [ ] CSS parsing
-- [ ] N-API bindings
+- [x] Element parsing
+- [x] Block parsing ({#if}, {#each}, {#await}, {#key}, {#snippet})
+- [x] Expression parsing
+- [x] Directive parsing (bind:, on:, class:, style:, use:, transition:, animate:)
+- [x] Script/Style parsing
+- [x] CSS parsing
+
+### Compiler (Total: 2/25, Client: 2/25, Server: 5/25 tests passing)
+
+**Passing tests:**
+- hello-world (client + server)
+- purity (client + server)
+- bind-this (server only)
+- functional-templating (server only)
+- hmr (server only)
+
+**Implemented features:**
+- [x] Compiler fixture test infrastructure
+- [x] Phase 1/2/3 architecture (Parse → Analyze → Transform)
+- [x] Client-side HTML template generation (`$.from_html`)
+- [x] Fragment handling for multiple root elements
+- [x] Expression handling and navigation code (`$.first_child`, `$.sibling`)
+- [x] Component instantiation code generation
+- [x] Constant folding for Math.max/Math.min expressions
+- [x] Server-side HTML rendering (`$$renderer.push`)
+- [x] Expression escaping (`$.escape`)
+- [x] Whitespace normalization between elements
+
+**Pending features:**
+- [ ] Script block processing (`$state`, `$props`, `$derived`)
+- [ ] Reactive effects (`$.template_effect`)
+- [ ] Control flow blocks (`{#if}`, `{#each}`, `{#await}`)
+- [ ] CSS scoping and transformation
+- [ ] Client-side bindings
+
+### Integration
+
+- [ ] N-API bindings for Node.js
+- [ ] Vite plugin compatibility
 - [ ] Full test suite compatibility
