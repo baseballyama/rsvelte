@@ -156,7 +156,7 @@ cargo test --test compiler_fixtures -- --nocapture
 
 Current status:
 - **Parser**: 22/22 modern mode tests passing (100%)
-- **Compiler**: Total 13/25 (Client 14/25, Server 17/25) tests passing
+- **Compiler**: Total 14/25 (Client 15/25, Server 17/25) tests passing
 
 ## Current Progress
 
@@ -175,7 +175,7 @@ Current status:
 - [x] Script/Style parsing
 - [x] CSS parsing
 
-### Compiler (Total: 13/25, Client: 14/25, Server: 17/25 tests passing)
+### Compiler (Total: 14/25, Client: 15/25, Server: 17/25 tests passing)
 
 **Passing tests (client + server):**
 - hello-world
@@ -191,9 +191,18 @@ Current status:
 - bind-this
 - function-prop-no-getter
 - bind-component-snippet (client only)
-- await-block-scope (client only)
+- await-block-scope
+- text-nodes-deriveds
+- destructured-assignments
+- export-state
 
-**Server (17/25 passing):**
+**Failing tests (require compile options or complex features):**
+- async-* tests (6 tests) - require `async` compile option
+- hmr - requires `hmr` compile option
+- functional-templating - requires `fragments: 'tree'` compile option
+- class-state-field-constructor-assignment - requires class field transformation
+- bind-component-snippet (server) - requires do/while settling pattern
+- skip-static-subtree (client) - requires advanced navigation
 
 **Implemented features:**
 - [x] Compiler fixture test infrastructure
@@ -236,15 +245,18 @@ Current status:
 - [x] Client-side `{#await}` block runtime code (`$.await()`, navigation)
 - [x] Root-level expressions with navigation (`$.sibling()`)
 - [x] Combined `$.template_effect()` for multiple reactive text nodes
+- [x] Function array pattern for `$.template_effect` (`[fn1, fn2]` syntax)
+- [x] State variable skip detection for wrapper functions
 
 **Pending features:**
-- [ ] Props destructuring with defaults (partial)
-- [ ] Class field transformation (`$state`, `$derived` in classes)
+- [ ] Compile options support (async, hmr, fragments)
+- [ ] Class field transformation (`$state`, `$derived` in classes with getter/setter)
 - [ ] Server-side component binding settling (do/while pattern)
-- [ ] Function array pattern for `$.template_effect`
 - [ ] `{#if}` block client-side code generation
 - [ ] CSS scoping and transformation
-- [ ] Complex navigation for skip-static-subtree pattern
+- [ ] Advanced element navigation with skip counts
+- [ ] Custom element attribute handling (`$.set_custom_element_data`)
+- [ ] Special attribute handling (`autofocus`, `muted`, option values)
 
 ### Integration
 
