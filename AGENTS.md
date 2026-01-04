@@ -156,7 +156,7 @@ cargo test --test compiler_fixtures -- --nocapture
 
 Current status:
 - **Parser**: 22/22 modern mode tests passing (100%)
-- **Compiler**: Total 2/25 (Client 2/25, Server 14/25) tests passing
+- **Compiler**: Total 2/25 (Client 2/25, Server 15/25) tests passing
 
 ## Current Progress
 
@@ -175,7 +175,7 @@ Current status:
 - [x] Script/Style parsing
 - [x] CSS parsing
 
-### Compiler (Total: 2/25, Client: 2/25, Server: 14/25 tests passing)
+### Compiler (Total: 2/25, Client: 2/25, Server: 15/25 tests passing)
 
 **Passing tests:**
 - hello-world (client + server)
@@ -192,6 +192,7 @@ Current status:
 - imports-in-modules (server only)
 - skip-static-subtree (server only)
 - function-prop-no-getter (server only)
+- await-block-scope (server only)
 
 **Implemented features:**
 - [x] Compiler fixture test infrastructure
@@ -215,10 +216,12 @@ Current status:
 - [x] `{@html expr}` tag (`$.html()`)
 - [x] `<option>` element handling (`$$renderer.option()`)
 - [x] Component children with `children` callback and `$$slots`
+- [x] `$derived()` transformation (SSR)
+- [x] `{#await}` block (`$.await()`)
+- [x] ASI (Automatic Semicolon Insertion) for statements
 
 **Pending features:**
 - [ ] Props destructuring with defaults
-- [ ] `$derived()` transformation
 - [ ] Reactive effects (`$.template_effect`)
 - [ ] Control flow blocks (`{#if}`, `{#await}`)
 - [ ] CSS scoping and transformation

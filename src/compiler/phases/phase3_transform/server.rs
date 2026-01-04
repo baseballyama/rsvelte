@@ -81,6 +81,11 @@ enum OutputPart {
         attrs: Vec<(String, String)>,
         body: Vec<OutputPart>,
     },
+    /// Await block - produces $.await() call
+    AwaitBlock {
+        promise: String,
+        then_param: String,
+    },
 }
 
 impl<'a> ServerCodeGenerator<'a> {
@@ -597,8 +602,34 @@ impl<'a> ServerCodeGenerator<'a> {
         Ok(())
     }
 
-    fn generate_await_block(&mut self, _block: &AwaitBlock) -> Result<(), TransformError> {
-        self.output_parts.push(OutputPart::Comment);
+    fn generate_await_block(&mut self, block: &AwaitBlock) -> Result<(), TransformError> {
+        // Get the promise expression
+        let expr_start = block.expression.start().unwrap_or(0) as usize;
+        let expr_end = block.expression.end().unwrap_or(0) as usize;
+        let promise_expr = if expr_end > expr_start && expr_end <= self.source.len() {
+            self.source[expr_start..expr_end].trim().to_string()
+        } else {
+            "null".to_string()
+        };
+
+        // Get the then value variable name if present
+        let then_param = if let Some(ref value) = block.value {
+            let start = value.start().unwrap_or(0) as usize;
+            let end = value.end().unwrap_or(0) as usize;
+            if end > start && end <= self.source.len() {
+                self.source[start..end].trim().to_string()
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+        };
+
+        self.output_parts.push(OutputPart::AwaitBlock {
+            promise: promise_expr,
+            then_param,
+        });
+
         Ok(())
     }
 
@@ -878,6 +909,33 @@ export default function {component_name}($$renderer{props_param}) {{}}"#,
                     // Close callback
                     body_code.push_str(&format!("{}}});\n", indent));
                 }
+                OutputPart::AwaitBlock {
+                    promise,
+                    then_param,
+                } => {
+                    // Flush current HTML before await block
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+
+                    // Generate $.await call
+                    let pending_callback = "() => {}";
+                    let then_callback = if then_param.is_empty() {
+                        "() => {}".to_string()
+                    } else {
+                        format!("({}) => {{}}", then_param)
+                    };
+
+                    body_code.push_str(&format!(
+                        "{}$.await($$renderer, {}, {}, {});\n",
+                        indent, promise, pending_callback, then_callback
+                    ));
+
+                    // Add closing marker to the next push
+                    current_html.push_str("<!--]-->");
+                }
             }
         }
 
@@ -1096,6 +1154,9 @@ fn transform_script_content(script: &str) -> String {
         // Basic formatting fixes
         let line = format_js_line(&line);
 
+        // Add semicolons to statements that need them (ASI fix)
+        let line = add_statement_semicolon(&line);
+
         // Don't add extra indentation if line already has proper indentation
         // Just ensure at least one tab at the start
         if line.starts_with('\t') {
@@ -1260,4 +1321,35 @@ fn transform_rune_call(line: &str, prefix: &str) -> String {
     }
 
     result
+}
+
+/// Add semicolons to statements that need them (ASI fix).
+/// This is a heuristic approach for common patterns.
+fn add_statement_semicolon(line: &str) -> String {
+    let trimmed = line.trim();
+
+    // Skip empty lines
+    if trimmed.is_empty() {
+        return line.to_string();
+    }
+
+    // Lines that already have proper termination
+    if trimmed.ends_with(';')
+        || trimmed.ends_with('{')
+        || trimmed.ends_with('}')
+        || trimmed.ends_with(',')
+    {
+        return line.to_string();
+    }
+
+    // Lines that look like statements needing semicolons:
+    // - Variable declarations: const/let/var ... ending with )
+    // - Assignments ending with )
+    if (trimmed.starts_with("const ") || trimmed.starts_with("let ") || trimmed.starts_with("var "))
+        && trimmed.ends_with(')')
+    {
+        return format!("{};", line);
+    }
+
+    line.to_string()
 }
