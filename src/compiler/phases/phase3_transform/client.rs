@@ -153,6 +153,24 @@ struct BindThisComponent {
     bind_var: String,
 }
 
+/// Represents a component with children for code generation.
+#[derive(Debug, Clone)]
+struct ComponentWithChildren {
+    /// Component name (e.g., "Button")
+    component_name: String,
+    /// Props string (comma-separated key: value pairs)
+    props: String,
+    /// Children content parts (text and expressions)
+    children_parts: Vec<ChildPart>,
+}
+
+/// A part of component children content.
+#[derive(Debug, Clone)]
+enum ChildPart {
+    Text(String),
+    Expression(String),
+}
+
 /// Client-side code generator.
 struct ClientCodeGenerator {
     component_name: String,
@@ -183,6 +201,8 @@ struct ClientCodeGenerator {
     svelte_elements: Vec<SvelteElementInfo>,
     /// Components with bind:this directive (for special code generation)
     bind_this_components: Vec<BindThisComponent>,
+    /// Components with children (for generating children callbacks)
+    components_with_children: Vec<ComponentWithChildren>,
 }
 
 impl ClientCodeGenerator {
@@ -216,6 +236,7 @@ impl ClientCodeGenerator {
             each_blocks: Vec::new(),
             svelte_elements: Vec::new(),
             bind_this_components: Vec::new(),
+            components_with_children: Vec::new(),
         }
     }
 
@@ -653,12 +674,7 @@ impl ClientCodeGenerator {
             }
         }
 
-        // Components are rendered as comment placeholders
-        self.html_parts.push("<!>".to_string());
-
-        let var_name = self.next_node_var();
-
-        // Extract props from attributes
+        // Extract props from attributes first (needed for all cases)
         let mut props = Vec::new();
         for attr in &component.attributes {
             if let Attribute::Attribute(node) = attr {
@@ -682,6 +698,53 @@ impl ClientCodeGenerator {
                 }
             }
         }
+
+        // Check if component has children - handle separately
+        let has_children = component
+            .fragment
+            .nodes
+            .iter()
+            .any(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()));
+
+        if has_children {
+            // Collect children content
+            let mut children_parts = Vec::new();
+            for node in &component.fragment.nodes {
+                match node {
+                    TemplateNode::Text(text) => {
+                        let data = text.data.as_str();
+                        if !data.is_empty() {
+                            children_parts.push(ChildPart::Text(data.to_string()));
+                        }
+                    }
+                    TemplateNode::ExpressionTag(tag) => {
+                        let expr_start = tag.start as usize;
+                        let expr_end = tag.end as usize;
+                        if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                            let expr = self.source[expr_start + 1..expr_end - 1].trim().to_string();
+                            children_parts.push(ChildPart::Expression(expr));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            if !children_parts.is_empty() {
+                // Store component with children for special code generation
+                self.components_with_children.push(ComponentWithChildren {
+                    component_name: comp_name.clone(),
+                    props: props.join(", "),
+                    children_parts,
+                });
+                // Don't add to nodes or html - will be generated separately
+                return Ok(());
+            }
+        }
+
+        // For components without children, use template placeholder
+        self.html_parts.push("<!>".to_string());
+
+        let var_name = self.next_node_var();
 
         let expression = if props.is_empty() {
             None
@@ -1115,7 +1178,42 @@ impl ClientCodeGenerator {
         let has_bind_this_only =
             !self.bind_this_components.is_empty() && html.is_empty() && self.nodes.is_empty();
 
-        let raw_output = if has_bind_this_only {
+        // Check for component with children only (special case)
+        let has_component_with_children =
+            !self.components_with_children.is_empty() && html.is_empty() && self.nodes.is_empty();
+
+        let raw_output = if has_component_with_children {
+            // Component with children - no template needed, generate children callback
+            let comp = &self.components_with_children[0];
+            let children_code = self.generate_children_callback(&comp.children_parts);
+            let props_with_children = if comp.props.is_empty() {
+                format!(
+                    "children: {},\n\n\t\t$$slots: {{ default: true }}",
+                    children_code
+                )
+            } else {
+                format!(
+                    "{},\n\n\t\tchildren: {},\n\n\t\t$$slots: {{ default: true }}",
+                    comp.props, children_code
+                )
+            };
+            format!(
+                r#"{system_imports}
+{hoisted_imports}
+export default function {component_name}({fn_params}) {{
+{script_code}	{comp_name}($$anchor, {{
+		{props_with_children}
+	}});
+}}"#,
+                system_imports = system_imports,
+                hoisted_imports = hoisted_imports,
+                component_name = self.component_name,
+                fn_params = fn_params,
+                script_code = script_code,
+                comp_name = comp.component_name,
+                props_with_children = props_with_children
+            )
+        } else if has_bind_this_only {
             // Component with only bind:this - no template needed
             let bind_comp = &self.bind_this_components[0];
             let legacy_prop = if self.uses_runes {
@@ -1254,6 +1352,63 @@ export default function {component_name}({fn_params}) {{
         match parse_and_generate(&raw_output) {
             Ok(normalized) => normalized,
             Err(_) => raw_output, // Fall back to raw output if parsing fails
+        }
+    }
+
+    /// Generate children callback for component with children.
+    /// Creates: ($$anchor, $$slotProps) => { $.next(); var text = $.text(); ... }
+    fn generate_children_callback(&self, children_parts: &[ChildPart]) -> String {
+        // Build the content template from children parts
+        let mut content_parts = Vec::new();
+        let mut has_expressions = false;
+
+        for part in children_parts {
+            match part {
+                ChildPart::Text(text) => {
+                    // Normalize whitespace in text - collapse multiple whitespace to single space
+                    let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
+                    if !normalized.is_empty() {
+                        // Add trailing space if this is followed by an expression
+                        content_parts.push(format!("{} ", normalized));
+                    }
+                }
+                ChildPart::Expression(expr) => {
+                    has_expressions = true;
+                    // Wrap state variable access in $.get()
+                    let transformed = transform_state_in_expr(expr, &self.state_vars);
+                    content_parts.push(format!("${{{} ?? ''}}", transformed));
+                }
+            }
+        }
+
+        // Remove trailing space if present
+        let content_template = content_parts.join("").trim_end().to_string();
+
+        if has_expressions {
+            // Generate callback with template_effect
+            format!(
+                r#"($$anchor, $$slotProps) => {{
+			$.next();
+
+			var text = $.text();
+
+			$.template_effect(() => $.set_text(text, `{}`));
+			$.append($$anchor, text);
+		}}"#,
+                content_template
+            )
+        } else {
+            // Static content only
+            format!(
+                r#"($$anchor, $$slotProps) => {{
+			$.next();
+
+			var text = $.text('{}');
+
+			$.append($$anchor, text);
+		}}"#,
+                content_parts.join("")
+            )
         }
     }
 
@@ -2373,21 +2528,19 @@ fn transform_arrow_function_expr(expr: &str, state_vars: &[String]) -> String {
 
 /// Transform state variable accesses in an expression.
 /// e.g., `plusOne(count)` becomes `plusOne($.get(count))`
+/// Also handles simple variable access: `count` becomes `$.get(count)`
 fn transform_state_in_expr(expr: &str, state_vars: &[String]) -> String {
     let mut result = expr.to_string();
     for var in state_vars {
-        // Match the variable as a word boundary
-        let pattern = format!(r"(?<![a-zA-Z_$]){}(?![a-zA-Z0-9_$])", var);
-        if let Ok(re) = regex::Regex::new(&pattern) {
-            result = re
-                .replace_all(&result, format!("$.get({})", var))
-                .to_string();
-        } else {
-            // Fallback: simple replacement
-            let word_pattern = format!("({})", var);
-            if result.contains(&word_pattern) {
-                result = result.replace(&word_pattern, &format!("($.get({}))", var));
-            }
+        // Simple case: expression is exactly the variable name
+        if expr.trim() == var {
+            return format!("$.get({})", var);
+        }
+
+        // Check if the variable appears as a function argument: funcName(var)
+        let in_parens = format!("({})", var);
+        if result.contains(&in_parens) {
+            result = result.replace(&in_parens, &format!("($.get({}))", var));
         }
     }
     result
