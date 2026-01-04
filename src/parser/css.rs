@@ -1,0 +1,1247 @@
+//! CSS parsing for Svelte style blocks.
+//!
+//! This module implements a simple CSS parser that produces an AST compatible
+//! with Svelte's expected CSS output format.
+
+use serde_json::{Map, Value};
+
+/// Parser for CSS selectors
+struct SelectorParser<'a> {
+    source: &'a str,
+    offset: usize,
+    index: usize,
+}
+
+impl<'a> SelectorParser<'a> {
+    fn new(source: &'a str, offset: usize) -> Self {
+        Self {
+            source,
+            offset,
+            index: 0,
+        }
+    }
+
+    fn parse_selectors(&mut self, selectors: &mut Vec<Value>) {
+        while !self.is_eof() {
+            self.skip_whitespace();
+            if self.is_eof() {
+                break;
+            }
+
+            // Skip comments
+            if self.match_str("/*") {
+                self.skip_block_comment();
+                continue;
+            }
+
+            let c = self.current_char();
+
+            if c == ':' {
+                // Pseudo-element (::) or pseudo-class (:)
+                if self.peek_next_char() == ':' {
+                    // Pseudo-element selector
+                    if let Some(selector) = self.parse_pseudo_element_selector() {
+                        selectors.push(selector);
+                    }
+                } else {
+                    // Pseudo-class selector
+                    if let Some(selector) = self.parse_pseudo_class_selector() {
+                        selectors.push(selector);
+                    }
+                }
+            } else if c == '.' {
+                // Class selector
+                if let Some(selector) = self.parse_class_selector() {
+                    selectors.push(selector);
+                }
+            } else if c == '#' {
+                // ID selector
+                if let Some(selector) = self.parse_id_selector() {
+                    selectors.push(selector);
+                }
+            } else if c == '[' {
+                // Attribute selector
+                if let Some(selector) = self.parse_attribute_selector() {
+                    selectors.push(selector);
+                }
+            } else if c == '*' {
+                // Universal selector
+                let start = self.offset + self.index;
+                self.advance();
+                let end = self.offset + self.index;
+
+                let mut obj = Map::new();
+                obj.insert(
+                    "type".to_string(),
+                    Value::String("TypeSelector".to_string()),
+                );
+                obj.insert("name".to_string(), Value::String("*".to_string()));
+                obj.insert("start".to_string(), Value::Number((start as i64).into()));
+                obj.insert("end".to_string(), Value::Number((end as i64).into()));
+                selectors.push(Value::Object(obj));
+            } else if c.is_alphabetic() || c == '-' || c == '_' {
+                // Type selector (element name)
+                if let Some(selector) = self.parse_type_selector() {
+                    selectors.push(selector);
+                }
+            } else {
+                // Unknown character, skip it
+                self.advance();
+            }
+        }
+    }
+
+    fn parse_pseudo_element_selector(&mut self) -> Option<Value> {
+        let start = self.offset + self.index;
+        self.advance(); // consume first ':'
+        self.advance(); // consume second ':'
+
+        let name = self.read_identifier();
+        let name_end = self.offset + self.index;
+
+        // Check for arguments in parentheses
+        if self.current_char() == '(' {
+            self.skip_parenthesized_content();
+        }
+
+        let mut obj = Map::new();
+        obj.insert(
+            "type".to_string(),
+            Value::String("PseudoElementSelector".to_string()),
+        );
+        obj.insert("name".to_string(), Value::String(name));
+        obj.insert("start".to_string(), Value::Number((start as i64).into()));
+        obj.insert("end".to_string(), Value::Number((name_end as i64).into()));
+
+        Some(Value::Object(obj))
+    }
+
+    fn parse_pseudo_class_selector(&mut self) -> Option<Value> {
+        let start = self.offset + self.index;
+        self.advance(); // consume ':'
+
+        let name = self.read_identifier();
+
+        // Check for arguments in parentheses
+        let args = if self.current_char() == '(' {
+            let args_start = self.offset + self.index + 1;
+            self.advance(); // consume '('
+
+            // Read content inside parentheses
+            let content_start = self.index;
+            let mut depth = 1;
+            while !self.is_eof() && depth > 0 {
+                let c = self.current_char();
+                if c == '(' {
+                    depth += 1;
+                } else if c == ')' {
+                    depth -= 1;
+                    if depth == 0 {
+                        break;
+                    }
+                }
+                self.advance();
+            }
+            let content_end = self.index;
+            let content = &self.source[content_start..content_end];
+
+            self.advance(); // consume ')'
+
+            // Check if this is an nth-* pseudo-class that uses special An+B syntax
+            let is_nth_pseudo = matches!(
+                name.as_str(),
+                "nth-child" | "nth-last-child" | "nth-of-type" | "nth-last-of-type"
+            );
+
+            if is_nth_pseudo {
+                // For nth-* pseudo-classes, parse the An+B syntax and optional 'of S' selector
+                let trimmed = content.trim();
+                let leading_ws = content.len() - content.trim_start().len();
+                let nth_start = args_start + leading_ws;
+
+                // Check for 'of ' keyword to split An+B from selector
+                let (nth_value, selector_part, nth_end_pos) =
+                    if let Some(of_pos) = trimmed.find(" of ") {
+                        // Split at ' of ' - include the ' of ' in the Nth value
+                        let nth_val = &trimmed[..of_pos + 4]; // Include ' of '
+                        let sel_part = &trimmed[of_pos + 4..];
+                        let end_pos = nth_start + of_pos + 4;
+                        (nth_val, Some((sel_part, end_pos)), end_pos)
+                    } else {
+                        // Check if it's a valid An+B expression or just a selector
+                        // An+B patterns: contains n, digits, +/-, or is even/odd
+                        let is_nth_pattern = trimmed == "even"
+                            || trimmed == "odd"
+                            || trimmed.contains('n')
+                            || trimmed.chars().any(|c| c.is_ascii_digit())
+                            || trimmed.starts_with('+')
+                            || trimmed.starts_with('-');
+
+                        if is_nth_pattern {
+                            let trailing_ws = content.len() - content.trim_end().len();
+                            let end_pos = self.offset + content_end - trailing_ws;
+                            (trimmed, None, end_pos)
+                        } else {
+                            // Not an An+B pattern, treat as regular selector
+                            // Fall through to the non-nth parsing below
+                            let mut trimmed_inner = content.trim();
+                            let mut leading_skip = content.len() - content.trim_start().len();
+
+                            loop {
+                                if trimmed_inner.starts_with("/*") {
+                                    if let Some(end_pos) = trimmed_inner.find("*/") {
+                                        leading_skip += end_pos + 2;
+                                        trimmed_inner = &trimmed_inner[end_pos + 2..];
+                                        let ws_skip =
+                                            trimmed_inner.len() - trimmed_inner.trim_start().len();
+                                        leading_skip += ws_skip;
+                                        trimmed_inner = trimmed_inner.trim_start();
+                                    } else {
+                                        break;
+                                    }
+                                } else {
+                                    break;
+                                }
+                            }
+
+                            let trailing_ws = content.len() - content.trim_end().len();
+                            let trimmed_start = args_start + leading_skip;
+                            let trimmed_end = self.offset + content_end - trailing_ws;
+
+                            // Parse as regular selector list and set as args for the PseudoClassSelector
+                            let args = self.parse_args_selector_list(
+                                trimmed_inner,
+                                trimmed_start,
+                                trimmed_end,
+                            );
+                            let end = self.offset + self.index;
+
+                            let mut obj = Map::new();
+                            obj.insert(
+                                "type".to_string(),
+                                Value::String("PseudoClassSelector".to_string()),
+                            );
+                            obj.insert("name".to_string(), Value::String(name));
+                            obj.insert("args".to_string(), args);
+                            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+                            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+
+                            return Some(Value::Object(obj));
+                        }
+                    };
+
+                // Build the selectors array
+                let mut selectors = Vec::new();
+
+                // Add Nth object
+                let mut nth_obj = Map::new();
+                nth_obj.insert("type".to_string(), Value::String("Nth".to_string()));
+                nth_obj.insert("value".to_string(), Value::String(nth_value.to_string()));
+                nth_obj.insert(
+                    "start".to_string(),
+                    Value::Number((nth_start as i64).into()),
+                );
+                nth_obj.insert(
+                    "end".to_string(),
+                    Value::Number((nth_end_pos as i64).into()),
+                );
+                selectors.push(Value::Object(nth_obj));
+
+                // Parse selector part if present
+                if let Some((sel_text, sel_start)) = selector_part {
+                    let sel_parser = SelectorParser::new(sel_text, sel_start);
+                    let parsed = sel_parser.parse_simple_selectors();
+                    selectors.extend(parsed);
+                }
+
+                // Get the actual end position
+                let trailing_ws = content.len() - content.trim_end().len();
+                let actual_end = self.offset + content_end - trailing_ws;
+
+                // Wrap in RelativeSelector
+                let mut rel_sel = Map::new();
+                rel_sel.insert(
+                    "type".to_string(),
+                    Value::String("RelativeSelector".to_string()),
+                );
+                rel_sel.insert("combinator".to_string(), Value::Null);
+                rel_sel.insert("selectors".to_string(), Value::Array(selectors));
+                rel_sel.insert(
+                    "start".to_string(),
+                    Value::Number((nth_start as i64).into()),
+                );
+                rel_sel.insert("end".to_string(), Value::Number((actual_end as i64).into()));
+
+                // Wrap in ComplexSelector
+                let mut complex_sel = Map::new();
+                complex_sel.insert(
+                    "type".to_string(),
+                    Value::String("ComplexSelector".to_string()),
+                );
+                complex_sel.insert(
+                    "start".to_string(),
+                    Value::Number((nth_start as i64).into()),
+                );
+                complex_sel.insert("end".to_string(), Value::Number((actual_end as i64).into()));
+                complex_sel.insert(
+                    "children".to_string(),
+                    Value::Array(vec![Value::Object(rel_sel)]),
+                );
+
+                // Wrap in SelectorList
+                let mut sel_list = Map::new();
+                sel_list.insert(
+                    "type".to_string(),
+                    Value::String("SelectorList".to_string()),
+                );
+                sel_list.insert(
+                    "start".to_string(),
+                    Value::Number((nth_start as i64).into()),
+                );
+                sel_list.insert("end".to_string(), Value::Number((actual_end as i64).into()));
+                sel_list.insert(
+                    "children".to_string(),
+                    Value::Array(vec![Value::Object(complex_sel)]),
+                );
+
+                Some(Value::Object(sel_list))
+            } else {
+                // Calculate trimmed content positions (strip whitespace and leading comments)
+                let mut trimmed = content.trim();
+                let mut leading_skip = content.len() - content.trim_start().len();
+
+                // Also skip leading comments for the SelectorList start
+                // And update `trimmed` to not include the leading comment
+                loop {
+                    if trimmed.starts_with("/*") {
+                        if let Some(end_pos) = trimmed.find("*/") {
+                            leading_skip += end_pos + 2;
+                            trimmed = &trimmed[end_pos + 2..];
+                            let ws_skip = trimmed.len() - trimmed.trim_start().len();
+                            leading_skip += ws_skip;
+                            trimmed = trimmed.trim_start();
+                        } else {
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
+                }
+
+                let trailing_ws = content.len() - content.trim_end().len();
+                let trimmed_start = args_start + leading_skip;
+                let trimmed_end = self.offset + content_end - trailing_ws;
+
+                // Parse the content as a selector list
+                Some(self.parse_args_selector_list(trimmed, trimmed_start, trimmed_end))
+            }
+        } else {
+            None
+        };
+
+        let end = self.offset + self.index;
+
+        let mut obj = Map::new();
+        obj.insert(
+            "type".to_string(),
+            Value::String("PseudoClassSelector".to_string()),
+        );
+        obj.insert("name".to_string(), Value::String(name));
+        if let Some(args_value) = args {
+            obj.insert("args".to_string(), args_value);
+        }
+        obj.insert("start".to_string(), Value::Number((start as i64).into()));
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+
+        Some(Value::Object(obj))
+    }
+
+    fn parse_args_selector_list(&self, text: &str, start: usize, end: usize) -> Value {
+        // Parse selector list inside pseudo-class arguments
+        // Split by comma for multiple selectors
+        let children: Vec<Value> = self
+            .split_selectors_by_comma(text, start)
+            .into_iter()
+            .map(|(selector_text, selector_offset)| {
+                // Adjust offset for leading whitespace when trimming
+                let leading_ws = selector_text.len() - selector_text.trim_start().len();
+                let adjusted_offset = selector_offset + leading_ws;
+                self.parse_complex_selector_from_text(selector_text.trim(), adjusted_offset)
+            })
+            .collect();
+
+        let mut obj = Map::new();
+        obj.insert(
+            "type".to_string(),
+            Value::String("SelectorList".to_string()),
+        );
+        obj.insert("start".to_string(), Value::Number((start as i64).into()));
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+        obj.insert("children".to_string(), Value::Array(children));
+
+        Value::Object(obj)
+    }
+
+    fn split_selectors_by_comma<'b>(
+        &self,
+        text: &'b str,
+        base_offset: usize,
+    ) -> Vec<(&'b str, usize)> {
+        let mut result = Vec::new();
+        let mut depth = 0;
+        let mut last_start = 0;
+        let mut in_comment = false;
+
+        let bytes = text.as_bytes();
+        let mut i = 0;
+        while i < bytes.len() {
+            if i + 1 < bytes.len() && bytes[i] == b'/' && bytes[i + 1] == b'*' {
+                in_comment = true;
+                i += 2;
+                continue;
+            }
+            if in_comment && i + 1 < bytes.len() && bytes[i] == b'*' && bytes[i + 1] == b'/' {
+                in_comment = false;
+                i += 2;
+                continue;
+            }
+            if in_comment {
+                i += 1;
+                continue;
+            }
+
+            let c = bytes[i] as char;
+            if c == '(' {
+                depth += 1;
+            } else if c == ')' {
+                depth -= 1;
+            } else if c == ',' && depth == 0 {
+                let selector = &text[last_start..i];
+                result.push((selector, base_offset + last_start));
+                last_start = i + 1;
+            }
+            i += 1;
+        }
+
+        // Add the last selector
+        if last_start < text.len() {
+            let selector = &text[last_start..];
+            result.push((selector, base_offset + last_start));
+        }
+
+        result
+    }
+
+    fn parse_complex_selector_from_text(&self, text: &str, offset: usize) -> Value {
+        // Strip leading whitespace and comments
+        let mut current = text;
+        let mut current_offset = offset;
+
+        loop {
+            let before_len = current.len();
+            // Strip leading whitespace
+            let trimmed = current.trim_start();
+            current_offset += before_len - trimmed.len();
+            current = trimmed;
+
+            // Strip leading comment
+            if current.starts_with("/*") {
+                if let Some(end_pos) = current.find("*/") {
+                    current_offset += end_pos + 2;
+                    current = &current[end_pos + 2..];
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        // Strip trailing whitespace and comments
+        let mut end_current = current;
+        loop {
+            let _before_len = end_current.len();
+            let trimmed = end_current.trim_end();
+            end_current = trimmed;
+
+            // Strip trailing comment
+            if end_current.ends_with("*/") {
+                if let Some(start_pos) = end_current.rfind("/*") {
+                    end_current = &end_current[..start_pos];
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+
+        let trimmed = end_current.trim();
+        let start = current_offset;
+        let end = start + trimmed.len();
+
+        // Parse relative selectors (handle combinators like +, >, ~)
+        let relative_selectors = self.parse_relative_selectors_from_text(trimmed, start);
+
+        let mut obj = Map::new();
+        obj.insert(
+            "type".to_string(),
+            Value::String("ComplexSelector".to_string()),
+        );
+        obj.insert("start".to_string(), Value::Number((start as i64).into()));
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+        obj.insert("children".to_string(), Value::Array(relative_selectors));
+
+        Value::Object(obj)
+    }
+
+    fn parse_relative_selectors_from_text(&self, text: &str, base_offset: usize) -> Vec<Value> {
+        let mut result = Vec::new();
+        let mut current_start = 0;
+        let mut i = 0;
+        let chars: Vec<char> = text.chars().collect();
+        let mut last_combinator: Option<(char, usize, usize)> = None;
+
+        while i < chars.len() {
+            let c = chars[i];
+
+            // Skip content in parentheses
+            if c == '(' {
+                let mut depth = 1;
+                i += 1;
+                while i < chars.len() && depth > 0 {
+                    if chars[i] == '(' {
+                        depth += 1;
+                    } else if chars[i] == ')' {
+                        depth -= 1;
+                    }
+                    i += 1;
+                }
+                continue;
+            }
+
+            // Check for combinators
+            if c == '+' || c == '>' || c == '~' {
+                // Found a combinator
+                let selector_text = text[current_start..i].trim();
+                if !selector_text.is_empty() {
+                    let selector_offset = base_offset + current_start;
+                    let rel_selector = self.create_relative_selector(
+                        selector_text,
+                        selector_offset,
+                        last_combinator,
+                    );
+                    result.push(rel_selector);
+                }
+
+                let combinator_start = base_offset + i;
+                let combinator_end = combinator_start + 1;
+                last_combinator = Some((c, combinator_start, combinator_end));
+
+                i += 1;
+                // Skip whitespace after combinator
+                while i < chars.len() && chars[i].is_whitespace() {
+                    i += 1;
+                }
+                current_start = i;
+                continue;
+            }
+
+            // Check for descendant combinator (whitespace between selectors)
+            if c.is_whitespace() {
+                // Look ahead to see if this is followed by a selector (not a combinator)
+                let mut j = i + 1;
+                while j < chars.len() && chars[j].is_whitespace() {
+                    j += 1;
+                }
+                if j < chars.len() && !matches!(chars[j], '+' | '>' | '~' | ')') && chars[j] != '('
+                {
+                    // Check if next is a selector start
+                    if chars[j].is_alphabetic()
+                        || chars[j] == ':'
+                        || chars[j] == '.'
+                        || chars[j] == '#'
+                        || chars[j] == '['
+                        || chars[j] == '*'
+                    {
+                        // This might be a descendant combinator, but let's handle simple cases only
+                        // For now, skip and continue
+                    }
+                }
+            }
+
+            i += 1;
+        }
+
+        // Add the last selector
+        if current_start < text.len() {
+            let selector_text = text[current_start..].trim();
+            if !selector_text.is_empty() {
+                let selector_offset = base_offset + current_start;
+                let rel_selector =
+                    self.create_relative_selector(selector_text, selector_offset, last_combinator);
+                result.push(rel_selector);
+            }
+        }
+
+        // If no selectors were found, create one for the whole text
+        if result.is_empty() && !text.trim().is_empty() {
+            let rel_selector = self.create_relative_selector(text.trim(), base_offset, None);
+            result.push(rel_selector);
+        }
+
+        result
+    }
+
+    fn create_relative_selector(
+        &self,
+        text: &str,
+        offset: usize,
+        combinator: Option<(char, usize, usize)>,
+    ) -> Value {
+        let start = if let Some((_, comb_start, _)) = combinator {
+            comb_start
+        } else {
+            offset
+        };
+        let end = offset + text.len();
+
+        let mut selectors = Vec::new();
+        let mut parser = SelectorParser::new(text, offset);
+        parser.parse_selectors(&mut selectors);
+
+        let combinator_value = if let Some((c, comb_start, comb_end)) = combinator {
+            let mut comb_obj = Map::new();
+            comb_obj.insert("type".to_string(), Value::String("Combinator".to_string()));
+            comb_obj.insert("name".to_string(), Value::String(c.to_string()));
+            comb_obj.insert(
+                "start".to_string(),
+                Value::Number((comb_start as i64).into()),
+            );
+            comb_obj.insert("end".to_string(), Value::Number((comb_end as i64).into()));
+            Value::Object(comb_obj)
+        } else {
+            Value::Null
+        };
+
+        let mut obj = Map::new();
+        obj.insert(
+            "type".to_string(),
+            Value::String("RelativeSelector".to_string()),
+        );
+        obj.insert("combinator".to_string(), combinator_value);
+        obj.insert("selectors".to_string(), Value::Array(selectors));
+        obj.insert("start".to_string(), Value::Number((start as i64).into()));
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+
+        Value::Object(obj)
+    }
+
+    fn parse_class_selector(&mut self) -> Option<Value> {
+        let start = self.offset + self.index;
+        self.advance(); // consume '.'
+
+        let name = self.read_identifier();
+        let end = self.offset + self.index;
+
+        let mut obj = Map::new();
+        obj.insert(
+            "type".to_string(),
+            Value::String("ClassSelector".to_string()),
+        );
+        obj.insert("name".to_string(), Value::String(name));
+        obj.insert("start".to_string(), Value::Number((start as i64).into()));
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+
+        Some(Value::Object(obj))
+    }
+
+    fn parse_id_selector(&mut self) -> Option<Value> {
+        let start = self.offset + self.index;
+        self.advance(); // consume '#'
+
+        let name = self.read_identifier();
+        let end = self.offset + self.index;
+
+        let mut obj = Map::new();
+        obj.insert("type".to_string(), Value::String("IdSelector".to_string()));
+        obj.insert("name".to_string(), Value::String(name));
+        obj.insert("start".to_string(), Value::Number((start as i64).into()));
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+
+        Some(Value::Object(obj))
+    }
+
+    fn parse_attribute_selector(&mut self) -> Option<Value> {
+        let start = self.offset + self.index;
+        self.advance(); // consume '['
+
+        // Read until ']'
+        let content_start = self.index;
+        while !self.is_eof() && self.current_char() != ']' {
+            self.advance();
+        }
+        let name = self.source[content_start..self.index].to_string();
+        self.advance(); // consume ']'
+        let end = self.offset + self.index;
+
+        let mut obj = Map::new();
+        obj.insert(
+            "type".to_string(),
+            Value::String("AttributeSelector".to_string()),
+        );
+        obj.insert("name".to_string(), Value::String(name));
+        obj.insert("start".to_string(), Value::Number((start as i64).into()));
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+
+        Some(Value::Object(obj))
+    }
+
+    fn parse_type_selector(&mut self) -> Option<Value> {
+        let start = self.offset + self.index;
+        let name = self.read_identifier();
+        let end = self.offset + self.index;
+
+        if name.is_empty() {
+            return None;
+        }
+
+        let mut obj = Map::new();
+        obj.insert(
+            "type".to_string(),
+            Value::String("TypeSelector".to_string()),
+        );
+        obj.insert("name".to_string(), Value::String(name));
+        obj.insert("start".to_string(), Value::Number((start as i64).into()));
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+
+        Some(Value::Object(obj))
+    }
+
+    fn skip_parenthesized_content(&mut self) {
+        if self.current_char() != '(' {
+            return;
+        }
+        self.advance(); // consume '('
+        let mut depth = 1;
+        while !self.is_eof() && depth > 0 {
+            let c = self.current_char();
+            if c == '(' {
+                depth += 1;
+            } else if c == ')' {
+                depth -= 1;
+            }
+            self.advance();
+        }
+    }
+
+    fn is_eof(&self) -> bool {
+        self.index >= self.source.len()
+    }
+
+    fn current_char(&self) -> char {
+        if self.is_eof() {
+            '\0'
+        } else {
+            self.source[self.index..].chars().next().unwrap_or('\0')
+        }
+    }
+
+    fn peek_next_char(&self) -> char {
+        let mut chars = self.source[self.index..].chars();
+        chars.next(); // skip current
+        chars.next().unwrap_or('\0')
+    }
+
+    fn advance(&mut self) {
+        if !self.is_eof() {
+            let c = self.current_char();
+            self.index += c.len_utf8();
+        }
+    }
+
+    fn skip_whitespace(&mut self) {
+        while !self.is_eof() && self.current_char().is_whitespace() {
+            self.advance();
+        }
+    }
+
+    fn match_str(&self, s: &str) -> bool {
+        self.source[self.index..].starts_with(s)
+    }
+
+    fn skip_block_comment(&mut self) {
+        if !self.match_str("/*") {
+            return;
+        }
+        self.advance(); // consume '/'
+        self.advance(); // consume '*'
+        while !self.is_eof() {
+            if self.match_str("*/") {
+                self.advance(); // consume '*'
+                self.advance(); // consume '/'
+                break;
+            }
+            self.advance();
+        }
+    }
+
+    fn read_identifier(&mut self) -> String {
+        let start = self.index;
+        while !self.is_eof() {
+            let c = self.current_char();
+            if !c.is_alphanumeric() && c != '-' && c != '_' {
+                break;
+            }
+            self.advance();
+        }
+        self.source[start..self.index].to_string()
+    }
+
+    /// Parse simple selectors from the current source and return them as a Vec.
+    fn parse_simple_selectors(mut self) -> Vec<Value> {
+        let mut selectors = Vec::new();
+        self.parse_selectors(&mut selectors);
+        selectors
+    }
+}
+
+/// Parse CSS content and return the children array for StyleSheet.
+pub fn parse_css(content: &str, offset: usize) -> Vec<Value> {
+    let mut parser = CssParser::new(content, offset);
+    parser.parse()
+}
+
+struct CssParser<'a> {
+    source: &'a str,
+    offset: usize,
+    index: usize,
+}
+
+impl<'a> CssParser<'a> {
+    fn new(source: &'a str, offset: usize) -> Self {
+        Self {
+            source,
+            offset,
+            index: 0,
+        }
+    }
+
+    fn parse(&mut self) -> Vec<Value> {
+        let mut rules = Vec::new();
+
+        while !self.is_eof() {
+            self.skip_whitespace();
+            if self.is_eof() {
+                break;
+            }
+
+            // Check for comments
+            if self.match_str("/*") {
+                self.skip_block_comment();
+                continue;
+            }
+
+            // Check for at-rules
+            if self.current_char() == '@' {
+                if let Some(rule) = self.parse_atrule() {
+                    rules.push(rule);
+                }
+                continue;
+            }
+
+            // Parse regular rule
+            if let Some(rule) = self.parse_rule() {
+                rules.push(rule);
+            }
+        }
+
+        rules
+    }
+
+    fn parse_atrule(&mut self) -> Option<Value> {
+        let start = self.offset + self.index;
+        self.advance(); // consume '@'
+
+        // Read at-rule name
+        let name = self.read_identifier();
+        self.skip_whitespace();
+
+        // Read prelude (until { or ;)
+        let prelude_start = self.index;
+        let mut depth = 0;
+        while !self.is_eof() {
+            let c = self.current_char();
+            if c == '(' {
+                depth += 1;
+            } else if c == ')' {
+                depth -= 1;
+            } else if depth == 0 && (c == '{' || c == ';') {
+                break;
+            }
+            self.advance();
+        }
+        let prelude = self.source[prelude_start..self.index].trim().to_string();
+
+        let _end = self.offset + self.index;
+
+        // Check if there's a block
+        let block = if self.current_char() == '{' {
+            // Skip the block for now (for @import, @media, etc.)
+            self.advance(); // consume '{'
+            let mut block_depth = 1;
+            while !self.is_eof() && block_depth > 0 {
+                let c = self.current_char();
+                if c == '{' {
+                    block_depth += 1;
+                } else if c == '}' {
+                    block_depth -= 1;
+                }
+                self.advance();
+            }
+            Value::Null // Simplified - would need full block parsing
+        } else {
+            self.eat(";");
+            Value::Null
+        };
+
+        let end = self.offset + self.index;
+
+        let mut obj = Map::new();
+        obj.insert("type".to_string(), Value::String("Atrule".to_string()));
+        obj.insert("start".to_string(), Value::Number((start as i64).into()));
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+        obj.insert("name".to_string(), Value::String(name.to_string()));
+        obj.insert("prelude".to_string(), Value::String(prelude));
+        obj.insert("block".to_string(), block);
+
+        Some(Value::Object(obj))
+    }
+
+    fn parse_rule(&mut self) -> Option<Value> {
+        let start = self.offset + self.index;
+
+        // Parse selector
+        let selector_start = self.index;
+        self.skip_until_block_start();
+        let selector_end = self.index;
+        let selector_text = self.source[selector_start..selector_end].trim();
+
+        if selector_text.is_empty() {
+            return None;
+        }
+
+        let prelude = self.parse_selector_list(selector_text, self.offset + selector_start);
+
+        // Parse block
+        if !self.eat("{") {
+            return None;
+        }
+
+        let block = self.parse_block();
+
+        let end = self.offset + self.index;
+
+        let mut obj = Map::new();
+        obj.insert("type".to_string(), Value::String("Rule".to_string()));
+        obj.insert("prelude".to_string(), prelude);
+        obj.insert("block".to_string(), block);
+        obj.insert("start".to_string(), Value::Number((start as i64).into()));
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+
+        Some(Value::Object(obj))
+    }
+
+    fn parse_selector_list(&self, text: &str, offset: usize) -> Value {
+        let start = offset;
+        let end = offset + text.len();
+
+        // Split by comma for multiple selectors, but respect parentheses and comments
+        let selectors: Vec<Value> = self
+            .split_by_comma_respecting_parens(text, offset)
+            .into_iter()
+            .filter(|(s, _)| !s.trim().is_empty())
+            .map(|(selector, selector_offset)| {
+                self.parse_complex_selector(selector.trim(), selector_offset)
+            })
+            .collect();
+
+        let mut obj = Map::new();
+        obj.insert(
+            "type".to_string(),
+            Value::String("SelectorList".to_string()),
+        );
+        obj.insert("start".to_string(), Value::Number((start as i64).into()));
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+        obj.insert("children".to_string(), Value::Array(selectors));
+
+        Value::Object(obj)
+    }
+
+    fn parse_complex_selector(&self, text: &str, offset: usize) -> Value {
+        let start = offset;
+        let end = offset + text.len();
+
+        // For simplicity, treat the whole selector as a single RelativeSelector
+        let relative_selector = self.parse_relative_selector(text, offset);
+
+        let mut obj = Map::new();
+        obj.insert(
+            "type".to_string(),
+            Value::String("ComplexSelector".to_string()),
+        );
+        obj.insert("start".to_string(), Value::Number((start as i64).into()));
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+        obj.insert(
+            "children".to_string(),
+            Value::Array(vec![relative_selector]),
+        );
+
+        Value::Object(obj)
+    }
+
+    fn parse_relative_selector(&self, text: &str, offset: usize) -> Value {
+        let start = offset;
+        let end = offset + text.len();
+
+        // Parse simple selectors
+        let selectors = self.parse_simple_selectors(text, offset);
+
+        let mut obj = Map::new();
+        obj.insert(
+            "type".to_string(),
+            Value::String("RelativeSelector".to_string()),
+        );
+        obj.insert("combinator".to_string(), Value::Null);
+        obj.insert("selectors".to_string(), Value::Array(selectors));
+        obj.insert("start".to_string(), Value::Number((start as i64).into()));
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+
+        Value::Object(obj)
+    }
+
+    fn parse_simple_selectors(&self, text: &str, offset: usize) -> Vec<Value> {
+        let mut selectors = Vec::new();
+        let trimmed = text.trim();
+
+        if trimmed.is_empty() {
+            return selectors;
+        }
+
+        let mut parser = SelectorParser::new(trimmed, offset);
+        parser.parse_selectors(&mut selectors);
+        selectors
+    }
+
+    fn split_by_comma_respecting_parens<'b>(
+        &self,
+        text: &'b str,
+        base_offset: usize,
+    ) -> Vec<(&'b str, usize)> {
+        let mut result = Vec::new();
+        let mut depth = 0;
+        let mut last_start = 0;
+        let mut in_comment = false;
+
+        let bytes = text.as_bytes();
+        let mut i = 0;
+        while i < bytes.len() {
+            // Handle comments
+            if i + 1 < bytes.len() && bytes[i] == b'/' && bytes[i + 1] == b'*' {
+                in_comment = true;
+                i += 2;
+                continue;
+            }
+            if in_comment && i + 1 < bytes.len() && bytes[i] == b'*' && bytes[i + 1] == b'/' {
+                in_comment = false;
+                i += 2;
+                continue;
+            }
+            if in_comment {
+                i += 1;
+                continue;
+            }
+
+            let c = bytes[i] as char;
+            if c == '(' {
+                depth += 1;
+            } else if c == ')' {
+                depth -= 1;
+            } else if c == ',' && depth == 0 {
+                let selector = &text[last_start..i];
+                result.push((selector, base_offset + last_start));
+                last_start = i + 1;
+            }
+            i += 1;
+        }
+
+        // Add the last selector
+        if last_start < text.len() {
+            let selector = &text[last_start..];
+            result.push((selector, base_offset + last_start));
+        }
+
+        result
+    }
+
+    fn parse_block(&mut self) -> Value {
+        let start = self.offset + self.index - 1; // -1 to include the '{'
+        let mut declarations = Vec::new();
+
+        self.skip_whitespace();
+
+        while !self.is_eof() && self.current_char() != '}' {
+            // Skip comments
+            if self.match_str("/*") {
+                self.skip_block_comment();
+                self.skip_whitespace();
+                continue;
+            }
+
+            if let Some(decl) = self.parse_declaration() {
+                declarations.push(decl);
+            }
+            self.skip_whitespace();
+        }
+
+        self.eat("}");
+        let end = self.offset + self.index;
+
+        let mut obj = Map::new();
+        obj.insert("type".to_string(), Value::String("Block".to_string()));
+        obj.insert("start".to_string(), Value::Number((start as i64).into()));
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+        obj.insert("children".to_string(), Value::Array(declarations));
+
+        Value::Object(obj)
+    }
+
+    fn parse_declaration(&mut self) -> Option<Value> {
+        self.skip_whitespace();
+        let start = self.offset + self.index;
+
+        // Read property name
+        let property_start = self.index;
+        while !self.is_eof() {
+            let c = self.current_char();
+            if c == ':' || c == '}' || c == ';' {
+                break;
+            }
+            self.advance();
+        }
+        let property = self.source[property_start..self.index].trim().to_string();
+
+        if property.is_empty() || self.current_char() != ':' {
+            return None;
+        }
+
+        self.advance(); // consume ':'
+        self.skip_whitespace();
+
+        // Read value
+        let value_start = self.index;
+        let mut depth = 0;
+        while !self.is_eof() {
+            let c = self.current_char();
+            if c == '(' {
+                depth += 1;
+            } else if c == ')' {
+                depth -= 1;
+            } else if depth == 0 && (c == ';' || c == '}') {
+                break;
+            }
+            self.advance();
+        }
+        let value = self.source[value_start..self.index].trim().to_string();
+
+        // End position is before the semicolon
+        let end = self.offset + self.index;
+        self.eat(";");
+
+        let mut obj = Map::new();
+        obj.insert("type".to_string(), Value::String("Declaration".to_string()));
+        obj.insert("start".to_string(), Value::Number((start as i64).into()));
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+        obj.insert("property".to_string(), Value::String(property));
+        obj.insert("value".to_string(), Value::String(value));
+
+        Some(Value::Object(obj))
+    }
+
+    fn skip_until_block_start(&mut self) {
+        let mut depth = 0;
+        while !self.is_eof() {
+            let c = self.current_char();
+            if c == '(' {
+                depth += 1;
+            } else if c == ')' {
+                depth -= 1;
+            } else if depth == 0 && c == '{' {
+                break;
+            }
+            self.advance();
+        }
+    }
+
+    fn skip_block_comment(&mut self) {
+        self.advance_by(2); // consume '/*'
+        while !self.is_eof() && !self.match_str("*/") {
+            self.advance();
+        }
+        self.advance_by(2); // consume '*/'
+    }
+
+    fn is_eof(&self) -> bool {
+        self.index >= self.source.len()
+    }
+
+    fn current_char(&self) -> char {
+        if self.is_eof() {
+            '\0'
+        } else {
+            self.source[self.index..].chars().next().unwrap_or('\0')
+        }
+    }
+
+    fn advance(&mut self) {
+        if !self.is_eof() {
+            let c = self.current_char();
+            self.index += c.len_utf8();
+        }
+    }
+
+    fn advance_by(&mut self, n: usize) {
+        self.index = (self.index + n).min(self.source.len());
+    }
+
+    fn match_str(&self, s: &str) -> bool {
+        self.source[self.index..].starts_with(s)
+    }
+
+    fn eat(&mut self, s: &str) -> bool {
+        if self.match_str(s) {
+            self.advance_by(s.len());
+            true
+        } else {
+            false
+        }
+    }
+
+    fn skip_whitespace(&mut self) {
+        while !self.is_eof() && self.current_char().is_whitespace() {
+            self.advance();
+        }
+    }
+
+    fn read_identifier(&mut self) -> String {
+        let start = self.index;
+        while !self.is_eof() {
+            let c = self.current_char();
+            if !c.is_alphanumeric() && c != '-' && c != '_' {
+                break;
+            }
+            self.advance();
+        }
+        self.source[start..self.index].to_string()
+    }
+}

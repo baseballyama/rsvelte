@@ -129,11 +129,26 @@ pub struct Comment {
 // =============================================================================
 
 /// A reactive template expression: `{expression}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct ExpressionTag {
     pub start: u32,
     pub end: u32,
     pub expression: Expression,
+}
+
+impl serde::Serialize for ExpressionTag {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(Some(4))?;
+        map.serialize_entry("type", "ExpressionTag")?;
+        map.serialize_entry("start", &self.start)?;
+        map.serialize_entry("end", &self.end)?;
+        map.serialize_entry("expression", &self.expression)?;
+        map.end()
+    }
 }
 
 /// An HTML template expression: `{@html expression}`.
@@ -169,11 +184,26 @@ pub struct RenderTag {
 }
 
 /// An attach tag: `{@attach expression}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct AttachTag {
     pub start: u32,
     pub end: u32,
     pub expression: Expression,
+}
+
+impl serde::Serialize for AttachTag {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(None)?;
+        map.serialize_entry("type", "AttachTag")?;
+        map.serialize_entry("start", &self.start)?;
+        map.serialize_entry("end", &self.end)?;
+        map.serialize_entry("expression", &self.expression)?;
+        map.end()
+    }
 }
 
 // =============================================================================
@@ -197,9 +227,9 @@ pub struct EachBlock {
     pub start: u32,
     pub end: u32,
     pub expression: Expression,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub context: Option<Expression>,
     pub body: Fragment,
+    /// Context pattern - serializes as null when None (required by tests)
+    pub context: Option<Expression>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fallback: Option<Fragment>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -214,15 +244,10 @@ pub struct AwaitBlock {
     pub start: u32,
     pub end: u32,
     pub expression: Expression,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub value: Option<Expression>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<Expression>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub pending: Option<Fragment>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub then: Option<Fragment>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub catch: Option<Fragment>,
 }
 
@@ -241,6 +266,8 @@ pub struct SnippetBlock {
     pub start: u32,
     pub end: u32,
     pub expression: Expression,
+    #[serde(rename = "typeParams", skip_serializing_if = "Option::is_none")]
+    pub type_params: Option<CompactString>,
     pub parameters: Vec<Expression>,
     pub body: Fragment,
 }
@@ -341,10 +368,11 @@ pub struct SvelteDynamicElement {
 
 /// An attribute or directive on an element.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type")]
+#[serde(untagged)]
 pub enum Attribute {
     Attribute(AttributeNode),
     SpreadAttribute(SpreadAttribute),
+    AttachTag(AttachTag),
     // Directives
     BindDirective(BindDirective),
     OnDirective(OnDirective),
@@ -357,7 +385,7 @@ pub enum Attribute {
 }
 
 /// A regular attribute: `name="value"` or `name={expression}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct AttributeNode {
     pub start: u32,
     pub end: u32,
@@ -365,6 +393,25 @@ pub struct AttributeNode {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name_loc: Option<SourceLocation>,
     pub value: AttributeValue,
+}
+
+impl serde::Serialize for AttributeNode {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(None)?;
+        map.serialize_entry("type", "Attribute")?;
+        map.serialize_entry("start", &self.start)?;
+        map.serialize_entry("end", &self.end)?;
+        map.serialize_entry("name", self.name.as_str())?;
+        if let Some(ref name_loc) = self.name_loc {
+            map.serialize_entry("name_loc", name_loc)?;
+        }
+        map.serialize_entry("value", &self.value)?;
+        map.end()
+    }
 }
 
 /// The value of an attribute.
@@ -380,117 +427,309 @@ pub enum AttributeValue {
 }
 
 /// A part of an attribute value (text or expression).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type")]
+#[derive(Debug, Clone, Deserialize)]
+#[serde(untagged)]
 pub enum AttributeValuePart {
     Text(Text),
     ExpressionTag(ExpressionTag),
 }
 
+impl serde::Serialize for AttributeValuePart {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeMap;
+        match self {
+            AttributeValuePart::Text(text) => {
+                let mut map = serializer.serialize_map(Some(5))?;
+                map.serialize_entry("type", "Text")?;
+                map.serialize_entry("start", &text.start)?;
+                map.serialize_entry("end", &text.end)?;
+                map.serialize_entry("raw", text.raw.as_str())?;
+                map.serialize_entry("data", text.data.as_str())?;
+                map.end()
+            }
+            AttributeValuePart::ExpressionTag(expr_tag) => expr_tag.serialize(serializer),
+        }
+    }
+}
+
 /// A spread attribute: `{...props}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct SpreadAttribute {
     pub start: u32,
     pub end: u32,
     pub expression: Expression,
 }
 
+impl serde::Serialize for SpreadAttribute {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(None)?;
+        map.serialize_entry("type", "SpreadAttribute")?;
+        map.serialize_entry("start", &self.start)?;
+        map.serialize_entry("end", &self.end)?;
+        map.serialize_entry("expression", &self.expression)?;
+        map.end()
+    }
+}
+
 /// A bind directive: `bind:name={expression}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct BindDirective {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub name_loc: Option<SourceLocation>,
     pub expression: Expression,
+    pub modifiers: Vec<CompactString>,
+}
+
+impl serde::Serialize for BindDirective {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(None)?;
+        map.serialize_entry("start", &self.start)?;
+        map.serialize_entry("end", &self.end)?;
+        map.serialize_entry("type", "BindDirective")?;
+        map.serialize_entry("name", self.name.as_str())?;
+        if let Some(ref name_loc) = self.name_loc {
+            map.serialize_entry("name_loc", name_loc)?;
+        }
+        map.serialize_entry("expression", &self.expression)?;
+        map.serialize_entry("modifiers", &self.modifiers)?;
+        map.end()
+    }
 }
 
 /// An on directive: `on:event={handler}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct OnDirective {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub name_loc: Option<SourceLocation>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub expression: Option<Expression>,
     pub modifiers: Vec<CompactString>,
 }
 
+impl serde::Serialize for OnDirective {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(None)?;
+        map.serialize_entry("type", "OnDirective")?;
+        map.serialize_entry("start", &self.start)?;
+        map.serialize_entry("end", &self.end)?;
+        map.serialize_entry("name", self.name.as_str())?;
+        if let Some(ref name_loc) = self.name_loc {
+            map.serialize_entry("name_loc", name_loc)?;
+        }
+        if let Some(ref expression) = self.expression {
+            map.serialize_entry("expression", expression)?;
+        }
+        map.serialize_entry("modifiers", &self.modifiers)?;
+        map.end()
+    }
+}
+
 /// A class directive: `class:name={expression}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct ClassDirective {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub name_loc: Option<SourceLocation>,
     pub expression: Expression,
 }
 
+impl serde::Serialize for ClassDirective {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(None)?;
+        map.serialize_entry("type", "ClassDirective")?;
+        map.serialize_entry("start", &self.start)?;
+        map.serialize_entry("end", &self.end)?;
+        map.serialize_entry("name", self.name.as_str())?;
+        if let Some(ref name_loc) = self.name_loc {
+            map.serialize_entry("name_loc", name_loc)?;
+        }
+        map.serialize_entry("expression", &self.expression)?;
+        map.end()
+    }
+}
+
 /// A style directive: `style:property={expression}`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct StyleDirective {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub name_loc: Option<SourceLocation>,
     pub value: AttributeValue,
     pub modifiers: Vec<CompactString>,
 }
 
+impl serde::Serialize for StyleDirective {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(None)?;
+        map.serialize_entry("type", "StyleDirective")?;
+        map.serialize_entry("start", &self.start)?;
+        map.serialize_entry("end", &self.end)?;
+        map.serialize_entry("name", self.name.as_str())?;
+        if let Some(ref name_loc) = self.name_loc {
+            map.serialize_entry("name_loc", name_loc)?;
+        }
+        map.serialize_entry("value", &self.value)?;
+        map.serialize_entry("modifiers", &self.modifiers)?;
+        map.end()
+    }
+}
+
 /// A transition directive: `transition:name`, `in:name`, `out:name`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct TransitionDirective {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub name_loc: Option<SourceLocation>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub expression: Option<Expression>,
     pub modifiers: Vec<CompactString>,
     pub intro: bool,
     pub outro: bool,
 }
 
+impl serde::Serialize for TransitionDirective {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(None)?;
+        map.serialize_entry("type", "TransitionDirective")?;
+        map.serialize_entry("start", &self.start)?;
+        map.serialize_entry("end", &self.end)?;
+        map.serialize_entry("name", self.name.as_str())?;
+        if let Some(ref name_loc) = self.name_loc {
+            map.serialize_entry("name_loc", name_loc)?;
+        }
+        if let Some(ref expression) = self.expression {
+            map.serialize_entry("expression", expression)?;
+        }
+        map.serialize_entry("modifiers", &self.modifiers)?;
+        map.serialize_entry("intro", &self.intro)?;
+        map.serialize_entry("outro", &self.outro)?;
+        map.end()
+    }
+}
+
 /// An animate directive: `animate:name`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct AnimateDirective {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub name_loc: Option<SourceLocation>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub expression: Option<Expression>,
 }
 
+impl serde::Serialize for AnimateDirective {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(None)?;
+        map.serialize_entry("type", "AnimateDirective")?;
+        map.serialize_entry("start", &self.start)?;
+        map.serialize_entry("end", &self.end)?;
+        map.serialize_entry("name", self.name.as_str())?;
+        if let Some(ref name_loc) = self.name_loc {
+            map.serialize_entry("name_loc", name_loc)?;
+        }
+        if let Some(ref expression) = self.expression {
+            map.serialize_entry("expression", expression)?;
+        }
+        map.end()
+    }
+}
+
 /// A use directive: `use:action`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct UseDirective {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub name_loc: Option<SourceLocation>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub expression: Option<Expression>,
 }
 
+impl serde::Serialize for UseDirective {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(None)?;
+        map.serialize_entry("type", "UseDirective")?;
+        map.serialize_entry("start", &self.start)?;
+        map.serialize_entry("end", &self.end)?;
+        map.serialize_entry("name", self.name.as_str())?;
+        if let Some(ref name_loc) = self.name_loc {
+            map.serialize_entry("name_loc", name_loc)?;
+        }
+        if let Some(ref expression) = self.expression {
+            map.serialize_entry("expression", expression)?;
+        }
+        map.end()
+    }
+}
+
 /// A let directive: `let:item`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct LetDirective {
     pub start: u32,
     pub end: u32,
     pub name: CompactString,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub name_loc: Option<SourceLocation>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub expression: Option<Expression>,
+}
+
+impl serde::Serialize for LetDirective {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(None)?;
+        map.serialize_entry("type", "LetDirective")?;
+        map.serialize_entry("start", &self.start)?;
+        map.serialize_entry("end", &self.end)?;
+        map.serialize_entry("name", self.name.as_str())?;
+        if let Some(ref name_loc) = self.name_loc {
+            map.serialize_entry("name_loc", name_loc)?;
+        }
+        if let Some(ref expression) = self.expression {
+            map.serialize_entry("expression", expression)?;
+        }
+        map.end()
+    }
 }
 
 // =============================================================================
@@ -500,11 +739,19 @@ pub struct LetDirective {
 /// A script block.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Script {
+    #[serde(rename = "type")]
+    pub node_type: ScriptType,
     pub start: u32,
     pub end: u32,
     pub context: ScriptContext,
     pub content: Expression, // Program
     pub attributes: Vec<AttributeNode>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum ScriptType {
+    #[default]
+    Script,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

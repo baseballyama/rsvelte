@@ -28,4 +28,5 @@ pub struct StyleSheetContent {
     pub start: u32,
     pub end: u32,
     pub styles: String,
+    pub comment: Option<String>,
 }

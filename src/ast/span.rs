@@ -62,12 +62,18 @@ pub struct SourceLocation {
 pub struct LineColumn {
     pub line: u32,
     pub column: u32,
+    /// Absolute character position from the start of the file.
+    pub character: u32,
 }
 
 impl LineColumn {
     #[inline]
-    pub const fn new(line: u32, column: u32) -> Self {
-        Self { line, column }
+    pub const fn new(line: u32, column: u32, character: u32) -> Self {
+        Self {
+            line,
+            column,
+            character,
+        }
     }
 }
 
