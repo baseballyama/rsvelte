@@ -1,0 +1,16 @@
+//! Svelte compiler phases.
+//!
+//! The compilation process is divided into three main phases:
+//!
+//! 1. **Parse** (`1_parse`): Convert source code into an AST
+//! 2. **Analyze** (`2_analyze`): Semantic analysis - scopes, bindings, reactivity
+//! 3. **Transform** (`3_transform`): Code generation for client/server
+
+pub mod phase1_parse;
+pub mod phase2_analyze;
+pub mod phase3_transform;
+
+// Re-exports for convenience
+pub use phase1_parse::parse;
+pub use phase2_analyze::{ComponentAnalysis, analyze_component};
+pub use phase3_transform::{TransformResult, transform_component};

@@ -1,0 +1,256 @@
+//! Type definitions for the analysis phase.
+
+use super::scope::{Scope, ScopeRoot};
+use crate::ast::template::Root;
+use crate::compiler::CompileOptions;
+use std::collections::{HashMap, HashSet};
+
+/// Analysis result for a Svelte component.
+#[derive(Debug)]
+pub struct ComponentAnalysis {
+    /// The root scope containing all bindings
+    pub root: ScopeRoot,
+
+    /// Analysis of the module script (<script context="module">)
+    pub module: Option<JsAnalysis>,
+
+    /// Analysis of the instance script (<script>)
+    pub instance: Option<JsAnalysis>,
+
+    /// Analysis of the template
+    pub template: TemplateAnalysis,
+
+    /// CSS analysis
+    pub css: CssAnalysis,
+
+    /// Component name (derived from filename)
+    pub name: String,
+
+    /// Whether the component uses runes
+    pub runes: bool,
+
+    /// Whether the component might use runes
+    pub maybe_runes: bool,
+
+    /// Whether the component uses $$props
+    pub uses_props: bool,
+
+    /// Whether the component uses $$restProps
+    pub uses_rest_props: bool,
+
+    /// Whether the component uses $$slots
+    pub uses_slots: bool,
+
+    /// Whether the component uses render tags (@render)
+    pub uses_render_tags: bool,
+
+    /// Whether the component uses component bindings
+    pub uses_component_bindings: bool,
+
+    /// Whether the component needs context
+    pub needs_context: bool,
+
+    /// Whether the component needs props validation
+    pub needs_props: bool,
+
+    /// Exported names and their aliases
+    pub exports: Vec<Export>,
+
+    /// Custom element configuration
+    pub custom_element: Option<CustomElementConfig>,
+
+    /// Whether styles should be injected via JavaScript
+    pub inject_styles: bool,
+
+    /// The original source code
+    pub source: String,
+}
+
+impl ComponentAnalysis {
+    /// Create a new component analysis.
+    pub fn new(source: &str, options: &CompileOptions) -> Self {
+        let name = options
+            .filename
+            .as_ref()
+            .map(|f| derive_component_name(f))
+            .unwrap_or_else(|| "Component".to_string());
+
+        Self {
+            root: ScopeRoot::new(),
+            module: None,
+            instance: None,
+            template: TemplateAnalysis::default(),
+            css: CssAnalysis::default(),
+            name,
+            runes: false,
+            maybe_runes: false,
+            uses_props: false,
+            uses_rest_props: false,
+            uses_slots: false,
+            uses_render_tags: false,
+            uses_component_bindings: false,
+            needs_context: false,
+            needs_props: false,
+            exports: Vec::new(),
+            custom_element: None,
+            inject_styles: options.css == crate::compiler::CssMode::Injected,
+            source: source.to_string(),
+        }
+    }
+
+    /// Create scopes for the component.
+    pub fn create_scopes(&mut self, _ast: &Root) -> Result<(), super::AnalysisError> {
+        // TODO: Walk the AST and create scopes
+        Ok(())
+    }
+
+    /// Analyze CSS in the component.
+    pub fn analyze_css(
+        &mut self,
+        _css: &crate::ast::css::StyleSheet,
+    ) -> Result<(), super::AnalysisError> {
+        // TODO: Analyze CSS for scoping and pruning
+        self.css.has_css = true;
+        Ok(())
+    }
+}
+
+/// Derive component name from filename.
+fn derive_component_name(filename: &str) -> String {
+    let path = std::path::Path::new(filename);
+
+    // If the file is named "index.svelte", use the parent directory name
+    let stem = if path.file_stem().and_then(|s| s.to_str()) == Some("index") {
+        path.parent()
+            .and_then(|p| p.file_name())
+            .and_then(|s| s.to_str())
+            .unwrap_or("Component")
+    } else {
+        path.file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("Component")
+    };
+
+    // Convert to component name format
+    let parts: Vec<&str> = stem
+        .split(['-', '_', '.'])
+        .filter(|part| !part.is_empty())
+        .collect();
+
+    if parts.is_empty() {
+        return "Component".to_string();
+    }
+
+    let mut result = String::new();
+    for (i, part) in parts.iter().enumerate() {
+        if i > 0 {
+            result.push('_');
+        }
+
+        if i == 0 {
+            let mut chars = part.chars();
+            if let Some(first) = chars.next() {
+                result.extend(first.to_uppercase());
+                result.push_str(chars.as_str());
+            }
+        } else {
+            result.push_str(part);
+        }
+    }
+
+    result
+}
+
+/// Analysis of a JavaScript block.
+#[derive(Debug, Default)]
+pub struct JsAnalysis {
+    /// The scope for this JS block
+    pub scope: Scope,
+
+    /// Scopes for nested blocks
+    pub scopes: HashMap<usize, Scope>,
+
+    /// Whether this block contains await expressions
+    pub has_await: bool,
+}
+
+/// Analysis of the template.
+#[derive(Debug, Default)]
+pub struct TemplateAnalysis {
+    /// The scope for the template
+    pub scope: Scope,
+
+    /// Scopes for nested template blocks
+    pub scopes: HashMap<usize, Scope>,
+
+    /// All DOM elements in the template
+    pub elements: Vec<ElementInfo>,
+
+    /// All components used in the template
+    pub components: Vec<ComponentInfo>,
+
+    /// All snippets declared in the template
+    pub snippets: HashSet<String>,
+}
+
+/// Information about a DOM element.
+#[derive(Debug)]
+pub struct ElementInfo {
+    /// The element tag name
+    pub name: String,
+    /// Start position in source
+    pub start: usize,
+    /// End position in source
+    pub end: usize,
+    /// Whether this element has dynamic attributes
+    pub has_dynamic_attributes: bool,
+    /// Whether this element has spread attributes
+    pub has_spread: bool,
+}
+
+/// Information about a component usage.
+#[derive(Debug)]
+pub struct ComponentInfo {
+    /// The component name
+    pub name: String,
+    /// Start position in source
+    pub start: usize,
+    /// End position in source
+    pub end: usize,
+    /// Whether this component has bindings
+    pub has_bindings: bool,
+}
+
+/// CSS analysis result.
+#[derive(Debug, Default)]
+pub struct CssAnalysis {
+    /// Whether CSS is present
+    pub has_css: bool,
+
+    /// The CSS hash for scoping
+    pub hash: String,
+
+    /// Keyframe names for scoping
+    pub keyframes: Vec<String>,
+
+    /// Whether the CSS contains :global
+    pub has_global: bool,
+}
+
+/// Export information.
+#[derive(Debug, Clone)]
+pub struct Export {
+    /// The exported name
+    pub name: String,
+    /// The alias (if different from name)
+    pub alias: Option<String>,
+}
+
+/// Custom element configuration.
+#[derive(Debug, Clone)]
+pub struct CustomElementConfig {
+    /// The custom element tag name
+    pub tag: Option<String>,
+    /// Shadow DOM mode
+    pub shadow: Option<String>,
+}
