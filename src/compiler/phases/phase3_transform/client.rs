@@ -164,6 +164,8 @@ struct ClientCodeGenerator {
     current_child_index: usize,
     /// State variable names (for $.set() and $.get() transformations)
     state_vars: Vec<String>,
+    /// Constant variables (name -> value) for compile-time evaluation
+    const_vars: HashMap<String, String>,
     /// Each block counter for template variable names
     each_block_counter: usize,
     /// Each blocks collected for code generation
@@ -181,6 +183,8 @@ impl ClientCodeGenerator {
     ) -> Self {
         // Collect state variables from script content
         let state_vars = collect_state_variables(&script_content);
+        // Collect constant variables (non-$state) with their values
+        let const_vars = collect_constant_variables(&script_content);
 
         Self {
             component_name,
@@ -196,6 +200,7 @@ impl ClientCodeGenerator {
             element_stack: Vec::new(),
             current_child_index: 0,
             state_vars,
+            const_vars,
             each_block_counter: 0,
             each_blocks: Vec::new(),
             svelte_elements: Vec::new(),
@@ -386,9 +391,26 @@ impl ClientCodeGenerator {
                     }
                 });
 
+                // Check if any expressions involve state variables (reactive)
+                let has_reactive = element.fragment.nodes.iter().any(|child| {
+                    if let TemplateNode::ExpressionTag(tag) = child {
+                        let expr_start = tag.start as usize;
+                        let expr_end = tag.end as usize;
+                        if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                            let expr = self.source[expr_start + 1..expr_end - 1].trim();
+                            // Check if expression contains any state variable
+                            return self.state_vars.iter().any(|sv| expr.contains(sv));
+                        }
+                    }
+                    false
+                });
+
                 if has_static_text {
-                    // Has mixed content - add space as placeholder
-                    self.html_parts.push(" ".to_string());
+                    // Has mixed content
+                    // Only add space placeholder if content is reactive
+                    if has_reactive {
+                        self.html_parts.push(" ".to_string());
+                    }
 
                     // Build the content template by combining all children
                     let mut content_parts: Vec<String> = Vec::new();
@@ -1325,11 +1347,12 @@ export default function {component_name}({fn_params}) {{
                     }
                 }
 
-                // Include element if it has expressions, event handlers, or bindings
+                // Include element if it has expressions, event handlers, bindings, or content_template
                 let needs_runtime = !exprs.is_empty()
                     || !elem.event_handlers.is_empty()
                     || !elem.bindings.is_empty()
-                    || elem.is_input;
+                    || elem.is_input
+                    || elem.content_template.is_some();
 
                 if needs_runtime {
                     elements_needing_runtime.push((elem, exprs));
@@ -1390,9 +1413,8 @@ export default function {component_name}({fn_params}) {{
                     code.push_str(&format!("\t$.reset({});\n\n", var));
 
                     // Transform state variable references in the template
-                    // For $.state() variables, we don't need $.get() - they're already reactive
-                    // For $.proxy() variables, access properties directly
-                    let template_str = content_template.clone();
+                    // Wrap state variables in $.get() inside template expressions
+                    let template_str = wrap_state_vars_in_get(content_template, &self.state_vars);
 
                     template_effects.push(format!(
                         "\t$.template_effect(() => $.set_text({}, `{}`));\n",
@@ -1400,11 +1422,9 @@ export default function {component_name}({fn_params}) {{
                     ));
                 } else {
                     // Static content - set directly as textContent
-                    // Try to evaluate any constant expressions
-                    code.push_str(&format!(
-                        "\t{}.textContent = `{}`;\n\n",
-                        var, content_template
-                    ));
+                    // Evaluate constant expressions at compile time
+                    let evaluated = evaluate_constant_template(content_template, &self.const_vars);
+                    code.push_str(&format!("\t{}.textContent = '{}';\n\n", var, evaluated));
                 }
             } else if !exprs.is_empty() {
                 // Fallback: no content_template but has expressions (legacy handling)
@@ -1768,7 +1788,83 @@ fn transform_client_runes(line: &str) -> String {
         result = result.replace("$effect(", "$.effect(");
     }
 
+    // Transform $props() destructuring to $.prop() calls
+    // e.g., let { tag = "hr" } = $props(); → let tag = $.prop($$props, 'tag', 3, 'hr');
+    if result.contains("$props()") {
+        if let Some(transformed) = transform_props_destructuring(&result) {
+            return transformed;
+        }
+    }
+
     result
+}
+
+/// Transform $props() destructuring into $.prop() calls
+fn transform_props_destructuring(line: &str) -> Option<String> {
+    // Match pattern: let { prop = default } = $props();
+    // or: let { prop1, prop2 = default } = $props();
+
+    let trimmed = line.trim();
+
+    // Check for destructuring pattern (handle spaces like "let { " or "let{ ")
+    let is_let_destructure = trimmed.starts_with("let {") || trimmed.starts_with("let{");
+    let is_const_destructure = trimmed.starts_with("const {") || trimmed.starts_with("const{");
+
+    if !is_let_destructure && !is_const_destructure {
+        return None;
+    }
+
+    // Find the destructuring pattern
+    let brace_start = trimmed.find('{')?;
+    let brace_end = trimmed.find('}')?;
+
+    if brace_end <= brace_start {
+        return None;
+    }
+
+    let pattern = &trimmed[brace_start + 1..brace_end].trim();
+
+    // Parse the destructured properties
+    let mut props: Vec<(String, Option<String>)> = Vec::new();
+
+    for part in pattern.split(',') {
+        let part = part.trim();
+        if part.is_empty() {
+            continue;
+        }
+
+        if let Some(eq_pos) = part.find('=') {
+            // Property with default value
+            let name = part[..eq_pos].trim().to_string();
+            let default = part[eq_pos + 1..].trim().to_string();
+            props.push((name, Some(default)));
+        } else {
+            // Property without default
+            props.push((part.to_string(), None));
+        }
+    }
+
+    if props.is_empty() {
+        return None;
+    }
+
+    // Generate $.prop() calls
+    let mut declarations: Vec<String> = Vec::new();
+
+    for (name, default) in props {
+        if let Some(def) = default {
+            // Convert default value quotes to single quotes for consistency
+            let def_normalized = def.replace('"', "'");
+            declarations.push(format!(
+                "let {} = $.prop($$props, '{}', 3, {});",
+                name, name, def_normalized
+            ));
+        } else {
+            declarations.push(format!("let {} = $.prop($$props, '{}', 3);", name, name));
+        }
+    }
+
+    Some(declarations.join("\n\t"))
 }
 
 /// Find the position of the matching closing parenthesis.
@@ -1825,6 +1921,173 @@ fn collect_state_variables(script: &str) -> Vec<String> {
     }
 
     vars
+}
+
+/// Collect constant variables (let/const without $state) with their values.
+fn collect_constant_variables(script: &str) -> HashMap<String, String> {
+    let mut vars = HashMap::new();
+
+    for line in script.lines() {
+        let trimmed = line.trim();
+
+        // Skip lines with $state, $derived, $effect, $props
+        if trimmed.contains("$state")
+            || trimmed.contains("$derived")
+            || trimmed.contains("$effect")
+            || trimmed.contains("$props")
+        {
+            continue;
+        }
+
+        // Match patterns like: let varname = 'value' or const varname = 'value'
+        if (trimmed.starts_with("let ") || trimmed.starts_with("const ")) && trimmed.contains(" = ")
+        {
+            if let Some(eq_pos) = trimmed.find(" = ") {
+                let before_eq = trimmed[..eq_pos].trim();
+                let after_eq = trimmed[eq_pos + 3..].trim().trim_end_matches(';');
+
+                // Get the last word before = (the variable name)
+                if let Some(var_name) = before_eq.split_whitespace().last() {
+                    // Check if value is a string literal
+                    if (after_eq.starts_with('\'') && after_eq.ends_with('\''))
+                        || (after_eq.starts_with('"') && after_eq.ends_with('"'))
+                    {
+                        // Extract the string value without quotes
+                        let value = &after_eq[1..after_eq.len() - 1];
+                        vars.insert(var_name.to_string(), value.to_string());
+                    }
+                }
+            }
+        }
+    }
+
+    vars
+}
+
+/// Evaluate a content template by replacing constant variable references with their values.
+/// Handles patterns like `Hello, ${null ?? ''}${name ?? ''}!` -> `Hello, world!`
+fn evaluate_constant_template(template: &str, const_vars: &HashMap<String, String>) -> String {
+    let mut result = template.to_string();
+
+    // Find all ${...} expressions and try to evaluate them
+    loop {
+        let start = result.find("${");
+        if start.is_none() {
+            break;
+        }
+        let start = start.unwrap();
+
+        // Find matching }
+        let rest = &result[start + 2..];
+        let mut depth = 1;
+        let mut end_pos = 0;
+        for (i, c) in rest.chars().enumerate() {
+            match c {
+                '{' => depth += 1,
+                '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        end_pos = i;
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if depth != 0 {
+            break;
+        }
+
+        let expr = &rest[..end_pos];
+        let full_expr = &result[start..start + 2 + end_pos + 1];
+
+        // Evaluate the expression
+        if let Some(value) = evaluate_constant_expr(expr, const_vars) {
+            result = result.replace(full_expr, &value);
+        } else {
+            // Can't evaluate - move past this expression
+            break;
+        }
+    }
+
+    result
+}
+
+/// Evaluate a constant expression.
+fn evaluate_constant_expr(expr: &str, const_vars: &HashMap<String, String>) -> Option<String> {
+    let trimmed = expr.trim();
+
+    // Handle null
+    if trimmed == "null" {
+        return Some(String::new());
+    }
+
+    // Handle nullish coalescing: var ?? fallback
+    if let Some(nul_pos) = trimmed.find("??") {
+        let left = trimmed[..nul_pos].trim();
+        let right = trimmed[nul_pos + 2..].trim();
+
+        // Evaluate left side
+        if left == "null" {
+            // Left is null, evaluate right
+            return evaluate_constant_expr(right, const_vars);
+        }
+
+        // Check if left is a constant variable
+        if let Some(value) = const_vars.get(left) {
+            return Some(value.clone());
+        }
+
+        // Try evaluating left as expression
+        if let Some(value) = evaluate_constant_expr(left, const_vars) {
+            if !value.is_empty() {
+                return Some(value);
+            }
+            // Left evaluates to empty, try right
+            return evaluate_constant_expr(right, const_vars);
+        }
+
+        return None;
+    }
+
+    // Check if it's a constant variable
+    if let Some(value) = const_vars.get(trimmed) {
+        return Some(value.clone());
+    }
+
+    // Check for string literal
+    if (trimmed.starts_with('\'') && trimmed.ends_with('\''))
+        || (trimmed.starts_with('"') && trimmed.ends_with('"'))
+    {
+        return Some(trimmed[1..trimmed.len() - 1].to_string());
+    }
+
+    None
+}
+
+/// Wrap state variable references in $.get() inside template expressions.
+/// Transforms `${count ?? ''}` to `${$.get(count) ?? ''}`.
+fn wrap_state_vars_in_get(template: &str, state_vars: &[String]) -> String {
+    let mut result = template.to_string();
+
+    for var in state_vars {
+        // Pattern: ${var ?? ''} -> ${$.get(var) ?? ''}
+        // Pattern: ${var} -> ${$.get(var)}
+        // Need to be careful not to match partial variable names
+
+        // Replace ${var ??  with ${$.get(var) ??
+        let pattern1 = format!("${{{} ??", var);
+        let replacement1 = format!("${{$.get({}) ??", var);
+        result = result.replace(&pattern1, &replacement1);
+
+        // Replace ${var} with ${$.get(var)}
+        let pattern2 = format!("${{{}}}", var);
+        let replacement2 = format!("${{$.get({})}}", var);
+        result = result.replace(&pattern2, &replacement2);
+    }
+
+    result
 }
 
 /// Transform state variable assignments to use $.set().
