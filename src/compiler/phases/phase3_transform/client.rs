@@ -171,6 +171,26 @@ enum ChildPart {
     Expression(String),
 }
 
+/// Represents a snippet block for code generation.
+#[derive(Debug, Clone)]
+struct SnippetInfo {
+    /// Snippet name
+    name: String,
+    /// Snippet body content (text only for now)
+    body_text: String,
+}
+
+/// Represents a component with value binding for code generation.
+#[derive(Debug, Clone)]
+struct ComponentWithBinding {
+    /// Component name (e.g., "TextInput")
+    component_name: String,
+    /// The binding name (e.g., "value")
+    bind_name: String,
+    /// The variable being bound to (e.g., "value")
+    bind_var: String,
+}
+
 /// Client-side code generator.
 struct ClientCodeGenerator {
     component_name: String,
@@ -203,6 +223,10 @@ struct ClientCodeGenerator {
     bind_this_components: Vec<BindThisComponent>,
     /// Components with children (for generating children callbacks)
     components_with_children: Vec<ComponentWithChildren>,
+    /// Snippet blocks
+    snippets: Vec<SnippetInfo>,
+    /// Components with value bindings (for getter/setter generation)
+    components_with_bindings: Vec<ComponentWithBinding>,
 }
 
 impl ClientCodeGenerator {
@@ -237,6 +261,8 @@ impl ClientCodeGenerator {
             svelte_elements: Vec::new(),
             bind_this_components: Vec::new(),
             components_with_children: Vec::new(),
+            snippets: Vec::new(),
+            components_with_bindings: Vec::new(),
         }
     }
 
@@ -643,18 +669,36 @@ impl ClientCodeGenerator {
     fn generate_component_usage(&mut self, component: &Component) -> Result<(), TransformError> {
         let comp_name = component.name.to_string();
 
-        // Check for bind:this directive
+        // Check for bind directives
         let mut bind_this_var: Option<String> = None;
+        let mut bind_value_var: Option<(String, String)> = None; // (binding_name, var_name)
         let mut has_other_attrs = false;
 
         for attr in &component.attributes {
             match attr {
-                Attribute::BindDirective(bind) if bind.name == "this" => {
-                    // Extract the variable name from the expression
+                Attribute::BindDirective(bind) => {
                     let expr_start = bind.expression.start().unwrap_or(0) as usize;
                     let expr_end = bind.expression.end().unwrap_or(0) as usize;
-                    if expr_end > expr_start && expr_end <= self.source.len() {
-                        bind_this_var = Some(self.source[expr_start..expr_end].trim().to_string());
+                    let var_name = if expr_end > expr_start && expr_end <= self.source.len() {
+                        let extracted = self.source[expr_start..expr_end].trim().to_string();
+                        // For shorthand bindings like `bind:value`, the extracted text might
+                        // contain "bind:" or other directive syntax. In that case, use the
+                        // directive name as the variable name.
+                        if extracted.contains(':') || extracted.is_empty() {
+                            bind.name.to_string()
+                        } else {
+                            extracted
+                        }
+                    } else {
+                        // Fallback: use directive name for shorthand bindings
+                        bind.name.to_string()
+                    };
+
+                    if bind.name == "this" {
+                        bind_this_var = Some(var_name);
+                    } else {
+                        // Other bindings like bind:value
+                        bind_value_var = Some((bind.name.to_string(), var_name));
                     }
                 }
                 Attribute::Attribute(_) => has_other_attrs = true,
@@ -664,7 +708,7 @@ impl ClientCodeGenerator {
 
         // If component has only bind:this and no other attributes, use special handling
         if let Some(bind_var) = bind_this_var {
-            if !has_other_attrs {
+            if !has_other_attrs && bind_value_var.is_none() {
                 // Don't add template placeholder - component will be called directly
                 self.bind_this_components.push(BindThisComponent {
                     component_name: comp_name,
@@ -672,6 +716,18 @@ impl ClientCodeGenerator {
                 });
                 return Ok(());
             }
+        }
+
+        // If component has bind:value (or similar), track it for getter/setter generation
+        if let Some((bind_name, bind_var)) = bind_value_var {
+            self.components_with_bindings.push(ComponentWithBinding {
+                component_name: comp_name.clone(),
+                bind_name,
+                bind_var,
+            });
+            // Add template placeholder
+            self.html_parts.push("<!>".to_string());
+            return Ok(());
         }
 
         // Extract props from attributes first (needed for all cases)
@@ -1027,8 +1083,30 @@ impl ClientCodeGenerator {
         Ok(())
     }
 
-    fn generate_snippet_block(&mut self, _block: &SnippetBlock) -> Result<(), TransformError> {
-        // Snippets don't render directly
+    fn generate_snippet_block(&mut self, block: &SnippetBlock) -> Result<(), TransformError> {
+        // Extract snippet name from expression
+        let name_start = block.expression.start().unwrap_or(0) as usize;
+        let name_end = block.expression.end().unwrap_or(0) as usize;
+        let name = if name_end > name_start && name_end <= self.source.len() {
+            self.source[name_start..name_end].trim().to_string()
+        } else {
+            return Ok(());
+        };
+
+        // Extract body content (for now just text)
+        let mut body_text = String::new();
+        for node in &block.body.nodes {
+            if let TemplateNode::Text(text) = node {
+                let trimmed = text.data.trim();
+                if !trimmed.is_empty() {
+                    body_text = trimmed.to_string();
+                }
+            }
+        }
+
+        // Store snippet info
+        self.snippets.push(SnippetInfo { name, body_text });
+
         Ok(())
     }
 
@@ -1174,6 +1252,9 @@ impl ClientCodeGenerator {
         let has_svelte_elements = !self.svelte_elements.is_empty();
         let svelte_element_code = self.generate_svelte_element_code();
 
+        // Generate hoisted snippet code
+        let snippets_code = self.generate_snippets_code();
+
         // Check for bind:this only components (special case)
         let has_bind_this_only =
             !self.bind_this_components.is_empty() && html.is_empty() && self.nodes.is_empty();
@@ -1182,7 +1263,72 @@ impl ClientCodeGenerator {
         let has_component_with_children =
             !self.components_with_children.is_empty() && html.is_empty() && self.nodes.is_empty();
 
-        let raw_output = if has_component_with_children {
+        // Check for component with bindings (like bind:value)
+        let has_component_with_binding = !self.components_with_bindings.is_empty();
+
+        // Generate component binding code
+        let component_binding_code = self.generate_component_binding_code();
+
+        let raw_output = if has_component_with_binding && !snippets_code.is_empty() {
+            // Component with binding + snippets + root-level expressions
+            // Template is just `<!> ` for the component placeholder + space for text node
+            // Check if we have root-level expressions in nodes
+            let has_root_expressions = self
+                .nodes
+                .iter()
+                .any(|n| matches!(n.node_type, NodeType::ExpressionInElement));
+
+            let expression_code = if has_root_expressions {
+                // Get the expression from the first root-level expression node
+                let expr = self
+                    .nodes
+                    .iter()
+                    .find(|n| matches!(n.node_type, NodeType::ExpressionInElement))
+                    .and_then(|n| n.expression.as_ref())
+                    .cloned()
+                    .unwrap_or_default();
+
+                // Extract any text before the expression from html (but remove the component placeholder)
+                // The text includes whitespace normalization
+                let text_before = html
+                    .replace("<!>", "")
+                    .replace('\n', " ")
+                    .trim_end()
+                    .to_string();
+
+                // Wrap expression in $.get() if it's a state variable
+                let wrapped_expr = if self.state_vars.contains(&expr) {
+                    format!("$.get({})", expr)
+                } else {
+                    expr
+                };
+
+                format!(
+                    "\tvar text_1 = $.sibling(node);\n\n\t$.template_effect(() => $.set_text(text_1, `{} ${{{} ?? ''}}`));\n",
+                    text_before, wrapped_expr
+                )
+            } else {
+                String::new()
+            };
+
+            format!(
+                r#"{system_imports}
+{hoisted_imports}{snippets_code}var root = $.from_html(`<!> `, 1);
+
+export default function {component_name}({fn_params}) {{
+{script_code}	var fragment = root();
+{component_binding_code}{expression_code}	$.append($$anchor, fragment);
+}}"#,
+                system_imports = system_imports,
+                hoisted_imports = hoisted_imports,
+                snippets_code = snippets_code,
+                component_name = self.component_name,
+                fn_params = fn_params,
+                script_code = script_code,
+                component_binding_code = component_binding_code,
+                expression_code = expression_code
+            )
+        } else if has_component_with_children {
             // Component with children - no template needed, generate children callback
             let comp = &self.components_with_children[0];
             let children_code = self.generate_children_callback(&comp.children_parts);
@@ -1308,8 +1454,7 @@ export default function {component_name}({fn_params}) {{
             // Multiple root elements - use fragment pattern
             format!(
                 r#"{system_imports}
-{hoisted_imports}
-var root = $.from_html(`{html}`, 1);
+{hoisted_imports}{snippets_code}var root = $.from_html(`{html}`, 1);
 
 export default function {component_name}({fn_params}) {{
 {script_code}	var fragment = root();
@@ -1317,6 +1462,7 @@ export default function {component_name}({fn_params}) {{
 }}{delegation_code}"#,
                 system_imports = system_imports,
                 hoisted_imports = hoisted_imports,
+                snippets_code = snippets_code,
                 html = html,
                 component_name = self.component_name,
                 fn_params = fn_params,
@@ -1329,8 +1475,7 @@ export default function {component_name}({fn_params}) {{
             let root_var = determine_root_var(&html);
             format!(
                 r#"{system_imports}
-{hoisted_imports}
-var root = $.from_html(`{html}`);
+{hoisted_imports}{snippets_code}var root = $.from_html(`{html}`);
 
 export default function {component_name}({fn_params}) {{
 {script_code}	var {root_var} = root();
@@ -1338,6 +1483,7 @@ export default function {component_name}({fn_params}) {{
 }}{delegation_code}"#,
                 system_imports = system_imports,
                 hoisted_imports = hoisted_imports,
+                snippets_code = snippets_code,
                 html = html,
                 component_name = self.component_name,
                 fn_params = fn_params,
@@ -1418,6 +1564,54 @@ export default function {component_name}({fn_params}) {{
 
         for elem in &self.svelte_elements {
             code.push_str(&format!("\n\t$.element(node, {}, false);\n", elem.tag_expr));
+        }
+
+        code
+    }
+
+    /// Generate hoisted snippet functions.
+    fn generate_snippets_code(&self) -> String {
+        let mut code = String::new();
+
+        for snippet in &self.snippets {
+            code.push_str(&format!(
+                r#"const {} = ($$anchor) => {{
+	$.next();
+
+	var text = $.text('{}');
+
+	$.append($$anchor, text);
+}};
+
+"#,
+                snippet.name, snippet.body_text
+            ));
+        }
+
+        code
+    }
+
+    /// Generate code for components with bindings.
+    fn generate_component_binding_code(&self) -> String {
+        let mut code = String::new();
+
+        for comp in &self.components_with_bindings {
+            code.push_str(&format!(
+                r#"	var node = $.first_child(fragment);
+
+	{}(node, {{
+		get {}() {{
+			return $.get({});
+		}},
+
+		set {}($$value) {{
+			$.set({}, $$value, true);
+		}}
+	}});
+
+"#,
+                comp.component_name, comp.bind_name, comp.bind_var, comp.bind_name, comp.bind_var
+            ));
         }
 
         code

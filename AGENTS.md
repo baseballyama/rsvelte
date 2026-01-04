@@ -156,7 +156,7 @@ cargo test --test compiler_fixtures -- --nocapture
 
 Current status:
 - **Parser**: 22/22 modern mode tests passing (100%)
-- **Compiler**: Total 12/25 (Client 12/25, Server 17/25) tests passing
+- **Compiler**: Total 12/25 (Client 13/25, Server 17/25) tests passing
 
 ## Current Progress
 
@@ -175,7 +175,7 @@ Current status:
 - [x] Script/Style parsing
 - [x] CSS parsing
 
-### Compiler (Total: 12/25, Client: 12/25, Server: 17/25 tests passing)
+### Compiler (Total: 12/25, Client: 13/25, Server: 17/25 tests passing)
 
 **Passing tests (client + server):**
 - hello-world
@@ -190,6 +190,7 @@ Current status:
 - each-index-non-null
 - bind-this
 - function-prop-no-getter
+- bind-component-snippet (client only)
 
 **Server (17/25 passing):**
 
@@ -222,6 +223,9 @@ Current status:
 - [x] `$props()` identifier pattern (`$.rest_props()`, `$.push/$.pop`)
 - [x] Props property access transformation (`props.X` → `$$props.X`)
 - [x] Constant variable tracking for compile-time evaluation
+- [x] Snippet blocks with hoisted arrow functions
+- [x] Component `bind:value` with getter/setter pattern
+- [x] Root-level text+expression handling with `$.template_effect`
 - [x] Constant folding for template expressions with nullish coalescing
 - [x] `$.get()` wrapper for state variables in template effects
 - [x] `$.update()` for increment/decrement operations
