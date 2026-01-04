@@ -156,7 +156,7 @@ cargo test --test compiler_fixtures -- --nocapture
 
 Current status:
 - **Parser**: 22/22 modern mode tests passing (100%)
-- **Compiler**: Total 6/25 (Client 6/25, Server 17/25) tests passing
+- **Compiler**: Total 7/25 (Client 7/25, Server 17/25) tests passing
 
 ## Current Progress
 
@@ -175,7 +175,7 @@ Current status:
 - [x] Script/Style parsing
 - [x] CSS parsing
 
-### Compiler (Total: 6/25, Client: 6/25, Server: 17/25 tests passing)
+### Compiler (Total: 7/25, Client: 7/25, Server: 17/25 tests passing)
 
 **Passing tests:**
 - hello-world (client + server)
