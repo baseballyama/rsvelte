@@ -79,6 +79,17 @@ enum OutputPart {
         has_prior_content: bool,
         children: Option<Vec<OutputPart>>,
     },
+    /// Component with bind directives - requires do/while settling
+    ComponentWithBindings {
+        name: String,
+        props: Vec<String>,
+        bindings: Vec<(String, String)>, // (prop_name, variable_name)
+        #[allow(dead_code)]
+        // Always true for component bindings - comment marker added via build_parts_with_prefix
+        has_prior_content: bool,
+        #[allow(dead_code)] // TODO: Handle children for components with bindings
+        children: Option<Vec<OutputPart>>,
+    },
     Comment,
     /// Each block - produces a for loop
     EachBlock {
@@ -174,7 +185,20 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.output_parts.push(OutputPart::Html(" ".to_string()));
             }
         } else {
-            self.output_parts.push(OutputPart::Html(escape_html(data)));
+            // Normalize leading/trailing whitespace (newlines -> spaces)
+            let trimmed = data.trim();
+            let has_leading_ws = data.chars().next().is_some_and(|c| c.is_whitespace());
+            let has_trailing_ws = data.chars().last().is_some_and(|c| c.is_whitespace());
+
+            let mut result = String::new();
+            if has_leading_ws {
+                result.push(' ');
+            }
+            result.push_str(&escape_html(trimmed));
+            if has_trailing_ws {
+                result.push(' ');
+            }
+            self.output_parts.push(OutputPart::Html(result));
         }
         Ok(())
     }
@@ -475,37 +499,70 @@ impl<'a> ServerCodeGenerator<'a> {
                 || matches!(part, OutputPart::Expression(_))
         });
 
-        // Extract props
+        // Extract props and bindings
         let mut props = Vec::new();
+        let mut bindings = Vec::new();
+
         for attr in &component.attributes {
-            if let Attribute::Attribute(node) = attr {
-                let name = node.name.as_str();
-                if let AttributeValue::Expression(expr_tag) = &node.value {
-                    // Get expression from ExpressionTag's expression field
-                    let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
-                    let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
-                    if expr_end > expr_start && expr_end <= self.source.len() {
-                        let expr_source = self.source[expr_start..expr_end].trim().to_string();
-                        // Check if it's a shorthand property (name equals expression)
-                        if expr_source == name {
-                            props.push(name.to_string());
-                        } else {
-                            props.push(format!("{}: {}", name, expr_source));
+            match attr {
+                Attribute::Attribute(node) => {
+                    let name = node.name.as_str();
+                    if let AttributeValue::Expression(expr_tag) = &node.value {
+                        // Get expression from ExpressionTag's expression field
+                        let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                        let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                        if expr_end > expr_start && expr_end <= self.source.len() {
+                            let expr_source = self.source[expr_start..expr_end].trim().to_string();
+                            // Check if it's a shorthand property (name equals expression)
+                            if expr_source == name {
+                                props.push(name.to_string());
+                            } else {
+                                props.push(format!("{}: {}", name, expr_source));
+                            }
                         }
                     }
                 }
+                Attribute::BindDirective(bind) => {
+                    let prop_name = bind.name.as_str();
+                    // Skip bind:this - it doesn't require do/while pattern on server
+                    if prop_name == "this" {
+                        continue;
+                    }
+                    let expr_start = bind.expression.start().unwrap_or(0) as usize;
+                    let expr_end = bind.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let mut var_name = self.source[expr_start..expr_end].trim().to_string();
+                        // Handle shorthand bindings where span might include "bind:"
+                        if let Some(stripped) = var_name.strip_prefix("bind:") {
+                            var_name = stripped.to_string();
+                        }
+                        bindings.push((prop_name.to_string(), var_name));
+                    }
+                }
+                _ => {}
             }
         }
 
         // Check if component has children
         let children = self.generate_component_children(&component.fragment)?;
 
-        self.output_parts.push(OutputPart::Component {
-            name: comp_name,
-            props,
-            has_prior_content,
-            children,
-        });
+        // Use ComponentWithBindings if there are any bind directives
+        if bindings.is_empty() {
+            self.output_parts.push(OutputPart::Component {
+                name: comp_name,
+                props,
+                has_prior_content,
+                children,
+            });
+        } else {
+            self.output_parts.push(OutputPart::ComponentWithBindings {
+                name: comp_name,
+                props,
+                bindings,
+                has_prior_content,
+                children,
+            });
+        }
 
         Ok(())
     }
@@ -947,7 +1004,9 @@ export default function {component_name}($$renderer{props_param}) {{}}"#,
         let mut current_html = String::new();
         let indent = "\t".repeat(indent_level);
 
-        for part in parts {
+        let mut i = 0;
+        while i < parts.len() {
+            let part = &parts[i];
             match part {
                 OutputPart::Html(html) => {
                     current_html.push_str(html);
@@ -957,6 +1016,84 @@ export default function {component_name}($$renderer{props_param}) {{}}"#,
                 }
                 OutputPart::HtmlExpression(expr) => {
                     current_html.push_str(&format!("${{$.html({})}}", expr));
+                }
+                OutputPart::ComponentWithBindings {
+                    name,
+                    props,
+                    bindings,
+                    has_prior_content: _,
+                    children: _, // TODO: Handle children for components with bindings
+                } => {
+                    // Don't flush whitespace-only HTML before component with bindings
+                    // It will be absorbed into the do/while pattern
+                    current_html.clear();
+
+                    // Generate $$settled and $$inner_renderer
+                    body_code.push_str(&format!("{}let $$settled = true;\n", indent));
+                    body_code.push_str(&format!("{}let $$inner_renderer;\n\n", indent));
+
+                    // Start $$render_inner function
+                    body_code.push_str(&format!(
+                        "{}function $$render_inner($$renderer) {{\n",
+                        indent
+                    ));
+
+                    // Generate component call with getter/setter props
+                    body_code.push_str(&format!("{}\t{}($$renderer, {{\n", indent, name));
+
+                    // Regular props first
+                    for prop in props {
+                        body_code.push_str(&format!("{}\t\t{},\n", indent, prop));
+                    }
+
+                    // Generate getter/setter for each binding
+                    for (prop_name, var_name) in bindings {
+                        body_code.push_str(&format!("{}\t\tget {}() {{\n", indent, prop_name));
+                        body_code.push_str(&format!("{}\t\t\treturn {};\n", indent, var_name));
+                        body_code.push_str(&format!("{}\t\t}},\n\n", indent));
+                        body_code
+                            .push_str(&format!("{}\t\tset {}($$value) {{\n", indent, prop_name));
+                        body_code.push_str(&format!("{}\t\t\t{} = $$value;\n", indent, var_name));
+                        body_code.push_str(&format!("{}\t\t\t$$settled = false;\n", indent));
+                        body_code.push_str(&format!("{}\t\t}}\n", indent));
+                    }
+
+                    body_code.push_str(&format!("{}\t}});\n", indent));
+
+                    // Process remaining parts inside $$render_inner with comment marker
+                    let remaining_parts = &parts[i + 1..];
+                    if !remaining_parts.is_empty() {
+                        // Build remaining parts with comment marker prefix
+                        let inner_code = Self::build_parts_with_prefix(
+                            remaining_parts,
+                            indent_level + 1,
+                            "<!---->",
+                        );
+                        body_code.push_str(&inner_code);
+                    }
+
+                    // Close $$render_inner function
+                    body_code.push_str(&format!("{}}}\n\n", indent));
+
+                    // Generate do/while loop
+                    body_code.push_str(&format!("{}do {{\n", indent));
+                    body_code.push_str(&format!("{}\t$$settled = true;\n", indent));
+                    body_code.push_str(&format!(
+                        "{}\t$$inner_renderer = $$renderer.copy();\n",
+                        indent
+                    ));
+                    body_code.push_str(&format!("{}\t$$render_inner($$inner_renderer);\n", indent));
+                    body_code.push_str(&format!("{}}} while (!$$settled);\n\n", indent));
+
+                    // Subsume the inner renderer
+                    body_code.push_str(&format!(
+                        "{}$$renderer.subsume($$inner_renderer);\n",
+                        indent
+                    ));
+
+                    // Skip remaining parts since they're already processed
+                    i = parts.len();
+                    continue;
                 }
                 OutputPart::Component {
                     name,
@@ -1128,6 +1265,47 @@ export default function {component_name}($$renderer{props_param}) {{}}"#,
                     current_html.push_str("<!--]-->");
                 }
             }
+            i += 1;
+        }
+
+        // Flush remaining HTML
+        if !current_html.is_empty() {
+            body_code.push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+        }
+
+        body_code
+    }
+
+    /// Build output parts with an HTML prefix (for comment markers inside $$render_inner).
+    fn build_parts_with_prefix(parts: &[OutputPart], indent_level: usize, prefix: &str) -> String {
+        let mut body_code = String::new();
+        let mut current_html = String::from(prefix);
+        let indent = "\t".repeat(indent_level);
+
+        let mut i = 0;
+        while i < parts.len() {
+            let part = &parts[i];
+            match part {
+                OutputPart::Html(html) => {
+                    current_html.push_str(html);
+                }
+                OutputPart::Expression(expr) => {
+                    current_html.push_str(&format!("${{$.escape({})}}", expr));
+                }
+                _ => {
+                    // For other parts, flush and delegate to build_parts
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+                    let remaining = &parts[i..];
+                    let remaining_code = Self::build_parts(remaining, indent_level);
+                    body_code.push_str(&remaining_code);
+                    return body_code;
+                }
+            }
+            i += 1;
         }
 
         // Flush remaining HTML
