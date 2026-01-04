@@ -526,12 +526,56 @@ impl ClientCodeGenerator {
                     }
                 } else {
                     // Expression-only content (no static text)
-                    // Leave element empty, track expressions individually
+                    // Check if these are function call expressions (e.g., {text1()}{text2()})
+                    let mut func_names: Vec<String> = Vec::new();
                     for child in &element.fragment.nodes {
                         if let TemplateNode::ExpressionTag(tag) = child {
-                            self.generate_expression_tag(tag)?;
+                            let expr_start = tag.start as usize;
+                            let expr_end = tag.end as usize;
+                            if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                                let expr = self.source[expr_start + 1..expr_end - 1].trim();
+                                // Check if it's a function call: identifier()
+                                if let Some(func_name) = expr.strip_suffix("()") {
+                                    if func_name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                                        func_names.push(func_name.to_string());
+                                    }
+                                }
+                            }
                         }
-                        self.current_child_index += 1;
+                    }
+
+                    if func_names.len() >= 2 {
+                        // Multiple function call expressions - add space placeholder
+                        self.html_parts.push(" ".to_string());
+
+                        // Store function names for template_effect generation
+                        // The element needs $.child(), $.reset(), and special template_effect
+                        if let Some(last_node) = self.nodes.last_mut() {
+                            if matches!(last_node.node_type, NodeType::Element(_)) {
+                                // Build template with $N placeholders
+                                let template_parts: Vec<String> = func_names
+                                    .iter()
+                                    .enumerate()
+                                    .map(|(i, _)| format!("${{${} ?? ''}}", i))
+                                    .collect();
+                                // Store as special content_template with function array marker
+                                // Format: "FUNC_ARRAY:fn1,fn2:template"
+                                let template = template_parts.join("");
+                                last_node.content_template = Some(format!(
+                                    "FUNC_ARRAY:{}:{}",
+                                    func_names.join(","),
+                                    template
+                                ));
+                            }
+                        }
+                    } else {
+                        // Single or non-function expressions - track individually
+                        for child in &element.fragment.nodes {
+                            if let TemplateNode::ExpressionTag(tag) = child {
+                                self.generate_expression_tag(tag)?;
+                            }
+                            self.current_child_index += 1;
+                        }
                     }
                 }
             } else {
@@ -1852,6 +1896,9 @@ export default function {component_name}({fn_params}) {{
             return String::new();
         }
 
+        // Detect state variables that should be skipped (used in FUNC_ARRAY pattern)
+        let skip_state_vars = self.detect_func_array_state_vars(script);
+
         let mut result = String::new();
 
         for line in script.lines() {
@@ -1862,8 +1909,8 @@ export default function {component_name}({fn_params}) {{
                 continue;
             }
 
-            // Transform runes
-            let mut transformed = transform_client_runes(trimmed);
+            // Transform runes (with skipping for FUNC_ARRAY pattern)
+            let mut transformed = transform_client_runes_with_skip(trimmed, &skip_state_vars);
 
             // Transform state variable assignments to $.set()
             transformed = transform_state_assignments(&transformed, &self.state_vars);
@@ -1874,6 +1921,64 @@ export default function {component_name}({fn_params}) {{
         }
 
         result
+    }
+
+    /// Detect state variables that are only accessed through wrapper functions
+    /// that are used in FUNC_ARRAY pattern templates.
+    fn detect_func_array_state_vars(&self, script: &str) -> Vec<String> {
+        // Check if any node has FUNC_ARRAY pattern
+        let func_array_funcs: Vec<String> = self
+            .nodes
+            .iter()
+            .filter_map(|n| n.content_template.as_ref())
+            .filter_map(|t| t.strip_prefix("FUNC_ARRAY:"))
+            .flat_map(|rest| {
+                if let Some(colon_pos) = rest.find(':') {
+                    rest[..colon_pos]
+                        .split(',')
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>()
+                } else {
+                    Vec::new()
+                }
+            })
+            .collect();
+
+        if func_array_funcs.is_empty() {
+            return Vec::new();
+        }
+
+        // For each function in the FUNC_ARRAY, find state variables it returns
+        let mut skip_vars = Vec::new();
+
+        for func_name in &func_array_funcs {
+            // Look for function definition that returns a state variable
+            // Pattern: function funcName(){ return stateVar; } or function funcName() { return stateVar; }
+            let pattern1 = format!("function {}()", func_name);
+            let pattern2 = format!("function {}(){{", func_name);
+
+            let func_pos = script.find(&pattern1).or_else(|| script.find(&pattern2));
+
+            if let Some(pos) = func_pos {
+                // Find the return statement
+                let rest = &script[pos..];
+                if let Some(return_pos) = rest.find("return ") {
+                    let after_return = &rest[return_pos + 7..];
+                    // Extract the identifier being returned
+                    let end = after_return
+                        .find(|c: char| !c.is_alphanumeric() && c != '_')
+                        .unwrap_or(after_return.len());
+                    let returned_var = after_return[..end].trim();
+
+                    // Check if this is a state variable
+                    if self.state_vars.contains(&returned_var.to_string()) {
+                        skip_vars.push(returned_var.to_string());
+                    }
+                }
+            }
+        }
+
+        skip_vars
     }
 
     /// Transform script content when $props() is used as an identifier.
@@ -1989,22 +2094,61 @@ export default function {component_name}({fn_params}) {{
 
                     // Check if element has a content template (combined text + expressions)
                     if let Some(content_template) = &node.content_template {
-                        let is_reactive = self
-                            .state_vars
-                            .iter()
-                            .any(|sv| content_template.contains(sv));
+                        // Check for FUNC_ARRAY pattern: "FUNC_ARRAY:fn1,fn2:template"
+                        if let Some(rest) = content_template.strip_prefix("FUNC_ARRAY:") {
+                            if let Some(colon_pos) = rest.find(':') {
+                                let func_names: Vec<&str> = rest[..colon_pos].split(',').collect();
+                                let template = &rest[colon_pos + 1..];
 
-                        if is_reactive {
-                            let text_var = "text".to_string();
-                            code.push_str(&format!("\tvar {} = $.child({});\n\n", text_var, var));
-                            code.push_str(&format!("\t$.reset({});\n\n", var));
-                            let template_str =
-                                wrap_state_vars_in_get(content_template, &self.state_vars);
-                            template_effect_parts.push((text_var, template_str));
+                                // Generate $.child() and $.reset()
+                                let text_var = "text".to_string();
+                                code.push_str(&format!(
+                                    "\tvar {} = $.child({});\n\n",
+                                    text_var, var
+                                ));
+                                code.push_str(&format!("\t$.reset({});\n", var));
+
+                                // Generate special template_effect with function array
+                                // $.template_effect(($0, $1) => $.set_text(text, `...`), [fn1, fn2]);
+                                let params: Vec<String> = func_names
+                                    .iter()
+                                    .enumerate()
+                                    .map(|(i, _)| format!("${}", i))
+                                    .collect();
+                                let func_array = func_names.join(", ");
+
+                                code.push_str(&format!(
+                                    "\t$.template_effect(({}) => $.set_text({}, `{}`), [{}]);\n",
+                                    params.join(", "),
+                                    text_var,
+                                    template,
+                                    func_array
+                                ));
+                            }
                         } else {
-                            let evaluated =
-                                evaluate_constant_template(content_template, &self.const_vars);
-                            code.push_str(&format!("\t{}.textContent = '{}';\n\n", var, evaluated));
+                            let is_reactive = self
+                                .state_vars
+                                .iter()
+                                .any(|sv| content_template.contains(sv));
+
+                            if is_reactive {
+                                let text_var = "text".to_string();
+                                code.push_str(&format!(
+                                    "\tvar {} = $.child({});\n\n",
+                                    text_var, var
+                                ));
+                                code.push_str(&format!("\t$.reset({});\n\n", var));
+                                let template_str =
+                                    wrap_state_vars_in_get(content_template, &self.state_vars);
+                                template_effect_parts.push((text_var, template_str));
+                            } else {
+                                let evaluated =
+                                    evaluate_constant_template(content_template, &self.const_vars);
+                                code.push_str(&format!(
+                                    "\t{}.textContent = '{}';\n\n",
+                                    var, evaluated
+                                ));
+                            }
                         }
                     } else if has_exprs {
                         // Handle expressions without content_template
@@ -2380,26 +2524,52 @@ fn extract_imports(script: &str) -> (Vec<String>, String) {
 
 /// Transform runes for client-side usage.
 /// Converts `$state(x)` to `$.state(x)` or `$.proxy(x)`, `$derived(x)` to `$.derived(() => x)`, etc.
-fn transform_client_runes(line: &str) -> String {
+/// If `skip_state_vars` contains variable names, those $state() calls will be transformed to just the value.
+fn transform_client_runes_with_skip(line: &str, skip_state_vars: &[String]) -> String {
     let mut result = line.to_string();
 
     // Transform $state(x) to $.state(x) for primitives or $.proxy(x) for objects
     if let Some(pos) = result.find("$state(") {
         // Check if this is a declaration
         if result[..pos].contains("let ") || result[..pos].contains("const ") {
-            // Find the content inside $state(...)
-            let state_start = pos + 7; // after "$state("
-            if let Some(content_end) = find_matching_paren(&result[state_start..]) {
-                let content = &result[state_start..state_start + content_end];
-                let trimmed_content = content.trim();
-                // Check if it's an object literal
-                if trimmed_content.starts_with('{') || trimmed_content.starts_with('[') {
-                    result = result.replacen("$state(", "$.proxy(", 1);
+            // Extract variable name
+            let before_eq = result[..pos].trim();
+            let var_name = before_eq
+                .split_whitespace()
+                .last()
+                .unwrap_or("")
+                .trim_end_matches('=')
+                .trim();
+
+            // Check if we should skip this state variable
+            if skip_state_vars.contains(&var_name.to_string()) {
+                // Just extract the value from $state(value)
+                let state_start = pos + 7; // after "$state("
+                if let Some(content_end) = find_matching_paren(&result[state_start..]) {
+                    let content = &result[state_start..state_start + content_end];
+                    // Replace $state(value) with just value
+                    result = format!(
+                        "{}{}{}",
+                        &result[..pos],
+                        content,
+                        &result[state_start + content_end + 1..]
+                    );
+                }
+            } else {
+                // Find the content inside $state(...)
+                let state_start = pos + 7; // after "$state("
+                if let Some(content_end) = find_matching_paren(&result[state_start..]) {
+                    let content = &result[state_start..state_start + content_end];
+                    let trimmed_content = content.trim();
+                    // Check if it's an object literal
+                    if trimmed_content.starts_with('{') || trimmed_content.starts_with('[') {
+                        result = result.replacen("$state(", "$.proxy(", 1);
+                    } else {
+                        result = result.replacen("$state(", "$.state(", 1);
+                    }
                 } else {
                     result = result.replacen("$state(", "$.state(", 1);
                 }
-            } else {
-                result = result.replacen("$state(", "$.state(", 1);
             }
         }
     }
@@ -2444,6 +2614,12 @@ fn transform_client_runes(line: &str) -> String {
     }
 
     result
+}
+
+/// Transform runes for client-side usage.
+/// Converts `$state(x)` to `$.state(x)` or `$.proxy(x)`, `$derived(x)` to `$.derived(() => x)`, etc.
+fn transform_client_runes(line: &str) -> String {
+    transform_client_runes_with_skip(line, &[])
 }
 
 /// Transform $props() usage.
