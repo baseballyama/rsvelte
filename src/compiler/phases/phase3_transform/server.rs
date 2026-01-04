@@ -184,6 +184,7 @@ impl<'a> ServerCodeGenerator<'a> {
             });
 
             let mut has_output_content = false;
+            let mut is_first_content = true;
 
             for (i, child) in children.iter().enumerate() {
                 // Skip comments
@@ -205,10 +206,23 @@ impl<'a> ServerCodeGenerator<'a> {
                         }
                         continue;
                     }
+
+                    // For first text node with content, strip leading whitespace
+                    if is_first_content {
+                        let trimmed = data.trim_start();
+                        if !trimmed.is_empty() {
+                            self.output_parts
+                                .push(OutputPart::Html(escape_html(trimmed)));
+                        }
+                        has_output_content = true;
+                        is_first_content = false;
+                        continue;
+                    }
                 }
 
                 self.generate_node(child, false)?;
                 has_output_content = true;
+                is_first_content = false;
             }
 
             // End tag
@@ -1057,6 +1071,7 @@ fn extract_imports(script: &str) -> (Vec<String>, String) {
 /// Transform script content for server-side rendering.
 /// - Replaces `$props()` with `$$props`
 /// - Replaces `$state(x)` with `x`
+/// - Replaces `$derived(x)` with `x`
 fn transform_script_content(script: &str) -> String {
     let mut result = String::new();
     let lines: Vec<&str> = script.lines().collect();
@@ -1074,6 +1089,9 @@ fn transform_script_content(script: &str) -> String {
 
         // Transform $state(x) to x - simple regex-like replacement
         let line = transform_state_calls(&line);
+
+        // Transform $derived(x) to x
+        let line = transform_derived_calls(&line);
 
         // Basic formatting fixes
         let line = format_js_line(&line);
@@ -1192,18 +1210,30 @@ fn format_js_line(line: &str) -> String {
 
 /// Transform $state(expr) calls to just the expression.
 fn transform_state_calls(line: &str) -> String {
+    transform_rune_call(line, "$state(")
+}
+
+/// Transform $derived(expr) calls to just the expression.
+fn transform_derived_calls(line: &str) -> String {
+    transform_rune_call(line, "$derived(")
+}
+
+/// Generic helper to transform rune calls like $state(x) or $derived(x) to just x.
+fn transform_rune_call(line: &str, prefix: &str) -> String {
     let mut result = String::new();
     let chars: Vec<char> = line.chars().collect();
+    let prefix_chars: Vec<char> = prefix.chars().collect();
+    let prefix_len = prefix_chars.len();
     let mut i = 0;
 
     while i < chars.len() {
-        // Check for $state(
-        if i + 7 <= chars.len() {
-            let potential: String = chars[i..i + 7].iter().collect();
-            if potential == "$state(" {
+        // Check for the prefix
+        if i + prefix_len <= chars.len() {
+            let potential: String = chars[i..i + prefix_len].iter().collect();
+            if potential == prefix {
                 // Find the matching closing paren
                 let mut depth = 1;
-                let start = i + 7;
+                let start = i + prefix_len;
                 let mut end = start;
 
                 while end < chars.len() && depth > 0 {
