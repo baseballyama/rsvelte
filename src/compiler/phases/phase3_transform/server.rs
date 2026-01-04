@@ -4,9 +4,9 @@
 
 use super::TransformError;
 use crate::ast::template::{
-    Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, Component, EachBlock,
-    ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, RegularElement, RenderTag, Script,
-    SnippetBlock, TemplateNode, Text,
+    Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, BindDirective,
+    Component, EachBlock, ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, RegularElement,
+    RenderTag, Script, SnippetBlock, TemplateNode, Text,
 };
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
@@ -181,7 +181,27 @@ impl<'a> ServerCodeGenerator<'a> {
     fn generate_attribute(&mut self, attr: &Attribute) -> Result<Option<String>, TransformError> {
         match attr {
             Attribute::Attribute(node) => self.generate_attribute_node(node),
+            Attribute::BindDirective(bind) => self.generate_bind_directive(bind),
+            // Event handlers are not rendered on server
+            Attribute::OnDirective(_) => Ok(None),
             _ => Ok(None),
+        }
+    }
+
+    fn generate_bind_directive(
+        &mut self,
+        bind: &BindDirective,
+    ) -> Result<Option<String>, TransformError> {
+        let name = bind.name.as_str();
+        let expr_start = bind.expression.start().unwrap_or(0) as usize;
+        let expr_end = bind.expression.end().unwrap_or(0) as usize;
+
+        if expr_end > expr_start && expr_end <= self.source.len() {
+            let expr = self.source[expr_start..expr_end].trim().to_string();
+            // For bind directives on server, output as $.attr() call
+            Ok(Some(format!("${{$.attr('{}', {})}}", name, expr)))
+        } else {
+            Ok(None)
         }
     }
 

@@ -156,7 +156,7 @@ cargo test --test compiler_fixtures -- --nocapture
 
 Current status:
 - **Parser**: 22/22 modern mode tests passing (100%)
-- **Compiler**: Total 2/25 (Client 2/25, Server 8/25) tests passing
+- **Compiler**: Total 2/25 (Client 2/25, Server 9/25) tests passing
 
 ## Current Progress
 
@@ -175,7 +175,7 @@ Current status:
 - [x] Script/Style parsing
 - [x] CSS parsing
 
-### Compiler (Total: 2/25, Client: 2/25, Server: 8/25 tests passing)
+### Compiler (Total: 2/25, Client: 2/25, Server: 9/25 tests passing)
 
 **Passing tests:**
 - hello-world (client + server)
@@ -186,6 +186,7 @@ Current status:
 - each-string-template (server only)
 - each-index-non-null (server only)
 - text-nodes-deriveds (server only)
+- state-proxy-literal (server only)
 
 **Implemented features:**
 - [x] Compiler fixture test infrastructure
@@ -201,6 +202,7 @@ Current status:
 - [x] Each block generation with index support
 - [x] Basic script block processing (`$state` → value, `$props()` → `$$props`)
 - [x] JS formatting for script content
+- [x] Bind directive handling (`bind:value` → `$.attr`)
 
 **Pending features:**
 - [ ] Props destructuring with defaults
