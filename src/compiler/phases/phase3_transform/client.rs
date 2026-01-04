@@ -966,6 +966,26 @@ impl ClientCodeGenerator {
         // Check if script uses $props()
         let uses_props = self.script_content.contains("$props()");
 
+        // Check if $props() is used as identifier (not destructured)
+        // Pattern: let props = $props() or const props = $props()
+        // Also extract the variable name used
+        let props_identifier_name: Option<String> = self.script_content.lines().find_map(|line| {
+            let trimmed = line.trim();
+            if (trimmed.starts_with("let ") || trimmed.starts_with("const "))
+                && !trimmed.contains('{')
+                && trimmed.contains("= $props()")
+            {
+                if let Some(eq_pos) = trimmed.find('=') {
+                    let before_eq = trimmed[..eq_pos].trim();
+                    if let Some(var_name) = before_eq.split_whitespace().last() {
+                        return Some(var_name.to_string());
+                    }
+                }
+            }
+            None
+        });
+        let uses_props_identifier = props_identifier_name.is_some();
+
         // Generate system imports based on runes mode
         let system_imports = if self.uses_runes {
             "import 'svelte/internal/disclose-version';\nimport * as $ from 'svelte/internal/client';"
@@ -981,7 +1001,15 @@ impl ClientCodeGenerator {
         };
 
         // Transform remaining script content for client-side
-        let script_code = self.transform_script_content(&script_rest);
+        let script_code = if uses_props_identifier {
+            // Wrap with $.push/$.pop for props identifier pattern
+            let props_name = props_identifier_name.as_ref().unwrap();
+            let transformed =
+                self.transform_script_content_with_props_identifier(&script_rest, props_name);
+            format!("\t$.push($$props, true);\n\n{}", transformed)
+        } else {
+            self.transform_script_content(&script_rest)
+        };
 
         // Determine root variable name
         let root_var = if is_fragment {
@@ -1076,6 +1104,11 @@ export default function {component_name}({fn_params}) {{
             )
         } else if !has_html && runtime_code.is_empty() && !has_each_blocks {
             // No HTML template - just script code
+            let pop_code = if uses_props_identifier {
+                "\t$.pop();\n"
+            } else {
+                ""
+            };
             if script_code.is_empty() {
                 format!(
                     r#"{system_imports}
@@ -1092,12 +1125,13 @@ export default function {component_name}({fn_params}) {{}}{delegation_code}"#,
                     r#"{system_imports}
 {hoisted_imports}
 export default function {component_name}({fn_params}) {{
-{script_code}}}{delegation_code}"#,
+{script_code}{pop_code}}}{delegation_code}"#,
                     system_imports = system_imports,
                     hoisted_imports = hoisted_imports,
                     component_name = self.component_name,
                     fn_params = fn_params,
                     script_code = script_code,
+                    pop_code = pop_code,
                     delegation_code = delegation_code
                 )
             }
@@ -1314,6 +1348,48 @@ export default function {component_name}({fn_params}) {{
 
             // Transform state variable assignments to $.set()
             transformed = transform_state_assignments(&transformed, &self.state_vars);
+
+            result.push('\t');
+            result.push_str(&transformed);
+            result.push('\n');
+        }
+
+        result
+    }
+
+    /// Transform script content when $props() is used as an identifier.
+    /// Transforms `props.a` to `$$props.a` for static property access (but not assignments or dynamic access).
+    fn transform_script_content_with_props_identifier(
+        &self,
+        script: &str,
+        props_var: &str,
+    ) -> String {
+        if script.is_empty() {
+            return String::new();
+        }
+
+        let mut result = String::new();
+
+        for line in script.lines() {
+            let trimmed = line.trim();
+
+            // Skip empty lines
+            if trimmed.is_empty() {
+                continue;
+            }
+
+            // Transform runes
+            let mut transformed = transform_client_runes(trimmed);
+
+            // Transform state variable assignments to $.set()
+            transformed = transform_state_assignments(&transformed, &self.state_vars);
+
+            // Transform props.X to $$props.X for static property access (but not assignments)
+            // props.a -> $$props.a
+            // props.a.b -> $$props.a.b
+            // props.a = true -> props.a = true (keep as is, it's assignment)
+            // props[a] -> props[a] (keep as is, it's dynamic)
+            transformed = transform_props_access(&transformed, props_var);
 
             result.push('\t');
             result.push_str(&transformed);
@@ -1799,12 +1875,33 @@ fn transform_client_runes(line: &str) -> String {
     result
 }
 
-/// Transform $props() destructuring into $.prop() calls
+/// Transform $props() usage.
+/// Handles:
+/// 1. Destructuring: `let { tag = "hr" } = $props()` → `let tag = $.prop($$props, 'tag', 3, 'hr')`
+/// 2. Identifier: `let props = $props()` → `let props = $.rest_props($$props, ['$$slots', '$$events', '$$legacy'])`
 fn transform_props_destructuring(line: &str) -> Option<String> {
+    let trimmed = line.trim();
+
+    // Check for identifier pattern: let/const props = $props()
+    if (trimmed.starts_with("let ") || trimmed.starts_with("const "))
+        && !trimmed.contains('{')
+        && trimmed.contains("= $props()")
+    {
+        // Pattern: let props = $props();
+        if let Some(eq_pos) = trimmed.find('=') {
+            let before_eq = trimmed[..eq_pos].trim();
+            if let Some(var_name) = before_eq.split_whitespace().last() {
+                return Some(format!(
+                    "let {} = $.rest_props($$props, ['$$slots', '$$events', '$$legacy']);",
+                    var_name
+                ));
+            }
+        }
+        return None;
+    }
+
     // Match pattern: let { prop = default } = $props();
     // or: let { prop1, prop2 = default } = $props();
-
-    let trimmed = line.trim();
 
     // Check for destructuring pattern (handle spaces like "let { " or "let{ ")
     let is_let_destructure = trimmed.starts_with("let {") || trimmed.starts_with("let{");
@@ -2064,6 +2161,63 @@ fn evaluate_constant_expr(expr: &str, const_vars: &HashMap<String, String>) -> O
     }
 
     None
+}
+
+/// Transform props.X to $$props.X for static property access that is NOT an assignment.
+/// Rules:
+/// - props.a -> $$props.a (reading)
+/// - props.a.b -> $$props.a.b (reading nested)
+/// - props.a = x -> props.a = x (assignment, keep as is)
+/// - props[a] -> props[a] (dynamic access, keep as is)
+fn transform_props_access(line: &str, props_var: &str) -> String {
+    // Pattern for static property access: props.something
+    // We need to be careful not to transform:
+    // - props[a] (dynamic access)
+    // - props.a = x (assignment)
+
+    // Find all occurrences of props.X where X is a valid identifier
+    let dot_pattern = format!("{}.", props_var);
+
+    let mut idx = 0;
+    let mut output = String::new();
+    let bytes = line.as_bytes();
+
+    while idx < line.len() {
+        if line[idx..].starts_with(&dot_pattern) {
+            // Check if this is at the start of the line or after a non-identifier char
+            let is_word_start = idx == 0 || !bytes[idx - 1].is_ascii_alphanumeric();
+
+            if is_word_start {
+                // Find the property access
+                let after_dot = idx + dot_pattern.len();
+                let prop_end = line[after_dot..]
+                    .find(|c: char| !c.is_ascii_alphanumeric() && c != '_')
+                    .map(|p| after_dot + p)
+                    .unwrap_or(line.len());
+
+                let prop_name = &line[after_dot..prop_end];
+
+                // Check what comes after the property name
+                let rest = &line[prop_end..];
+                let is_assignment = rest.trim_start().starts_with('=')
+                    && !rest.trim_start().starts_with("==")
+                    && !rest.trim_start().starts_with("=>");
+
+                // Only transform if NOT an assignment
+                if !is_assignment && !prop_name.is_empty() {
+                    output.push_str("$$props.");
+                    output.push_str(prop_name);
+                    idx = prop_end;
+                    continue;
+                }
+            }
+        }
+
+        output.push(bytes[idx] as char);
+        idx += 1;
+    }
+
+    output
 }
 
 /// Wrap state variable references in $.get() inside template expressions.
