@@ -43,12 +43,16 @@ pub fn transform_server(
     Ok(generator.build())
 }
 
+use std::collections::HashMap;
+
 /// Server-side code generator.
 struct ServerCodeGenerator<'a> {
     component_name: String,
     source: String,
     output_parts: Vec<OutputPart>,
     instance_script: Option<&'a Script>,
+    /// Map of constant variable names to their values
+    constant_vars: HashMap<String, String>,
 }
 
 /// A part of the output - either static HTML or dynamic code.
@@ -90,11 +94,25 @@ enum OutputPart {
 
 impl<'a> ServerCodeGenerator<'a> {
     fn new(component_name: String, source: String, instance_script: Option<&'a Script>) -> Self {
+        // Extract constant variables from script
+        let constant_vars = if let Some(script) = instance_script {
+            let start = script.content.start().unwrap_or(0) as usize;
+            let end = script.content.end().unwrap_or(0) as usize;
+            if end > start && end <= source.len() {
+                extract_constant_vars(&source[start..end])
+            } else {
+                HashMap::new()
+            }
+        } else {
+            HashMap::new()
+        };
+
         Self {
             component_name,
             source,
             output_parts: Vec::new(),
             instance_script,
+            constant_vars,
         }
     }
 
@@ -381,24 +399,59 @@ impl<'a> ServerCodeGenerator<'a> {
         if start + 1 < end && end <= self.source.len() {
             let expr_source = self.source[start + 1..end - 1].trim().to_string();
 
-            // Try constant folding for pure expressions
-            let folded = try_constant_fold(&expr_source);
+            // First, try constant variable lookup and folding
+            let folded = self.try_fold_with_constants(&expr_source);
 
-            // If it's a constant, output directly; otherwise use $.escape()
-            let is_single_quoted = folded.starts_with('\'') && folded.ends_with('\'');
-            let is_double_quoted = folded.starts_with('"') && folded.ends_with('"');
-            if is_single_quoted || is_double_quoted {
-                // It's a constant string like '0' or " " - extract content without quotes
-                let content = &folded[1..folded.len() - 1];
-                self.output_parts
-                    .push(OutputPart::Html(content.to_string()));
-            } else {
-                // Dynamic expression - needs escaping
-                self.output_parts.push(OutputPart::Expression(expr_source));
+            match folded {
+                ConstantFoldResult::Null => {
+                    // Skip null expressions entirely
+                }
+                ConstantFoldResult::Constant(content) => {
+                    // Output constant directly as HTML
+                    self.output_parts.push(OutputPart::Html(content));
+                }
+                ConstantFoldResult::Dynamic => {
+                    // Dynamic expression - needs escaping
+                    self.output_parts.push(OutputPart::Expression(expr_source));
+                }
             }
         }
 
         Ok(())
+    }
+
+    /// Try to fold an expression using known constant variables.
+    fn try_fold_with_constants(&self, expr: &str) -> ConstantFoldResult {
+        let trimmed = expr.trim();
+
+        // First check if it's a simple variable that we know is constant
+        if let Some(value) = self.constant_vars.get(trimmed) {
+            return ConstantFoldResult::Constant(value.clone());
+        }
+
+        // Handle nullish coalescing with variable lookup
+        if let Some(idx) = trimmed.find("??") {
+            let left = trimmed[..idx].trim();
+            let right = trimmed[idx + 2..].trim();
+
+            // Try to fold left side with constants
+            match self.try_fold_with_constants(left) {
+                ConstantFoldResult::Null => {
+                    // Left is null, evaluate right
+                    return self.try_fold_with_constants(right);
+                }
+                ConstantFoldResult::Constant(val) => {
+                    // Left is a non-null constant, use it
+                    return ConstantFoldResult::Constant(val);
+                }
+                ConstantFoldResult::Dynamic => {
+                    // Left is dynamic, can't fold
+                }
+            }
+        }
+
+        // Fall back to generic constant folding
+        try_constant_fold_full(trimmed)
     }
 
     fn generate_component_usage(&mut self, component: &Component) -> Result<(), TransformError> {
@@ -684,31 +737,35 @@ impl<'a> ServerCodeGenerator<'a> {
         let body_code = Self::build_parts(&self.output_parts, 1);
 
         // Process script content if present
-        let (props_param, script_code, hoisted_imports) = if let Some(script) = self.instance_script
-        {
-            let start = script.content.start().unwrap_or(0) as usize;
-            let end = script.content.end().unwrap_or(0) as usize;
-            let raw_script = if end > start && end <= self.source.len() {
-                self.source[start..end].to_string()
+        let (props_param, script_code, hoisted_imports, needs_component_wrapper) =
+            if let Some(script) = self.instance_script {
+                let start = script.content.start().unwrap_or(0) as usize;
+                let end = script.content.end().unwrap_or(0) as usize;
+                let raw_script = if end > start && end <= self.source.len() {
+                    self.source[start..end].to_string()
+                } else {
+                    String::new()
+                };
+
+                // Check if script uses $props()
+                let uses_props = raw_script.contains("$props()");
+
+                // Check if uses spread pattern: let props = $props() or let xxx = $props()
+                // This requires $$renderer.component() wrapper with destructuring
+                let uses_props_spread = detect_props_spread_pattern(&raw_script);
+
+                // Extract imports and transform the rest
+                let (imports, rest) = extract_imports(&raw_script);
+                let transformed = transform_script_content(&rest);
+
+                if uses_props {
+                    (", $$props", transformed, imports, uses_props_spread)
+                } else {
+                    ("", transformed, imports, false)
+                }
             } else {
-                String::new()
+                ("", String::new(), Vec::new(), false)
             };
-
-            // Check if script uses $props()
-            let uses_props = raw_script.contains("$props()");
-
-            // Extract imports and transform the rest
-            let (imports, rest) = extract_imports(&raw_script);
-            let transformed = transform_script_content(&rest);
-
-            if uses_props {
-                (", $$props", transformed, imports)
-            } else {
-                ("", transformed, imports)
-            }
-        } else {
-            ("", String::new(), Vec::new())
-        };
 
         // Build hoisted imports section
         let imports_section = if hoisted_imports.is_empty() {
@@ -721,23 +778,44 @@ impl<'a> ServerCodeGenerator<'a> {
         let has_content = !script_code.is_empty() || !body_code.is_empty();
 
         if has_content {
-            let script_section = if script_code.is_empty() {
-                String::new()
-            } else {
-                format!("{}\n", script_code)
-            };
+            if needs_component_wrapper {
+                // Wrap in $$renderer.component() with proper destructuring
+                let inner_script = transform_props_spread(&script_code);
+                let inner_body = Self::build_parts(&self.output_parts, 2);
 
-            format!(
-                r#"import * as $ from 'svelte/internal/server';
+                format!(
+                    r#"import * as $ from 'svelte/internal/server';
+{imports_section}
+export default function {component_name}($$renderer{props_param}) {{
+	$$renderer.component(($$renderer) => {{
+{inner_script}
+{inner_body}	}});
+}}"#,
+                    imports_section = imports_section,
+                    component_name = self.component_name,
+                    props_param = props_param,
+                    inner_script = inner_script,
+                    inner_body = inner_body
+                )
+            } else {
+                let script_section = if script_code.is_empty() {
+                    String::new()
+                } else {
+                    format!("{}\n", script_code)
+                };
+
+                format!(
+                    r#"import * as $ from 'svelte/internal/server';
 {imports_section}
 export default function {component_name}($$renderer{props_param}) {{
 {script_section}{body_code}}}"#,
-                imports_section = imports_section,
-                component_name = self.component_name,
-                props_param = props_param,
-                script_section = script_section,
-                body_code = body_code
-            )
+                    imports_section = imports_section,
+                    component_name = self.component_name,
+                    props_param = props_param,
+                    script_section = script_section,
+                    body_code = body_code
+                )
+            }
         } else {
             // Empty body - use single line braces
             format!(
@@ -948,25 +1026,187 @@ export default function {component_name}($$renderer{props_param}) {{}}"#,
     }
 }
 
-/// Try to evaluate a pure expression at compile time.
-fn try_constant_fold(expr: &str) -> String {
+/// Detect if script uses the spread pattern for $props(): `let props = $props()`
+/// This requires a different transformation with $$renderer.component() wrapper.
+fn detect_props_spread_pattern(script: &str) -> bool {
+    // Look for patterns like "let props = $props()" or "let xxx = $props()"
+    for line in script.lines() {
+        let trimmed = line.trim();
+        if (trimmed.starts_with("let ") || trimmed.starts_with("const "))
+            && trimmed.contains("= $props()")
+        {
+            // Check if it's a simple assignment (not destructuring)
+            // e.g., "let props = $props()" not "let { a, b } = $props()"
+            let parts: Vec<&str> = trimmed.splitn(2, '=').collect();
+            if parts.len() == 2 {
+                let left = parts[0].trim();
+                // If left side is just "let varname" (no braces), it's a spread pattern
+                if !left.contains('{') && !left.contains('[') {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Transform script code to use proper destructuring for props spread pattern.
+/// Converts `let props = $$props` to `let { $$slots, $$events, ...props } = $$props`
+fn transform_props_spread(script: &str) -> String {
+    let mut result = String::new();
+
+    for line in script.lines() {
+        let trimmed = line.trim();
+
+        // Check for `let xxx = $$props` pattern
+        if (trimmed.starts_with("let ") || trimmed.starts_with("const "))
+            && trimmed.contains("= $$props")
+        {
+            // Extract the variable name
+            let parts: Vec<&str> = trimmed.splitn(2, '=').collect();
+            if parts.len() == 2 {
+                let left = parts[0].trim();
+                // Remove let/const prefix to get var name
+                let var_name = if let Some(stripped) = left.strip_prefix("let ") {
+                    stripped.trim()
+                } else if let Some(stripped) = left.strip_prefix("const ") {
+                    stripped.trim()
+                } else {
+                    left
+                };
+
+                // Transform to destructuring pattern
+                result.push_str(&format!(
+                    "\t\tlet {{ $$slots, $$events, ...{} }} = $$props;\n",
+                    var_name
+                ));
+                continue;
+            }
+        }
+
+        // Keep other lines with adjusted indentation (add extra tab for wrapper)
+        if !trimmed.is_empty() {
+            result.push_str(&format!("\t\t{}\n", trimmed));
+        }
+    }
+
+    // Remove trailing newline
+    if result.ends_with('\n') {
+        result.pop();
+    }
+
+    result
+}
+
+/// Extract constant variable bindings from script content.
+/// A constant is a `let` or `const` with a simple string/number literal value
+/// that doesn't use $state(), $derived(), or other runes.
+fn extract_constant_vars(script: &str) -> HashMap<String, String> {
+    let mut constants = HashMap::new();
+
+    for line in script.lines() {
+        let trimmed = line.trim();
+
+        // Skip lines with runes - these are reactive
+        if trimmed.contains("$state") || trimmed.contains("$derived") || trimmed.contains("$props")
+        {
+            continue;
+        }
+
+        // Look for `let name = 'value'` or `const name = 'value'` patterns
+        let decl_start = if trimmed.starts_with("let ") {
+            Some(4)
+        } else if trimmed.starts_with("const ") {
+            Some(6)
+        } else {
+            None
+        };
+
+        if let Some(start) = decl_start {
+            let rest = &trimmed[start..];
+            if let Some(eq_idx) = rest.find('=') {
+                let name = rest[..eq_idx].trim();
+                let value = rest[eq_idx + 1..].trim().trim_end_matches(';');
+
+                // Only extract simple string literals
+                if (value.starts_with('\'') && value.ends_with('\''))
+                    || (value.starts_with('"') && value.ends_with('"'))
+                {
+                    let content = &value[1..value.len() - 1];
+                    constants.insert(name.to_string(), content.to_string());
+                }
+            }
+        }
+    }
+
+    constants
+}
+
+/// Result of constant folding.
+enum ConstantFoldResult {
+    /// Expression is null/undefined - should be omitted
+    Null,
+    /// Expression is a constant value (content without quotes)
+    Constant(String),
+    /// Expression cannot be folded - needs runtime evaluation
+    Dynamic,
+}
+
+/// Full constant folding with result type.
+fn try_constant_fold_full(expr: &str) -> ConstantFoldResult {
     let trimmed = expr.trim();
+
+    // Handle null literal
+    if trimmed == "null" || trimmed == "undefined" {
+        return ConstantFoldResult::Null;
+    }
+
+    // Handle number literals
+    if let Ok(n) = trimmed.parse::<i64>() {
+        return ConstantFoldResult::Constant(n.to_string());
+    }
+    if let Ok(n) = trimmed.parse::<f64>() {
+        return ConstantFoldResult::Constant(n.to_string());
+    }
 
     // Check for string literals - these can be output directly
     if (trimmed.starts_with('\'') && trimmed.ends_with('\''))
         || (trimmed.starts_with('"') && trimmed.ends_with('"'))
     {
-        // It's already a string literal, return as-is (with quotes as marker)
-        return trimmed.to_string();
+        // Extract content without quotes
+        let content = &trimmed[1..trimmed.len() - 1];
+        return ConstantFoldResult::Constant(content.to_string());
     }
 
-    if trimmed.starts_with("Math.") {
-        if let Some(result) = eval_math_expr(trimmed) {
-            return format!("'{}'", result);
+    // Handle nullish coalescing: X ?? Y
+    if let Some(idx) = trimmed.find("??") {
+        let left = trimmed[..idx].trim();
+        let right = trimmed[idx + 2..].trim();
+
+        // Recursively fold left side
+        match try_constant_fold_full(left) {
+            ConstantFoldResult::Null => {
+                // Left is null, evaluate right
+                return try_constant_fold_full(right);
+            }
+            ConstantFoldResult::Constant(val) => {
+                // Left is a non-null constant, use it
+                return ConstantFoldResult::Constant(val);
+            }
+            ConstantFoldResult::Dynamic => {
+                // Left is dynamic, can't fold
+            }
         }
     }
 
-    expr.to_string()
+    // Handle Math functions
+    if trimmed.starts_with("Math.") {
+        if let Some(result) = eval_math_expr(trimmed) {
+            return ConstantFoldResult::Constant(result);
+        }
+    }
+
+    ConstantFoldResult::Dynamic
 }
 
 fn eval_math_expr(expr: &str) -> Option<String> {
@@ -1130,7 +1370,21 @@ fn extract_imports(script: &str) -> (Vec<String>, String) {
 /// - Replaces `$props()` with `$$props`
 /// - Replaces `$state(x)` with `x`
 /// - Replaces `$derived(x)` with `x`
+/// - Replaces `$derived.by(x)` with `x`
 fn transform_script_content(script: &str) -> String {
+    // First, transform the entire script to handle multi-line patterns
+    let script = script.replace("$props()", "$$props");
+
+    // Transform $state(x) to x - handles multi-line patterns
+    let script = transform_rune_call_multiline(&script, "$state(");
+
+    // Transform $derived.by(x) to x - must come before $derived(
+    let script = transform_rune_call_multiline(&script, "$derived.by(");
+
+    // Transform $derived(x) to x
+    let script = transform_rune_call_multiline(&script, "$derived(");
+
+    // Now process line by line for formatting
     let mut result = String::new();
     let lines: Vec<&str> = script.lines().collect();
 
@@ -1142,30 +1396,21 @@ fn transform_script_content(script: &str) -> String {
             continue;
         }
 
-        // Transform $props() to $$props
-        let line = line.replace("$props()", "$$props");
-
-        // Transform $state(x) to x - simple regex-like replacement
-        let line = transform_state_calls(&line);
-
-        // Transform $derived(x) to x
-        let line = transform_derived_calls(&line);
-
         // Basic formatting fixes
-        let line = format_js_line(&line);
+        let line = format_js_line(line);
 
         // Add semicolons to statements that need them (ASI fix)
         let line = add_statement_semicolon(&line);
 
-        // Don't add extra indentation if line already has proper indentation
-        // Just ensure at least one tab at the start
+        // Normalize indentation to tabs
         if line.starts_with('\t') {
             result.push_str(&line);
         } else if trimmed.is_empty() {
             // Empty line - just add a blank line
         } else {
+            // Strip leading spaces and add tab
             result.push('\t');
-            result.push_str(&line);
+            result.push_str(trimmed);
         }
         result.push('\n');
     }
@@ -1269,20 +1514,11 @@ fn format_js_line(line: &str) -> String {
     result
 }
 
-/// Transform $state(expr) calls to just the expression.
-fn transform_state_calls(line: &str) -> String {
-    transform_rune_call(line, "$state(")
-}
-
-/// Transform $derived(expr) calls to just the expression.
-fn transform_derived_calls(line: &str) -> String {
-    transform_rune_call(line, "$derived(")
-}
-
-/// Generic helper to transform rune calls like $state(x) or $derived(x) to just x.
-fn transform_rune_call(line: &str, prefix: &str) -> String {
+/// Transform rune calls that may span multiple lines.
+/// Handles patterns like $state(x), $derived(x), $derived.by(x).
+fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
     let mut result = String::new();
-    let chars: Vec<char> = line.chars().collect();
+    let chars: Vec<char> = script.chars().collect();
     let prefix_chars: Vec<char> = prefix.chars().collect();
     let prefix_len = prefix_chars.len();
     let mut i = 0;
@@ -1296,12 +1532,28 @@ fn transform_rune_call(line: &str, prefix: &str) -> String {
                 let mut depth = 1;
                 let start = i + prefix_len;
                 let mut end = start;
+                let mut in_string = false;
+                let mut string_char = ' ';
 
                 while end < chars.len() && depth > 0 {
-                    match chars[end] {
-                        '(' => depth += 1,
-                        ')' => depth -= 1,
-                        _ => {}
+                    let c = chars[end];
+
+                    // Track string state to avoid counting parens inside strings
+                    if (c == '"' || c == '\'' || c == '`') && (end == 0 || chars[end - 1] != '\\') {
+                        if !in_string {
+                            in_string = true;
+                            string_char = c;
+                        } else if c == string_char {
+                            in_string = false;
+                        }
+                    }
+
+                    if !in_string {
+                        match c {
+                            '(' => depth += 1,
+                            ')' => depth -= 1,
+                            _ => {}
+                        }
                     }
                     if depth > 0 {
                         end += 1;
@@ -1310,7 +1562,23 @@ fn transform_rune_call(line: &str, prefix: &str) -> String {
 
                 // Extract the inner expression
                 let inner: String = chars[start..end].iter().collect();
-                result.push_str(&inner);
+                let trimmed_inner = inner.trim();
+
+                // Check if this is a class field pattern: `= $rune()`
+                // When inner is empty, check if we need to remove the `= ` before it
+                if trimmed_inner.is_empty() {
+                    // Look back to see if there's " = " before the rune call
+                    let result_trimmed = result.trim_end();
+                    if result_trimmed.ends_with('=') {
+                        // Remove the trailing " = " or "= "
+                        while result.ends_with('=') || result.ends_with(' ') {
+                            result.pop();
+                        }
+                    }
+                } else {
+                    result.push_str(&inner);
+                }
+
                 i = end + 1; // Skip past the closing paren
                 continue;
             }
