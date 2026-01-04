@@ -3,6 +3,7 @@
 //! Generates JavaScript code for server-side rendering (SSR).
 
 use super::TransformError;
+use super::js_ast::parse_and_generate;
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, BindDirective,
     Component, EachBlock, ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, RegularElement,
@@ -45,6 +46,14 @@ pub fn transform_server(
 
 use std::collections::HashMap;
 
+/// A snippet definition.
+#[derive(Debug)]
+struct SnippetDef {
+    name: String,
+    params: Vec<String>,
+    body_parts: Vec<OutputPart>,
+}
+
 /// Server-side code generator.
 struct ServerCodeGenerator<'a> {
     component_name: String,
@@ -53,6 +62,8 @@ struct ServerCodeGenerator<'a> {
     instance_script: Option<&'a Script>,
     /// Map of constant variable names to their values
     constant_vars: HashMap<String, String>,
+    /// Snippet definitions to be generated at module level
+    snippets: Vec<SnippetDef>,
 }
 
 /// A part of the output - either static HTML or dynamic code.
@@ -113,6 +124,7 @@ impl<'a> ServerCodeGenerator<'a> {
             output_parts: Vec::new(),
             instance_script,
             constant_vars,
+            snippets: Vec::new(),
         }
     }
 
@@ -691,7 +703,96 @@ impl<'a> ServerCodeGenerator<'a> {
         Ok(())
     }
 
-    fn generate_snippet_block(&mut self, _block: &SnippetBlock) -> Result<(), TransformError> {
+    fn generate_snippet_block(&mut self, block: &SnippetBlock) -> Result<(), TransformError> {
+        // Extract snippet name from expression
+        let name_start = block.expression.start().unwrap_or(0) as usize;
+        let name_end = block.expression.end().unwrap_or(0) as usize;
+        let name = if name_end > name_start && name_end <= self.source.len() {
+            self.source[name_start..name_end].trim().to_string()
+        } else {
+            "snippet".to_string()
+        };
+
+        // Extract parameters
+        let params: Vec<String> = block
+            .parameters
+            .iter()
+            .map(|p| {
+                let start = p.start().unwrap_or(0) as usize;
+                let end = p.end().unwrap_or(0) as usize;
+                if end > start && end <= self.source.len() {
+                    self.source[start..end].trim().to_string()
+                } else {
+                    String::new()
+                }
+            })
+            .filter(|s| !s.is_empty())
+            .collect();
+
+        // Generate body parts
+        let mut body_generator =
+            ServerCodeGenerator::new(self.component_name.clone(), self.source.clone(), None);
+
+        // Add comment marker at start
+        body_generator.output_parts.push(OutputPart::Comment);
+
+        // Collect non-empty nodes
+        let body_nodes: Vec<_> = block.body.nodes.iter().collect();
+        let len = body_nodes.len();
+
+        // Find first non-whitespace node
+        let mut start_idx = 0;
+        while start_idx < len {
+            if let TemplateNode::Text(text) = body_nodes[start_idx] {
+                if text.data.trim().is_empty() {
+                    start_idx += 1;
+                    continue;
+                }
+            }
+            break;
+        }
+
+        // Find last non-whitespace node
+        let mut end_idx = len;
+        while end_idx > start_idx {
+            if let TemplateNode::Text(text) = body_nodes[end_idx - 1] {
+                if text.data.trim().is_empty() {
+                    end_idx -= 1;
+                    continue;
+                }
+            }
+            break;
+        }
+
+        // Generate body content, trimming first text node
+        for (i, node) in body_nodes
+            .iter()
+            .enumerate()
+            .skip(start_idx)
+            .take(end_idx - start_idx)
+        {
+            if i == start_idx {
+                // First node - if it's text, trim it
+                if let TemplateNode::Text(text) = node {
+                    let trimmed = text.data.trim();
+                    if !trimmed.is_empty() {
+                        body_generator
+                            .output_parts
+                            .push(OutputPart::Html(escape_html(trimmed)));
+                    }
+                    continue;
+                }
+            }
+            body_generator.generate_node(node, false)?;
+        }
+
+        // Store the snippet definition
+        self.snippets.push(SnippetDef {
+            name,
+            params,
+            body_parts: body_generator.output_parts,
+        });
+
         Ok(())
     }
 
@@ -774,10 +875,13 @@ impl<'a> ServerCodeGenerator<'a> {
             hoisted_imports.join("\n") + "\n"
         };
 
+        // Build snippet functions
+        let snippets_section = self.build_snippets();
+
         // Build the final output - handle empty body case
         let has_content = !script_code.is_empty() || !body_code.is_empty();
 
-        if has_content {
+        let raw_output = if has_content {
             if needs_component_wrapper {
                 // Wrap in $$renderer.component() with proper destructuring
                 let inner_script = transform_props_spread(&script_code);
@@ -785,13 +889,14 @@ impl<'a> ServerCodeGenerator<'a> {
 
                 format!(
                     r#"import * as $ from 'svelte/internal/server';
-{imports_section}
+{imports_section}{snippets_section}
 export default function {component_name}($$renderer{props_param}) {{
 	$$renderer.component(($$renderer) => {{
 {inner_script}
 {inner_body}	}});
 }}"#,
                     imports_section = imports_section,
+                    snippets_section = snippets_section,
                     component_name = self.component_name,
                     props_param = props_param,
                     inner_script = inner_script,
@@ -806,10 +911,11 @@ export default function {component_name}($$renderer{props_param}) {{
 
                 format!(
                     r#"import * as $ from 'svelte/internal/server';
-{imports_section}
+{imports_section}{snippets_section}
 export default function {component_name}($$renderer{props_param}) {{
 {script_section}{body_code}}}"#,
                     imports_section = imports_section,
+                    snippets_section = snippets_section,
                     component_name = self.component_name,
                     props_param = props_param,
                     script_section = script_section,
@@ -820,12 +926,19 @@ export default function {component_name}($$renderer{props_param}) {{
             // Empty body - use single line braces
             format!(
                 r#"import * as $ from 'svelte/internal/server';
-{imports_section}
+{imports_section}{snippets_section}
 export default function {component_name}($$renderer{props_param}) {{}}"#,
                 imports_section = imports_section,
+                snippets_section = snippets_section,
                 component_name = self.component_name,
                 props_param = props_param,
             )
+        };
+
+        // Normalize the output through oxc parser/codegen
+        match parse_and_generate(&raw_output) {
+            Ok(normalized) => normalized,
+            Err(_) => raw_output, // Fall back to raw output if parsing fails
         }
     }
 
@@ -1023,6 +1136,34 @@ export default function {component_name}($$renderer{props_param}) {{}}"#,
         }
 
         body_code
+    }
+
+    /// Build snippet function definitions.
+    fn build_snippets(&self) -> String {
+        if self.snippets.is_empty() {
+            return String::new();
+        }
+
+        let mut result = String::new();
+
+        for snippet in &self.snippets {
+            // Generate function signature
+            let params = if snippet.params.is_empty() {
+                "$$renderer".to_string()
+            } else {
+                format!("$$renderer, {}", snippet.params.join(", "))
+            };
+
+            result.push_str(&format!("function {}({}) {{\n", snippet.name, params));
+
+            // Generate body
+            let body = Self::build_parts(&snippet.body_parts, 1);
+            result.push_str(&body);
+
+            result.push_str("}\n\n");
+        }
+
+        result
     }
 }
 

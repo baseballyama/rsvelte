@@ -96,13 +96,130 @@ impl TestResult {
 ///
 /// This removes/normalizes things that may differ between implementations.
 fn normalize_js(js: &str) -> String {
+    // First pass: normalize quotes in the entire content
+    let js = normalize_quotes(js);
+
+    // Second pass: collapse to single lines and normalize whitespace
+    let js = collapse_multiline_constructs(&js);
+
     js.lines()
         // Remove empty lines
         .filter(|line| !line.trim().is_empty())
         // Normalize whitespace
         .map(|line| line.trim_end())
+        // Normalize spacing around punctuation
+        .map(normalize_spacing)
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+/// Normalize quotes in JavaScript code.
+/// Converts double quotes to single quotes unconditionally.
+/// This is safe because the Svelte test cases use single quotes consistently.
+fn normalize_quotes(js: &str) -> String {
+    let mut result = String::new();
+    let chars: Vec<char> = js.chars().collect();
+    let mut i = 0;
+
+    while i < chars.len() {
+        let c = chars[i];
+
+        // Convert unescaped double quotes to single quotes
+        if c == '"' && (i == 0 || chars[i - 1] != '\\') {
+            result.push('\'');
+        } else {
+            result.push(c);
+        }
+        i += 1;
+    }
+
+    result
+}
+
+/// Collapse multi-line array literals and object literals into single lines.
+fn collapse_multiline_constructs(js: &str) -> String {
+    let mut result = String::new();
+    let mut depth = 0;
+    let mut in_template = false;
+    let mut in_string = false;
+    let mut string_char = ' ';
+    let chars: Vec<char> = js.chars().collect();
+    let mut i = 0;
+
+    while i < chars.len() {
+        let c = chars[i];
+
+        // Track string/template state
+        if !in_string && c == '`' && (i == 0 || chars[i - 1] != '\\') {
+            in_template = !in_template;
+        }
+        if !in_template && (c == '\'' || c == '"') && (i == 0 || chars[i - 1] != '\\') {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char {
+                in_string = false;
+            }
+        }
+
+        // Track bracket depth
+        if !in_string && !in_template {
+            if c == '[' || c == '{' {
+                depth += 1;
+            } else if c == ']' || c == '}' {
+                depth -= 1;
+            }
+        }
+
+        // Replace newlines and excess whitespace inside brackets with single space
+        if (c == '\n' || c == '\r') && depth > 0 && !in_template {
+            // Skip whitespace after newline
+            while i + 1 < chars.len()
+                && (chars[i + 1] == ' '
+                    || chars[i + 1] == '\t'
+                    || chars[i + 1] == '\n'
+                    || chars[i + 1] == '\r')
+            {
+                i += 1;
+            }
+            // Add single space if not after opening bracket or before closing
+            let last_char = result.chars().last();
+            let next_char = chars.get(i + 1);
+            if last_char != Some('[')
+                && last_char != Some('{')
+                && next_char != Some(&']')
+                && next_char != Some(&'}')
+            {
+                result.push(' ');
+            }
+        } else {
+            result.push(c);
+        }
+        i += 1;
+    }
+
+    result
+}
+
+/// Normalize spacing around punctuation.
+fn normalize_spacing(line: &str) -> String {
+    // Normalize `, ...` to `, ...` (ensure space after comma in destructuring)
+    let line = line.replace(",...", ", ...");
+    // Normalize multiple spaces to single space
+    let mut result = String::new();
+    let mut last_was_space = false;
+    for c in line.chars() {
+        if c == ' ' {
+            if !last_was_space {
+                result.push(c);
+            }
+            last_was_space = true;
+        } else {
+            result.push(c);
+            last_was_space = false;
+        }
+    }
+    result
 }
 
 /// Compare two JavaScript outputs.

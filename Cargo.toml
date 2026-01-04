@@ -18,16 +18,21 @@ rayon = "1.10"
 bumpalo = { version = "3.16", features = ["collections"] }
 compact_str = { version = "0.8", features = ["serde"] }
 
-# JavaScript parsing (for expressions)
+# JavaScript parsing and code generation
 oxc_allocator = "0.56"
 oxc_parser = "0.56"
 oxc_ast = "0.56"
 oxc_span = "0.56"
 oxc_diagnostics = "0.56"
+oxc_codegen = "0.56"
+oxc_syntax = "0.56"
 
 # Error handling
 thiserror = "2.0"
 miette = { version = "7.4", features = ["fancy"] }
+
+# Regex
+regex = "1.11"
 
 [dev-dependencies]
 # Testing

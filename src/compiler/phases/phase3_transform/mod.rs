@@ -11,6 +11,7 @@
 
 pub mod client;
 pub mod css;
+pub mod js_ast;
 pub mod server;
 
 use super::phase2_analyze::ComponentAnalysis;

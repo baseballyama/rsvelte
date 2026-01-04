@@ -156,7 +156,7 @@ cargo test --test compiler_fixtures -- --nocapture
 
 Current status:
 - **Parser**: 22/22 modern mode tests passing (100%)
-- **Compiler**: Total 2/25 (Client 2/25, Server 15/25) tests passing
+- **Compiler**: Total 6/25 (Client 6/25, Server 17/25) tests passing
 
 ## Current Progress
 
@@ -175,24 +175,27 @@ Current status:
 - [x] Script/Style parsing
 - [x] CSS parsing
 
-### Compiler (Total: 2/25, Client: 2/25, Server: 15/25 tests passing)
+### Compiler (Total: 6/25, Client: 6/25, Server: 17/25 tests passing)
 
 **Passing tests:**
 - hello-world (client + server)
 - purity (client + server)
+- destructured-assignments (client + server)
+- imports-in-modules (client + server)
+- export-state (client + server)
+- each-string-template (client + server)
+- each-index-non-null (client + server)
+- state-proxy-literal (server only)
 - bind-this (server only)
 - functional-templating (server only)
 - hmr (server only)
-- each-string-template (server only)
-- each-index-non-null (server only)
 - text-nodes-deriveds (server only)
-- state-proxy-literal (server only)
 - svelte-element (server only)
 - delegated-locally-declared-shadowed (server only)
-- imports-in-modules (server only)
 - skip-static-subtree (server only)
 - function-prop-no-getter (server only)
 - await-block-scope (server only)
+- nullish-coallescence-omittance (server only)
 
 **Implemented features:**
 - [x] Compiler fixture test infrastructure
@@ -219,6 +222,7 @@ Current status:
 - [x] `$derived()` transformation (SSR)
 - [x] `{#await}` block (`$.await()`)
 - [x] ASI (Automatic Semicolon Insertion) for statements
+- [x] Client-side `{#each}` block generation (`$.each()`, `$.comment()`)
 
 **Pending features:**
 - [ ] Props destructuring with defaults

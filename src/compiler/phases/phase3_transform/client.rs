@@ -3,6 +3,7 @@
 //! Generates JavaScript code for browser execution.
 
 use super::TransformError;
+use super::js_ast::parse_and_generate;
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, Component, EachBlock,
     ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, RegularElement, RenderTag, SnippetBlock,
@@ -30,7 +31,30 @@ pub fn transform_client(
     )
     .map_err(|e| TransformError::CodeGen(format!("Parse error: {:?}", e)))?;
 
-    let mut generator = ClientCodeGenerator::new(component_name.clone(), analysis.source.clone());
+    // Extract script content and check for runes
+    let (script_content, uses_runes) = if let Some(script) = &ast.instance {
+        let start = script.content.start().unwrap_or(0) as usize;
+        let end = script.content.end().unwrap_or(0) as usize;
+        let content = if end > start && end <= analysis.source.len() {
+            analysis.source[start..end].to_string()
+        } else {
+            String::new()
+        };
+        let has_runes = content.contains("$state")
+            || content.contains("$derived")
+            || content.contains("$effect")
+            || content.contains("$props");
+        (content, has_runes)
+    } else {
+        (String::new(), false)
+    };
+
+    let mut generator = ClientCodeGenerator::new(
+        component_name.clone(),
+        analysis.source.clone(),
+        script_content,
+        uses_runes,
+    );
     generator.generate_component(&ast.fragment)?;
 
     Ok(generator.build())
@@ -48,6 +72,12 @@ struct NodeInfo {
     expression: Option<String>,
     /// Child index in parent (for navigation)
     child_index: usize,
+    /// Event handlers: (event_name, handler_expression)
+    event_handlers: Vec<(String, String)>,
+    /// Bindings: (binding_name, value_expression)
+    bindings: Vec<(String, String)>,
+    /// Whether this is an input element (needs remove_input_defaults)
+    is_input: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -59,50 +89,121 @@ enum NodeType {
     Anchor,
 }
 
+use std::collections::HashMap;
+
+/// Represents an each block for client-side code generation.
+#[derive(Debug, Clone)]
+struct EachBlockInfo {
+    /// Template variable name (e.g., "root_1")
+    template_var: Option<String>,
+    /// HTML for the template
+    template_html: Option<String>,
+    /// Iterable expression
+    iterable: String,
+    /// Context variable name (the item)
+    context_name: Option<String>,
+    /// Index variable name
+    index_name: Option<String>,
+    /// Whether the body contains only text/expressions (no elements)
+    is_text_only: bool,
+    /// Body expressions for text-only each blocks
+    body_expressions: Vec<String>,
+    /// Body element tag name for element-based each blocks
+    body_element: Option<String>,
+}
+
 /// Client-side code generator.
 struct ClientCodeGenerator {
     component_name: String,
     source: String,
+    script_content: String,
+    uses_runes: bool,
     html_parts: Vec<String>,
     nodes: Vec<NodeInfo>,
     has_expressions: bool,
     root_element_count: usize,
-    current_var_index: usize,
+    /// Counter for variable names per tag name
+    var_name_counters: HashMap<String, usize>,
     /// Counter for node variables (used for anchors/components)
     node_var_index: usize,
     /// Stack of parent element var names for tracking hierarchy
     element_stack: Vec<String>,
     /// Current child index within parent
     current_child_index: usize,
+    /// State variable names (for $.set() and $.get() transformations)
+    state_vars: Vec<String>,
+    /// Each block counter for template variable names
+    each_block_counter: usize,
+    /// Each blocks collected for code generation
+    each_blocks: Vec<EachBlockInfo>,
 }
 
 impl ClientCodeGenerator {
-    fn new(component_name: String, source: String) -> Self {
+    fn new(
+        component_name: String,
+        source: String,
+        script_content: String,
+        uses_runes: bool,
+    ) -> Self {
+        // Collect state variables from script content
+        let state_vars = collect_state_variables(&script_content);
+
         Self {
             component_name,
             source,
+            script_content,
+            uses_runes,
             html_parts: Vec::new(),
             nodes: Vec::new(),
             has_expressions: false,
             root_element_count: 0,
-            current_var_index: 0,
+            var_name_counters: HashMap::new(),
             node_var_index: 0,
             element_stack: Vec::new(),
             current_child_index: 0,
+            state_vars,
+            each_block_counter: 0,
+            each_blocks: Vec::new(),
         }
     }
 
     fn generate_component(&mut self, fragment: &Fragment) -> Result<(), TransformError> {
-        // Count root elements
+        // Count root elements (non-whitespace nodes)
         self.root_element_count = fragment
             .nodes
             .iter()
             .filter(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()))
             .count();
 
-        // Generate HTML for the template
-        for node in &fragment.nodes {
-            self.generate_node(node, true)?; // root level nodes
+        // Generate HTML for the template, skipping leading/trailing whitespace
+        let nodes: Vec<_> = fragment.nodes.iter().collect();
+        let len = nodes.len();
+
+        // Find first non-whitespace node
+        let mut start_idx = 0;
+        while start_idx < len {
+            if let TemplateNode::Text(text) = nodes[start_idx] {
+                if text.data.trim().is_empty() {
+                    start_idx += 1;
+                    continue;
+                }
+            }
+            break;
+        }
+
+        // Generate from first non-whitespace node
+        for (i, node) in nodes.iter().enumerate().skip(start_idx) {
+            // Add space separator between root elements (but not before first)
+            if i > start_idx {
+                if let TemplateNode::Text(text) = node {
+                    if text.data.trim().is_empty() {
+                        // Whitespace between elements - normalize to single space
+                        self.html_parts.push(" ".to_string());
+                        continue;
+                    }
+                }
+            }
+            self.generate_node(node, true)?;
         }
 
         Ok(())
@@ -133,14 +234,16 @@ impl ClientCodeGenerator {
         let data = &text.data;
 
         if data.trim().is_empty() {
-            // Whitespace-only text
-            if is_root_level && !data.is_empty() {
-                // At root level, normalize whitespace to single space
+            // Whitespace-only text - always include as single space if not empty
+            // This preserves spacing between sibling elements
+            if !data.is_empty() {
                 self.html_parts.push(" ".to_string());
             }
-            // Inside elements, skip whitespace-only text
+        } else if is_root_level {
+            // At root level, include the text as-is
+            self.html_parts.push(escape_html(data));
         } else {
-            // Non-whitespace text - escape and include
+            // Inside elements, include the text
             self.html_parts.push(escape_html(data));
         }
         Ok(())
@@ -153,18 +256,70 @@ impl ClientCodeGenerator {
         let var_name = self.next_var_name(name);
         let child_index = self.current_child_index;
 
+        // Check if this is an input element
+        let is_input = name == "input" || name == "textarea" || name == "select";
+
+        // Extract event handlers and bindings from attributes
+        let mut event_handlers = Vec::new();
+        let mut bindings = Vec::new();
+
+        for attr in &element.attributes {
+            match attr {
+                Attribute::Attribute(node) => {
+                    let attr_name = node.name.as_str();
+                    // Check for event handlers (onclick, onmousedown, etc.)
+                    if let Some(event_name) = attr_name.strip_prefix("on") {
+                        if let AttributeValue::Expression(expr_tag) = &node.value {
+                            let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                            let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                            if expr_end > expr_start && expr_end <= self.source.len() {
+                                let expr_source =
+                                    self.source[expr_start..expr_end].trim().to_string();
+                                event_handlers.push((event_name.to_string(), expr_source));
+                            }
+                        }
+                    }
+                }
+                Attribute::BindDirective(bind) => {
+                    let bind_name = bind.name.as_str();
+                    let expr = &bind.expression;
+                    let expr_start = expr.start().unwrap_or(0) as usize;
+                    let expr_end = expr.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let expr_source = self.source[expr_start..expr_end].trim().to_string();
+                        bindings.push((bind_name.to_string(), expr_source));
+                    }
+                }
+                _ => {}
+            }
+        }
+
         // Record element info
         self.nodes.push(NodeInfo {
             var_name: var_name.clone(),
             node_type: NodeType::Element(name.to_string()),
             expression: None,
             child_index,
+            event_handlers,
+            bindings,
+            is_input,
+        });
+
+        // Check if element has any expression children
+        let has_expressions = element.fragment.nodes.iter().any(|child| {
+            matches!(
+                child,
+                TemplateNode::ExpressionTag(_)
+                    | TemplateNode::IfBlock(_)
+                    | TemplateNode::EachBlock(_)
+                    | TemplateNode::AwaitBlock(_)
+            )
         });
 
         // Start tag
         self.html_parts.push(format!("<{}", name));
 
-        // Attributes
+        // Attributes (skip event handlers for now, they're handled at runtime)
         for attr in &element.attributes {
             self.generate_attribute(attr)?;
         }
@@ -180,10 +335,73 @@ impl ClientCodeGenerator {
             let saved_child_index = self.current_child_index;
             self.current_child_index = 0;
 
-            // Children
-            for child in &element.fragment.nodes {
-                self.generate_node(child, false)?; // not root level
-                self.current_child_index += 1;
+            if has_expressions {
+                // Element has expressions - check if there's meaningful static text
+                let meaningful_static_text: Vec<_> = element
+                    .fragment
+                    .nodes
+                    .iter()
+                    .filter_map(|child| {
+                        if let TemplateNode::Text(t) = child {
+                            let trimmed = t.data.trim();
+                            if !trimmed.is_empty() {
+                                return Some(trimmed);
+                            }
+                        }
+                        None
+                    })
+                    .collect();
+
+                // If there's static text that's more than just punctuation around expressions,
+                // we need a space placeholder for the text node
+                let needs_text_placeholder = meaningful_static_text
+                    .iter()
+                    .any(|t| t.chars().any(|c| c.is_alphanumeric()));
+
+                if needs_text_placeholder {
+                    // Has mixed content with meaningful text - add space as placeholder
+                    self.html_parts.push(" ".to_string());
+                }
+                // Empty otherwise - expressions will set content via JS
+
+                // Still process children for expression tracking
+                for child in &element.fragment.nodes {
+                    if let TemplateNode::ExpressionTag(tag) = child {
+                        self.generate_expression_tag(tag)?;
+                    }
+                    self.current_child_index += 1;
+                }
+            } else {
+                // No expressions - include static children in template
+                // Skip leading/trailing whitespace-only text nodes
+                let children: Vec<_> = element.fragment.nodes.iter().collect();
+
+                // Find first and last non-whitespace children
+                let first_content = children
+                    .iter()
+                    .position(|c| !matches!(c, TemplateNode::Text(t) if t.data.trim().is_empty()));
+                let last_content = children
+                    .iter()
+                    .rposition(|c| !matches!(c, TemplateNode::Text(t) if t.data.trim().is_empty()));
+
+                for (i, child) in children.iter().enumerate() {
+                    // Skip leading whitespace
+                    if let Some(first) = first_content {
+                        if i < first {
+                            self.current_child_index += 1;
+                            continue;
+                        }
+                    }
+                    // Skip trailing whitespace
+                    if let Some(last) = last_content {
+                        if i > last {
+                            self.current_child_index += 1;
+                            continue;
+                        }
+                    }
+                    self.generate_node(child, false)?;
+                    self.current_child_index += 1;
+                }
             }
 
             // Pop element from stack
@@ -198,12 +416,13 @@ impl ClientCodeGenerator {
     }
 
     fn next_var_name(&mut self, hint: &str) -> String {
-        let name = if self.current_var_index == 0 {
+        let count = self.var_name_counters.entry(hint.to_string()).or_insert(0);
+        let name = if *count == 0 {
             hint.to_string()
         } else {
-            format!("{}_{}", hint, self.current_var_index)
+            format!("{}_{}", hint, count)
         };
-        self.current_var_index += 1;
+        *count += 1;
         name
     }
 
@@ -280,7 +499,7 @@ impl ClientCodeGenerator {
             let var_name = if let Some(parent) = self.element_stack.last() {
                 parent.clone()
             } else {
-                format!("node_{}", self.current_var_index)
+                format!("node_{}", self.node_var_index)
             };
 
             self.nodes.push(NodeInfo {
@@ -288,6 +507,9 @@ impl ClientCodeGenerator {
                 node_type: NodeType::ExpressionInElement,
                 expression: Some(expr_source),
                 child_index: self.current_child_index,
+                event_handlers: Vec::new(),
+                bindings: Vec::new(),
+                is_input: false,
             });
         }
 
@@ -308,11 +530,17 @@ impl ClientCodeGenerator {
             if let Attribute::Attribute(node) = attr {
                 let name = node.name.as_str();
                 if let AttributeValue::Expression(expr_tag) = &node.value {
-                    let start = expr_tag.start as usize;
-                    let end = expr_tag.end as usize;
-                    if start + 1 < end && end <= self.source.len() {
-                        let expr_source = self.source[start + 1..end - 1].trim().to_string();
-                        props.push(format!("{}: {}", name, expr_source));
+                    // Use the expression's span, not the ExpressionTag's span
+                    let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                    let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let expr_source = self.source[expr_start..expr_end].trim().to_string();
+                        // Check for shorthand property (name equals expression)
+                        if expr_source == name {
+                            props.push(name.to_string());
+                        } else {
+                            props.push(format!("{}: {}", name, expr_source));
+                        }
                     }
                 }
             }
@@ -329,6 +557,9 @@ impl ClientCodeGenerator {
             node_type: NodeType::Component(comp_name),
             expression,
             child_index: self.current_child_index,
+            event_handlers: Vec::new(),
+            bindings: Vec::new(),
+            is_input: false,
         });
 
         Ok(())
@@ -340,8 +571,142 @@ impl ClientCodeGenerator {
         Ok(())
     }
 
-    fn generate_each_block(&mut self, _block: &EachBlock) -> Result<(), TransformError> {
-        self.html_parts.push("<!>".to_string());
+    fn generate_each_block(&mut self, block: &EachBlock) -> Result<(), TransformError> {
+        // Get the iterable expression
+        let start = block.expression.start().unwrap_or(0) as usize;
+        let end = block.expression.end().unwrap_or(0) as usize;
+        let iterable = if end > start && end <= self.source.len() {
+            self.source[start..end].trim().to_string()
+        } else {
+            "[]".to_string()
+        };
+
+        // Get the context variable name
+        let context_name = if let Some(ref context) = block.context {
+            let ctx_start = context.start().unwrap_or(0) as usize;
+            let ctx_end = context.end().unwrap_or(0) as usize;
+            if ctx_end > ctx_start && ctx_end <= self.source.len() {
+                Some(self.source[ctx_start..ctx_end].trim().to_string())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        // Get optional index name
+        let index_name = block.index.as_ref().map(|idx| idx.to_string());
+
+        // Analyze body nodes to determine structure
+        let body_nodes: Vec<_> = block.body.nodes.iter().collect();
+
+        // Skip leading/trailing whitespace
+        let mut start_idx = 0;
+        let mut end_idx = body_nodes.len();
+
+        while start_idx < end_idx {
+            if let TemplateNode::Text(text) = body_nodes[start_idx] {
+                if text.data.trim().is_empty() {
+                    start_idx += 1;
+                    continue;
+                }
+            }
+            break;
+        }
+
+        while end_idx > start_idx {
+            if let TemplateNode::Text(text) = body_nodes[end_idx - 1] {
+                if text.data.trim().is_empty() {
+                    end_idx -= 1;
+                    continue;
+                }
+            }
+            break;
+        }
+
+        // Check if body contains elements or just text/expressions
+        let has_elements = body_nodes[start_idx..end_idx]
+            .iter()
+            .any(|node| matches!(node, TemplateNode::RegularElement(_)));
+
+        let mut each_info = EachBlockInfo {
+            template_var: None,
+            template_html: None,
+            iterable,
+            context_name,
+            index_name,
+            is_text_only: !has_elements,
+            body_expressions: Vec::new(),
+            body_element: None,
+        };
+
+        if has_elements {
+            // Generate separate template for body element
+            self.each_block_counter += 1;
+            let template_var = format!("root_{}", self.each_block_counter);
+
+            // Find the first element in the body
+            for node in &body_nodes[start_idx..end_idx] {
+                if let TemplateNode::RegularElement(elem) = node {
+                    let elem_name = elem.name.as_str();
+                    each_info.body_element = Some(elem_name.to_string());
+                    each_info.template_var = Some(template_var.clone());
+                    each_info.template_html = Some(format!("<{elem_name}></{elem_name}>"));
+
+                    // Check for expressions inside the element - build text template
+                    let mut text_parts = Vec::new();
+                    for child in &elem.fragment.nodes {
+                        if let TemplateNode::ExpressionTag(tag) = child {
+                            let expr_start = tag.start as usize;
+                            let expr_end = tag.end as usize;
+                            if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                                let expr =
+                                    self.source[expr_start + 1..expr_end - 1].trim().to_string();
+                                text_parts.push(format!("${{{}}}", expr));
+                            }
+                        } else if let TemplateNode::Text(text) = child {
+                            // Include text as-is (don't trim)
+                            let data = &text.data;
+                            if !data.is_empty() {
+                                text_parts.push(data.to_string());
+                            }
+                        }
+                    }
+                    // Join all parts - this gives us the full template like "index: ${i}"
+                    if !text_parts.is_empty() {
+                        let combined = text_parts.join("");
+                        let trimmed = combined.trim().to_string();
+                        if !trimmed.is_empty() {
+                            each_info
+                                .body_expressions
+                                .push(format!("TEMPLATE:{}", trimmed));
+                        }
+                    }
+                    break;
+                }
+            }
+        } else {
+            // Text-only body - collect expressions
+            for node in &body_nodes[start_idx..end_idx] {
+                if let TemplateNode::ExpressionTag(tag) = node {
+                    let expr_start = tag.start as usize;
+                    let expr_end = tag.end as usize;
+                    if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                        let expr = self.source[expr_start + 1..expr_end - 1].trim().to_string();
+                        each_info.body_expressions.push(expr);
+                    }
+                } else if let TemplateNode::Text(text) = node {
+                    let trimmed = text.data.trim();
+                    if !trimmed.is_empty() {
+                        each_info.body_expressions.push(format!("'{}'", trimmed));
+                    }
+                }
+            }
+        }
+
+        self.each_blocks.push(each_info);
+
+        // Don't output anything in the template - the each block uses $.comment()
         Ok(())
     }
 
@@ -373,57 +738,325 @@ impl ClientCodeGenerator {
     fn build(self) -> String {
         let html = self.html_parts.join("");
         let is_fragment = self.root_element_count > 1;
+        let has_each_blocks = !self.each_blocks.is_empty();
 
-        // For now, always include legacy flag
-        // TODO: Detect runes mode and exclude legacy flag when runes are used
-        let imports = "import 'svelte/internal/disclose-version';\nimport 'svelte/internal/flags/legacy';\nimport * as $ from 'svelte/internal/client';";
+        // Extract imports from script content
+        let (script_imports, script_rest) = extract_imports(&self.script_content);
+
+        // Check if script uses $props()
+        let uses_props = self.script_content.contains("$props()");
+
+        // Generate system imports based on runes mode
+        let system_imports = if self.uses_runes {
+            "import 'svelte/internal/disclose-version';\nimport * as $ from 'svelte/internal/client';"
+        } else {
+            "import 'svelte/internal/disclose-version';\nimport 'svelte/internal/flags/legacy';\nimport * as $ from 'svelte/internal/client';"
+        };
+
+        // Build hoisted imports section
+        let hoisted_imports = if script_imports.is_empty() {
+            String::new()
+        } else {
+            format!("{}\n", script_imports.join("\n"))
+        };
+
+        // Transform remaining script content for client-side
+        let script_code = self.transform_script_content(&script_rest);
+
+        // Determine root variable name
+        let root_var = if is_fragment {
+            "fragment".to_string()
+        } else {
+            determine_root_var(&html)
+        };
 
         // Generate runtime code for expressions
-        let runtime_code = self.generate_runtime_code(is_fragment);
+        let runtime_code = self.generate_runtime_code(&root_var);
 
-        if is_fragment {
+        // Collect delegated events
+        let delegated_events = self.collect_delegated_events();
+        let delegation_code = if delegated_events.is_empty() {
+            String::new()
+        } else {
+            let events_str = delegated_events
+                .iter()
+                .map(|e| format!("'{}'", e))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("\n\n$.delegate([{}]);", events_str)
+        };
+
+        // Determine function signature based on $props usage
+        let fn_params = if uses_props {
+            "$$anchor, $$props"
+        } else {
+            "$$anchor"
+        };
+
+        // Check if there's any HTML content
+        let has_html = !html.is_empty();
+
+        // Generate each block templates (for bodies with elements)
+        let each_templates: String = self
+            .each_blocks
+            .iter()
+            .filter_map(|each| {
+                if let (Some(var), Some(html)) = (&each.template_var, &each.template_html) {
+                    Some(format!("var {} = $.from_html(`{}`);\n\n", var, html))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        // Generate each block code
+        let each_code = self.generate_each_block_code();
+
+        let raw_output = if has_each_blocks && (html.is_empty() || html.trim().is_empty()) {
+            // Only each blocks, no other HTML
+            format!(
+                r#"{system_imports}
+{hoisted_imports}
+{each_templates}export default function {component_name}({fn_params}) {{
+{script_code}	var fragment = $.comment();
+	var node = $.first_child(fragment);
+{each_code}
+	$.append($$anchor, fragment);
+}}{delegation_code}"#,
+                system_imports = system_imports,
+                hoisted_imports = hoisted_imports,
+                each_templates = each_templates,
+                component_name = self.component_name,
+                fn_params = fn_params,
+                script_code = script_code,
+                each_code = each_code,
+                delegation_code = delegation_code
+            )
+        } else if !has_html && runtime_code.is_empty() && !has_each_blocks {
+            // No HTML template - just script code
+            if script_code.is_empty() {
+                format!(
+                    r#"{system_imports}
+{hoisted_imports}
+export default function {component_name}({fn_params}) {{}}{delegation_code}"#,
+                    system_imports = system_imports,
+                    hoisted_imports = hoisted_imports,
+                    component_name = self.component_name,
+                    fn_params = fn_params,
+                    delegation_code = delegation_code
+                )
+            } else {
+                format!(
+                    r#"{system_imports}
+{hoisted_imports}
+export default function {component_name}({fn_params}) {{
+{script_code}}}{delegation_code}"#,
+                    system_imports = system_imports,
+                    hoisted_imports = hoisted_imports,
+                    component_name = self.component_name,
+                    fn_params = fn_params,
+                    script_code = script_code,
+                    delegation_code = delegation_code
+                )
+            }
+        } else if is_fragment {
             // Multiple root elements - use fragment pattern
             format!(
-                r#"{imports}
-
+                r#"{system_imports}
+{hoisted_imports}
 var root = $.from_html(`{html}`, 1);
 
-export default function {component_name}($$anchor) {{
-	var fragment = root();
+export default function {component_name}({fn_params}) {{
+{script_code}	var fragment = root();
 {runtime_code}	$.append($$anchor, fragment);
-}}"#,
-                imports = imports,
+}}{delegation_code}"#,
+                system_imports = system_imports,
+                hoisted_imports = hoisted_imports,
                 html = html,
                 component_name = self.component_name,
-                runtime_code = runtime_code
+                fn_params = fn_params,
+                script_code = script_code,
+                runtime_code = runtime_code,
+                delegation_code = delegation_code
             )
         } else {
             // Single root element
             let root_var = determine_root_var(&html);
             format!(
-                r#"{imports}
-
+                r#"{system_imports}
+{hoisted_imports}
 var root = $.from_html(`{html}`);
 
-export default function {component_name}($$anchor) {{
-	var {root_var} = root();
+export default function {component_name}({fn_params}) {{
+{script_code}	var {root_var} = root();
 {runtime_code}	$.append($$anchor, {root_var});
-}}"#,
-                imports = imports,
+}}{delegation_code}"#,
+                system_imports = system_imports,
+                hoisted_imports = hoisted_imports,
                 html = html,
                 component_name = self.component_name,
+                fn_params = fn_params,
+                script_code = script_code,
                 root_var = root_var,
-                runtime_code = runtime_code
+                runtime_code = runtime_code,
+                delegation_code = delegation_code
             )
+        };
+
+        // Normalize the output through oxc parser/codegen
+        match parse_and_generate(&raw_output) {
+            Ok(normalized) => normalized,
+            Err(_) => raw_output, // Fall back to raw output if parsing fails
         }
     }
 
-    fn generate_runtime_code(&self, is_fragment: bool) -> String {
+    /// Generate code for each blocks.
+    fn generate_each_block_code(&self) -> String {
         let mut code = String::new();
-        let root_var = if is_fragment { "fragment" } else { "node" };
 
-        // Find elements that have expressions
-        let mut elements_with_expr: Vec<(&NodeInfo, Vec<&NodeInfo>)> = Vec::new();
+        for each in &self.each_blocks {
+            let iterable = &each.iterable;
+
+            // Determine callback parameters
+            let callback_params = if let Some(ref ctx) = each.context_name {
+                if let Some(ref idx) = each.index_name {
+                    format!("$$anchor, {}, {}", ctx, idx)
+                } else {
+                    format!("$$anchor, {}", ctx)
+                }
+            } else if let Some(ref idx) = each.index_name {
+                format!("$$anchor, $$item, {}", idx)
+            } else {
+                "$$anchor, $$item".to_string()
+            };
+
+            // Key function ($.index for both indexed and non-indexed each blocks in basic cases)
+            let key_fn = "$.index";
+
+            // Generate callback body
+            let callback_body = if each.is_text_only {
+                // Text-only body
+                let expr_parts: Vec<String> = each
+                    .body_expressions
+                    .iter()
+                    .map(|expr| {
+                        if expr.starts_with('\'') || expr.starts_with('"') {
+                            // Literal string - extract content
+                            expr[1..expr.len() - 1].to_string()
+                        } else {
+                            format!("${{{} ?? ''}}", expr)
+                        }
+                    })
+                    .collect();
+                let template_str = expr_parts.join("");
+
+                format!(
+                    r#"
+		$.next();
+		var text = $.text();
+		$.template_effect(() => $.set_text(text, `{}`));
+		$.append($$anchor, text);"#,
+                    template_str
+                )
+            } else if let Some(ref template_var) = each.template_var {
+                // Element-based body
+                let elem_var = each.body_element.as_deref().unwrap_or("elem");
+
+                // Build text content for element
+                let content = if each.body_expressions.is_empty() {
+                    String::new()
+                } else {
+                    // Check if we have a pre-built template (starts with TEMPLATE:)
+                    if let Some(first) = each.body_expressions.first() {
+                        if let Some(template_content) = first.strip_prefix("TEMPLATE:") {
+                            format!("\n\t\t{}.textContent = `{}`;", elem_var, template_content)
+                        } else {
+                            let expr_parts: Vec<String> = each
+                                .body_expressions
+                                .iter()
+                                .map(|expr| {
+                                    if expr.starts_with('\'') || expr.starts_with('"') {
+                                        expr[1..expr.len() - 1].to_string()
+                                    } else {
+                                        format!("${{{}}}", expr)
+                                    }
+                                })
+                                .collect();
+                            format!(
+                                "\n\t\t{}.textContent = `{}`;",
+                                elem_var,
+                                expr_parts.join("")
+                            )
+                        }
+                    } else {
+                        String::new()
+                    }
+                };
+
+                format!(
+                    r#"
+		var {} = {}();{}
+		$.append($$anchor, {});"#,
+                    elem_var, template_var, content, elem_var
+                )
+            } else {
+                String::new()
+            };
+
+            // Wrap object literal in parentheses to avoid it being parsed as a block
+            let iterable_expr = if iterable.trim().starts_with('{') {
+                format!("({})", iterable)
+            } else {
+                iterable.clone()
+            };
+
+            code.push_str(&format!(
+                r#"
+	$.each(node, 0, () => {}, {}, ({}) => {{{}}});
+"#,
+                iterable_expr, key_fn, callback_params, callback_body
+            ));
+        }
+
+        code
+    }
+
+    /// Transform script content for client-side usage.
+    /// Converts runes like `$state(x)` to `$.state(x)`.
+    fn transform_script_content(&self, script: &str) -> String {
+        if script.is_empty() {
+            return String::new();
+        }
+
+        let mut result = String::new();
+
+        for line in script.lines() {
+            let trimmed = line.trim();
+
+            // Skip empty lines
+            if trimmed.is_empty() {
+                continue;
+            }
+
+            // Transform runes
+            let mut transformed = transform_client_runes(trimmed);
+
+            // Transform state variable assignments to $.set()
+            transformed = transform_state_assignments(&transformed, &self.state_vars);
+
+            result.push('\t');
+            result.push_str(&transformed);
+            result.push('\n');
+        }
+
+        result
+    }
+
+    fn generate_runtime_code(&self, root_var: &str) -> String {
+        let mut code = String::new();
+
+        // Collect all elements that need runtime code (expressions, events, or bindings)
+        let mut elements_needing_runtime: Vec<(&NodeInfo, Vec<&NodeInfo>)> = Vec::new();
 
         let mut i = 0;
         while i < self.nodes.len() {
@@ -443,31 +1076,151 @@ export default function {component_name}($$anchor) {{
                     }
                 }
 
-                if !exprs.is_empty() {
-                    elements_with_expr.push((elem, exprs));
+                // Include element if it has expressions, event handlers, or bindings
+                let needs_runtime = !exprs.is_empty()
+                    || !elem.event_handlers.is_empty()
+                    || !elem.bindings.is_empty()
+                    || elem.is_input;
+
+                if needs_runtime {
+                    elements_needing_runtime.push((elem, exprs));
                 }
             }
             i += 1;
         }
 
-        // Generate navigation and assignment code
+        // Generate navigation and runtime code
         let mut prev_var: Option<&str> = None;
-        for (idx, (elem, exprs)) in elements_with_expr.iter().enumerate() {
+        let is_fragment = root_var == "fragment";
+        let mut bindings_code = String::new();
+        let mut template_effects: Vec<String> = Vec::new();
+
+        for (idx, (elem, exprs)) in elements_needing_runtime.iter().enumerate() {
             let var = &elem.var_name;
 
-            // Navigation code
-            if idx == 0 {
-                code.push_str(&format!("\tvar {} = $.first_child({});\n\n", var, root_var));
-            } else if let Some(prev) = prev_var {
-                // Offset is 2 because of text nodes (spaces) between elements
-                code.push_str(&format!("\tvar {} = $.sibling({}, 2);\n\n", var, prev));
+            // Check if this is the root element (already assigned from root())
+            let is_root_element = var == root_var;
+
+            // Navigation code - skip for root element as it's already assigned
+            if !is_root_element {
+                if idx == 0 || (is_fragment && prev_var.is_none()) {
+                    code.push_str(&format!("\tvar {} = $.first_child({});\n\n", var, root_var));
+                } else if let Some(prev) = prev_var {
+                    // Offset is 2 because of text nodes (spaces) between elements
+                    code.push_str(&format!("\tvar {} = $.sibling({}, 2);\n\n", var, prev));
+                }
             }
 
-            // Expression assignment
-            for expr_info in exprs {
-                if let Some(expr) = &expr_info.expression {
-                    let folded = try_constant_fold(expr);
-                    code.push_str(&format!("\t{}.textContent = {};\n\n", var, folded));
+            // Remove input defaults for input elements
+            if elem.is_input {
+                code.push_str(&format!("\t$.remove_input_defaults({});\n\n", var));
+            }
+
+            // Event handlers
+            for (event_name, handler) in &elem.event_handlers {
+                // Transform state variable operations in handler expression
+                let transformed_handler = transform_state_assignments(handler, &self.state_vars);
+                code.push_str(&format!(
+                    "\t{}.__{} = {};\n",
+                    var, event_name, transformed_handler
+                ));
+            }
+
+            // Check if any expression references state variables (reactive)
+            let has_reactive_expr = exprs.iter().any(|e| {
+                if let Some(expr) = &e.expression {
+                    self.state_vars.iter().any(|sv| expr.contains(sv))
+                } else {
+                    false
+                }
+            });
+
+            if has_reactive_expr && !exprs.is_empty() {
+                // Reactive content - need text node and template_effect
+                let text_var = format!("text_{}", var);
+                code.push_str(&format!("\tvar {} = $.child({});\n\n", text_var, var));
+                code.push_str(&format!("\t$.reset({});\n\n", var));
+
+                // Collect all expressions for this element
+                let expr_parts: Vec<String> = exprs
+                    .iter()
+                    .filter_map(|e| e.expression.as_ref())
+                    .map(|expr| {
+                        // Wrap state variable references in $.get()
+                        let mut result = expr.clone();
+                        for sv in &self.state_vars {
+                            // Simple replacement - wrap standalone variable references
+                            let pattern = format!(r"\b{}\b", sv);
+                            if let Ok(re) = regex::Regex::new(&pattern) {
+                                result = re
+                                    .replace_all(&result, format!("$.get({})", sv).as_str())
+                                    .to_string();
+                            }
+                        }
+                        format!("${{{}  ?? ''}}", result)
+                    })
+                    .collect();
+
+                let template_str = expr_parts.join("");
+                template_effects.push(format!(
+                    "\t$.template_effect(() => $.set_text({}, `{}`));\n",
+                    text_var, template_str
+                ));
+            } else {
+                // Static content - combine all expressions into single textContent
+                let combined: Vec<String> = exprs
+                    .iter()
+                    .filter_map(|e| e.expression.as_ref())
+                    .map(|expr| try_constant_fold(expr))
+                    .collect();
+
+                match combined.len() {
+                    1 => {
+                        // Single expression
+                        code.push_str(&format!("\t{}.textContent = {};\n\n", var, combined[0]));
+                    }
+                    n if n > 1 => {
+                        // Multiple expressions - try to combine as string literal
+                        let all_literals = combined.iter().all(|s| {
+                            (s.starts_with('\'') && s.ends_with('\''))
+                                || (s.starts_with('"') && s.ends_with('"'))
+                        });
+
+                        if all_literals {
+                            // Combine string literals
+                            let combined_str: String = combined
+                                .iter()
+                                .map(|s| {
+                                    // Remove quotes
+                                    if s.len() >= 2 {
+                                        &s[1..s.len() - 1]
+                                    } else {
+                                        s.as_str()
+                                    }
+                                })
+                                .collect();
+                            code.push_str(&format!(
+                                "\t{}.textContent = '{}';\n\n",
+                                var, combined_str
+                            ));
+                        } else {
+                            // Fall back to last expression (original behavior)
+                            if let Some(last) = combined.last() {
+                                code.push_str(&format!("\t{}.textContent = {};\n\n", var, last));
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            // Bindings (collect for after navigation)
+            for (bind_name, bind_expr) in &elem.bindings {
+                if bind_name == "value" {
+                    bindings_code.push_str(&format!(
+                        "\t$.bind_value({}, () => $.get({}), ($$value) => $.set({}, $$value));\n",
+                        var, bind_expr, bind_expr
+                    ));
                 }
             }
 
@@ -492,7 +1245,28 @@ export default function {component_name}($$anchor) {{
             }
         }
 
+        // Add bindings after all navigation
+        code.push_str(&bindings_code);
+
+        // Add template effects at the end
+        for effect in template_effects {
+            code.push_str(&effect);
+        }
+
         code
+    }
+
+    /// Collect all event types that need delegation
+    fn collect_delegated_events(&self) -> Vec<String> {
+        let mut events: Vec<String> = Vec::new();
+        for node in &self.nodes {
+            for (event_name, _) in &node.event_handlers {
+                if !events.contains(event_name) {
+                    events.push(event_name.clone());
+                }
+            }
+        }
+        events
     }
 }
 
@@ -521,6 +1295,19 @@ fn try_constant_fold(expr: &str) -> String {
     if trimmed.starts_with("Math.") {
         if let Some(result) = eval_math_expr(trimmed) {
             return format!("'{}'", result);
+        }
+    }
+
+    // Check for nullish coalescing with constant left side
+    if let Some(idx) = trimmed.find("??") {
+        let left = trimmed[..idx].trim();
+        // If left side is a non-null literal, use it directly
+        if let Ok(n) = left.parse::<i64>() {
+            return format!("'{}'", n);
+        }
+        if left.starts_with('"') || left.starts_with('\'') {
+            // String literal - not null, use it
+            return left.to_string();
         }
     }
 
@@ -662,6 +1449,248 @@ fn is_void_element(name: &str) -> bool {
             | "track"
             | "wbr"
     )
+}
+
+/// Extract imports from script content.
+fn extract_imports(script: &str) -> (Vec<String>, String) {
+    let mut imports = Vec::new();
+    let mut rest = String::new();
+
+    for line in script.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("import ") {
+            imports.push(trimmed.to_string());
+        } else if !trimmed.is_empty() {
+            rest.push_str(line);
+            rest.push('\n');
+        }
+    }
+
+    (imports, rest)
+}
+
+/// Transform runes for client-side usage.
+/// Converts `$state(x)` to `$.state(x)` or `$.proxy(x)`, `$derived(x)` to `$.derived(() => x)`, etc.
+fn transform_client_runes(line: &str) -> String {
+    let mut result = line.to_string();
+
+    // Transform $state(x) to $.state(x) for primitives or $.proxy(x) for objects
+    if let Some(pos) = result.find("$state(") {
+        // Check if this is a declaration
+        if result[..pos].contains("let ") || result[..pos].contains("const ") {
+            // Find the content inside $state(...)
+            let state_start = pos + 7; // after "$state("
+            if let Some(content_end) = find_matching_paren(&result[state_start..]) {
+                let content = &result[state_start..state_start + content_end];
+                let trimmed_content = content.trim();
+                // Check if it's an object literal
+                if trimmed_content.starts_with('{') || trimmed_content.starts_with('[') {
+                    result = result.replacen("$state(", "$.proxy(", 1);
+                } else {
+                    result = result.replacen("$state(", "$.state(", 1);
+                }
+            } else {
+                result = result.replacen("$state(", "$.state(", 1);
+            }
+        }
+    }
+
+    // Transform $derived(x) to $.derived(() => x)
+    if let Some(pos) = result.find("$derived(") {
+        if result[..pos].contains("let ") || result[..pos].contains("const ") {
+            // Find the content inside $derived(...)
+            let derived_start = pos + 9; // after "$derived("
+            if let Some(content_end) = find_matching_paren(&result[derived_start..]) {
+                let content = &result[derived_start..derived_start + content_end];
+                // Wrap in arrow function if not already a function
+                let trimmed = content.trim();
+                if !trimmed.starts_with("()") && !trimmed.starts_with("function") {
+                    let new_derived = format!("$.derived(() => {})", content);
+                    result = format!(
+                        "{}{}{}",
+                        &result[..pos],
+                        new_derived,
+                        &result[derived_start + content_end + 1..]
+                    );
+                } else {
+                    result = result.replacen("$derived(", "$.derived(", 1);
+                }
+            } else {
+                result = result.replacen("$derived(", "$.derived(", 1);
+            }
+        }
+    }
+
+    // Transform $effect(x) to $.effect(x)
+    if result.contains("$effect(") {
+        result = result.replace("$effect(", "$.effect(");
+    }
+
+    result
+}
+
+/// Find the position of the matching closing parenthesis.
+fn find_matching_paren(s: &str) -> Option<usize> {
+    let mut depth = 1;
+    let mut in_string = false;
+    let mut string_char = ' ';
+    let mut in_template = false;
+
+    for (i, c) in s.chars().enumerate() {
+        if !in_string && !in_template {
+            match c {
+                '(' => depth += 1,
+                ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return Some(i);
+                    }
+                }
+                '\'' | '"' => {
+                    in_string = true;
+                    string_char = c;
+                }
+                '`' => in_template = true,
+                _ => {}
+            }
+        } else if in_string && c == string_char && (i == 0 || s.as_bytes()[i - 1] != b'\\') {
+            in_string = false;
+        } else if in_template && c == '`' && (i == 0 || s.as_bytes()[i - 1] != b'\\') {
+            in_template = false;
+        }
+    }
+
+    None
+}
+
+/// Collect variable names declared with $state().
+fn collect_state_variables(script: &str) -> Vec<String> {
+    let mut vars = Vec::new();
+
+    for line in script.lines() {
+        let trimmed = line.trim();
+        // Match patterns like: let varname = $state(...) or const varname = $state(...)
+        if trimmed.contains("$state(") {
+            // Extract variable name between let/const and =
+            if let Some(eq_pos) = trimmed.find('=') {
+                let before_eq = trimmed[..eq_pos].trim();
+                // Get the last word before = (the variable name)
+                if let Some(var_name) = before_eq.split_whitespace().last() {
+                    vars.push(var_name.to_string());
+                }
+            }
+        }
+    }
+
+    vars
+}
+
+/// Transform state variable assignments to use $.set().
+/// Converts `varname = value` to `$.set(varname, value)` for state variables.
+fn transform_state_assignments(line: &str, state_vars: &[String]) -> String {
+    let mut result = line.to_string();
+
+    for var in state_vars {
+        // Transform varname++ to $.update(varname)
+        let inc_pattern = format!("{}++", var);
+        if result.contains(&inc_pattern) {
+            result = result.replace(&inc_pattern, &format!("$.update({})", var));
+        }
+
+        // Transform varname-- to $.update(varname, -1)
+        let dec_pattern = format!("{}--", var);
+        if result.contains(&dec_pattern) {
+            result = result.replace(&dec_pattern, &format!("$.update({}, -1)", var));
+        }
+
+        // Transform compound assignments: varname += value to $.set(varname, $.get(varname) + value)
+        for (op, js_op) in &[
+            (" += ", " + "),
+            (" -= ", " - "),
+            (" *= ", " * "),
+            (" /= ", " / "),
+        ] {
+            let compound_pattern = format!("{}{}", var, op);
+            if result.contains(&compound_pattern) {
+                // Check if this is not a declaration or property access
+                let before_var = if let Some(pos) = result.find(&compound_pattern) {
+                    result[..pos].trim()
+                } else {
+                    ""
+                };
+
+                if before_var.ends_with("let")
+                    || before_var.ends_with("const")
+                    || before_var.ends_with("var")
+                    || before_var.ends_with('.')
+                {
+                    continue;
+                }
+
+                if let Some(eq_pos) = result.find(&compound_pattern) {
+                    let before = &result[..eq_pos];
+                    let after = &result[eq_pos + compound_pattern.len()..];
+
+                    let (value, suffix) = match after.strip_suffix(';') {
+                        Some(stripped) => (stripped, ";"),
+                        None => (after, ""),
+                    };
+
+                    result = format!(
+                        "{}$.set({}, $.get({}){}{}){}",
+                        before,
+                        var,
+                        var,
+                        js_op,
+                        value.trim(),
+                        suffix
+                    );
+                }
+            }
+        }
+
+        // Pattern: varname = value (standalone assignment, not in a declaration)
+        // We need to match "varname = " but not "let varname = " or "const varname = "
+        let assignment_pattern = format!("{} = ", var);
+
+        if result.contains(&assignment_pattern) {
+            // Check if this is not a declaration
+            let before_var = if let Some(pos) = result.find(&assignment_pattern) {
+                result[..pos].trim()
+            } else {
+                ""
+            };
+
+            // Skip if it's a declaration
+            if before_var.ends_with("let")
+                || before_var.ends_with("const")
+                || before_var.ends_with("var")
+            {
+                continue;
+            }
+
+            // Skip if it's a property access (e.g., obj.varname = )
+            if before_var.ends_with('.') {
+                continue;
+            }
+
+            // Find the value part after " = "
+            if let Some(eq_pos) = result.find(&assignment_pattern) {
+                let before = &result[..eq_pos];
+                let after = &result[eq_pos + assignment_pattern.len()..];
+
+                // Handle semicolon at end
+                let (value, suffix) = match after.strip_suffix(';') {
+                    Some(stripped) => (stripped, ";"),
+                    None => (after, ""),
+                };
+
+                result = format!("{}$.set({}, {}){}", before, var, value.trim(), suffix);
+            }
+        }
+    }
+
+    result
 }
 
 #[cfg(test)]
