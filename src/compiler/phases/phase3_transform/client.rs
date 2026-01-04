@@ -673,7 +673,10 @@ impl ClientCodeGenerator {
                         if expr_source == name {
                             props.push(name.to_string());
                         } else {
-                            props.push(format!("{}: {}", name, expr_source));
+                            // Transform arrow function expressions with state variable assignments
+                            let transformed_expr =
+                                transform_arrow_function_expr(&expr_source, &self.state_vars);
+                            props.push(format!("{}: {}", name, transformed_expr));
                         }
                     }
                 }
@@ -2314,6 +2317,82 @@ fn wrap_state_vars_in_get(template: &str, state_vars: &[String]) -> String {
 
 /// Transform state variable assignments to use $.set().
 /// Converts `varname = value` to `$.set(varname, value)` for state variables.
+/// Transform arrow function expressions that contain state variable assignments.
+/// e.g., `() => count += 1` becomes `() => $.set(count, $.get(count) + 1)`
+fn transform_arrow_function_expr(expr: &str, state_vars: &[String]) -> String {
+    // Check if this is an arrow function with simple body (no braces)
+    if !expr.contains("=>") {
+        return expr.to_string();
+    }
+
+    // Split into params and body
+    if let Some(arrow_pos) = expr.find("=>") {
+        let params = &expr[..arrow_pos + 2];
+        let body = expr[arrow_pos + 2..].trim();
+
+        // Check if body contains state variable assignment
+        for var in state_vars {
+            // Handle compound assignments: count += 1
+            for (op, js_op) in &[
+                (" += ", " + "),
+                (" -= ", " - "),
+                (" *= ", " * "),
+                (" /= ", " / "),
+            ] {
+                let compound_pattern = format!("{}{}", var, op);
+                if body.contains(&compound_pattern) {
+                    if let Some(eq_pos) = body.find(&compound_pattern) {
+                        let value = &body[eq_pos + compound_pattern.len()..];
+                        return format!(
+                            "{} $.set({}, $.get({}){}{})",
+                            params,
+                            var,
+                            var,
+                            js_op,
+                            value.trim()
+                        );
+                    }
+                }
+            }
+
+            // Handle simple assignment: count = expr
+            let assignment_pattern = format!("{} = ", var);
+            if body.contains(&assignment_pattern) {
+                if let Some(eq_pos) = body.find(&assignment_pattern) {
+                    let value = &body[eq_pos + assignment_pattern.len()..];
+                    // Transform state vars in the value part
+                    let transformed_value = transform_state_in_expr(value.trim(), state_vars);
+                    return format!("{} $.set({}, {}, true)", params, var, transformed_value);
+                }
+            }
+        }
+    }
+
+    expr.to_string()
+}
+
+/// Transform state variable accesses in an expression.
+/// e.g., `plusOne(count)` becomes `plusOne($.get(count))`
+fn transform_state_in_expr(expr: &str, state_vars: &[String]) -> String {
+    let mut result = expr.to_string();
+    for var in state_vars {
+        // Match the variable as a word boundary
+        let pattern = format!(r"(?<![a-zA-Z_$]){}(?![a-zA-Z0-9_$])", var);
+        if let Ok(re) = regex::Regex::new(&pattern) {
+            result = re
+                .replace_all(&result, format!("$.get({})", var))
+                .to_string();
+        } else {
+            // Fallback: simple replacement
+            let word_pattern = format!("({})", var);
+            if result.contains(&word_pattern) {
+                result = result.replace(&word_pattern, &format!("($.get({}))", var));
+            }
+        }
+    }
+    result
+}
+
 fn transform_state_assignments(line: &str, state_vars: &[String]) -> String {
     let mut result = line.to_string();
 
