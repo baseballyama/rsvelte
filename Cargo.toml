@@ -1,0 +1,53 @@
+[package]
+name = "svelte-compiler-rust"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "A high-performance Rust implementation of the Svelte compiler"
+license = "MIT"
+
+[dependencies]
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Parallelism
+rayon = "1.10"
+
+# Memory efficiency
+bumpalo = { version = "3.16", features = ["collections"] }
+compact_str = { version = "0.8", features = ["serde"] }
+
+# JavaScript parsing (for expressions)
+oxc_allocator = "0.56"
+oxc_parser = "0.56"
+oxc_ast = "0.56"
+oxc_span = "0.56"
+oxc_diagnostics = "0.56"
+
+# Error handling
+thiserror = "2.0"
+miette = { version = "7.4", features = ["fancy"] }
+
+[dev-dependencies]
+# Testing
+insta = { version = "1.42", features = ["json", "glob"] }
+pretty_assertions = "1.4"
+criterion = { version = "0.5", features = ["html_reports"] }
+test-generator = "0.3"
+walkdir = "2.5"
+glob = "0.3"
+
+[[bench]]
+name = "parser"
+harness = false
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.bench]
+inherits = "release"
+debug = true
