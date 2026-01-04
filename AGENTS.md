@@ -156,7 +156,7 @@ cargo test --test compiler_fixtures -- --nocapture
 
 Current status:
 - **Parser**: 22/22 modern mode tests passing (100%)
-- **Compiler**: Total 2/25 (Client 2/25, Server 11/25) tests passing
+- **Compiler**: Total 2/25 (Client 2/25, Server 14/25) tests passing
 
 ## Current Progress
 
@@ -175,7 +175,7 @@ Current status:
 - [x] Script/Style parsing
 - [x] CSS parsing
 
-### Compiler (Total: 2/25, Client: 2/25, Server: 11/25 tests passing)
+### Compiler (Total: 2/25, Client: 2/25, Server: 14/25 tests passing)
 
 **Passing tests:**
 - hello-world (client + server)
@@ -189,6 +189,9 @@ Current status:
 - state-proxy-literal (server only)
 - svelte-element (server only)
 - delegated-locally-declared-shadowed (server only)
+- imports-in-modules (server only)
+- skip-static-subtree (server only)
+- function-prop-no-getter (server only)
 
 **Implemented features:**
 - [x] Compiler fixture test infrastructure
@@ -208,14 +211,20 @@ Current status:
 - [x] Expression attributes (`$.attr()` for dynamic attributes)
 - [x] `svelte:element` dynamic elements (`$.element()`)
 - [x] Each block with object literal expressions
+- [x] Import hoisting for SSR
+- [x] `{@html expr}` tag (`$.html()`)
+- [x] `<option>` element handling (`$$renderer.option()`)
+- [x] Component children with `children` callback and `$$slots`
 
 **Pending features:**
 - [ ] Props destructuring with defaults
+- [ ] `$derived()` transformation
 - [ ] Reactive effects (`$.template_effect`)
 - [ ] Control flow blocks (`{#if}`, `{#await}`)
 - [ ] CSS scoping and transformation
 - [ ] Client-side bindings
-- [ ] Component children/slots
+- [ ] Snippet blocks
+- [ ] Component bindings with getter/setter
 
 ### Integration
 

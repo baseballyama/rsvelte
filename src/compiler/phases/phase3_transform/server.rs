@@ -56,10 +56,13 @@ struct ServerCodeGenerator<'a> {
 enum OutputPart {
     Html(String),
     Expression(String),
+    /// Raw HTML expression - {@html expr}
+    HtmlExpression(String),
     Component {
         name: String,
         props: Vec<String>,
         has_prior_content: bool,
+        children: Option<Vec<OutputPart>>,
     },
     Comment,
     /// Each block - produces a for loop
@@ -72,6 +75,11 @@ enum OutputPart {
     /// svelte:element - dynamic element
     SvelteElement {
         tag_expr: String,
+    },
+    /// Option element - produces $$renderer.option() call
+    OptionElement {
+        attrs: Vec<(String, String)>,
+        body: Vec<OutputPart>,
     },
 }
 
@@ -139,6 +147,11 @@ impl<'a> ServerCodeGenerator<'a> {
     fn generate_element(&mut self, element: &RegularElement) -> Result<(), TransformError> {
         let name = element.name.as_str();
 
+        // Handle <option> element specially
+        if name == "option" {
+            return self.generate_option_element(element);
+        }
+
         // Start tag
         let mut tag = format!("<{}", name);
 
@@ -157,28 +170,120 @@ impl<'a> ServerCodeGenerator<'a> {
             self.output_parts.push(OutputPart::Html(tag));
 
             // Children - filter and process with position awareness
+            // First, filter out comments and find meaningful content boundaries
             let children: Vec<_> = element.fragment.nodes.iter().collect();
-            let len = children.len();
+
+            // Find first and last non-whitespace, non-comment children
+            let _first_content = children.iter().position(|c| {
+                !matches!(c, TemplateNode::Text(t) if t.data.trim().is_empty())
+                    && !matches!(c, TemplateNode::Comment(_))
+            });
+            let last_content = children.iter().rposition(|c| {
+                !matches!(c, TemplateNode::Text(t) if t.data.trim().is_empty())
+                    && !matches!(c, TemplateNode::Comment(_))
+            });
+
+            let mut has_output_content = false;
 
             for (i, child) in children.iter().enumerate() {
+                // Skip comments
+                if matches!(child, TemplateNode::Comment(_)) {
+                    continue;
+                }
+
                 // For text nodes, check if it should become a space
                 if let TemplateNode::Text(text) = child {
                     let data = &text.data;
                     if data.trim().is_empty() {
-                        // Whitespace-only text: skip if first or last child, otherwise add space
-                        if i > 0 && i < len - 1 && !data.is_empty() {
+                        // Whitespace-only text: add space only if between content elements
+                        if has_output_content
+                            && last_content.is_some()
+                            && i < last_content.unwrap()
+                            && !data.is_empty()
+                        {
                             self.output_parts.push(OutputPart::Html(" ".to_string()));
                         }
                         continue;
                     }
                 }
+
                 self.generate_node(child, false)?;
+                has_output_content = true;
             }
 
             // End tag
             self.output_parts
                 .push(OutputPart::Html(format!("</{}>", name)));
         }
+
+        Ok(())
+    }
+
+    fn generate_option_element(&mut self, element: &RegularElement) -> Result<(), TransformError> {
+        // Extract attributes as (name, value) pairs
+        let mut attrs = Vec::new();
+        for attr in &element.attributes {
+            if let Attribute::Attribute(node) = attr {
+                let name = node.name.to_string();
+                match &node.value {
+                    AttributeValue::True(_) => {
+                        attrs.push((name, "true".to_string()));
+                    }
+                    AttributeValue::Sequence(parts) => {
+                        let mut value = String::new();
+                        for part in parts {
+                            if let AttributeValuePart::Text(text) = part {
+                                value.push_str(&text.data);
+                            }
+                        }
+                        attrs.push((name, format!("'{}'", value)));
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        // Generate body parts
+        let mut body_generator =
+            ServerCodeGenerator::new(self.component_name.clone(), self.source.clone(), None);
+
+        // Process children (skip leading/trailing whitespace)
+        let children: Vec<_> = element.fragment.nodes.iter().collect();
+        let len = children.len();
+
+        let mut start_idx = 0;
+        let mut end_idx = len;
+
+        // Skip leading whitespace
+        while start_idx < len {
+            if let TemplateNode::Text(text) = children[start_idx] {
+                if text.data.trim().is_empty() {
+                    start_idx += 1;
+                    continue;
+                }
+            }
+            break;
+        }
+
+        // Skip trailing whitespace
+        while end_idx > start_idx {
+            if let TemplateNode::Text(text) = children[end_idx - 1] {
+                if text.data.trim().is_empty() {
+                    end_idx -= 1;
+                    continue;
+                }
+            }
+            break;
+        }
+
+        for node in children.iter().take(end_idx).skip(start_idx) {
+            body_generator.generate_node(node, false)?;
+        }
+
+        self.output_parts.push(OutputPart::OptionElement {
+            attrs,
+            body: body_generator.output_parts,
+        });
 
         Ok(())
     }
@@ -308,13 +413,88 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
+        // Check if component has children
+        let children = self.generate_component_children(&component.fragment)?;
+
         self.output_parts.push(OutputPart::Component {
             name: comp_name,
             props,
             has_prior_content,
+            children,
         });
 
         Ok(())
+    }
+
+    fn generate_component_children(
+        &mut self,
+        fragment: &Fragment,
+    ) -> Result<Option<Vec<OutputPart>>, TransformError> {
+        // Filter out leading/trailing whitespace
+        let children: Vec<_> = fragment.nodes.iter().collect();
+        let len = children.len();
+
+        if len == 0 {
+            return Ok(None);
+        }
+
+        // Find first and last meaningful content
+        let mut start_idx = 0;
+        let mut end_idx = len;
+
+        while start_idx < len {
+            if let TemplateNode::Text(text) = children[start_idx] {
+                if text.data.trim().is_empty() {
+                    start_idx += 1;
+                    continue;
+                }
+            }
+            break;
+        }
+
+        while end_idx > start_idx {
+            if let TemplateNode::Text(text) = children[end_idx - 1] {
+                if text.data.trim().is_empty() {
+                    end_idx -= 1;
+                    continue;
+                }
+            }
+            break;
+        }
+
+        // Check if there's any meaningful content
+        if start_idx >= end_idx {
+            return Ok(None);
+        }
+
+        // Generate body parts
+        let mut body_generator =
+            ServerCodeGenerator::new(self.component_name.clone(), self.source.clone(), None);
+
+        // Add comment marker at start for proper placement
+        body_generator.output_parts.push(OutputPart::Comment);
+
+        let mut is_first = true;
+        for node in children.iter().take(end_idx).skip(start_idx) {
+            // For the first text node, normalize leading whitespace
+            if is_first {
+                if let TemplateNode::Text(text) = node {
+                    // Normalize: trim leading whitespace, keep content
+                    let normalized = text.data.trim_start();
+                    if !normalized.is_empty() {
+                        body_generator
+                            .output_parts
+                            .push(OutputPart::Html(escape_html(normalized)));
+                    }
+                    is_first = false;
+                    continue;
+                }
+            }
+            body_generator.generate_node(node, false)?;
+            is_first = false;
+        }
+
+        Ok(Some(body_generator.output_parts))
     }
 
     fn generate_if_block(&mut self, _block: &IfBlock) -> Result<(), TransformError> {
@@ -422,8 +602,17 @@ impl<'a> ServerCodeGenerator<'a> {
         Ok(())
     }
 
-    fn generate_html_tag(&mut self, _tag: &HtmlTag) -> Result<(), TransformError> {
-        self.output_parts.push(OutputPart::Comment);
+    fn generate_html_tag(&mut self, tag: &HtmlTag) -> Result<(), TransformError> {
+        // Get the expression from HtmlTag
+        let start = tag.expression.start().unwrap_or(0) as usize;
+        let end = tag.expression.end().unwrap_or(0) as usize;
+
+        if end > start && end <= self.source.len() {
+            let expr = self.source[start..end].trim().to_string();
+            self.output_parts.push(OutputPart::HtmlExpression(expr));
+        } else {
+            self.output_parts.push(OutputPart::Comment);
+        }
         Ok(())
     }
 
@@ -450,7 +639,8 @@ impl<'a> ServerCodeGenerator<'a> {
         let body_code = Self::build_parts(&self.output_parts, 1);
 
         // Process script content if present
-        let (props_param, script_code) = if let Some(script) = self.instance_script {
+        let (props_param, script_code, hoisted_imports) = if let Some(script) = self.instance_script
+        {
             let start = script.content.start().unwrap_or(0) as usize;
             let end = script.content.end().unwrap_or(0) as usize;
             let raw_script = if end > start && end <= self.source.len() {
@@ -462,35 +652,58 @@ impl<'a> ServerCodeGenerator<'a> {
             // Check if script uses $props()
             let uses_props = raw_script.contains("$props()");
 
-            // Transform the script content
-            let transformed = transform_script_content(&raw_script);
+            // Extract imports and transform the rest
+            let (imports, rest) = extract_imports(&raw_script);
+            let transformed = transform_script_content(&rest);
 
             if uses_props {
-                (", $$props", transformed)
+                (", $$props", transformed, imports)
             } else {
-                ("", transformed)
+                ("", transformed, imports)
             }
         } else {
-            ("", String::new())
+            ("", String::new(), Vec::new())
         };
 
-        // Build the final output
-        let script_section = if script_code.is_empty() {
+        // Build hoisted imports section
+        let imports_section = if hoisted_imports.is_empty() {
             String::new()
         } else {
-            format!("{}\n", script_code)
+            hoisted_imports.join("\n") + "\n"
         };
 
-        format!(
-            r#"import * as $ from 'svelte/internal/server';
+        // Build the final output - handle empty body case
+        let has_content = !script_code.is_empty() || !body_code.is_empty();
 
+        if has_content {
+            let script_section = if script_code.is_empty() {
+                String::new()
+            } else {
+                format!("{}\n", script_code)
+            };
+
+            format!(
+                r#"import * as $ from 'svelte/internal/server';
+{imports_section}
 export default function {component_name}($$renderer{props_param}) {{
 {script_section}{body_code}}}"#,
-            component_name = self.component_name,
-            props_param = props_param,
-            script_section = script_section,
-            body_code = body_code
-        )
+                imports_section = imports_section,
+                component_name = self.component_name,
+                props_param = props_param,
+                script_section = script_section,
+                body_code = body_code
+            )
+        } else {
+            // Empty body - use single line braces
+            format!(
+                r#"import * as $ from 'svelte/internal/server';
+{imports_section}
+export default function {component_name}($$renderer{props_param}) {{}}"#,
+                imports_section = imports_section,
+                component_name = self.component_name,
+                props_param = props_param,
+            )
+        }
     }
 
     fn build_parts(parts: &[OutputPart], indent_level: usize) -> String {
@@ -506,10 +719,14 @@ export default function {component_name}($$renderer{props_param}) {{
                 OutputPart::Expression(expr) => {
                     current_html.push_str(&format!("${{$.escape({})}}", expr));
                 }
+                OutputPart::HtmlExpression(expr) => {
+                    current_html.push_str(&format!("${{$.html({})}}", expr));
+                }
                 OutputPart::Component {
                     name,
                     props,
                     has_prior_content,
+                    children,
                 } => {
                     // Flush current HTML
                     if !current_html.is_empty() {
@@ -517,17 +734,40 @@ export default function {component_name}($$renderer{props_param}) {{
                             .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
                         current_html.clear();
                     }
-                    // Generate component call - always pass props object
-                    if props.is_empty() {
-                        body_code.push_str(&format!("{}{}($$renderer, {{}});\n", indent, name));
+
+                    // Generate component call
+                    if let Some(children_parts) = children {
+                        // Component with children - multi-line format
+                        body_code.push_str(&format!("{}{}($$renderer, {{\n", indent, name));
+
+                        // Props
+                        for prop in props {
+                            body_code.push_str(&format!("{}\t{},\n", indent, prop));
+                        }
+
+                        // Children callback
+                        body_code.push_str(&format!("{}\tchildren: ($$renderer) => {{\n", indent));
+                        let children_code = Self::build_parts(children_parts, indent_level + 2);
+                        body_code.push_str(&children_code);
+                        body_code.push_str(&format!("{}\t}},\n", indent));
+
+                        // Slots marker
+                        body_code.push_str(&format!("{}\t$$slots: {{ default: true }}\n", indent));
+                        body_code.push_str(&format!("{}}});\n", indent));
                     } else {
-                        body_code.push_str(&format!(
-                            "{}{}($$renderer, {{ {} }});\n",
-                            indent,
-                            name,
-                            props.join(", ")
-                        ));
+                        // No children - simple call
+                        if props.is_empty() {
+                            body_code.push_str(&format!("{}{}($$renderer, {{}});\n", indent, name));
+                        } else {
+                            body_code.push_str(&format!(
+                                "{}{}($$renderer, {{ {} }});\n",
+                                indent,
+                                name,
+                                props.join(", ")
+                            ));
+                        }
                     }
+
                     // Add comment marker only if there was prior HTML content
                     if *has_prior_content {
                         current_html.push_str("<!---->");
@@ -594,6 +834,35 @@ export default function {component_name}($$renderer{props_param}) {{
                     // Generate $.element call
                     body_code
                         .push_str(&format!("{}$.element($$renderer, {});\n", indent, tag_expr));
+                }
+                OutputPart::OptionElement { attrs, body } => {
+                    // Flush current HTML before option element
+                    if !current_html.is_empty() {
+                        body_code.push_str(&format!(
+                            "{}$$renderer.push(`{}`);\n\n",
+                            indent, current_html
+                        ));
+                        current_html.clear();
+                    }
+
+                    // Generate $$renderer.option() call
+                    let attrs_str = attrs
+                        .iter()
+                        .map(|(k, v)| format!("{}: {}", k, v))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+
+                    body_code.push_str(&format!(
+                        "{}$$renderer.option({{ {} }}, ($$renderer) => {{\n",
+                        indent, attrs_str
+                    ));
+
+                    // Body
+                    let body_code_inner = Self::build_parts(body, indent_level + 1);
+                    body_code.push_str(&body_code_inner);
+
+                    // Close callback
+                    body_code.push_str(&format!("{}}});\n", indent));
                 }
             }
         }
@@ -756,6 +1025,33 @@ fn is_void_element(name: &str) -> bool {
             | "track"
             | "wbr"
     )
+}
+
+/// Extract import statements from script content.
+/// Returns (imports, rest) where imports is a Vec of import statements
+/// and rest is the remaining script content.
+fn extract_imports(script: &str) -> (Vec<String>, String) {
+    let mut imports = Vec::new();
+    let mut rest = String::new();
+
+    for line in script.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("import ") || trimmed.starts_with("import{") {
+            // This is an import statement - add to imports (without indentation)
+            imports.push(trimmed.to_string());
+        } else {
+            // Regular line - keep in rest
+            rest.push_str(line);
+            rest.push('\n');
+        }
+    }
+
+    // Trim trailing newline
+    if rest.ends_with('\n') {
+        rest.pop();
+    }
+
+    (imports, rest)
 }
 
 /// Transform script content for server-side rendering.
