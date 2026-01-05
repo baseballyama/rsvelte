@@ -1020,6 +1020,20 @@ pub fn svelte_index() -> JsExpr {
 }
 
 // ============================================================================
+// DOM Manipulation Helpers
+// ============================================================================
+
+/// Create element.textContent = value assignment.
+pub fn set_text_content(element: JsExpr, value: JsExpr) -> JsExpr {
+    assign(member(element, "textContent"), value)
+}
+
+/// Create element.prop = value assignment for a property.
+pub fn set_property(element: JsExpr, prop: impl Into<String>, value: JsExpr) -> JsExpr {
+    assign(member(element, prop), value)
+}
+
+// ============================================================================
 // Program Building
 // ============================================================================
 

@@ -6,9 +6,10 @@ use super::TransformError;
 use super::js_ast::{
     builders::{
         array, assign, call, export_default_function, getter, id, id_pattern, import_namespace,
-        import_side_effect, member, object, program, quasi, setter, stmt, string, svelte_append,
-        svelte_first_child, svelte_from_html, svelte_get, svelte_remove_input_defaults,
-        svelte_set_sync, svelte_sibling, svelte_template_effect, template, thunk, var_decl,
+        import_side_effect, member, object, program, quasi, set_text_content, setter, stmt, string,
+        svelte_append, svelte_child, svelte_first_child, svelte_from_html, svelte_get,
+        svelte_remove_input_defaults, svelte_reset, svelte_set_sync, svelte_set_text,
+        svelte_sibling, svelte_template_effect, template, thunk, var_decl,
     },
     generate,
     nodes::{JsExpr, JsPattern, JsStatement},
@@ -2545,6 +2546,33 @@ export default function {component_name}({fn_params}) {{
     fn build_delegate_stmt(&self, events: &[String]) -> JsStatement {
         let events_array = array(events.iter().map(String::as_str).map(string).collect());
         stmt(call(member(id("$"), "delegate"), vec![events_array]))
+    }
+
+    /// Build reactive text content pattern:
+    /// var text = $.child(element);
+    /// $.reset(element);
+    /// $.template_effect(() => $.set_text(text, `template`));
+    #[allow(dead_code)]
+    fn build_reactive_text_content(
+        &self,
+        element_var: &str,
+        text_var: &str,
+        template_expr: JsExpr,
+    ) -> Vec<JsStatement> {
+        vec![
+            var_decl(text_var, Some(svelte_child(id(element_var)))),
+            stmt(svelte_reset(id(element_var))),
+            stmt(svelte_template_effect(thunk(svelte_set_text(
+                id(text_var),
+                template_expr,
+            )))),
+        ]
+    }
+
+    /// Build static text content assignment: element.textContent = 'value';
+    #[allow(dead_code)]
+    fn build_static_text_content(&self, element_var: &str, value: &str) -> JsStatement {
+        stmt(set_text_content(id(element_var), string(value)))
     }
 }
 
