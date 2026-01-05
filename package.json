@@ -12,6 +12,9 @@
     "build": "pnpm run build:wasm && cd playground && pnpm run build",
     "preview": "cd playground && pnpm run preview",
     "rebuild": "pnpm run build:wasm && pnpm run clean:cache",
-    "rebuild:clean": "pnpm run build:wasm:clean && pnpm run clean:cache"
+    "rebuild:clean": "pnpm run build:wasm:clean && pnpm run clean:cache",
+    "generate-fixtures": "node scripts/generate-fixtures.mjs",
+    "generate-fixtures:force": "node scripts/generate-fixtures.mjs --force",
+    "generate-fixtures:verbose": "node scripts/generate-fixtures.mjs --verbose"
   }
 }
