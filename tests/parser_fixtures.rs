@@ -7,7 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use rayon::prelude::*;
-use svelte_compiler_rust::{ParseOptions, parse};
+use svelte_compiler_rust::{ParseOptions, convert_to_legacy, parse};
 use walkdir::WalkDir;
 
 /// Get the path to the Svelte submodule.
@@ -118,7 +118,7 @@ fn run_fixture_test(sample_dir: &Path, modern: bool) -> Option<TestResult> {
     let (name, input, expected) = load_fixture(sample_dir)?;
 
     let options = ParseOptions {
-        modern,
+        modern: true, // Always parse in modern mode first
         loose: false,
         filename: Some(name.clone()),
     };
@@ -127,7 +127,14 @@ fn run_fixture_test(sample_dir: &Path, modern: bool) -> Option<TestResult> {
 
     match result {
         Ok(ast) => {
-            let actual_json = serde_json::to_string_pretty(&ast).unwrap();
+            // If modern mode is requested, use the AST as-is
+            // Otherwise, convert to legacy format
+            let actual_json = if modern {
+                serde_json::to_string_pretty(&ast).unwrap()
+            } else {
+                let legacy_ast = convert_to_legacy(&input, ast);
+                serde_json::to_string_pretty(&legacy_ast).unwrap()
+            };
             let actual_normalized = normalize_json(&actual_json);
             let expected_normalized = normalize_json(&expected);
 
@@ -227,6 +234,22 @@ fn test_parser_legacy_fixtures() {
     println!("\n=== Parser Legacy Fixtures ===");
     println!("Passed: {}/{}", passed, total);
     println!("Failed: {}/{}", failed, total);
+
+    if failed > 0 {
+        println!("\nFailed tests:");
+        for result in &results {
+            if !result.passed {
+                println!(
+                    "  - {}: {}",
+                    result.name,
+                    result
+                        .error
+                        .as_ref()
+                        .unwrap_or(&"Unknown error".to_string())
+                );
+            }
+        }
+    }
 
     // Assert that all tests pass
     assert_eq!(failed, 0, "{} tests failed", failed);

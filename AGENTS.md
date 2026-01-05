@@ -53,7 +53,8 @@ src/
 ├── parser/             # Parser implementation
 │   ├── mod.rs          # Public API: parse(), parse_parallel()
 │   ├── lexer.rs        # Tokenization utilities
-│   └── state.rs        # Parser state machine
+│   ├── state.rs        # Parser state machine
+│   └── legacy.rs       # Legacy AST conversion (Svelte 4 format)
 ├── compiler/           # Compiler implementation
 │   ├── mod.rs          # Public API: compile()
 │   └── phases/         # Compiler phases (matching Svelte's architecture)
@@ -171,9 +172,9 @@ cargo test --test css -- --nocapture
 | Test Suite | Passing | Total | Status |
 |------------|---------|-------|--------|
 | Parser Modern | 22 | 22 | ✅ 100% |
-| Parser Legacy | 0 | 83 | ❌ Not supported (Svelte 4) |
+| Parser Legacy | 55 | 83 | ⚠️ 66% - In progress |
 | Compiler Snapshot | 17 | 17 | ✅ 100% (8 skipped: async/hmr/fragments) |
-| CSS | 97 | 177 | ❌ 55% - In progress |
+| CSS | 98 | 177 | ❌ 55% - In progress |
 | Validator | 8 | 252 | ❌ 3% - Not implemented |
 | Compiler Errors | 3 | 85 | ❌ 4% - Not implemented |
 
@@ -181,11 +182,12 @@ cargo test --test css -- --nocapture
 
 ## Next Steps (Priority Order)
 
-### 1. CSS Scoping (97/177 → 177/177)
-Current implementation handles most selectors. Remaining issues:
-- **Unused selector detection** (major blocker - 60+ tests need this)
+### 1. CSS Scoping (98/177 → 177/177)
+Current implementation handles most selectors. Remaining issues (79 tests):
+- **Unused/empty selector detection** (major blocker - 60+ tests need this)
+- `:global { ... }` block syntax transformation
 - Animation property keyframe name replacement
-- Complex sibling combinator scenarios with unused selectors
+- CSS escape sequences in selectors
 
 ### 2. Validator (8/252)
 Implement warning/error detection:
@@ -201,14 +203,21 @@ Implement error detection for:
 - Invalid element nesting
 - Store subscription errors
 
-### 4. Parser Legacy (0/83)
-Svelte 4 syntax support (lower priority - focus on Svelte 5)
+### 4. Parser Legacy (55/83)
+Legacy AST format for Svelte 4 compatibility. Remaining issues:
+- Expression `loc` fields in shorthand identifiers
+- Unquoted directive values (`style:color=red`)
+- Object expressions with double braces (`{{...}}`)
+- Script/loose mode parsing edge cases
 
 ## Implemented Features
 
-### Parser (22/22 tests)
+### Parser (22/22 modern, 55/83 legacy tests)
 - All Svelte 5 syntax: elements, blocks, directives, expressions
 - Script/Style parsing with CSS support
+- Legacy AST conversion module (`src/parser/legacy.rs`)
+- Directive parsing: use:, class:, style:, transition:, animate:, let:
+- Quoted expression handling in all directive types
 
 ### Compiler (17/17 snapshot tests)
 - Phase 1/2/3 architecture (Parse → Analyze → Transform)
@@ -244,5 +253,4 @@ Svelte 4 syntax support (lower priority - focus on Svelte 5)
 ### Other
 - `{#if}` block client-side generation
 - `experimental.async`, `hmr`, `fragments` options
-- Parser Legacy (Svelte 4 syntax)
 - N-API bindings for Node.js

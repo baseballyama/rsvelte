@@ -429,14 +429,21 @@ fn transform_complex_selector(
                 .get("selectors")
                 .and_then(|s| s.as_array())
             {
-                // Check if this is a :global selector
-                let is_global = selectors.iter().any(|s| {
+                // Check if the entire relative selector is :global (i.e., starts with :global)
+                let is_entirely_global = selectors.first().is_some_and(|s| {
                     s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
                         && s.get("name").and_then(|n| n.as_str()) == Some("global")
                 });
 
-                if is_global {
-                    // Handle :global selector
+                // Check if any selector contains :global() - for partial global handling
+                let has_partial_global = !is_entirely_global
+                    && selectors.iter().any(|s| {
+                        s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                            && s.get("name").and_then(|n| n.as_str()) == Some("global")
+                    });
+
+                if is_entirely_global {
+                    // Handle :global selector - extract all content without scoping
                     for sel in selectors {
                         if sel.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
                             && sel.get("name").and_then(|n| n.as_str()) == Some("global")
@@ -461,6 +468,63 @@ fn transform_complex_selector(
                             result.push_str(&format_simple_selector(sel));
                         }
                     }
+                } else if has_partial_global {
+                    // Handle partial :global() - scope non-global parts, unwrap :global() parts
+                    let needs_scoping = relative_selector
+                        .get("metadata")
+                        .and_then(|m| m.get("scoped"))
+                        .and_then(|s| s.as_bool())
+                        .unwrap_or(true);
+
+                    // Find the last non-pseudo, non-global selector for scoping
+                    let mut last_non_pseudo_idx = None;
+                    for (idx, sel) in selectors.iter().enumerate() {
+                        let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                        let is_global_pseudo = sel_type == "PseudoClassSelector"
+                            && sel.get("name").and_then(|n| n.as_str()) == Some("global");
+                        if sel_type != "PseudoElementSelector"
+                            && sel_type != "PseudoClassSelector"
+                            && !is_global_pseudo
+                        {
+                            last_non_pseudo_idx = Some(idx);
+                        }
+                    }
+
+                    let mut selector_parts = String::new();
+                    for (idx, sel) in selectors.iter().enumerate() {
+                        let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
+
+                        if sel_type == "PseudoClassSelector"
+                            && sel.get("name").and_then(|n| n.as_str()) == Some("global")
+                        {
+                            // Extract the content inside :global() from source
+                            if let Some(args) = sel.get("args") {
+                                let args_start =
+                                    args.get("start").and_then(|s| s.as_u64()).unwrap_or(0)
+                                        as usize;
+                                let args_end =
+                                    args.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+                                let src_start = args_start.saturating_sub(css_start);
+                                let src_end = args_end.saturating_sub(css_start);
+                                if src_end <= css_source.len() && src_start < src_end {
+                                    selector_parts.push_str(&css_source[src_start..src_end]);
+                                } else {
+                                    selector_parts.push_str(&get_selector_text(args));
+                                }
+                            }
+                        } else {
+                            selector_parts.push_str(&format_simple_selector(sel));
+
+                            // Add scoping after the last non-pseudo selector
+                            if needs_scoping && Some(idx) == last_non_pseudo_idx {
+                                let modifier = get_modifier(selector, &local_specificity_bumped);
+                                selector_parts.push_str(&modifier);
+                                local_specificity_bumped = true;
+                            }
+                        }
+                    }
+
+                    result.push_str(&selector_parts);
                 } else {
                     // Regular scoped selector
                     let needs_scoping = relative_selector

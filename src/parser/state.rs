@@ -818,6 +818,36 @@ impl<'a> Parser<'a> {
             return self.parse_bind_directive(start, &name, name_start, name_end);
         }
 
+        // Check for use: directive (actions)
+        if name.starts_with("use:") {
+            return self.parse_use_directive(start, &name, name_start, name_end);
+        }
+
+        // Check for class: directive
+        if name.starts_with("class:") {
+            return self.parse_class_directive(start, &name, name_start, name_end);
+        }
+
+        // Check for style: directive
+        if name.starts_with("style:") {
+            return self.parse_style_directive(start, &name, name_start, name_end);
+        }
+
+        // Check for transition: / in: / out: directives
+        if name.starts_with("transition:") || name.starts_with("in:") || name.starts_with("out:") {
+            return self.parse_transition_directive(start, &name, name_start, name_end);
+        }
+
+        // Check for animate: directive
+        if name.starts_with("animate:") {
+            return self.parse_animate_directive(start, &name, name_start, name_end);
+        }
+
+        // Check for let: directive
+        if name.starts_with("let:") {
+            return self.parse_let_directive(start, &name, name_start, name_end);
+        }
+
         // Check for value
         let (value, attr_end) = if self.eat("=") {
             self.skip_whitespace();
@@ -860,9 +890,49 @@ impl<'a> Parser<'a> {
         let name_loc = self.create_name_loc(name_start, name_end);
 
         // Parse the value (expression)
-        let expression = if self.eat("=") {
+        let (expression, end_pos) = if self.eat("=") {
             self.skip_whitespace();
-            if self.eat("{") {
+            // Handle quoted value: ="{expression}"
+            if self.eat("\"") || self.eat("'") {
+                let quote = if self.source.chars().nth(self.index - 1) == Some('"') {
+                    '"'
+                } else {
+                    '\''
+                };
+                if self.eat("{") {
+                    let expr_start = self.index;
+                    let mut depth = 1;
+                    while !self.is_eof() && depth > 0 {
+                        let c = self.current_char();
+                        if c == '{' {
+                            depth += 1;
+                        } else if c == '}' {
+                            depth -= 1;
+                        }
+                        if depth > 0 {
+                            self.advance();
+                        }
+                    }
+                    let expr_content = &self.source[expr_start..self.index];
+                    self.advance(); // consume '}'
+                    if self.current_char() == quote {
+                        self.advance();
+                    }
+                    (
+                        Some(self.parse_js_expression(expr_content, expr_start)),
+                        self.index,
+                    )
+                } else {
+                    // Plain quoted string - skip
+                    while !self.is_eof() && self.current_char() != quote {
+                        self.advance();
+                    }
+                    if self.current_char() == quote {
+                        self.advance();
+                    }
+                    (None, self.index)
+                }
+            } else if self.eat("{") {
                 // Expression in braces
                 let expr_start = self.index;
                 let mut depth = 1;
@@ -877,21 +947,23 @@ impl<'a> Parser<'a> {
                         self.advance();
                     }
                 }
-                let expr_end = self.index;
-                let expr_content = &self.source[expr_start..expr_end];
+                let expr_content = &self.source[expr_start..self.index];
                 self.advance(); // consume '}'
-                Some(self.parse_js_expression(expr_content, expr_start))
+                (
+                    Some(self.parse_js_expression(expr_content, expr_start)),
+                    self.index,
+                )
             } else {
-                None
+                (None, self.index)
             }
         } else {
-            None
+            (None, name_end)
         };
 
         Ok(Some(crate::ast::Attribute::OnDirective(
             crate::ast::template::OnDirective {
                 start: start as u32,
-                end: self.index as u32,
+                end: end_pos as u32,
                 name: CompactString::from(event_name),
                 name_loc: Some(name_loc),
                 expression,
@@ -924,10 +996,225 @@ impl<'a> Parser<'a> {
         let name_loc = self.create_name_loc(name_start, name_end);
 
         // Parse the value (expression)
+        let (expression, end_pos) = if self.eat("=") {
+            self.skip_whitespace();
+            // Handle quoted value: ="{expression}"
+            if self.eat("\"") || self.eat("'") {
+                let quote = if self.source.chars().nth(self.index - 1) == Some('"') {
+                    '"'
+                } else {
+                    '\''
+                };
+                if self.eat("{") {
+                    let expr_start = self.index;
+                    let mut depth = 1;
+                    while !self.is_eof() && depth > 0 {
+                        let c = self.current_char();
+                        if c == '{' {
+                            depth += 1;
+                        } else if c == '}' {
+                            depth -= 1;
+                        }
+                        if depth > 0 {
+                            self.advance();
+                        }
+                    }
+                    let expr_content = &self.source[expr_start..self.index];
+                    self.advance(); // consume '}'
+                    if self.current_char() == quote {
+                        self.advance();
+                    }
+                    (
+                        self.parse_js_expression(expr_content, expr_start),
+                        self.index,
+                    )
+                } else {
+                    // Plain quoted - skip
+                    while !self.is_eof() && self.current_char() != quote {
+                        self.advance();
+                    }
+                    if self.current_char() == quote {
+                        self.advance();
+                    }
+                    (
+                        super::expression::create_identifier_with_character(
+                            &prop_name,
+                            name_start + 5,
+                            name_end,
+                            &self.line_offsets,
+                        ),
+                        self.index,
+                    )
+                }
+            } else if self.eat("{") {
+                // Expression in braces
+                let expr_start = self.index;
+                let mut depth = 1;
+                while !self.is_eof() && depth > 0 {
+                    let c = self.current_char();
+                    if c == '{' {
+                        depth += 1;
+                    } else if c == '}' {
+                        depth -= 1;
+                    }
+                    if depth > 0 {
+                        self.advance();
+                    }
+                }
+                let expr_content = &self.source[expr_start..self.index];
+                self.advance(); // consume '}'
+                (
+                    self.parse_js_expression(expr_content, expr_start),
+                    self.index,
+                )
+            } else {
+                // Shorthand: bind:value without expression means bind to a variable with same name
+                (
+                    super::expression::create_identifier_with_character(
+                        &prop_name,
+                        name_start + 5, // start after "bind:"
+                        name_end,
+                        &self.line_offsets,
+                    ),
+                    name_end,
+                )
+            }
+        } else {
+            // Shorthand: bind:value means bind to variable named "value"
+            (
+                super::expression::create_identifier_with_character(
+                    &prop_name,
+                    name_start + 5, // start after "bind:"
+                    name_end,
+                    &self.line_offsets,
+                ),
+                name_end,
+            )
+        };
+
+        Ok(Some(crate::ast::Attribute::BindDirective(
+            crate::ast::template::BindDirective {
+                start: start as u32,
+                end: end_pos as u32,
+                name: CompactString::from(prop_name),
+                name_loc: Some(name_loc),
+                expression,
+                modifiers,
+            },
+        )))
+    }
+
+    /// Parse a use: directive (action): `use:action`, `use:action={expression}`, or `use:action="{expression}"`.
+    fn parse_use_directive(
+        &mut self,
+        start: usize,
+        full_name: &str,
+        name_start: usize,
+        name_end: usize,
+    ) -> ParseResult<Option<crate::ast::Attribute>> {
+        let action_name = &full_name[4..]; // Skip "use:"
+        let name_loc = self.create_name_loc(name_start, name_end);
+
+        let (expression, end_pos) = if self.eat("=") {
+            self.skip_whitespace();
+            // Handle quoted value: ="{expression}" or ="value"
+            if self.eat("\"") || self.eat("'") {
+                let quote = if self.source.chars().nth(self.index - 1) == Some('"') {
+                    '"'
+                } else {
+                    '\''
+                };
+                // Look for expression inside quotes: "{expr}"
+                if self.eat("{") {
+                    let expr_start = self.index;
+                    let mut depth = 1;
+                    while !self.is_eof() && depth > 0 {
+                        let c = self.current_char();
+                        if c == '{' {
+                            depth += 1;
+                        } else if c == '}' {
+                            depth -= 1;
+                        }
+                        if depth > 0 {
+                            self.advance();
+                        }
+                    }
+                    let expr_end = self.index;
+                    let expr_content = &self.source[expr_start..expr_end];
+                    self.advance(); // consume '}'
+                    // Consume the closing quote
+                    if self.current_char() == quote {
+                        self.advance();
+                    }
+                    (
+                        Some(self.parse_js_expression(expr_content, expr_start)),
+                        self.index,
+                    )
+                } else {
+                    // Plain quoted string - skip until closing quote
+                    while !self.is_eof() && self.current_char() != quote {
+                        self.advance();
+                    }
+                    if self.current_char() == quote {
+                        self.advance();
+                    }
+                    (None, self.index)
+                }
+            } else if self.eat("{") {
+                // Unquoted expression: ={expression}
+                let expr_start = self.index;
+                let mut depth = 1;
+                while !self.is_eof() && depth > 0 {
+                    let c = self.current_char();
+                    if c == '{' {
+                        depth += 1;
+                    } else if c == '}' {
+                        depth -= 1;
+                    }
+                    if depth > 0 {
+                        self.advance();
+                    }
+                }
+                let expr_end = self.index;
+                let expr_content = &self.source[expr_start..expr_end];
+                self.advance(); // consume '}'
+                (
+                    Some(self.parse_js_expression(expr_content, expr_start)),
+                    self.index,
+                )
+            } else {
+                (None, self.index)
+            }
+        } else {
+            // No value - use name_end as the end position
+            (None, name_end)
+        };
+
+        Ok(Some(crate::ast::Attribute::UseDirective(
+            crate::ast::template::UseDirective {
+                start: start as u32,
+                end: end_pos as u32,
+                name: CompactString::from(action_name),
+                name_loc: Some(name_loc),
+                expression,
+            },
+        )))
+    }
+
+    /// Parse a class: directive: `class:name` or `class:name={expression}`.
+    fn parse_class_directive(
+        &mut self,
+        start: usize,
+        full_name: &str,
+        name_start: usize,
+        name_end: usize,
+    ) -> ParseResult<Option<crate::ast::Attribute>> {
+        let class_name = &full_name[6..]; // Skip "class:"
+        let name_loc = self.create_name_loc(name_start, name_end);
+
         let expression = if self.eat("=") {
             self.skip_whitespace();
             if self.eat("{") {
-                // Expression in braces
                 let expr_start = self.index;
                 let mut depth = 1;
                 while !self.is_eof() && depth > 0 {
@@ -946,32 +1233,341 @@ impl<'a> Parser<'a> {
                 self.advance(); // consume '}'
                 self.parse_js_expression(expr_content, expr_start)
             } else {
-                // Shorthand: bind:value without expression means bind to a variable with same name
+                // Shorthand: class:name means expression is Identifier("name")
                 super::expression::create_identifier_with_character(
-                    &prop_name,
-                    start,
-                    self.index,
+                    class_name,
+                    name_start + 6, // start after "class:"
+                    name_end,
                     &self.line_offsets,
                 )
             }
         } else {
-            // Shorthand: bind:value means bind to variable named "value"
+            // Shorthand: class:name without = means expression is Identifier("name")
             super::expression::create_identifier_with_character(
-                &prop_name,
-                name_start,
+                class_name,
+                name_start + 6, // start after "class:"
                 name_end,
                 &self.line_offsets,
             )
         };
 
-        Ok(Some(crate::ast::Attribute::BindDirective(
-            crate::ast::template::BindDirective {
+        Ok(Some(crate::ast::Attribute::ClassDirective(
+            crate::ast::template::ClassDirective {
+                start: start as u32,
+                end: self.index as u32,
+                name: CompactString::from(class_name),
+                name_loc: Some(name_loc),
+                expression,
+            },
+        )))
+    }
+
+    /// Parse a style: directive: `style:property={expression}` or `style:property="value"`.
+    fn parse_style_directive(
+        &mut self,
+        start: usize,
+        full_name: &str,
+        name_start: usize,
+        name_end: usize,
+    ) -> ParseResult<Option<crate::ast::Attribute>> {
+        // Extract property name and modifiers from "style:color|important"
+        let after_style = &full_name[6..]; // Skip "style:"
+        let (prop_name, modifiers) = if let Some(pipe_pos) = after_style.find('|') {
+            let name = &after_style[..pipe_pos];
+            let mods: Vec<CompactString> = after_style[pipe_pos + 1..]
+                .split('|')
+                .map(CompactString::from)
+                .collect();
+            (name.to_string(), mods)
+        } else {
+            (after_style.to_string(), Vec::new())
+        };
+
+        let name_loc = self.create_name_loc(name_start, name_end);
+
+        let value = if self.eat("=") {
+            self.skip_whitespace();
+            if self.eat("{") {
+                let expr_start = self.index;
+                let mut depth = 1;
+                while !self.is_eof() && depth > 0 {
+                    let c = self.current_char();
+                    if c == '{' {
+                        depth += 1;
+                    } else if c == '}' {
+                        depth -= 1;
+                    }
+                    if depth > 0 {
+                        self.advance();
+                    }
+                }
+                let expr_end = self.index;
+                let expr_content = &self.source[expr_start..expr_end];
+                self.advance(); // consume '}'
+                AttributeValue::Expression(ExpressionTag {
+                    start: (expr_start - 1) as u32, // include the '{'
+                    end: self.index as u32,
+                    expression: self.parse_js_expression(expr_content, expr_start),
+                })
+            } else if self.eat("\"") || self.eat("'") {
+                // Quoted string value
+                let quote = if self.source.chars().nth(self.index - 1) == Some('"') {
+                    '"'
+                } else {
+                    '\''
+                };
+                let string_start = self.index;
+                while !self.is_eof() && self.current_char() != quote {
+                    self.advance();
+                }
+                let string_value = &self.source[string_start..self.index];
+                self.advance(); // consume closing quote
+                // For quoted string, create a Sequence with Text node
+                AttributeValue::Sequence(vec![AttributeValuePart::Text(
+                    crate::ast::template::Text {
+                        start: string_start as u32,
+                        end: (self.index - 1) as u32, // before closing quote
+                        raw: CompactString::from(string_value),
+                        data: CompactString::from(string_value),
+                    },
+                )])
+            } else {
+                // Shorthand - use True to indicate shorthand without explicit value
+                AttributeValue::True(true)
+            }
+        } else {
+            // Shorthand: style:color without = means expression is Identifier("color")
+            AttributeValue::True(true)
+        };
+
+        Ok(Some(crate::ast::Attribute::StyleDirective(
+            crate::ast::template::StyleDirective {
                 start: start as u32,
                 end: self.index as u32,
                 name: CompactString::from(prop_name),
                 name_loc: Some(name_loc),
+                value,
+                modifiers,
+            },
+        )))
+    }
+
+    /// Parse a transition: / in: / out: directive.
+    fn parse_transition_directive(
+        &mut self,
+        start: usize,
+        full_name: &str,
+        name_start: usize,
+        name_end: usize,
+    ) -> ParseResult<Option<crate::ast::Attribute>> {
+        // Determine type and extract name with modifiers
+        let (transition_name, intro, outro, modifiers) =
+            if let Some(stripped) = full_name.strip_prefix("transition:") {
+                let (name, mods) = Self::extract_name_and_modifiers(stripped);
+                (name, true, true, mods)
+            } else if let Some(stripped) = full_name.strip_prefix("in:") {
+                let (name, mods) = Self::extract_name_and_modifiers(stripped);
+                (name, true, false, mods)
+            } else if let Some(stripped) = full_name.strip_prefix("out:") {
+                let (name, mods) = Self::extract_name_and_modifiers(stripped);
+                (name, false, true, mods)
+            } else {
+                return Ok(None);
+            };
+
+        let name_loc = self.create_name_loc(name_start, name_end);
+
+        let (expression, end_pos) = if self.eat("=") {
+            self.skip_whitespace();
+            // Handle quoted value: ="{expression}"
+            if self.eat("\"") || self.eat("'") {
+                let quote = if self.source.chars().nth(self.index - 1) == Some('"') {
+                    '"'
+                } else {
+                    '\''
+                };
+                if self.eat("{") {
+                    let expr_start = self.index;
+                    let mut depth = 1;
+                    while !self.is_eof() && depth > 0 {
+                        let c = self.current_char();
+                        if c == '{' {
+                            depth += 1;
+                        } else if c == '}' {
+                            depth -= 1;
+                        }
+                        if depth > 0 {
+                            self.advance();
+                        }
+                    }
+                    let expr_content = &self.source[expr_start..self.index];
+                    self.advance(); // consume '}'
+                    if self.current_char() == quote {
+                        self.advance();
+                    }
+                    (
+                        Some(self.parse_js_expression(expr_content, expr_start)),
+                        self.index,
+                    )
+                } else {
+                    // Plain quoted - skip
+                    while !self.is_eof() && self.current_char() != quote {
+                        self.advance();
+                    }
+                    if self.current_char() == quote {
+                        self.advance();
+                    }
+                    (None, self.index)
+                }
+            } else if self.eat("{") {
+                let expr_start = self.index;
+                let mut depth = 1;
+                while !self.is_eof() && depth > 0 {
+                    let c = self.current_char();
+                    if c == '{' {
+                        depth += 1;
+                    } else if c == '}' {
+                        depth -= 1;
+                    }
+                    if depth > 0 {
+                        self.advance();
+                    }
+                }
+                let expr_content = &self.source[expr_start..self.index];
+                self.advance(); // consume '}'
+                (
+                    Some(self.parse_js_expression(expr_content, expr_start)),
+                    self.index,
+                )
+            } else {
+                (None, self.index)
+            }
+        } else {
+            (None, name_end)
+        };
+
+        Ok(Some(crate::ast::Attribute::TransitionDirective(
+            crate::ast::template::TransitionDirective {
+                start: start as u32,
+                end: end_pos as u32,
+                name: CompactString::from(transition_name),
+                name_loc: Some(name_loc),
                 expression,
                 modifiers,
+                intro,
+                outro,
+            },
+        )))
+    }
+
+    /// Helper to extract name and modifiers from "name|mod1|mod2".
+    fn extract_name_and_modifiers(s: &str) -> (String, Vec<CompactString>) {
+        if let Some(pipe_pos) = s.find('|') {
+            let name = &s[..pipe_pos];
+            let mods: Vec<CompactString> = s[pipe_pos + 1..]
+                .split('|')
+                .map(CompactString::from)
+                .collect();
+            (name.to_string(), mods)
+        } else {
+            (s.to_string(), Vec::new())
+        }
+    }
+
+    /// Parse an animate: directive: `animate:name` or `animate:name={expression}`.
+    fn parse_animate_directive(
+        &mut self,
+        start: usize,
+        full_name: &str,
+        name_start: usize,
+        name_end: usize,
+    ) -> ParseResult<Option<crate::ast::Attribute>> {
+        let animate_name = &full_name[8..]; // Skip "animate:"
+        let name_loc = self.create_name_loc(name_start, name_end);
+
+        let expression = if self.eat("=") {
+            self.skip_whitespace();
+            if self.eat("{") {
+                let expr_start = self.index;
+                let mut depth = 1;
+                while !self.is_eof() && depth > 0 {
+                    let c = self.current_char();
+                    if c == '{' {
+                        depth += 1;
+                    } else if c == '}' {
+                        depth -= 1;
+                    }
+                    if depth > 0 {
+                        self.advance();
+                    }
+                }
+                let expr_end = self.index;
+                let expr_content = &self.source[expr_start..expr_end];
+                self.advance(); // consume '}'
+                Some(self.parse_js_expression(expr_content, expr_start))
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        Ok(Some(crate::ast::Attribute::AnimateDirective(
+            crate::ast::template::AnimateDirective {
+                start: start as u32,
+                end: self.index as u32,
+                name: CompactString::from(animate_name),
+                name_loc: Some(name_loc),
+                expression,
+            },
+        )))
+    }
+
+    /// Parse a let: directive: `let:item` or `let:item={expression}`.
+    fn parse_let_directive(
+        &mut self,
+        start: usize,
+        full_name: &str,
+        name_start: usize,
+        name_end: usize,
+    ) -> ParseResult<Option<crate::ast::Attribute>> {
+        let let_name = &full_name[4..]; // Skip "let:"
+        let name_loc = self.create_name_loc(name_start, name_end);
+
+        let expression = if self.eat("=") {
+            self.skip_whitespace();
+            if self.eat("{") {
+                let expr_start = self.index;
+                let mut depth = 1;
+                while !self.is_eof() && depth > 0 {
+                    let c = self.current_char();
+                    if c == '{' {
+                        depth += 1;
+                    } else if c == '}' {
+                        depth -= 1;
+                    }
+                    if depth > 0 {
+                        self.advance();
+                    }
+                }
+                let expr_end = self.index;
+                let expr_content = &self.source[expr_start..expr_end];
+                self.advance(); // consume '}'
+                Some(self.parse_js_expression(expr_content, expr_start))
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        Ok(Some(crate::ast::Attribute::LetDirective(
+            crate::ast::template::LetDirective {
+                start: start as u32,
+                end: self.index as u32,
+                name: CompactString::from(let_name),
+                name_loc: Some(name_loc),
+                expression,
             },
         )))
     }

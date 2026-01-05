@@ -1295,6 +1295,7 @@ fn convert_class_directive(class: &ClassDirective) -> Value {
         );
     }
     result.insert("expression".to_string(), class.expression.as_json().clone());
+    result.insert("modifiers".to_string(), json!([]));
     Value::Object(result)
 }
 
@@ -1304,7 +1305,7 @@ fn convert_style_directive(_source: &str, style: &StyleDirective) -> Value {
         AttributeValue::True(false) => json!(false),
         AttributeValue::Expression(expr_tag) => {
             json!([{
-                "type": "ExpressionTag",
+                "type": "MustacheTag",
                 "start": expr_tag.start,
                 "end": expr_tag.end,
                 "expression": expr_tag.expression.as_json().clone()
@@ -1318,7 +1319,7 @@ fn convert_style_directive(_source: &str, style: &StyleDirective) -> Value {
                         AttributeValuePart::Text(text) => convert_text(text, &[]),
                         AttributeValuePart::ExpressionTag(expr_tag) => {
                             json!({
-                                "type": "ExpressionTag",
+                                "type": "MustacheTag",
                                 "start": expr_tag.start,
                                 "end": expr_tag.end,
                                 "expression": expr_tag.expression.as_json().clone()

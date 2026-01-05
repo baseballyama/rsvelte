@@ -25,6 +25,7 @@ pub mod parser;
 pub mod wasm;
 
 pub use compiler::{CompileError, CompileOptions, CompileResult, GenerateMode, compile};
+pub use parser::legacy::convert_to_legacy;
 #[cfg(not(feature = "native"))]
 pub use parser::{ParseOptions, parse};
 #[cfg(feature = "native")]

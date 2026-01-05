@@ -11,6 +11,7 @@
 
 pub mod css;
 mod expression;
+pub mod legacy;
 mod lexer;
 mod state;
 
