@@ -197,11 +197,11 @@ Current status:
 - export-state
 
 **Failing tests (require compile options or complex features):**
-- async-* tests (6 tests) - require `async` compile option
-- hmr - requires `hmr` compile option
+- async-* tests (6 tests) - require `experimental.async` compile option
+- hmr - requires `hmr: true` compile option
 - functional-templating - requires `fragments: 'tree'` compile option
-- class-state-field-constructor-assignment - requires class field transformation
-- skip-static-subtree (client) - requires advanced navigation
+- class-state-field-constructor-assignment - requires class field transformation (`$state`/`$derived` in class fields → private fields with getters/setters)
+- skip-static-subtree (client) - requires advanced navigation, custom element data handling, autofocus/muted attributes, option value handling, TEMPLATE_USE_IMPORT_NODE flag
 
 **Implemented features:**
 - [x] Compiler fixture test infrastructure
@@ -252,13 +252,14 @@ Current status:
 - [x] Runtime code AST builders (navigation, event handlers, template effects, bindings, delegate)
 
 **Pending features:**
-- [ ] Compile options support (async, hmr, fragments)
-- [ ] Class field transformation (`$state`, `$derived` in classes with getter/setter)
-- [ ] `{#if}` block client-side code generation
+- [ ] Compile options support (`experimental.async`, `hmr`, `fragments`)
+- [ ] Class field transformation (`$state`, `$derived` in classes → private fields with getters/setters)
+- [ ] `{#if}` block client-side code generation (`$.if()`)
 - [ ] CSS scoping and transformation
-- [ ] Advanced element navigation with skip counts
+- [ ] Advanced element navigation with skip counts (`$.sibling(node, 10)`, `$.next(14)`)
 - [ ] Custom element attribute handling (`$.set_custom_element_data`)
-- [ ] Special attribute handling (`autofocus`, `muted`, option values)
+- [ ] Special attribute handling (`$.autofocus()`, `muted`, option values)
+- [ ] Template flags support (`TEMPLATE_USE_IMPORT_NODE`, `TEMPLATE_USE_SVG`, `TEMPLATE_USE_MATHML`)
 - [ ] Full migration of `generate_runtime_code` to AST-based generation
 
 ### Integration
