@@ -14,6 +14,9 @@ pub mod css;
 pub mod js_ast;
 pub mod server;
 
+// Re-export commonly used types
+pub use js_ast::{JsExpr, JsProgram, JsStatement};
+
 use super::phase2_analyze::ComponentAnalysis;
 use crate::compiler::{CompileOptions, GenerateMode};
 

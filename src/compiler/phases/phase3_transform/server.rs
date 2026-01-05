@@ -3,7 +3,7 @@
 //! Generates JavaScript code for server-side rendering (SSR).
 
 use super::TransformError;
-use super::js_ast::parse_and_generate;
+use super::js_ast::normalize_js;
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, BindDirective,
     Component, EachBlock, ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, RegularElement,
@@ -993,7 +993,7 @@ export default function {component_name}($$renderer{props_param}) {{}}"#,
         };
 
         // Normalize the output through oxc parser/codegen
-        match parse_and_generate(&raw_output) {
+        match normalize_js(&raw_output) {
             Ok(normalized) => normalized,
             Err(_) => raw_output, // Fall back to raw output if parsing fails
         }

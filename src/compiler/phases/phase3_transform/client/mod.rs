@@ -3,7 +3,15 @@
 //! Generates JavaScript code for browser execution.
 
 use super::TransformError;
-use super::js_ast::parse_and_generate;
+use super::js_ast::{
+    builders::{
+        call, export_default_function, id, id_pattern, import_namespace, import_side_effect,
+        program, stmt, svelte_append, svelte_from_html, var_decl,
+    },
+    generate,
+    nodes::{JsPattern, JsStatement},
+    normalize_js,
+};
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, Component, EachBlock,
     ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, RegularElement, RenderTag, SnippetBlock,
@@ -1266,6 +1274,13 @@ impl ClientCodeGenerator {
         let is_fragment = self.root_element_count > 1;
         let has_each_blocks = !self.each_blocks.is_empty();
 
+        // Try simple AST-based generation for basic cases
+        if self.can_use_simple_ast() && !html.is_empty() {
+            if let Ok(output) = self.build_simple_component_ast(&html, is_fragment) {
+                return output;
+            }
+        }
+
         // Extract imports from script content
         let (script_imports, script_rest) = extract_imports(&self.script_content);
 
@@ -1613,7 +1628,7 @@ export default function {component_name}({fn_params}) {{
         };
 
         // Normalize the output through oxc parser/codegen
-        match parse_and_generate(&raw_output) {
+        match normalize_js(&raw_output) {
             Ok(normalized) => normalized,
             Err(_) => raw_output, // Fall back to raw output if parsing fails
         }
@@ -2320,6 +2335,110 @@ export default function {component_name}({fn_params}) {{
             }
         }
         events
+    }
+
+    // =========================================================================
+    // AST-based code generation methods
+    // =========================================================================
+
+    /// Build system imports using AST builders.
+    fn build_system_imports(&self) -> Vec<JsStatement> {
+        let mut imports = vec![import_side_effect("svelte/internal/disclose-version")];
+
+        if !self.uses_runes {
+            imports.push(import_side_effect("svelte/internal/flags/legacy"));
+        }
+
+        imports.push(import_namespace("$", "svelte/internal/client"));
+        imports
+    }
+
+    /// Build template variable declaration using AST.
+    /// Returns: var root = $.from_html(`<html>`) or var root = $.from_html(`<html>`, 1)
+    fn build_template_decl(&self, html: &str, is_fragment: bool) -> JsStatement {
+        let flags = if is_fragment { Some(1) } else { None };
+        var_decl("root", Some(svelte_from_html(html, flags)))
+    }
+
+    /// Build the component function params based on $props usage.
+    #[allow(dead_code)]
+    fn build_fn_params(&self, uses_props: bool) -> Vec<JsPattern> {
+        let mut params = vec![id_pattern("$$anchor")];
+        if uses_props {
+            params.push(id_pattern("$$props"));
+        }
+        params
+    }
+
+    /// Build a simple component using AST builders.
+    /// Handles the case: single element, no script, no expressions, no events.
+    fn build_simple_component_ast(
+        &self,
+        html: &str,
+        is_fragment: bool,
+    ) -> Result<String, TransformError> {
+        let root_var = determine_root_var(html);
+
+        // Build the program
+        let mut body: Vec<JsStatement> = Vec::new();
+
+        // Add system imports
+        body.extend(self.build_system_imports());
+
+        // Add template declaration
+        body.push(self.build_template_decl(html, is_fragment));
+
+        // Build function body
+        let fn_body = if is_fragment {
+            vec![
+                var_decl("fragment", Some(call(id("root"), vec![]))),
+                stmt(svelte_append(id("$$anchor"), id("fragment"))),
+            ]
+        } else {
+            vec![
+                var_decl(&root_var, Some(call(id("root"), vec![]))),
+                stmt(svelte_append(id("$$anchor"), id(&root_var))),
+            ]
+        };
+
+        // Add export default function
+        body.push(export_default_function(
+            &self.component_name,
+            vec![id_pattern("$$anchor")],
+            fn_body,
+        ));
+
+        let prog = program(body);
+        generate(&prog).map_err(TransformError::CodeGen)
+    }
+
+    /// Check if component can use simple AST-based generation.
+    fn can_use_simple_ast(&self) -> bool {
+        // Must have no special features
+        if !self.each_blocks.is_empty()
+            || !self.svelte_elements.is_empty()
+            || !self.bind_this_components.is_empty()
+            || !self.components_with_children.is_empty()
+            || !self.snippets.is_empty()
+            || !self.components_with_bindings.is_empty()
+            || !self.await_blocks.is_empty()
+        {
+            return false;
+        }
+
+        // Must have no script content
+        if !self.script_content.is_empty() {
+            return false;
+        }
+
+        // All nodes must be simple elements (no runtime code needed)
+        self.nodes.iter().all(|node| {
+            matches!(node.node_type, NodeType::Element(_))
+                && node.event_handlers.is_empty()
+                && node.bindings.is_empty()
+                && node.expression.is_none()
+                && node.content_template.is_none()
+        })
     }
 }
 

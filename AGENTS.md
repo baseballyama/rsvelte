@@ -247,6 +247,8 @@ Current status:
 - [x] Function array pattern for `$.template_effect` (`[fn1, fn2]` syntax)
 - [x] State variable skip detection for wrapper functions
 - [x] Server-side component binding with do/while settling pattern
+- [x] AST-based code generation infrastructure (`js_ast` module with builders and codegen)
+- [x] Simple component AST generation path for components without runtime code
 
 **Pending features:**
 - [ ] Compile options support (async, hmr, fragments)
