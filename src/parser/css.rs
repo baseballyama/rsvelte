@@ -1301,8 +1301,50 @@ impl<'a> CssParser<'a> {
                 continue;
             }
 
+            // Handle nested at-rules (like @apply)
+            if self.current_char() == '@' {
+                // Skip the at-rule until ; or }
+                let at_start = self.offset + self.index;
+                while !self.is_eof() && self.current_char() != ';' && self.current_char() != '}' {
+                    self.advance();
+                }
+                let at_end = self.offset + self.index;
+                self.eat(";");
+
+                // Create an Atrule node for the nested at-rule
+                let at_text = &self.source[at_start - self.offset..at_end - self.offset];
+                let at_name = at_text
+                    .trim_start_matches('@')
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or("");
+                let at_prelude = at_text
+                    .trim_start_matches('@')
+                    .trim_start_matches(at_name)
+                    .trim()
+                    .to_string();
+
+                let mut at_obj = Map::new();
+                at_obj.insert("type".to_string(), Value::String("Atrule".to_string()));
+                at_obj.insert("start".to_string(), Value::Number((at_start as i64).into()));
+                at_obj.insert("end".to_string(), Value::Number((at_end as i64).into()));
+                at_obj.insert("name".to_string(), Value::String(at_name.to_string()));
+                at_obj.insert("prelude".to_string(), Value::String(at_prelude));
+                at_obj.insert("block".to_string(), Value::Null);
+                declarations.push(Value::Object(at_obj));
+
+                self.skip_whitespace();
+                continue;
+            }
+
             if let Some(decl) = self.parse_declaration() {
                 declarations.push(decl);
+            } else {
+                // If declaration parsing failed, skip to next ; or } to avoid infinite loop
+                while !self.is_eof() && self.current_char() != ';' && self.current_char() != '}' {
+                    self.advance();
+                }
+                self.eat(";");
             }
             self.skip_whitespace();
         }
