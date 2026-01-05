@@ -265,6 +265,8 @@ struct ClientCodeGenerator {
     components_with_bindings: Vec<ComponentWithBinding>,
     /// Await blocks for runtime code generation
     await_blocks: Vec<AwaitBlockInfo>,
+    /// Whether template contains custom elements (elements with hyphens) or video elements
+    has_custom_elements: bool,
 }
 
 impl ClientCodeGenerator {
@@ -303,6 +305,7 @@ impl ClientCodeGenerator {
             snippets: Vec::new(),
             components_with_bindings: Vec::new(),
             await_blocks: Vec::new(),
+            has_custom_elements: false,
         }
     }
 
@@ -391,6 +394,12 @@ impl ClientCodeGenerator {
 
     fn generate_element(&mut self, element: &RegularElement) -> Result<(), TransformError> {
         let name = element.name.as_str();
+
+        // Check for custom elements (elements with hyphens) or video elements
+        // These require TEMPLATE_USE_IMPORT_NODE flag
+        if name.contains('-') || name == "video" {
+            self.has_custom_elements = true;
+        }
 
         // Create variable name for this element
         let var_name = self.next_var_name(name);
@@ -1628,9 +1637,13 @@ export default function {component_name}({fn_params}) {{
             }
         } else if is_fragment {
             // Multiple root elements - use fragment pattern
+            // Template flags:
+            // - TEMPLATE_FRAGMENT = 1 (always for fragments)
+            // - TEMPLATE_USE_IMPORT_NODE = 2 (for custom elements/video)
+            let template_flags = if self.has_custom_elements { 3 } else { 1 };
             format!(
                 r#"{system_imports}
-{hoisted_imports}{snippets_code}var root = $.from_html(`{html}`, 1);
+{hoisted_imports}{snippets_code}var root = $.from_html(`{html}`, {template_flags});
 
 export default function {component_name}({fn_params}) {{
 {script_code}	var fragment = root();
@@ -1640,6 +1653,7 @@ export default function {component_name}({fn_params}) {{
                 hoisted_imports = hoisted_imports,
                 snippets_code = snippets_code,
                 html = html,
+                template_flags = template_flags,
                 component_name = self.component_name,
                 fn_params = fn_params,
                 script_code = script_code,
