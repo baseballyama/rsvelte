@@ -159,8 +159,14 @@ fn transform_rule_preserving(
         let prelude_end = prelude.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
         // Transform selectors
-        let transformed_selector =
-            transform_selector_list(prelude, selector, hash, specificity_bumped);
+        let transformed_selector = transform_selector_list(
+            prelude,
+            selector,
+            hash,
+            specificity_bumped,
+            css_source,
+            css_start,
+        );
         output.push_str(&transformed_selector);
 
         // Get the block and copy its content from source
@@ -216,7 +222,11 @@ fn transform_atrule_preserving(
     let name = node.get("name").and_then(|n| n.as_str()).unwrap_or("");
 
     // Handle keyframes - need special handling for name prefixing
-    if name == "keyframes" || name == "-webkit-keyframes" {
+    if name == "keyframes"
+        || name == "-webkit-keyframes"
+        || name == "-moz-keyframes"
+        || name == "-o-keyframes"
+    {
         let prelude = node.get("prelude").and_then(|p| p.as_str()).unwrap_or("");
 
         // Check if it's a global keyframe
@@ -245,16 +255,39 @@ fn transform_atrule_preserving(
         return;
     }
 
-    // Handle media, supports, etc. - need to transform nested rules
+    // Check if block exists and is not null
+    let block = node.get("block").filter(|b| !b.is_null());
+
+    // For at-rules without nested selectors (font-face, charset, import, page, namespace),
+    // copy the entire rule from source
+    let is_passthrough = matches!(
+        name,
+        "font-face" | "charset" | "import" | "page" | "namespace"
+    );
+
+    if is_passthrough {
+        // Copy the entire at-rule from source
+        let src_start = node_start.saturating_sub(css_start);
+        let src_end = node_end.saturating_sub(css_start);
+        if src_end <= css_source.len() && src_start < src_end {
+            output.push_str(&css_source[src_start..src_end]);
+        }
+        *last_end = node_end;
+        return;
+    }
+
+    // Handle media, supports, layer, etc. - need to transform nested rules
     output.push('@');
     output.push_str(name);
 
     if let Some(prelude) = node.get("prelude").and_then(|p| p.as_str()) {
-        output.push(' ');
-        output.push_str(prelude);
+        if !prelude.is_empty() {
+            output.push(' ');
+            output.push_str(prelude);
+        }
     }
 
-    if let Some(block) = node.get("block") {
+    if let Some(block) = block {
         let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
 
         output.push_str(" {\n");
@@ -298,6 +331,8 @@ fn transform_selector_list(
     selector: &str,
     _hash: &str,
     specificity_bumped: &mut bool,
+    css_source: &str,
+    css_start: usize,
 ) -> String {
     let mut result = String::new();
 
@@ -310,6 +345,8 @@ fn transform_selector_list(
                 complex_selector,
                 selector,
                 specificity_bumped,
+                css_source,
+                css_start,
             ));
         }
     } else {
@@ -325,6 +362,8 @@ fn transform_complex_selector(
     node: &Value,
     selector: &str,
     _specificity_bumped: &mut bool,
+    css_source: &str,
+    css_start: usize,
 ) -> String {
     let mut result = String::new();
     // Each complex selector resets specificity bumping - first element gets direct class
@@ -362,9 +401,21 @@ fn transform_complex_selector(
                         if sel.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
                             && sel.get("name").and_then(|n| n.as_str()) == Some("global")
                         {
-                            // Extract the content inside :global()
+                            // Extract the content inside :global() from source
                             if let Some(args) = sel.get("args") {
-                                result.push_str(&get_selector_text(args));
+                                let args_start =
+                                    args.get("start").and_then(|s| s.as_u64()).unwrap_or(0)
+                                        as usize;
+                                let args_end =
+                                    args.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+                                let src_start = args_start.saturating_sub(css_start);
+                                let src_end = args_end.saturating_sub(css_start);
+                                if src_end <= css_source.len() && src_start < src_end {
+                                    result.push_str(&css_source[src_start..src_end]);
+                                } else {
+                                    // Fallback to reconstructed text
+                                    result.push_str(&get_selector_text(args));
+                                }
                             }
                         } else {
                             result.push_str(&format_simple_selector(sel));
