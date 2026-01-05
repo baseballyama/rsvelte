@@ -170,7 +170,7 @@ Current status:
   - 8 skipped (require unsupported options: async, hmr, fragments)
   - 3 not testable (different file structure)
   - 17 testable → **Client 16/17, Server 17/17**
-- **CSS Tests**: 177 total samples → **26/167 matching** (10 compilation failures)
+- **CSS Tests**: 177 total samples → **89/167 matching** (10 compilation failures)
 
 ## Current Progress
 

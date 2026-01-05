@@ -563,9 +563,29 @@ impl<'a> SelectorParser<'a> {
                         || chars[j] == '#'
                         || chars[j] == '['
                         || chars[j] == '*'
+                        || chars[j] == '&'
                     {
-                        // This might be a descendant combinator, but let's handle simple cases only
-                        // For now, skip and continue
+                        // This is a descendant combinator (space)
+                        let selector_text = text[current_start..i].trim();
+                        if !selector_text.is_empty() {
+                            let selector_offset = base_offset + current_start;
+                            let rel_selector = self.create_relative_selector(
+                                selector_text,
+                                selector_offset,
+                                last_combinator,
+                            );
+                            result.push(rel_selector);
+
+                            // Set up space combinator for next selector
+                            let combinator_start = base_offset + i;
+                            let combinator_end = combinator_start + 1;
+                            last_combinator = Some((' ', combinator_start, combinator_end));
+
+                            // Skip whitespace and continue from next selector
+                            i = j;
+                            current_start = i;
+                            continue;
+                        }
                     }
                 }
             }
@@ -1008,8 +1028,8 @@ impl<'a> CssParser<'a> {
         let start = offset;
         let end = offset + text.len();
 
-        // For simplicity, treat the whole selector as a single RelativeSelector
-        let relative_selector = self.parse_relative_selector(text, offset);
+        // Parse relative selectors with combinator handling
+        let relative_selectors = self.parse_relative_selectors_with_combinators(text, offset);
 
         let mut obj = Map::new();
         obj.insert(
@@ -1018,27 +1038,184 @@ impl<'a> CssParser<'a> {
         );
         obj.insert("start".to_string(), Value::Number((start as i64).into()));
         obj.insert("end".to_string(), Value::Number((end as i64).into()));
-        obj.insert(
-            "children".to_string(),
-            Value::Array(vec![relative_selector]),
-        );
+        obj.insert("children".to_string(), Value::Array(relative_selectors));
 
         Value::Object(obj)
     }
 
-    fn parse_relative_selector(&self, text: &str, offset: usize) -> Value {
-        let start = offset;
+    fn parse_relative_selectors_with_combinators(
+        &self,
+        text: &str,
+        base_offset: usize,
+    ) -> Vec<Value> {
+        let mut result = Vec::new();
+        let mut current_start = 0;
+        let mut i = 0;
+        let chars: Vec<char> = text.chars().collect();
+        let mut last_combinator: Option<(char, usize, usize)> = None;
+
+        while i < chars.len() {
+            let c = chars[i];
+
+            // Skip content in parentheses
+            if c == '(' {
+                let mut depth = 1;
+                i += 1;
+                while i < chars.len() && depth > 0 {
+                    if chars[i] == '(' {
+                        depth += 1;
+                    } else if chars[i] == ')' {
+                        depth -= 1;
+                    }
+                    i += 1;
+                }
+                continue;
+            }
+
+            // Skip content in brackets
+            if c == '[' {
+                let mut depth = 1;
+                i += 1;
+                while i < chars.len() && depth > 0 {
+                    if chars[i] == '[' {
+                        depth += 1;
+                    } else if chars[i] == ']' {
+                        depth -= 1;
+                    }
+                    i += 1;
+                }
+                continue;
+            }
+
+            // Check for combinators (+, >, ~)
+            if c == '+' || c == '>' || c == '~' {
+                let selector_text = text[current_start..i].trim();
+                if !selector_text.is_empty() {
+                    let selector_offset = base_offset + current_start;
+                    let rel_selector = self.create_relative_selector_2(
+                        selector_text,
+                        selector_offset,
+                        last_combinator,
+                    );
+                    result.push(rel_selector);
+                }
+
+                let combinator_start = base_offset + i;
+                let combinator_end = combinator_start + 1;
+                last_combinator = Some((c, combinator_start, combinator_end));
+
+                i += 1;
+                // Skip whitespace after combinator
+                while i < chars.len() && chars[i].is_whitespace() {
+                    i += 1;
+                }
+                current_start = i;
+                continue;
+            }
+
+            // Check for descendant combinator (whitespace between selectors)
+            if c.is_whitespace() {
+                // Look ahead to see if this is followed by a selector (not a combinator)
+                let mut j = i + 1;
+                while j < chars.len() && chars[j].is_whitespace() {
+                    j += 1;
+                }
+                if j < chars.len() && !matches!(chars[j], '+' | '>' | '~' | ')' | ']') {
+                    // Check if next is a selector start
+                    if chars[j].is_alphabetic()
+                        || chars[j] == ':'
+                        || chars[j] == '.'
+                        || chars[j] == '#'
+                        || chars[j] == '['
+                        || chars[j] == '*'
+                        || chars[j] == '&'
+                    {
+                        // This is a descendant combinator (space)
+                        let selector_text = text[current_start..i].trim();
+                        if !selector_text.is_empty() {
+                            let selector_offset = base_offset + current_start;
+                            let rel_selector = self.create_relative_selector_2(
+                                selector_text,
+                                selector_offset,
+                                last_combinator,
+                            );
+                            result.push(rel_selector);
+
+                            // Set up space combinator for next selector
+                            let combinator_start = base_offset + i;
+                            let combinator_end = combinator_start + 1;
+                            last_combinator = Some((' ', combinator_start, combinator_end));
+
+                            // Skip whitespace and continue from next selector
+                            i = j;
+                            current_start = i;
+                            continue;
+                        }
+                    }
+                }
+            }
+
+            i += 1;
+        }
+
+        // Add the last selector
+        if current_start < text.len() {
+            let selector_text = text[current_start..].trim();
+            if !selector_text.is_empty() {
+                let selector_offset = base_offset + current_start;
+                let rel_selector = self.create_relative_selector_2(
+                    selector_text,
+                    selector_offset,
+                    last_combinator,
+                );
+                result.push(rel_selector);
+            }
+        }
+
+        // If no selectors were found, create one for the whole text
+        if result.is_empty() && !text.trim().is_empty() {
+            let rel_selector = self.create_relative_selector_2(text.trim(), base_offset, None);
+            result.push(rel_selector);
+        }
+
+        result
+    }
+
+    fn create_relative_selector_2(
+        &self,
+        text: &str,
+        offset: usize,
+        combinator: Option<(char, usize, usize)>,
+    ) -> Value {
+        let start = if let Some((_, comb_start, _)) = combinator {
+            comb_start
+        } else {
+            offset
+        };
         let end = offset + text.len();
 
-        // Parse simple selectors
         let selectors = self.parse_simple_selectors(text, offset);
+
+        let combinator_value = if let Some((c, comb_start, comb_end)) = combinator {
+            let mut comb_obj = Map::new();
+            comb_obj.insert("type".to_string(), Value::String("Combinator".to_string()));
+            comb_obj.insert("name".to_string(), Value::String(c.to_string()));
+            comb_obj.insert(
+                "start".to_string(),
+                Value::Number((comb_start as i64).into()),
+            );
+            comb_obj.insert("end".to_string(), Value::Number((comb_end as i64).into()));
+            Value::Object(comb_obj)
+        } else {
+            Value::Null
+        };
 
         let mut obj = Map::new();
         obj.insert(
             "type".to_string(),
             Value::String("RelativeSelector".to_string()),
         );
-        obj.insert("combinator".to_string(), Value::Null);
+        obj.insert("combinator".to_string(), combinator_value);
         obj.insert("selectors".to_string(), Value::Array(selectors));
         obj.insert("start".to_string(), Value::Number((start as i64).into()));
         obj.insert("end".to_string(), Value::Number((end as i64).into()));

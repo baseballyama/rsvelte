@@ -1,6 +1,7 @@
 //! CSS code generation.
 //!
 //! Generates scoped CSS stylesheets with selector scoping.
+//! Preserves original whitespace from source using AST positions.
 
 use super::{CssOutput, TransformError};
 use crate::compiler::CompileOptions;
@@ -20,15 +21,14 @@ pub fn render_stylesheet(
         });
     }
 
-    // Get the CSS AST from the source
-    // The CSS content is in the StyleSheet's content.styles
     let hash = &analysis.css.hash;
     let selector = format!(".{}", hash);
 
-    // We need to parse the CSS from the analysis
-    // For now, let's try to transform the CSS from the source
-    if let Some(css_children) = extract_css_children(source) {
-        let code = transform_css(&css_children, &selector, hash);
+    // Extract CSS content and its start position
+    if let Some((css_content, css_start)) = extract_css_content(source) {
+        // Parse the CSS with proper start offset
+        let children = crate::parser::css::parse_css(&css_content, css_start);
+        let code = transform_css(&children, &selector, hash, &css_content, css_start);
         Ok(CssOutput { code, map: None })
     } else {
         Ok(CssOutput {
@@ -38,9 +38,9 @@ pub fn render_stylesheet(
     }
 }
 
-/// Extract CSS children from source (finds the <style> block and parses it)
-fn extract_css_children(source: &str) -> Option<Vec<Value>> {
-    // Find <style> block
+/// Extract CSS content from source (finds the <style> block)
+/// Returns (css_content, start_position_in_source)
+fn extract_css_content(source: &str) -> Option<(String, usize)> {
     let style_start = source.find("<style")?;
     let content_start = source[style_start..].find('>')? + style_start + 1;
     let style_end = source.find("</style>")?;
@@ -49,129 +49,203 @@ fn extract_css_children(source: &str) -> Option<Vec<Value>> {
         return None;
     }
 
-    let css_content = &source[content_start..style_end];
-
-    // Parse the CSS - returns Vec<Value> (the children array)
-    Some(crate::parser::css::parse_css(css_content, content_start))
+    let css_content = source[content_start..style_end].to_string();
+    Some((css_content, content_start))
 }
 
-/// Transform CSS by adding scoping to selectors
-fn transform_css(children: &[Value], selector: &str, hash: &str) -> String {
+/// Transform CSS by adding scoping to selectors while preserving whitespace
+fn transform_css(
+    children: &[Value],
+    selector: &str,
+    hash: &str,
+    css_source: &str,
+    css_start: usize,
+) -> String {
     let mut output = String::new();
     let mut specificity_bumped = false;
+    let mut last_end = css_start;
 
     for child in children {
-        transform_node(child, selector, hash, &mut output, &mut specificity_bumped);
+        transform_node_preserving(
+            child,
+            selector,
+            hash,
+            css_source,
+            css_start,
+            &mut output,
+            &mut specificity_bumped,
+            &mut last_end,
+        );
+    }
+
+    // Add any trailing content
+    if last_end > css_start {
+        let trailing_start = last_end - css_start;
+        if trailing_start < css_source.len() {
+            output.push_str(&css_source[trailing_start..]);
+        }
     }
 
     output
 }
 
-/// Transform a CSS node
-fn transform_node(
+/// Transform a CSS node while preserving whitespace
+#[allow(clippy::too_many_arguments)]
+fn transform_node_preserving(
     node: &Value,
     selector: &str,
     hash: &str,
+    css_source: &str,
+    css_start: usize,
     output: &mut String,
     specificity_bumped: &mut bool,
+    last_end: &mut usize,
 ) {
     match node.get("type").and_then(|t| t.as_str()) {
         Some("Rule") => {
-            transform_rule(node, selector, hash, output, specificity_bumped);
+            transform_rule_preserving(
+                node,
+                selector,
+                hash,
+                css_source,
+                css_start,
+                output,
+                specificity_bumped,
+                last_end,
+            );
         }
         Some("Atrule") => {
-            transform_atrule(node, selector, hash, output, specificity_bumped);
+            transform_atrule_preserving(
+                node,
+                selector,
+                hash,
+                css_source,
+                css_start,
+                output,
+                specificity_bumped,
+                last_end,
+            );
         }
         _ => {}
     }
 }
 
-/// Transform a CSS rule
-fn transform_rule(
+/// Transform a CSS rule while preserving whitespace from source
+#[allow(clippy::too_many_arguments)]
+fn transform_rule_preserving(
     node: &Value,
     selector: &str,
     hash: &str,
+    css_source: &str,
+    css_start: usize,
     output: &mut String,
     specificity_bumped: &mut bool,
+    last_end: &mut usize,
 ) {
+    let node_start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+    let node_end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+
+    // Copy leading whitespace from source
+    if node_start > *last_end {
+        let ws_start = (*last_end).saturating_sub(css_start);
+        let ws_end = node_start.saturating_sub(css_start);
+        if ws_end <= css_source.len() && ws_start < ws_end {
+            output.push_str(&css_source[ws_start..ws_end]);
+        }
+    }
+
     // Get the prelude (selector list)
     if let Some(prelude) = node.get("prelude") {
+        let prelude_end = prelude.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+
         // Transform selectors
         let transformed_selector =
             transform_selector_list(prelude, selector, hash, specificity_bumped);
         output.push_str(&transformed_selector);
-    }
 
-    // Get the block
-    if let Some(block) = node.get("block") {
-        output.push_str(" {\n");
+        // Get the block and copy its content from source
+        if let Some(block) = node.get("block") {
+            let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+            let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
-        // Process block children
-        if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
-            for child in children {
-                match child.get("type").and_then(|t| t.as_str()) {
-                    Some("Declaration") => {
-                        if let (Some(property), Some(value)) = (
-                            child.get("property").and_then(|p| p.as_str()),
-                            child.get("value").and_then(|v| v.as_str()),
-                        ) {
-                            // Handle animation/animation-name with keyframe scoping
-                            let scoped_value =
-                                scope_animation_value(property, value, hash, specificity_bumped);
-                            output.push_str(&format!("\t{}: {};\n", property, scoped_value));
-                        }
-                    }
-                    Some("Rule") => {
-                        // Nested rule
-                        output.push('\t');
-                        transform_rule(child, selector, hash, output, specificity_bumped);
-                    }
-                    _ => {}
+            // Copy space between prelude and block
+            if block_start > prelude_end {
+                let gap_start = prelude_end.saturating_sub(css_start);
+                let gap_end = block_start.saturating_sub(css_start);
+                if gap_end <= css_source.len() && gap_start < gap_end {
+                    output.push_str(&css_source[gap_start..gap_end]);
                 }
             }
-        }
 
-        output.push_str("}\n");
+            // Copy the entire block from source (including braces and content)
+            let blk_start = block_start.saturating_sub(css_start);
+            let blk_end = block_end.saturating_sub(css_start);
+            if blk_end <= css_source.len() && blk_start < blk_end {
+                output.push_str(&css_source[blk_start..blk_end]);
+            }
+        }
     }
+
+    *last_end = node_end;
 }
 
-/// Transform an at-rule
-fn transform_atrule(
+/// Transform an at-rule while preserving whitespace
+#[allow(clippy::too_many_arguments)]
+fn transform_atrule_preserving(
     node: &Value,
     selector: &str,
     hash: &str,
+    css_source: &str,
+    css_start: usize,
     output: &mut String,
     specificity_bumped: &mut bool,
+    last_end: &mut usize,
 ) {
+    let node_start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+    let node_end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+
+    // Copy leading whitespace from source
+    if node_start > *last_end {
+        let ws_start = (*last_end).saturating_sub(css_start);
+        let ws_end = node_start.saturating_sub(css_start);
+        if ws_end <= css_source.len() && ws_start < ws_end {
+            output.push_str(&css_source[ws_start..ws_end]);
+        }
+    }
+
     let name = node.get("name").and_then(|n| n.as_str()).unwrap_or("");
 
-    // Handle keyframes
+    // Handle keyframes - need special handling for name prefixing
     if name == "keyframes" || name == "-webkit-keyframes" {
         let prelude = node.get("prelude").and_then(|p| p.as_str()).unwrap_or("");
 
         // Check if it's a global keyframe
         if let Some(keyframe_name) = prelude.strip_prefix("-global-") {
-            // Remove -global- prefix
-            output.push_str(&format!("@{} {} ", name, keyframe_name));
+            output.push_str(&format!("@{} {}", name, keyframe_name));
         } else {
-            // Add hash prefix to keyframe name
-            output.push_str(&format!("@{} {}-{} ", name, hash, prelude));
+            output.push_str(&format!("@{} {}-{}", name, hash, prelude));
         }
 
-        // Process block
+        // Copy block from source
         if let Some(block) = node.get("block") {
-            output.push_str("{\n");
-            if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
-                for child in children {
-                    transform_keyframe_block(child, output);
-                }
+            let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+            let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+
+            // Add space before block
+            output.push(' ');
+
+            let blk_start = block_start.saturating_sub(css_start);
+            let blk_end = block_end.saturating_sub(css_start);
+            if blk_end <= css_source.len() && blk_start < blk_end {
+                output.push_str(&css_source[blk_start..blk_end]);
             }
-            output.push_str("}\n");
         }
+
+        *last_end = node_end;
         return;
     }
 
-    // Handle other at-rules (media, supports, etc.)
+    // Handle media, supports, etc. - need to transform nested rules
     output.push('@');
     output.push_str(name);
 
@@ -181,43 +255,41 @@ fn transform_atrule(
     }
 
     if let Some(block) = node.get("block") {
+        let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+
         output.push_str(" {\n");
+
         if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
+            let mut inner_last_end = block_start + 1; // after '{'
             for child in children {
-                transform_node(child, selector, hash, output, specificity_bumped);
+                transform_node_preserving(
+                    child,
+                    selector,
+                    hash,
+                    css_source,
+                    css_start,
+                    output,
+                    specificity_bumped,
+                    &mut inner_last_end,
+                );
+            }
+            // Copy trailing content in block
+            let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+            if inner_last_end < block_end {
+                let trail_start = inner_last_end.saturating_sub(css_start);
+                let trail_end = (block_end - 1).saturating_sub(css_start); // -1 to exclude closing brace
+                if trail_end <= css_source.len() && trail_start < trail_end {
+                    output.push_str(&css_source[trail_start..trail_end]);
+                }
             }
         }
+
         output.push_str("}\n");
     } else {
         output.push_str(";\n");
     }
-}
 
-/// Transform keyframe block content
-fn transform_keyframe_block(node: &Value, output: &mut String) {
-    if node.get("type").and_then(|t| t.as_str()) == Some("Rule") {
-        if let Some(prelude) = node.get("prelude") {
-            let prelude_str = get_selector_text(prelude);
-            output.push_str(&format!("\t{} ", prelude_str));
-        }
-
-        if let Some(block) = node.get("block") {
-            output.push_str("{\n");
-            if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
-                for child in children {
-                    if child.get("type").and_then(|t| t.as_str()) == Some("Declaration") {
-                        if let (Some(property), Some(value)) = (
-                            child.get("property").and_then(|p| p.as_str()),
-                            child.get("value").and_then(|v| v.as_str()),
-                        ) {
-                            output.push_str(&format!("\t\t{}: {};\n", property, value));
-                        }
-                    }
-                }
-            }
-            output.push_str("\t}\n");
-        }
-    }
+    *last_end = node_end;
 }
 
 /// Transform a selector list
@@ -252,9 +324,11 @@ fn transform_selector_list(
 fn transform_complex_selector(
     node: &Value,
     selector: &str,
-    specificity_bumped: &mut bool,
+    _specificity_bumped: &mut bool,
 ) -> String {
     let mut result = String::new();
+    // Each complex selector resets specificity bumping - first element gets direct class
+    let mut local_specificity_bumped = false;
 
     if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
         for relative_selector in children {
@@ -325,9 +399,9 @@ fn transform_complex_selector(
                         {
                             if needs_scoping {
                                 // Replace * with the scoping selector
-                                let modifier = get_modifier(selector, specificity_bumped);
+                                let modifier = get_modifier(selector, &local_specificity_bumped);
                                 selector_parts.push_str(&modifier);
-                                *specificity_bumped = true;
+                                local_specificity_bumped = true;
                             } else {
                                 selector_parts.push('*');
                             }
@@ -338,9 +412,9 @@ fn transform_complex_selector(
 
                         // Add scoping after the last non-pseudo selector
                         if needs_scoping && Some(idx) == last_non_pseudo_idx {
-                            let modifier = get_modifier(selector, specificity_bumped);
+                            let modifier = get_modifier(selector, &local_specificity_bumped);
                             selector_parts.push_str(&modifier);
-                            *specificity_bumped = true;
+                            local_specificity_bumped = true;
                         }
                     }
 
@@ -438,88 +512,6 @@ fn get_selector_text(node: &Value) -> String {
     }
 }
 
-/// Scope animation values (animation-name references)
-fn scope_animation_value(
-    property: &str,
-    value: &str,
-    hash: &str,
-    _specificity_bumped: &mut bool,
-) -> String {
-    let prop_lower = property.to_lowercase();
-    let prop_clean = prop_lower
-        .strip_prefix("-webkit-")
-        .or_else(|| prop_lower.strip_prefix("-moz-"))
-        .or_else(|| prop_lower.strip_prefix("-ms-"))
-        .or_else(|| prop_lower.strip_prefix("-o-"))
-        .unwrap_or(&prop_lower);
-
-    if prop_clean == "animation" || prop_clean == "animation-name" {
-        // For animation or animation-name, we need to scope the keyframe names
-        // This is a simplified version - proper implementation would parse the animation shorthand
-        let parts: Vec<&str> = value.split_whitespace().collect();
-        let scoped_parts: Vec<String> = parts
-            .iter()
-            .map(|part| {
-                // Skip CSS keywords
-                if is_animation_keyword(part) {
-                    part.to_string()
-                } else if let Some(stripped) = part.strip_prefix("-global-") {
-                    // Remove -global- prefix
-                    stripped.to_string()
-                } else if is_valid_keyframe_name(part) {
-                    // Scope the keyframe name
-                    format!("{}-{}", hash, part)
-                } else {
-                    part.to_string()
-                }
-            })
-            .collect();
-        scoped_parts.join(" ")
-    } else {
-        value.to_string()
-    }
-}
-
-/// Check if a string is a CSS animation keyword
-fn is_animation_keyword(s: &str) -> bool {
-    matches!(
-        s.to_lowercase().as_str(),
-        "none"
-            | "infinite"
-            | "normal"
-            | "reverse"
-            | "alternate"
-            | "alternate-reverse"
-            | "forwards"
-            | "backwards"
-            | "both"
-            | "running"
-            | "paused"
-            | "ease"
-            | "ease-in"
-            | "ease-out"
-            | "ease-in-out"
-            | "linear"
-            | "step-start"
-            | "step-end"
-            | "initial"
-            | "inherit"
-            | "unset"
-    ) || s.ends_with('s')
-        || s.ends_with("ms")
-        || s.parse::<f64>().is_ok()
-        || s.starts_with("cubic-bezier")
-        || s.starts_with("steps(")
-}
-
-/// Check if a string could be a valid keyframe name
-fn is_valid_keyframe_name(s: &str) -> bool {
-    !s.is_empty()
-        && !s.starts_with('-')
-        && s.chars()
-            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
-}
-
 /// Generate a hash for CSS scoping (matches Svelte's algorithm).
 pub fn generate_css_hash(source: &str) -> String {
     // Remove carriage returns like Svelte does
@@ -570,13 +562,38 @@ mod tests {
 	}
 </style>"#;
 
-        let children = extract_css_children(input);
-        println!("CSS Children: {:?}", children);
+        if let Some((css_content, css_start)) = extract_css_content(input) {
+            let children = crate::parser::css::parse_css(&css_content, css_start);
+            println!("CSS Children: {:?}", children);
 
-        if let Some(children) = children {
             let hash = "svelte-test";
             let selector = ".svelte-test";
-            let output = transform_css(&children, selector, hash);
+            let output = transform_css(&children, selector, hash, &css_content, css_start);
+            println!("CSS Output:\n{}", output);
+        }
+    }
+
+    #[test]
+    fn test_combinator_handling() {
+        let input = r#"<main><div><button>Blue</button></div></main>
+
+<style>
+  main button {
+    background-color: red;
+  }
+
+  main div > button {
+    background-color: blue;
+  }
+</style>"#;
+
+        if let Some((css_content, css_start)) = extract_css_content(input) {
+            let children = crate::parser::css::parse_css(&css_content, css_start);
+            println!("CSS AST: {:#?}", children);
+
+            let hash = "svelte-test";
+            let selector = ".svelte-test";
+            let output = transform_css(&children, selector, hash, &css_content, css_start);
             println!("CSS Output:\n{}", output);
         }
     }
