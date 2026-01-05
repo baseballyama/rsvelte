@@ -68,19 +68,34 @@ pub fn decode_html_entities(s: &str) -> String {
         if c == '&' {
             let mut entity = String::new();
             let mut found_semicolon = false;
+            let mut terminator: Option<char> = None;
 
-            for next_c in chars.by_ref() {
+            // Collect entity characters
+            while let Some(&next_c) = chars.peek() {
                 if next_c == ';' {
                     found_semicolon = true;
+                    chars.next();
+                    break;
+                }
+                // Stop at non-alphanumeric (except #) - this is a potential entity terminator
+                if !next_c.is_alphanumeric() && next_c != '#' {
+                    terminator = Some(next_c);
                     break;
                 }
                 entity.push(next_c);
+                chars.next();
                 if entity.len() > 10 {
                     break;
                 }
             }
 
-            if found_semicolon {
+            // If at end of input, terminator is implicit
+            if !found_semicolon && terminator.is_none() && chars.peek().is_none() {
+                terminator = Some(' '); // Treat end-of-string as terminator
+            }
+
+            let decoded = if found_semicolon {
+                // Try to decode with semicolon
                 if let Some(stripped) = entity.strip_prefix('#') {
                     // Numeric entity
                     let num = if let Some(hex) = stripped
@@ -91,24 +106,27 @@ pub fn decode_html_entities(s: &str) -> String {
                     } else {
                         stripped.parse().ok()
                     };
-
-                    if let Some(n) = num {
-                        if let Some(decoded) = char::from_u32(n) {
-                            result.push(decoded);
-                            continue;
-                        }
-                    }
-                } else if let Some(decoded) = decode_html_entity(&entity) {
-                    result.push(decoded);
-                    continue;
+                    num.and_then(char::from_u32)
+                } else {
+                    decode_html_entity(&entity)
                 }
-            }
+            } else if terminator.is_some() {
+                // Legacy behavior: decode known entities without semicolon
+                // when followed by whitespace, end of string, or non-alphanumeric
+                decode_html_entity(&entity)
+            } else {
+                None
+            };
 
-            // Not a valid entity, output as-is
-            result.push('&');
-            result.push_str(&entity);
-            if found_semicolon {
-                result.push(';');
+            if let Some(decoded_char) = decoded {
+                result.push(decoded_char);
+            } else {
+                // Not a valid entity, output as-is
+                result.push('&');
+                result.push_str(&entity);
+                if found_semicolon {
+                    result.push(';');
+                }
             }
         } else {
             result.push(c);
