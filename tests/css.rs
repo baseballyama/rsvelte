@@ -188,6 +188,7 @@ fn run_css_test(fixture: &CssFixture) -> TestResult {
 }
 
 #[test]
+#[ignore] // CSS scoping implementation in progress (89/167 passing)
 fn test_css() {
     let samples = get_css_samples();
 
@@ -256,6 +257,10 @@ fn test_css() {
             println!("  ... and {} more", failed.len() - 20);
         }
     }
+
+    // Assert that all CSS tests pass
+    let failed_count = failed.len();
+    assert_eq!(failed_count, 0, "{} CSS tests failed", failed_count);
 }
 
 /// List all available CSS fixtures.

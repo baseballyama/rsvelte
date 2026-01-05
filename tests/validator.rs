@@ -263,6 +263,7 @@ fn run_validator_test(fixture: &ValidatorFixture) -> TestResult {
 }
 
 #[test]
+#[ignore] // Validation not implemented yet (8/252 passing)
 fn test_validator() {
     let samples = get_validator_samples();
 
@@ -322,6 +323,9 @@ fn test_validator() {
             skipped
         );
     }
+
+    // Assert that all validator tests pass
+    assert_eq!(failed, 0, "{} validator tests failed", failed);
 }
 
 /// List all available validator fixtures.

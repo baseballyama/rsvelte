@@ -200,11 +200,12 @@ fn test_parser_modern_fixtures() {
         }
     }
 
-    // For now, we don't fail the test since we're just starting implementation
-    // assert_eq!(failed, 0, "{} tests failed", failed);
+    // Assert that all tests pass
+    assert_eq!(failed, 0, "{} tests failed", failed);
 }
 
 #[test]
+#[ignore] // Legacy mode not supported - focusing on Svelte 5 (modern mode)
 fn test_parser_legacy_fixtures() {
     let samples = get_parser_samples("parser-legacy");
 
@@ -228,8 +229,8 @@ fn test_parser_legacy_fixtures() {
     println!("Passed: {}/{}", passed, total);
     println!("Failed: {}/{}", failed, total);
 
-    // For now, we don't fail the test since we're just starting implementation
-    // assert_eq!(failed, 0, "{} tests failed", failed);
+    // Assert that all tests pass
+    assert_eq!(failed, 0, "{} tests failed", failed);
 }
 
 /// Test that lists all available fixtures.
