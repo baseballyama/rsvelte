@@ -555,3 +555,29 @@ fn to_base36(mut n: u32) -> String {
     result.reverse();
     String::from_utf8(result).unwrap()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_css_transformation() {
+        let input = r#"<div>red</div>
+
+<style>
+	div {
+		color: red;
+	}
+</style>"#;
+
+        let children = extract_css_children(input);
+        println!("CSS Children: {:?}", children);
+
+        if let Some(children) = children {
+            let hash = "svelte-test";
+            let selector = ".svelte-test";
+            let output = transform_css(&children, selector, hash);
+            println!("CSS Output:\n{}", output);
+        }
+    }
+}

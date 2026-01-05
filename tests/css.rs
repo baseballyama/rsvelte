@@ -6,7 +6,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
+use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 use walkdir::WalkDir;
 
 /// Get the path to the Svelte submodule.
@@ -76,8 +76,16 @@ struct TestResult {
 }
 
 /// Normalize CSS for comparison.
+/// This replaces hash values (svelte-XXXX) with a placeholder (svelte-xyz)
+/// so that actual and expected CSS can be compared.
 fn normalize_css(css: &str) -> String {
-    css.lines()
+    // First, normalize the hash values
+    let hash_re = regex::Regex::new(r"svelte-[a-z0-9]+").unwrap();
+    let normalized = hash_re.replace_all(css, "svelte-xyz");
+
+    // Then normalize whitespace
+    normalized
+        .lines()
         .map(|line| line.trim())
         .filter(|line| !line.is_empty())
         .collect::<Vec<_>>()
@@ -98,6 +106,7 @@ fn run_css_test(fixture: &CssFixture) -> TestResult {
             let options = CompileOptions {
                 generate: GenerateMode::Client,
                 filename: Some(format!("{}/input.svelte", name_clone)),
+                css: CssMode::External,
                 ..Default::default()
             };
             compile(&input, options)

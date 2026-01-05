@@ -887,19 +887,45 @@ impl<'a> CssParser<'a> {
 
         // Check if there's a block
         let block = if self.current_char() == '{' {
-            // Skip the block for now (for @import, @media, etc.)
+            let block_start = self.offset + self.index;
             self.advance(); // consume '{'
-            let mut block_depth = 1;
-            while !self.is_eof() && block_depth > 0 {
-                let c = self.current_char();
-                if c == '{' {
-                    block_depth += 1;
-                } else if c == '}' {
-                    block_depth -= 1;
+            self.skip_whitespace();
+
+            // Parse rules inside the block
+            let mut children = Vec::new();
+            while !self.is_eof() && self.current_char() != '}' {
+                self.skip_whitespace();
+                if self.is_eof() || self.current_char() == '}' {
+                    break;
                 }
-                self.advance();
+
+                // Check for nested at-rule
+                if self.current_char() == '@' {
+                    if let Some(rule) = self.parse_atrule() {
+                        children.push(rule);
+                    }
+                } else {
+                    // Parse regular rule
+                    if let Some(rule) = self.parse_rule() {
+                        children.push(rule);
+                    }
+                }
+                self.skip_whitespace();
             }
-            Value::Null // Simplified - would need full block parsing
+
+            // Consume closing brace
+            self.eat("}");
+            let block_end = self.offset + self.index;
+
+            let mut block_obj = Map::new();
+            block_obj.insert("type".to_string(), Value::String("Block".to_string()));
+            block_obj.insert(
+                "start".to_string(),
+                Value::Number((block_start as i64).into()),
+            );
+            block_obj.insert("end".to_string(), Value::Number((block_end as i64).into()));
+            block_obj.insert("children".to_string(), Value::Array(children));
+            Value::Object(block_obj)
         } else {
             self.eat(";");
             Value::Null
