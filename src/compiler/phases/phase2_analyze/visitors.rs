@@ -80,6 +80,7 @@ fn analyze_element(
     analysis: &mut ComponentAnalysis,
 ) -> Result<(), AnalysisError> {
     use super::types::ElementInfo;
+    use crate::ast::template::Attribute;
 
     // Record element info
     analysis.template.elements.push(ElementInfo {
@@ -90,10 +91,85 @@ fn analyze_element(
         has_spread: false,             // TODO: detect spread attributes
     });
 
+    // Track element name for CSS selector matching
+    analysis.css.used_elements.insert(element.name.to_string());
+
+    // Extract class and id values from attributes
+    for attr in &element.attributes {
+        match attr {
+            Attribute::Attribute(attr_node) => {
+                let attr_name = attr_node.name.as_str();
+
+                if attr_name == "class" {
+                    // Extract class names from class="foo bar baz"
+                    extract_classes_from_value(&attr_node.value, analysis);
+                } else if attr_name == "id" {
+                    // Extract ID from id="foo"
+                    extract_id_from_value(&attr_node.value, analysis);
+                }
+            }
+            Attribute::ClassDirective(class_dir) => {
+                // class:foo directive
+                analysis.css.used_classes.insert(class_dir.name.to_string());
+            }
+            _ => {}
+        }
+    }
+
     // Analyze children
     analyze_fragment(&element.fragment, analysis)?;
 
     Ok(())
+}
+
+/// Extract class names from an attribute value.
+fn extract_classes_from_value(
+    value: &crate::ast::template::AttributeValue,
+    analysis: &mut ComponentAnalysis,
+) {
+    use crate::ast::template::{AttributeValue, AttributeValuePart};
+
+    match value {
+        AttributeValue::Sequence(parts) => {
+            for part in parts {
+                if let AttributeValuePart::Text(text) = part {
+                    // Split by whitespace to get individual class names
+                    for class in text.data.split_whitespace() {
+                        analysis.css.used_classes.insert(class.to_string());
+                    }
+                }
+            }
+        }
+        AttributeValue::True(_) => {
+            // Boolean class attribute, no value
+        }
+        AttributeValue::Expression(_) => {
+            // Dynamic class, can't statically analyze
+        }
+    }
+}
+
+/// Extract ID from an attribute value.
+fn extract_id_from_value(
+    value: &crate::ast::template::AttributeValue,
+    analysis: &mut ComponentAnalysis,
+) {
+    use crate::ast::template::{AttributeValue, AttributeValuePart};
+
+    match value {
+        AttributeValue::Sequence(parts) => {
+            for part in parts {
+                if let AttributeValuePart::Text(text) = part {
+                    let id = text.data.trim();
+                    if !id.is_empty() {
+                        analysis.css.used_ids.insert(id.to_string());
+                    }
+                }
+            }
+        }
+        AttributeValue::True(_) => {}
+        AttributeValue::Expression(_) => {}
+    }
 }
 
 /// Analyze a component usage.

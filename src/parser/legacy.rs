@@ -263,8 +263,12 @@ fn extract_svelte_ignore(data: &str) -> Vec<String> {
         if rest.is_empty() {
             return Vec::new();
         }
-        // Split by whitespace and filter empty
-        rest.split_whitespace().map(|s| s.to_string()).collect()
+        // Split by whitespace or comma and filter empty, trimming each token
+        rest.split(|c: char| c.is_whitespace() || c == ',')
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string())
+            .collect()
     } else {
         Vec::new()
     }

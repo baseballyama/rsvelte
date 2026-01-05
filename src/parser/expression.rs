@@ -1020,10 +1020,10 @@ fn create_array_expression(
 }
 
 fn create_object_expression(
-    _obj_expr: &oxc_ast::ast::ObjectExpression,
+    obj_expr: &oxc_ast::ast::ObjectExpression,
     start: usize,
     end: usize,
-    _offset: usize,
+    offset: usize,
     line_offsets: &[usize],
 ) -> Expression {
     let mut obj = Map::new();
@@ -1035,10 +1035,113 @@ fn create_object_expression(
     obj.insert("end".to_string(), Value::Number((end as i64).into()));
     obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
 
-    // Simplified: just return empty properties
-    obj.insert("properties".to_string(), Value::Array(Vec::new()));
+    // Convert properties
+    let properties: Vec<Value> = obj_expr
+        .properties
+        .iter()
+        .map(|prop| match prop {
+            oxc_ast::ast::ObjectPropertyKind::ObjectProperty(p) => {
+                let prop_start = offset + p.span.start as usize - 1;
+                let prop_end = offset + p.span.end as usize - 1;
+
+                let mut prop_obj = Map::new();
+                prop_obj.insert("type".to_string(), Value::String("Property".to_string()));
+                prop_obj.insert(
+                    "start".to_string(),
+                    Value::Number((prop_start as i64).into()),
+                );
+                prop_obj.insert("end".to_string(), Value::Number((prop_end as i64).into()));
+                prop_obj.insert(
+                    "loc".to_string(),
+                    create_loc(prop_start, prop_end, line_offsets),
+                );
+                prop_obj.insert("method".to_string(), Value::Bool(p.method));
+                prop_obj.insert("shorthand".to_string(), Value::Bool(p.shorthand));
+                prop_obj.insert("computed".to_string(), Value::Bool(p.computed));
+
+                // Convert key
+                let key = convert_property_key_for_expr(&p.key, offset, line_offsets);
+                prop_obj.insert("key".to_string(), key);
+
+                // Convert value
+                let value = convert_expression(&p.value, offset, line_offsets);
+                prop_obj.insert("value".to_string(), value.as_json().clone());
+
+                // Kind
+                let kind = match p.kind {
+                    oxc_ast::ast::PropertyKind::Init => "init",
+                    oxc_ast::ast::PropertyKind::Get => "get",
+                    oxc_ast::ast::PropertyKind::Set => "set",
+                };
+                prop_obj.insert("kind".to_string(), Value::String(kind.to_string()));
+
+                Value::Object(prop_obj)
+            }
+            oxc_ast::ast::ObjectPropertyKind::SpreadProperty(spread) => {
+                let spread_start = offset + spread.span.start as usize - 1;
+                let spread_end = offset + spread.span.end as usize - 1;
+
+                let mut spread_obj = Map::new();
+                spread_obj.insert(
+                    "type".to_string(),
+                    Value::String("SpreadElement".to_string()),
+                );
+                spread_obj.insert(
+                    "start".to_string(),
+                    Value::Number((spread_start as i64).into()),
+                );
+                spread_obj.insert("end".to_string(), Value::Number((spread_end as i64).into()));
+                spread_obj.insert(
+                    "loc".to_string(),
+                    create_loc(spread_start, spread_end, line_offsets),
+                );
+
+                let argument = convert_expression(&spread.argument, offset, line_offsets);
+                spread_obj.insert("argument".to_string(), argument.as_json().clone());
+
+                Value::Object(spread_obj)
+            }
+        })
+        .collect();
+
+    obj.insert("properties".to_string(), Value::Array(properties));
 
     Expression::Value(Value::Object(obj))
+}
+
+/// Convert property key with -1 adjustment for expression parsing context
+fn convert_property_key_for_expr(
+    key: &oxc_ast::ast::PropertyKey,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    match key {
+        oxc_ast::ast::PropertyKey::StaticIdentifier(id) => {
+            let start = offset + id.span.start as usize - 1;
+            let end = offset + id.span.end as usize - 1;
+            create_identifier(&id.name, start, end, line_offsets)
+                .as_json()
+                .clone()
+        }
+        oxc_ast::ast::PropertyKey::PrivateIdentifier(id) => {
+            let start = offset + id.span.start as usize - 1;
+            let end = offset + id.span.end as usize - 1;
+            create_identifier(&id.name, start, end, line_offsets)
+                .as_json()
+                .clone()
+        }
+        _ => {
+            // For computed keys and other expressions
+            let expr = key.as_expression();
+            if let Some(expr) = expr {
+                convert_expression(expr, offset, line_offsets)
+                    .as_json()
+                    .clone()
+            } else {
+                Value::Null
+            }
+        }
+    }
 }
 
 fn create_assignment_expression(
@@ -1488,10 +1591,10 @@ fn convert_type_annotation_basic(
 }
 
 fn create_template_literal(
-    _template: &oxc_ast::ast::TemplateLiteral,
+    template: &oxc_ast::ast::TemplateLiteral,
     start: usize,
     end: usize,
-    _offset: usize,
+    offset: usize,
     line_offsets: &[usize],
 ) -> Expression {
     let mut obj = Map::new();
@@ -1502,8 +1605,57 @@ fn create_template_literal(
     obj.insert("start".to_string(), Value::Number((start as i64).into()));
     obj.insert("end".to_string(), Value::Number((end as i64).into()));
     obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
-    obj.insert("quasis".to_string(), Value::Array(Vec::new())); // Simplified
-    obj.insert("expressions".to_string(), Value::Array(Vec::new())); // Simplified
+
+    // Convert quasis
+    let quasis: Vec<Value> = template
+        .quasis
+        .iter()
+        .map(|quasi| {
+            let q_start = offset + quasi.span.start as usize - 1;
+            let q_end = offset + quasi.span.end as usize - 1;
+
+            let mut q_obj = Map::new();
+            q_obj.insert(
+                "type".to_string(),
+                Value::String("TemplateElement".to_string()),
+            );
+            q_obj.insert("start".to_string(), Value::Number((q_start as i64).into()));
+            q_obj.insert("end".to_string(), Value::Number((q_end as i64).into()));
+            q_obj.insert("loc".to_string(), create_loc(q_start, q_end, line_offsets));
+            q_obj.insert("tail".to_string(), Value::Bool(quasi.tail));
+
+            let mut value_obj = Map::new();
+            value_obj.insert(
+                "raw".to_string(),
+                Value::String(quasi.value.raw.to_string()),
+            );
+            value_obj.insert(
+                "cooked".to_string(),
+                quasi
+                    .value
+                    .cooked
+                    .as_ref()
+                    .map(|s| Value::String(s.to_string()))
+                    .unwrap_or(Value::Null),
+            );
+            q_obj.insert("value".to_string(), Value::Object(value_obj));
+
+            Value::Object(q_obj)
+        })
+        .collect();
+    obj.insert("quasis".to_string(), Value::Array(quasis));
+
+    // Convert expressions
+    let expressions: Vec<Value> = template
+        .expressions
+        .iter()
+        .map(|expr| {
+            convert_expression(expr, offset, line_offsets)
+                .as_json()
+                .clone()
+        })
+        .collect();
+    obj.insert("expressions".to_string(), Value::Array(expressions));
 
     Expression::Value(Value::Object(obj))
 }

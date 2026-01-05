@@ -58,8 +58,16 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-action@stable
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
+
+      - name: Generate fixtures
+        run: npm run generate-fixtures
 
       - name: Run tests
         run: cargo test --all-features

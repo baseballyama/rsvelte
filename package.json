@@ -15,6 +15,7 @@
     "rebuild:clean": "pnpm run build:wasm:clean && pnpm run clean:cache",
     "generate-fixtures": "node scripts/generate-fixtures.mjs",
     "generate-fixtures:force": "node scripts/generate-fixtures.mjs --force",
-    "generate-fixtures:verbose": "node scripts/generate-fixtures.mjs --verbose"
+    "generate-fixtures:verbose": "node scripts/generate-fixtures.mjs --verbose",
+    "test-results": "cargo run --release --bin test_reporter -- --output playground/static/test-results.json"
   }
 }

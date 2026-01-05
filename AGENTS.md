@@ -172,9 +172,9 @@ cargo test --test css -- --nocapture
 | Test Suite | Passing | Total | Status |
 |------------|---------|-------|--------|
 | Parser Modern | 22 | 22 | ✅ 100% |
-| Parser Legacy | 55 | 83 | ⚠️ 66% - In progress |
+| Parser Legacy | 0 | 83 | ❌ Not supported (Svelte 4) |
 | Compiler Snapshot | 17 | 17 | ✅ 100% (8 skipped: async/hmr/fragments) |
-| CSS | 101 | 177 | ⚠️ 57% - In progress |
+| CSS | 103 | 177 | ⚠️ 58% - In progress |
 | Validator | 8 | 252 | ❌ 3% - Not implemented |
 | Compiler Errors | 3 | 85 | ❌ 4% - Not implemented |
 
@@ -182,17 +182,19 @@ cargo test --test css -- --nocapture
 
 ## Next Steps (Priority Order)
 
-### 1. CSS Scoping (101/177 → 177/177)
-Current implementation handles most selectors. Remaining issues (76 tests):
+### 1. CSS Scoping (103/177 → 177/177)
+Current implementation handles most selectors. Remaining issues (74 tests):
 - **Unused selector detection** (major blocker - 60+ tests need this feature)
 - Animation property keyframe name replacement
 - CSS escape sequences in selectors
+- Sibling combinator scoping with `:where()` specificity
 
 **Recently implemented:**
 - `:global { ... }` block syntax (comments out `:global {` and `}`)
 - `:is()`, `:not()`, `:has()` scoping with `:where()` specificity
 - Partial `:global()` scoping (e.g., `.foo:global([attr])`)
 - Nested CSS rule parsing
+- Template element/class/id tracking for unused selector detection (phase 2 analysis)
 
 ### 2. Validator (8/252)
 Implement warning/error detection:

@@ -328,6 +328,15 @@ pub struct CssAnalysis {
 
     /// Whether the CSS contains :global
     pub has_global: bool,
+
+    /// Element tag names used in the template (for unused selector detection)
+    pub used_elements: std::collections::HashSet<String>,
+
+    /// Class names used in the template (for unused selector detection)
+    pub used_classes: std::collections::HashSet<String>,
+
+    /// IDs used in the template (for unused selector detection)
+    pub used_ids: std::collections::HashSet<String>,
 }
 
 /// Export information.
