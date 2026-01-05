@@ -4653,6 +4653,10 @@ fn transform_arrow_function_expr(expr: &str, state_vars: &[String]) -> String {
 /// e.g., `plusOne(count)` becomes `plusOne($.get(count))`
 /// Also handles simple variable access: `count` becomes `$.get(count)`
 /// Also handles expressions like `count === 1` → `$.get(count) === 1`
+///
+/// NOTE: Does NOT wrap state variables followed by `.` (property access)
+/// because object state variables are already reactive proxies.
+/// e.g., `counter.count` stays as `counter.count`, not `$.get(counter).count`
 fn transform_state_in_expr(expr: &str, state_vars: &[String]) -> String {
     let mut result = expr.to_string();
 
@@ -4675,6 +4679,10 @@ fn transform_state_in_expr(expr: &str, state_vars: &[String]) -> String {
                         || !is_identifier_char(chars[i + var_chars.len()]);
 
                     if before_ok && after_ok {
+                        // Check if followed by `.` (property access) - don't wrap object states
+                        let followed_by_dot =
+                            i + var_chars.len() < chars.len() && chars[i + var_chars.len()] == '.';
+
                         // Check if already wrapped in $.get()
                         let already_wrapped = if i >= 6 {
                             let prefix: String = chars[i - 6..i].iter().collect();
@@ -4683,7 +4691,7 @@ fn transform_state_in_expr(expr: &str, state_vars: &[String]) -> String {
                             false
                         };
 
-                        if !already_wrapped {
+                        if !already_wrapped && !followed_by_dot {
                             new_result.push_str(&format!("$.get({})", var));
                             i += var_chars.len();
                             continue;

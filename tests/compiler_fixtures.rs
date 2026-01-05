@@ -414,8 +414,8 @@ fn test_compiler_snapshot_fixtures() {
         }
     }
 
-    // For now, we don't fail the test since we're just starting implementation
-    // assert_eq!(failed, 0, "{} tests failed", failed);
+    // Assert that all tests pass
+    assert_eq!(failed, 0, "{} tests failed", failed);
 }
 
 /// Test that lists all available snapshot fixtures.
