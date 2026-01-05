@@ -21,5 +21,11 @@ pub mod compiler;
 pub mod error;
 pub mod parser;
 
+#[cfg(feature = "wasm")]
+pub mod wasm;
+
 pub use compiler::{CompileError, CompileOptions, CompileResult, GenerateMode, compile};
+#[cfg(not(feature = "native"))]
+pub use parser::{ParseOptions, parse};
+#[cfg(feature = "native")]
 pub use parser::{ParseOptions, parse, parse_parallel};

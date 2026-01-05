@@ -6,13 +6,21 @@ rust-version = "1.85"
 description = "A high-performance Rust implementation of the Svelte compiler"
 license = "MIT"
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["native"]
+native = ["rayon", "miette/fancy"]
+wasm = ["wasm-bindgen", "console_error_panic_hook", "getrandom/js"]
+
 [dependencies]
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
 
-# Parallelism
-rayon = "1.10"
+# Parallelism (native only)
+rayon = { version = "1.10", optional = true }
 
 # Memory efficiency
 bumpalo = { version = "3.16", features = ["collections"] }
@@ -29,10 +37,15 @@ oxc_syntax = "0.56"
 
 # Error handling
 thiserror = "2.0"
-miette = { version = "7.4", features = ["fancy"] }
+miette = "7.4"
 
 # Regex
 regex = "1.11"
+
+# WASM support (optional)
+wasm-bindgen = { version = "0.2", optional = true }
+console_error_panic_hook = { version = "0.1", optional = true }
+getrandom = { version = "0.2", optional = true }
 
 [dev-dependencies]
 # Testing

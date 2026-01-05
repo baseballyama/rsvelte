@@ -1,0 +1,20 @@
+{
+  "name": "svelte-compiler-rust-playground",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "build:wasm": "cd .. && wasm-pack build --target web --no-default-features --features wasm"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^3.0.8",
+    "@sveltejs/kit": "^2.21.0",
+    "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "svelte": "^5.25.5",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.0"
+  }
+}

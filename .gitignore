@@ -24,3 +24,14 @@ target
 # Added by cargo
 
 /target
+
+# WASM build output
+/pkg
+
+# Playwright MCP
+.playwright-mcp/
+
+# Playground
+playground/node_modules/
+playground/.svelte-kit/
+playground/build/

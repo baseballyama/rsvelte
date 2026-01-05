@@ -39,6 +39,7 @@ pub fn parse(source: &str, options: ParseOptions) -> ParseResult<Root> {
 /// Parse multiple Svelte components in parallel.
 ///
 /// Uses rayon to parse files concurrently for maximum performance.
+#[cfg(feature = "native")]
 pub fn parse_parallel<'a>(
     sources: impl IntoIterator<Item = (&'a str, &'a str)> + Send,
     options: ParseOptions,
