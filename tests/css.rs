@@ -188,7 +188,6 @@ fn run_css_test(fixture: &CssFixture) -> TestResult {
 }
 
 #[test]
-#[ignore] // CSS scoping implementation in progress (89/167 passing)
 fn test_css() {
     let samples = get_css_samples();
 

@@ -287,7 +287,6 @@ fn run_error_test(fixture: &ErrorFixture) -> TestResult {
 }
 
 #[test]
-#[ignore] // Error detection not implemented yet (3/85 passing)
 fn test_compiler_errors() {
     let samples = get_compiler_error_samples();
 

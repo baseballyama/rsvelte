@@ -263,7 +263,6 @@ fn run_validator_test(fixture: &ValidatorFixture) -> TestResult {
 }
 
 #[test]
-#[ignore] // Validation not implemented yet (8/252 passing)
 fn test_validator() {
     let samples = get_validator_samples();
 

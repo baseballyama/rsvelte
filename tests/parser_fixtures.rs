@@ -205,7 +205,6 @@ fn test_parser_modern_fixtures() {
 }
 
 #[test]
-#[ignore] // Legacy mode not supported - focusing on Svelte 5 (modern mode)
 fn test_parser_legacy_fixtures() {
     let samples = get_parser_samples("parser-legacy");
 
