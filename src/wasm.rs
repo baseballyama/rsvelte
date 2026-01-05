@@ -5,7 +5,7 @@
 
 use wasm_bindgen::prelude::*;
 
-use crate::compiler::{CompileOptions, GenerateMode, compile};
+use crate::compiler::{CompileOptions, CssMode, GenerateMode, compile};
 use crate::parser::{ParseOptions, parse};
 
 /// Initialize panic hook for better error messages in the browser console.
@@ -100,6 +100,7 @@ pub fn compile_client(source: &str, name: &str) -> CompileResultWasm {
     let options = CompileOptions {
         generate: GenerateMode::Client,
         name: Some(name.to_string()),
+        css: CssMode::External,
         ..Default::default()
     };
 
@@ -125,6 +126,7 @@ pub fn compile_server(source: &str, name: &str) -> CompileResultWasm {
     let options = CompileOptions {
         generate: GenerateMode::Server,
         name: Some(name.to_string()),
+        css: CssMode::External,
         ..Default::default()
     };
 
