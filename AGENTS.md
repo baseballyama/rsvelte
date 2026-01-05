@@ -61,7 +61,8 @@ src/
 │       ├── phase1_parse.rs     # Phase 1: Parsing
 │       ├── phase2_analyze/     # Phase 2: Analysis
 │       │   ├── mod.rs
-│       │   ├── scope.rs        # Scope tracking
+│       │   ├── scope.rs        # Scope/Binding definitions
+│       │   ├── scope_builder.rs # Scope tree construction
 │       │   ├── types.rs        # Analysis types
 │       │   └── visitors.rs     # AST visitors
 │       └── phase3_transform/   # Phase 3: Code generation
@@ -91,6 +92,8 @@ scripts/
 3. **Parallelism**: Thread-safe parser state, rayon for multi-file parsing
 4. **JS Expressions**: Uses `serde_json::Value` for flexibility in matching Svelte output
 5. **Testing**: Direct comparison with Svelte's output.json fixtures
+6. **No Double Parsing**: AST from Phase 1 is passed to Phase 3 (eliminates 20-30% overhead)
+7. **Scope Analysis**: ScopeBuilder walks AST to create scope tree with bindings
 
 ## Development Guidelines
 
@@ -279,6 +282,12 @@ Current status:
 - [x] Special attribute AST builders (`$.autofocus()`, `$.set_custom_element_data()`, `$.html()`, `set_option_value()`)
 - [x] Advanced navigation builders (`$.next(count)`, `$.child(node, preserve_whitespace)`, `$.sibling(node, count)`)
 - [x] Class field transformation (`$state`, `$derived` in classes → private fields with getters/setters)
+- [x] **Refactoring Phase 1**: Eliminate double parsing (AST passed from Phase 1 to Phase 3)
+- [x] **Refactoring Phase 2**: Scope analysis infrastructure
+  - Extended BindingKind (State, Derived, BindableProp, RawState, StoreSub, Template, Static)
+  - DeclarationKind enum (Var, Let, Const, Function, Import, Param, etc.)
+  - Binding tracking with references and mutations
+  - ScopeBuilder for AST traversal and scope tree construction
 
 **Pending features:**
 - [ ] Compile options support (`experimental.async`, `hmr`, `fragments`)
