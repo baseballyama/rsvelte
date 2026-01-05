@@ -170,6 +170,7 @@ Current status:
   - 8 skipped (require unsupported options: async, hmr, fragments)
   - 3 not testable (different file structure)
   - 17 testable → **Client 16/17, Server 17/17**
+- **CSS Tests**: 177 total samples → **26/167 matching** (10 compilation failures)
 
 ## Current Progress
 
@@ -319,7 +320,7 @@ Key features implemented for skip-static-subtree:
 **Pending features:**
 - [ ] Compile options support (`experimental.async`, `hmr`, `fragments`)
 - [ ] `{#if}` block client-side code generation (`$.if()`)
-- [ ] CSS scoping and transformation
+- [~] CSS scoping and transformation (basic scoping implemented, 26/167 tests passing)
 - [x] Template flags support (`TEMPLATE_USE_IMPORT_NODE` for custom elements)
 - [ ] skip-static-subtree client-side features (see failing tests checklist above)
 
