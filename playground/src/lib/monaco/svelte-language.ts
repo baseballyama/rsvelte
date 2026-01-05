@@ -37,7 +37,8 @@ export const svelteLanguageConfiguration: Monaco.languages.LanguageConfiguration
 			end: /^\s*<!--\s*#endregion\b.*-->/
 		}
 	},
-	wordPattern: /(-?\d*\.\d\w*)|([^\`\~\!\@\#\%\^\&\*\(\)\-\=\+\[\{\]\}\\\|\;\:\'\"\,\.\<\>\/\?\s]+)/g
+	wordPattern:
+		/(-?\d*\.\d\w*)|([^\`\~\!\@\#\%\^\&\*\(\)\-\=\+\[\{\]\}\\\|\;\:\'\"\,\.\<\>\/\?\s]+)/g
 };
 
 export const svelteTokensProvider: Monaco.languages.IMonarchLanguage = {
@@ -69,15 +70,7 @@ export const svelteTokensProvider: Monaco.languages.IMonarchLanguage = {
 	],
 
 	// Svelte special syntax
-	svelteKeywords: [
-		'$state',
-		'$derived',
-		'$effect',
-		'$props',
-		'$bindable',
-		'$inspect',
-		'$host'
-	],
+	svelteKeywords: ['$state', '$derived', '$effect', '$props', '$bindable', '$inspect', '$host'],
 
 	jsKeywords: [
 		'break',
@@ -198,10 +191,7 @@ export const svelteTokensProvider: Monaco.languages.IMonarchLanguage = {
 			[/[^<{]+/, 'text']
 		],
 
-		svelteBlock: [
-			[/\}/, { token: 'keyword.svelte', next: '@pop' }],
-			{ include: '@jsExpression' }
-		],
+		svelteBlock: [[/\}/, { token: 'keyword.svelte', next: '@pop' }], { include: '@jsExpression' }],
 
 		svelteExpression: [
 			[/\}/, { token: 'delimiter.curly', next: '@pop' }],
@@ -274,10 +264,7 @@ export const svelteTokensProvider: Monaco.languages.IMonarchLanguage = {
 
 		htmlTag: [
 			// Svelte directives
-			[
-				/(on|bind|class|style|use|transition|in|out|animate|let):/,
-				'attribute.name.svelte'
-			],
+			[/(on|bind|class|style|use|transition|in|out|animate|let):/, 'attribute.name.svelte'],
 			// Attribute names
 			[/[\w:-]+/, 'attribute.name'],
 			// Attribute values with Svelte expressions
@@ -302,14 +289,17 @@ export const svelteTokensProvider: Monaco.languages.IMonarchLanguage = {
 			[/[^\s>]+/, 'attribute.value', '@pop']
 		],
 
-		htmlComment: [[/-->/, 'comment.html', '@pop'], [/./, 'comment.html']],
-
-		script: [
-			[/<\/script\s*>/, { token: 'tag', next: '@pop' }],
-			{ include: '@jsExpression' }
+		htmlComment: [
+			[/-->/, 'comment.html', '@pop'],
+			[/./, 'comment.html']
 		],
 
-		style: [[/<\/style\s*>/, { token: 'tag', next: '@pop' }], [/./, 'style']]
+		script: [[/<\/script\s*>/, { token: 'tag', next: '@pop' }], { include: '@jsExpression' }],
+
+		style: [
+			[/<\/style\s*>/, { token: 'tag', next: '@pop' }],
+			[/./, 'style']
+		]
 	}
 };
 

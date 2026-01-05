@@ -733,7 +733,13 @@ fn transform_complex_selector(
                                 }
                             }
                         } else {
-                            selector_parts.push_str(&format_simple_selector(sel));
+                            selector_parts.push_str(&format_simple_selector_with_scope(
+                                sel,
+                                selector,
+                                css_source,
+                                Some(css_start),
+                                0,
+                            ));
 
                             // Add scoping after the last non-pseudo selector
                             if needs_scoping && Some(idx) == last_non_pseudo_idx {
@@ -765,6 +771,27 @@ fn transform_complex_selector(
                         }
                     }
 
+                    // If all selectors are pseudo-classes/elements, add scoping class first
+                    // But NOT for :is(), :has() which handle scoping internally
+                    if needs_scoping && last_non_pseudo_idx.is_none() {
+                        // Check if first selector is :is or :has (which scope internally)
+                        let first_is_internal_scoping = selectors.first().is_some_and(|s| {
+                            if s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                            {
+                                let name = s.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                                name == "is" || name == "has"
+                            } else {
+                                false
+                            }
+                        });
+
+                        if !first_is_internal_scoping {
+                            let modifier = get_modifier(selector, &local_specificity_bumped);
+                            selector_parts.push_str(&modifier);
+                            local_specificity_bumped = true;
+                        }
+                    }
+
                     for (idx, sel) in selectors.iter().enumerate() {
                         let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
@@ -783,7 +810,13 @@ fn transform_complex_selector(
                             continue;
                         }
 
-                        selector_parts.push_str(&format_simple_selector(sel));
+                        selector_parts.push_str(&format_simple_selector_with_scope(
+                            sel,
+                            selector,
+                            css_source,
+                            Some(css_start),
+                            0,
+                        ));
 
                         // Add scoping after the last non-pseudo selector
                         if needs_scoping && Some(idx) == last_non_pseudo_idx {
@@ -813,6 +846,17 @@ fn get_modifier(selector: &str, specificity_bumped: &bool) -> String {
 
 /// Format a simple selector
 fn format_simple_selector(sel: &Value) -> String {
+    format_simple_selector_with_scope(sel, "", "", None, 0)
+}
+
+/// Format a simple selector with optional scoping for inner selectors
+fn format_simple_selector_with_scope(
+    sel: &Value,
+    selector: &str,
+    css_source: &str,
+    _css_start: Option<usize>,
+    _depth: usize,
+) -> String {
     let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
     match sel_type {
@@ -853,8 +897,17 @@ fn format_simple_selector(sel: &Value) -> String {
         }
         "PseudoClassSelector" => {
             let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+
+            // Handle :is(), :not(), :has() - these take selector lists as arguments
+            // and need to scope their inner selectors with :where()
             if let Some(args) = sel.get("args") {
-                format!(":{}({})", name, get_selector_text(args))
+                if (name == "is" || name == "not" || name == "has") && !selector.is_empty() {
+                    // Transform the inner selector list with :where() scoping
+                    let inner = transform_is_not_args(args, selector, css_source, name);
+                    format!(":{}({})", name, inner)
+                } else {
+                    format!(":{}({})", name, get_selector_text(args))
+                }
             } else {
                 format!(":{}", name)
             }
@@ -866,6 +919,135 @@ fn format_simple_selector(sel: &Value) -> String {
         "NestingSelector" => "&".to_string(),
         _ => String::new(),
     }
+}
+
+/// Transform the arguments of :is(), :not(), or :has() with :where() scoping
+fn transform_is_not_args(
+    args: &Value,
+    selector: &str,
+    css_source: &str,
+    pseudo_name: &str,
+) -> String {
+    let mut result = String::new();
+
+    // args should be a SelectorList
+    if let Some(children) = args.get("children").and_then(|c| c.as_array()) {
+        for (i, complex_selector) in children.iter().enumerate() {
+            if i > 0 {
+                result.push_str(", ");
+            }
+            result.push_str(&transform_is_not_complex_selector(
+                complex_selector,
+                selector,
+                css_source,
+                pseudo_name,
+            ));
+        }
+    } else {
+        // Fallback to raw text
+        result = get_selector_text(args);
+    }
+
+    result
+}
+
+/// Transform a complex selector inside :is()/:not()/:has() with :where() scoping
+fn transform_is_not_complex_selector(
+    node: &Value,
+    selector: &str,
+    css_source: &str,
+    pseudo_name: &str,
+) -> String {
+    let mut result = String::new();
+
+    if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
+        // For :not(), only scope if there are multiple relative selectors (complex selector with combinators)
+        // For :is() and :has(), always scope
+        let is_simple_selector = children.len() == 1;
+        let should_scope = if pseudo_name == "not" {
+            // :not() with simple selector: don't scope the inside
+            // :not() with complex selector: scope with :where()
+            !is_simple_selector
+        } else {
+            // :is() and :has() always scope their content
+            true
+        };
+
+        for relative_selector in children {
+            // Get combinator
+            if let Some(combinator) = relative_selector.get("combinator") {
+                if let Some(name) = combinator.get("name").and_then(|n| n.as_str()) {
+                    if name != " " || !result.is_empty() {
+                        if name == " " {
+                            result.push(' ');
+                        } else {
+                            result.push_str(&format!(" {} ", name));
+                        }
+                    }
+                }
+            }
+
+            // Get selectors in this relative selector
+            if let Some(selectors) = relative_selector
+                .get("selectors")
+                .and_then(|s| s.as_array())
+            {
+                // Check if this is a :global() selector
+                let is_global = selectors.first().is_some_and(|s| {
+                    s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                        && s.get("name").and_then(|n| n.as_str()) == Some("global")
+                });
+
+                if is_global {
+                    // Handle :global() - extract inner content without scoping
+                    for sel in selectors {
+                        if sel.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                            && sel.get("name").and_then(|n| n.as_str()) == Some("global")
+                        {
+                            if let Some(global_args) = sel.get("args") {
+                                result.push_str(&get_selector_text(global_args));
+                            }
+                        } else {
+                            result.push_str(&format_simple_selector(sel));
+                        }
+                    }
+                } else if should_scope {
+                    // Add :where() scoping for complex selectors
+                    let mut selector_parts = String::new();
+                    let mut last_non_pseudo_idx = None;
+
+                    // Find the last non-pseudo selector
+                    for (idx, sel) in selectors.iter().enumerate() {
+                        let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                        if sel_type != "PseudoElementSelector" && sel_type != "PseudoClassSelector"
+                        {
+                            last_non_pseudo_idx = Some(idx);
+                        }
+                    }
+
+                    for (idx, sel) in selectors.iter().enumerate() {
+                        selector_parts.push_str(&format_simple_selector_with_scope(
+                            sel, selector, css_source, None, 1,
+                        ));
+
+                        // Add :where(.svelte-xyz) scoping after the last non-pseudo selector
+                        if Some(idx) == last_non_pseudo_idx && !selector.is_empty() {
+                            selector_parts.push_str(&format!(":where({})", selector));
+                        }
+                    }
+
+                    result.push_str(&selector_parts);
+                } else {
+                    // For :not() with simple selector, just output without scoping
+                    for sel in selectors {
+                        result.push_str(&format_simple_selector(sel));
+                    }
+                }
+            }
+        }
+    }
+
+    result
 }
 
 /// Get raw selector text from a node

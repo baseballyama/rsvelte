@@ -47,9 +47,7 @@
 			// Always compile client for preview
 			const clientResult = compileClient(input, 'Component');
 
-			const result = mode === 'client'
-				? clientResult
-				: compileServer(input, 'Component');
+			const result = mode === 'client' ? clientResult : compileServer(input, 'Component');
 
 			const endTime = performance.now();
 
@@ -129,13 +127,11 @@
 	});
 
 	const outputLanguage = $derived(
-		activeTab === 'js' ? 'javascript' :
-		activeTab === 'css' ? 'css' : 'json'
+		activeTab === 'js' ? 'javascript' : activeTab === 'css' ? 'css' : 'json'
 	);
 
 	const outputValue = $derived(
-		activeTab === 'js' ? outputJs :
-		activeTab === 'css' ? outputCss : outputAstString
+		activeTab === 'js' ? outputJs : activeTab === 'css' ? outputCss : outputAstString
 	);
 
 	// Highlight range for AST viewer (based on cursor position)
@@ -144,9 +140,7 @@
 	);
 
 	// Highlight range for input editor (based on AST node selection)
-	const inputHighlightRange = $derived<{ start: number; end: number } | null>(
-		selectedAstRange
-	);
+	const inputHighlightRange = $derived<{ start: number; end: number } | null>(selectedAstRange);
 </script>
 
 <svelte:head>
@@ -188,11 +182,7 @@
 			<div class="panel-header">
 				Output
 				<div class="tabs">
-					<button
-						class="tab"
-						class:active={activeTab === 'js'}
-						onclick={() => (activeTab = 'js')}
-					>
+					<button class="tab" class:active={activeTab === 'js'} onclick={() => (activeTab = 'js')}>
 						JS
 					</button>
 					<button
@@ -224,11 +214,7 @@
 					/>
 				{:else}
 					{#key `${activeTab}-${mode}-${outputValue}`}
-						<MonacoEditor
-							value={outputValue}
-							language={outputLanguage}
-							readonly={true}
-						/>
+						<MonacoEditor value={outputValue} language={outputLanguage} readonly={true} />
 					{/key}
 				{/if}
 			</div>

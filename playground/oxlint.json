@@ -1,16 +1,10 @@
 {
-  "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
-  "rules": {
-    "no-unused-vars": "warn",
-    "no-console": "off",
-    "no-unassigned-vars": "off",
-    "no-useless-escape": "off"
-  },
-  "ignorePatterns": [
-    "node_modules",
-    ".svelte-kit",
-    "build",
-    "dist",
-    "*.svelte"
-  ]
+	"$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
+	"rules": {
+		"no-unused-vars": "warn",
+		"no-console": "off",
+		"no-unassigned-vars": "off",
+		"no-useless-escape": "off"
+	},
+	"ignorePatterns": ["node_modules", ".svelte-kit", "build", "dist", "*.svelte"]
 }

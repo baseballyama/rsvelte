@@ -87,8 +87,11 @@
 		if (!node || typeof node !== 'object') return false;
 
 		const obj = node as AstNode;
-		const isMatch = typeof obj.start === 'number' && typeof obj.end === 'number' &&
-			cursorPos >= obj.start && cursorPos <= obj.end;
+		const isMatch =
+			typeof obj.start === 'number' &&
+			typeof obj.end === 'number' &&
+			cursorPos >= obj.start &&
+			cursorPos <= obj.end;
 
 		let hasMatchingChild = false;
 		for (const [key, value] of getEntries(node)) {
@@ -168,19 +171,13 @@
 
 		<div class="node" class:highlighted class:has-position={hasPosition} data-path={path}>
 			{#if entries.length > 0}
-				<button
-					class="toggle"
-					onclick={() => toggleExpand(path)}
-				>
+				<button class="toggle" onclick={() => toggleExpand(path)}>
 					{expanded ? '\u25BC' : '\u25B6'}
 				</button>
 			{/if}
 
 			{#if hasPosition}
-				<button
-					class="node-header clickable"
-					onclick={() => handleNodeClick(obj)}
-				>
+				<button class="node-header clickable" onclick={() => handleNodeClick(obj)}>
 					<span class="preview">{getNodePreview(node)}</span>
 					<span class="position">[{obj.start}-{obj.end}]</span>
 				</button>

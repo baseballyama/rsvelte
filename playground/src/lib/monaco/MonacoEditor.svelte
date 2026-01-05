@@ -141,29 +141,27 @@
 				const startPos = model.getPositionAt(highlightRange.start);
 				const endPos = model.getPositionAt(highlightRange.end);
 
-				decorationIds = editor.deltaDecorations([], [
-					{
-						range: new monaco.Range(
-							startPos.lineNumber,
-							startPos.column,
-							endPos.lineNumber,
-							endPos.column
-						),
-						options: {
-							className: 'highlighted-range',
-							inlineClassName: 'highlighted-range-inline'
+				decorationIds = editor.deltaDecorations(
+					[],
+					[
+						{
+							range: new monaco.Range(
+								startPos.lineNumber,
+								startPos.column,
+								endPos.lineNumber,
+								endPos.column
+							),
+							options: {
+								className: 'highlighted-range',
+								inlineClassName: 'highlighted-range-inline'
+							}
 						}
-					}
-				]);
+					]
+				);
 
 				// Scroll to the highlighted range
 				editor.revealRangeInCenter(
-					new monaco.Range(
-						startPos.lineNumber,
-						startPos.column,
-						endPos.lineNumber,
-						endPos.column
-					)
+					new monaco.Range(startPos.lineNumber, startPos.column, endPos.lineNumber, endPos.column)
 				);
 			}
 		}

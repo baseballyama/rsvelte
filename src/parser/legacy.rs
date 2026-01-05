@@ -1254,7 +1254,24 @@ fn convert_bind_directive(bind: &BindDirective) -> Value {
             serde_json::to_value(name_loc).unwrap(),
         );
     }
-    result.insert("expression".to_string(), bind.expression.as_json().clone());
+
+    // For shorthand bindings (bind:foo), strip the loc field from expression
+    let mut expression = bind.expression.as_json().clone();
+    let is_shorthand = expression
+        .get("type")
+        .and_then(|t| t.as_str())
+        .is_some_and(|t| t == "Identifier")
+        && expression
+            .get("name")
+            .and_then(|n| n.as_str())
+            .is_some_and(|n| n == bind.name.as_str());
+    if is_shorthand {
+        if let Value::Object(ref mut expr_map) = expression {
+            expr_map.remove("loc");
+        }
+    }
+
+    result.insert("expression".to_string(), expression);
     result.insert("modifiers".to_string(), json!(bind.modifiers));
     Value::Object(result)
 }
