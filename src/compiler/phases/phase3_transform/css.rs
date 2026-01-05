@@ -7,6 +7,7 @@ use super::{CssOutput, TransformError};
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use serde_json::Value;
+use std::collections::HashSet;
 
 /// Render the stylesheet for a component.
 pub fn render_stylesheet(
@@ -28,7 +29,18 @@ pub fn render_stylesheet(
     if let Some((css_content, css_start)) = extract_css_content(source) {
         // Parse the CSS with proper start offset
         let children = crate::parser::css::parse_css(&css_content, css_start);
-        let code = transform_css(&children, &selector, hash, &css_content, css_start);
+
+        // Collect keyframe names for animation value replacement
+        let keyframes = collect_keyframe_names(&children);
+
+        // Transform the CSS
+        let mut code = transform_css(&children, &selector, hash, &css_content, css_start);
+
+        // Post-process: replace animation keyframe references
+        if !keyframes.is_empty() {
+            code = replace_animation_keyframes(&code, hash, &keyframes);
+        }
+
         Ok(CssOutput { code, map: None })
     } else {
         Ok(CssOutput {
@@ -36,6 +48,76 @@ pub fn render_stylesheet(
             map: None,
         })
     }
+}
+
+/// Collect all keyframe names defined in the stylesheet
+fn collect_keyframe_names(children: &[Value]) -> HashSet<String> {
+    let mut keyframes = HashSet::new();
+    for child in children {
+        collect_keyframe_names_from_node(child, &mut keyframes);
+    }
+    keyframes
+}
+
+/// Recursively collect keyframe names from a node
+fn collect_keyframe_names_from_node(node: &Value, keyframes: &mut HashSet<String>) {
+    let node_type = node.get("type").and_then(|t| t.as_str());
+    match node_type {
+        Some("Atrule") => {
+            let name = node.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            if matches!(
+                name,
+                "keyframes" | "-webkit-keyframes" | "-moz-keyframes" | "-o-keyframes"
+            ) {
+                if let Some(prelude) = node.get("prelude").and_then(|p| p.as_str()) {
+                    let keyframe_name = prelude.trim();
+                    if !keyframe_name.starts_with("-global-") {
+                        keyframes.insert(keyframe_name.to_string());
+                    }
+                }
+            }
+            if let Some(block) = node.get("block") {
+                if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
+                    for child in children {
+                        collect_keyframe_names_from_node(child, keyframes);
+                    }
+                }
+            }
+        }
+        Some("Rule") => {
+            if let Some(block) = node.get("block") {
+                if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
+                    for child in children {
+                        collect_keyframe_names_from_node(child, keyframes);
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Replace animation keyframe name references in the CSS output
+fn replace_animation_keyframes(css: &str, hash: &str, keyframes: &HashSet<String>) -> String {
+    let mut result = css.to_string();
+    for keyframe in keyframes {
+        let patterns = [
+            format!("animation: {}", keyframe),
+            format!("animation:{}", keyframe),
+            format!("-webkit-animation: {}", keyframe),
+            format!("-webkit-animation:{}", keyframe),
+        ];
+        let replacements = [
+            format!("animation: {}-{}", hash, keyframe),
+            format!("animation:{}-{}", hash, keyframe),
+            format!("-webkit-animation: {}-{}", hash, keyframe),
+            format!("-webkit-animation:{}-{}", hash, keyframe),
+        ];
+        for (pattern, replacement) in patterns.iter().zip(replacements.iter()) {
+            result = result.replace(pattern, replacement);
+        }
+    }
+    result
 }
 
 /// Extract CSS content from source (finds the <style> block)

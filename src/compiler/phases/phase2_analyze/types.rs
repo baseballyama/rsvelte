@@ -209,20 +209,30 @@ impl ComponentAnalysis {
 }
 
 /// Derive component name from filename.
+/// Matches Svelte's get_component_name() in phases/2-analyze/index.js
 fn derive_component_name(filename: &str) -> String {
-    let path = std::path::Path::new(filename);
-
-    // If the file is named "index.svelte", use the parent directory name
-    let stem = if path.file_stem().and_then(|s| s.to_str()) == Some("index") {
-        path.parent()
-            .and_then(|p| p.file_name())
-            .and_then(|s| s.to_str())
-            .unwrap_or("Component")
+    // Split by path separators (like JS: filename.split(/[/\\]/))
+    let parts: Vec<&str> = filename.split(['/', '\\']).collect();
+    let basename = parts.last().unwrap_or(&"Component");
+    let last_dir = if parts.len() > 1 {
+        parts.get(parts.len() - 2).copied()
     } else {
-        path.file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("Component")
+        None
     };
+
+    // Remove .svelte extension
+    let mut name = basename.replace(".svelte", "");
+
+    // If name is "index" and there's a parent dir (not "src"), use the parent dir name
+    if name == "index" {
+        if let Some(dir) = last_dir {
+            if dir != "src" && !dir.is_empty() {
+                name = dir.to_string();
+            }
+        }
+    }
+
+    let stem = if name.is_empty() { "Component" } else { &name };
 
     // Convert to component name format
     let parts: Vec<&str> = stem
@@ -337,6 +347,14 @@ pub struct CssAnalysis {
 
     /// IDs used in the template (for unused selector detection)
     pub used_ids: std::collections::HashSet<String>,
+
+    /// Whether there are dynamic elements (svelte:element with dynamic this)
+    /// If true, type selectors cannot be safely pruned
+    pub has_dynamic_elements: bool,
+
+    /// Whether there are dynamic class expressions (spreads, complex expressions)
+    /// If true, class selectors cannot be safely pruned
+    pub has_dynamic_classes: bool,
 }
 
 /// Export information.

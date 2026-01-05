@@ -2,34 +2,28 @@
 //!
 //! These tests verify that the compiler correctly scopes CSS selectors
 //! and generates the expected CSS output.
+//!
+//! Run `npm run generate-fixtures` to generate the expected outputs.
+
+mod common;
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
+use common::{
+    ensure_fixtures_exist, get_fixture_samples, load_fixture_output, normalize_css, svelte_path,
+    write_actual_output,
+};
 use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
-use walkdir::WalkDir;
 
-/// Get the path to the Svelte submodule.
-fn svelte_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("svelte")
-}
+/// Load input from Svelte test suite.
+fn load_input(sample_name: &str) -> Option<String> {
+    let input_path = svelte_path()
+        .join("packages/svelte/tests/css/samples")
+        .join(sample_name)
+        .join("input.svelte");
 
-/// Get all CSS test samples.
-fn get_css_samples() -> Vec<PathBuf> {
-    let samples_dir = svelte_path().join("packages/svelte/tests/css/samples");
-
-    if !samples_dir.exists() {
-        return Vec::new();
-    }
-
-    WalkDir::new(&samples_dir)
-        .min_depth(1)
-        .max_depth(1)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_dir())
-        .map(|e| e.path().to_path_buf())
-        .collect()
+    fs::read_to_string(&input_path).ok()
 }
 
 /// A CSS test fixture.
@@ -38,29 +32,22 @@ struct CssFixture {
     name: String,
     input: String,
     expected_css: Option<String>,
-    expected_html: Option<String>,
 }
 
-/// Load a CSS test fixture.
+/// Load a CSS test fixture from fixtures directory.
 fn load_css_fixture(sample_dir: &Path) -> Option<CssFixture> {
-    let input_path = sample_dir.join("input.svelte");
-    let expected_css_path = sample_dir.join("expected.css");
-    let expected_html_path = sample_dir.join("expected.html");
-
-    if !input_path.exists() {
-        return None;
-    }
-
-    let input = fs::read_to_string(&input_path).ok()?;
-    let expected_css = fs::read_to_string(&expected_css_path).ok();
-    let expected_html = fs::read_to_string(&expected_html_path).ok();
     let name = sample_dir.file_name()?.to_str()?.to_string();
+
+    // Load input from Svelte test suite
+    let input = load_input(&name)?;
+
+    // Load expected CSS from fixtures
+    let expected_css = load_fixture_output("css", &name, "css.css");
 
     Some(CssFixture {
         name,
         input,
         expected_css,
-        expected_html,
     })
 }
 
@@ -75,37 +62,19 @@ struct TestResult {
     skipped: bool,
 }
 
-/// Normalize CSS for comparison.
-/// This replaces hash values (svelte-XXXX) with a placeholder (svelte-xyz)
-/// so that actual and expected CSS can be compared.
-fn normalize_css(css: &str) -> String {
-    // First, normalize the hash values
-    let hash_re = regex::Regex::new(r"svelte-[a-z0-9]+").unwrap();
-    let normalized = hash_re.replace_all(css, "svelte-xyz");
-
-    // Then normalize whitespace
-    normalized
-        .lines()
-        .map(|line| line.trim())
-        .filter(|line| !line.is_empty())
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
 /// Run a single CSS test with timeout.
 fn run_css_test(fixture: &CssFixture) -> TestResult {
-    let name = fixture.name.clone();
     let input = fixture.input.clone();
 
     // Use a channel to implement timeout
     let (tx, rx) = std::sync::mpsc::channel();
-    let name_clone = name.clone();
 
     std::thread::spawn(move || {
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            // Use "input.svelte" to match the filename used by Svelte fixture generator
             let options = CompileOptions {
                 generate: GenerateMode::Client,
-                filename: Some(format!("{}/input.svelte", name_clone)),
+                filename: Some("input.svelte".to_string()),
                 css: CssMode::External,
                 ..Default::default()
             };
@@ -139,6 +108,9 @@ fn run_css_test(fixture: &CssFixture) -> TestResult {
         Ok(compile_result) => match compile_result {
             Ok(result) => {
                 let actual_css = result.css.map(|c| c.code).unwrap_or_default();
+
+                // Always write actual output for comparison
+                write_actual_output("css", &fixture.name, "css.css", &actual_css);
 
                 // Compare CSS if expected is provided
                 if let Some(expected_css) = &fixture.expected_css {
@@ -176,29 +148,35 @@ fn run_css_test(fixture: &CssFixture) -> TestResult {
                     }
                 }
             }
-            Err(e) => TestResult {
-                name: fixture.name.clone(),
-                compiled: false,
-                css_matches: None,
-                error_message: Some(format!("Compilation error: {:?}", e)),
-                skipped: false,
-            },
+            Err(e) => {
+                // Write error to actual output
+                write_actual_output("css", &fixture.name, "error.txt", &format!("{:?}", e));
+
+                TestResult {
+                    name: fixture.name.clone(),
+                    compiled: false,
+                    css_matches: None,
+                    error_message: Some(format!("Compilation error: {:?}", e)),
+                    skipped: false,
+                }
+            }
         },
     }
 }
 
 #[test]
 fn test_css() {
-    let samples = get_css_samples();
+    ensure_fixtures_exist();
+
+    let samples = get_fixture_samples("css");
 
     if samples.is_empty() {
-        eprintln!("Warning: No CSS samples found. Make sure the Svelte submodule is initialized.");
-        return;
+        panic!("No CSS fixtures found. Run `npm run generate-fixtures` first.");
     }
 
     let fixtures: Vec<CssFixture> = samples
         .iter()
-        .filter_map(|sample_dir| load_css_fixture(sample_dir))
+        .filter_map(|sample_dir| load_css_fixture(sample_dir.as_path()))
         .collect();
 
     // Run sequentially
@@ -265,27 +243,24 @@ fn test_css() {
 /// List all available CSS fixtures.
 #[test]
 fn list_css_fixtures() {
+    ensure_fixtures_exist();
+
     println!("\n=== Available CSS Fixtures ===\n");
 
-    let samples = get_css_samples();
+    let samples = get_fixture_samples("css");
     println!("CSS samples ({}):", samples.len());
 
     println!("\nFirst 30 samples:");
     for sample in samples.iter().take(30) {
         let name = sample.file_name().unwrap().to_str().unwrap();
-        let has_expected_css = sample.join("expected.css").exists();
-        let has_expected_html = sample.join("expected.html").exists();
-        let has_config = sample.join("_config.js").exists();
+        let has_expected_css = load_fixture_output("css", name, "css.css").is_some();
+        let has_warnings = load_fixture_output("css", name, "warnings.json").is_some();
 
-        let markers = match (has_expected_css, has_expected_html, has_config) {
-            (true, true, true) => "[css+html+config]",
-            (true, true, false) => "[css+html]",
-            (true, false, true) => "[css+config]",
-            (true, false, false) => "[css]",
-            (false, true, true) => "[html+config]",
-            (false, true, false) => "[html]",
-            (false, false, true) => "[config]",
-            (false, false, false) => "",
+        let markers = match (has_expected_css, has_warnings) {
+            (true, true) => "[css+warnings]",
+            (true, false) => "[css]",
+            (false, true) => "[warnings]",
+            (false, false) => "",
         };
 
         println!("  - {} {}", name, markers);

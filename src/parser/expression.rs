@@ -2412,7 +2412,7 @@ fn convert_array_pattern(
     obj.insert("end".to_string(), Value::Number((end as i64).into()));
     obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
 
-    let elements: Vec<Value> = arr_pat
+    let mut elements: Vec<Value> = arr_pat
         .elements
         .iter()
         .map(|elem| match elem {
@@ -2420,6 +2420,30 @@ fn convert_array_pattern(
             None => Value::Null,
         })
         .collect();
+
+    // Add rest element if present
+    if let Some(rest) = &arr_pat.rest {
+        let rest_start = offset + rest.span.start as usize;
+        let rest_end = offset + rest.span.end as usize;
+
+        let mut rest_obj = Map::new();
+        rest_obj.insert("type".to_string(), Value::String("RestElement".to_string()));
+        rest_obj.insert(
+            "start".to_string(),
+            Value::Number((rest_start as i64).into()),
+        );
+        rest_obj.insert("end".to_string(), Value::Number((rest_end as i64).into()));
+        rest_obj.insert(
+            "loc".to_string(),
+            create_loc(rest_start, rest_end, line_offsets),
+        );
+        rest_obj.insert(
+            "argument".to_string(),
+            convert_binding_pattern(&rest.argument, offset, line_offsets),
+        );
+        elements.push(Value::Object(rest_obj));
+    }
+
     obj.insert("elements".to_string(), Value::Array(elements));
 
     Value::Object(obj)
@@ -2655,7 +2679,7 @@ fn convert_array_pattern_with_adjustment(
         create_loc_for_binding(start, end, line_offsets),
     );
 
-    let elements: Vec<Value> = arr_pat
+    let mut elements: Vec<Value> = arr_pat
         .elements
         .iter()
         .map(|elem| match elem {
@@ -2665,6 +2689,35 @@ fn convert_array_pattern_with_adjustment(
             None => Value::Null,
         })
         .collect();
+
+    // Add rest element if present
+    if let Some(rest) = &arr_pat.rest {
+        let rest_start = doc_offset + rest.span.start as usize - prefix_len;
+        let rest_end = doc_offset + rest.span.end as usize - prefix_len;
+
+        let mut rest_obj = Map::new();
+        rest_obj.insert("type".to_string(), Value::String("RestElement".to_string()));
+        rest_obj.insert(
+            "start".to_string(),
+            Value::Number((rest_start as i64).into()),
+        );
+        rest_obj.insert("end".to_string(), Value::Number((rest_end as i64).into()));
+        rest_obj.insert(
+            "loc".to_string(),
+            create_loc_for_binding(rest_start, rest_end, line_offsets),
+        );
+        rest_obj.insert(
+            "argument".to_string(),
+            convert_binding_pattern_with_adjustment(
+                &rest.argument,
+                doc_offset,
+                prefix_len,
+                line_offsets,
+            ),
+        );
+        elements.push(Value::Object(rest_obj));
+    }
+
     obj.insert("elements".to_string(), Value::Array(elements));
 
     Value::Object(obj)

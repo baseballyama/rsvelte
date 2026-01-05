@@ -66,6 +66,12 @@ fn analyze_node(
             analysis.uses_render_tags = true;
             analyze_render_tag(tag, analysis)?;
         }
+        TemplateNode::SvelteElement(elem) => {
+            // svelte:element with dynamic this - can be any element
+            // So we can't safely prune type selectors
+            analysis.css.has_dynamic_elements = true;
+            analyze_fragment(&elem.fragment, analysis)?;
+        }
         _ => {
             // Handle other node types as needed
         }
@@ -144,7 +150,8 @@ fn extract_classes_from_value(
             // Boolean class attribute, no value
         }
         AttributeValue::Expression(_) => {
-            // Dynamic class, can't statically analyze
+            // Dynamic class, can't statically analyze - mark as having dynamic classes
+            analysis.css.has_dynamic_classes = true;
         }
     }
 }

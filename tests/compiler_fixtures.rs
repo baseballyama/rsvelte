@@ -1,87 +1,37 @@
 //! Fixture tests for the Svelte compiler.
 //!
-//! These tests run against the official Svelte test suite snapshot fixtures.
-//! They compare the output of our Rust compiler with the expected JavaScript output.
+//! These tests run against fixtures generated from the official Svelte compiler.
+//! Run `npm run generate-fixtures` to generate the expected outputs.
+
+mod common;
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
+use common::{
+    ensure_fixtures_exist, get_fixture_samples, load_fixture_output, svelte_path,
+    write_actual_output,
+};
 use rayon::prelude::*;
 use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
-use walkdir::WalkDir;
 
-/// Get the path to the Svelte submodule.
-fn svelte_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("svelte")
-}
+/// Load input from Svelte test suite.
+fn load_input(sample_name: &str) -> Option<String> {
+    let input_path = svelte_path()
+        .join("packages/svelte/tests/snapshot/samples")
+        .join(sample_name)
+        .join("index.svelte");
 
-/// Get all snapshot test samples from the Svelte test suite.
-fn get_snapshot_samples() -> Vec<PathBuf> {
-    let samples_dir = svelte_path().join("packages/svelte/tests/snapshot/samples");
-
-    if !samples_dir.exists() {
-        return Vec::new();
-    }
-
-    WalkDir::new(&samples_dir)
-        .min_depth(1)
-        .max_depth(1)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_dir())
-        .map(|e| e.path().to_path_buf())
-        .collect()
-}
-
-/// Load a snapshot test fixture.
-///
-/// Returns (name, input_source, expected_client_js, expected_server_js).
-fn load_snapshot_fixture(sample_dir: &Path) -> Option<SnapshotFixture> {
-    let input_path = sample_dir.join("index.svelte");
-
-    if !input_path.exists() {
-        return None;
-    }
-
-    let input = fs::read_to_string(&input_path).ok()?;
-    let name = sample_dir.file_name()?.to_str()?.to_string();
-
-    // Load expected outputs
-    let expected_client = sample_dir.join("_expected/client/index.svelte.js");
-    let expected_server = sample_dir.join("_expected/server/index.svelte.js");
-
-    let client_js = fs::read_to_string(&expected_client).ok();
-    let server_js = fs::read_to_string(&expected_server).ok();
-
-    // If neither expected output exists, skip this fixture
-    if client_js.is_none() && server_js.is_none() {
-        return None;
-    }
-
-    Some(SnapshotFixture {
-        name,
-        input,
-        expected_client_js: client_js,
-        expected_server_js: server_js,
-        sample_dir: sample_dir.to_path_buf(),
-        requires_unsupported_options: requires_unsupported_options(sample_dir),
-    })
-}
-
-/// A snapshot test fixture.
-struct SnapshotFixture {
-    name: String,
-    input: String,
-    expected_client_js: Option<String>,
-    expected_server_js: Option<String>,
-    sample_dir: PathBuf,
-    /// Indicates if this test requires unsupported compile options
-    requires_unsupported_options: bool,
+    fs::read_to_string(&input_path).ok()
 }
 
 /// Check if a test requires unsupported compile options by reading _config.js
-fn requires_unsupported_options(sample_dir: &Path) -> bool {
-    let config_path = sample_dir.join("_config.js");
+fn requires_unsupported_options(sample_name: &str) -> bool {
+    let config_path = svelte_path()
+        .join("packages/svelte/tests/snapshot/samples")
+        .join(sample_name)
+        .join("_config.js");
+
     if let Ok(config) = fs::read_to_string(&config_path) {
         // Check for unsupported options
         if config.contains("async: true") {
@@ -95,6 +45,41 @@ fn requires_unsupported_options(sample_dir: &Path) -> bool {
         }
     }
     false
+}
+
+/// A snapshot test fixture.
+struct SnapshotFixture {
+    name: String,
+    input: String,
+    expected_client_js: Option<String>,
+    expected_server_js: Option<String>,
+    /// Indicates if this test requires unsupported compile options
+    requires_unsupported_options: bool,
+}
+
+/// Load a snapshot test fixture from fixtures directory.
+fn load_snapshot_fixture(sample_dir: &Path) -> Option<SnapshotFixture> {
+    let name = sample_dir.file_name()?.to_str()?.to_string();
+
+    // Load input from Svelte test suite
+    let input = load_input(&name)?;
+
+    // Load expected outputs from fixtures
+    let expected_client_js = load_fixture_output("snapshot", &name, "client.js");
+    let expected_server_js = load_fixture_output("snapshot", &name, "server.js");
+
+    // If neither expected output exists, skip this fixture
+    if expected_client_js.is_none() && expected_server_js.is_none() {
+        return None;
+    }
+
+    Some(SnapshotFixture {
+        name: name.clone(),
+        input,
+        expected_client_js,
+        expected_server_js,
+        requires_unsupported_options: requires_unsupported_options(&name),
+    })
 }
 
 /// Test result for a single fixture.
@@ -116,8 +101,6 @@ impl TestResult {
 }
 
 /// Normalize JavaScript code for comparison.
-///
-/// This removes/normalizes things that may differ between implementations.
 fn normalize_js(js: &str) -> String {
     // First pass: normalize quotes in the entire content
     let js = normalize_quotes(js);
@@ -137,8 +120,6 @@ fn normalize_js(js: &str) -> String {
 }
 
 /// Normalize quotes in JavaScript code.
-/// Converts double quotes to single quotes unconditionally.
-/// This is safe because the Svelte test cases use single quotes consistently.
 fn normalize_quotes(js: &str) -> String {
     let mut result = String::new();
     let chars: Vec<char> = js.chars().collect();
@@ -205,7 +186,7 @@ fn collapse_multiline_constructs(js: &str) -> String {
             {
                 i += 1;
             }
-            // Add single space if not after opening bracket or before closing
+            // Add single space only if needed
             let last_char = result.chars().last();
             let next_char = chars.get(i + 1);
             if last_char != Some('[')
@@ -269,68 +250,78 @@ fn run_snapshot_fixture_test(fixture: &SnapshotFixture) -> TestResult {
 
     // Test client-side compilation
     if let Some(expected_client) = &fixture.expected_client_js {
+        // Use "index.svelte" to match the filename used by Svelte fixture generator
         let client_options = CompileOptions {
             generate: GenerateMode::Client,
-            filename: Some(format!("{}/index.svelte", fixture.name)),
+            filename: Some("index.svelte".to_string()),
             ..Default::default()
         };
 
         match compile(&fixture.input, client_options) {
             Ok(compile_result) => {
+                // Always write actual output for comparison
+                write_actual_output(
+                    "snapshot",
+                    &fixture.name,
+                    "client.js",
+                    &compile_result.js.code,
+                );
+
                 if compare_js(&compile_result.js.code, expected_client) {
                     result.client_passed = Some(true);
                 } else {
                     result.client_passed = Some(false);
-
-                    // Write actual output for debugging
-                    let actual_dir = fixture.sample_dir.join("_actual/client");
-                    let _ = fs::create_dir_all(&actual_dir);
-                    let actual_path = actual_dir.join("index.svelte.js");
-                    let _ = fs::write(&actual_path, &compile_result.js.code);
-
-                    result.client_error = Some(format!(
-                        "Client JS mismatch. Actual output written to {:?}",
-                        actual_path
-                    ));
+                    result.client_error = Some("Client JS mismatch".to_string());
                 }
             }
             Err(e) => {
                 result.client_passed = Some(false);
                 result.client_error = Some(format!("Client compilation error: {}", e));
+                write_actual_output(
+                    "snapshot",
+                    &fixture.name,
+                    "client_error.txt",
+                    &format!("{:?}", e),
+                );
             }
         }
     }
 
     // Test server-side compilation
     if let Some(expected_server) = &fixture.expected_server_js {
+        // Use "index.svelte" to match the filename used by Svelte fixture generator
         let server_options = CompileOptions {
             generate: GenerateMode::Server,
-            filename: Some(format!("{}/index.svelte", fixture.name)),
+            filename: Some("index.svelte".to_string()),
             ..Default::default()
         };
 
         match compile(&fixture.input, server_options) {
             Ok(compile_result) => {
+                // Always write actual output for comparison
+                write_actual_output(
+                    "snapshot",
+                    &fixture.name,
+                    "server.js",
+                    &compile_result.js.code,
+                );
+
                 if compare_js(&compile_result.js.code, expected_server) {
                     result.server_passed = Some(true);
                 } else {
                     result.server_passed = Some(false);
-
-                    // Write actual output for debugging
-                    let actual_dir = fixture.sample_dir.join("_actual/server");
-                    let _ = fs::create_dir_all(&actual_dir);
-                    let actual_path = actual_dir.join("index.svelte.js");
-                    let _ = fs::write(&actual_path, &compile_result.js.code);
-
-                    result.server_error = Some(format!(
-                        "Server JS mismatch. Actual output written to {:?}",
-                        actual_path
-                    ));
+                    result.server_error = Some("Server JS mismatch".to_string());
                 }
             }
             Err(e) => {
                 result.server_passed = Some(false);
                 result.server_error = Some(format!("Server compilation error: {}", e));
+                write_actual_output(
+                    "snapshot",
+                    &fixture.name,
+                    "server_error.txt",
+                    &format!("{:?}", e),
+                );
             }
         }
     }
@@ -340,18 +331,17 @@ fn run_snapshot_fixture_test(fixture: &SnapshotFixture) -> TestResult {
 
 #[test]
 fn test_compiler_snapshot_fixtures() {
-    let samples = get_snapshot_samples();
+    ensure_fixtures_exist();
+
+    let samples = get_fixture_samples("snapshot");
 
     if samples.is_empty() {
-        eprintln!(
-            "Warning: No snapshot samples found. Make sure the Svelte submodule is initialized."
-        );
-        return;
+        panic!("No snapshot fixtures found. Run `npm run generate-fixtures` first.");
     }
 
     let fixtures: Vec<SnapshotFixture> = samples
         .iter()
-        .filter_map(|sample_dir| load_snapshot_fixture(sample_dir))
+        .filter_map(|sample_dir| load_snapshot_fixture(sample_dir.as_path()))
         .collect();
 
     let results: Vec<TestResult> = fixtures.par_iter().map(run_snapshot_fixture_test).collect();
@@ -421,15 +411,17 @@ fn test_compiler_snapshot_fixtures() {
 /// Test that lists all available snapshot fixtures.
 #[test]
 fn list_snapshot_fixtures() {
+    ensure_fixtures_exist();
+
     println!("\n=== Available Snapshot Fixtures ===\n");
 
-    let samples = get_snapshot_samples();
+    let samples = get_fixture_samples("snapshot");
     println!("Snapshot samples ({}):", samples.len());
 
     for sample in &samples {
         let name = sample.file_name().unwrap().to_str().unwrap();
-        let has_client = sample.join("_expected/client/index.svelte.js").exists();
-        let has_server = sample.join("_expected/server/index.svelte.js").exists();
+        let has_client = load_fixture_output("snapshot", name, "client.js").is_some();
+        let has_server = load_fixture_output("snapshot", name, "server.js").is_some();
 
         let modes = match (has_client, has_server) {
             (true, true) => "[client, server]",

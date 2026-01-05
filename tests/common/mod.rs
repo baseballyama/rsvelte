@@ -3,6 +3,8 @@
 //! This module provides utilities for loading and comparing test fixtures
 //! generated from the official Svelte compiler.
 
+#![allow(dead_code)]
+
 use regex::Regex;
 use std::fs;
 use std::path::PathBuf;
@@ -205,6 +207,24 @@ pub fn load_fixture_errors(category: &str, sample: &str) -> Vec<FixtureError> {
 
 /// Load single error from fixture (for compiler-errors tests).
 pub fn load_fixture_error(category: &str, sample: &str) -> Option<FixtureError> {
-    load_fixture_output(category, sample, "error.json")
-        .and_then(|s| serde_json::from_str(&s).ok())
+    load_fixture_output(category, sample, "error.json").and_then(|s| serde_json::from_str(&s).ok())
+}
+
+/// Get path to actual output directory for a sample.
+pub fn actual_output_path(category: &str, sample: &str) -> PathBuf {
+    fixtures_path().join(category).join(sample).join("_actual")
+}
+
+/// Write actual output to fixture directory for comparison.
+pub fn write_actual_output(category: &str, sample: &str, file: &str, content: &str) {
+    let actual_dir = actual_output_path(category, sample);
+    let _ = fs::create_dir_all(&actual_dir);
+    let _ = fs::write(actual_dir.join(file), content);
+}
+
+/// Write actual JSON output to fixture directory.
+pub fn write_actual_json<T: serde::Serialize>(category: &str, sample: &str, file: &str, value: &T) {
+    if let Ok(json) = serde_json::to_string_pretty(value) {
+        write_actual_output(category, sample, file, &json);
+    }
 }

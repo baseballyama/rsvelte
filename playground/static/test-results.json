@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-01-05T13:53:25.587662+00:00",
-  "commit_sha": "7b30150",
+  "generated_at": "2026-01-05T14:29:04.760225+00:00",
+  "commit_sha": "31c6bae",
   "summary": {
     "total": 3165,
     "passed": 243,
@@ -849,7 +849,8 @@
         },
         {
           "name": "css-vars",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "custom-css-hash",
@@ -1024,8 +1025,7 @@
         },
         {
           "name": "global-local-nested",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "global-nested-block",

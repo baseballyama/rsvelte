@@ -12,7 +12,8 @@ use crate::ast::{
     AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, Comment, Component,
     CustomElementOptions, EachBlock, ExpressionTag, Fragment, FragmentType, HtmlTag, IfBlock,
     RegularElement, RenderTag, Root, RootType, ScriptContext, SlotElement, SnippetBlock,
-    SvelteDynamicElement, SvelteElement, SvelteOptions, TemplateNode, Text, TitleElement,
+    SvelteComponentElement, SvelteDynamicElement, SvelteElement, SvelteOptions, TemplateNode, Text,
+    TitleElement,
 };
 use crate::error::{ParseError, ParseResult};
 
@@ -244,6 +245,11 @@ impl<'a> Parser<'a> {
                 break;
             }
 
+            // Check for implicit closing - if the next tag would implicitly close the current element
+            if self.should_implicitly_close() {
+                break;
+            }
+
             // Skip trailing whitespace at EOF - don't parse it as a Text node
             if self.remaining_is_whitespace_only() {
                 break;
@@ -386,7 +392,9 @@ impl<'a> Parser<'a> {
             return self.parse_script_tag(start, attributes);
         }
 
-        if name == "style" {
+        // Only extract style to root if not inside svelte:head
+        // When inside svelte:head, style should remain as a child element
+        if name == "style" && !self.is_inside_svelte_head() {
             return self.parse_style_tag(start, attributes);
         }
 
@@ -400,6 +408,11 @@ impl<'a> Parser<'a> {
 
         let is_void = is_void_element(&name);
         let element_type = self.get_element_type(&name, &attributes);
+
+        // Check if this is a raw text element (textarea, or style inside svelte:head)
+        // These elements parse their content as raw text, not HTML
+        let is_raw_text_element =
+            name == "textarea" || (name == "style" && self.is_inside_svelte_head());
 
         // Create fragment for children
         let mut fragment = Fragment {
@@ -416,7 +429,12 @@ impl<'a> Parser<'a> {
                 element_type,
             });
 
-            fragment = self.parse_fragment()?;
+            // For raw text elements, parse content as raw text instead of HTML
+            if is_raw_text_element {
+                fragment = self.parse_raw_text_content(&name)?;
+            } else {
+                fragment = self.parse_fragment()?;
+            }
 
             // Handle closing tag or block close
             if self.match_str("</") {
@@ -427,7 +445,14 @@ impl<'a> Parser<'a> {
 
                 // Verify matching tag
                 if closing_name == name {
-                    // Matching close tag - consume it
+                    // For raw text elements, the closing tag might have garbage before >
+                    // (e.g., </textarea\n\n\n</textarea\n\n>)
+                    // Scan forward to find the actual >
+                    if is_raw_text_element {
+                        while !self.is_eof() && self.current_char() != '>' {
+                            self.advance();
+                        }
+                    }
                     self.eat(">"); // consume '>'
                 } else {
                     // Mismatched close tag - in loose mode, auto-close current element
@@ -537,6 +562,32 @@ impl<'a> Parser<'a> {
                 attributes,
                 fragment,
             }),
+            ElementType::SvelteComponent => {
+                // Extract the "this" attribute to get the expression
+                let expression = self.extract_this_attribute(&attributes);
+
+                // Filter out the "this" attribute from the list
+                let filtered_attrs: Vec<_> = attributes
+                    .into_iter()
+                    .filter(|attr| {
+                        if let crate::ast::Attribute::Attribute(node) = attr {
+                            node.name.as_str() != "this"
+                        } else {
+                            true
+                        }
+                    })
+                    .collect();
+
+                TemplateNode::SvelteComponent(SvelteComponentElement {
+                    start: start as u32,
+                    end,
+                    name: name.clone(),
+                    name_loc: Some(name_loc_with_char),
+                    attributes: filtered_attrs,
+                    fragment,
+                    expression,
+                })
+            }
             ElementType::SvelteElement => {
                 // Extract the "this" attribute to get the tag expression
                 let tag = self.extract_this_attribute(&attributes);
@@ -586,13 +637,19 @@ impl<'a> Parser<'a> {
                             return expr_tag.expression.clone();
                         }
                         AttributeValue::Sequence(parts) => {
-                            // For quoted string values like this="div", extract the string
+                            // Handle single-item sequences
                             if parts.len() == 1 {
-                                if let AttributeValuePart::Text(text) = &parts[0] {
-                                    // Return a string literal expression
-                                    return Expression::from_json(serde_json::json!(
-                                        text.data.as_str()
-                                    ));
+                                match &parts[0] {
+                                    AttributeValuePart::Text(text) => {
+                                        // For quoted string values like this="div"
+                                        return Expression::from_json(serde_json::json!(
+                                            text.data.as_str()
+                                        ));
+                                    }
+                                    AttributeValuePart::ExpressionTag(expr_tag) => {
+                                        // For quoted expression like this="{expr}"
+                                        return expr_tag.expression.clone();
+                                    }
                                 }
                             }
                         }
@@ -683,6 +740,112 @@ impl<'a> Parser<'a> {
                 }
             )
         })
+    }
+
+    /// Check if current position starts a valid closing tag (e.g., `</textarea>` or `</textarea  >`).
+    /// For RCDATA elements like textarea, a valid closing tag is `</tagname` followed by
+    /// either immediately by `>` or whitespace, then anything until `>`.
+    fn is_valid_closing_tag(&self, closing_tag_start: &str) -> bool {
+        if !self.match_str(closing_tag_start) {
+            return false;
+        }
+
+        // Look ahead past the closing tag start
+        let after_tag = self.index + closing_tag_start.len();
+        if after_tag >= self.source.len() {
+            return false;
+        }
+
+        let next_char = self.source[after_tag..].chars().next();
+        match next_char {
+            Some('>') => true,                    // </textarea>
+            Some(c) if c.is_whitespace() => true, // </textarea ...> (valid, will find > eventually)
+            _ => false,                           // </textaread (not a valid closing tag)
+        }
+    }
+
+    /// Check if the next opening tag should implicitly close the current element.
+    /// This handles HTML5 optional end tags (e.g., <li> closes a previous <li>).
+    fn should_implicitly_close(&self) -> bool {
+        // Get the IMMEDIATE parent element from the stack (not separated by blocks)
+        // We only implicitly close if the direct parent is an element that can be implicitly closed
+        let current_element = match self.stack.last() {
+            Some(StackEntry::Element { name, .. }) => name.as_str(),
+            _ => return false, // If parent is a block ({#if}, {#each}, etc.), don't implicitly close
+        };
+
+        // Check if the next tag would implicitly close the current element
+        if !self.match_str("<") || self.match_str("</") || self.match_str("<!") {
+            return false;
+        }
+
+        // Look ahead to get the next tag name
+        let remaining = &self.source[self.index + 1..]; // skip '<'
+        let next_tag: String = remaining
+            .chars()
+            .take_while(|c| c.is_alphanumeric() || *c == '-' || *c == ':')
+            .collect();
+
+        if next_tag.is_empty() {
+            return false;
+        }
+
+        let next_tag = next_tag.to_lowercase();
+
+        // Check implicit closing rules
+        match current_element {
+            // <li> is implicitly closed by another <li>
+            "li" => next_tag == "li",
+            // <p> is implicitly closed by many block-level elements
+            "p" => matches!(
+                next_tag.as_str(),
+                "address"
+                    | "article"
+                    | "aside"
+                    | "blockquote"
+                    | "details"
+                    | "div"
+                    | "dl"
+                    | "fieldset"
+                    | "figcaption"
+                    | "figure"
+                    | "footer"
+                    | "form"
+                    | "h1"
+                    | "h2"
+                    | "h3"
+                    | "h4"
+                    | "h5"
+                    | "h6"
+                    | "header"
+                    | "hgroup"
+                    | "hr"
+                    | "main"
+                    | "menu"
+                    | "nav"
+                    | "ol"
+                    | "p"
+                    | "pre"
+                    | "section"
+                    | "table"
+                    | "ul"
+            ),
+            // <dt> is implicitly closed by <dt> or <dd>
+            "dt" => matches!(next_tag.as_str(), "dt" | "dd"),
+            // <dd> is implicitly closed by <dt> or <dd>
+            "dd" => matches!(next_tag.as_str(), "dt" | "dd"),
+            // <td> is implicitly closed by <td> or <th>
+            "td" => matches!(next_tag.as_str(), "td" | "th"),
+            // <th> is implicitly closed by <td> or <th>
+            "th" => matches!(next_tag.as_str(), "td" | "th"),
+            // <tr> is implicitly closed by <tr>
+            "tr" => next_tag == "tr",
+            // <option> is implicitly closed by <option> or <optgroup>
+            "option" => matches!(next_tag.as_str(), "option" | "optgroup"),
+            // <optgroup> is implicitly closed by <optgroup>
+            "optgroup" => next_tag == "optgroup",
+            _ => false,
+        }
     }
 
     /// Check if inside shadowroot template.
@@ -2913,17 +3076,22 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<Option<TemplateNode>> {
         let content_start = self.index;
 
-        // Find the closing </script> tag
-        while !self.is_eof() && !self.match_str("</script>") {
+        // Find the closing </script> tag (with optional whitespace before >)
+        while !self.is_eof() && !self.is_valid_closing_tag("</script") {
             self.advance();
         }
 
         let content_end = self.index;
         let script_content = &self.source[content_start..content_end];
 
-        // Consume </script>
-        if self.match_str("</script>") {
-            self.advance_by(9);
+        // Consume </script followed by optional whitespace and >
+        if self.match_str("</script") {
+            self.advance_by(8); // consume '</script'
+            // Skip whitespace before >
+            while !self.is_eof() && self.current_char() != '>' {
+                self.advance();
+            }
+            self.eat(">"); // consume '>'
         }
 
         let end = self.index;
@@ -3008,17 +3176,22 @@ impl<'a> Parser<'a> {
     ) -> ParseResult<Option<TemplateNode>> {
         let content_start = self.index;
 
-        // Find the closing </style> tag
-        while !self.is_eof() && !self.match_str("</style>") {
+        // Find the closing </style> tag (with optional whitespace before >)
+        while !self.is_eof() && !self.is_valid_closing_tag("</style") {
             self.advance();
         }
 
         let content_end = self.index;
         let style_content = &self.source[content_start..content_end];
 
-        // Consume </style>
-        if self.match_str("</style>") {
-            self.advance_by(8);
+        // Consume </style followed by optional whitespace and >
+        if self.match_str("</style") {
+            self.advance_by(7); // consume '</style'
+            // Skip whitespace before >
+            while !self.is_eof() && self.current_char() != '>' {
+                self.advance();
+            }
+            self.eat(">"); // consume '>'
         }
 
         let end = self.index;
@@ -3122,6 +3295,83 @@ impl<'a> Parser<'a> {
 
         // svelte:options doesn't produce a node in the fragment
         Ok(None)
+    }
+
+    /// Parse raw text content for elements like textarea, style (inside svelte:head).
+    /// - For style: completely raw text, no expression parsing
+    /// - For textarea: parses {expressions} but treats HTML as text
+    fn parse_raw_text_content(&mut self, tag_name: &str) -> ParseResult<Fragment> {
+        let closing_tag = format!("</{}", tag_name);
+        let is_style = tag_name == "style";
+
+        // For style elements (inside svelte:head), just get raw content
+        if is_style {
+            let content_start = self.index;
+            while !self.is_eof() && !self.match_str(&closing_tag) {
+                self.advance();
+            }
+            let content_end = self.index;
+            let raw_content = &self.source[content_start..content_end];
+
+            // Always add a Text node for style, even if empty
+            let nodes = vec![TemplateNode::Text(Text {
+                start: content_start as u32,
+                end: content_end as u32,
+                raw: raw_content.to_string().into(),
+                data: raw_content.to_string().into(),
+            })];
+
+            return Ok(Fragment {
+                node_type: FragmentType::Fragment,
+                nodes,
+            });
+        }
+
+        // For textarea: parse expressions but treat HTML as text
+        let mut nodes = Vec::new();
+        let mut text_start = self.index;
+
+        // For textarea, we need to find a valid closing tag: </tagname followed by optional whitespace and >
+        // This avoids false positives like </textaread matching </textarea
+        while !self.is_eof() && !self.is_valid_closing_tag(&closing_tag) {
+            // Check for expression tag
+            if self.match_str("{") && !self.match_str("{{") {
+                // Flush accumulated text
+                if self.index > text_start {
+                    let text_content = &self.source[text_start..self.index];
+                    nodes.push(TemplateNode::Text(Text {
+                        start: text_start as u32,
+                        end: self.index as u32,
+                        raw: text_content.to_string().into(),
+                        data: text_content.to_string().into(),
+                    }));
+                }
+
+                // Parse expression tag
+                if let Some(expr_node) = self.parse_mustache()? {
+                    nodes.push(expr_node);
+                }
+                text_start = self.index;
+            } else {
+                self.advance();
+            }
+        }
+
+        // Flush remaining text
+        if self.index > text_start {
+            let text_content = &self.source[text_start..self.index];
+            nodes.push(TemplateNode::Text(Text {
+                start: text_start as u32,
+                end: self.index as u32,
+                raw: text_content.to_string().into(),
+                data: text_content.to_string().into(),
+            }));
+        }
+
+        Ok(Fragment {
+            node_type: FragmentType::Fragment,
+            nodes,
+        })
     }
 
     // =========================================================================
