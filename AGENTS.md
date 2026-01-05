@@ -288,6 +288,22 @@ Current status:
   - DeclarationKind enum (Var, Let, Const, Function, Import, Param, etc.)
   - Binding tracking with references and mutations
   - ScopeBuilder for AST traversal and scope tree construction
+- [x] **Refactoring Phase 3.1**: State structure consolidation
+  - SourceContext: component name, source, script content, runes flag
+  - TemplateState: HTML parts, expressions, root element count, custom elements
+  - NavigationState: element stack, child index, node var index
+  - VariableTracker: var counters, state/const vars, read-only props
+  - FeatureCollector: nodes, each/await blocks, snippets, components
+- [x] **Refactoring Phase 3.2**: Visitor pattern implementation
+  - TemplateVisitor trait with enter/exit/visit methods
+  - VisitorContext for traversal state tracking
+  - walk_* functions for AST traversal
+
+**Pending refactoring:**
+- [ ] **Phase 3.3**: String→AST conversion (replace push_str with AST builders)
+- [ ] **Phase 3.4**: TemplateBuilder implementation
+- [ ] **Phase 3.5**: Memoizer implementation
+- [ ] **Phase 4**: Memory optimization with arena allocation
 
 **Pending features:**
 - [ ] Compile options support (`experimental.async`, `hmr`, `fragments`)
