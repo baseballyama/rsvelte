@@ -250,15 +250,14 @@ Current status:
 - [x] AST-based code generation infrastructure (`js_ast` module with builders and codegen)
 - [x] Simple component AST generation path for components without runtime code
 - [x] Runtime code AST builders (navigation, event handlers, template effects, bindings, delegate)
+- [x] Special attribute AST builders (`$.autofocus()`, `$.set_custom_element_data()`, `$.html()`, `set_option_value()`)
+- [x] Advanced navigation builders (`$.next(count)`, `$.child(node, preserve_whitespace)`, `$.sibling(node, count)`)
 
 **Pending features:**
 - [ ] Compile options support (`experimental.async`, `hmr`, `fragments`)
 - [ ] Class field transformation (`$state`, `$derived` in classes → private fields with getters/setters)
 - [ ] `{#if}` block client-side code generation (`$.if()`)
 - [ ] CSS scoping and transformation
-- [ ] Advanced element navigation with skip counts (`$.sibling(node, 10)`, `$.next(14)`)
-- [ ] Custom element attribute handling (`$.set_custom_element_data`)
-- [ ] Special attribute handling (`$.autofocus()`, `muted`, option values)
 - [ ] Template flags support (`TEMPLATE_USE_IMPORT_NODE`, `TEMPLATE_USE_SVG`, `TEMPLATE_USE_MATHML`)
 - [ ] Full migration of `generate_runtime_code` to AST-based generation
 
