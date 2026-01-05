@@ -249,6 +249,7 @@ Current status:
 - [x] Server-side component binding with do/while settling pattern
 - [x] AST-based code generation infrastructure (`js_ast` module with builders and codegen)
 - [x] Simple component AST generation path for components without runtime code
+- [x] Runtime code AST builders (navigation, event handlers, template effects, bindings, delegate)
 
 **Pending features:**
 - [ ] Compile options support (async, hmr, fragments)
@@ -258,6 +259,7 @@ Current status:
 - [ ] Advanced element navigation with skip counts
 - [ ] Custom element attribute handling (`$.set_custom_element_data`)
 - [ ] Special attribute handling (`autofocus`, `muted`, option values)
+- [ ] Full migration of `generate_runtime_code` to AST-based generation
 
 ### Integration
 
