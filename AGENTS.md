@@ -156,7 +156,7 @@ cargo test --test compiler_fixtures -- --nocapture
 
 Current status:
 - **Parser**: 22/22 modern mode tests passing (100%)
-- **Compiler**: 15/17 run (8 skipped), Client 15/17, Server 16/17
+- **Compiler**: 16/17 run (8 skipped), Client 16/17, Server 17/17
 
 ## Current Progress
 
@@ -175,13 +175,14 @@ Current status:
 - [x] Script/Style parsing
 - [x] CSS parsing
 
-### Compiler (15/17 run, 8 skipped)
+### Compiler (16/17 run, 8 skipped)
 
-**Passing tests (15 client + 16 server):**
+**Passing tests (16 client + 17 server):**
 - hello-world
 - purity
 - svelte-element
 - props-identifier
+- nullish-coallescence-omittance
 - state-proxy-literal
 - delegated-locally-declared-shadowed
 - imports-in-modules
@@ -192,7 +193,9 @@ Current status:
 - bind-component-snippet
 - await-block-scope
 - text-nodes-deriveds
+- destructured-assignments
 - export-state
+- class-state-field-constructor-assignment
 - skip-static-subtree (server only)
 
 **Skipped tests (8 tests, require unsupported compile options):**
@@ -205,8 +208,7 @@ Current status:
 - hmr - `hmr: true`
 - functional-templating - `fragments: 'tree'`
 
-**Failing tests (2 tests):**
-- class-state-field-constructor-assignment (client + server) - requires class field transformation (`$state`/`$derived` in class → private fields with getters/setters)
+**Failing tests (1 test):**
 - skip-static-subtree (client only) - requires advanced DOM navigation (`$.child`, `$.reset`, `$.next`), custom element data, special attributes (autofocus, muted, option value), `{@html}` handling, `TEMPLATE_USE_IMPORT_NODE` flag
 
 **Implemented features:**
@@ -258,14 +260,14 @@ Current status:
 - [x] Runtime code AST builders (navigation, event handlers, template effects, bindings, delegate)
 - [x] Special attribute AST builders (`$.autofocus()`, `$.set_custom_element_data()`, `$.html()`, `set_option_value()`)
 - [x] Advanced navigation builders (`$.next(count)`, `$.child(node, preserve_whitespace)`, `$.sibling(node, count)`)
+- [x] Class field transformation (`$state`, `$derived` in classes → private fields with getters/setters)
 
 **Pending features:**
 - [ ] Compile options support (`experimental.async`, `hmr`, `fragments`)
-- [ ] Class field transformation (`$state`, `$derived` in classes → private fields with getters/setters)
 - [ ] `{#if}` block client-side code generation (`$.if()`)
 - [ ] CSS scoping and transformation
 - [ ] Template flags support (`TEMPLATE_USE_IMPORT_NODE`, `TEMPLATE_USE_SVG`, `TEMPLATE_USE_MATHML`)
-- [ ] Full migration of `generate_runtime_code` to AST-based generation
+- [ ] skip-static-subtree client-side features (advanced DOM navigation, custom element data, special attributes)
 
 ### Integration
 
