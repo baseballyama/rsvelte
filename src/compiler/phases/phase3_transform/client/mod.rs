@@ -1343,8 +1343,8 @@ impl ClientCodeGenerator {
             determine_root_var(&html)
         };
 
-        // Generate runtime code for expressions
-        let runtime_code = self.generate_runtime_code(&root_var);
+        // Generate runtime code for expressions (using AST-based generation)
+        let runtime_code = self.generate_runtime_code_via_ast(&root_var);
 
         // Collect delegated events
         let delegated_events = self.collect_delegated_events();
@@ -2042,6 +2042,9 @@ export default function {component_name}({fn_params}) {{
         result
     }
 
+    /// Legacy string-based runtime code generation (kept for reference).
+    /// Use generate_runtime_code_via_ast instead.
+    #[allow(dead_code)]
     fn generate_runtime_code(&self, root_var: &str) -> String {
         let mut code = String::new();
         let is_fragment = root_var == "fragment";
@@ -2863,6 +2866,43 @@ export default function {component_name}({fn_params}) {{
         }
 
         statements
+    }
+
+    /// Convert AST statements to a formatted string.
+    /// This is used to integrate AST-based generation with the existing string-based build() method.
+    fn statements_to_string(&self, statements: &[JsStatement]) -> String {
+        if statements.is_empty() {
+            return String::new();
+        }
+
+        // Create a program with just these statements
+        let prog = program(statements.to_vec());
+
+        // Generate code
+        match generate(&prog) {
+            Ok(code) => {
+                // Add tab indentation to each line and ensure proper formatting
+                code.lines()
+                    .map(|line| {
+                        if line.trim().is_empty() {
+                            String::new()
+                        } else {
+                            format!("\t{}", line)
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+                    + "\n"
+            }
+            Err(_) => String::new(),
+        }
+    }
+
+    /// Generate runtime code using AST builders and return as string.
+    /// This is a drop-in replacement for generate_runtime_code.
+    fn generate_runtime_code_via_ast(&self, root_var: &str) -> String {
+        let statements = self.generate_runtime_code_ast(root_var);
+        self.statements_to_string(&statements)
     }
 }
 
