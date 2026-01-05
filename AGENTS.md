@@ -143,6 +143,13 @@ cargo bench
 - **Push after each commit**: Keep the remote repository up to date
 - **Atomic commits**: Each commit should represent a single logical change
 
+### Maintaining AGENTS.md
+
+- **Record learnings**: Document any new knowledge, patterns, or implementation details discovered during development
+- **Keep it current**: Update test status, feature lists, and progress sections as work is completed
+- **Refactor regularly**: Reorganize and consolidate information to maintain clarity and reduce duplication
+- **Remove outdated info**: Delete obsolete sections or details that no longer apply
+
 ### Test Status
 
 Track progress by running:
