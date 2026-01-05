@@ -8,7 +8,7 @@ mod visitor;
 use state::{
     AwaitBlockInfo, BindThisComponent, ChildPart, ComponentWithBinding, ComponentWithChildren,
     DynamicAttribute, EachBlockInfo, EventHandler, HtmlTagInfo, NodeInfo, NodeType, SnippetInfo,
-    SvelteElementInfo,
+    SpecialAttribute, SvelteElementInfo,
 };
 
 use super::TransformError;
@@ -117,6 +117,10 @@ struct ClientCodeGenerator {
     has_custom_elements: bool,
     /// Read-only destructured props (accessed via $$props.propName, not $.prop())
     read_only_props: Vec<String>,
+    /// Special attributes that need runtime handling (autofocus, muted, option value, custom element attrs)
+    special_attrs: Vec<SpecialAttribute>,
+    /// Current element name being processed (for tracking custom elements)
+    current_element_name: Option<String>,
 }
 
 impl ClientCodeGenerator {
@@ -159,6 +163,8 @@ impl ClientCodeGenerator {
             await_blocks: Vec::new(),
             has_custom_elements: false,
             read_only_props,
+            special_attrs: Vec::new(),
+            current_element_name: None,
         }
     }
 
@@ -250,12 +256,16 @@ impl ClientCodeGenerator {
 
         // Check for custom elements (elements with hyphens) or video elements
         // These require TEMPLATE_USE_IMPORT_NODE flag
-        if name.contains('-') || name == "video" {
+        let is_custom_element = name.contains('-');
+        if is_custom_element || name == "video" {
             self.has_custom_elements = true;
         }
 
         // Create variable name for this element
         let var_name = self.next_var_name(name);
+
+        // Track current element for attribute processing
+        self.current_element_name = Some(name.to_string());
         let child_index = self.current_child_index;
 
         // Check if this is an input element
@@ -548,14 +558,90 @@ impl ClientCodeGenerator {
     }
 
     fn generate_attribute_node(&mut self, node: &AttributeNode) -> Result<(), TransformError> {
-        let name = node.name.as_str();
+        let attr_name = node.name.as_str();
+        let element_name = self.current_element_name.clone().unwrap_or_default();
 
+        // Check for special attributes that need runtime handling
+        let is_custom_element = element_name.contains('-');
+        let is_option = element_name == "option";
+        let is_source_or_video = element_name == "source" || element_name == "video";
+
+        // Get the current element's variable name (last node added)
+        let var_name = self
+            .nodes
+            .last()
+            .map(|n| n.var_name.clone())
+            .unwrap_or_else(|| element_name.clone());
+
+        // Check if this is a special attribute that should be handled at runtime
+        match attr_name {
+            "autofocus" => {
+                // autofocus needs $.autofocus(element, true)
+                self.special_attrs
+                    .push(SpecialAttribute::Autofocus { var_name });
+                return Ok(()); // Skip adding to template
+            }
+            "muted" if is_source_or_video => {
+                // muted on source/video needs element.muted = true
+                self.special_attrs
+                    .push(SpecialAttribute::Muted { var_name });
+                return Ok(()); // Skip adding to template
+            }
+            "value" if is_option => {
+                // value on option needs option.value = option.__value = 'value'
+                if let AttributeValue::Sequence(parts) = &node.value {
+                    let value = parts
+                        .iter()
+                        .filter_map(|p| {
+                            if let AttributeValuePart::Text(t) = p {
+                                Some(t.data.to_string())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<String>();
+                    self.special_attrs
+                        .push(SpecialAttribute::OptionValue { var_name, value });
+                    return Ok(()); // Skip adding to template
+                }
+            }
+            _ if is_custom_element => {
+                // All attributes on custom elements need $.set_custom_element_data()
+                let attr_value = match &node.value {
+                    AttributeValue::True(_) => "true".to_string(),
+                    AttributeValue::Sequence(parts) => parts
+                        .iter()
+                        .filter_map(|p| {
+                            if let AttributeValuePart::Text(t) = p {
+                                Some(t.data.to_string())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<String>(),
+                    AttributeValue::Expression(_) => {
+                        self.has_expressions = true;
+                        return Ok(()); // Expression attributes handled separately
+                    }
+                };
+                self.special_attrs
+                    .push(SpecialAttribute::CustomElementData {
+                        var_name,
+                        attr_name: attr_name.to_string(),
+                        attr_value,
+                    });
+                return Ok(()); // Skip adding to template
+            }
+            _ => {}
+        }
+
+        // Normal attribute - add to template
         match &node.value {
             AttributeValue::True(_) => {
-                self.html_parts.push(format!(" {}", name));
+                self.html_parts.push(format!(" {}", attr_name));
             }
             AttributeValue::Sequence(parts) => {
-                self.html_parts.push(format!(" {}=\"", name));
+                self.html_parts.push(format!(" {}=\"", attr_name));
                 for part in parts {
                     match part {
                         AttributeValuePart::Text(text) => {

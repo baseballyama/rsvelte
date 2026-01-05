@@ -438,6 +438,37 @@ pub struct AwaitBlockInfo {
     pub then_value: Option<String>,
 }
 
+/// Special attribute that needs runtime handling.
+#[derive(Debug, Clone)]
+pub enum SpecialAttribute {
+    /// autofocus attribute - needs $.autofocus(element, true)
+    Autofocus {
+        /// Variable name of the element
+        var_name: String,
+    },
+    /// muted attribute on source/video - needs element.muted = true
+    Muted {
+        /// Variable name of the element
+        var_name: String,
+    },
+    /// value attribute on option - needs option.value = option.__value = 'value'
+    OptionValue {
+        /// Variable name of the option element
+        var_name: String,
+        /// The value
+        value: String,
+    },
+    /// Attribute on custom element - needs $.set_custom_element_data()
+    CustomElementData {
+        /// Variable name of the element
+        var_name: String,
+        /// Attribute name
+        attr_name: String,
+        /// Attribute value
+        attr_value: String,
+    },
+}
+
 /// Feature collector for various block types.
 #[derive(Debug, Default)]
 pub struct FeatureCollector {
@@ -461,6 +492,8 @@ pub struct FeatureCollector {
     pub components_with_bindings: Vec<ComponentWithBinding>,
     /// Await blocks
     pub await_blocks: Vec<AwaitBlockInfo>,
+    /// Special attributes that need runtime handling
+    pub special_attrs: Vec<SpecialAttribute>,
 }
 
 impl FeatureCollector {
@@ -525,6 +558,16 @@ impl FeatureCollector {
     /// Check if there are any await blocks.
     pub fn has_await_blocks(&self) -> bool {
         !self.await_blocks.is_empty()
+    }
+
+    /// Add a special attribute.
+    pub fn add_special_attr(&mut self, attr: SpecialAttribute) {
+        self.special_attrs.push(attr);
+    }
+
+    /// Check if there are any special attributes.
+    pub fn has_special_attrs(&self) -> bool {
+        !self.special_attrs.is_empty()
     }
 }
 
