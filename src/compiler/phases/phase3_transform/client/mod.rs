@@ -16,7 +16,7 @@ use super::js_ast::{
     builders::{
         array, arrow, arrow_block, assign, boolean, call, const_decl, export_default_function,
         getter, id, id_pattern, import_namespace, import_side_effect, member, object, program,
-        quasi, return_value, set_text_content, setter, stmt, string, svelte_append,
+        prop, quasi, return_value, set_text_content, setter, stmt, string, svelte_append,
         svelte_autofocus, svelte_await, svelte_bind_value, svelte_child, svelte_each,
         svelte_element, svelte_first_child, svelte_from_html, svelte_get, svelte_html,
         svelte_index, svelte_next, svelte_remove_input_defaults, svelte_reset, svelte_set,
@@ -25,7 +25,7 @@ use super::js_ast::{
         template, thunk, var_decl,
     },
     generate,
-    nodes::{JsExpr, JsPattern, JsStatement},
+    nodes::{JsExpr, JsObjectMember, JsPattern, JsStatement},
     normalize_js,
 };
 use crate::ast::template::{
@@ -69,7 +69,17 @@ pub fn transform_client(
     // Use the AST fragment directly (no re-parsing needed)
     generator.generate_component(&ast.fragment)?;
 
-    Ok(generator.build())
+    // Detect if we need hierarchical navigation (for skip-static-subtree type components)
+    // This is needed when dynamic content is nested inside containers
+    let needs_hierarchical = has_nested_dynamic_content(&ast.fragment);
+
+    if needs_hierarchical {
+        // Reset counters for fresh code generation
+        generator.reset_var_counters();
+        Ok(generator.build_with_fragment(&ast.fragment))
+    } else {
+        Ok(generator.build())
+    }
 }
 
 use std::collections::HashMap;
@@ -122,6 +132,15 @@ struct ClientCodeGenerator {
     special_attrs: Vec<SpecialAttribute>,
     /// Current element name being processed (for tracking custom elements)
     current_element_name: Option<String>,
+    // === Cursor-based navigation state ===
+    /// Navigation statements collected during traversal
+    #[allow(dead_code)]
+    nav_stmts: Vec<JsStatement>,
+    /// Template effect expressions: (text_var, expression)
+    template_effects: Vec<(String, String)>,
+    /// Elements that need $.reset() after processing children
+    #[allow(dead_code)]
+    elements_needing_reset: Vec<String>,
 }
 
 impl ClientCodeGenerator {
@@ -166,6 +185,9 @@ impl ClientCodeGenerator {
             read_only_props,
             special_attrs: Vec::new(),
             current_element_name: None,
+            nav_stmts: Vec::new(),
+            template_effects: Vec::new(),
+            elements_needing_reset: Vec::new(),
         }
     }
 
@@ -467,7 +489,27 @@ impl ClientCodeGenerator {
                             }
                         }
                     } else {
-                        // Single or non-function expressions - track individually
+                        // Single or non-function expressions - check if any are reactive
+                        let mut has_reactive_expression = false;
+                        for child in &element.fragment.nodes {
+                            if let TemplateNode::ExpressionTag(tag) = child {
+                                let expr_start = tag.start as usize;
+                                let expr_end = tag.end as usize;
+                                if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                                    let expr = self.source[expr_start + 1..expr_end - 1].trim();
+                                    if self.is_expression_reactive(expr) {
+                                        has_reactive_expression = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        // Only add space placeholder if expression is reactive
+                        // Reactive expressions need a text node to update via $.set_text()
+                        if has_reactive_expression {
+                            self.html_parts.push(" ".to_string());
+                        }
+                        // Track the expressions
                         for child in &element.fragment.nodes {
                             if let TemplateNode::ExpressionTag(tag) = child {
                                 self.generate_expression_tag(tag)?;
@@ -478,18 +520,25 @@ impl ClientCodeGenerator {
                 }
             } else {
                 // No expressions - include static children in template
-                // Skip leading/trailing whitespace-only text nodes
+                // Skip leading/trailing whitespace-only text nodes and comments
                 let children: Vec<_> = element.fragment.nodes.iter().collect();
 
-                // Find first and last non-whitespace children
-                let first_content = children
-                    .iter()
-                    .position(|c| !matches!(c, TemplateNode::Text(t) if t.data.trim().is_empty()));
-                let last_content = children
-                    .iter()
-                    .rposition(|c| !matches!(c, TemplateNode::Text(t) if t.data.trim().is_empty()));
+                // Helper to check if a node is "real content" (not whitespace text, not comment)
+                let is_real_content = |c: &TemplateNode| {
+                    !matches!(c, TemplateNode::Comment(_))
+                        && !matches!(c, TemplateNode::Text(t) if t.data.trim().is_empty())
+                };
+
+                // Find first and last real content children (ignoring comments and whitespace)
+                let first_content = children.iter().position(|c| is_real_content(c));
+                let last_content = children.iter().rposition(|c| is_real_content(c));
 
                 for (i, child) in children.iter().enumerate() {
+                    // Skip comments entirely (they don't appear in HTML output)
+                    if matches!(child, TemplateNode::Comment(_)) {
+                        self.current_child_index += 1;
+                        continue;
+                    }
                     // Skip leading whitespace
                     if let Some(first) = first_content {
                         if i < first {
@@ -502,6 +551,18 @@ impl ClientCodeGenerator {
                         if i > last {
                             self.current_child_index += 1;
                             continue;
+                        }
+                    }
+                    // Skip whitespace-only text between comment and real content
+                    if let TemplateNode::Text(t) = child {
+                        if t.data.trim().is_empty() {
+                            // Check if there's only one real content child
+                            let real_content_count =
+                                children.iter().filter(|c| is_real_content(c)).count();
+                            if real_content_count == 1 {
+                                self.current_child_index += 1;
+                                continue;
+                            }
                         }
                     }
                     self.generate_node(child, false)?;
@@ -541,6 +602,378 @@ impl ClientCodeGenerator {
         };
         self.node_var_index += 1;
         name
+    }
+
+    /// Reset variable name counters for fresh code generation.
+    /// Called before build_with_fragment to start variable naming from scratch.
+    fn reset_var_counters(&mut self) {
+        self.var_name_counters.clear();
+        self.node_var_index = 0;
+        self.template_effects.clear();
+    }
+
+    /// Check if an expression is reactive (contains props/state variables).
+    /// Reactive expressions need $.template_effect for updates.
+    /// Pure expressions can use direct textContent assignment.
+    fn is_expression_reactive(&self, expr: &str) -> bool {
+        // Check if expression contains any read-only prop
+        for prop in &self.read_only_props {
+            // Check for the prop as a word boundary (not part of another identifier)
+            if expr.contains(prop.as_str()) {
+                // More precise check: ensure it's a standalone identifier
+                let pattern = format!(r"\b{}\b", regex::escape(prop));
+                if regex::Regex::new(&pattern)
+                    .map(|re| re.is_match(expr))
+                    .unwrap_or(false)
+                {
+                    return true;
+                }
+            }
+        }
+        // Check if expression contains any state variable
+        for var in &self.state_vars {
+            if expr.contains(var.as_str()) {
+                let pattern = format!(r"\b{}\b", regex::escape(var));
+                if regex::Regex::new(&pattern)
+                    .map(|re| re.is_match(expr))
+                    .unwrap_or(false)
+                {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    // =========================================================================
+    // Cursor-based navigation helpers
+    // =========================================================================
+
+    /// Check if a node needs runtime handling (is "dynamic").
+    /// A node is dynamic if we need to generate runtime code for it.
+    fn is_node_dynamic(&self, node: &TemplateNode) -> bool {
+        match node {
+            // Text nodes are always static - they are just content in the template
+            TemplateNode::Text(_) => false,
+            // Expression tags need $.set_text at runtime
+            TemplateNode::ExpressionTag(_) => true,
+            // HTML tags need $.html() at runtime
+            TemplateNode::HtmlTag(_) => true,
+            TemplateNode::RenderTag(_) => true,
+            // Control flow blocks are dynamic
+            TemplateNode::IfBlock(_) => true,
+            TemplateNode::EachBlock(_) => true,
+            TemplateNode::AwaitBlock(_) => true,
+            TemplateNode::KeyBlock(_) => true,
+            // Components are dynamic
+            TemplateNode::Component(_) => true,
+            TemplateNode::RegularElement(elem) => {
+                // Element is dynamic if:
+                // 1. It has dynamic expressions in direct children
+                let has_expressions = elem.fragment.nodes.iter().any(|n| {
+                    matches!(
+                        n,
+                        TemplateNode::ExpressionTag(_)
+                            | TemplateNode::HtmlTag(_)
+                            | TemplateNode::IfBlock(_)
+                            | TemplateNode::EachBlock(_)
+                            | TemplateNode::AwaitBlock(_)
+                    )
+                });
+                // 2. It has special attributes that need runtime handling
+                let has_special_attrs = elem.attributes.iter().any(|attr| {
+                    matches!(attr, Attribute::BindDirective(_))
+                        || matches!(attr, Attribute::Attribute(a) if
+                            a.name == "autofocus"
+                            || (a.name == "muted" && (elem.name == "source" || elem.name == "video"))
+                            || (a.name == "value" && elem.name == "option")
+                        )
+                });
+                // 3. It is a custom element (needs $.set_custom_element_data)
+                let is_custom_element = elem.name.contains('-');
+                // 4. It is an input element (needs $.remove_input_defaults)
+                let is_input = matches!(elem.name.as_str(), "input" | "textarea" | "select");
+                // 5. It has dynamic children that we need to traverse to
+                let has_dynamic_descendants = self.has_dynamic_descendants(&elem.fragment.nodes);
+
+                has_expressions
+                    || has_special_attrs
+                    || is_custom_element
+                    || is_input
+                    || has_dynamic_descendants
+            }
+            TemplateNode::SvelteElement(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Check if a list of nodes contains any dynamic descendants we need to traverse to.
+    fn has_dynamic_descendants(&self, nodes: &[TemplateNode]) -> bool {
+        has_dynamic_descendants_helper(nodes)
+    }
+
+    /// Check if an element has only pure (non-reactive) expressions as children.
+    /// Pure expressions can use direct textContent assignment instead of $.template_effect.
+    fn has_only_pure_expressions(&self, elem: &RegularElement) -> bool {
+        // Check if element has any expression children that are all pure (not reactive)
+        let mut has_any_expression = false;
+
+        for child in &elem.fragment.nodes {
+            match child {
+                TemplateNode::ExpressionTag(tag) => {
+                    has_any_expression = true;
+                    // Extract the expression and check if it's reactive
+                    let expr_start = tag.start as usize;
+                    let expr_end = tag.end as usize;
+                    if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                        let expr = self.source[expr_start + 1..expr_end - 1].trim();
+                        if self.is_expression_reactive(expr) {
+                            // Found a reactive expression - not all pure
+                            return false;
+                        }
+                    }
+                }
+                TemplateNode::Text(t) => {
+                    // Whitespace text is OK, but non-whitespace text means not just expressions
+                    if !t.data.trim().is_empty() {
+                        return false;
+                    }
+                }
+                // Any other node type means not just pure expressions
+                _ => return false,
+            }
+        }
+
+        // Only return true if we had at least one expression and they were all pure
+        has_any_expression
+    }
+
+    /// Process children of an element using cursor-based navigation.
+    /// Returns (statements, has_dynamic, trailing_skipped).
+    /// trailing_skipped only counts non-whitespace trailing nodes (since whitespace is stripped).
+    fn process_children_cursor(
+        &mut self,
+        parent_var: &str,
+        children: &[TemplateNode],
+    ) -> (Vec<JsStatement>, bool, i32) {
+        let mut stmts: Vec<JsStatement> = Vec::new();
+        let mut prev_var: Option<String> = None;
+        let mut skipped: i32 = 0;
+        let mut has_dynamic = false;
+        let mut is_first_child = true;
+        // Track trailing non-whitespace nodes for $.next() generation
+        let mut trailing_non_ws: i32 = 0;
+        let mut last_dynamic_idx: Option<usize> = None;
+
+        // Find first and last non-whitespace indices (matching template generation)
+        let first_non_ws = children
+            .iter()
+            .position(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()));
+        let last_non_ws = children
+            .iter()
+            .rposition(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()));
+
+        for (idx, child) in children.iter().enumerate() {
+            // Skip leading whitespace (not in template HTML)
+            if let Some(first) = first_non_ws {
+                if idx < first {
+                    continue;
+                }
+            }
+            // Skip trailing whitespace (not in template HTML)
+            if let Some(last) = last_non_ws {
+                if idx > last {
+                    continue;
+                }
+            }
+            if self.is_node_dynamic(child) {
+                has_dynamic = true;
+
+                // Generate navigation to this node
+                let var_name = match child {
+                    TemplateNode::RegularElement(elem) => self.next_var_name(&elem.name),
+                    TemplateNode::ExpressionTag(_) => "text".to_string(),
+                    TemplateNode::HtmlTag(_) => self.next_node_var(),
+                    TemplateNode::Component(c) => self.next_var_name(&c.name.to_lowercase()),
+                    _ => self.next_node_var(),
+                };
+
+                let nav_expr = if prev_var.is_none() {
+                    // First dynamic child: $.child(parent, preserve_whitespace?)
+                    // Use preserve_whitespace=true when there's a text placeholder (space)
+                    // This happens when an element like <h1>{title}</h1> becomes <h1> </h1>
+                    let preserve_whitespace =
+                        is_first_child && matches!(child, TemplateNode::Text(_));
+                    // For expression tags that are first children, also check if there's
+                    // whitespace in the template placeholder
+                    let preserve = if matches!(child, TemplateNode::ExpressionTag(_)) {
+                        // Expression at start of element - check if template has space placeholder
+                        true
+                    } else {
+                        preserve_whitespace
+                    };
+                    svelte_child(id(parent_var), if preserve { Some(true) } else { None })
+                } else {
+                    // Subsequent dynamic child: $.sibling(prev, skipped)
+                    let skip_count = if skipped > 1 { Some(skipped) } else { None };
+                    svelte_sibling(id(prev_var.as_ref().unwrap()), skip_count)
+                };
+
+                stmts.push(var_decl(&var_name, Some(nav_expr)));
+
+                // Handle specific node types
+                match child {
+                    TemplateNode::ExpressionTag(tag) => {
+                        // Extract expression and add to template effects
+                        let expr_start = tag.start as usize;
+                        let expr_end = tag.end as usize;
+                        if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                            let expr = self.source[expr_start + 1..expr_end - 1].trim();
+                            let transformed =
+                                transform_read_only_props(expr, &self.read_only_props);
+                            self.template_effects.push((var_name.clone(), transformed));
+                        }
+                    }
+                    TemplateNode::HtmlTag(tag) => {
+                        // Generate $.html(node, () => expr)
+                        let expr_start = tag.expression.start().unwrap_or(0) as usize;
+                        let expr_end = tag.expression.end().unwrap_or(0) as usize;
+                        if expr_end > expr_start && expr_end <= self.source.len() {
+                            let expr = self.source[expr_start..expr_end].trim();
+                            let transformed =
+                                transform_read_only_props(expr, &self.read_only_props);
+                            stmts.push(stmt(svelte_html(id(&var_name), thunk(id(&transformed)))));
+                        }
+                    }
+                    TemplateNode::RegularElement(elem) => {
+                        // Check if element has only pure expression children (no reactive vars)
+                        let has_only_pure_expressions = self.has_only_pure_expressions(elem);
+
+                        if has_only_pure_expressions {
+                            // For pure expressions, use direct textContent assignment
+                            for child_node in &elem.fragment.nodes {
+                                if let TemplateNode::ExpressionTag(tag) = child_node {
+                                    let expr_start = tag.start as usize;
+                                    let expr_end = tag.end as usize;
+                                    if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                                        let expr = self.source[expr_start + 1..expr_end - 1].trim();
+                                        // Constant fold and transform the expression
+                                        let folded = try_constant_fold(expr);
+                                        let transformed = transform_read_only_props(
+                                            &folded,
+                                            &self.read_only_props,
+                                        );
+                                        // Generate: elem.textContent = value
+                                        stmts.push(stmt(assign(
+                                            member(id(&var_name), "textContent"),
+                                            id(&transformed),
+                                        )));
+                                    }
+                                }
+                            }
+                            // Handle special attributes
+                            self.generate_special_attr_stmts(&var_name, elem, &mut stmts);
+                        } else {
+                            // Recursively process this element's children
+                            let (child_stmts, child_has_dynamic, _trailing) =
+                                self.process_children_cursor(&var_name, &elem.fragment.nodes);
+                            stmts.extend(child_stmts);
+
+                            // Add $.reset() if this element had dynamic children
+                            // Note: $.next() is NOT used inside elements, only at root level
+                            if child_has_dynamic {
+                                stmts.push(stmt(svelte_reset(id(&var_name))));
+                            }
+
+                            // Handle special attributes for this element
+                            self.generate_special_attr_stmts(&var_name, elem, &mut stmts);
+                        }
+                    }
+                    _ => {}
+                }
+
+                prev_var = Some(var_name);
+                last_dynamic_idx = Some(idx);
+                skipped = 1;
+                trailing_non_ws = 0; // Reset trailing count after dynamic node
+                is_first_child = false;
+            } else {
+                // Static node - just count it
+                skipped += 1;
+                // Count trailing nodes (only after we've seen a dynamic node)
+                if last_dynamic_idx.is_some() {
+                    trailing_non_ws += 1;
+                }
+                is_first_child = false;
+            }
+        }
+
+        // Return trailing count (nodes after last dynamic, not counting the dynamic node itself)
+        (stmts, has_dynamic, trailing_non_ws)
+    }
+
+    /// Generate statements for special attributes of an element.
+    fn generate_special_attr_stmts(
+        &self,
+        var_name: &str,
+        elem: &RegularElement,
+        stmts: &mut Vec<JsStatement>,
+    ) {
+        let is_custom = elem.name.contains('-');
+
+        for attr in &elem.attributes {
+            if let Attribute::Attribute(node) = attr {
+                let attr_name = node.name.as_str();
+
+                match attr_name {
+                    "autofocus" => {
+                        stmts.push(stmt(svelte_autofocus(id(var_name), true)));
+                    }
+                    "muted" if elem.name == "source" || elem.name == "video" => {
+                        stmts.push(stmt(assign(member(id(var_name), "muted"), boolean(true))));
+                    }
+                    "value" if elem.name == "option" => {
+                        if let AttributeValue::Sequence(parts) = &node.value {
+                            let value: String = parts
+                                .iter()
+                                .filter_map(|p| {
+                                    if let AttributeValuePart::Text(t) = p {
+                                        Some(t.data.to_string())
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect();
+                            let inner = assign(member(id(var_name), "__value"), string(&value));
+                            stmts.push(stmt(assign(member(id(var_name), "value"), inner)));
+                        }
+                    }
+                    _ if is_custom => {
+                        // Custom element attribute
+                        let attr_value = match &node.value {
+                            AttributeValue::True(_) => "true".to_string(),
+                            AttributeValue::Sequence(parts) => parts
+                                .iter()
+                                .filter_map(|p| {
+                                    if let AttributeValuePart::Text(t) = p {
+                                        Some(t.data.to_string())
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect(),
+                            _ => continue,
+                        };
+                        stmts.push(stmt(svelte_set_custom_element_data(
+                            id(var_name),
+                            attr_name,
+                            string(&attr_value),
+                        )));
+                    }
+                    _ => {}
+                }
+            }
+        }
     }
 
     fn generate_attribute(&mut self, attr: &Attribute) -> Result<(), TransformError> {
@@ -1635,6 +2068,113 @@ export default function {component_name}({fn_params}) {{
         }
     }
 
+    /// Build with cursor-based navigation using the fragment.
+    fn build_with_fragment(mut self, fragment: &Fragment) -> String {
+        // Reset variable counters since generate_component() may have incremented them
+        self.reset_var_counters();
+
+        let html = self.html_parts.join("");
+        let is_fragment = self.root_element_count > 1;
+
+        // Extract imports from script content
+        let (script_imports, script_rest) = extract_imports(&self.script_content);
+
+        // Check if script uses $props()
+        let uses_props = self.script_content.contains("$props()");
+
+        // Generate system imports based on runes mode
+        let system_imports = if self.uses_runes {
+            "import 'svelte/internal/disclose-version';\nimport * as $ from 'svelte/internal/client';"
+        } else {
+            "import 'svelte/internal/disclose-version';\nimport 'svelte/internal/flags/legacy';\nimport * as $ from 'svelte/internal/client';"
+        };
+
+        // Build hoisted imports section
+        let hoisted_imports = if script_imports.is_empty() {
+            String::new()
+        } else {
+            format!("{}\n", script_imports.join("\n"))
+        };
+
+        // Transform remaining script content for client-side
+        let script_code = self.transform_script_content(&script_rest);
+
+        // Determine root variable name
+        let root_var = if is_fragment {
+            "fragment".to_string()
+        } else {
+            determine_root_var(&html)
+        };
+
+        // Generate runtime code using cursor-based navigation
+        let runtime_code = self.generate_cursor_based_runtime_code(fragment, &root_var);
+
+        // Determine function signature based on $props usage
+        let fn_params = if uses_props {
+            "$$anchor, $$props"
+        } else {
+            "$$anchor"
+        };
+
+        // Check if there's any HTML content
+        let has_html = !html.is_empty();
+
+        // Template flags:
+        // TEMPLATE_FRAGMENT = 1 (for fragments with multiple roots)
+        // TEMPLATE_USE_IMPORT_NODE = 2 (for custom elements)
+        // Both = 3
+        let template_flags = if is_fragment {
+            if self.has_custom_elements {
+                ", 3"
+            } else {
+                ", 1"
+            }
+        } else if self.has_custom_elements {
+            ", 2"
+        } else {
+            ""
+        };
+
+        let raw_output = if has_html {
+            format!(
+                r#"{system_imports}
+{hoisted_imports}var root = $.from_html(`{html}`{template_flags});
+
+export default function {component_name}({fn_params}) {{
+{script_code}	var {root_var} = root();
+{runtime_code}	$.append($$anchor, {root_var});
+}}"#,
+                system_imports = system_imports,
+                hoisted_imports = hoisted_imports,
+                html = html,
+                template_flags = template_flags,
+                component_name = self.component_name,
+                fn_params = fn_params,
+                script_code = script_code,
+                root_var = root_var,
+                runtime_code = runtime_code,
+            )
+        } else {
+            // No HTML - just export the function
+            format!(
+                r#"{system_imports}
+{hoisted_imports}
+export default function {component_name}({fn_params}) {{
+{script_code}}}"#,
+                system_imports = system_imports,
+                hoisted_imports = hoisted_imports,
+                component_name = self.component_name,
+                fn_params = fn_params,
+                script_code = script_code,
+            )
+        };
+
+        match normalize_js(&raw_output) {
+            Ok(normalized) => normalized,
+            Err(_) => raw_output,
+        }
+    }
+
     /// Generate children callback for component with children.
     /// Creates: ($$anchor, $$slotProps) => { $.next(); var text = $.text(); ... }
     fn generate_children_callback(&self, children_parts: &[ChildPart]) -> String {
@@ -2692,6 +3232,304 @@ export default function {component_name}({fn_params}) {{
         self.statements_to_string(&statements)
     }
 
+    /// Generate runtime code using cursor-based navigation.
+    /// This processes the AST fragment directly with cursor tracking.
+    fn generate_cursor_based_runtime_code(
+        &mut self,
+        fragment: &Fragment,
+        root_var: &str,
+    ) -> String {
+        let mut stmts: Vec<JsStatement> = Vec::new();
+        let mut prev_var: Option<String> = None;
+        let mut skipped: i32 = 0;
+
+        // Find the first non-whitespace node (same as generate_component does for HTML)
+        let start_idx = fragment
+            .nodes
+            .iter()
+            .position(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()))
+            .unwrap_or(0);
+
+        // Process root-level nodes (skipping leading whitespace)
+        for node in fragment.nodes.iter().skip(start_idx) {
+            // Skip whitespace-only text nodes (these are normalized to spaces in HTML)
+            if let TemplateNode::Text(t) = node {
+                if t.data.trim().is_empty() {
+                    skipped += 1;
+                    continue;
+                }
+            }
+
+            if self.is_node_dynamic(node) {
+                // Generate navigation
+                let var_name = match node {
+                    TemplateNode::RegularElement(elem) => self.next_var_name(&elem.name),
+                    TemplateNode::ExpressionTag(_) => "text".to_string(),
+                    TemplateNode::HtmlTag(_) => self.next_node_var(),
+                    // Components use node/node_N as anchor variable name
+                    TemplateNode::Component(_) => self.next_node_var(),
+                    _ => self.next_node_var(),
+                };
+
+                let nav_expr = if prev_var.is_none() {
+                    // First dynamic node at root level
+                    if skipped > 0 {
+                        // $.sibling($.first_child(root), skipped)
+                        svelte_sibling(svelte_first_child(id(root_var)), Some(skipped))
+                    } else {
+                        // $.first_child(root)
+                        svelte_first_child(id(root_var))
+                    }
+                } else {
+                    // Subsequent dynamic node: $.sibling(prev, skipped)
+                    let skip_count = if skipped > 1 { Some(skipped) } else { None };
+                    svelte_sibling(id(prev_var.as_ref().unwrap()), skip_count)
+                };
+
+                stmts.push(var_decl(&var_name, Some(nav_expr)));
+
+                // Process this node
+                match node {
+                    TemplateNode::RegularElement(elem) => {
+                        // Check if element has only pure expression children (no reactive vars)
+                        let has_only_pure_expressions = self.has_only_pure_expressions(elem);
+
+                        if has_only_pure_expressions {
+                            // For pure expressions, use direct textContent assignment
+                            for child_node in &elem.fragment.nodes {
+                                if let TemplateNode::ExpressionTag(tag) = child_node {
+                                    let expr_start = tag.start as usize;
+                                    let expr_end = tag.end as usize;
+                                    if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                                        let expr = self.source[expr_start + 1..expr_end - 1].trim();
+                                        // Constant fold and transform the expression
+                                        let folded = try_constant_fold(expr);
+                                        let transformed = transform_read_only_props(
+                                            &folded,
+                                            &self.read_only_props,
+                                        );
+                                        // Generate: elem.textContent = value
+                                        stmts.push(stmt(assign(
+                                            member(id(&var_name), "textContent"),
+                                            id(&transformed),
+                                        )));
+                                    }
+                                }
+                            }
+                            // Handle special attributes
+                            self.generate_special_attr_stmts(&var_name, elem, &mut stmts);
+                        } else {
+                            // Process children with cursor navigation
+                            let (child_stmts, has_dynamic_children, trailing) =
+                                self.process_children_cursor(&var_name, &elem.fragment.nodes);
+                            stmts.extend(child_stmts);
+
+                            // Add $.next() if there are trailing static nodes
+                            if trailing > 1 {
+                                stmts.push(stmt(svelte_next(Some(trailing))));
+                            }
+
+                            // Add $.reset() if this element had dynamic children
+                            if has_dynamic_children {
+                                stmts.push(stmt(svelte_reset(id(&var_name))));
+                            }
+
+                            // Generate special attribute statements
+                            self.generate_special_attr_stmts(&var_name, elem, &mut stmts);
+                        }
+                    }
+                    TemplateNode::ExpressionTag(tag) => {
+                        let expr_start = tag.start as usize;
+                        let expr_end = tag.end as usize;
+                        if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                            let expr = self.source[expr_start + 1..expr_end - 1].trim();
+                            let transformed =
+                                transform_read_only_props(expr, &self.read_only_props);
+                            self.template_effects.push((var_name.clone(), transformed));
+                        }
+                    }
+                    TemplateNode::HtmlTag(tag) => {
+                        let expr_start = tag.expression.start().unwrap_or(0) as usize;
+                        let expr_end = tag.expression.end().unwrap_or(0) as usize;
+                        if expr_end > expr_start && expr_end <= self.source.len() {
+                            let expr = self.source[expr_start..expr_end].trim();
+                            let transformed =
+                                transform_read_only_props(expr, &self.read_only_props);
+                            stmts.push(stmt(svelte_html(id(&var_name), thunk(id(&transformed)))));
+                        }
+                    }
+                    TemplateNode::Component(comp) => {
+                        // Generate: ComponentName(anchor, { prop: value, ... })
+                        let comp_name = comp.name.as_str();
+
+                        // Build props object from attributes
+                        let mut props: Vec<JsObjectMember> = Vec::new();
+                        for attr in &comp.attributes {
+                            if let Attribute::Attribute(a) = attr {
+                                let prop_name = a.name.to_string();
+                                let prop_value = match &a.value {
+                                    AttributeValue::True(_) => boolean(true),
+                                    AttributeValue::Expression(expr_tag) => {
+                                        // Extract expression from the tag
+                                        let start =
+                                            expr_tag.expression.start().unwrap_or(0) as usize;
+                                        let end = expr_tag.expression.end().unwrap_or(0) as usize;
+                                        if end > start && end <= self.source.len() {
+                                            id(self.source[start..end].trim())
+                                        } else {
+                                            boolean(true)
+                                        }
+                                    }
+                                    AttributeValue::Sequence(parts) => {
+                                        // Check if it's an expression or static text
+                                        let mut expr_str = String::new();
+                                        for part in parts {
+                                            match part {
+                                                AttributeValuePart::Text(t) => {
+                                                    expr_str.push_str(&t.data);
+                                                }
+                                                AttributeValuePart::ExpressionTag(e) => {
+                                                    let start =
+                                                        e.expression.start().unwrap_or(0) as usize;
+                                                    let end =
+                                                        e.expression.end().unwrap_or(0) as usize;
+                                                    if end > start && end <= self.source.len() {
+                                                        expr_str.push_str(
+                                                            self.source[start..end].trim(),
+                                                        );
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        if expr_str.is_empty() {
+                                            string("")
+                                        } else {
+                                            id(&expr_str)
+                                        }
+                                    }
+                                };
+                                props.push(prop(prop_name, prop_value));
+                            }
+                        }
+
+                        // Build props object
+                        let props_obj = if props.is_empty() {
+                            None
+                        } else {
+                            Some(object(props))
+                        };
+
+                        // Generate component call: ComponentName(anchor, { props })
+                        let comp_call = if let Some(props_obj) = props_obj {
+                            call(id(comp_name), vec![id(&var_name), props_obj])
+                        } else {
+                            call(id(comp_name), vec![id(&var_name)])
+                        };
+                        stmts.push(stmt(comp_call));
+                    }
+                    _ => {}
+                }
+
+                prev_var = Some(var_name);
+                skipped = 1;
+            } else {
+                skipped += 1;
+            }
+        }
+
+        // Handle trailing static nodes at root level
+        // Svelte navigates to the first trailing static ELEMENT, then $.next() for the rest
+        if skipped > 1 && prev_var.is_some() {
+            // Collect nodes after the last dynamic element
+            let mut nodes_after_last_dynamic: Vec<&TemplateNode> = Vec::new();
+            let mut last_dynamic_idx = 0;
+
+            for (i, node) in fragment.nodes.iter().skip(start_idx).enumerate() {
+                if self.is_node_dynamic(node) {
+                    last_dynamic_idx = i;
+                }
+            }
+
+            // Collect trailing nodes
+            for (i, node) in fragment.nodes.iter().skip(start_idx).enumerate() {
+                if i > last_dynamic_idx {
+                    nodes_after_last_dynamic.push(node);
+                }
+            }
+
+            // Find first static element in trailing nodes
+            let mut trailing_element: Option<&RegularElement> = None;
+            let mut count_to_element: i32 = 0;
+            let mut remaining_count: i32 = 0;
+            let mut found_element = false;
+
+            for node in &nodes_after_last_dynamic {
+                if !matches!(node, TemplateNode::Text(t) if t.data.trim().is_empty()) {
+                    if let TemplateNode::RegularElement(elem) = node {
+                        if !found_element {
+                            trailing_element = Some(elem);
+                            found_element = true;
+                        } else {
+                            remaining_count += 1;
+                        }
+                    } else {
+                        remaining_count += 1;
+                    }
+                } else if !found_element {
+                    count_to_element += 1;
+                } else {
+                    remaining_count += 1;
+                }
+            }
+
+            // Include the whitespace before the first trailing element
+            count_to_element += 1; // Add 1 for the sibling count from prev
+
+            if let Some(elem) = trailing_element {
+                // Navigate to the first trailing element
+                let elem_var = self.next_var_name(&elem.name);
+                let skip_count = if count_to_element > 1 {
+                    Some(count_to_element)
+                } else {
+                    None
+                };
+                stmts.push(var_decl(
+                    &elem_var,
+                    Some(svelte_sibling(id(prev_var.as_ref().unwrap()), skip_count)),
+                ));
+                // Then $.next() for remaining
+                if remaining_count > 0 {
+                    stmts.push(stmt(svelte_next(Some(remaining_count))));
+                }
+            } else {
+                // No trailing elements, just skip all
+                stmts.push(stmt(svelte_next(Some(skipped))));
+            }
+        }
+
+        // Generate $.template_effect for collected expressions
+        if !self.template_effects.is_empty() {
+            if self.template_effects.len() == 1 {
+                let (var_name, expr) = &self.template_effects[0];
+                stmts.push(stmt(svelte_template_effect(thunk(svelte_set_text(
+                    id(var_name),
+                    id(expr),
+                )))));
+            } else {
+                let mut effect_body: Vec<JsStatement> = Vec::new();
+                for (var_name, expr) in &self.template_effects {
+                    effect_body.push(stmt(svelte_set_text(id(var_name), id(expr))));
+                }
+                stmts.push(stmt(svelte_template_effect(arrow_block(
+                    vec![],
+                    effect_body,
+                ))));
+            }
+        }
+
+        self.statements_to_string(&stmts)
+    }
+
     /// Generate each block code as AST statements.
     fn generate_each_block_code_ast(&self) -> Vec<JsStatement> {
         let mut statements: Vec<JsStatement> = Vec::new();
@@ -2892,6 +3730,76 @@ export default function {component_name}({fn_params}) {{
         let statements = self.generate_component_binding_code_ast();
         self.statements_to_string(&statements)
     }
+}
+
+/// Helper function to check if nodes contain dynamic descendants.
+fn has_dynamic_descendants_helper(nodes: &[TemplateNode]) -> bool {
+    for node in nodes {
+        match node {
+            TemplateNode::ExpressionTag(_)
+            | TemplateNode::HtmlTag(_)
+            | TemplateNode::IfBlock(_)
+            | TemplateNode::EachBlock(_)
+            | TemplateNode::AwaitBlock(_)
+            | TemplateNode::KeyBlock(_)
+            | TemplateNode::Component(_)
+            | TemplateNode::RenderTag(_) => return true,
+            TemplateNode::RegularElement(elem) => {
+                // Check for special attributes
+                let has_special = elem.attributes.iter().any(|attr| {
+                    matches!(attr, Attribute::BindDirective(_))
+                        || matches!(attr, Attribute::Attribute(a) if
+                            a.name == "autofocus"
+                            || (a.name == "muted" && (elem.name == "source" || elem.name == "video"))
+                            || (a.name == "value" && elem.name == "option")
+                        )
+                });
+                let is_custom = elem.name.contains('-');
+                let is_input = matches!(elem.name.as_str(), "input" | "textarea" | "select");
+                if has_special || is_custom || is_input {
+                    return true;
+                }
+                // Check descendants recursively
+                if has_dynamic_descendants_helper(&elem.fragment.nodes) {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+/// Check if this component requires hierarchical DOM navigation.
+/// This is a heuristic to detect skip-static-subtree patterns.
+fn has_nested_dynamic_content(fragment: &Fragment) -> bool {
+    // Check for specific patterns that require hierarchical navigation:
+    // 1. HtmlTag ({@html ...}) inside an element at any depth
+    // 2. Custom elements with attributes inside containers
+    // 3. Multiple nested levels of elements with dynamic content
+
+    fn check_for_html_tag(nodes: &[TemplateNode], depth: usize) -> bool {
+        for node in nodes {
+            match node {
+                TemplateNode::HtmlTag(_) => {
+                    // {@html} inside an element needs hierarchical nav
+                    if depth > 0 {
+                        return true;
+                    }
+                }
+                TemplateNode::RegularElement(elem) => {
+                    // Check children at increased depth
+                    if check_for_html_tag(&elem.fragment.nodes, depth + 1) {
+                        return true;
+                    }
+                }
+                _ => {}
+            }
+        }
+        false
+    }
+
+    check_for_html_tag(&fragment.nodes, 0)
 }
 
 /// Determine the root variable name from the HTML.

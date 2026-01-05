@@ -188,9 +188,9 @@ Current status:
 - [x] Script/Style parsing
 - [x] CSS parsing
 
-### Compiler Snapshot Tests (17 testable: Client 16/17, Server 17/17)
+### Compiler Snapshot Tests (17 testable: Client 17/17, Server 17/17) ✅
 
-**Passing tests (16 client + 17 server):**
+**Passing tests (17 client + 17 server):**
 - hello-world
 - purity
 - svelte-element
@@ -199,6 +199,7 @@ Current status:
 - state-proxy-literal
 - delegated-locally-declared-shadowed
 - imports-in-modules
+- skip-static-subtree
 - each-string-template
 - each-index-non-null
 - bind-this
@@ -221,18 +222,19 @@ Current status:
 - hmr - `hmr: true`
 - functional-templating - `fragments: 'tree'`
 
-**Failing tests (1 test):**
-- skip-static-subtree (client only) - comprehensive static optimization test requiring:
-  - [x] `TEMPLATE_USE_IMPORT_NODE` flag for custom elements
-  - [x] Read-only destructured props without `$.prop()` (use `$$props.X` directly)
-  - [x] Template HTML without special attributes (remove autofocus, muted, option value, custom element attrs)
-  - [x] `{@html}` runtime code generation (`$.html(node, () => expr)`)
-  - [x] Custom element data (`$.set_custom_element_data(el, attr, value)`)
-  - [x] Special attribute runtime code (`$.autofocus(el, true)`, `el.muted = true`, `option.value = option.__value = 'a'`)
-  - [ ] Advanced DOM navigation (`$.child(el, preserve_whitespace)`, `$.reset(el)`, `$.next(count)`)
-    - Current: flat sibling navigation (`$.first_child`, `$.sibling`)
-    - Required: hierarchical parent-child navigation with proper element declarations
-  - [ ] `$.template_effect()` instead of direct `.textContent` assignment
+**All tests passing! ✅**
+
+Key features implemented for skip-static-subtree:
+- [x] `TEMPLATE_USE_IMPORT_NODE` flag for custom elements
+- [x] Read-only destructured props without `$.prop()` (use `$$props.X` directly)
+- [x] Template HTML without special attributes
+- [x] `{@html}` runtime code generation (`$.html(node, () => expr)`)
+- [x] Custom element data (`$.set_custom_element_data(el, attr, value)`)
+- [x] Special attribute runtime code (`$.autofocus(el, true)`, `el.muted = true`, `option.value = option.__value = 'a'`)
+- [x] Advanced DOM navigation (`$.child(el, preserve_whitespace)`, `$.reset(el)`, `$.next(count)`)
+- [x] `$.template_effect()` for reactive props
+- [x] Hierarchical navigation detection and `build_with_fragment()` for complex components
+- [x] Trailing static element navigation pattern
 
 **Implemented features:**
 - [x] Compiler fixture test infrastructure
@@ -302,7 +304,14 @@ Current status:
   - walk_* functions for AST traversal
 
 **Pending refactoring:**
-- [ ] **Phase 3.3**: String→AST conversion (replace push_str with AST builders)
+- [ ] **Phase 3.3**: Cursor-based DOM navigation (current priority)
+  - Svelte方式のシングルパス・カーソルベースナビゲーション実装
+  - `prev_var`: 現在位置（前回の動的ノード変数）
+  - `skipped`: スキップした静的ノード数
+  - `$.child(parent)` で最初の動的子を取得
+  - `$.sibling(prev, skipped)` で後続の動的兄弟を取得
+  - `$.reset(parent)` で子の処理完了を示す
+  - `$.template_effect()` でリアクティブテキストを処理
 - [ ] **Phase 3.4**: TemplateBuilder implementation
 - [ ] **Phase 3.5**: Memoizer implementation
 - [ ] **Phase 4**: Memory optimization with arena allocation
