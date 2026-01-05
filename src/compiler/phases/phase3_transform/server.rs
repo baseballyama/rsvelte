@@ -908,16 +908,30 @@ impl<'a> ServerCodeGenerator<'a> {
                 // Check if script uses $props()
                 let uses_props = raw_script.contains("$props()");
 
+                // Check if class fields use $state or $derived runes
+                // This requires $$props and $$renderer.component() wrapper
+                let has_class_state_fields = raw_script.contains("class ")
+                    && (raw_script.contains("= $state(") || raw_script.contains("= $derived("));
+
                 // Check if uses spread pattern: let props = $props() or let xxx = $props()
                 // This requires $$renderer.component() wrapper with destructuring
                 let uses_props_spread = detect_props_spread_pattern(&raw_script);
 
                 // Extract imports and transform the rest
                 let (imports, rest) = extract_imports(&raw_script);
+
+                // Apply class field transformation for $derived fields
+                let rest = transform_class_fields_server(&rest);
+
                 let transformed = transform_script_content(&rest);
 
-                if uses_props {
-                    (", $$props", transformed, imports, uses_props_spread)
+                if uses_props || has_class_state_fields {
+                    (
+                        ", $$props",
+                        transformed,
+                        imports,
+                        uses_props_spread || has_class_state_fields,
+                    )
                 } else {
                     ("", transformed, imports, false)
                 }
@@ -1939,4 +1953,198 @@ fn add_statement_semicolon(line: &str) -> String {
     }
 
     line.to_string()
+}
+
+/// Transform class fields with $derived runes for server-side.
+/// Server-side:
+/// - `$state` fields are transformed to plain values (already handled by transform_rune_call_multiline)
+/// - `$derived` fields become private fields with getter/setter
+fn transform_class_fields_server(script: &str) -> String {
+    // Check if script contains a class with $derived fields
+    if !script.contains("class ") || !script.contains("$derived") {
+        return script.to_string();
+    }
+
+    // Find the class body
+    let Some(class_pos) = script.find("class ") else {
+        return script.to_string();
+    };
+
+    // Find the opening brace of the class
+    let after_class = &script[class_pos..];
+    let Some(brace_pos) = after_class.find('{') else {
+        return script.to_string();
+    };
+
+    let class_header = &after_class[..brace_pos + 1];
+
+    // Find matching closing brace
+    let class_body_start = class_pos + brace_pos + 1;
+    let mut brace_depth = 1;
+    let mut class_body_end = class_body_start;
+
+    for (i, c) in script[class_body_start..].char_indices() {
+        match c {
+            '{' => brace_depth += 1,
+            '}' => {
+                brace_depth -= 1;
+                if brace_depth == 0 {
+                    class_body_end = class_body_start + i;
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let class_body = &script[class_body_start..class_body_end];
+
+    // Parse class fields with $derived
+    #[derive(Debug)]
+    struct DerivedField {
+        name: String,
+        is_private: bool,
+        value: String,
+    }
+
+    let mut derived_fields: Vec<DerivedField> = Vec::new();
+    let mut other_lines: Vec<String> = Vec::new();
+    let mut constructor_lines: Vec<String> = Vec::new();
+    let mut in_constructor = false;
+    let mut constructor_depth = 0;
+
+    for line in class_body.lines() {
+        let trimmed = line.trim();
+
+        // Track constructor
+        if trimmed.contains("constructor(") {
+            in_constructor = true;
+            constructor_lines.push(trimmed.to_string());
+            if trimmed.contains('{') {
+                constructor_depth = 1;
+            }
+            continue;
+        }
+
+        if in_constructor {
+            constructor_lines.push(trimmed.to_string());
+            for c in trimmed.chars() {
+                match c {
+                    '{' => constructor_depth += 1,
+                    '}' => {
+                        constructor_depth -= 1;
+                        if constructor_depth == 0 {
+                            in_constructor = false;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            continue;
+        }
+
+        // Check for $derived field
+        if trimmed.contains("= $derived(") || trimmed.contains("=$derived(") {
+            // Parse the field
+            let is_private = trimmed.starts_with('#');
+            if let Some(eq_pos) = trimmed.find('=') {
+                let name = trimmed[..eq_pos].trim().trim_start_matches('#').to_string();
+
+                // Find the derived value
+                let derived_pattern = "$derived(";
+                if let Some(derived_pos) = trimmed.find(derived_pattern) {
+                    let value_start = derived_pos + derived_pattern.len();
+                    let after_paren = &trimmed[value_start..];
+
+                    // Find matching closing paren
+                    if let Some(value_end) = find_matching_paren_server(after_paren) {
+                        let value = after_paren[..value_end].to_string();
+                        derived_fields.push(DerivedField {
+                            name,
+                            is_private,
+                            value,
+                        });
+                        continue;
+                    }
+                }
+            }
+        }
+
+        // Other lines
+        if !trimmed.is_empty() {
+            other_lines.push(trimmed.to_string());
+        }
+    }
+
+    if derived_fields.is_empty() {
+        return script.to_string();
+    }
+
+    // Build transformed class body
+    let mut new_class_body = String::new();
+
+    // Add non-derived fields first
+    for line in &other_lines {
+        new_class_body.push_str(&format!("\t\t{}\n", line));
+    }
+
+    // Add derived fields with getter/setter
+    for field in &derived_fields {
+        let private_name = format!("#{}", field.name);
+
+        // Private field with $.derived
+        new_class_body.push_str(&format!(
+            "\t\t{} = $.derived(() => ({}));\n",
+            private_name, field.value
+        ));
+
+        // Add getter/setter only for public fields
+        if !field.is_private {
+            new_class_body.push('\n');
+            new_class_body.push_str(&format!(
+                "\t\tget {}() {{\n\t\t\treturn this.{}();\n\t\t}}\n",
+                field.name, private_name
+            ));
+            new_class_body.push('\n');
+            new_class_body.push_str(&format!(
+                "\t\tset {}($$value) {{\n\t\t\treturn this.{}($$value);\n\t\t}}\n",
+                field.name, private_name
+            ));
+        }
+    }
+
+    // Add constructor
+    if !constructor_lines.is_empty() {
+        new_class_body.push('\n');
+        for line in &constructor_lines {
+            new_class_body.push_str(&format!("\t\t{}\n", line));
+        }
+    }
+
+    // Build the final result
+    let before_class = &script[..class_pos];
+    let after_class_body = &script[class_body_end + 1..]; // Skip closing brace
+
+    format!(
+        "{}{}\n{}\t}}{}",
+        before_class, class_header, new_class_body, after_class_body
+    )
+}
+
+/// Find matching parenthesis (for server-side parsing)
+fn find_matching_paren_server(s: &str) -> Option<usize> {
+    let mut depth = 1;
+    for (i, c) in s.char_indices() {
+        match c {
+            '(' | '{' | '[' => depth += 1,
+            ')' | '}' | ']' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }

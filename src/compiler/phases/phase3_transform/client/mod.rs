@@ -1293,6 +1293,12 @@ impl ClientCodeGenerator {
         // Check if script uses $props()
         let uses_props = self.script_content.contains("$props()");
 
+        // Check if class fields use $state or $derived runes
+        // This requires $$props and $.push/$.pop wrapper
+        let has_class_state_fields = self.script_content.contains("class ")
+            && (self.script_content.contains("= $state(")
+                || self.script_content.contains("= $derived("));
+
         // Check if $props() is used as identifier (not destructured)
         // Pattern: let props = $props() or const props = $props()
         // Also extract the variable name used
@@ -1334,6 +1340,10 @@ impl ClientCodeGenerator {
             let transformed =
                 self.transform_script_content_with_props_identifier(&script_rest, props_name);
             format!("\t$.push($$props, true);\n\n{}", transformed)
+        } else if has_class_state_fields {
+            // Wrap with $.push/$.pop for class with state fields
+            let transformed = self.transform_script_content(&script_rest);
+            format!("\t$.push($$props, true);\n\n{}", transformed)
         } else {
             self.transform_script_content(&script_rest)
         };
@@ -1361,8 +1371,8 @@ impl ClientCodeGenerator {
             format!("\n\n$.delegate([{}]);", events_str)
         };
 
-        // Determine function signature based on $props usage
-        let fn_params = if uses_props {
+        // Determine function signature based on $props usage or class state fields
+        let fn_params = if uses_props || has_class_state_fields {
             "$$anchor, $$props"
         } else {
             "$$anchor"
@@ -1558,8 +1568,8 @@ export default function {component_name}({fn_params}) {{
             )
         } else if !has_html && runtime_code.is_empty() && !has_each_blocks {
             // No HTML template - just script code
-            let pop_code = if uses_props_identifier {
-                "\t$.pop();\n"
+            let pop_code = if uses_props_identifier || has_class_state_fields {
+                "\n\t$.pop();\n"
             } else {
                 ""
             };
@@ -1922,8 +1932,11 @@ export default function {component_name}({fn_params}) {{
             return String::new();
         }
 
+        // First, transform class fields with $state and $derived
+        let script = transform_class_fields_client(script);
+
         // Detect state variables that should be skipped (used in FUNC_ARRAY pattern)
-        let skip_state_vars = self.detect_func_array_state_vars(script);
+        let skip_state_vars = self.detect_func_array_state_vars(&script);
 
         let mut result = String::new();
 
@@ -1932,6 +1945,18 @@ export default function {component_name}({fn_params}) {{
 
             // Skip empty lines
             if trimmed.is_empty() {
+                continue;
+            }
+
+            // Skip lines that are already part of class transformation (have $.state or $.derived)
+            if trimmed.contains("$.state(")
+                || trimmed.contains("$.derived(")
+                || trimmed.contains("$.get(")
+                || trimmed.contains("$.set(")
+            {
+                result.push('\t');
+                result.push_str(trimmed);
+                result.push('\n');
                 continue;
             }
 
@@ -3682,6 +3707,270 @@ fn transform_state_assignments(line: &str, state_vars: &[String]) -> String {
     }
 
     result
+}
+
+/// Represents a class field with $state or $derived rune.
+#[derive(Debug, Clone)]
+struct ClassStateField {
+    /// Field name (without # prefix)
+    name: String,
+    /// Whether this is a private field (starts with #)
+    is_private: bool,
+    /// The rune type: "$state" or "$derived"
+    rune_type: String,
+    /// The initial value/expression
+    value: String,
+}
+
+/// Transform class fields with $state and $derived runes for client-side.
+/// Converts:
+/// - `a = $state(0)` -> `#a = $.state(0)` + getter/setter
+/// - `#b = $state()` -> `#b = $.state()` (private field, no getter/setter)
+/// - `foo = $derived({...})` -> `#foo = $.derived(() => ({...}))` + getter/setter
+fn transform_class_fields_client(script: &str) -> String {
+    // Check if script contains a class with $state or $derived fields
+    if !script.contains("class ") || (!script.contains("$state") && !script.contains("$derived")) {
+        return script.to_string();
+    }
+
+    // Find the class body
+    let Some(class_pos) = script.find("class ") else {
+        return script.to_string();
+    };
+
+    // Find the opening brace of the class
+    let after_class = &script[class_pos..];
+    let Some(brace_pos) = after_class.find('{') else {
+        return script.to_string();
+    };
+
+    let class_header = &after_class[..brace_pos + 1];
+
+    // Find matching closing brace
+    let class_body_start = class_pos + brace_pos + 1;
+    let mut brace_depth = 1;
+    let mut class_body_end = class_body_start;
+
+    for (i, c) in script[class_body_start..].char_indices() {
+        match c {
+            '{' => brace_depth += 1,
+            '}' => {
+                brace_depth -= 1;
+                if brace_depth == 0 {
+                    class_body_end = class_body_start + i;
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let class_body = &script[class_body_start..class_body_end];
+
+    // Parse class fields with $state and $derived
+    let mut fields: Vec<ClassStateField> = Vec::new();
+    let mut constructor_content = String::new();
+    let mut constructor_start = None;
+
+    // Find constructor first
+    if let Some(ctor_pos) = class_body.find("constructor(") {
+        // Find the opening brace
+        let after_ctor = &class_body[ctor_pos..];
+        if let Some(brace_pos) = after_ctor.find('{') {
+            let ctor_body_start = ctor_pos + brace_pos + 1;
+            let mut depth = 1;
+            let mut ctor_body_end = ctor_body_start;
+
+            for (i, c) in class_body[ctor_body_start..].char_indices() {
+                match c {
+                    '{' => depth += 1,
+                    '}' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            ctor_body_end = ctor_body_start + i;
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            constructor_start = Some(ctor_pos);
+            constructor_content = class_body[ctor_body_start..ctor_body_end].to_string();
+        }
+    }
+
+    // Parse field definitions (before constructor)
+    let fields_section = if let Some(ctor_start) = constructor_start {
+        &class_body[..ctor_start]
+    } else {
+        class_body
+    };
+
+    // Parse each line for field definitions
+    for line in fields_section.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        // Check for $state field: name = $state(...) or #name = $state(...)
+        if trimmed.contains("= $state(") || trimmed.contains("=$state(") {
+            if let Some(field) = parse_state_field(trimmed, "$state") {
+                fields.push(field);
+            }
+        }
+        // Check for $derived field: name = $derived(...) or #name = $derived(...)
+        else if trimmed.contains("= $derived(") || trimmed.contains("=$derived(") {
+            if let Some(field) = parse_state_field(trimmed, "$derived") {
+                fields.push(field);
+            }
+        }
+    }
+
+    if fields.is_empty() {
+        return script.to_string();
+    }
+
+    // Build transformed class body
+    let mut new_class_body = String::new();
+
+    for field in &fields {
+        // All fields become private with # prefix
+        let private_name = format!("#{}", field.name);
+
+        if field.rune_type == "$state" {
+            // Transform $state: #name = $.state(value)
+            new_class_body.push_str(&format!(
+                "\t\t{} = $.state({});\n",
+                private_name, field.value
+            ));
+
+            // Add getter/setter only for public fields
+            if !field.is_private {
+                new_class_body.push('\n');
+                new_class_body.push_str(&format!(
+                    "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
+                    field.name, private_name
+                ));
+                new_class_body.push('\n');
+                new_class_body.push_str(&format!(
+                    "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value, true);\n\t\t}}\n",
+                    field.name, private_name
+                ));
+            }
+        } else if field.rune_type == "$derived" {
+            // Transform $derived: #name = $.derived(() => (value))
+            // Need to wrap the value in an arrow function
+            let wrapped_value = format!("() => ({})", field.value);
+            new_class_body.push_str(&format!(
+                "\t\t{} = $.derived({});\n",
+                private_name, wrapped_value
+            ));
+
+            // Add getter/setter only for public fields
+            if !field.is_private {
+                new_class_body.push('\n');
+                new_class_body.push_str(&format!(
+                    "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
+                    field.name, private_name
+                ));
+                new_class_body.push('\n');
+                new_class_body.push_str(&format!(
+                    "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}\n",
+                    field.name, private_name
+                ));
+            }
+        }
+    }
+
+    // Add constructor with transformed assignments
+    if constructor_start.is_some() {
+        new_class_body.push('\n');
+        new_class_body.push_str("\t\tconstructor() {\n");
+
+        // Transform constructor content
+        for line in constructor_content.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+
+            // Check for private field assignment: this.#name = value
+            // Need to transform to $.set(this.#name, value)
+            let transformed_line = transform_constructor_assignment(trimmed, &fields);
+            new_class_body.push_str(&format!("\t\t\t{}\n", transformed_line));
+        }
+
+        new_class_body.push_str("\t\t}\n");
+    }
+
+    // Build the final result
+    let before_class = &script[..class_pos];
+    let after_class_body = &script[class_body_end + 1..]; // Skip closing brace
+
+    format!(
+        "{}{}\n{}\t}}{}",
+        before_class, class_header, new_class_body, after_class_body
+    )
+}
+
+/// Parse a state field definition.
+fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStateField> {
+    let trimmed = line.trim().trim_end_matches(';');
+
+    // Check if starts with # (private field)
+    let is_private = trimmed.starts_with('#');
+
+    // Find the field name
+    let name_end = trimmed.find('=').or_else(|| trimmed.find(" ="))?;
+    let name = trimmed[..name_end]
+        .trim()
+        .trim_start_matches('#')
+        .to_string();
+
+    // Find the rune call
+    let rune_pattern = format!("{}(", rune_type);
+    let rune_start = trimmed.find(&rune_pattern)?;
+    let value_start = rune_start + rune_pattern.len();
+
+    // Find matching closing paren
+    let after_paren = &trimmed[value_start..];
+    let value_end = find_matching_paren(after_paren)?;
+    let value = after_paren[..value_end].to_string();
+
+    Some(ClassStateField {
+        name,
+        is_private,
+        rune_type: rune_type.to_string(),
+        value,
+    })
+}
+
+/// Transform constructor assignments for private state fields.
+/// `this.#b = 2` -> `$.set(this.#b, 2)`
+fn transform_constructor_assignment(line: &str, fields: &[ClassStateField]) -> String {
+    let trimmed = line.trim();
+
+    // Check for private field assignment: this.#name = value
+    if trimmed.starts_with("this.#") && trimmed.contains('=') {
+        // Find which private field this is
+        for field in fields {
+            if field.is_private {
+                let pattern = format!("this.#{} =", field.name);
+                let pattern_nospace = format!("this.#{}=", field.name);
+
+                if trimmed.starts_with(&pattern) || trimmed.starts_with(&pattern_nospace) {
+                    // Extract the value after =
+                    let eq_pos = trimmed.find('=').unwrap();
+                    let value = trimmed[eq_pos + 1..].trim().trim_end_matches(';');
+                    return format!("$.set(this.#{}, {});", field.name, value);
+                }
+            }
+        }
+    }
+
+    trimmed.to_string()
 }
 
 #[cfg(test)]
