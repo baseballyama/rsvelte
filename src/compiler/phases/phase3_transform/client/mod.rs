@@ -20,45 +20,31 @@ use super::js_ast::{
 };
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, Component, EachBlock,
-    ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, RegularElement, RenderTag, SnippetBlock,
-    SvelteDynamicElement, TemplateNode, Text,
+    ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, RegularElement, RenderTag, Root,
+    SnippetBlock, SvelteDynamicElement, TemplateNode, Text,
 };
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 
 /// Transform a component analysis into client-side JavaScript.
+///
+/// # Arguments
+///
+/// * `analysis` - The component analysis from Phase 2 (includes pre-extracted script content)
+/// * `ast` - The parsed AST from Phase 1 (to avoid re-parsing)
+/// * `_source` - The original source code (for backward compatibility)
+/// * `_options` - Compile options
 pub fn transform_client(
     analysis: &ComponentAnalysis,
+    ast: &Root,
     _source: &str,
     _options: &CompileOptions,
 ) -> Result<String, TransformError> {
     let component_name = &analysis.name;
 
-    // Parse the AST to generate template and code
-    let ast = crate::parser::parse(
-        &analysis.source,
-        crate::ParseOptions {
-            modern: true,
-            loose: false,
-            filename: None,
-        },
-    )
-    .map_err(|e| TransformError::CodeGen(format!("Parse error: {:?}", e)))?;
-
-    // Extract script content and check for runes
-    let (script_content, uses_runes) = if let Some(script) = &ast.instance {
-        let start = script.content.start().unwrap_or(0) as usize;
-        let end = script.content.end().unwrap_or(0) as usize;
-        let content = if end > start && end <= analysis.source.len() {
-            analysis.source[start..end].to_string()
-        } else {
-            String::new()
-        };
-        let has_runes = content.contains("$state")
-            || content.contains("$derived")
-            || content.contains("$effect")
-            || content.contains("$props");
-        (content, has_runes)
+    // Use pre-extracted script content from analysis (avoids re-parsing)
+    let (script_content, uses_runes) = if let Some(ref content) = analysis.instance_script_content {
+        (content.raw.clone(), content.uses_runes)
     } else {
         (String::new(), false)
     };
@@ -69,6 +55,8 @@ pub fn transform_client(
         script_content,
         uses_runes,
     );
+
+    // Use the AST fragment directly (no re-parsing needed)
     generator.generate_component(&ast.fragment)?;
 
     Ok(generator.build())

@@ -7,31 +7,28 @@ use super::js_ast::normalize_js;
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, BindDirective,
     Component, EachBlock, ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, RegularElement,
-    RenderTag, Script, SnippetBlock, SvelteDynamicElement, TemplateNode, Text,
+    RenderTag, Root, Script, SnippetBlock, SvelteDynamicElement, TemplateNode, Text,
 };
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 
 /// Transform a component analysis into server-side JavaScript.
+///
+/// # Arguments
+///
+/// * `analysis` - The component analysis from Phase 2
+/// * `ast` - The parsed AST from Phase 1 (to avoid re-parsing)
+/// * `_source` - The original source code (for backward compatibility)
+/// * `_options` - Compile options
 pub fn transform_server(
     analysis: &ComponentAnalysis,
+    ast: &Root,
     _source: &str,
     _options: &CompileOptions,
 ) -> Result<String, TransformError> {
     let component_name = &analysis.name;
 
-    // Parse the AST to generate template and code
-    let ast = crate::parser::parse(
-        &analysis.source,
-        crate::ParseOptions {
-            modern: true,
-            loose: false,
-            filename: None,
-        },
-    )
-    .map_err(|e| TransformError::CodeGen(format!("Parse error: {:?}", e)))?;
-
-    // Extract instance script if present
+    // Use the AST's instance script directly (no re-parsing needed)
     let instance_script = ast.instance.as_ref().map(|s| s.as_ref());
 
     let mut generator = ServerCodeGenerator::new(
@@ -39,6 +36,8 @@ pub fn transform_server(
         analysis.source.clone(),
         instance_script,
     );
+
+    // Use the AST fragment directly (no re-parsing needed)
     generator.generate_component(&ast.fragment)?;
 
     Ok(generator.build())

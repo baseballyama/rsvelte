@@ -18,7 +18,7 @@ mod types;
 mod visitors;
 
 pub use scope::{Binding, BindingKind, Scope, ScopeRoot};
-pub use types::{ComponentAnalysis, CssAnalysis, JsAnalysis, TemplateAnalysis};
+pub use types::{ComponentAnalysis, CssAnalysis, JsAnalysis, ScriptContent, TemplateAnalysis};
 
 use crate::ast::template::Root;
 use crate::compiler::CompileOptions;
@@ -42,6 +42,9 @@ pub fn analyze_component(
     options: &CompileOptions,
 ) -> Result<ComponentAnalysis, AnalysisError> {
     let mut analysis = ComponentAnalysis::new(source, options);
+
+    // Extract script content for Phase 3 (avoids re-parsing)
+    analysis.extract_scripts(ast);
 
     // Create scopes for the component
     analysis.create_scopes(ast)?;

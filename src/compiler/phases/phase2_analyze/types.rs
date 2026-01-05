@@ -1,9 +1,47 @@
 //! Type definitions for the analysis phase.
 
 use super::scope::{Scope, ScopeRoot};
-use crate::ast::template::Root;
+use crate::ast::template::{Root, Script};
 use crate::compiler::CompileOptions;
 use std::collections::{HashMap, HashSet};
+
+/// Pre-extracted script content to avoid re-parsing in Phase 3.
+#[derive(Debug, Clone)]
+pub struct ScriptContent {
+    /// The raw script content as a string.
+    pub raw: String,
+    /// Start position in the source.
+    pub start: u32,
+    /// End position in the source.
+    pub end: u32,
+    /// Whether this script uses runes ($state, $derived, $effect, $props).
+    pub uses_runes: bool,
+}
+
+impl ScriptContent {
+    /// Extract script content from an AST Script node and source.
+    pub fn from_script(script: &Script, source: &str) -> Self {
+        let start = script.content.start().unwrap_or(0);
+        let end = script.content.end().unwrap_or(0);
+        let raw = if (end as usize) > (start as usize) && (end as usize) <= source.len() {
+            source[start as usize..end as usize].to_string()
+        } else {
+            String::new()
+        };
+
+        let uses_runes = raw.contains("$state")
+            || raw.contains("$derived")
+            || raw.contains("$effect")
+            || raw.contains("$props");
+
+        Self {
+            raw,
+            start,
+            end,
+            uses_runes,
+        }
+    }
+}
 
 /// Analysis result for a Svelte component.
 #[derive(Debug)]
@@ -64,6 +102,12 @@ pub struct ComponentAnalysis {
 
     /// The original source code
     pub source: String,
+
+    /// Pre-extracted instance script content (to avoid re-parsing in Phase 3)
+    pub instance_script_content: Option<ScriptContent>,
+
+    /// Pre-extracted module script content (to avoid re-parsing in Phase 3)
+    pub module_script_content: Option<ScriptContent>,
 }
 
 impl ComponentAnalysis {
@@ -95,6 +139,27 @@ impl ComponentAnalysis {
             custom_element: None,
             inject_styles: options.css == crate::compiler::CssMode::Injected,
             source: source.to_string(),
+            instance_script_content: None,
+            module_script_content: None,
+        }
+    }
+
+    /// Extract and store script content from the AST.
+    /// This should be called during Phase 2 to pre-extract scripts for Phase 3.
+    pub fn extract_scripts(&mut self, ast: &Root) {
+        // Extract instance script content
+        if let Some(ref script) = ast.instance {
+            let content = ScriptContent::from_script(script, &self.source);
+            if content.uses_runes {
+                self.runes = true;
+            }
+            self.instance_script_content = Some(content);
+        }
+
+        // Extract module script content
+        if let Some(ref script) = ast.module {
+            let content = ScriptContent::from_script(script, &self.source);
+            self.module_script_content = Some(content);
         }
     }
 

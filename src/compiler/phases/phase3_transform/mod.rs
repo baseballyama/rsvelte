@@ -18,6 +18,7 @@ pub mod server;
 pub use js_ast::{JsExpr, JsProgram, JsStatement};
 
 use super::phase2_analyze::ComponentAnalysis;
+use crate::ast::template::Root;
 use crate::compiler::{CompileOptions, GenerateMode};
 
 /// Result of the transform phase.
@@ -62,6 +63,7 @@ pub struct TransformWarning {
 /// # Arguments
 ///
 /// * `analysis` - The component analysis from Phase 2
+/// * `ast` - The parsed AST from Phase 1 (to avoid re-parsing)
 /// * `source` - The original source code
 /// * `options` - Compile options
 ///
@@ -70,12 +72,13 @@ pub struct TransformWarning {
 /// Returns a `TransformResult` containing the generated code.
 pub fn transform_component(
     analysis: &ComponentAnalysis,
+    ast: &Root,
     source: &str,
     options: &CompileOptions,
 ) -> Result<TransformResult, TransformError> {
     let js = match options.generate {
-        GenerateMode::Client => client::transform_client(analysis, source, options)?,
-        GenerateMode::Server => server::transform_server(analysis, source, options)?,
+        GenerateMode::Client => client::transform_client(analysis, ast, source, options)?,
+        GenerateMode::Server => server::transform_server(analysis, ast, source, options)?,
     };
 
     let css = if analysis.css.has_css && !analysis.inject_styles {

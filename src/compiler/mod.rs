@@ -146,9 +146,9 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
     // Phase 2: Analyze
     let analysis = phases::phase2_analyze::analyze_component(&ast, source, &options)?;
 
-    // Phase 3: Transform
+    // Phase 3: Transform (pass AST to avoid re-parsing)
     let transform_result =
-        phases::phase3_transform::transform_component(&analysis, source, &options)?;
+        phases::phase3_transform::transform_component(&analysis, &ast, source, &options)?;
 
     // Convert to CompileResult
     Ok(CompileResult {
