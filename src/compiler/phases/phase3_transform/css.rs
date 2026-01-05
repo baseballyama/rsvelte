@@ -130,6 +130,21 @@ fn transform_node_preserving(
     }
 }
 
+/// Check if a block has any actual declarations (not just comments)
+fn has_declarations(block: &Value) -> bool {
+    if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
+        children.iter().any(|child| {
+            child
+                .get("type")
+                .and_then(|t| t.as_str())
+                .map(|t| t == "Declaration" || t == "Atrule" || t == "Rule")
+                .unwrap_or(false)
+        })
+    } else {
+        false
+    }
+}
+
 /// Transform a CSS rule while preserving whitespace from source
 #[allow(clippy::too_many_arguments)]
 fn transform_rule_preserving(
@@ -152,6 +167,31 @@ fn transform_rule_preserving(
         if ws_end <= css_source.len() && ws_start < ws_end {
             output.push_str(&css_source[ws_start..ws_end]);
         }
+    }
+
+    // Check if the rule is empty (no declarations)
+    let is_empty = node
+        .get("block")
+        .map(|block| !has_declarations(block))
+        .unwrap_or(false);
+
+    if is_empty {
+        // Comment out empty rules
+        output.push_str("/* (empty) ");
+
+        // Get the original rule text
+        let rule_start = node_start.saturating_sub(css_start);
+        let rule_end = node_end.saturating_sub(css_start);
+        if rule_end <= css_source.len() && rule_start < rule_end {
+            let original = &css_source[rule_start..rule_end];
+            // Escape any */ in the content
+            let escaped = original.replace("*/", "*\\/");
+            output.push_str(&escaped);
+        }
+
+        output.push_str("*/");
+        *last_end = node_end;
+        return;
     }
 
     // Get the prelude (selector list)
