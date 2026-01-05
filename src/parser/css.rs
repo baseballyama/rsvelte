@@ -1337,6 +1337,16 @@ impl<'a> CssParser<'a> {
                 continue;
             }
 
+            // Check if this looks like a nested rule (selector followed by {)
+            // Look ahead to see if { comes before : or ;
+            if self.is_nested_rule() {
+                if let Some(rule) = self.parse_rule() {
+                    declarations.push(rule);
+                }
+                self.skip_whitespace();
+                continue;
+            }
+
             if let Some(decl) = self.parse_declaration() {
                 declarations.push(decl);
             } else {
@@ -1359,6 +1369,50 @@ impl<'a> CssParser<'a> {
         obj.insert("children".to_string(), Value::Array(declarations));
 
         Value::Object(obj)
+    }
+
+    /// Check if the current position looks like a nested rule (selector followed by {)
+    /// by looking ahead to see if { comes before a declaration-style : (property: value)
+    fn is_nested_rule(&self) -> bool {
+        let remaining = &self.source[self.index..];
+        let chars: Vec<char> = remaining.chars().collect();
+        let mut depth = 0;
+        let mut i = 0;
+
+        // If it starts with : followed by an identifier and then {, it's a pseudo-class selector
+        // like :global { ... } or :hover { ... }
+        if chars.first() == Some(&':') {
+            // Skip past the pseudo-class/pseudo-element
+            i = 1;
+            // Skip any additional ':'
+            while i < chars.len() && chars[i] == ':' {
+                i += 1;
+            }
+            // Skip the identifier
+            while i < chars.len()
+                && (chars[i].is_alphanumeric() || chars[i] == '-' || chars[i] == '_')
+            {
+                i += 1;
+            }
+        }
+
+        while i < chars.len() {
+            let c = chars[i];
+            match c {
+                '(' | '[' => depth += 1,
+                ')' | ']' => depth -= 1,
+                '{' if depth == 0 => return true,
+                ':' if depth == 0 => {
+                    // This looks like a property: value declaration
+                    return false;
+                }
+                ';' | '}' if depth == 0 => return false,
+                _ => {}
+            }
+            i += 1;
+        }
+
+        false
     }
 
     fn parse_declaration(&mut self) -> Option<Value> {

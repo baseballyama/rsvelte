@@ -145,6 +145,51 @@ fn has_declarations(block: &Value) -> bool {
     }
 }
 
+/// Check if a rule is a :global block (selector is just `:global` without arguments)
+fn is_global_block(node: &Value) -> bool {
+    if let Some(prelude) = node.get("prelude") {
+        if let Some(children) = prelude.get("children").and_then(|c| c.as_array()) {
+            if children.len() == 1 {
+                if let Some(complex) = children.first() {
+                    if let Some(relative_selectors) =
+                        complex.get("children").and_then(|c| c.as_array())
+                    {
+                        if relative_selectors.len() == 1 {
+                            if let Some(rel) = relative_selectors.first() {
+                                if let Some(selectors) =
+                                    rel.get("selectors").and_then(|s| s.as_array())
+                                {
+                                    if selectors.len() == 1 {
+                                        if let Some(sel) = selectors.first() {
+                                            return sel.get("type").and_then(|t| t.as_str())
+                                                == Some("PseudoClassSelector")
+                                                && sel.get("name").and_then(|n| n.as_str())
+                                                    == Some("global")
+                                                && sel.get("args").is_none();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Check if a block contains nested rules (not just declarations)
+fn has_nested_rules(block: &Value) -> bool {
+    if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
+        children
+            .iter()
+            .any(|child| child.get("type").and_then(|t| t.as_str()) == Some("Rule"))
+    } else {
+        false
+    }
+}
+
 /// Transform a CSS rule while preserving whitespace from source
 #[allow(clippy::too_many_arguments)]
 fn transform_rule_preserving(
@@ -209,7 +254,7 @@ fn transform_rule_preserving(
         );
         output.push_str(&transformed_selector);
 
-        // Get the block and copy its content from source
+        // Get the block and process it
         if let Some(block) = node.get("block") {
             let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
             let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
@@ -223,16 +268,191 @@ fn transform_rule_preserving(
                 }
             }
 
-            // Copy the entire block from source (including braces and content)
-            let blk_start = block_start.saturating_sub(css_start);
-            let blk_end = block_end.saturating_sub(css_start);
-            if blk_end <= css_source.len() && blk_start < blk_end {
-                output.push_str(&css_source[blk_start..blk_end]);
+            // Check if block contains nested rules that need special handling
+            if has_nested_rules(block) {
+                // Process the block recursively
+                transform_block_with_nested_rules(
+                    block,
+                    selector,
+                    hash,
+                    css_source,
+                    css_start,
+                    output,
+                    specificity_bumped,
+                );
+            } else {
+                // Copy the entire block from source (including braces and content)
+                let blk_start = block_start.saturating_sub(css_start);
+                let blk_end = block_end.saturating_sub(css_start);
+                if blk_end <= css_source.len() && blk_start < blk_end {
+                    output.push_str(&css_source[blk_start..blk_end]);
+                }
             }
         }
     }
 
     *last_end = node_end;
+}
+
+/// Transform a block that contains nested rules
+#[allow(clippy::too_many_arguments)]
+fn transform_block_with_nested_rules(
+    block: &Value,
+    selector: &str,
+    hash: &str,
+    css_source: &str,
+    css_start: usize,
+    output: &mut String,
+    specificity_bumped: &mut bool,
+) {
+    let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+    let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+
+    // Output the opening brace
+    output.push('{');
+
+    let mut last_end = block_start + 1; // After the '{'
+
+    if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
+        for child in children {
+            let child_type = child.get("type").and_then(|t| t.as_str());
+            let child_start = child.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+            let child_end = child.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+
+            // Copy whitespace before this child
+            if child_start > last_end {
+                let ws_start = last_end.saturating_sub(css_start);
+                let ws_end = child_start.saturating_sub(css_start);
+                if ws_end <= css_source.len() && ws_start < ws_end {
+                    output.push_str(&css_source[ws_start..ws_end]);
+                }
+            }
+
+            match child_type {
+                Some("Rule") => {
+                    if is_global_block(child) {
+                        // This is a :global { ... } block
+                        // Comment out the :global { and } but keep inner content
+                        transform_global_block(
+                            child,
+                            selector,
+                            hash,
+                            css_source,
+                            css_start,
+                            output,
+                            specificity_bumped,
+                        );
+                    } else {
+                        // Regular nested rule
+                        let mut local_last_end = child_start;
+                        transform_rule_preserving(
+                            child,
+                            selector,
+                            hash,
+                            css_source,
+                            css_start,
+                            output,
+                            specificity_bumped,
+                            &mut local_last_end,
+                        );
+                    }
+                }
+                Some("Declaration") | Some("Atrule") => {
+                    // Copy the declaration/atrule from source
+                    let decl_start = child_start.saturating_sub(css_start);
+                    let decl_end = child_end.saturating_sub(css_start);
+                    if decl_end <= css_source.len() && decl_start < decl_end {
+                        output.push_str(&css_source[decl_start..decl_end]);
+                    }
+                }
+                _ => {}
+            }
+
+            last_end = child_end;
+        }
+    }
+
+    // Copy whitespace/content before closing brace
+    if block_end > last_end {
+        let ws_start = last_end.saturating_sub(css_start);
+        let ws_end = (block_end - 1).saturating_sub(css_start); // -1 to exclude the '}'
+        if ws_end <= css_source.len() && ws_start < ws_end {
+            output.push_str(&css_source[ws_start..ws_end]);
+        }
+    }
+
+    output.push('}');
+}
+
+/// Transform a :global { ... } block by commenting out the :global wrapper
+#[allow(clippy::too_many_arguments)]
+fn transform_global_block(
+    node: &Value,
+    _selector: &str,
+    _hash: &str,
+    css_source: &str,
+    css_start: usize,
+    output: &mut String,
+    _specificity_bumped: &mut bool,
+) {
+    // Get positions
+    let prelude = node.get("prelude");
+    let block = node.get("block");
+
+    if let (Some(prelude), Some(block)) = (prelude, block) {
+        let prelude_start = prelude.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+        let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+        let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+
+        // Comment out `:global {`
+        output.push_str("/* ");
+        let selector_start = prelude_start.saturating_sub(css_start);
+        let open_brace_end = (block_start + 1).saturating_sub(css_start); // Include the '{'
+        if open_brace_end <= css_source.len() && selector_start < open_brace_end {
+            output.push_str(&css_source[selector_start..open_brace_end]);
+        }
+        output.push_str("*/");
+
+        // Process inner content
+        if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
+            let mut last_end = block_start + 1;
+
+            for child in children {
+                let child_start = child.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+                let child_end = child.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+
+                // Copy whitespace before child
+                if child_start > last_end {
+                    let ws_start = last_end.saturating_sub(css_start);
+                    let ws_end = child_start.saturating_sub(css_start);
+                    if ws_end <= css_source.len() && ws_start < ws_end {
+                        output.push_str(&css_source[ws_start..ws_end]);
+                    }
+                }
+
+                // Copy the child from source (don't scope - it's inside :global)
+                let child_start_idx = child_start.saturating_sub(css_start);
+                let child_end_idx = child_end.saturating_sub(css_start);
+                if child_end_idx <= css_source.len() && child_start_idx < child_end_idx {
+                    output.push_str(&css_source[child_start_idx..child_end_idx]);
+                }
+
+                last_end = child_end;
+            }
+
+            // Copy whitespace before closing brace
+            if block_end > last_end {
+                let ws_start = last_end.saturating_sub(css_start);
+                let ws_end = (block_end - 1).saturating_sub(css_start);
+                if ws_end <= css_source.len() && ws_start < ws_end {
+                    output.push_str(&css_source[ws_start..ws_end]);
+                }
+            }
+        }
+
+        // Comment out `}`
+        output.push_str("/*}*/");
+    }
 }
 
 /// Transform an at-rule while preserving whitespace
