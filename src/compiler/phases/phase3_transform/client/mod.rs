@@ -5,11 +5,12 @@
 use super::TransformError;
 use super::js_ast::{
     builders::{
-        array, assign, call, export_default_function, getter, id, id_pattern, import_namespace,
-        import_side_effect, member, object, program, quasi, set_text_content, setter, stmt, string,
-        svelte_append, svelte_child, svelte_first_child, svelte_from_html, svelte_get,
-        svelte_remove_input_defaults, svelte_reset, svelte_set_sync, svelte_set_text,
-        svelte_sibling, svelte_template_effect, template, thunk, var_decl,
+        array, arrow, arrow_block, assign, call, export_default_function, getter, id, id_pattern,
+        import_namespace, import_side_effect, member, object, program, quasi, set_text_content,
+        setter, stmt, string, svelte_append, svelte_await, svelte_bind_value, svelte_child,
+        svelte_first_child, svelte_from_html, svelte_get, svelte_remove_input_defaults,
+        svelte_reset, svelte_set, svelte_set_sync, svelte_set_text, svelte_sibling,
+        svelte_template_effect, svelte_template_effect_with_values, template, thunk, var_decl,
     },
     generate,
     nodes::{JsExpr, JsPattern, JsStatement},
@@ -2573,6 +2574,295 @@ export default function {component_name}({fn_params}) {{
     #[allow(dead_code)]
     fn build_static_text_content(&self, element_var: &str, value: &str) -> JsStatement {
         stmt(set_text_content(id(element_var), string(value)))
+    }
+
+    /// Build a $.bind_value statement
+    #[allow(dead_code)]
+    fn build_bind_value_stmt(&self, element: &str, bind_var: &str) -> JsStatement {
+        stmt(svelte_bind_value(
+            id(element),
+            thunk(svelte_get(id(bind_var))),
+            arrow(
+                vec![id_pattern("$$value")],
+                svelte_set(id(bind_var), id("$$value")),
+            ),
+        ))
+    }
+
+    /// Build $.await() statement
+    #[allow(dead_code)]
+    fn build_await_stmt(
+        &self,
+        anchor_var: &str,
+        promise_expr: &str,
+        then_value: Option<&str>,
+    ) -> JsStatement {
+        let promise_getter = thunk(svelte_get(id(promise_expr)));
+        let then_callback = if let Some(val) = then_value {
+            arrow_block(vec![id_pattern("$$anchor"), id_pattern(val)], vec![])
+        } else {
+            arrow_block(vec![id_pattern("$$anchor")], vec![])
+        };
+        stmt(svelte_await(
+            id(anchor_var),
+            promise_getter,
+            None,
+            then_callback,
+        ))
+    }
+
+    /// Build runtime code as AST statements.
+    /// Returns Vec<JsStatement> instead of String.
+    #[allow(dead_code)]
+    fn generate_runtime_code_ast(&self, root_var: &str) -> Vec<JsStatement> {
+        let mut statements: Vec<JsStatement> = Vec::new();
+        let is_fragment = root_var == "fragment";
+        let mut bindings_stmts: Vec<JsStatement> = Vec::new();
+        let mut template_effect_parts: Vec<(String, String)> = Vec::new();
+        let mut prev_var: Option<String> = None;
+        let mut first_nav = true;
+
+        // Build a map of elements to their expressions
+        let mut element_expressions: HashMap<String, Vec<&NodeInfo>> = HashMap::new();
+        for node in &self.nodes {
+            if let NodeType::ExpressionInElement = &node.node_type {
+                element_expressions
+                    .entry(node.var_name.clone())
+                    .or_default()
+                    .push(node);
+            }
+        }
+
+        // Process all nodes in order
+        for node in &self.nodes {
+            match &node.node_type {
+                NodeType::Element(_) => {
+                    let var = &node.var_name;
+                    let is_root_element = var == root_var;
+
+                    let exprs = element_expressions.get(var).cloned().unwrap_or_default();
+                    let has_exprs = !exprs.is_empty();
+
+                    let needs_runtime = has_exprs
+                        || !node.event_handlers.is_empty()
+                        || !node.bindings.is_empty()
+                        || node.is_input
+                        || node.content_template.is_some();
+
+                    if !needs_runtime {
+                        continue;
+                    }
+
+                    // Navigation code
+                    if !is_root_element {
+                        if first_nav || (is_fragment && prev_var.is_none()) {
+                            statements.push(var_decl(var, Some(svelte_first_child(id(root_var)))));
+                            first_nav = false;
+                        } else if let Some(ref prev) = prev_var {
+                            statements.push(var_decl(var, Some(svelte_sibling(id(prev), Some(2)))));
+                        }
+                    }
+
+                    // Remove input defaults
+                    if node.is_input {
+                        statements.push(stmt(svelte_remove_input_defaults(id(var))));
+                    }
+
+                    // Event handlers
+                    for (event_name, handler) in &node.event_handlers {
+                        let transformed = transform_state_assignments(handler, &self.state_vars);
+                        let prop_name = format!("__{}", event_name);
+                        statements
+                            .push(stmt(assign(member(id(var), &prop_name), id(&transformed))));
+                    }
+
+                    // Content template handling
+                    if let Some(content_template) = &node.content_template {
+                        if let Some(rest) = content_template.strip_prefix("FUNC_ARRAY:") {
+                            if let Some(colon_pos) = rest.find(':') {
+                                let func_names: Vec<&str> = rest[..colon_pos].split(',').collect();
+                                let template_str = &rest[colon_pos + 1..];
+
+                                let text_var = "text";
+                                statements
+                                    .push(var_decl(text_var, Some(svelte_child(id(var), None))));
+                                statements.push(stmt(svelte_reset(id(var))));
+
+                                // Build params: ($0, $1, ...)
+                                let params: Vec<JsPattern> = func_names
+                                    .iter()
+                                    .enumerate()
+                                    .map(|(i, _)| id_pattern(format!("${}", i)))
+                                    .collect();
+
+                                // Build function array
+                                let func_array = array(func_names.iter().map(|n| id(*n)).collect());
+
+                                // Build template effect
+                                let template_lit =
+                                    template(vec![quasi(template_str, true)], vec![]);
+                                let callback =
+                                    arrow(params, svelte_set_text(id(text_var), template_lit));
+                                statements.push(stmt(svelte_template_effect_with_values(
+                                    callback, func_array,
+                                )));
+                            }
+                        } else {
+                            let is_reactive = self
+                                .state_vars
+                                .iter()
+                                .any(|sv| content_template.contains(sv));
+
+                            if is_reactive {
+                                let text_var = "text";
+                                statements
+                                    .push(var_decl(text_var, Some(svelte_child(id(var), None))));
+                                statements.push(stmt(svelte_reset(id(var))));
+                                let template_str =
+                                    wrap_state_vars_in_get(content_template, &self.state_vars);
+                                template_effect_parts.push((text_var.to_string(), template_str));
+                            } else {
+                                let evaluated =
+                                    evaluate_constant_template(content_template, &self.const_vars);
+                                statements
+                                    .push(stmt(set_text_content(id(var), string(&evaluated))));
+                            }
+                        }
+                    } else if has_exprs {
+                        let combined: Vec<String> = exprs
+                            .iter()
+                            .filter_map(|e| e.expression.as_ref())
+                            .map(|expr| try_constant_fold(expr))
+                            .collect();
+
+                        match combined.len() {
+                            1 => {
+                                statements.push(stmt(set_text_content(id(var), id(&combined[0]))));
+                            }
+                            n if n > 1 => {
+                                let all_literals = combined.iter().all(|s| {
+                                    (s.starts_with('\'') && s.ends_with('\''))
+                                        || (s.starts_with('"') && s.ends_with('"'))
+                                });
+
+                                if all_literals {
+                                    let combined_str: String = combined
+                                        .iter()
+                                        .map(|s| {
+                                            if s.len() >= 2 {
+                                                &s[1..s.len() - 1]
+                                            } else {
+                                                s.as_str()
+                                            }
+                                        })
+                                        .collect();
+                                    statements.push(stmt(set_text_content(
+                                        id(var),
+                                        string(&combined_str),
+                                    )));
+                                } else if let Some(last) = combined.last() {
+                                    statements.push(stmt(set_text_content(id(var), id(last))));
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    // Bindings
+                    for (bind_name, bind_expr) in &node.bindings {
+                        if bind_name == "value" {
+                            bindings_stmts.push(self.build_bind_value_stmt(var, bind_expr));
+                        }
+                    }
+
+                    prev_var = Some(var.clone());
+                }
+                NodeType::ExpressionInElement => {
+                    // Handled as part of the element above
+                }
+                NodeType::AwaitBlock => {
+                    let var = &node.var_name;
+
+                    if let Some(ref prev) = prev_var {
+                        statements.push(var_decl(var, Some(svelte_sibling(id(prev), Some(2)))));
+                    } else if first_nav {
+                        statements.push(var_decl(var, Some(svelte_first_child(id(root_var)))));
+                        first_nav = false;
+                    }
+
+                    if let Some(ref promise_expr) = node.expression {
+                        let then_val = node.content_template.as_deref();
+                        statements.push(self.build_await_stmt(var, promise_expr, then_val));
+                    }
+
+                    prev_var = Some(var.clone());
+                }
+                NodeType::RootExpression => {
+                    let var = &node.var_name;
+
+                    if let Some(ref prev) = prev_var {
+                        statements.push(var_decl(var, Some(svelte_sibling(id(prev), None))));
+                    }
+
+                    if let Some(ref expr) = node.expression {
+                        let template_str = format!(" ${{{} ?? ''}}", expr);
+                        template_effect_parts.push((var.clone(), template_str));
+                    }
+
+                    prev_var = Some(var.clone());
+                }
+                NodeType::Component(name) => {
+                    if let Some(ref prev) = prev_var {
+                        statements.push(var_decl(
+                            &node.var_name,
+                            Some(svelte_sibling(id(prev), Some(2))),
+                        ));
+                    }
+
+                    let call_expr = if let Some(ref expr) = node.expression {
+                        // Parse the expression as object properties
+                        call(
+                            id(name),
+                            vec![id(&node.var_name), id(format!("{{ {} }}", expr))],
+                        )
+                    } else {
+                        call(id(name), vec![id(&node.var_name)])
+                    };
+                    statements.push(stmt(call_expr));
+                    prev_var = Some(node.var_name.clone());
+                }
+                NodeType::Anchor => {}
+            }
+        }
+
+        // Add bindings after all navigation
+        statements.extend(bindings_stmts);
+
+        // Generate combined template_effect
+        match template_effect_parts.len() {
+            0 => {}
+            1 => {
+                let (var_name, template_str) = &template_effect_parts[0];
+                let template_lit = template(vec![quasi(template_str, true)], vec![]);
+                statements.push(stmt(svelte_template_effect(thunk(svelte_set_text(
+                    id(var_name),
+                    template_lit,
+                )))));
+            }
+            _ => {
+                let mut effect_body: Vec<JsStatement> = Vec::new();
+                for (var_name, template_str) in &template_effect_parts {
+                    let template_lit = template(vec![quasi(template_str, true)], vec![]);
+                    effect_body.push(stmt(svelte_set_text(id(var_name), template_lit)));
+                }
+                statements.push(stmt(svelte_template_effect(arrow_block(
+                    vec![],
+                    effect_body,
+                ))));
+            }
+        }
+
+        statements
     }
 }
 
