@@ -157,175 +157,93 @@ cargo bench
 
 Track progress by running:
 ```bash
-# Parser tests
-cargo test test_parser_modern_fixtures -- --nocapture
+# Run all tests (some will fail - this is expected)
+cargo test
 
-# Compiler tests
+# Run specific test suites
+cargo test test_parser_modern_fixtures -- --nocapture
 cargo test --test compiler_fixtures -- --nocapture
+cargo test --test css -- --nocapture
 ```
 
-Current status:
-- **Parser**: 22/22 modern mode tests passing (100%)
-- **Compiler Snapshot Tests**: 28 total samples
-  - 8 skipped (require unsupported options: async, hmr, fragments)
-  - 3 not testable (different file structure)
-  - 17 testable → **Client 16/17, Server 17/17**
-- **CSS Tests**: 177 total samples → **89/167 matching** (10 compilation failures)
+**Current status (2025-01-05):**
 
-## Current Progress
+| Test Suite | Passing | Total | Status |
+|------------|---------|-------|--------|
+| Parser Modern | 22 | 22 | ✅ 100% |
+| Parser Legacy | 0 | 83 | ❌ Not supported (Svelte 4) |
+| Compiler Snapshot | 17 | 17 | ✅ 100% (8 skipped: async/hmr/fragments) |
+| CSS | 89 | 167 | ❌ 53% - In progress |
+| Validator | 8 | 252 | ❌ 3% - Not implemented |
+| Compiler Errors | 3 | 85 | ❌ 4% - Not implemented |
 
-### Parser (22/22 modern mode tests passing)
+**Test output must match JavaScript compiler exactly** (formatting differences are normalized).
 
-- [x] Project structure
-- [x] AST type definitions
-- [x] Fixture test infrastructure
-- [x] Basic text parsing
-- [x] Pre-commit hooks (fmt + clippy)
-- [x] GitHub Actions CI
-- [x] Element parsing
-- [x] Block parsing ({#if}, {#each}, {#await}, {#key}, {#snippet})
-- [x] Expression parsing
-- [x] Directive parsing (bind:, on:, class:, style:, use:, transition:, animate:)
-- [x] Script/Style parsing
-- [x] CSS parsing
+## Next Steps (Priority Order)
 
-### Compiler Snapshot Tests (17 testable: Client 17/17, Server 17/17) ✅
+### 1. CSS Scoping (89/167 → 167/167)
+Current implementation handles basic selectors. Need to fix:
+- Sibling combinators with `:where()` specificity
+- `@layer`, `@page`, `@supports` at-rules
+- Complex `:global()` patterns
+- Escaped selectors
 
-**Passing tests (17 client + 17 server):**
-- hello-world
-- purity
-- svelte-element
-- props-identifier
-- nullish-coallescence-omittance
-- state-proxy-literal
-- delegated-locally-declared-shadowed
-- imports-in-modules
-- skip-static-subtree
-- each-string-template
-- each-index-non-null
-- bind-this
-- function-prop-no-getter
-- bind-component-snippet
-- await-block-scope
-- text-nodes-deriveds
-- destructured-assignments
-- export-state
-- class-state-field-constructor-assignment
-- skip-static-subtree (server only)
+### 2. Validator (8/252)
+Implement warning/error detection:
+- A11y warnings
+- Unused CSS selectors
+- Invalid attribute combinations
+- Scope validation
 
-**Skipped tests (8 tests, require unsupported compile options):**
-- async-each-hoisting - `experimental.async`
-- async-if-hoisting - `experimental.async`
-- async-top-level-inspect-server - `experimental.async`
-- async-in-derived - `experimental.async`
-- async-each-fallback-hoisting - `experimental.async`
-- async-if-alternate-hoisting - `experimental.async`
-- hmr - `hmr: true`
-- functional-templating - `fragments: 'tree'`
+### 3. Compiler Errors (3/85)
+Implement error detection for:
+- Invalid syntax patterns
+- Rune misuse
+- Invalid element nesting
+- Store subscription errors
 
-**All tests passing! ✅**
+### 4. Parser Legacy (0/83)
+Svelte 4 syntax support (lower priority - focus on Svelte 5)
 
-Key features implemented for skip-static-subtree:
-- [x] `TEMPLATE_USE_IMPORT_NODE` flag for custom elements
-- [x] Read-only destructured props without `$.prop()` (use `$$props.X` directly)
-- [x] Template HTML without special attributes
-- [x] `{@html}` runtime code generation (`$.html(node, () => expr)`)
-- [x] Custom element data (`$.set_custom_element_data(el, attr, value)`)
-- [x] Special attribute runtime code (`$.autofocus(el, true)`, `el.muted = true`, `option.value = option.__value = 'a'`)
-- [x] Advanced DOM navigation (`$.child(el, preserve_whitespace)`, `$.reset(el)`, `$.next(count)`)
-- [x] `$.template_effect()` for reactive props
-- [x] Hierarchical navigation detection and `build_with_fragment()` for complex components
-- [x] Trailing static element navigation pattern
+## Implemented Features
 
-**Implemented features:**
-- [x] Compiler fixture test infrastructure
-- [x] Phase 1/2/3 architecture (Parse → Analyze → Transform)
-- [x] Client-side HTML template generation (`$.from_html`)
-- [x] Fragment handling for multiple root elements
-- [x] Expression handling and navigation code (`$.first_child`, `$.sibling`)
-- [x] Component instantiation code generation
-- [x] Constant folding for Math.max/Math.min expressions
-- [x] Server-side HTML rendering (`$$renderer.push`)
-- [x] Expression escaping (`$.escape`)
-- [x] Whitespace normalization between elements
-- [x] Each block generation with index support
-- [x] Basic script block processing (`$state` → value, `$props()` → `$$props`)
-- [x] JS formatting for script content
-- [x] Bind directive handling (`bind:value` → `$.attr`)
-- [x] Expression attributes (`$.attr()` for dynamic attributes)
-- [x] `svelte:element` dynamic elements (`$.element()`)
-- [x] Each block with object literal expressions
-- [x] Import hoisting for SSR
-- [x] `{@html expr}` tag (`$.html()`)
-- [x] `<option>` element handling (`$$renderer.option()`)
-- [x] Component children with `children` callback and `$$slots`
-- [x] `$derived()` transformation (SSR)
-- [x] `{#await}` block (`$.await()`)
-- [x] ASI (Automatic Semicolon Insertion) for statements
-- [x] Client-side `{#each}` block generation (`$.each()`, `$.comment()`)
-- [x] `$props()` identifier pattern (`$.rest_props()`, `$.push/$.pop`)
-- [x] Props property access transformation (`props.X` → `$$props.X`)
-- [x] Constant variable tracking for compile-time evaluation
-- [x] Snippet blocks with hoisted arrow functions
-- [x] Component `bind:value` with getter/setter pattern
-- [x] Root-level text+expression handling with `$.template_effect`
-- [x] Constant folding for template expressions with nullish coalescing
-- [x] `$.get()` wrapper for state variables in template effects
-- [x] `$.update()` for increment/decrement operations
-- [x] `bind:this` support for components (`$.bind_this()`)
-- [x] Arrow function state transformation in component props
-- [x] Component children callback with `$.next()`, `$.text()`, `$.template_effect()`
-- [x] Client-side `{#await}` block runtime code (`$.await()`, navigation)
-- [x] Root-level expressions with navigation (`$.sibling()`)
-- [x] Combined `$.template_effect()` for multiple reactive text nodes
-- [x] Function array pattern for `$.template_effect` (`[fn1, fn2]` syntax)
-- [x] State variable skip detection for wrapper functions
-- [x] Server-side component binding with do/while settling pattern
-- [x] AST-based code generation infrastructure (`js_ast` module with builders and codegen)
-- [x] Simple component AST generation path for components without runtime code
-- [x] Runtime code AST builders (navigation, event handlers, template effects, bindings, delegate)
-- [x] Special attribute AST builders (`$.autofocus()`, `$.set_custom_element_data()`, `$.html()`, `set_option_value()`)
-- [x] Advanced navigation builders (`$.next(count)`, `$.child(node, preserve_whitespace)`, `$.sibling(node, count)`)
-- [x] Class field transformation (`$state`, `$derived` in classes → private fields with getters/setters)
-- [x] **Refactoring Phase 1**: Eliminate double parsing (AST passed from Phase 1 to Phase 3)
-- [x] **Refactoring Phase 2**: Scope analysis infrastructure
-  - Extended BindingKind (State, Derived, BindableProp, RawState, StoreSub, Template, Static)
-  - DeclarationKind enum (Var, Let, Const, Function, Import, Param, etc.)
-  - Binding tracking with references and mutations
-  - ScopeBuilder for AST traversal and scope tree construction
-- [x] **Refactoring Phase 3.1**: State structure consolidation
-  - SourceContext: component name, source, script content, runes flag
-  - TemplateState: HTML parts, expressions, root element count, custom elements
-  - NavigationState: element stack, child index, node var index
-  - VariableTracker: var counters, state/const vars, read-only props
-  - FeatureCollector: nodes, each/await blocks, snippets, components
-- [x] **Refactoring Phase 3.2**: Visitor pattern implementation
-  - TemplateVisitor trait with enter/exit/visit methods
-  - VisitorContext for traversal state tracking
-  - walk_* functions for AST traversal
+### Parser (22/22 tests)
+- All Svelte 5 syntax: elements, blocks, directives, expressions
+- Script/Style parsing with CSS support
 
-**Pending refactoring:**
-- [ ] **Phase 3.3**: Cursor-based DOM navigation (current priority)
-  - Svelte方式のシングルパス・カーソルベースナビゲーション実装
-  - `prev_var`: 現在位置（前回の動的ノード変数）
-  - `skipped`: スキップした静的ノード数
-  - `$.child(parent)` で最初の動的子を取得
-  - `$.sibling(prev, skipped)` で後続の動的兄弟を取得
-  - `$.reset(parent)` で子の処理完了を示す
-  - `$.template_effect()` でリアクティブテキストを処理
-- [ ] **Phase 3.4**: TemplateBuilder implementation
-- [ ] **Phase 3.5**: Memoizer implementation
-- [ ] **Phase 4**: Memory optimization with arena allocation
+### Compiler (17/17 snapshot tests)
+- Phase 1/2/3 architecture (Parse → Analyze → Transform)
+- Client/Server code generation
+- `$state`, `$derived`, `$props` runes
+- `{#each}`, `{#await}`, `{#snippet}` blocks
+- Component instantiation, bindings, event handlers
+- CSS scoping with hash-based class names
 
-**Pending features:**
-- [ ] Compile options support (`experimental.async`, `hmr`, `fragments`)
-- [ ] `{#if}` block client-side code generation (`$.if()`)
-- [~] CSS scoping and transformation (basic scoping implemented, 26/167 tests passing)
-- [x] Template flags support (`TEMPLATE_USE_IMPORT_NODE` for custom elements)
-- [ ] skip-static-subtree client-side features (see failing tests checklist above)
+### CSS Scoping (89/167 tests)
+- Basic selector scoping with `.svelte-hash` class
+- Descendant/child combinator handling
+- `:global()` modifier support
 
-### Integration
+## Not Yet Implemented
 
-- [ ] N-API bindings for Node.js
-- [ ] Vite plugin compatibility
-- [ ] Full test suite compatibility
+### CSS (78 failing tests)
+- Sibling combinators with `:where()` specificity bumping
+- `@layer`, `@page`, `@supports` at-rules
+- Complex `:global()` edge cases
+- CSS escape sequences
+
+### Validator (244 failing tests)
+- Warning generation system
+- A11y checks
+- Unused CSS detection
+
+### Compiler Errors (82 failing tests)
+- Error detection for invalid patterns
+- Syntax error reporting
+- Rune validation
+
+### Other
+- `{#if}` block client-side generation
+- `experimental.async`, `hmr`, `fragments` options
+- Parser Legacy (Svelte 4 syntax)
+- N-API bindings for Node.js
