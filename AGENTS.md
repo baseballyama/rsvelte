@@ -156,7 +156,10 @@ cargo test --test compiler_fixtures -- --nocapture
 
 Current status:
 - **Parser**: 22/22 modern mode tests passing (100%)
-- **Compiler**: 16/17 run (8 skipped), Client 16/17, Server 17/17
+- **Compiler Snapshot Tests**: 28 total samples
+  - 8 skipped (require unsupported options: async, hmr, fragments)
+  - 3 not testable (different file structure)
+  - 17 testable → **Client 16/17, Server 17/17**
 
 ## Current Progress
 
@@ -175,7 +178,7 @@ Current status:
 - [x] Script/Style parsing
 - [x] CSS parsing
 
-### Compiler (16/17 run, 8 skipped)
+### Compiler Snapshot Tests (17 testable: Client 16/17, Server 17/17)
 
 **Passing tests (16 client + 17 server):**
 - hello-world
