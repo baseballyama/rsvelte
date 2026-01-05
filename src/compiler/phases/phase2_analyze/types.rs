@@ -183,10 +183,27 @@ impl ComponentAnalysis {
     /// Analyze CSS in the component.
     pub fn analyze_css(
         &mut self,
-        _css: &crate::ast::css::StyleSheet,
+        css: &crate::ast::css::StyleSheet,
+        options: &CompileOptions,
     ) -> Result<(), super::AnalysisError> {
-        // TODO: Analyze CSS for scoping and pruning
         self.css.has_css = true;
+
+        // Generate the CSS hash
+        // Svelte uses the filename if available, otherwise the CSS content
+        let hash_source = if let Some(ref filename) = options.filename {
+            if filename == "(unknown)" {
+                css.content.styles.clone()
+            } else {
+                filename.clone()
+            }
+        } else {
+            css.content.styles.clone()
+        };
+
+        self.css.hash =
+            crate::compiler::phases::phase3_transform::css::generate_css_hash(&hash_source);
+
+        // TODO: Analyze for keyframes and :global selectors
         Ok(())
     }
 }

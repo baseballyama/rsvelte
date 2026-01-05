@@ -16,5 +16,9 @@
     "svelte": "^5.25.5",
     "typescript": "^5.8.2",
     "vite": "^6.2.0"
+  },
+  "dependencies": {
+    "@monaco-editor/loader": "^1.7.0",
+    "monaco-editor": "^0.55.1"
   }
 }

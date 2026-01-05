@@ -58,7 +58,7 @@ pub fn analyze_component(
 
     // Analyze CSS if present
     if let Some(ref css) = ast.css {
-        analysis.analyze_css(css)?;
+        analysis.analyze_css(css, options)?;
     }
 
     Ok(analysis)
