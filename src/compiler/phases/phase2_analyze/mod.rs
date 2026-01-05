@@ -14,10 +14,14 @@
 //! all the semantic information needed for code generation.
 
 mod scope;
+mod scope_builder;
 mod types;
 mod visitors;
 
-pub use scope::{Binding, BindingKind, Scope, ScopeRoot};
+pub use scope::{
+    Binding, BindingKind, BindingReference, DeclarationKind, Mutation, MutationKind, Scope,
+    ScopeRoot,
+};
 pub use types::{ComponentAnalysis, CssAnalysis, JsAnalysis, ScriptContent, TemplateAnalysis};
 
 use crate::ast::template::Root;

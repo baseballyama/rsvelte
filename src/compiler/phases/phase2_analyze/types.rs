@@ -164,8 +164,19 @@ impl ComponentAnalysis {
     }
 
     /// Create scopes for the component.
-    pub fn create_scopes(&mut self, _ast: &Root) -> Result<(), super::AnalysisError> {
-        // TODO: Walk the AST and create scopes
+    pub fn create_scopes(&mut self, ast: &Root) -> Result<(), super::AnalysisError> {
+        // Build scope tree using ScopeBuilder
+        let scope_root = super::scope_builder::build_scopes(ast, &self.source);
+        self.root = scope_root;
+
+        // Update runes flag based on bindings
+        for binding in &self.root.bindings {
+            if binding.kind.is_rune() {
+                self.runes = true;
+                break;
+            }
+        }
+
         Ok(())
     }
 
