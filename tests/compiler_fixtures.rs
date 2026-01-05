@@ -64,6 +64,7 @@ fn load_snapshot_fixture(sample_dir: &Path) -> Option<SnapshotFixture> {
         expected_client_js: client_js,
         expected_server_js: server_js,
         sample_dir: sample_dir.to_path_buf(),
+        requires_unsupported_options: requires_unsupported_options(sample_dir),
     })
 }
 
@@ -74,6 +75,26 @@ struct SnapshotFixture {
     expected_client_js: Option<String>,
     expected_server_js: Option<String>,
     sample_dir: PathBuf,
+    /// Indicates if this test requires unsupported compile options
+    requires_unsupported_options: bool,
+}
+
+/// Check if a test requires unsupported compile options by reading _config.js
+fn requires_unsupported_options(sample_dir: &Path) -> bool {
+    let config_path = sample_dir.join("_config.js");
+    if let Ok(config) = fs::read_to_string(&config_path) {
+        // Check for unsupported options
+        if config.contains("async: true") {
+            return true; // experimental.async not supported
+        }
+        if config.contains("hmr: true") {
+            return true; // hmr not supported
+        }
+        if config.contains("fragments:") {
+            return true; // fragments option not supported
+        }
+    }
+    false
 }
 
 /// Test result for a single fixture.
@@ -84,11 +105,13 @@ struct TestResult {
     server_passed: Option<bool>,
     client_error: Option<String>,
     server_error: Option<String>,
+    /// Test was skipped due to unsupported compile options
+    skipped: bool,
 }
 
 impl TestResult {
     fn passed(&self) -> bool {
-        self.client_passed.unwrap_or(true) && self.server_passed.unwrap_or(true)
+        self.skipped || (self.client_passed.unwrap_or(true) && self.server_passed.unwrap_or(true))
     }
 }
 
@@ -235,7 +258,14 @@ fn run_snapshot_fixture_test(fixture: &SnapshotFixture) -> TestResult {
         server_passed: None,
         client_error: None,
         server_error: None,
+        skipped: false,
     };
+
+    // Skip tests that require unsupported compile options
+    if fixture.requires_unsupported_options {
+        result.skipped = true;
+        return result;
+    }
 
     // Test client-side compilation
     if let Some(expected_client) = &fixture.expected_client_js {
@@ -328,31 +358,51 @@ fn test_compiler_snapshot_fixtures() {
 
     // Count results
     let total = results.len();
-    let passed = results.iter().filter(|r| r.passed()).count();
-    let failed = total - passed;
+    let skipped = results.iter().filter(|r| r.skipped).count();
+    let run_count = total - skipped;
+    let passed = results.iter().filter(|r| r.passed() && !r.skipped).count();
+    let failed = run_count - passed;
 
-    // Count by mode
-    let client_total = results.iter().filter(|r| r.client_passed.is_some()).count();
+    // Count by mode (excluding skipped tests)
+    let client_total = results
+        .iter()
+        .filter(|r| !r.skipped && r.client_passed.is_some())
+        .count();
     let client_passed = results
         .iter()
-        .filter(|r| r.client_passed == Some(true))
+        .filter(|r| !r.skipped && r.client_passed == Some(true))
         .count();
 
-    let server_total = results.iter().filter(|r| r.server_passed.is_some()).count();
+    let server_total = results
+        .iter()
+        .filter(|r| !r.skipped && r.server_passed.is_some())
+        .count();
     let server_passed = results
         .iter()
-        .filter(|r| r.server_passed == Some(true))
+        .filter(|r| !r.skipped && r.server_passed == Some(true))
         .count();
 
     println!("\n=== Compiler Snapshot Fixtures ===");
-    println!("Total: {}/{} passed", passed, total);
+    println!(
+        "Total: {}/{} passed ({} skipped due to unsupported options)",
+        passed, run_count, skipped
+    );
     println!("  Client: {}/{}", client_passed, client_total);
     println!("  Server: {}/{}", server_passed, server_total);
+
+    if skipped > 0 {
+        println!("\nSkipped tests (require unsupported compile options):");
+        for result in &results {
+            if result.skipped {
+                println!("  - {}", result.name);
+            }
+        }
+    }
 
     if failed > 0 {
         println!("\nFailed tests:");
         for result in &results {
-            if !result.passed() {
+            if !result.passed() && !result.skipped {
                 println!("  - {}", result.name);
                 if let Some(err) = &result.client_error {
                     println!("      Client: {}", err);

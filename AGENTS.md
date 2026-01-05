@@ -156,7 +156,7 @@ cargo test --test compiler_fixtures -- --nocapture
 
 Current status:
 - **Parser**: 22/22 modern mode tests passing (100%)
-- **Compiler**: Total 15/25 (Client 15/25, Server 18/25) tests passing
+- **Compiler**: 15/17 run (8 skipped), Client 15/17, Server 16/17
 
 ## Current Progress
 
@@ -175,14 +175,13 @@ Current status:
 - [x] Script/Style parsing
 - [x] CSS parsing
 
-### Compiler (Total: 15/25, Client: 15/25, Server: 18/25 tests passing)
+### Compiler (15/17 run, 8 skipped)
 
-**Passing tests (client + server):**
+**Passing tests (15 client + 16 server):**
 - hello-world
 - purity
 - svelte-element
 - props-identifier
-- nullish-coallescence-omittance
 - state-proxy-literal
 - delegated-locally-declared-shadowed
 - imports-in-modules
@@ -193,15 +192,22 @@ Current status:
 - bind-component-snippet
 - await-block-scope
 - text-nodes-deriveds
-- destructured-assignments
 - export-state
+- skip-static-subtree (server only)
 
-**Failing tests (require compile options or complex features):**
-- async-* tests (6 tests) - require `experimental.async` compile option
-- hmr - requires `hmr: true` compile option
-- functional-templating - requires `fragments: 'tree'` compile option
-- class-state-field-constructor-assignment - requires class field transformation (`$state`/`$derived` in class fields → private fields with getters/setters)
-- skip-static-subtree (client) - requires advanced navigation, custom element data handling, autofocus/muted attributes, option value handling, TEMPLATE_USE_IMPORT_NODE flag
+**Skipped tests (8 tests, require unsupported compile options):**
+- async-each-hoisting - `experimental.async`
+- async-if-hoisting - `experimental.async`
+- async-top-level-inspect-server - `experimental.async`
+- async-in-derived - `experimental.async`
+- async-each-fallback-hoisting - `experimental.async`
+- async-if-alternate-hoisting - `experimental.async`
+- hmr - `hmr: true`
+- functional-templating - `fragments: 'tree'`
+
+**Failing tests (2 tests):**
+- class-state-field-constructor-assignment (client + server) - requires class field transformation (`$state`/`$derived` in class → private fields with getters/setters)
+- skip-static-subtree (client only) - requires advanced DOM navigation (`$.child`, `$.reset`, `$.next`), custom element data, special attributes (autofocus, muted, option value), `{@html}` handling, `TEMPLATE_USE_IMPORT_NODE` flag
 
 **Implemented features:**
 - [x] Compiler fixture test infrastructure
