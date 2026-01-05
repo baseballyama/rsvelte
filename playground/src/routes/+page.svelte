@@ -10,6 +10,7 @@
 		type OutputTab,
 		type CompileStats
 	} from '$lib/compiler';
+	import { generatePreviewHtml } from '$lib/preview';
 
 	let input = $state(`<script>
 	let count = $state(0);
@@ -52,46 +53,6 @@
 
 	let debounceTimer: ReturnType<typeof setTimeout>;
 	let previewIframe: HTMLIFrameElement;
-
-	function generatePreviewHtml(js: string, css: string): string {
-		// Run our compiled code directly using import map for Svelte runtime
-		const transformedJs = js.replace(/export\s+default\s+function/, 'const Component = function');
-		const escapedCss = css || '';
-
-		const parts = [
-			'<!DOCTYPE html>',
-			'<html>',
-			'<head>',
-			'<meta charset="utf-8">',
-			'<script type="importmap">',
-			JSON.stringify({
-				imports: {
-					"svelte": "https://esm.sh/svelte@5",
-					"svelte/internal/disclose-version": "https://esm.sh/svelte@5/internal/disclose-version",
-					"svelte/internal/client": "https://esm.sh/svelte@5/internal/client"
-				}
-			}),
-			'<\/script>',
-			'<style>',
-			'* { box-sizing: border-box; margin: 0; padding: 0; }',
-			'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 1rem; background: white; color: #333; }',
-			escapedCss,
-			'</style>',
-			'</head>',
-			'<body>',
-			'<div id="app"></div>',
-			'<script type="module">',
-			'import { mount } from "svelte";',
-			transformedJs,
-			'const target = document.getElementById("app");',
-			'mount(Component, { target });',
-			'<\/script>',
-			'</body>',
-			'</html>'
-		];
-
-		return parts.join('\n');
-	}
 
 	function compile() {
 		if (!wasmReady) return;
