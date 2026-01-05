@@ -473,14 +473,63 @@ impl<'a> Parser<'a> {
                 attributes,
                 fragment,
             }),
-            ElementType::SvelteHead
-            | ElementType::SvelteBody
-            | ElementType::SvelteWindow
-            | ElementType::SvelteDocument
-            | ElementType::SvelteFragment
-            | ElementType::SvelteBoundary
-            | ElementType::SvelteSelf
-            | ElementType::SvelteOptions => TemplateNode::SvelteHead(SvelteElement {
+            ElementType::SvelteHead => TemplateNode::SvelteHead(SvelteElement {
+                start: start as u32,
+                end,
+                name: name.clone(),
+                name_loc: Some(name_loc_with_char),
+                attributes,
+                fragment,
+            }),
+            ElementType::SvelteBody => TemplateNode::SvelteBody(SvelteElement {
+                start: start as u32,
+                end,
+                name: name.clone(),
+                name_loc: Some(name_loc_with_char),
+                attributes,
+                fragment,
+            }),
+            ElementType::SvelteWindow => TemplateNode::SvelteWindow(SvelteElement {
+                start: start as u32,
+                end,
+                name: name.clone(),
+                name_loc: Some(name_loc_with_char),
+                attributes,
+                fragment,
+            }),
+            ElementType::SvelteDocument => TemplateNode::SvelteDocument(SvelteElement {
+                start: start as u32,
+                end,
+                name: name.clone(),
+                name_loc: Some(name_loc_with_char),
+                attributes,
+                fragment,
+            }),
+            ElementType::SvelteFragment => TemplateNode::SvelteFragment(SvelteElement {
+                start: start as u32,
+                end,
+                name: name.clone(),
+                name_loc: Some(name_loc_with_char),
+                attributes,
+                fragment,
+            }),
+            ElementType::SvelteBoundary => TemplateNode::SvelteBoundary(SvelteElement {
+                start: start as u32,
+                end,
+                name: name.clone(),
+                name_loc: Some(name_loc_with_char),
+                attributes,
+                fragment,
+            }),
+            ElementType::SvelteSelf => TemplateNode::SvelteSelf(SvelteElement {
+                start: start as u32,
+                end,
+                name: name.clone(),
+                name_loc: Some(name_loc_with_char),
+                attributes,
+                fragment,
+            }),
+            ElementType::SvelteOptions => TemplateNode::SvelteOptions(SvelteElement {
                 start: start as u32,
                 end,
                 name: name.clone(),
