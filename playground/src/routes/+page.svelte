@@ -31,6 +31,10 @@
 		border: none;
 		border-radius: 4px;
 		cursor: pointer;
+		font-size: 1rem;
+	}
+	button:hover {
+		background: #e55a2b;
 	}
 </style>`);
 
@@ -43,9 +47,51 @@
 	let outputJs = $state('');
 	let outputCss = $state('');
 	let outputAst = $state('');
+	let previewHtml = $state('');
 	let stats: CompileStats = $state({ compileTime: 0, outputSize: 0 });
 
 	let debounceTimer: ReturnType<typeof setTimeout>;
+	let previewIframe: HTMLIFrameElement;
+
+	function generatePreviewHtml(js: string, css: string): string {
+		// Run our compiled code directly using import map for Svelte runtime
+		const transformedJs = js.replace(/export\s+default\s+function/, 'const Component = function');
+		const escapedCss = css || '';
+
+		const parts = [
+			'<!DOCTYPE html>',
+			'<html>',
+			'<head>',
+			'<meta charset="utf-8">',
+			'<script type="importmap">',
+			JSON.stringify({
+				imports: {
+					"svelte": "https://esm.sh/svelte@5",
+					"svelte/internal/disclose-version": "https://esm.sh/svelte@5/internal/disclose-version",
+					"svelte/internal/client": "https://esm.sh/svelte@5/internal/client"
+				}
+			}),
+			'<\/script>',
+			'<style>',
+			'* { box-sizing: border-box; margin: 0; padding: 0; }',
+			'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 1rem; background: white; color: #333; }',
+			escapedCss,
+			'</style>',
+			'</head>',
+			'<body>',
+			'<div id="app"></div>',
+			'<script type="module">',
+			'import { mount } from "svelte";',
+			transformedJs,
+			'const target = document.getElementById("app");',
+			'mount(Component, { target });',
+			'<\/script>',
+			'</body>',
+			'</html>'
+		];
+
+		return parts.join('\n');
+	}
 
 	function compile() {
 		if (!wasmReady) return;
@@ -54,19 +100,28 @@
 		const startTime = performance.now();
 
 		try {
+			// Always compile client for preview
+			const clientResult = compileClient(input, 'Component');
+
 			const result = mode === 'client'
-				? compileClient(input, 'Component')
+				? clientResult
 				: compileServer(input, 'Component');
 
 			const endTime = performance.now();
 
 			if (!result.success) {
 				error = result.error || 'Compilation failed';
+				previewHtml = '';
 				return;
 			}
 
 			outputJs = result.js;
 			outputCss = result.css || '/* No CSS */';
+
+			// Generate preview HTML (always use client compilation)
+			if (clientResult.success) {
+				previewHtml = generatePreviewHtml(clientResult.js, clientResult.css || '');
+			}
 
 			// Parse for AST
 			const parseResult = parse(input);
@@ -87,6 +142,7 @@
 			};
 		} catch (e) {
 			error = e instanceof Error ? e.message : String(e);
+			previewHtml = '';
 		}
 	}
 
@@ -184,6 +240,26 @@
 				<span>Output size: {stats.outputSize} bytes</span>
 			</div>
 		</div>
+
+		<div class="panel preview-panel">
+			<div class="panel-header">Preview</div>
+			<div class="panel-content preview-content">
+				{#if !wasmReady && !error}
+					<div class="loading">Loading...</div>
+				{:else if error}
+					<div class="error">{error}</div>
+				{:else if previewHtml}
+					<iframe
+						bind:this={previewIframe}
+						srcdoc={previewHtml}
+						title="Preview"
+						sandbox="allow-scripts allow-popups allow-forms"
+					></iframe>
+				{:else}
+					<div class="loading">No preview available</div>
+				{/if}
+			</div>
+		</div>
 	</main>
 </div>
 
@@ -270,6 +346,7 @@
 		display: flex;
 		flex-direction: column;
 		border-right: 1px solid #0f3460;
+		min-width: 0;
 	}
 
 	.panel:last-child {
@@ -369,5 +446,19 @@
 		color: #888;
 		display: flex;
 		gap: 2rem;
+	}
+
+	.preview-panel {
+		flex: 1;
+	}
+
+	.preview-content {
+		background: white;
+	}
+
+	.preview-content iframe {
+		width: 100%;
+		height: 100%;
+		border: none;
 	}
 </style>
