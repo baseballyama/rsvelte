@@ -995,8 +995,13 @@ pub fn svelte_reset(element: JsExpr) -> JsExpr {
 }
 
 /// Create $.next().
-pub fn svelte_next() -> JsExpr {
-    svelte_call("next", vec![])
+pub fn svelte_next(count: Option<i32>) -> JsExpr {
+    let args = if let Some(c) = count {
+        vec![number(c as f64)]
+    } else {
+        vec![]
+    };
+    svelte_call("next", args)
 }
 
 /// Create $.attr(element, name, value).
@@ -1019,6 +1024,28 @@ pub fn svelte_index() -> JsExpr {
     member(id("$"), "index")
 }
 
+/// Create $.autofocus(element, value).
+pub fn svelte_autofocus(element: JsExpr, value: bool) -> JsExpr {
+    svelte_call("autofocus", vec![element, boolean(value)])
+}
+
+/// Create $.set_custom_element_data(element, name, value).
+pub fn svelte_set_custom_element_data(
+    element: JsExpr,
+    name: impl Into<String>,
+    value: JsExpr,
+) -> JsExpr {
+    svelte_call(
+        "set_custom_element_data",
+        vec![element, string(name), value],
+    )
+}
+
+/// Create $.html(node, fn).
+pub fn svelte_html(node: JsExpr, getter: JsExpr) -> JsExpr {
+    svelte_call("html", vec![node, getter])
+}
+
 // ============================================================================
 // DOM Manipulation Helpers
 // ============================================================================
@@ -1026,6 +1053,15 @@ pub fn svelte_index() -> JsExpr {
 /// Create element.textContent = value assignment.
 pub fn set_text_content(element: JsExpr, value: JsExpr) -> JsExpr {
     assign(member(element, "textContent"), value)
+}
+
+/// Create option.value = option.__value = value assignment.
+pub fn set_option_value(option: JsExpr, value: JsExpr) -> JsExpr {
+    // option.value = option.__value = value
+    assign(
+        member(option.clone(), "value"),
+        assign(member(option, "__value"), value),
+    )
 }
 
 /// Create element.prop = value assignment for a property.
