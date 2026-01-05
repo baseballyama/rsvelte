@@ -267,6 +267,8 @@ struct ClientCodeGenerator {
     await_blocks: Vec<AwaitBlockInfo>,
     /// Whether template contains custom elements (elements with hyphens) or video elements
     has_custom_elements: bool,
+    /// Read-only destructured props (accessed via $$props.propName, not $.prop())
+    read_only_props: Vec<String>,
 }
 
 impl ClientCodeGenerator {
@@ -280,6 +282,8 @@ impl ClientCodeGenerator {
         let state_vars = collect_state_variables(&script_content);
         // Collect constant variables (non-$state) with their values
         let const_vars = collect_constant_variables(&script_content);
+        // Collect read-only destructured props
+        let read_only_props = collect_read_only_props(&script_content);
 
         Self {
             component_name,
@@ -306,6 +310,7 @@ impl ClientCodeGenerator {
             components_with_bindings: Vec::new(),
             await_blocks: Vec::new(),
             has_custom_elements: false,
+            read_only_props,
         }
     }
 
@@ -2528,7 +2533,12 @@ export default function {component_name}({fn_params}) {{
                         let combined: Vec<String> = exprs
                             .iter()
                             .filter_map(|e| e.expression.as_ref())
-                            .map(|expr| try_constant_fold(expr))
+                            .map(|expr| {
+                                // First try constant folding
+                                let folded = try_constant_fold(expr);
+                                // Then transform read-only props to $$props.propName
+                                transform_read_only_props(&folded, &self.read_only_props)
+                            })
                             .collect();
 
                         match combined.len() {
@@ -3269,7 +3279,8 @@ fn transform_props_destructuring(line: &str) -> Option<String> {
         return None;
     }
 
-    // Generate $.prop() calls
+    // Generate $.prop() calls only for props with defaults
+    // Read-only props (no defaults) are accessed via $$props.propName directly
     let mut declarations: Vec<String> = Vec::new();
 
     for (name, default) in props {
@@ -3280,9 +3291,14 @@ fn transform_props_destructuring(line: &str) -> Option<String> {
                 "let {} = $.prop($$props, '{}', 3, {});",
                 name, name, def_normalized
             ));
-        } else {
-            declarations.push(format!("let {} = $.prop($$props, '{}', 3);", name, name));
         }
+        // Read-only props (no default) don't need $.prop() declarations
+        // They will be accessed via $$props.propName in the template
+    }
+
+    // If no declarations (all props are read-only), return empty string to remove the line
+    if declarations.is_empty() {
+        return Some(String::new());
     }
 
     Some(declarations.join("\n\t"))
@@ -3383,6 +3399,96 @@ fn collect_constant_variables(script: &str) -> HashMap<String, String> {
     }
 
     vars
+}
+
+/// Collect read-only destructured props from script content.
+/// These are props that are destructured from $props() without defaults
+/// and are not reassigned in the script.
+fn collect_read_only_props(script: &str) -> Vec<String> {
+    let mut props = Vec::new();
+
+    for line in script.lines() {
+        let trimmed = line.trim();
+
+        // Match patterns like: let { prop1, prop2 } = $props();
+        let is_let_destructure = trimmed.starts_with("let {") || trimmed.starts_with("let{");
+        let is_const_destructure = trimmed.starts_with("const {") || trimmed.starts_with("const{");
+
+        if !is_let_destructure && !is_const_destructure {
+            continue;
+        }
+
+        if !trimmed.contains("$props()") {
+            continue;
+        }
+
+        // Find the destructuring pattern
+        if let (Some(brace_start), Some(brace_end)) = (trimmed.find('{'), trimmed.find('}')) {
+            if brace_end > brace_start {
+                let pattern = trimmed[brace_start + 1..brace_end].trim();
+
+                // Parse the destructured properties
+                for part in pattern.split(',') {
+                    let part = part.trim();
+                    if part.is_empty() {
+                        continue;
+                    }
+
+                    // Check if has default value
+                    if part.contains('=') {
+                        // Has default value - not read-only, needs $.prop()
+                        continue;
+                    }
+
+                    // No default - could be read-only if not reassigned
+                    props.push(part.to_string());
+                }
+            }
+        }
+    }
+
+    // Check if any of the props are reassigned in the script
+    let reassigned: Vec<String> = props
+        .iter()
+        .filter(|prop| {
+            // Check for reassignment patterns
+            for line in script.lines() {
+                let trimmed = line.trim();
+                // Skip the original destructuring line
+                if trimmed.contains("$props()") {
+                    continue;
+                }
+                // Check for direct assignment: propName =
+                if trimmed.starts_with(&format!("{} =", prop))
+                    || trimmed.contains(&format!(" {} =", prop))
+                {
+                    return true;
+                }
+                // Check for compound assignment: propName +=, propName -=, etc.
+                if trimmed.starts_with(&format!("{} +=", prop))
+                    || trimmed.starts_with(&format!("{} -=", prop))
+                    || trimmed.starts_with(&format!("{} *=", prop))
+                    || trimmed.starts_with(&format!("{} /=", prop))
+                {
+                    return true;
+                }
+                // Check for increment/decrement: propName++, propName--
+                if trimmed.starts_with(&format!("{}++", prop))
+                    || trimmed.starts_with(&format!("{}--", prop))
+                {
+                    return true;
+                }
+            }
+            false
+        })
+        .cloned()
+        .collect();
+
+    // Return only the props that are not reassigned
+    props
+        .into_iter()
+        .filter(|p| !reassigned.contains(p))
+        .collect()
 }
 
 /// Evaluate a content template by replacing constant variable references with their values.
@@ -4012,6 +4118,58 @@ fn transform_constructor_assignment(line: &str, fields: &[ClassStateField]) -> S
     }
 
     trimmed.to_string()
+}
+
+/// Transform read-only prop references in an expression.
+/// Converts `propName` to `$$props.propName` when the prop is read-only.
+fn transform_read_only_props(expr: &str, read_only_props: &[String]) -> String {
+    if read_only_props.is_empty() {
+        return expr.to_string();
+    }
+
+    let mut result = expr.to_string();
+
+    for prop in read_only_props {
+        // Simple case: exact match (expression is just the prop name)
+        if result == *prop {
+            return format!("$$props.{}", prop);
+        }
+
+        // More complex case: prop is used within an expression
+        // We need to be careful not to replace substrings (e.g., "title" in "subtitle")
+        // Use word boundary matching
+        let patterns = vec![
+            // At start of expression followed by non-identifier char
+            format!("^{}(?![a-zA-Z0-9_])", regex_escape(prop)),
+            // After non-identifier char
+            format!("(?<![a-zA-Z0-9_]){}(?![a-zA-Z0-9_])", regex_escape(prop)),
+        ];
+
+        for pattern in patterns {
+            if let Ok(re) = regex::Regex::new(&pattern) {
+                result = re
+                    .replace_all(&result, format!("$$props.{}", prop))
+                    .to_string();
+            }
+        }
+    }
+
+    result
+}
+
+/// Escape special regex characters in a string.
+fn regex_escape(s: &str) -> String {
+    let special_chars = [
+        '\\', '.', '+', '*', '?', '(', ')', '[', ']', '{', '}', '^', '$', '|',
+    ];
+    let mut result = String::new();
+    for c in s.chars() {
+        if special_chars.contains(&c) {
+            result.push('\\');
+        }
+        result.push(c);
+    }
+    result
 }
 
 #[cfg(test)]

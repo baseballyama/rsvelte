@@ -219,7 +219,14 @@ Current status:
 - functional-templating - `fragments: 'tree'`
 
 **Failing tests (1 test):**
-- skip-static-subtree (client only) - requires advanced DOM navigation (`$.child`, `$.reset`, `$.next`), custom element data, special attributes (autofocus, muted, option value), `{@html}` handling, `TEMPLATE_USE_IMPORT_NODE` flag
+- skip-static-subtree (client only) - comprehensive static optimization test requiring:
+  - [x] `TEMPLATE_USE_IMPORT_NODE` flag for custom elements
+  - [ ] Read-only destructured props without `$.prop()` (use `$$props.X` directly)
+  - [ ] Advanced DOM navigation (`$.child(el, preserve_whitespace)`, `$.reset(el)`, `$.next(count)`)
+  - [ ] Template HTML without special attributes (remove autofocus, muted, option value, custom element attrs)
+  - [ ] `{@html}` runtime code (`$.html(node, () => expr)`)
+  - [ ] Custom element data (`$.set_custom_element_data(el, attr, value)`)
+  - [ ] Special attribute runtime handling (`$.autofocus(el, true)`, `el.muted = true`, `option.value = option.__value = 'a'`)
 
 **Implemented features:**
 - [x] Compiler fixture test infrastructure
@@ -276,8 +283,8 @@ Current status:
 - [ ] Compile options support (`experimental.async`, `hmr`, `fragments`)
 - [ ] `{#if}` block client-side code generation (`$.if()`)
 - [ ] CSS scoping and transformation
-- [ ] Template flags support (`TEMPLATE_USE_IMPORT_NODE`, `TEMPLATE_USE_SVG`, `TEMPLATE_USE_MATHML`)
-- [ ] skip-static-subtree client-side features (advanced DOM navigation, custom element data, special attributes)
+- [x] Template flags support (`TEMPLATE_USE_IMPORT_NODE` for custom elements)
+- [ ] skip-static-subtree client-side features (see failing tests checklist above)
 
 ### Integration
 
