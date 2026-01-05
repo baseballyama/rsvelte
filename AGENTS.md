@@ -166,14 +166,14 @@ cargo test --test compiler_fixtures -- --nocapture
 cargo test --test css -- --nocapture
 ```
 
-**Current status (2025-01-05):**
+**Current status (2026-01-05):**
 
 | Test Suite | Passing | Total | Status |
 |------------|---------|-------|--------|
 | Parser Modern | 22 | 22 | ✅ 100% |
 | Parser Legacy | 0 | 83 | ❌ Not supported (Svelte 4) |
 | Compiler Snapshot | 17 | 17 | ✅ 100% (8 skipped: async/hmr/fragments) |
-| CSS | 89 | 167 | ❌ 53% - In progress |
+| CSS | 97 | 177 | ❌ 55% - In progress |
 | Validator | 8 | 252 | ❌ 3% - Not implemented |
 | Compiler Errors | 3 | 85 | ❌ 4% - Not implemented |
 
@@ -181,12 +181,11 @@ cargo test --test css -- --nocapture
 
 ## Next Steps (Priority Order)
 
-### 1. CSS Scoping (89/167 → 167/167)
-Current implementation handles basic selectors. Need to fix:
-- Sibling combinators with `:where()` specificity
-- `@layer`, `@page`, `@supports` at-rules
-- Complex `:global()` patterns
-- Escaped selectors
+### 1. CSS Scoping (97/177 → 177/177)
+Current implementation handles most selectors. Remaining issues:
+- **Unused selector detection** (major blocker - 60+ tests need this)
+- Animation property keyframe name replacement
+- Complex sibling combinator scenarios with unused selectors
 
 ### 2. Validator (8/252)
 Implement warning/error detection:
