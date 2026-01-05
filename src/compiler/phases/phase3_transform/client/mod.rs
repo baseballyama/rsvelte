@@ -5,13 +5,14 @@
 use super::TransformError;
 use super::js_ast::{
     builders::{
-        array, arrow, arrow_block, assign, call, export_default_function, getter, id, id_pattern,
-        import_namespace, import_side_effect, member, object, program, quasi, set_text_content,
-        setter, stmt, string, svelte_append, svelte_await, svelte_bind_value, svelte_child,
-        svelte_each, svelte_first_child, svelte_from_html, svelte_get, svelte_index, svelte_next,
-        svelte_remove_input_defaults, svelte_reset, svelte_set, svelte_set_attribute,
-        svelte_set_sync, svelte_set_text, svelte_sibling, svelte_template_effect,
-        svelte_template_effect_with_values, svelte_text, template, thunk, var_decl,
+        array, arrow, arrow_block, assign, call, const_decl, export_default_function, getter, id,
+        id_pattern, import_namespace, import_side_effect, member, object, program, quasi,
+        return_value, set_text_content, setter, stmt, string, svelte_append, svelte_await,
+        svelte_bind_value, svelte_child, svelte_each, svelte_element, svelte_first_child,
+        svelte_from_html, svelte_get, svelte_index, svelte_next, svelte_remove_input_defaults,
+        svelte_reset, svelte_set, svelte_set_attribute, svelte_set_sync, svelte_set_text,
+        svelte_sibling, svelte_template_effect, svelte_template_effect_with_values, svelte_text,
+        template, thunk, var_decl,
     },
     generate,
     nodes::{JsExpr, JsPattern, JsStatement},
@@ -1386,12 +1387,12 @@ impl ClientCodeGenerator {
         // Generate each block code (using AST-based generation)
         let each_code = self.generate_each_block_code_via_ast();
 
-        // Generate svelte:element code
+        // Generate svelte:element code (using AST-based generation)
         let has_svelte_elements = !self.svelte_elements.is_empty();
-        let svelte_element_code = self.generate_svelte_element_code();
+        let svelte_element_code = self.generate_svelte_element_code_via_ast();
 
-        // Generate hoisted snippet code
-        let snippets_code = self.generate_snippets_code();
+        // Generate hoisted snippet code (using AST-based generation)
+        let snippets_code = self.generate_snippets_code_via_ast();
 
         // Check for bind:this only components (special case)
         let has_bind_this_only =
@@ -1404,8 +1405,8 @@ impl ClientCodeGenerator {
         // Check for component with bindings (like bind:value)
         let has_component_with_binding = !self.components_with_bindings.is_empty();
 
-        // Generate component binding code
-        let component_binding_code = self.generate_component_binding_code();
+        // Generate component binding code (using AST-based generation)
+        let component_binding_code = self.generate_component_binding_code_via_ast();
 
         let raw_output = if has_component_with_binding && !snippets_code.is_empty() {
             // Component with binding + snippets + root-level expressions
@@ -1696,7 +1697,8 @@ export default function {component_name}({fn_params}) {{
         }
     }
 
-    /// Generate code for svelte:element blocks.
+    /// Legacy string-based svelte:element code generation.
+    #[allow(dead_code)]
     fn generate_svelte_element_code(&self) -> String {
         let mut code = String::new();
 
@@ -1707,7 +1709,8 @@ export default function {component_name}({fn_params}) {{
         code
     }
 
-    /// Generate hoisted snippet functions.
+    /// Legacy string-based snippet code generation.
+    #[allow(dead_code)]
     fn generate_snippets_code(&self) -> String {
         let mut code = String::new();
 
@@ -1729,7 +1732,8 @@ export default function {component_name}({fn_params}) {{
         code
     }
 
-    /// Generate code for components with bindings.
+    /// Legacy string-based component binding code generation.
+    #[allow(dead_code)]
     fn generate_component_binding_code(&self) -> String {
         let mut code = String::new();
 
@@ -2756,6 +2760,76 @@ export default function {component_name}({fn_params}) {{
     /// Generate each block code using AST builders and return as string.
     fn generate_each_block_code_via_ast(&self) -> String {
         let statements = self.generate_each_block_code_ast();
+        self.statements_to_string(&statements)
+    }
+
+    /// Generate svelte:element code as AST statements.
+    fn generate_svelte_element_code_ast(&self) -> Vec<JsStatement> {
+        self.svelte_elements
+            .iter()
+            .map(|elem| stmt(svelte_element(id("node"), id(&elem.tag_expr), false)))
+            .collect()
+    }
+
+    /// Generate svelte:element code using AST builders and return as string.
+    fn generate_svelte_element_code_via_ast(&self) -> String {
+        let statements = self.generate_svelte_element_code_ast();
+        self.statements_to_string(&statements)
+    }
+
+    /// Generate snippets code as AST statements.
+    fn generate_snippets_code_ast(&self) -> Vec<JsStatement> {
+        self.snippets
+            .iter()
+            .map(|snippet| {
+                let body = vec![
+                    stmt(svelte_next(None)),
+                    var_decl("text", Some(svelte_text(Some(string(&snippet.body_text))))),
+                    stmt(svelte_append(id("$$anchor"), id("text"))),
+                ];
+                const_decl(
+                    &snippet.name,
+                    arrow_block(vec![id_pattern("$$anchor")], body),
+                )
+            })
+            .collect()
+    }
+
+    /// Generate snippets code using AST builders and return as string.
+    fn generate_snippets_code_via_ast(&self) -> String {
+        let statements = self.generate_snippets_code_ast();
+        if statements.is_empty() {
+            return String::new();
+        }
+        let prog = program(statements);
+        match generate(&prog) {
+            Ok(code) => code + "\n",
+            Err(_) => String::new(),
+        }
+    }
+
+    /// Generate component binding code as AST statements.
+    fn generate_component_binding_code_ast(&self) -> Vec<JsStatement> {
+        self.components_with_bindings
+            .iter()
+            .flat_map(|comp| {
+                let get_body = vec![return_value(svelte_get(id(&comp.bind_var)))];
+                let set_body = vec![stmt(svelte_set_sync(id(&comp.bind_var), id("$$value")))];
+                let props = object(vec![
+                    getter(&comp.bind_name, get_body),
+                    setter(&comp.bind_name, "$$value", set_body),
+                ]);
+                vec![
+                    var_decl("node", Some(svelte_first_child(id("fragment")))),
+                    stmt(call(id(&comp.component_name), vec![id("node"), props])),
+                ]
+            })
+            .collect()
+    }
+
+    /// Generate component binding code using AST builders and return as string.
+    fn generate_component_binding_code_via_ast(&self) -> String {
+        let statements = self.generate_component_binding_code_ast();
         self.statements_to_string(&statements)
     }
 }
