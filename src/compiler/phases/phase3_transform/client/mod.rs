@@ -14,12 +14,13 @@ use state::{
 use super::TransformError;
 use super::js_ast::{
     builders::{
-        array, arrow, arrow_block, assign, call, const_decl, export_default_function, getter, id,
-        id_pattern, import_namespace, import_side_effect, member, object, program, quasi,
-        return_value, set_text_content, setter, stmt, string, svelte_append, svelte_await,
-        svelte_bind_value, svelte_child, svelte_each, svelte_element, svelte_first_child,
-        svelte_from_html, svelte_get, svelte_index, svelte_next, svelte_remove_input_defaults,
-        svelte_reset, svelte_set, svelte_set_attribute, svelte_set_sync, svelte_set_text,
+        array, arrow, arrow_block, assign, boolean, call, const_decl, export_default_function,
+        getter, id, id_pattern, import_namespace, import_side_effect, member, object, program,
+        quasi, return_value, set_text_content, setter, stmt, string, svelte_append,
+        svelte_autofocus, svelte_await, svelte_bind_value, svelte_child, svelte_each,
+        svelte_element, svelte_first_child, svelte_from_html, svelte_get, svelte_html,
+        svelte_index, svelte_next, svelte_remove_input_defaults, svelte_reset, svelte_set,
+        svelte_set_attribute, svelte_set_custom_element_data, svelte_set_sync, svelte_set_text,
         svelte_sibling, svelte_template_effect, svelte_template_effect_with_values, svelte_text,
         template, thunk, var_decl,
     },
@@ -520,11 +521,13 @@ impl ClientCodeGenerator {
     }
 
     fn next_var_name(&mut self, hint: &str) -> String {
-        let count = self.var_name_counters.entry(hint.to_string()).or_insert(0);
+        // Sanitize the hint: replace hyphens with underscores for valid JS identifiers
+        let sanitized = hint.replace('-', "_");
+        let count = self.var_name_counters.entry(sanitized.clone()).or_insert(0);
         let name = if *count == 0 {
-            hint.to_string()
+            sanitized
         } else {
-            format!("{}_{}", hint, count)
+            format!("{}_{}", sanitized, count)
         };
         *count += 1;
         name
@@ -1214,7 +1217,9 @@ impl ClientCodeGenerator {
         let expr_start = tag.expression.start().unwrap_or(0) as usize;
         let expr_end = tag.expression.end().unwrap_or(0) as usize;
         let expression = if expr_end > expr_start && expr_end <= self.source.len() {
-            self.source[expr_start..expr_end].trim().to_string()
+            let raw_expr = self.source[expr_start..expr_end].trim().to_string();
+            // Transform read-only props to $$props.propName
+            transform_read_only_props(&raw_expr, &self.read_only_props)
         } else {
             String::new()
         };
@@ -2577,6 +2582,51 @@ export default function {component_name}({fn_params}) {{
 
         // Add bindings after all navigation
         statements.extend(bindings_stmts);
+
+        // Generate special attribute runtime code
+        for attr in &self.special_attrs {
+            match attr {
+                SpecialAttribute::Autofocus { var_name } => {
+                    // $.autofocus(element, true)
+                    statements.push(stmt(svelte_autofocus(id(var_name), true)));
+                }
+                SpecialAttribute::Muted { var_name } => {
+                    // element.muted = true
+                    statements.push(stmt(assign(member(id(var_name), "muted"), boolean(true))));
+                }
+                SpecialAttribute::OptionValue { var_name, value } => {
+                    // option.value = option.__value = 'value'
+                    let inner_assign = assign(member(id(var_name), "__value"), string(value));
+                    statements.push(stmt(assign(member(id(var_name), "value"), inner_assign)));
+                }
+                SpecialAttribute::CustomElementData {
+                    var_name,
+                    attr_name,
+                    attr_value,
+                } => {
+                    // $.set_custom_element_data(element, 'attr', 'value')
+                    statements.push(stmt(svelte_set_custom_element_data(
+                        id(var_name),
+                        attr_name,
+                        string(attr_value),
+                    )));
+                }
+            }
+        }
+
+        // Generate {@html} runtime code
+        for (i, html_tag) in self.html_tags.iter().enumerate() {
+            let var_name = if i == 0 {
+                "node".to_string()
+            } else {
+                format!("node_{}", i)
+            };
+            // $.html(node, () => expression)
+            statements.push(stmt(svelte_html(
+                id(&var_name),
+                thunk(id(&html_tag.expression)),
+            )));
+        }
 
         // Generate combined template_effect
         match template_effect_parts.len() {
