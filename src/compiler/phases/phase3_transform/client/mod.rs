@@ -59,11 +59,19 @@ pub fn transform_client(
         (String::new(), false)
     };
 
+    // Get CSS hash for scoping (if CSS exists)
+    let css_hash = if analysis.css.has_css && !analysis.css.hash.is_empty() {
+        Some(analysis.css.hash.clone())
+    } else {
+        None
+    };
+
     let mut generator = ClientCodeGenerator::new(
         component_name.clone(),
         analysis.source.clone(),
         script_content,
         uses_runes,
+        css_hash,
     );
 
     // Use the AST fragment directly (no re-parsing needed)
@@ -132,6 +140,8 @@ struct ClientCodeGenerator {
     special_attrs: Vec<SpecialAttribute>,
     /// Current element name being processed (for tracking custom elements)
     current_element_name: Option<String>,
+    /// CSS hash for scoping (e.g., "svelte-abc123")
+    css_hash: Option<String>,
     // === Cursor-based navigation state ===
     /// Navigation statements collected during traversal
     #[allow(dead_code)]
@@ -149,6 +159,7 @@ impl ClientCodeGenerator {
         source: String,
         script_content: String,
         uses_runes: bool,
+        css_hash: Option<String>,
     ) -> Self {
         // Collect state variables from script content
         let state_vars = collect_state_variables(&script_content);
@@ -185,6 +196,7 @@ impl ClientCodeGenerator {
             read_only_props,
             special_attrs: Vec::new(),
             current_element_name: None,
+            css_hash,
             nav_stmts: Vec::new(),
             template_effects: Vec::new(),
             elements_needing_reset: Vec::new(),
@@ -355,6 +367,11 @@ impl ClientCodeGenerator {
         // Start tag
         self.html_parts.push(format!("<{}", name));
 
+        // Add CSS scoping class if present
+        if let Some(ref hash) = self.css_hash {
+            self.html_parts.push(format!(" class=\"{}\"", hash));
+        }
+
         // Attributes (skip event handlers for now, they're handled at runtime)
         for attr in &element.attributes {
             self.generate_attribute(attr)?;
@@ -424,7 +441,10 @@ impl ClientCodeGenerator {
                                 let expr_end = tag.end as usize;
                                 if expr_start + 1 < expr_end && expr_end <= self.source.len() {
                                     let expr = self.source[expr_start + 1..expr_end - 1].trim();
-                                    content_parts.push(format!("${{{} ?? ''}}", expr));
+                                    // Transform state variable references in the expression
+                                    let transformed =
+                                        transform_state_in_expr(expr, &self.state_vars);
+                                    content_parts.push(format!("${{{} ?? ''}}", transformed));
                                 }
                             }
                             _ => {}
@@ -1109,7 +1129,9 @@ impl ClientCodeGenerator {
         let end = tag.end as usize;
 
         if start + 1 < end && end <= self.source.len() {
-            let expr_source = self.source[start + 1..end - 1].trim().to_string();
+            let raw_expr = self.source[start + 1..end - 1].trim();
+            // Transform state variable references in the expression
+            let expr_source = transform_state_in_expr(raw_expr, &self.state_vars);
 
             // Check if this is a root-level expression (no parent element)
             if self.element_stack.is_empty() {
@@ -1398,6 +1420,11 @@ impl ClientCodeGenerator {
 
                     // Build the template with static attributes and text content
                     let mut template_html = format!("<{elem_name}");
+
+                    // Add CSS scoping class if present
+                    if let Some(ref hash) = self.css_hash {
+                        template_html.push_str(&format!(" class=\"{}\"", hash));
+                    }
 
                     // Collect static and dynamic attributes
                     let mut dynamic_attrs = Vec::new();
@@ -4625,21 +4652,58 @@ fn transform_arrow_function_expr(expr: &str, state_vars: &[String]) -> String {
 /// Transform state variable accesses in an expression.
 /// e.g., `plusOne(count)` becomes `plusOne($.get(count))`
 /// Also handles simple variable access: `count` becomes `$.get(count)`
+/// Also handles expressions like `count === 1` → `$.get(count) === 1`
 fn transform_state_in_expr(expr: &str, state_vars: &[String]) -> String {
     let mut result = expr.to_string();
+
     for var in state_vars {
-        // Simple case: expression is exactly the variable name
-        if expr.trim() == var {
-            return format!("$.get({})", var);
+        // Use a more robust approach: find all occurrences of the variable
+        // that are not part of a larger identifier (word boundaries)
+        let mut new_result = String::new();
+        let chars: Vec<char> = result.chars().collect();
+        let var_chars: Vec<char> = var.chars().collect();
+        let mut i = 0;
+
+        while i < chars.len() {
+            // Check if we're at the start of the variable name
+            if i + var_chars.len() <= chars.len() {
+                let potential_match: String = chars[i..i + var_chars.len()].iter().collect();
+                if potential_match == *var {
+                    // Check if it's a whole word (not part of a larger identifier)
+                    let before_ok = i == 0 || !is_identifier_char(chars[i - 1]);
+                    let after_ok = i + var_chars.len() >= chars.len()
+                        || !is_identifier_char(chars[i + var_chars.len()]);
+
+                    if before_ok && after_ok {
+                        // Check if already wrapped in $.get()
+                        let already_wrapped = if i >= 6 {
+                            let prefix: String = chars[i - 6..i].iter().collect();
+                            prefix == "$.get("
+                        } else {
+                            false
+                        };
+
+                        if !already_wrapped {
+                            new_result.push_str(&format!("$.get({})", var));
+                            i += var_chars.len();
+                            continue;
+                        }
+                    }
+                }
+            }
+            new_result.push(chars[i]);
+            i += 1;
         }
 
-        // Check if the variable appears as a function argument: funcName(var)
-        let in_parens = format!("({})", var);
-        if result.contains(&in_parens) {
-            result = result.replace(&in_parens, &format!("($.get({}))", var));
-        }
+        result = new_result;
     }
+
     result
+}
+
+/// Check if a character can be part of a JavaScript identifier
+fn is_identifier_char(c: char) -> bool {
+    c.is_alphanumeric() || c == '_' || c == '$'
 }
 
 fn transform_state_assignments(line: &str, state_vars: &[String]) -> String {

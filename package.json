@@ -1,0 +1,17 @@
+{
+  "name": "svelte-compiler-rust-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:wasm": "wasm-pack build --target web --release -- --features wasm --no-default-features",
+    "build:wasm:clean": "cargo clean && pnpm run build:wasm",
+    "clean:cache": "rm -rf playground/node_modules/.vite",
+    "dev": "pnpm run build:wasm && pnpm run clean:cache && cd playground && pnpm run dev",
+    "dev:playground": "cd playground && pnpm run dev",
+    "build": "pnpm run build:wasm && cd playground && pnpm run build",
+    "preview": "cd playground && pnpm run preview",
+    "rebuild": "pnpm run build:wasm && pnpm run clean:cache",
+    "rebuild:clean": "pnpm run build:wasm:clean && pnpm run clean:cache"
+  }
+}
