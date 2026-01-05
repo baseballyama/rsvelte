@@ -802,9 +802,13 @@ pub fn svelte_sibling(node: JsExpr, count: Option<i32>) -> JsExpr {
     svelte_call("sibling", args)
 }
 
-/// Create $.child(node).
-pub fn svelte_child(node: JsExpr) -> JsExpr {
-    svelte_call("child", vec![node])
+/// Create $.child(node) or $.child(node, true) for preserving whitespace.
+pub fn svelte_child(node: JsExpr, preserve_whitespace: Option<bool>) -> JsExpr {
+    let mut args = vec![node];
+    if let Some(true) = preserve_whitespace {
+        args.push(boolean(true));
+    }
+    svelte_call("child", args)
 }
 
 /// Create $.text() or $.text(content).

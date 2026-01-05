@@ -2560,7 +2560,7 @@ export default function {component_name}({fn_params}) {{
         template_expr: JsExpr,
     ) -> Vec<JsStatement> {
         vec![
-            var_decl(text_var, Some(svelte_child(id(element_var)))),
+            var_decl(text_var, Some(svelte_child(id(element_var), None))),
             stmt(svelte_reset(id(element_var))),
             stmt(svelte_template_effect(thunk(svelte_set_text(
                 id(text_var),
