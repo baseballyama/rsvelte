@@ -7,15 +7,21 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "build:wasm": "cd .. && wasm-pack build --target web --no-default-features --features wasm"
+    "build:wasm": "cd .. && wasm-pack build --target web --no-default-features --features wasm",
+    "lint": "oxlint src/**/*.ts --deny-warnings",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.8",
-    "@sveltejs/kit": "^2.21.0",
-    "@sveltejs/vite-plugin-svelte": "^5.0.3",
-    "svelte": "^5.25.5",
+    "@sveltejs/kit": "^2.49.2",
+    "@sveltejs/vite-plugin-svelte": "^6.2.1",
+    "oxlint": "^1.36.0",
+    "prettier": "^3.5.3",
+    "prettier-plugin-svelte": "^3.4.0",
+    "svelte": "^5.46.1",
     "typescript": "^5.8.2",
-    "vite": "^6.2.0"
+    "vite": "^8.0.0-beta.5"
   },
   "dependencies": {
     "@monaco-editor/loader": "^1.7.0",
