@@ -8,9 +8,10 @@ use super::js_ast::{
         array, arrow, arrow_block, assign, call, export_default_function, getter, id, id_pattern,
         import_namespace, import_side_effect, member, object, program, quasi, set_text_content,
         setter, stmt, string, svelte_append, svelte_await, svelte_bind_value, svelte_child,
-        svelte_first_child, svelte_from_html, svelte_get, svelte_remove_input_defaults,
-        svelte_reset, svelte_set, svelte_set_sync, svelte_set_text, svelte_sibling,
-        svelte_template_effect, svelte_template_effect_with_values, template, thunk, var_decl,
+        svelte_each, svelte_first_child, svelte_from_html, svelte_get, svelte_index, svelte_next,
+        svelte_remove_input_defaults, svelte_reset, svelte_set, svelte_set_attribute,
+        svelte_set_sync, svelte_set_text, svelte_sibling, svelte_template_effect,
+        svelte_template_effect_with_values, svelte_text, template, thunk, var_decl,
     },
     generate,
     nodes::{JsExpr, JsPattern, JsStatement},
@@ -1382,8 +1383,8 @@ impl ClientCodeGenerator {
             })
             .collect();
 
-        // Generate each block code
-        let each_code = self.generate_each_block_code();
+        // Generate each block code (using AST-based generation)
+        let each_code = self.generate_each_block_code_via_ast();
 
         // Generate svelte:element code
         let has_svelte_elements = !self.svelte_elements.is_empty();
@@ -1779,7 +1780,9 @@ export default function {component_name}({fn_params}) {{
         code
     }
 
-    /// Generate code for each blocks.
+    /// Legacy string-based each block code generation.
+    /// Use generate_each_block_code_via_ast instead.
+    #[allow(dead_code)]
     fn generate_each_block_code(&self) -> String {
         let mut code = String::new();
 
@@ -2622,6 +2625,137 @@ export default function {component_name}({fn_params}) {{
     /// This is a drop-in replacement for generate_runtime_code.
     fn generate_runtime_code_via_ast(&self, root_var: &str) -> String {
         let statements = self.generate_runtime_code_ast(root_var);
+        self.statements_to_string(&statements)
+    }
+
+    /// Generate each block code as AST statements.
+    fn generate_each_block_code_ast(&self) -> Vec<JsStatement> {
+        let mut statements: Vec<JsStatement> = Vec::new();
+
+        for each in &self.each_blocks {
+            // Build callback parameters
+            let mut callback_params: Vec<JsPattern> = vec![id_pattern("$$anchor")];
+            if let Some(ref ctx) = each.context_name {
+                callback_params.push(id_pattern(ctx));
+            } else {
+                callback_params.push(id_pattern("$$item"));
+            }
+            if let Some(ref idx) = each.index_name {
+                callback_params.push(id_pattern(idx));
+            }
+
+            // Build callback body
+            let callback_body = if each.is_text_only {
+                // Text-only body
+                let expr_parts: Vec<String> = each
+                    .body_expressions
+                    .iter()
+                    .map(|expr| {
+                        if expr.starts_with('\'') || expr.starts_with('"') {
+                            expr[1..expr.len() - 1].to_string()
+                        } else {
+                            format!("${{{} ?? ''}}", expr)
+                        }
+                    })
+                    .collect();
+                let template_str = expr_parts.join("");
+
+                vec![
+                    stmt(svelte_next(None)),
+                    var_decl("text", Some(svelte_text(None))),
+                    stmt(svelte_template_effect(thunk(svelte_set_text(
+                        id("text"),
+                        template(vec![quasi(&template_str, true)], vec![]),
+                    )))),
+                    stmt(svelte_append(id("$$anchor"), id("text"))),
+                ]
+            } else if let Some(ref template_var) = each.template_var {
+                // Element-based body
+                let elem_var = each.body_element.as_deref().unwrap_or("elem");
+                let mut body_stmts: Vec<JsStatement> = Vec::new();
+
+                // var elem = template_var();
+                body_stmts.push(var_decl(elem_var, Some(call(id(template_var), vec![]))));
+
+                // Dynamic attributes
+                for attr in &each.dynamic_attributes {
+                    body_stmts.push(stmt(svelte_set_attribute(
+                        id(elem_var),
+                        &attr.name,
+                        id(&attr.expr),
+                    )));
+                }
+
+                // Event handlers
+                for handler in &each.event_handlers {
+                    let prop_name = format!("__{}", handler.event);
+                    body_stmts.push(stmt(assign(
+                        member(id(elem_var), &prop_name),
+                        id(&handler.handler),
+                    )));
+                }
+
+                // Text content
+                if !each.body_expressions.is_empty() {
+                    if let Some(first) = each.body_expressions.first() {
+                        if let Some(template_content) = first.strip_prefix("TEMPLATE:") {
+                            body_stmts.push(stmt(set_text_content(
+                                id(elem_var),
+                                template(vec![quasi(template_content, true)], vec![]),
+                            )));
+                        } else {
+                            let expr_parts: Vec<String> = each
+                                .body_expressions
+                                .iter()
+                                .map(|expr| {
+                                    if expr.starts_with('\'') || expr.starts_with('"') {
+                                        expr[1..expr.len() - 1].to_string()
+                                    } else {
+                                        format!("${{{}}}", expr)
+                                    }
+                                })
+                                .collect();
+                            body_stmts.push(stmt(set_text_content(
+                                id(elem_var),
+                                template(vec![quasi(expr_parts.join(""), true)], vec![]),
+                            )));
+                        }
+                    }
+                }
+
+                // $.append($$anchor, elem);
+                body_stmts.push(stmt(svelte_append(id("$$anchor"), id(elem_var))));
+
+                body_stmts
+            } else {
+                vec![]
+            };
+
+            // Build iterable expression
+            let iterable_str = if each.iterable.trim().starts_with('{') {
+                format!("({})", each.iterable)
+            } else {
+                each.iterable.clone()
+            };
+
+            // $.each(node, 0, () => iterable, $.index, (params) => { body });
+            let each_call = svelte_each(
+                id("node"),
+                0,
+                id(&iterable_str),
+                svelte_index(),
+                arrow_block(callback_params, callback_body),
+            );
+
+            statements.push(stmt(each_call));
+        }
+
+        statements
+    }
+
+    /// Generate each block code using AST builders and return as string.
+    fn generate_each_block_code_via_ast(&self) -> String {
+        let statements = self.generate_each_block_code_ast();
         self.statements_to_string(&statements)
     }
 }
