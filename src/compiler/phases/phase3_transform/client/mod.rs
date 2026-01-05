@@ -117,6 +117,14 @@ struct SvelteElementInfo {
     tag_expr: String,
 }
 
+/// Represents an {@html} tag for client-side code generation.
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+struct HtmlTagInfo {
+    /// The expression to render as HTML (e.g., "content")
+    expression: String,
+}
+
 /// Represents a dynamic attribute in an each block element.
 #[derive(Debug, Clone)]
 struct DynamicAttribute {
@@ -245,6 +253,8 @@ struct ClientCodeGenerator {
     each_blocks: Vec<EachBlockInfo>,
     /// Svelte:element blocks collected for code generation
     svelte_elements: Vec<SvelteElementInfo>,
+    /// {@html} tags collected for code generation
+    html_tags: Vec<HtmlTagInfo>,
     /// Components with bind:this directive (for special code generation)
     bind_this_components: Vec<BindThisComponent>,
     /// Components with children (for generating children callbacks)
@@ -287,6 +297,7 @@ impl ClientCodeGenerator {
             each_block_counter: 0,
             each_blocks: Vec::new(),
             svelte_elements: Vec::new(),
+            html_tags: Vec::new(),
             bind_this_components: Vec::new(),
             components_with_children: Vec::new(),
             snippets: Vec::new(),
@@ -1247,8 +1258,24 @@ impl ClientCodeGenerator {
         Ok(())
     }
 
-    fn generate_html_tag(&mut self, _tag: &HtmlTag) -> Result<(), TransformError> {
+    fn generate_html_tag(&mut self, tag: &HtmlTag) -> Result<(), TransformError> {
+        // Add placeholder in template
         self.html_parts.push("<!>".to_string());
+
+        // Extract the expression
+        let expr_start = tag.expression.start().unwrap_or(0) as usize;
+        let expr_end = tag.expression.end().unwrap_or(0) as usize;
+        let expression = if expr_end > expr_start && expr_end <= self.source.len() {
+            self.source[expr_start..expr_end].trim().to_string()
+        } else {
+            String::new()
+        };
+
+        // Store the html tag info for runtime code generation
+        if !expression.is_empty() {
+            self.html_tags.push(HtmlTagInfo { expression });
+        }
+
         Ok(())
     }
 
