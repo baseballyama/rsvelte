@@ -3,6 +3,7 @@
 //! Generates JavaScript code for browser execution.
 
 mod state;
+mod visitor;
 
 use state::{
     AwaitBlockInfo, BindThisComponent, ChildPart, ComponentWithBinding, ComponentWithChildren,
