@@ -221,12 +221,13 @@ Current status:
 **Failing tests (1 test):**
 - skip-static-subtree (client only) - comprehensive static optimization test requiring:
   - [x] `TEMPLATE_USE_IMPORT_NODE` flag for custom elements
-  - [ ] Read-only destructured props without `$.prop()` (use `$$props.X` directly)
+  - [x] Read-only destructured props without `$.prop()` (use `$$props.X` directly)
   - [ ] Advanced DOM navigation (`$.child(el, preserve_whitespace)`, `$.reset(el)`, `$.next(count)`)
   - [ ] Template HTML without special attributes (remove autofocus, muted, option value, custom element attrs)
   - [ ] `{@html}` runtime code (`$.html(node, () => expr)`)
   - [ ] Custom element data (`$.set_custom_element_data(el, attr, value)`)
   - [ ] Special attribute runtime handling (`$.autofocus(el, true)`, `el.muted = true`, `option.value = option.__value = 'a'`)
+  - [ ] `$.template_effect()` instead of direct `.textContent` assignment
 
 **Implemented features:**
 - [x] Compiler fixture test infrastructure
