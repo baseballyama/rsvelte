@@ -2,6 +2,14 @@
 //!
 //! Generates JavaScript code for browser execution.
 
+mod state;
+
+use state::{
+    AwaitBlockInfo, BindThisComponent, ChildPart, ComponentWithBinding, ComponentWithChildren,
+    DynamicAttribute, EachBlockInfo, EventHandler, HtmlTagInfo, NodeInfo, NodeType, SnippetInfo,
+    SvelteElementInfo,
+};
+
 use super::TransformError;
 use super::js_ast::{
     builders::{
@@ -62,156 +70,7 @@ pub fn transform_client(
     Ok(generator.build())
 }
 
-/// Information about a node that needs runtime code.
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-struct NodeInfo {
-    /// Variable name for this node
-    var_name: String,
-    /// Type of node
-    node_type: NodeType,
-    /// Expression code (for expressions and components)
-    expression: Option<String>,
-    /// Child index in parent (for navigation)
-    child_index: usize,
-    /// Event handlers: (event_name, handler_expression)
-    event_handlers: Vec<(String, String)>,
-    /// Bindings: (binding_name, value_expression)
-    bindings: Vec<(String, String)>,
-    /// Whether this is an input element (needs remove_input_defaults)
-    is_input: bool,
-    /// Full content template for element's text content (e.g., "clicks: ${counter.count ?? ''}")
-    /// This combines static text and expressions
-    content_template: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-enum NodeType {
-    Element(String), // tag name
-    ExpressionInElement,
-    Component(String), // component name
-    Anchor,
-    AwaitBlock,
-    RootExpression, // Expression at root level (not inside an element)
-}
-
 use std::collections::HashMap;
-
-/// Represents a svelte:element for client-side code generation.
-#[derive(Debug, Clone)]
-struct SvelteElementInfo {
-    /// The tag expression (e.g., "tag")
-    tag_expr: String,
-}
-
-/// Represents an {@html} tag for client-side code generation.
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-struct HtmlTagInfo {
-    /// The expression to render as HTML (e.g., "content")
-    expression: String,
-}
-
-/// Represents a dynamic attribute in an each block element.
-#[derive(Debug, Clone)]
-struct DynamicAttribute {
-    /// Attribute name (e.g., "data-index")
-    name: String,
-    /// Expression value (e.g., "index")
-    expr: String,
-}
-
-/// Represents an event handler in an each block element.
-#[derive(Debug, Clone)]
-struct EventHandler {
-    /// Event name (e.g., "click")
-    event: String,
-    /// Handler expression
-    handler: String,
-}
-
-/// Represents an each block for client-side code generation.
-#[derive(Debug, Clone)]
-struct EachBlockInfo {
-    /// Template variable name (e.g., "root_1")
-    template_var: Option<String>,
-    /// HTML for the template
-    template_html: Option<String>,
-    /// Iterable expression
-    iterable: String,
-    /// Context variable name (the item)
-    context_name: Option<String>,
-    /// Index variable name
-    index_name: Option<String>,
-    /// Whether the body contains only text/expressions (no elements)
-    is_text_only: bool,
-    /// Body expressions for text-only each blocks
-    body_expressions: Vec<String>,
-    /// Body element tag name for element-based each blocks
-    body_element: Option<String>,
-    /// Dynamic attributes to set at runtime
-    dynamic_attributes: Vec<DynamicAttribute>,
-    /// Event handlers to attach
-    event_handlers: Vec<EventHandler>,
-}
-
-/// Represents a component with bind:this directive.
-#[derive(Debug, Clone)]
-struct BindThisComponent {
-    /// Component name (e.g., "Foo")
-    component_name: String,
-    /// The variable being bound to (e.g., "foo")
-    bind_var: String,
-}
-
-/// Represents a component with children for code generation.
-#[derive(Debug, Clone)]
-struct ComponentWithChildren {
-    /// Component name (e.g., "Button")
-    component_name: String,
-    /// Props string (comma-separated key: value pairs)
-    props: String,
-    /// Children content parts (text and expressions)
-    children_parts: Vec<ChildPart>,
-}
-
-/// A part of component children content.
-#[derive(Debug, Clone)]
-enum ChildPart {
-    Text(String),
-    Expression(String),
-}
-
-/// Represents a snippet block for code generation.
-#[derive(Debug, Clone)]
-struct SnippetInfo {
-    /// Snippet name
-    name: String,
-    /// Snippet body content (text only for now)
-    body_text: String,
-}
-
-/// Represents a component with value binding for code generation.
-#[derive(Debug, Clone)]
-struct ComponentWithBinding {
-    /// Component name (e.g., "TextInput")
-    component_name: String,
-    /// The binding name (e.g., "value")
-    bind_name: String,
-    /// The variable being bound to (e.g., "value")
-    bind_var: String,
-}
-
-/// Represents an await block for client-side code generation.
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-struct AwaitBlockInfo {
-    /// Promise expression (e.g., "promise")
-    promise_expr: String,
-    /// Then value variable name (e.g., "counter")
-    then_value: Option<String>,
-}
 
 /// Client-side code generator.
 struct ClientCodeGenerator {
