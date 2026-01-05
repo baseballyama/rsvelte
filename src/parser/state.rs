@@ -581,8 +581,22 @@ impl<'a> Parser<'a> {
         for attr in attributes {
             if let crate::ast::Attribute::Attribute(node) = attr {
                 if node.name.as_str() == "this" {
-                    if let AttributeValue::Expression(expr_tag) = &node.value {
-                        return expr_tag.expression.clone();
+                    match &node.value {
+                        AttributeValue::Expression(expr_tag) => {
+                            return expr_tag.expression.clone();
+                        }
+                        AttributeValue::Sequence(parts) => {
+                            // For quoted string values like this="div", extract the string
+                            if parts.len() == 1 {
+                                if let AttributeValuePart::Text(text) = &parts[0] {
+                                    // Return a string literal expression
+                                    return Expression::from_json(serde_json::json!(
+                                        text.data.as_str()
+                                    ));
+                                }
+                            }
+                        }
+                        _ => {}
                     }
                 }
             }
