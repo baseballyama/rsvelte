@@ -5,11 +5,13 @@
 use super::TransformError;
 use super::js_ast::{
     builders::{
-        call, export_default_function, id, id_pattern, import_namespace, import_side_effect,
-        program, stmt, svelte_append, svelte_from_html, var_decl,
+        array, assign, call, export_default_function, getter, id, id_pattern, import_namespace,
+        import_side_effect, member, object, program, quasi, setter, stmt, string, svelte_append,
+        svelte_first_child, svelte_from_html, svelte_get, svelte_remove_input_defaults,
+        svelte_set_sync, svelte_sibling, svelte_template_effect, template, thunk, var_decl,
     },
     generate,
-    nodes::{JsPattern, JsStatement},
+    nodes::{JsExpr, JsPattern, JsStatement},
     normalize_js,
 };
 use crate::ast::template::{
@@ -2439,6 +2441,110 @@ export default function {component_name}({fn_params}) {{
                 && node.expression.is_none()
                 && node.content_template.is_none()
         })
+    }
+
+    // =========================================================================
+    // Navigation and runtime code AST builders
+    // =========================================================================
+
+    /// Build a navigation statement: var name = $.first_child(parent)
+    #[allow(dead_code)]
+    fn build_first_child_stmt(&self, var_name: &str, parent: &str) -> JsStatement {
+        var_decl(var_name, Some(svelte_first_child(id(parent))))
+    }
+
+    /// Build a sibling navigation statement: var name = $.sibling(prev, count)
+    #[allow(dead_code)]
+    fn build_sibling_stmt(&self, var_name: &str, prev: &str, count: Option<i32>) -> JsStatement {
+        var_decl(var_name, Some(svelte_sibling(id(prev), count)))
+    }
+
+    /// Build an event handler assignment: element.__event = handler
+    #[allow(dead_code)]
+    fn build_event_handler_stmt(
+        &self,
+        element: &str,
+        event_name: &str,
+        handler: JsExpr,
+    ) -> JsStatement {
+        let prop_name = format!("__{}", event_name);
+        stmt(assign(member(id(element), &prop_name), handler))
+    }
+
+    /// Build a remove_input_defaults call: $.remove_input_defaults(element)
+    #[allow(dead_code)]
+    fn build_remove_input_defaults_stmt(&self, element: &str) -> JsStatement {
+        stmt(svelte_remove_input_defaults(id(element)))
+    }
+
+    /// Build a template_effect with set_text: $.template_effect(() => $.set_text(node, `...`))
+    #[allow(dead_code)]
+    fn build_template_effect_set_text(
+        &self,
+        text_var: &str,
+        template_parts: Vec<(String, Option<JsExpr>)>, // (text, optional_expr)
+    ) -> JsStatement {
+        // Build template literal
+        let mut quasis = Vec::new();
+        let mut expressions = Vec::new();
+
+        for (i, (text, expr_opt)) in template_parts.iter().enumerate() {
+            let is_tail = i == template_parts.len() - 1 && expr_opt.is_none();
+            quasis.push(quasi(text, is_tail));
+            if let Some(expr) = expr_opt {
+                expressions.push(expr.clone());
+            }
+        }
+
+        // Add final quasi if needed
+        if !template_parts.is_empty() {
+            if let Some((_, Some(_))) = template_parts.last() {
+                quasis.push(quasi("", true));
+            }
+        }
+
+        let template_lit = template(quasis, expressions);
+        let set_text_call = call(
+            member(id("$"), "set_text"),
+            vec![id(text_var), template_lit],
+        );
+        let callback = thunk(set_text_call);
+        stmt(svelte_template_effect(callback))
+    }
+
+    /// Build a component binding with getter/setter pattern
+    #[allow(dead_code)]
+    fn build_component_binding_stmt(
+        &self,
+        component_name: &str,
+        anchor: &str,
+        bind_name: &str,
+        bind_var: &str,
+    ) -> JsStatement {
+        // Component(anchor, {
+        //     get bindName() { return $.get(bindVar); },
+        //     set bindName($$value) { $.set(bindVar, $$value, true); }
+        // })
+        let get_body = vec![super::js_ast::nodes::JsStatement::Return(
+            super::js_ast::nodes::JsReturnStatement {
+                argument: Some(Box::new(svelte_get(id(bind_var)))),
+            },
+        )];
+        let set_body = vec![stmt(svelte_set_sync(id(bind_var), id("$$value")))];
+
+        let props = object(vec![
+            getter(bind_name, get_body),
+            setter(bind_name, "$$value", set_body),
+        ]);
+
+        stmt(call(id(component_name), vec![id(anchor), props]))
+    }
+
+    /// Build $.delegate([...events]) statement
+    #[allow(dead_code)]
+    fn build_delegate_stmt(&self, events: &[String]) -> JsStatement {
+        let events_array = array(events.iter().map(String::as_str).map(string).collect());
+        stmt(call(member(id("$"), "delegate"), vec![events_array]))
     }
 }
 
