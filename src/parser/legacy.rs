@@ -1189,7 +1189,7 @@ fn convert_attribute(source: &str, attr: &Attribute) -> Value {
 }
 
 fn convert_attribute_node(attr: &AttributeNode) -> Value {
-    let value = convert_attribute_value(&attr.value, attr.start);
+    let value = convert_attribute_value(&attr.value, attr.start, &attr.name);
 
     let mut result = Map::new();
     result.insert("type".to_string(), json!("Attribute"));
@@ -1206,13 +1206,24 @@ fn convert_attribute_node(attr: &AttributeNode) -> Value {
     Value::Object(result)
 }
 
-fn convert_attribute_value(value: &AttributeValue, _attr_start: u32) -> Value {
+fn convert_attribute_value(value: &AttributeValue, attr_start: u32, _attr_name: &str) -> Value {
     match value {
         AttributeValue::True(true) => json!(true),
         AttributeValue::True(false) => json!(false),
         AttributeValue::Expression(expr_tag) => {
-            // Wrap in array
-            json!([convert_expression_tag(expr_tag, &["Attribute"])])
+            // Check if this is a shorthand attribute like {id}
+            // A shorthand is when the expression is directly after the attribute start (the `{`)
+            // i.e., expr_tag.start == attr_start + 1 (for `{id}`, attr starts at `{`, expr at `id`)
+            // For named attributes like `foo={bar}`, the expression is further away
+            let is_shorthand = expr_tag.start == attr_start + 1;
+
+            if is_shorthand {
+                // Shorthand attribute: {id} -> AttributeShorthand
+                json!([convert_expression_tag(expr_tag, &["Attribute"])])
+            } else {
+                // Named attribute with expression value: b={''} -> MustacheTag
+                json!([convert_expression_tag(expr_tag, &[])])
+            }
         }
         AttributeValue::Sequence(parts) => {
             json!(

@@ -1310,30 +1310,138 @@ impl<'a> Parser<'a> {
                     expression: self.parse_js_expression(expr_content, expr_start),
                 })
             } else if self.eat("\"") || self.eat("'") {
-                // Quoted string value
+                // Quoted string value with potential expressions: "red{variable}"
                 let quote = if self.source.chars().nth(self.index - 1) == Some('"') {
                     '"'
                 } else {
                     '\''
                 };
-                let string_start = self.index;
+                let mut parts: Vec<AttributeValuePart> = Vec::new();
+                let mut text_start = self.index;
+
                 while !self.is_eof() && self.current_char() != quote {
-                    self.advance();
+                    if self.current_char() == '{' {
+                        // Save text before expression
+                        if self.index > text_start {
+                            parts.push(AttributeValuePart::Text(crate::ast::template::Text {
+                                start: text_start as u32,
+                                end: self.index as u32,
+                                raw: CompactString::from(&self.source[text_start..self.index]),
+                                data: CompactString::from(&self.source[text_start..self.index]),
+                            }));
+                        }
+                        let expr_start = self.index;
+                        self.advance(); // consume '{'
+                        let inner_start = self.index;
+                        let mut depth = 1;
+                        while !self.is_eof() && depth > 0 {
+                            let ch = self.current_char();
+                            if ch == '{' {
+                                depth += 1;
+                            } else if ch == '}' {
+                                depth -= 1;
+                            }
+                            if depth > 0 {
+                                self.advance();
+                            }
+                        }
+                        let inner_end = self.index;
+                        self.advance(); // consume '}'
+                        parts.push(AttributeValuePart::ExpressionTag(ExpressionTag {
+                            start: expr_start as u32,
+                            end: self.index as u32,
+                            expression: self.parse_js_expression(
+                                &self.source[inner_start..inner_end],
+                                inner_start,
+                            ),
+                        }));
+                        text_start = self.index;
+                    } else {
+                        self.advance();
+                    }
                 }
-                let string_value = &self.source[string_start..self.index];
+
+                // Save remaining text
+                if self.index > text_start {
+                    parts.push(AttributeValuePart::Text(crate::ast::template::Text {
+                        start: text_start as u32,
+                        end: self.index as u32,
+                        raw: CompactString::from(&self.source[text_start..self.index]),
+                        data: CompactString::from(&self.source[text_start..self.index]),
+                    }));
+                }
+
                 self.advance(); // consume closing quote
-                // For quoted string, create a Sequence with Text node
-                AttributeValue::Sequence(vec![AttributeValuePart::Text(
-                    crate::ast::template::Text {
-                        start: string_start as u32,
-                        end: (self.index - 1) as u32, // before closing quote
-                        raw: CompactString::from(string_value),
-                        data: CompactString::from(string_value),
-                    },
-                )])
+                AttributeValue::Sequence(parts)
             } else {
-                // Shorthand - use True to indicate shorthand without explicit value
-                AttributeValue::True(true)
+                // Unquoted value: style:color=red or style:color=red{expr}
+                let mut parts: Vec<AttributeValuePart> = Vec::new();
+                let mut text_start = self.index;
+
+                while !self.is_eof() {
+                    let c = self.current_char();
+                    // End of unquoted value (but NOT / alone)
+                    if c.is_whitespace() || c == '>' {
+                        break;
+                    }
+                    // Expression start
+                    if c == '{' {
+                        // Save text before expression
+                        if self.index > text_start {
+                            parts.push(AttributeValuePart::Text(crate::ast::template::Text {
+                                start: text_start as u32,
+                                end: self.index as u32,
+                                raw: CompactString::from(&self.source[text_start..self.index]),
+                                data: CompactString::from(&self.source[text_start..self.index]),
+                            }));
+                        }
+                        let expr_start = self.index;
+                        self.advance(); // consume '{'
+                        let inner_start = self.index;
+                        let mut depth = 1;
+                        while !self.is_eof() && depth > 0 {
+                            let ch = self.current_char();
+                            if ch == '{' {
+                                depth += 1;
+                            } else if ch == '}' {
+                                depth -= 1;
+                            }
+                            if depth > 0 {
+                                self.advance();
+                            }
+                        }
+                        let inner_end = self.index;
+                        self.advance(); // consume '}'
+                        parts.push(AttributeValuePart::ExpressionTag(ExpressionTag {
+                            start: expr_start as u32,
+                            end: self.index as u32,
+                            expression: self.parse_js_expression(
+                                &self.source[inner_start..inner_end],
+                                inner_start,
+                            ),
+                        }));
+                        text_start = self.index;
+                    } else {
+                        self.advance();
+                    }
+                }
+
+                // Save remaining text
+                if self.index > text_start {
+                    parts.push(AttributeValuePart::Text(crate::ast::template::Text {
+                        start: text_start as u32,
+                        end: self.index as u32,
+                        raw: CompactString::from(&self.source[text_start..self.index]),
+                        data: CompactString::from(&self.source[text_start..self.index]),
+                    }));
+                }
+
+                if parts.is_empty() {
+                    // No value found
+                    AttributeValue::True(true)
+                } else {
+                    AttributeValue::Sequence(parts)
+                }
             }
         } else {
             // Shorthand: style:color without = means expression is Identifier("color")
@@ -1632,7 +1740,8 @@ impl<'a> Parser<'a> {
             let mut temp_idx = self.index;
             while temp_idx < self.source.len() {
                 let c = self.source[temp_idx..].chars().next().unwrap_or('\0');
-                if c.is_whitespace() || c == '>' || c == '/' {
+                // Unquoted values end at whitespace or > (but NOT / alone)
+                if c.is_whitespace() || c == '>' {
                     break;
                 }
                 if c == '}' {
@@ -1672,9 +1781,9 @@ impl<'a> Parser<'a> {
                     break;
                 }
             } else {
-                // Unquoted value ends at whitespace, >, or /
+                // Unquoted value ends at whitespace or > (but NOT / alone)
                 let c = self.current_char();
-                if c.is_whitespace() || c == '>' || c == '/' {
+                if c.is_whitespace() || c == '>' {
                     break;
                 }
             }
@@ -1716,7 +1825,7 @@ impl<'a> Parser<'a> {
                         if c == q {
                             break;
                         }
-                    } else if c.is_whitespace() || c == '>' || c == '/' {
+                    } else if c.is_whitespace() || c == '>' {
                         break;
                     }
                     self.advance();
