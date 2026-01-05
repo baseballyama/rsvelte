@@ -299,7 +299,7 @@ fn test_compiler_errors() {
 
     let fixtures: Vec<ErrorFixture> = samples
         .iter()
-        .filter_map(|sample_dir| load_error_fixture(sample_dir))
+        .filter_map(|sample_dir| load_error_fixture(sample_dir.as_path()))
         .collect();
 
     // Run sequentially for now to avoid hangs with parallel execution

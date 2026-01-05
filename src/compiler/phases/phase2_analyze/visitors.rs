@@ -277,14 +277,14 @@ fn analyze_key_block(
 
 /// Analyze a snippet block.
 fn analyze_snippet_block(
-    _block: &SnippetBlock,
-    _analysis: &mut ComponentAnalysis,
+    block: &SnippetBlock,
+    analysis: &mut ComponentAnalysis,
 ) -> Result<(), AnalysisError> {
     // TODO: Record the snippet name when we figure out how to get it from Expression
     // For now, skip this since Expression doesn't have a simple name field
 
-    // Analyze body
-    // analyze_fragment(&block.body, analysis)?;
+    // Analyze body to track elements/classes/ids used within snippets
+    analyze_fragment(&block.body, analysis)?;
 
     Ok(())
 }

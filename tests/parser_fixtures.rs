@@ -117,9 +117,12 @@ struct TestResult {
 fn run_fixture_test(sample_dir: &Path, modern: bool) -> Option<TestResult> {
     let (name, input, expected) = load_fixture(sample_dir)?;
 
+    // Enable loose mode for tests with "loose" in their name
+    let loose = name.contains("loose");
+
     let options = ParseOptions {
         modern: true, // Always parse in modern mode first
-        loose: false,
+        loose,
         filename: Some(name.clone()),
     };
 

@@ -275,7 +275,7 @@ fn test_validator() {
 
     let fixtures: Vec<ValidatorFixture> = samples
         .iter()
-        .filter_map(|sample_dir| load_validator_fixture(sample_dir))
+        .filter_map(|sample_dir| load_validator_fixture(sample_dir.as_path()))
         .collect();
 
     // Run sequentially to avoid hangs

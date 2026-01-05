@@ -9,6 +9,21 @@ use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use serde_json::Value;
 use std::collections::HashSet;
 
+/// Context for CSS transformation containing analysis data and options
+#[derive(Clone)]
+struct CssContext<'a> {
+    /// Element names used in the template
+    used_elements: &'a HashSet<String>,
+    /// Class names used in the template
+    used_classes: &'a HashSet<String>,
+    /// IDs used in the template
+    used_ids: &'a HashSet<String>,
+    /// Whether there are dynamic elements (svelte:element)
+    has_dynamic_elements: bool,
+    /// Whether there are dynamic class expressions
+    has_dynamic_classes: bool,
+}
+
 /// Render the stylesheet for a component.
 pub fn render_stylesheet(
     analysis: &ComponentAnalysis,
@@ -25,6 +40,15 @@ pub fn render_stylesheet(
     let hash = &analysis.css.hash;
     let selector = format!(".{}", hash);
 
+    // Create context for unused selector detection
+    let ctx = CssContext {
+        used_elements: &analysis.css.used_elements,
+        used_classes: &analysis.css.used_classes,
+        used_ids: &analysis.css.used_ids,
+        has_dynamic_elements: analysis.css.has_dynamic_elements,
+        has_dynamic_classes: analysis.css.has_dynamic_classes,
+    };
+
     // Extract CSS content and its start position
     if let Some((css_content, css_start)) = extract_css_content(source) {
         // Parse the CSS with proper start offset
@@ -34,7 +58,7 @@ pub fn render_stylesheet(
         let keyframes = collect_keyframe_names(&children);
 
         // Transform the CSS
-        let mut code = transform_css(&children, &selector, hash, &css_content, css_start);
+        let mut code = transform_css(&children, &selector, hash, &css_content, css_start, &ctx);
 
         // Post-process: replace animation keyframe references
         if !keyframes.is_empty() {
@@ -142,6 +166,7 @@ fn transform_css(
     hash: &str,
     css_source: &str,
     css_start: usize,
+    ctx: &CssContext,
 ) -> String {
     let mut output = String::new();
     let mut specificity_bumped = false;
@@ -157,6 +182,7 @@ fn transform_css(
             &mut output,
             &mut specificity_bumped,
             &mut last_end,
+            ctx,
         );
     }
 
@@ -182,6 +208,7 @@ fn transform_node_preserving(
     output: &mut String,
     specificity_bumped: &mut bool,
     last_end: &mut usize,
+    ctx: &CssContext,
 ) {
     match node.get("type").and_then(|t| t.as_str()) {
         Some("Rule") => {
@@ -194,6 +221,7 @@ fn transform_node_preserving(
                 output,
                 specificity_bumped,
                 last_end,
+                ctx,
             );
         }
         Some("Atrule") => {
@@ -206,6 +234,7 @@ fn transform_node_preserving(
                 output,
                 specificity_bumped,
                 last_end,
+                ctx,
             );
         }
         _ => {}
@@ -272,6 +301,81 @@ fn has_nested_rules(block: &Value) -> bool {
     }
 }
 
+/// Check if a selector is unused (cannot match any element in the template)
+fn is_selector_unused(prelude: &Value, ctx: &CssContext) -> bool {
+    // If there are dynamic elements or classes, we can't safely prune
+    if ctx.has_dynamic_elements || ctx.has_dynamic_classes {
+        return false;
+    }
+
+    // Check each complex selector in the selector list
+    if let Some(children) = prelude.get("children").and_then(|c| c.as_array()) {
+        // All selectors must be unused for the rule to be unused
+        children
+            .iter()
+            .all(|complex| is_complex_selector_unused(complex, ctx))
+    } else {
+        false
+    }
+}
+
+/// Check if a complex selector is unused
+fn is_complex_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
+    // Get the relative selectors (like "div > span" has multiple relative selectors)
+    if let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array()) {
+        // Check ALL relative selectors - if ANY is unused, the whole selector is unused
+        for rel in rel_selectors {
+            if is_relative_selector_unused(rel, ctx) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Check if a relative selector is unused
+fn is_relative_selector_unused(rel: &Value, ctx: &CssContext) -> bool {
+    if let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) {
+        for sel in selectors {
+            let sel_type = sel.get("type").and_then(|t| t.as_str());
+            match sel_type {
+                Some("ClassSelector") => {
+                    if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                        if !ctx.used_classes.contains(name) {
+                            return true;
+                        }
+                    }
+                }
+                Some("TypeSelector") => {
+                    if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                        // Don't prune universal selector or global elements
+                        if name != "*" && !ctx.used_elements.contains(name) {
+                            return true;
+                        }
+                    }
+                }
+                Some("IdSelector") => {
+                    if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                        if !ctx.used_ids.contains(name) {
+                            return true;
+                        }
+                    }
+                }
+                Some("PseudoClassSelector") => {
+                    // Check for :global - if present, don't mark as unused
+                    if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                        if name == "global" {
+                            return false;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    false
+}
+
 /// Transform a CSS rule while preserving whitespace from source
 #[allow(clippy::too_many_arguments)]
 fn transform_rule_preserving(
@@ -283,6 +387,7 @@ fn transform_rule_preserving(
     output: &mut String,
     specificity_bumped: &mut bool,
     last_end: &mut usize,
+    ctx: &CssContext,
 ) {
     let node_start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
     let node_end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
@@ -319,6 +424,28 @@ fn transform_rule_preserving(
         output.push_str("*/");
         *last_end = node_end;
         return;
+    }
+
+    // Check if the rule is unused (selector doesn't match any template elements)
+    if let Some(prelude) = node.get("prelude") {
+        if is_selector_unused(prelude, ctx) {
+            // Comment out unused rules
+            output.push_str("/* (unused) ");
+
+            // Get the original rule text
+            let rule_start = node_start.saturating_sub(css_start);
+            let rule_end = node_end.saturating_sub(css_start);
+            if rule_end <= css_source.len() && rule_start < rule_end {
+                let original = &css_source[rule_start..rule_end];
+                // Escape any */ in the content
+                let escaped = original.replace("*/", "*\\/");
+                output.push_str(&escaped);
+            }
+
+            output.push_str("*/");
+            *last_end = node_end;
+            return;
+        }
     }
 
     // Get the prelude (selector list)
@@ -361,6 +488,7 @@ fn transform_rule_preserving(
                     css_start,
                     output,
                     specificity_bumped,
+                    ctx,
                 );
             } else {
                 // Copy the entire block from source (including braces and content)
@@ -386,6 +514,7 @@ fn transform_block_with_nested_rules(
     css_start: usize,
     output: &mut String,
     specificity_bumped: &mut bool,
+    ctx: &CssContext,
 ) {
     let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
     let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
@@ -423,6 +552,7 @@ fn transform_block_with_nested_rules(
                             css_start,
                             output,
                             specificity_bumped,
+                            ctx,
                         );
                     } else {
                         // Regular nested rule
@@ -436,6 +566,7 @@ fn transform_block_with_nested_rules(
                             output,
                             specificity_bumped,
                             &mut local_last_end,
+                            ctx,
                         );
                     }
                 }
@@ -476,6 +607,7 @@ fn transform_global_block(
     css_start: usize,
     output: &mut String,
     _specificity_bumped: &mut bool,
+    _ctx: &CssContext,
 ) {
     // Get positions
     let prelude = node.get("prelude");
@@ -548,6 +680,7 @@ fn transform_atrule_preserving(
     output: &mut String,
     specificity_bumped: &mut bool,
     last_end: &mut usize,
+    ctx: &CssContext,
 ) {
     let node_start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
     let node_end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
@@ -646,6 +779,7 @@ fn transform_atrule_preserving(
                     output,
                     specificity_bumped,
                     &mut inner_last_end,
+                    ctx,
                 );
             }
             // Copy trailing content in block
@@ -1207,7 +1341,17 @@ mod tests {
 
             let hash = "svelte-test";
             let selector = ".svelte-test";
-            let output = transform_css(&children, selector, hash, &css_content, css_start);
+            let used_elements = HashSet::new();
+            let used_classes = HashSet::new();
+            let used_ids = HashSet::new();
+            let ctx = CssContext {
+                used_elements: &used_elements,
+                used_classes: &used_classes,
+                used_ids: &used_ids,
+                has_dynamic_elements: false,
+                has_dynamic_classes: false,
+            };
+            let output = transform_css(&children, selector, hash, &css_content, css_start, &ctx);
             println!("CSS Output:\n{}", output);
         }
     }
@@ -1232,7 +1376,17 @@ mod tests {
 
             let hash = "svelte-test";
             let selector = ".svelte-test";
-            let output = transform_css(&children, selector, hash, &css_content, css_start);
+            let used_elements = HashSet::new();
+            let used_classes = HashSet::new();
+            let used_ids = HashSet::new();
+            let ctx = CssContext {
+                used_elements: &used_elements,
+                used_classes: &used_classes,
+                used_ids: &used_ids,
+                has_dynamic_elements: false,
+                has_dynamic_classes: false,
+            };
+            let output = transform_css(&children, selector, hash, &css_content, css_start, &ctx);
             println!("CSS Output:\n{}", output);
         }
     }
