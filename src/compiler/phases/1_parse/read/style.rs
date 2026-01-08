@@ -802,15 +802,52 @@ impl<'a> CssParser<'a> {
         }
     }
 
+    /// Read a CSS identifier, handling CSS escape sequences.
     fn read_identifier(&mut self) -> String {
         let start = self.index;
+
         while !self.is_eof() {
             let c = self.current_char();
-            if !c.is_alphanumeric() && c != '-' && c != '_' {
+
+            if c == '\\' {
+                // CSS escape sequence
+                self.advance(); // consume '\'
+
+                if self.is_eof() {
+                    break;
+                }
+
+                let next = self.current_char();
+
+                if next.is_ascii_hexdigit() {
+                    // Read 1-6 hex digits
+                    let mut hex_count = 0;
+                    while !self.is_eof() && hex_count < 6 {
+                        let hc = self.current_char();
+                        if !hc.is_ascii_hexdigit() {
+                            break;
+                        }
+                        self.advance();
+                        hex_count += 1;
+                    }
+                    // After hex digits, optionally consume one whitespace
+                    if !self.is_eof() {
+                        let after = self.current_char();
+                        if after == ' ' || after == '\t' || after == '\n' || after == '\r' {
+                            self.advance();
+                        }
+                    }
+                } else {
+                    // Escape of a single non-hex character
+                    self.advance();
+                }
+            } else if c.is_alphanumeric() || c == '-' || c == '_' {
+                self.advance();
+            } else {
                 break;
             }
-            self.advance();
         }
+
         self.source[start..self.index].to_string()
     }
 }
@@ -911,11 +948,30 @@ impl<'a> SelectorParser<'a> {
         self.advance(); // consume second ':'
 
         let name = self.read_identifier();
-        let name_end = self.offset + self.index;
 
-        // Check for arguments in parentheses
+        // Record end position after the name (before parentheses if any)
+        let end = self.offset + self.index;
+
+        // Skip arguments in parentheses (e.g., ::view-transition-group(foo))
+        // Note: PseudoElementSelector does NOT include args in Svelte's AST
         if self.current_char() == '(' {
-            self.skip_parenthesized_content();
+            self.advance(); // consume '('
+
+            // Skip content inside parentheses
+            let mut depth = 1;
+            while !self.is_eof() && depth > 0 {
+                let c = self.current_char();
+                if c == '(' {
+                    depth += 1;
+                } else if c == ')' {
+                    depth -= 1;
+                    if depth == 0 {
+                        break;
+                    }
+                }
+                self.advance();
+            }
+            self.advance(); // consume ')'
         }
 
         let mut obj = Map::new();
@@ -925,7 +981,7 @@ impl<'a> SelectorParser<'a> {
         );
         obj.insert("name".to_string(), Value::String(name));
         obj.insert("start".to_string(), Value::Number((start as i64).into()));
-        obj.insert("end".to_string(), Value::Number((name_end as i64).into()));
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
 
         Some(Value::Object(obj))
     }
@@ -1552,23 +1608,6 @@ impl<'a> SelectorParser<'a> {
         Some(Value::Object(obj))
     }
 
-    fn skip_parenthesized_content(&mut self) {
-        if self.current_char() != '(' {
-            return;
-        }
-        self.advance(); // consume '('
-        let mut depth = 1;
-        while !self.is_eof() && depth > 0 {
-            let c = self.current_char();
-            if c == '(' {
-                depth += 1;
-            } else if c == ')' {
-                depth -= 1;
-            }
-            self.advance();
-        }
-    }
-
     fn is_eof(&self) -> bool {
         self.index >= self.source.len()
     }
@@ -1620,15 +1659,58 @@ impl<'a> SelectorParser<'a> {
         }
     }
 
+    /// Read a CSS identifier, handling CSS escape sequences.
+    ///
+    /// CSS escape sequences:
+    /// - `\XXXXXX` where X are hex digits (1-6 digits) - represents a unicode code point
+    /// - After hex digits, an optional single whitespace (space/tab/newline) terminates the escape
+    /// - `\c` where c is any non-hex character - represents the literal character c
     fn read_identifier(&mut self) -> String {
         let start = self.index;
+
         while !self.is_eof() {
             let c = self.current_char();
-            if !c.is_alphanumeric() && c != '-' && c != '_' {
+
+            if c == '\\' {
+                // CSS escape sequence
+                self.advance(); // consume '\'
+
+                if self.is_eof() {
+                    break;
+                }
+
+                let next = self.current_char();
+
+                if next.is_ascii_hexdigit() {
+                    // Read 1-6 hex digits
+                    let mut hex_count = 0;
+                    while !self.is_eof() && hex_count < 6 {
+                        let hc = self.current_char();
+                        if !hc.is_ascii_hexdigit() {
+                            break;
+                        }
+                        self.advance();
+                        hex_count += 1;
+                    }
+                    // After hex digits, optionally consume one whitespace character
+                    // but this whitespace is part of the escape and should be preserved
+                    if !self.is_eof() {
+                        let after = self.current_char();
+                        if after == ' ' || after == '\t' || after == '\n' || after == '\r' {
+                            self.advance();
+                        }
+                    }
+                } else {
+                    // Escape of a single non-hex character (e.g., \. means literal .)
+                    self.advance();
+                }
+            } else if c.is_alphanumeric() || c == '-' || c == '_' {
+                self.advance();
+            } else {
                 break;
             }
-            self.advance();
         }
+
         self.source[start..self.index].to_string()
     }
 

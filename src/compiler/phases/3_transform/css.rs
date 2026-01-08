@@ -306,7 +306,8 @@ fn has_nested_rules(block: &Value) -> bool {
 /// Check if a selector is unused (cannot match any element in the template)
 /// This is a conservative check - only marks simple single-class selectors as unused
 fn is_selector_unused(prelude: &Value, ctx: &CssContext) -> bool {
-    // If there are dynamic elements or classes, we can't safely prune
+    // If there are dynamic elements or classes, we can't safely prune anything
+    // because we don't know what classes/elements might be generated
     if ctx.has_dynamic_elements || ctx.has_dynamic_classes {
         return false;
     }
@@ -323,51 +324,70 @@ fn is_selector_unused(prelude: &Value, ctx: &CssContext) -> bool {
 }
 
 /// Check if a complex selector is unused
-/// Only marks as unused for simple selectors (single relative selector with single simple selector)
+/// A complex selector is unused if ANY of its relative selectors contains
+/// a simple selector that refers to something that doesn't exist in the template.
 fn is_complex_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
     // Get the relative selectors (like "div > span" has multiple relative selectors)
     if let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array()) {
-        // For now, only check if this is a simple selector (one relative selector)
-        // Complex selectors with combinators need DOM structure analysis
-        if rel_selectors.len() == 1 {
-            if let Some(first) = rel_selectors.first() {
-                return is_simple_relative_selector_unused(first, ctx);
+        for rel in rel_selectors {
+            // Check each simple selector in this relative selector
+            if let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) {
+                for sel in selectors {
+                    // Skip :global() selectors and their contents
+                    let sel_type = sel.get("type").and_then(|t| t.as_str());
+                    if sel_type == Some("PseudoClassSelector") {
+                        let name = sel.get("name").and_then(|n| n.as_str());
+                        if name == Some("global") {
+                            continue;
+                        }
+                    }
+
+                    if is_simple_selector_unused(sel, ctx) {
+                        return true;
+                    }
+                }
             }
         }
     }
     false
 }
 
-/// Check if a simple relative selector (no combinators) is unused
-fn is_simple_relative_selector_unused(rel: &Value, ctx: &CssContext) -> bool {
-    // Don't consider unused if there's a non-null combinator (indicates relationship with other elements)
-    if let Some(c) = rel.get("combinator") {
-        if !c.is_null() {
-            return false;
-        }
-    }
-
-    if let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) {
-        // For simple detection, only mark unused if there's a single class/type/id selector
-        // that's definitely not used. Compound selectors are too complex.
-        if selectors.len() == 1 {
-            if let Some(sel) = selectors.first() {
-                let sel_type = sel.get("type").and_then(|t| t.as_str());
-                match sel_type {
-                    Some("ClassSelector") => {
-                        if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
-                            return !ctx.used_classes.contains(name);
-                        }
-                    }
-                    Some("IdSelector") => {
-                        if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
-                            return !ctx.used_ids.contains(name);
-                        }
-                    }
-                    _ => {}
+/// Check if a simple selector is unused
+fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
+    let sel_type = sel.get("type").and_then(|t| t.as_str());
+    match sel_type {
+        Some("TypeSelector") => {
+            if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                // Don't prune if there are dynamic elements
+                if ctx.has_dynamic_elements {
+                    return false;
                 }
+                // Universal selector always matches
+                if name == "*" {
+                    return false;
+                }
+                return !ctx.used_elements.contains(name);
             }
         }
+        Some("ClassSelector") => {
+            if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                // Don't prune if there are dynamic classes
+                if ctx.has_dynamic_classes {
+                    return false;
+                }
+                return !ctx.used_classes.contains(name);
+            }
+        }
+        Some("IdSelector") => {
+            if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                return !ctx.used_ids.contains(name);
+            }
+        }
+        Some("PseudoClassSelector") | Some("PseudoElementSelector") | Some("AttributeSelector") => {
+            // These need more complex analysis, consider them potentially used
+            return false;
+        }
+        _ => {}
     }
     false
 }
@@ -829,6 +849,61 @@ fn transform_selector_list(
     result
 }
 
+/// Check if a relative selector is "global-like" (should not be scoped)
+/// This includes :host, :root (without :has), and ::view-transition* pseudo elements
+fn is_global_like(relative_selector: &Value) -> bool {
+    if let Some(selectors) = relative_selector
+        .get("selectors")
+        .and_then(|s| s.as_array())
+    {
+        // Check if all selectors are pseudo-classes or pseudo-elements
+        let all_pseudo = selectors.iter().all(|s| {
+            let sel_type = s.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            sel_type == "PseudoClassSelector" || sel_type == "PseudoElementSelector"
+        });
+
+        if all_pseudo && !selectors.is_empty() {
+            let first = &selectors[0];
+            let first_type = first.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            let first_name = first.get("name").and_then(|n| n.as_str()).unwrap_or("");
+
+            // :host is global-like
+            if first_type == "PseudoClassSelector" && first_name == "host" {
+                return true;
+            }
+
+            // ::view-transition* pseudo elements are global-like
+            if first_type == "PseudoElementSelector" {
+                let view_transition_names = [
+                    "view-transition",
+                    "view-transition-group",
+                    "view-transition-old",
+                    "view-transition-new",
+                    "view-transition-image-pair",
+                ];
+                if view_transition_names.contains(&first_name) {
+                    return true;
+                }
+            }
+        }
+
+        // :root is global-like (unless it contains :has)
+        let has_root = selectors.iter().any(|s| {
+            s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                && s.get("name").and_then(|n| n.as_str()) == Some("root")
+        });
+        let has_has = selectors.iter().any(|s| {
+            s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                && s.get("name").and_then(|n| n.as_str()) == Some("has")
+        });
+
+        if has_root && !has_has {
+            return true;
+        }
+    }
+    false
+}
+
 /// Transform a complex selector (sequence of relative selectors)
 fn transform_complex_selector(
     node: &Value,
@@ -874,7 +949,21 @@ fn transform_complex_selector(
                             && s.get("name").and_then(|n| n.as_str()) == Some("global")
                     });
 
-                if is_entirely_global {
+                // Check if this is a global-like selector (:host, :root, ::view-transition*)
+                let is_selector_global_like = is_global_like(relative_selector);
+
+                if is_selector_global_like {
+                    // Global-like selectors are output as-is, no scoping
+                    for sel in selectors {
+                        result.push_str(&format_simple_selector_with_scope(
+                            sel,
+                            "", // empty selector means no scoping
+                            css_source,
+                            Some(css_start),
+                            0,
+                        ));
+                    }
+                } else if is_entirely_global {
                     // Handle :global selector - extract all content without scoping
                     for sel in selectors {
                         if sel.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
@@ -1126,7 +1215,12 @@ fn format_simple_selector_with_scope(
         }
         "PseudoElementSelector" => {
             let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
-            format!("::{}", name)
+            // Handle pseudo elements with arguments like ::view-transition-group(foo)
+            if let Some(args) = sel.get("args") {
+                format!("::{}({})", name, get_selector_text(args))
+            } else {
+                format!("::{}", name)
+            }
         }
         "NestingSelector" => "&".to_string(),
         _ => String::new(),
@@ -1243,6 +1337,7 @@ fn transform_is_not_complex_selector(
                         ));
 
                         // Add :where(.svelte-xyz) scoping after the last non-pseudo selector
+                        // Inside :is()/:has(), always use :where() to not affect specificity
                         if Some(idx) == last_non_pseudo_idx && !selector.is_empty() {
                             selector_parts.push_str(&format!(":where({})", selector));
                         }
@@ -1264,6 +1359,15 @@ fn transform_is_not_complex_selector(
 
 /// Get raw selector text from a node
 fn get_selector_text(node: &Value) -> String {
+    // Handle Raw type (used for pseudo element arguments like ::view-transition-group(foo))
+    if node.get("type").and_then(|t| t.as_str()) == Some("Raw") {
+        return node
+            .get("value")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+    }
+
     if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
         let mut result = String::new();
         for child in children {
