@@ -12,11 +12,15 @@
 //!
 //! The analyzer produces a `ComponentAnalysis` structure that contains
 //! all the semantic information needed for code generation.
+//!
+//! Corresponds to Svelte's `2-analyze/` directory.
 
-mod scope;
+pub mod css;
+pub mod scope;
 mod scope_builder;
-mod types;
-mod visitors;
+pub mod types;
+pub mod utils;
+pub mod visitors;
 
 pub use scope::{
     Binding, BindingKind, BindingReference, DeclarationKind, Mutation, MutationKind, Scope,
@@ -30,6 +34,8 @@ use crate::compiler::CompileOptions;
 /// Analyze a parsed Svelte component.
 ///
 /// This is the entry point for Phase 2 of the compiler.
+///
+/// Corresponds to `analyze_component` in Svelte's `2-analyze/index.js`.
 ///
 /// # Arguments
 ///
@@ -53,15 +59,57 @@ pub fn analyze_component(
     // Create scopes for the component
     analysis.create_scopes(ast)?;
 
-    // Analyze the template
+    // Analyze the template using visitors
     visitors::analyze_template(ast, &mut analysis)?;
 
     // Analyze CSS if present
-    if let Some(ref css) = ast.css {
-        analysis.analyze_css(css, options)?;
+    if let Some(ref stylesheet) = ast.css {
+        analysis.analyze_css(stylesheet, options)?;
+
+        // Run CSS analysis
+        css::analyze_css(stylesheet, &mut analysis);
+
+        // Prune unused selectors
+        css::prune_css(stylesheet, &analysis);
     }
 
     Ok(analysis)
+}
+
+/// Analyze a Svelte module (context="module" script).
+///
+/// Corresponds to `analyze_module` in Svelte's `2-analyze/index.js`.
+///
+/// # Arguments
+///
+/// * `source` - The module source code
+/// * `options` - Compile options
+///
+/// # Returns
+///
+/// Returns a `ModuleAnalysis` containing semantic information.
+pub fn analyze_module(
+    _source: &str,
+    options: &CompileOptions,
+) -> Result<ModuleAnalysis, AnalysisError> {
+    let analysis = ModuleAnalysis {
+        name: options.filename.clone(),
+        runes: true,
+        immutable: true,
+    };
+
+    Ok(analysis)
+}
+
+/// Module analysis result.
+#[derive(Debug)]
+pub struct ModuleAnalysis {
+    /// Module name
+    pub name: Option<String>,
+    /// Whether the module uses runes
+    pub runes: bool,
+    /// Whether the module uses immutable mode
+    pub immutable: bool,
 }
 
 /// Error type for analysis failures.
@@ -86,3 +134,37 @@ impl std::fmt::Display for AnalysisError {
 }
 
 impl std::error::Error for AnalysisError {}
+
+/// Reserved identifiers that cannot be declared.
+pub const RESERVED: &[&str] = &["$$props", "$$restProps", "$$slots"];
+
+/// Get the component name from a filename.
+///
+/// Matches Svelte's `get_component_name()` in `2-analyze/index.js`.
+pub fn get_component_name(filename: &str) -> String {
+    let parts: Vec<&str> = filename.split(['/', '\\']).collect();
+    let basename = parts.last().unwrap_or(&"Component");
+    let last_dir = if parts.len() > 1 {
+        parts.get(parts.len() - 2).copied()
+    } else {
+        None
+    };
+
+    let mut name = basename.replace(".svelte", "");
+
+    // If name is "index" and there's a parent dir (not "src"), use the parent dir name
+    if name == "index" {
+        if let Some(dir) = last_dir {
+            if dir != "src" && !dir.is_empty() {
+                name = dir.to_string();
+            }
+        }
+    }
+
+    // Capitalize first letter
+    let mut chars = name.chars();
+    match chars.next() {
+        None => "Component".to_string(),
+        Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+    }
+}

@@ -1,0 +1,41 @@
+//! AwaitBlock visitor.
+//!
+//! Analyzes {#await} blocks.
+//!
+//! Corresponds to Svelte's `2-analyze/visitors/AwaitBlock.js`.
+
+use super::VisitorContext;
+use super::shared::fragment;
+use crate::ast::template::AwaitBlock;
+use crate::compiler::phases::phase2_analyze::AnalysisError;
+
+/// Visit an await block.
+pub fn visit(block: &AwaitBlock, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    // Analyze the expression
+    // In a full implementation, we would analyze the expression for references
+
+    // Analyze the pending block
+    if let Some(ref pending) = block.pending {
+        fragment::analyze(pending, context)?;
+    }
+
+    // Analyze the then block (creates a scope for the value)
+    if let Some(ref then) = block.then {
+        fragment::analyze(then, context)?;
+    }
+
+    // Analyze the catch block (creates a scope for the error)
+    if let Some(ref catch) = block.catch {
+        fragment::analyze(catch, context)?;
+    }
+
+    Ok(())
+}
+
+/// Alias for visit function.
+pub fn visit_await_block(
+    block: &AwaitBlock,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
+    visit(block, context)
+}
