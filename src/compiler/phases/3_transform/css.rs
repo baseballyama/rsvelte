@@ -1924,6 +1924,10 @@ fn transform_is_not_complex_selector(
                     if name != " " || !result.is_empty() {
                         if name == " " {
                             result.push(' ');
+                        } else if result.is_empty() {
+                            // First combinator - no leading space, no trailing space
+                            // This handles :has(~span) where ~span has no spaces
+                            result.push_str(name);
                         } else {
                             result.push_str(&format!(" {} ", name));
                         }
