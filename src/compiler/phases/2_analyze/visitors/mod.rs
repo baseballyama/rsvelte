@@ -96,7 +96,7 @@ pub use snippet_block::visit_snippet_block;
 pub use text::visit_text;
 
 use super::AnalysisError;
-use super::types::ComponentAnalysis;
+use super::types::{ComponentAnalysis, CssDomElement};
 use crate::ast::template::{Root, TemplateNode};
 
 /// Context for AST visitor traversal.
@@ -115,6 +115,8 @@ pub struct VisitorContext<'a> {
     pub has_props_rune: bool,
     /// Current component slots.
     pub component_slots: std::collections::HashSet<String>,
+    /// Stack of DOM element indices for tracking parent-child relationships.
+    pub dom_element_stack: Vec<usize>,
 }
 
 impl<'a> VisitorContext<'a> {
@@ -128,7 +130,20 @@ impl<'a> VisitorContext<'a> {
             function_depth: 0,
             has_props_rune: false,
             component_slots: std::collections::HashSet::new(),
+            dom_element_stack: Vec::new(),
         }
+    }
+
+    /// Add a DOM element to the structure and return its index.
+    pub fn add_dom_element(&mut self, element: CssDomElement) -> usize {
+        let idx = self.analysis.css.dom_structure.elements.len();
+        self.analysis.css.dom_structure.elements.push(element);
+        idx
+    }
+
+    /// Get the current parent element index (if any).
+    pub fn current_parent_idx(&self) -> Option<usize> {
+        self.dom_element_stack.last().copied()
     }
 }
 

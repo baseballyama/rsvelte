@@ -25,6 +25,8 @@ struct CssContext<'a> {
     has_dynamic_elements: bool,
     /// Whether there are dynamic class expressions
     has_dynamic_classes: bool,
+    /// Whether template has control flow (if/each/await/snippet/slot)
+    has_control_flow: bool,
     /// DOM structure for advanced selector matching
     dom_structure: &'a DomStructure,
 }
@@ -52,6 +54,7 @@ pub fn render_stylesheet(
         used_ids: &analysis.css.used_ids,
         has_dynamic_elements: analysis.css.has_dynamic_elements,
         has_dynamic_classes: analysis.css.has_dynamic_classes,
+        has_control_flow: analysis.css.has_control_flow,
         dom_structure: &analysis.css.dom_structure,
     };
 
@@ -518,6 +521,12 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
         return false;
     }
 
+    // If the template has control flow (if/each/await/snippet/slot), sibling relationships
+    // are dynamic and cannot be statically analyzed. Skip the unused detection.
+    if ctx.has_control_flow {
+        return false;
+    }
+
     // Check if this selector uses sibling combinators
     let mut sibling_combinator_found = false;
     let mut sibling_pairs: Vec<(usize, &str)> = Vec::new(); // (index, combinator)
@@ -882,6 +891,65 @@ fn has_descendant_with_tag(ctx: &CssContext, parent_idx: usize, tag_name: &str) 
     false
 }
 
+/// Decode CSS escape sequences in an identifier.
+/// CSS escapes: \XX (1-6 hex digits, optionally followed by whitespace)
+/// or \c (any character escaped)
+fn decode_css_escape(name: &str) -> String {
+    if !name.contains('\\') {
+        return name.to_string();
+    }
+
+    let mut result = String::new();
+    let mut chars = name.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        if c == '\\' {
+            // Check if next char is a hex digit
+            if let Some(&next) = chars.peek() {
+                if next.is_ascii_hexdigit() {
+                    // Read up to 6 hex digits
+                    let mut hex_str = String::new();
+                    while hex_str.len() < 6 {
+                        if let Some(&h) = chars.peek() {
+                            if h.is_ascii_hexdigit() {
+                                hex_str.push(chars.next().unwrap());
+                            } else {
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+
+                    // Parse hex and convert to char
+                    if let Ok(code) = u32::from_str_radix(&hex_str, 16) {
+                        if let Some(decoded) = char::from_u32(code) {
+                            result.push(decoded);
+                        }
+                    }
+
+                    // Consume optional single whitespace after hex escape
+                    if let Some(&ws) = chars.peek() {
+                        if ws == ' ' || ws == '\t' || ws == '\n' {
+                            chars.next();
+                        }
+                    }
+                } else if next == '\n' {
+                    // \newline is a line continuation (skip it)
+                    chars.next();
+                } else {
+                    // \c escapes the character c
+                    result.push(chars.next().unwrap());
+                }
+            }
+        } else {
+            result.push(c);
+        }
+    }
+
+    result
+}
+
 /// Check if a simple selector is unused
 fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
     let sel_type = sel.get("type").and_then(|t| t.as_str());
@@ -896,7 +964,9 @@ fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
                 if name == "*" {
                     return false;
                 }
-                return !ctx.used_elements.contains(name);
+                // Decode CSS escape sequences for comparison
+                let decoded = decode_css_escape(name);
+                return !ctx.used_elements.contains(&decoded);
             }
         }
         Some("ClassSelector") => {
@@ -905,12 +975,16 @@ fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
                 if ctx.has_dynamic_classes {
                     return false;
                 }
-                return !ctx.used_classes.contains(name);
+                // Decode CSS escape sequences for comparison
+                let decoded = decode_css_escape(name);
+                return !ctx.used_classes.contains(&decoded);
             }
         }
         Some("IdSelector") => {
             if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
-                return !ctx.used_ids.contains(name);
+                // Decode CSS escape sequences for comparison
+                let decoded = decode_css_escape(name);
+                return !ctx.used_ids.contains(&decoded);
             }
         }
         Some("PseudoClassSelector") | Some("PseudoElementSelector") | Some("AttributeSelector") => {
@@ -2015,6 +2089,7 @@ mod tests {
                 used_ids: &used_ids,
                 has_dynamic_elements: false,
                 has_dynamic_classes: false,
+                has_control_flow: false,
                 dom_structure: &dom_structure,
             };
             let output = transform_css(&children, selector, hash, &css_content, css_start, &ctx);
@@ -2052,6 +2127,7 @@ mod tests {
                 used_ids: &used_ids,
                 has_dynamic_elements: false,
                 has_dynamic_classes: false,
+                has_control_flow: false,
                 dom_structure: &dom_structure,
             };
             let output = transform_css(&children, selector, hash, &css_content, css_start, &ctx);

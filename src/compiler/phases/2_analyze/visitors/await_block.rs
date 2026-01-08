@@ -11,6 +11,9 @@ use crate::compiler::phases::phase2_analyze::AnalysisError;
 
 /// Visit an await block.
 pub fn visit(block: &AwaitBlock, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    // Mark that we have control flow affecting sibling relationships
+    context.analysis.css.has_control_flow = true;
+
     // Analyze the expression
     // In a full implementation, we would analyze the expression for references
 

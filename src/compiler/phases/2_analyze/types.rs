@@ -355,6 +355,37 @@ pub struct CssAnalysis {
     /// Whether there are dynamic class expressions (spreads, complex expressions)
     /// If true, class selectors cannot be safely pruned
     pub has_dynamic_classes: bool,
+
+    /// Whether the template has control flow (if/each/await/snippet) that affects sibling relationships
+    /// If true, sibling combinator unused detection cannot be safely performed
+    pub has_control_flow: bool,
+
+    /// DOM structure information for selector matching
+    pub dom_structure: DomStructure,
+}
+
+/// DOM structure information for CSS selector matching.
+#[derive(Debug, Default, Clone)]
+pub struct DomStructure {
+    /// All elements in the template, with their relationships
+    pub elements: Vec<CssDomElement>,
+}
+
+/// Element information for CSS selector matching (DOM tree structure).
+#[derive(Debug, Clone)]
+pub struct CssDomElement {
+    /// Element tag name
+    pub tag_name: String,
+    /// Class names on this element
+    pub classes: std::collections::HashSet<String>,
+    /// ID (if any)
+    pub id: Option<String>,
+    /// Parent element index (in elements array), None for root
+    pub parent_idx: Option<usize>,
+    /// Child element indices
+    pub children_idx: Vec<usize>,
+    /// Whether this element is a direct child of the component root
+    pub is_root_child: bool,
 }
 
 /// Export information.

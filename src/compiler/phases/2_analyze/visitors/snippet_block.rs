@@ -12,6 +12,10 @@ use crate::compiler::phases::phase2_analyze::AnalysisError;
 
 /// Visit a snippet block.
 pub fn visit(block: &SnippetBlock, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    // Mark that we have control flow affecting sibling relationships
+    // (snippets can be rendered at any point via @render)
+    context.analysis.css.has_control_flow = true;
+
     // Validate and register the snippet
     validate_snippet(block, context)?;
 

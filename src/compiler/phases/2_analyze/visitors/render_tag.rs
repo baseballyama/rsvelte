@@ -13,6 +13,10 @@ pub fn visit(_tag: &RenderTag, context: &mut VisitorContext) -> Result<(), Analy
     // Mark that this component uses render tags
     context.analysis.uses_render_tags = true;
 
+    // Mark that we have control flow affecting sibling relationships
+    // (render tags inject content from snippets)
+    context.analysis.css.has_control_flow = true;
+
     // Analyze the expression for references
     // The expression should be a snippet call
     Ok(())

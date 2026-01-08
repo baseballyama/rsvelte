@@ -14,6 +14,10 @@ pub fn visit(slot: &SlotElement, context: &mut VisitorContext) -> Result<(), Ana
     // Mark that we use slots
     context.analysis.uses_slots = true;
 
+    // Mark that we have control flow affecting sibling relationships
+    // (slots inject content from parent components)
+    context.analysis.css.has_control_flow = true;
+
     // Analyze fallback children
     fragment::analyze(&slot.fragment, context)?;
 
