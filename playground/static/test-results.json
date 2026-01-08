@@ -1,22 +1,22 @@
 {
-  "generated_at": "2026-01-08T14:32:14.066435+00:00",
+  "generated_at": "2026-01-08T19:31:48.346604+00:00",
   "commit_sha": "b1f44c46c333",
   "summary": {
     "total": 3027,
-    "passed": 335,
-    "failed": 2495,
+    "passed": 388,
+    "failed": 2442,
     "skipped": 197,
-    "percentage": 11.837455830388691
+    "percentage": 13.710247349823321
   },
   "categories": [
     {
       "id": "parser-modern",
       "name": "Parser Modern",
       "total": 22,
-      "passed": 21,
+      "passed": 15,
       "failed": 1,
       "skipped": 0,
-      "percentage": 95.45454545454545,
+      "percentage": 68.18181818181817,
       "tests": [
         {
           "name": "snippets",
@@ -37,7 +37,8 @@
         },
         {
           "name": "if-block-else",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (0, 1) }"
         },
         {
           "name": "each-block-object-pattern",
@@ -61,7 +62,8 @@
         },
         {
           "name": "loose-invalid-expression",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Parse error: SvelteError { code: \"attribute_empty_shorthand\", message: \"Attribute shorthand cannot be empty\", span: (5, 7) }"
         },
         {
           "name": "each-block-object-pattern-special-characters",
@@ -73,7 +75,8 @@
         },
         {
           "name": "loose-unclosed-tag",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Parse error: SvelteError { code: \"unexpected_eof\", message: \"Unexpected end of input\", span: (205, 205) }"
         },
         {
           "name": "if-block",
@@ -85,7 +88,8 @@
         },
         {
           "name": "loose-invalid-block",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (0, 1) }"
         },
         {
           "name": "script-style-no-markup",
@@ -93,7 +97,8 @@
         },
         {
           "name": "loose-unclosed-open-tag",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Parse error: SvelteError { code: \"unexpected_eof\", message: \"Unexpected end of input\", span: (170, 170) }"
         },
         {
           "name": "attachments",
@@ -105,7 +110,8 @@
         },
         {
           "name": "if-block-elseif",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (0, 1) }"
         }
       ]
     },
@@ -113,10 +119,10 @@
       "id": "parser-legacy",
       "name": "Parser Legacy",
       "total": 83,
-      "passed": 82,
+      "passed": 72,
       "failed": 0,
       "skipped": 1,
-      "percentage": 100,
+      "percentage": 87.8048780487805,
       "tests": [
         {
           "name": "action-duplicate",
@@ -165,7 +171,8 @@
         },
         {
           "name": "if-block-else",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (0, 1) }"
         },
         {
           "name": "attribute-style-directive-modifiers",
@@ -201,7 +208,8 @@
         },
         {
           "name": "loose-invalid-expression",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Parse error: SvelteError { code: \"attribute_empty_shorthand\", message: \"Attribute shorthand cannot be empty\", span: (5, 7) }"
         },
         {
           "name": "event-handler",
@@ -209,7 +217,8 @@
         },
         {
           "name": "no-error-if-before-closing",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (35, 36) }"
         },
         {
           "name": "await-catch",
@@ -261,7 +270,8 @@
         },
         {
           "name": "loose-unclosed-tag",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Parse error: SvelteError { code: \"unexpected_eof\", message: \"Unexpected end of input\", span: (205, 205) }"
         },
         {
           "name": "whitespace-normal",
@@ -269,7 +279,8 @@
         },
         {
           "name": "loose-unclosed-block",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Parse error: SvelteError { code: \"element_unclosed\", message: \"`<div>` was left open\", span: (53, 54) }"
         },
         {
           "name": "attribute-empty",
@@ -277,7 +288,8 @@
         },
         {
           "name": "elements",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Parse error: SvelteError { code: \"element_unclosed\", message: \"`<!doctype>` was left open\", span: (0, 1) }"
         },
         {
           "name": "dynamic-element-variable",
@@ -357,7 +369,8 @@
         },
         {
           "name": "loose-invalid-block",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (0, 1) }"
         },
         {
           "name": "element-with-mustache",
@@ -369,7 +382,8 @@
         },
         {
           "name": "attribute-unquoted",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Parse error: SvelteError { code: \"expected_attribute_value\", message: \"Expected attribute value\", span: (30, 30) }"
         },
         {
           "name": "binding-shorthand",
@@ -385,7 +399,8 @@
         },
         {
           "name": "loose-unclosed-open-tag",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Parse error: SvelteError { code: \"unexpected_eof\", message: \"Unexpected end of input\", span: (170, 170) }"
         },
         {
           "name": "action-with-identifier",
@@ -429,7 +444,8 @@
         },
         {
           "name": "if-block-elseif",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (0, 1) }"
         },
         {
           "name": "transition-intro-no-params",
@@ -576,10 +592,10 @@
       "id": "css",
       "name": "CSS",
       "total": 177,
-      "passed": 113,
-      "failed": 64,
+      "passed": 112,
+      "failed": 59,
       "skipped": 0,
-      "percentage": 63.84180790960452,
+      "percentage": 63.2768361581921,
       "tests": [
         {
           "name": "omit-scoping-attribute-class-static",
@@ -587,12 +603,12 @@
         },
         {
           "name": "siblings-combinator-star",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "siblings-combinator-await-not-exhaustive",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "snippets",
@@ -650,7 +666,8 @@
         },
         {
           "name": "siblings-combinator-component-default-snippet",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "media-query",
@@ -671,7 +688,7 @@
         {
           "name": "siblings-combinator-if",
           "status": "fail",
-          "error_message": "CSS mismatch"
+          "error_message": "Compilation error: Parse(SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (382, 383) })"
         },
         {
           "name": "supports-charset",
@@ -683,13 +700,11 @@
         },
         {
           "name": "unused-selector-in-between",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "host",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "unicode-identifier",
@@ -706,12 +721,13 @@
         },
         {
           "name": "general-siblings-combinator-nested-slots",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "general-siblings-combinator-if",
           "status": "fail",
-          "error_message": "CSS mismatch"
+          "error_message": "Compilation error: Parse(SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (382, 383) })"
         },
         {
           "name": "css-vars",
@@ -723,7 +739,8 @@
         },
         {
           "name": "general-siblings-combinator-each-nested",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "general-siblings-combinator-slot-global",
@@ -736,12 +753,12 @@
         },
         {
           "name": "general-siblings-combinator-slots-between",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-key",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "at-layer",
@@ -761,12 +778,13 @@
         },
         {
           "name": "siblings-combinator-nested-slots-flattened",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-if-not-exhaustive-with-each",
           "status": "fail",
-          "error_message": "CSS mismatch"
+          "error_message": "Compilation error: Parse(SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (378, 379) })"
         },
         {
           "name": "siblings-combinator-slot",
@@ -791,7 +809,8 @@
         },
         {
           "name": "siblings-combinator-nested-slots",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "omit-scoping-attribute-descendant-global-outer-multiple",
@@ -830,7 +849,7 @@
         {
           "name": "siblings-combinator-if-not-exhaustive",
           "status": "fail",
-          "error_message": "CSS mismatch"
+          "error_message": "Compilation error: Parse(SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (274, 275) })"
         },
         {
           "name": "unused-selector",
@@ -838,8 +857,7 @@
         },
         {
           "name": "general-siblings-combinator-each-else",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "is",
@@ -861,13 +879,12 @@
         },
         {
           "name": "siblings-combinator-global",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "general-siblings-combinator-if-not-exhaustive",
           "status": "fail",
-          "error_message": "CSS mismatch"
+          "error_message": "Compilation error: Parse(SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (274, 275) })"
         },
         {
           "name": "custom-css-hash",
@@ -895,8 +912,7 @@
         },
         {
           "name": "nested-css-combinator",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "omit-scoping-attribute-whitespace",
@@ -904,13 +920,11 @@
         },
         {
           "name": "siblings-combinator",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "spread",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "global-with-child-combinator-2",
@@ -932,7 +946,8 @@
         },
         {
           "name": "siblings-combinator-former-element-in-slot",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "general-siblings-combinator-each",
@@ -961,13 +976,11 @@
         },
         {
           "name": "general-siblings-combinator",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "unused-selector-multiple",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "omit-scoping-attribute-descendant-global-inner",
@@ -984,8 +997,7 @@
         },
         {
           "name": "directive-special-character",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "combinator-child",
@@ -997,7 +1009,8 @@
         },
         {
           "name": "general-siblings-combinator-render-tag",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "global-with-root",
@@ -1046,11 +1059,13 @@
         },
         {
           "name": "siblings-combinator-render-tag",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-component-named-snippet",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "empty-rule-dev",
@@ -1058,17 +1073,16 @@
         },
         {
           "name": "siblings-combinator-selects-slot-fallback",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-await",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "general-siblings-combinator-star",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "unused-ts-as-expression",
@@ -1085,7 +1099,8 @@
         },
         {
           "name": "general-siblings-combinator-nested-slots-flattened",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "comment-html",
@@ -1121,8 +1136,7 @@
         },
         {
           "name": "general-siblings-combinator-await",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "supports-nested-page",
@@ -1180,12 +1194,12 @@
         },
         {
           "name": "global-local-nested",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "unused-selector-trailing",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "siblings-combinator-with-spread",
@@ -1258,7 +1272,7 @@
         {
           "name": "general-siblings-combinator-if-not-exhaustive-with-each",
           "status": "fail",
-          "error_message": "CSS mismatch"
+          "error_message": "Compilation error: Parse(SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (378, 379) })"
         },
         {
           "name": "general-siblings-combinator-slot",
@@ -1298,7 +1312,8 @@
         },
         {
           "name": "general-siblings-combinator-selects-slot-fallback",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "container-query",
@@ -1320,7 +1335,8 @@
         },
         {
           "name": "siblings-combinator-slot-named-between-default",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "attribute-selector-matches-derictive",
@@ -1338,16 +1354,17 @@
         },
         {
           "name": "general-siblings-combinator-former-element-in-slot",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "general-siblings-combinator-each-2",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-each-else",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "global-with-unused-descendant",
@@ -1359,10 +1376,10 @@
       "id": "validator",
       "name": "Validator",
       "total": 323,
-      "passed": 65,
-      "failed": 242,
+      "passed": 66,
+      "failed": 241,
       "skipped": 11,
-      "percentage": 20.833333333333336,
+      "percentage": 21.153846153846153,
       "tests": [
         {
           "name": "css-invalid-global-selector-2",
@@ -1394,8 +1411,7 @@
         },
         {
           "name": "each-block-invalid-context-destructured",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "component-name-lowercase",
@@ -1629,7 +1645,8 @@
         },
         {
           "name": "svg-child-component-declared-namespace",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Unexpected compilation error: Parse(SvelteError { code: \"element_unclosed\", message: \"`<rect>` was left open\", span: (124, 125) })"
         },
         {
           "name": "invalid-node-placement-5",
@@ -1869,8 +1886,7 @@
         },
         {
           "name": "each-block-invalid-context-destructured-object",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "assignment-to-const-6",
@@ -1899,7 +1915,7 @@
         {
           "name": "attribute-expected-equals",
           "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "error_message": "Expected error 'expected_token', got: Parse(SvelteError { code: \"element_invalid_closing_tag\", message: \"`</h1>` attempted to close an element that was not open\", span: (70, 70) })"
         },
         {
           "name": "logic-block-in-attribute",
@@ -2202,7 +2218,7 @@
         {
           "name": "let-directive",
           "status": "fail",
-          "error_message": "Expected error 'let_directive_invalid_placement', got: Analysis(Validation(\"svelte:self can only be used inside an if block, each block, await block, or snippet\"))"
+          "error_message": "Expected error but compilation succeeded"
         },
         {
           "name": "slot-warning",
@@ -2293,7 +2309,7 @@
         {
           "name": "attribute-quoted",
           "status": "fail",
-          "error_message": "Unexpected compilation error: Analysis(Validation(\"svelte:self can only be used inside an if block, each block, await block, or snippet\"))"
+          "error_message": "Expected 5 warnings, got 0"
         },
         {
           "name": "class-state-constructor-10",
@@ -2545,7 +2561,7 @@
         {
           "name": "each-block-invalid-context",
           "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "error_message": "Expected error 'unexpected_reserved_word', got: Parse(SvelteError { code: \"js_parse_error\", message: \"Unexpected token\", span: (24, 24) })"
         },
         {
           "name": "store-rune-conflic-from-props",
@@ -2574,7 +2590,7 @@
         {
           "name": "svelte-self-deprecated",
           "status": "fail",
-          "error_message": "Unexpected compilation error: Analysis(Validation(\"svelte:self can only be used inside an if block, each block, await block, or snippet\"))"
+          "error_message": "Unexpected compilation error: Parse(SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (47, 48) })"
         },
         {
           "name": "window-binding-invalid-innerwidth",
@@ -2912,7 +2928,7 @@
         {
           "name": "if-block-whitespace-runes",
           "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "error_message": "Expected error 'block_unexpected_character', got: Parse(SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (105, 106) })"
         }
       ]
     },
@@ -2920,15 +2936,14 @@
       "id": "compiler-errors",
       "name": "Compiler Errors",
       "total": 144,
-      "passed": 0,
-      "failed": 118,
+      "passed": 69,
+      "failed": 49,
       "skipped": 26,
-      "percentage": 0,
+      "percentage": 58.47457627118644,
       "tests": [
         {
           "name": "dollar-binding-import",
-          "status": "fail",
-          "error_message": "Expected error 'dollar_binding_invalid' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "runes-wrong-props-placement-instance",
@@ -2943,17 +2958,15 @@
         {
           "name": "else-before-closing",
           "status": "fail",
-          "error_message": "Expected error 'block_invalid_continuation_placement' but compilation succeeded"
+          "error_message": "Expected error 'block_invalid_continuation_placement', got: Parse(SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (0, 1) })"
         },
         {
           "name": "store-prevent-user-declarations",
-          "status": "fail",
-          "error_message": "Expected error 'dollar_prefix_invalid' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "dollar-binding-declaration-runes-2",
-          "status": "fail",
-          "error_message": "Expected error 'dollar_binding_invalid' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "runes-wrong-state-placement",
@@ -2967,13 +2980,11 @@
         },
         {
           "name": "style-unclosed-eof",
-          "status": "fail",
-          "error_message": "Expected error 'expected_token' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "multiple-styles",
-          "status": "fail",
-          "error_message": "Expected error 'style_duplicate' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "store-global-disallowed",
@@ -2987,8 +2998,7 @@
         },
         {
           "name": "attribute-unique",
-          "status": "fail",
-          "error_message": "Expected error 'attribute_duplicate' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "const-tag-snippet-invalid-reference-1",
@@ -2997,13 +3007,11 @@
         },
         {
           "name": "runes-export-let",
-          "status": "fail",
-          "error_message": "Expected error 'legacy_export_invalid' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "dollar-binding-declaration-legacy",
-          "status": "fail",
-          "error_message": "Expected error 'dollar_binding_invalid' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "runes-wrong-props-placement-module",
@@ -3037,13 +3045,11 @@
         },
         {
           "name": "dynamic-element-binding-invalid",
-          "status": "fail",
-          "error_message": "Expected error 'bind_invalid_target' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "script-unclosed-eof",
-          "status": "fail",
-          "error_message": "Expected error 'unexpected_eof' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "runes-props-illegal-name-2",
@@ -3062,8 +3068,7 @@
         },
         {
           "name": "runes-wrong-state-snapshot-args",
-          "status": "fail",
-          "error_message": "Expected error 'rune_invalid_arguments_length' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "runes-no-rune-each",
@@ -3082,13 +3087,11 @@
         },
         {
           "name": "snippet-rest-args",
-          "status": "fail",
-          "error_message": "Expected error 'snippet_invalid_rest_parameter' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "runes-wrong-host-placement",
-          "status": "fail",
-          "error_message": "Expected error 'host_invalid_placement' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "unbalanced-curly-element",
@@ -3107,8 +3110,7 @@
         },
         {
           "name": "runes-wrong-state-raw-args",
-          "status": "fail",
-          "error_message": "Expected error 'rune_invalid_arguments_length' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "dollar-binding-global-js",
@@ -3122,8 +3124,7 @@
         },
         {
           "name": "runes-wrong-state-args",
-          "status": "fail",
-          "error_message": "Expected error 'rune_invalid_arguments_length' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "export-state-indirect",
@@ -3132,23 +3133,19 @@
         },
         {
           "name": "unexpected-end-of-input-c",
-          "status": "fail",
-          "error_message": "Expected error 'unexpected_eof' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "else-if-before-closing",
-          "status": "fail",
-          "error_message": "Expected error 'expected_token' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "unmatched-closing-tag-autoclose-2",
-          "status": "fail",
-          "error_message": "Expected error 'element_invalid_closing_tag' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "unexpected-end-of-input-d",
-          "status": "fail",
-          "error_message": "Expected error 'block_unclosed' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "else-before-closing-3",
@@ -3157,8 +3154,7 @@
         },
         {
           "name": "window-inside-element",
-          "status": "fail",
-          "error_message": "Expected error 'svelte_meta_invalid_placement' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "export-state",
@@ -3172,38 +3168,31 @@
         },
         {
           "name": "runes-wrong-bindable-args",
-          "status": "fail",
-          "error_message": "Expected error 'rune_invalid_arguments_length' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "component-slot-duplicate-error-6",
-          "status": "fail",
-          "error_message": "Expected error 'slot_attribute_duplicate' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "runes-bindable-not-called",
-          "status": "fail",
-          "error_message": "Expected error 'rune_missing_parentheses' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "else-before-closing-2",
-          "status": "fail",
-          "error_message": "Expected error 'expected_token' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "options-children",
-          "status": "fail",
-          "error_message": "Expected error 'svelte_meta_invalid_content' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "unexpected-end-of-input-b",
-          "status": "fail",
-          "error_message": "Expected error 'unexpected_eof' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "empty-classname-binding",
-          "status": "fail",
-          "error_message": "Expected error 'directive_missing_name' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "runes-invalid-each-mutation",
@@ -3213,7 +3202,7 @@
         {
           "name": "else-if-before-closing-2",
           "status": "fail",
-          "error_message": "Expected error 'block_invalid_continuation_placement' but compilation succeeded"
+          "error_message": "Expected error 'block_invalid_continuation_placement', got: Parse(SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (0, 1) })"
         },
         {
           "name": "css-global-block-in-pseudoclass",
@@ -3222,8 +3211,7 @@
         },
         {
           "name": "runes-wrong-derived-args",
-          "status": "fail",
-          "error_message": "Expected error 'rune_invalid_arguments_length' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "css-global-block-combinator-2",
@@ -3232,8 +3220,7 @@
         },
         {
           "name": "attribute-unique-class",
-          "status": "fail",
-          "error_message": "Expected error 'attribute_duplicate' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "component-slot-nested-error-3",
@@ -3243,7 +3230,7 @@
         {
           "name": "unmatched-closing-tag-autoclose",
           "status": "fail",
-          "error_message": "Expected error 'element_invalid_closing_tag_autoclosed' but compilation succeeded"
+          "error_message": "Expected error 'element_invalid_closing_tag_autoclosed', got: Parse(SvelteError { code: \"element_invalid_closing_tag\", message: \"`</p>` attempted to close an element that was not open\", span: (24, 24) })"
         },
         {
           "name": "legacy-no-const-update",
@@ -3257,8 +3244,7 @@
         },
         {
           "name": "empty-directive-name",
-          "status": "fail",
-          "error_message": "Expected error 'directive_missing_name' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "svelte-internal-import",
@@ -3272,8 +3258,7 @@
         },
         {
           "name": "runes-wrong-effect-args",
-          "status": "fail",
-          "error_message": "Expected error 'rune_invalid_arguments_length' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "component-slot-nested-error-2",
@@ -3302,18 +3287,15 @@
         },
         {
           "name": "window-children",
-          "status": "fail",
-          "error_message": "Expected error 'svelte_meta_invalid_content' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "runes-before-after-update",
-          "status": "fail",
-          "error_message": "Expected error 'runes_mode_invalid_import' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "each-key-without-as",
-          "status": "fail",
-          "error_message": "Expected error 'each_key_without_as' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "component-slot-nested-error",
@@ -3332,13 +3314,11 @@
         },
         {
           "name": "attribute-empty",
-          "status": "fail",
-          "error_message": "Expected error 'expected_attribute_value' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "malformed-snippet-2",
-          "status": "fail",
-          "error_message": "Expected error 'expected_token' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "invalid-arguments-usage",
@@ -3347,18 +3327,15 @@
         },
         {
           "name": "empty-attribute-shorthand",
-          "status": "fail",
-          "error_message": "Expected error 'attribute_empty_shorthand', got: Analysis(Validation(\"Attribute name cannot be empty\"))"
+          "status": "pass"
         },
         {
           "name": "component-slot-duplicate-error",
-          "status": "fail",
-          "error_message": "Expected error 'slot_attribute_duplicate' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "self-reference",
-          "status": "fail",
-          "error_message": "Expected error 'svelte_self_invalid_placement', got: Analysis(Validation(\"svelte:self can only be used inside an if block, each block, await block, or snippet\"))"
+          "status": "pass"
         },
         {
           "name": "snippet-invalid-export",
@@ -3367,8 +3344,7 @@
         },
         {
           "name": "void-closing",
-          "status": "fail",
-          "error_message": "Expected error 'void_element_invalid_content' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "runes-no-const-assignment",
@@ -3387,13 +3363,11 @@
         },
         {
           "name": "unexpected-end-of-input",
-          "status": "fail",
-          "error_message": "Expected error 'element_unclosed' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "runes-wrong-props-args",
-          "status": "fail",
-          "error_message": "Expected error 'rune_invalid_arguments' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "unbalanced-curly-component",
@@ -3402,13 +3376,11 @@
         },
         {
           "name": "const-tag-whitespace",
-          "status": "fail",
-          "error_message": "Expected error 'expected_whitespace' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "raw-mustaches-whitespace",
-          "status": "fail",
-          "error_message": "Expected error 'expected_whitespace' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "export-derived-state",
@@ -3417,23 +3389,20 @@
         },
         {
           "name": "comment-unclosed",
-          "status": "fail",
-          "error_message": "Expected error 'expected_token' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "attribute-unique-style",
-          "status": "fail",
-          "error_message": "Expected error 'attribute_duplicate' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "runes-props-illegal-name-1",
           "status": "fail",
-          "error_message": "Expected error 'props_illegal_name' but compilation succeeded"
+          "error_message": "Expected error 'props_illegal_name', got: Parse(SvelteError { code: \"dollar_binding_invalid\", message: \"The $ name is reserved, and cannot be used for variables and imports\", span: (16, 16) })"
         },
         {
           "name": "dollar-binding-declaration-runes",
-          "status": "fail",
-          "error_message": "Expected error 'dollar_binding_invalid' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "runes-export-named-state",
@@ -3442,18 +3411,15 @@
         },
         {
           "name": "window-inside-block",
-          "status": "fail",
-          "error_message": "Expected error 'svelte_meta_invalid_placement' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "else-if-without-if",
-          "status": "fail",
-          "error_message": "Expected error 'expected_token' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "component-slot-duplicate-error-4",
-          "status": "fail",
-          "error_message": "Expected error 'slot_default_duplicate' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "slot-conflicting-with-render-tag",
@@ -3462,8 +3428,7 @@
         },
         {
           "name": "component-slot-duplicate-error-3",
-          "status": "fail",
-          "error_message": "Expected error 'slot_attribute_duplicate' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "export-derived-state-indirect",
@@ -3477,18 +3442,15 @@
         },
         {
           "name": "window-duplicate",
-          "status": "fail",
-          "error_message": "Expected error 'svelte_meta_duplicate' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "script-unclosed",
-          "status": "fail",
-          "error_message": "Expected error 'element_unclosed' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "runes-duplicate-props",
-          "status": "fail",
-          "error_message": "Expected error 'props_duplicate' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "svelte-selfdestructive",
@@ -3502,13 +3464,11 @@
         },
         {
           "name": "malformed-snippet",
-          "status": "fail",
-          "error_message": "Expected error 'expected_token' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "attribute-unique-shorthand",
-          "status": "fail",
-          "error_message": "Expected error 'attribute_duplicate' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "css-global-block-combinator",
@@ -3517,23 +3477,19 @@
         },
         {
           "name": "component-slot-duplicate-error-2",
-          "status": "fail",
-          "error_message": "Expected error 'slot_attribute_duplicate' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "component-slot-duplicate-error-5",
-          "status": "fail",
-          "error_message": "Expected error 'slot_attribute_duplicate' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "unclosed-attribute-self-close-tag",
-          "status": "fail",
-          "error_message": "Expected error 'expected_token' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "runes-props-not-called",
-          "status": "fail",
-          "error_message": "Expected error 'rune_missing_parentheses' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "effect-active-rune",
@@ -3542,18 +3498,15 @@
         },
         {
           "name": "catch-before-closing",
-          "status": "fail",
-          "error_message": "Expected error 'expected_token' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "runes-wrong-bindable-placement",
-          "status": "fail",
-          "error_message": "Expected error 'bindable_invalid_location' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "const-tag-sequence",
-          "status": "fail",
-          "error_message": "Expected error 'const_tag_invalid_expression' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "store-shadow-scope",
@@ -3562,13 +3515,11 @@
         },
         {
           "name": "render-tag-invalid-call",
-          "status": "fail",
-          "error_message": "Expected error 'render_tag_invalid_call_expression' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "attribute-unique-binding",
-          "status": "fail",
-          "error_message": "Expected error 'attribute_duplicate' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "store-shadow-scope-2",
@@ -3577,8 +3528,7 @@
         },
         {
           "name": "illegal-expression",
-          "status": "fail",
-          "error_message": "Expected error 'js_parse_error' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "css-global-modifier-start-1",
@@ -3587,8 +3537,7 @@
         },
         {
           "name": "runes-wrong-effect-placement",
-          "status": "fail",
-          "error_message": "Expected error 'effect_invalid_placement' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "invalid-rune-name-shadowed",
@@ -3607,8 +3556,7 @@
         },
         {
           "name": "unmatched-closing-tag",
-          "status": "fail",
-          "error_message": "Expected error 'element_invalid_closing_tag' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "attribute-sequence-expression",
@@ -3627,8 +3575,7 @@
         },
         {
           "name": "style-unclosed",
-          "status": "fail",
-          "error_message": "Expected error 'css_expected_identifier' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "css-global-block-multiple-2",
@@ -3773,7 +3720,7 @@
         {
           "name": "event-used-in-component-and-element",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<Sub>` was left open\", span: (171, 172) }"
         },
         {
           "name": "snippet-slot-no-error",
@@ -3858,7 +3805,7 @@
         {
           "name": "props-bound-to-normal",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<Inner>` was left open\", span: (239, 240) }"
         },
         {
           "name": "writable-derived-2",
@@ -3898,7 +3845,7 @@
         {
           "name": "snippet-dynamic-children",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<Button>` was left open\", span: (87, 88) }"
         },
         {
           "name": "transition-evaluation",
@@ -3943,7 +3890,7 @@
         {
           "name": "async-block-effect-queueing",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (293, 294) }"
         },
         {
           "name": "props-default-reactivity",
@@ -4023,7 +3970,7 @@
         {
           "name": "event-attribute-delegation-4",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: attribute_duplicate: Attributes need to be unique"
         },
         {
           "name": "effect-self-scheduling",
@@ -4725,7 +4672,7 @@
         {
           "name": "store-unsubscribe-not-referenced-after",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (310, 311) }"
         },
         {
           "name": "inspect-map-set",
@@ -4800,7 +4747,7 @@
         {
           "name": "effect-dependencies",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<div>` was left open\", span: (350, 351) }"
         },
         {
           "name": "nested-effect-conflict",
@@ -5100,7 +5047,7 @@
         {
           "name": "derived-map",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (589, 590) }"
         },
         {
           "name": "guard-nested-if-pre",
@@ -5604,7 +5551,7 @@
         {
           "name": "dynamic-if-component-transition",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (92, 93) }"
         },
         {
           "name": "component-prop-unescaped",
@@ -6036,7 +5983,7 @@
         {
           "name": "guard-if-nested",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (184, 185) }"
         },
         {
           "name": "inspect-trace-store",
@@ -6205,7 +6152,7 @@
         {
           "name": "snippet-optional-arguments",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (191, 192) }"
         },
         {
           "name": "class-state-public-private",
@@ -6405,7 +6352,7 @@
         {
           "name": "async-top-level-error-nested-obsolete",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<svelte:boundary>` was left open\", span: (242, 243) }"
         },
         {
           "name": "inspect-trace-circular-reference",
@@ -6560,7 +6507,7 @@
         {
           "name": "invalid-html-ssr",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_invalid_closing_tag\", message: \"`</p>` attempted to close an element that was not open\", span: (98, 98) }"
         },
         {
           "name": "state-store",
@@ -6865,7 +6812,7 @@
         {
           "name": "guard-else-effect",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (174, 175) }"
         },
         {
           "name": "inspect-derived-4",
@@ -7385,17 +7332,17 @@
         {
           "name": "component-slot-if-else-block-before-node",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<Nested>` was left open\", span: (81, 82) }"
         },
         {
           "name": "head-if-else-raw-dynamic",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<svelte:head>` was left open\", span: (53, 54) }"
         },
         {
           "name": "component-namespaced",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<Components.Foo>` was left open\", span: (87, 88) }"
         },
         {
           "name": "sigil-static-hash",
@@ -7465,7 +7412,7 @@
         {
           "name": "component-name-deconflicted-globals",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<Countdown>` was left open\", span: (65, 66) }"
         },
         {
           "name": "component-binding-private-state",
@@ -7590,7 +7537,7 @@
         {
           "name": "transition-js-if-else-block-outro",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (176, 177) }"
         },
         {
           "name": "reactive-assignment-in-complex-declaration-with-store-2",
@@ -7615,7 +7562,7 @@
         {
           "name": "if-block-outro-unique-select-block-type",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (143, 144) }"
         },
         {
           "name": "immutable-mutate-object",
@@ -7675,7 +7622,7 @@
         {
           "name": "component-if-placement",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (103, 104) }"
         },
         {
           "name": "transition-js-each-block-keyed-intro",
@@ -7929,7 +7876,7 @@
         {
           "name": "prop-const",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<Nested>` was left open\", span: (90, 91) }"
         },
         {
           "name": "attribute-empty-svg",
@@ -7998,7 +7945,7 @@
         {
           "name": "component-slot-let-destructured",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_invalid_closing_tag\", message: \"`</Nested>` attempted to close an element that was not open\", span: (140, 140) }"
         },
         {
           "name": "event-handler-modifier-once",
@@ -8113,7 +8060,7 @@
         {
           "name": "prop-quoted",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<Nested>` was left open\", span: (77, 78) }"
         },
         {
           "name": "html-entities-inside-attributes",
@@ -8128,7 +8075,7 @@
         {
           "name": "dynamic-component-evals-props-once",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<svelte:component>` was left open\", span: (162, 163) }"
         },
         {
           "name": "names-deconflicted-nested",
@@ -8168,7 +8115,7 @@
         {
           "name": "const-tag-each-destructure-computed-props",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"js_parse_error\", message: \"Expected `,` but found `:`\", span: (608, 608) }"
         },
         {
           "name": "reactive-values-store-destructured-undefined",
@@ -8198,7 +8145,7 @@
         {
           "name": "autofocus",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (157, 158) }"
         },
         {
           "name": "each-block-destructured-object-computed-props",
@@ -8273,7 +8220,7 @@
         {
           "name": "head-raw-dynamic",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (120, 121) }"
         },
         {
           "name": "reactive-values-function-dependency",
@@ -8307,7 +8254,7 @@
         {
           "name": "if-block-elseif-text",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (42, 43) }"
         },
         {
           "name": "attribute-null",
@@ -8377,7 +8324,7 @@
         {
           "name": "if-block-static-with-else",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (0, 1) }"
         },
         {
           "name": "transition-js-dynamic-component",
@@ -8387,7 +8334,7 @@
         {
           "name": "component-yield-multiple-in-if",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<div>` was left open\", span: (89, 90) }"
         },
         {
           "name": "const-tag-each",
@@ -8422,7 +8369,7 @@
         {
           "name": "if-block-else",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (107, 108) }"
         },
         {
           "name": "nested-transition-if-block-not-remounted",
@@ -8482,7 +8429,7 @@
         {
           "name": "const-tag-each-duplicated-variable2",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"js_parse_error\", message: \"Unexpected token\", span: (454, 454) }"
         },
         {
           "name": "module-context-export-referenced-in-template",
@@ -8617,7 +8564,7 @@
         {
           "name": "await-then-if",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (44, 45) }"
         },
         {
           "name": "nested-transition-detach-if-false",
@@ -8722,7 +8669,7 @@
         {
           "name": "if-block-else-conservative-update",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (75, 76) }"
         },
         {
           "name": "component-slot-nested-in-element",
@@ -8732,7 +8679,7 @@
         {
           "name": "block-expression-fn-call",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (183, 184) }"
         },
         {
           "name": "transition-js-aborted-outro",
@@ -8777,7 +8724,7 @@
         {
           "name": "if-block-outro-nested-else",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (90, 91) }"
         },
         {
           "name": "spread-component-immutable",
@@ -8881,7 +8828,7 @@
         {
           "name": "if-block-else-update",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (242, 243) }"
         },
         {
           "name": "store-invalidation-while-update-2",
@@ -8996,7 +8943,7 @@
         {
           "name": "escape-template-literals",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"js_parse_error\", message: \"Expected `,` but found `}`\", span: (270, 270) }"
         },
         {
           "name": "raw-anchor-next-sibling",
@@ -9070,7 +9017,7 @@
         {
           "name": "block-expression-member-access",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (518, 519) }"
         },
         {
           "name": "binding-indirect-spread",
@@ -9135,7 +9082,7 @@
         {
           "name": "if-block-component-store-function-conditionals",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (183, 184) }"
         },
         {
           "name": "spread-component-dynamic-non-object-multiple-dependencies",
@@ -9165,7 +9112,7 @@
         {
           "name": "await-then-destruct-computed-props",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"js_parse_error\", message: \"Expected `,` but found `:`\", span: (328, 328) }"
         },
         {
           "name": "nested-destructure-assignment",
@@ -9320,12 +9267,12 @@
         {
           "name": "each-block-keyed-recursive",
           "status": "fail",
-          "error_message": "Client compilation error: Analysis error: Validation error: svelte:self can only be used inside an if block, each block, await block, or snippet"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "component-binding-conditional",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (165, 166) }"
         },
         {
           "name": "if-block-or",
@@ -9360,7 +9307,7 @@
         {
           "name": "if-block-compound-outro-no-dependencies",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (260, 261) }"
         },
         {
           "name": "destructured-props-5",
@@ -9515,7 +9462,7 @@
         {
           "name": "if-block-elseif-no-else",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (35, 36) }"
         },
         {
           "name": "dynamic-element-spread-attributes",
@@ -9560,7 +9507,7 @@
         {
           "name": "if-block-else-in-each",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (39, 40) }"
         },
         {
           "name": "bindings-global-dependency",
@@ -9625,7 +9572,7 @@
         {
           "name": "head-if-else-block",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<svelte:head>` was left open\", span: (43, 44) }"
         },
         {
           "name": "window-bind-scroll-update-2",
@@ -9660,7 +9607,7 @@
         {
           "name": "component-yield-placement",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (81, 82) }"
         },
         {
           "name": "select-in-each",
@@ -9775,12 +9722,12 @@
         {
           "name": "component-binding-blowback-f",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<One>` was left open\", span: (123, 124) }"
         },
         {
           "name": "await-then-destruct-object-if",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (101, 102) }"
         },
         {
           "name": "select-one-way-bind-object-multiple",
@@ -9824,7 +9771,7 @@
         {
           "name": "const-tag-if-else",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (39, 40) }"
         },
         {
           "name": "event-handler-modifier-prevent-default",
@@ -9939,7 +9886,7 @@
         {
           "name": "const-tag-if-else-outro",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (408, 409) }"
         },
         {
           "name": "lifecycle-render-order-for-children",
@@ -10193,7 +10140,7 @@
         {
           "name": "const-tag-if-else-if",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (346, 347) }"
         },
         {
           "name": "attribute-null-func-classnames-with-style",
@@ -10213,7 +10160,7 @@
         {
           "name": "const-tag-await-then-destructuring-computed-props",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"js_parse_error\", message: \"Expected `,` but found `:`\", span: (591, 591) }"
         },
         {
           "name": "component-svelte-fragment-let-aliased",
@@ -10223,12 +10170,12 @@
         {
           "name": "class-in-each",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_invalid_closing_tag\", message: \"`</div>` attempted to close an element that was not open\", span: (130, 130) }"
         },
         {
           "name": "await-then-catch-if",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (62, 63) }"
         },
         {
           "name": "dynamic-element-void-tag",
@@ -10343,7 +10290,7 @@
         {
           "name": "component-svelte-fragment-let-destructured",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_invalid_closing_tag\", message: \"`</svelte:fragment>` attempted to close an element that was not open\", span: (173, 173) }"
         },
         {
           "name": "spread-element-readonly",
@@ -10383,7 +10330,7 @@
         {
           "name": "transition-abort",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (262, 263) }"
         },
         {
           "name": "mutation-tracking-across-sibling-scopes",
@@ -10428,7 +10375,7 @@
         {
           "name": "props-reactive",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<Nested>` was left open\", span: (120, 121) }"
         },
         {
           "name": "component-svelte-fragment-nested",
@@ -10453,7 +10400,7 @@
         {
           "name": "internal-state",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<Foo>` was left open\", span: (67, 68) }"
         },
         {
           "name": "default-data",
@@ -10553,7 +10500,7 @@
         {
           "name": "dynamic-component-ref",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<svelte:component>` was left open\", span: (72, 73) }"
         },
         {
           "name": "onmount-sibling-order",
@@ -10628,7 +10575,7 @@
         {
           "name": "transition-js-if-else-block-dynamic-outro",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (191, 192) }"
         },
         {
           "name": "each-block-keyed-nested",
@@ -10742,7 +10689,7 @@
         {
           "name": "transition-js-if-else-block-not-dynamic-outro",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (164, 165) }"
         },
         {
           "name": "assignment-in-init",
@@ -10827,7 +10774,7 @@
         {
           "name": "binding-this-unset",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (52, 53) }"
         },
         {
           "name": "component-binding-infinite-loop",
@@ -10842,7 +10789,7 @@
         {
           "name": "if-block-outro-computed-function",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (97, 98) }"
         },
         {
           "name": "set-in-onstate-dedupes-renders",
@@ -10857,7 +10804,7 @@
         {
           "name": "self-reference-component",
           "status": "fail",
-          "error_message": "Client compilation error: Analysis error: Validation error: svelte:self can only be used inside an if block, each block, await block, or snippet"
+          "error_message": "Client compilation error: Analysis error: svelte_self_invalid_placement: `<svelte:self>` components can only exist inside {#if}, {#each}, {#snippet} blocks or component `children` snippets"
         },
         {
           "name": "component-slot-names-sanitized",
@@ -10907,7 +10854,7 @@
         {
           "name": "self-reference",
           "status": "fail",
-          "error_message": "Client compilation error: Analysis error: Validation error: svelte:self can only be used inside an if block, each block, await block, or snippet"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "await-containing-if",
@@ -10927,7 +10874,7 @@
         {
           "name": "transition-js-deferred-b",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (574, 575) }"
         },
         {
           "name": "svg-slot-namespace",
@@ -11027,7 +10974,7 @@
         {
           "name": "bitmask-overflow-if-2",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (1315, 1316) }"
         },
         {
           "name": "attribute-partial-number",
@@ -11067,7 +11014,7 @@
         {
           "name": "if-block-static-with-elseif-else-and-outros",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (69, 70) }"
         },
         {
           "name": "binding-select-unmatched-2",
@@ -11117,7 +11064,7 @@
         {
           "name": "each-block-recursive-with-function-condition",
           "status": "fail",
-          "error_message": "Client compilation error: Analysis error: Validation error: svelte:self can only be used inside an if block, each block, await block, or snippet"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (110, 111) }"
         },
         {
           "name": "html-entities",
@@ -11210,7 +11157,7 @@
         {
           "name": "bitmask-overflow-if",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (1338, 1339) }"
         },
         {
           "name": "component-static-at-symbol",
@@ -11295,7 +11242,7 @@
         {
           "name": "spread-reuse-levels",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<Nested>` was left open\", span: (92, 93) }"
         },
         {
           "name": "variable-assigned-store-state",
@@ -11355,7 +11302,7 @@
         {
           "name": "if-block-else-partial-outro",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (98, 99) }"
         },
         {
           "name": "reactive-assignment-in-assignment-rhs",
@@ -11495,7 +11442,7 @@
         {
           "name": "set-prevents-loop",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (107, 108) }"
         },
         {
           "name": "key-block-static-if",
@@ -11619,7 +11566,7 @@
         {
           "name": "self-reference-tree",
           "status": "fail",
-          "error_message": "Client compilation error: Analysis error: Validation error: svelte:self can only be used inside an if block, each block, await block, or snippet"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "reactive-import-statement",
@@ -11899,7 +11846,7 @@
         {
           "name": "transition-js-if-else-block-intro",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (168, 169) }"
         },
         {
           "name": "component-slot-fallback-5",
@@ -11969,7 +11916,7 @@
         {
           "name": "dynamic-component-nulled-out",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<svelte:component>` was left open\", span: (77, 78) }"
         },
         {
           "name": "await-in-removed-if",
@@ -12159,7 +12106,7 @@
         {
           "name": "deconflict-component-refs",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<ul>` was left open\", span: (55, 56) }"
         },
         {
           "name": "binding-input-checkbox-group-outside-each",
@@ -12194,7 +12141,7 @@
         {
           "name": "component-binding-parent-supercedes-child-b",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (124, 125) }"
         },
         {
           "name": "each-block-keyed-siblings",
@@ -12244,7 +12191,7 @@
         {
           "name": "component-binding-conditional-b",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (180, 181) }"
         },
         {
           "name": "component-slot-fallback-4",
@@ -12259,7 +12206,7 @@
         {
           "name": "transition-js-deferred",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (553, 554) }"
         },
         {
           "name": "component-binding-reactive-statement",
@@ -12394,7 +12341,7 @@
         {
           "name": "prop-not-action",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<Nested>` was left open\", span: (84, 85) }"
         },
         {
           "name": "reactive-function-called-reassigned",
@@ -12434,7 +12381,7 @@
         {
           "name": "component-binding-self-destroying",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (77, 78) }"
         },
         {
           "name": "binding-select-initial-value-undefined",
@@ -12503,7 +12450,7 @@
         {
           "name": "await-in-dynamic-component",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<svelte:component>` was left open\", span: (84, 85) }"
         },
         {
           "name": "observable-auto-subscribe",
@@ -12528,7 +12475,7 @@
         {
           "name": "animation-js-delay",
           "status": "fail",
-          "error_message": "Client compilation error: Analysis error: Validation error: animate directive can only be used inside an {#each} block"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_invalid_closing_tag\", message: \"`</div>` attempted to close an element that was not open\", span: (410, 410) }"
         },
         {
           "name": "each-block-keyed-dynamic",
@@ -12588,7 +12535,7 @@
         {
           "name": "transition-js-if-block-in-each-block-bidi-2",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (163, 164) }"
         },
         {
           "name": "html-entities-inside-elements",
@@ -12598,7 +12545,7 @@
         {
           "name": "dynamic-component-slot",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<svelte:component>` was left open\", span: (239, 240) }"
         },
         {
           "name": "before-render-chain-2",
@@ -12643,7 +12590,7 @@
         {
           "name": "if-block-no-outro-else-with-outro",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (98, 99) }"
         },
         {
           "name": "transition-js-args-dynamic",
@@ -12728,7 +12675,7 @@
         {
           "name": "transition-js-if-elseif-block-outro",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (191, 192) }"
         },
         {
           "name": "attribute-unknown-without-value",
@@ -12888,7 +12835,7 @@
         {
           "name": "if-block-elseif",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (35, 36) }"
         },
         {
           "name": "store-auto-subscribe",
@@ -12898,12 +12845,12 @@
         {
           "name": "immutable-svelte-meta-false",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"svelte_meta_invalid_content\", message: \"<svelte:options> cannot have children\", span: (35, 185) }"
         },
         {
           "name": "component-binding-blowback-e",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<One>` was left open\", span: (123, 124) }"
         },
         {
           "name": "action-body",
@@ -12988,12 +12935,12 @@
         {
           "name": "if-block-static-with-else-and-outros",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (86, 87) }"
         },
         {
           "name": "const-tag-await-then-destructuring-computed-in-computed",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"js_parse_error\", message: \"Expected `,` but found `:`\", span: (628, 628) }"
         },
         {
           "name": "binding-select-in-each-block",
@@ -13052,7 +12999,7 @@
         {
           "name": "store-shadow-scope-declaration",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"dollar_prefix_invalid\", message: \"The $ prefix is reserved, and cannot be used for variables and imports\", span: (354, 354) }"
         },
         {
           "name": "transition-css-in-out-in-with-param",
@@ -13147,7 +13094,7 @@
         {
           "name": "transition-js-if-block-in-each-block-bidi-3",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (163, 164) }"
         },
         {
           "name": "class-with-dynamic-attribute-and-spread",
@@ -13257,7 +13204,7 @@
         {
           "name": "component-binding-blowback-d",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<One>` was left open\", span: (123, 124) }"
         },
         {
           "name": "component-event-not-stale",
@@ -13792,7 +13739,7 @@
         {
           "name": "if-block-update",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"svelte_meta_invalid_content\", message: \"<svelte:options> cannot have children\", span: (34, 148) }"
         },
         {
           "name": "element-attribute-unchanged",
@@ -13816,7 +13763,7 @@
         {
           "name": "if-block-mismatch",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"block_unclosed\", message: \"Block was left open\", span: (51, 52) }"
         },
         {
           "name": "dynamic-text-changed",
@@ -14251,7 +14198,7 @@
         {
           "name": "legacy-imports",
           "status": "fail",
-          "error_message": "Server JS mismatch"
+          "error_message": "Server compilation error: Analysis error: attribute_duplicate: Attributes need to be unique"
         },
         {
           "name": "store-init-props",

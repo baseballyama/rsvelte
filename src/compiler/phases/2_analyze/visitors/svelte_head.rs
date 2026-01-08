@@ -5,24 +5,23 @@
 //! Corresponds to Svelte's `2-analyze/visitors/SvelteHead.js`.
 
 use super::super::AnalysisError;
+use super::super::errors;
 use super::VisitorContext;
 use super::shared::fragment;
-use super::shared::special_element::validate_special_element_placement;
 use crate::ast::template::SvelteElement;
 
 /// Visit a svelte:head.
 pub fn visit(head: &SvelteElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Check for duplicate
     if context.has_svelte_head {
-        return Err(AnalysisError::validation(
-            "svelte_meta_duplicate",
-            "A component can only have one `<svelte:head>` element",
-        ));
+        return Err(errors::svelte_meta_duplicate("svelte:head"));
     }
     context.has_svelte_head = true;
 
-    // Validate placement
-    validate_special_element_placement("svelte:head", context)?;
+    // Validate placement (must be at top level)
+    if context.is_inside_element_or_block() {
+        return Err(errors::svelte_meta_invalid_placement("svelte:head"));
+    }
 
     // Analyze children
     fragment::analyze(&head.fragment, context)?;

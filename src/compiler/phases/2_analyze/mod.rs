@@ -17,6 +17,7 @@
 
 pub mod control_flow;
 pub mod css;
+pub mod errors;
 pub mod scope;
 mod scope_builder;
 pub mod types;
