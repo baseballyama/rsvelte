@@ -767,6 +767,7 @@ impl ClientCodeGenerator {
 
     /// Check if an element has only pure (non-reactive) expressions as children.
     /// Pure expressions can use direct textContent assignment instead of $.template_effect.
+    #[allow(dead_code)]
     fn has_only_pure_expressions(&self, elem: &RegularElement) -> bool {
         // Check if element has any expression children that are all pure (not reactive)
         let mut has_any_expression = false;
@@ -899,48 +900,19 @@ impl ClientCodeGenerator {
                         }
                     }
                     TemplateNode::RegularElement(elem) => {
-                        // Check if element has only pure expression children (no reactive vars)
-                        let has_only_pure_expressions = self.has_only_pure_expressions(elem);
+                        // Recursively process this element's children
+                        let (child_stmts, child_has_dynamic, _trailing) =
+                            self.process_children_cursor(&var_name, &elem.fragment.nodes);
+                        stmts.extend(child_stmts);
 
-                        if has_only_pure_expressions {
-                            // For pure expressions, use direct textContent assignment
-                            for child_node in &elem.fragment.nodes {
-                                if let TemplateNode::ExpressionTag(tag) = child_node {
-                                    let expr_start = tag.start as usize;
-                                    let expr_end = tag.end as usize;
-                                    if expr_start + 1 < expr_end && expr_end <= self.source.len() {
-                                        let expr = self.source[expr_start + 1..expr_end - 1].trim();
-                                        // Constant fold and transform the expression
-                                        let folded = try_constant_fold(expr);
-                                        let transformed = transform_read_only_props(
-                                            &folded,
-                                            &self.read_only_props,
-                                        );
-                                        // Generate: elem.textContent = value
-                                        stmts.push(stmt(assign(
-                                            member(id(&var_name), "textContent"),
-                                            id(&transformed),
-                                        )));
-                                    }
-                                }
-                            }
-                            // Handle special attributes
-                            self.generate_special_attr_stmts(&var_name, elem, &mut stmts);
-                        } else {
-                            // Recursively process this element's children
-                            let (child_stmts, child_has_dynamic, _trailing) =
-                                self.process_children_cursor(&var_name, &elem.fragment.nodes);
-                            stmts.extend(child_stmts);
-
-                            // Add $.reset() if this element had dynamic children
-                            // Note: $.next() is NOT used inside elements, only at root level
-                            if child_has_dynamic {
-                                stmts.push(stmt(svelte_reset(id(&var_name))));
-                            }
-
-                            // Handle special attributes for this element
-                            self.generate_special_attr_stmts(&var_name, elem, &mut stmts);
+                        // Add $.reset() if this element had dynamic children
+                        // Note: $.next() is NOT used inside elements, only at root level
+                        if child_has_dynamic {
+                            stmts.push(stmt(svelte_reset(id(&var_name))));
                         }
+
+                        // Handle special attributes for this element
+                        self.generate_special_attr_stmts(&var_name, elem, &mut stmts);
                     }
                     _ => {}
                 }
@@ -3512,52 +3484,23 @@ export default function {component_name}({fn_params}) {{
                 // Process this node
                 match node {
                     TemplateNode::RegularElement(elem) => {
-                        // Check if element has only pure expression children (no reactive vars)
-                        let has_only_pure_expressions = self.has_only_pure_expressions(elem);
+                        // Process children with cursor navigation
+                        let (child_stmts, has_dynamic_children, trailing) =
+                            self.process_children_cursor(&var_name, &elem.fragment.nodes);
+                        stmts.extend(child_stmts);
 
-                        if has_only_pure_expressions {
-                            // For pure expressions, use direct textContent assignment
-                            for child_node in &elem.fragment.nodes {
-                                if let TemplateNode::ExpressionTag(tag) = child_node {
-                                    let expr_start = tag.start as usize;
-                                    let expr_end = tag.end as usize;
-                                    if expr_start + 1 < expr_end && expr_end <= self.source.len() {
-                                        let expr = self.source[expr_start + 1..expr_end - 1].trim();
-                                        // Constant fold and transform the expression
-                                        let folded = try_constant_fold(expr);
-                                        let transformed = transform_read_only_props(
-                                            &folded,
-                                            &self.read_only_props,
-                                        );
-                                        // Generate: elem.textContent = value
-                                        stmts.push(stmt(assign(
-                                            member(id(&var_name), "textContent"),
-                                            id(&transformed),
-                                        )));
-                                    }
-                                }
-                            }
-                            // Handle special attributes
-                            self.generate_special_attr_stmts(&var_name, elem, &mut stmts);
-                        } else {
-                            // Process children with cursor navigation
-                            let (child_stmts, has_dynamic_children, trailing) =
-                                self.process_children_cursor(&var_name, &elem.fragment.nodes);
-                            stmts.extend(child_stmts);
-
-                            // Add $.next() if there are trailing static nodes
-                            if trailing > 1 {
-                                stmts.push(stmt(svelte_next(Some(trailing))));
-                            }
-
-                            // Add $.reset() if this element had dynamic children
-                            if has_dynamic_children {
-                                stmts.push(stmt(svelte_reset(id(&var_name))));
-                            }
-
-                            // Generate special attribute statements
-                            self.generate_special_attr_stmts(&var_name, elem, &mut stmts);
+                        // Add $.next() if there are trailing static nodes
+                        if trailing > 1 {
+                            stmts.push(stmt(svelte_next(Some(trailing))));
                         }
+
+                        // Add $.reset() if this element had dynamic children
+                        if has_dynamic_children {
+                            stmts.push(stmt(svelte_reset(id(&var_name))));
+                        }
+
+                        // Generate special attribute statements
+                        self.generate_special_attr_stmts(&var_name, elem, &mut stmts);
                     }
                     TemplateNode::ExpressionTag(tag) => {
                         let expr_start = tag.start as usize;

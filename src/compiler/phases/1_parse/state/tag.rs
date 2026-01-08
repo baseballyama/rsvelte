@@ -133,7 +133,7 @@ impl Parser<'_> {
         let consequent = self.parse_fragment()?;
 
         // Check for {:else} or {:else if}
-        let alternate = self.parse_if_alternate()?;
+        let mut alternate = self.parse_if_alternate()?;
 
         // Handle closing {/if} if not already consumed
         let mut found_closing = false;
@@ -151,6 +151,13 @@ impl Parser<'_> {
             self.stack.pop();
         }
 
+        // Update end positions of all elseif blocks recursively
+        if found_closing {
+            if let Some(alt_fragment) = &mut alternate {
+                Self::update_if_block_ends(alt_fragment, self.index as u32);
+            }
+        }
+
         Ok(Some(TemplateNode::IfBlock(IfBlock {
             start: start as u32,
             end: self.index as u32,
@@ -159,6 +166,21 @@ impl Parser<'_> {
             consequent,
             alternate,
         })))
+    }
+
+    /// Update end positions of all elseif IfBlocks recursively
+    fn update_if_block_ends(fragment: &mut Fragment, end: u32) {
+        for node in &mut fragment.nodes {
+            if let TemplateNode::IfBlock(if_block) = node {
+                if if_block.elseif {
+                    if_block.end = end;
+                    // Recursively update nested elseif blocks
+                    if let Some(alt) = &mut if_block.alternate {
+                        Self::update_if_block_ends(alt, end);
+                    }
+                }
+            }
+        }
     }
 
     /// Parse {:else} or {:else if} blocks recursively
@@ -195,13 +217,7 @@ impl Parser<'_> {
             // Recursively check for another else/else-if
             let alt_alternate = self.parse_if_alternate()?;
 
-            // Handle closing {/if} if present
-            if self.match_str("{/") {
-                self.advance_by(2);
-                self.eat("if");
-                self.skip_whitespace();
-                self.eat("}");
-            }
+            // Don't consume {/if} here - let parse_if_block handle it
 
             Ok(Some(Fragment {
                 node_type: FragmentType::Fragment,
@@ -220,13 +236,7 @@ impl Parser<'_> {
             self.eat("}");
             let alt_fragment = self.parse_fragment()?;
 
-            // Handle closing {/if} if present
-            if self.match_str("{/") {
-                self.advance_by(2);
-                self.eat("if");
-                self.skip_whitespace();
-                self.eat("}");
-            }
+            // Don't consume {/if} here - let parse_if_block handle it
 
             Ok(Some(alt_fragment))
         }
