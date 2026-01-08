@@ -521,11 +521,9 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
         return false;
     }
 
-    // If the template has control flow (if/each/await/snippet/slot), sibling relationships
-    // are dynamic and cannot be statically analyzed. Skip the unused detection.
-    if ctx.has_control_flow {
-        return false;
-    }
+    // Note: We no longer skip unused detection for control flow.
+    // Instead, we use the sibling relationship data from Phase 2 analysis
+    // which properly tracks possible siblings across if/each/await branches.
 
     // Check if this selector uses sibling combinators
     let mut sibling_combinator_found = false;
@@ -596,34 +594,32 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
             }
         }
 
-        // No specific parent context - check all parents for potential sibling children
-        // This is a more permissive check for patterns like "A + B" (without parent context)
+        // Use the sibling relationship data from Phase 2 control flow analysis
+        // This correctly handles if/each/await blocks
 
-        // Check if ANY parent has children satisfying the sibling relationship
-        for el in &ctx.dom_structure.elements {
-            if el.children_idx.len() >= 2 {
-                // Has at least 2 children - potential sibling match
-                if has_sibling_match(ctx, el, &before_info, &after_info, combinator) {
-                    return false; // Found a match, not unused
+        // Find all elements that match 'before' selector
+        for el in ctx.dom_structure.elements.iter() {
+            if selector_matches_element(&before_info, el) {
+                // Check possible siblings based on combinator type
+                let possible_siblings = if combinator == "+" {
+                    &el.possible_next_adjacent
+                } else {
+                    // ~ combinator
+                    &el.possible_next_general
+                };
+
+                // Check if any possible sibling matches 'after' selector
+                for (sibling_idx, _certainty) in possible_siblings {
+                    if let Some(sibling) = ctx.dom_structure.elements.get(*sibling_idx) {
+                        if selector_matches_element(&after_info, sibling) {
+                            return false; // Found a match, not unused
+                        }
+                    }
                 }
             }
         }
 
-        // Also check root-level siblings (components can have multiple root children)
-        let root_children: Vec<_> = ctx
-            .dom_structure
-            .elements
-            .iter()
-            .filter(|e| e.is_root_child)
-            .collect();
-
-        if root_children.len() >= 2
-            && has_sibling_match_in_list(ctx, &root_children, &before_info, &after_info, combinator)
-        {
-            return false;
-        }
-
-        // No matching siblings found
+        // No matching sibling relationship found
         return true;
     }
 
@@ -987,11 +983,83 @@ fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
                 return !ctx.used_ids.contains(&decoded);
             }
         }
-        Some("PseudoClassSelector") | Some("PseudoElementSelector") | Some("AttributeSelector") => {
+        Some("PseudoClassSelector") => {
+            // Check for :is()/:not()/:has() where ALL inner selectors are unused
+            let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            if name == "is" || name == "not" || name == "has" {
+                if let Some(args) = sel.get("args") {
+                    if let Some(children) = args.get("children").and_then(|c| c.as_array()) {
+                        // Check if ALL selectors inside are definitely unused
+                        // Only mark as unused if ALL inner selectors are simple class/id
+                        // selectors that definitely don't exist in the template
+                        let all_unused = children
+                            .iter()
+                            .all(|child| is_is_inner_selector_unused(child, ctx));
+                        if all_unused && !children.is_empty() {
+                            return true;
+                        }
+                    }
+                }
+            }
+            // Other pseudo-classes need more complex analysis, consider them potentially used
+            return false;
+        }
+        Some("PseudoElementSelector") | Some("AttributeSelector") => {
             // These need more complex analysis, consider them potentially used
             return false;
         }
         _ => {}
+    }
+    false
+}
+
+/// Check if a selector inside :is()/:not()/:has() is definitely unused.
+/// This is more conservative than is_complex_selector_unused - we only
+/// return true if the selector is a simple class/id selector that definitely
+/// doesn't exist in the template.
+fn is_is_inner_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
+    // Get the relative selectors
+    if let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array()) {
+        // Only check single relative selectors (simple selectors)
+        // Complex selectors with combinators are harder to analyze
+        if rel_selectors.len() != 1 {
+            return false;
+        }
+
+        if let Some(rel) = rel_selectors.first() {
+            if let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) {
+                // Check if all simple selectors in this relative selector are unused
+                // Be conservative - only mark as unused if we're sure
+                for sel in selectors {
+                    let sel_type = sel.get("type").and_then(|t| t.as_str());
+                    match sel_type {
+                        Some("ClassSelector") => {
+                            if ctx.has_dynamic_classes {
+                                return false;
+                            }
+                            if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                                let decoded = decode_css_escape(name);
+                                if !ctx.used_classes.contains(&decoded) {
+                                    return true;
+                                }
+                            }
+                        }
+                        Some("IdSelector") => {
+                            if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                                let decoded = decode_css_escape(name);
+                                if !ctx.used_ids.contains(&decoded) {
+                                    return true;
+                                }
+                            }
+                        }
+                        // Type selectors, pseudo selectors, etc. - be conservative
+                        _ => {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
     }
     false
 }
@@ -1427,6 +1495,7 @@ fn transform_atrule_preserving(
 }
 
 /// Transform a selector list
+/// Marks unused selectors inline with /* (unused) SELECTOR*/ comments.
 #[allow(clippy::too_many_arguments)]
 fn transform_selector_list(
     prelude: &Value,
@@ -1441,26 +1510,54 @@ fn transform_selector_list(
     let mut result = String::new();
 
     if let Some(children) = prelude.get("children").and_then(|c| c.as_array()) {
-        let mut first = true;
-        for complex_selector in children {
+        // Determine the separator style based on the original source
+        // If the prelude spans multiple lines, use newline-based separators
+        let prelude_start = prelude.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
+        let prelude_end = prelude.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
+
+        let sep_start = prelude_start.saturating_sub(css_start);
+        let sep_end = prelude_end.saturating_sub(css_start);
+        let use_newlines = if sep_end <= css_source.len() && sep_start < sep_end {
+            css_source[sep_start..sep_end].contains('\n')
+        } else {
+            false
+        };
+
+        let separator = if use_newlines { ",\n" } else { ", " };
+
+        let mut all_unused = true;
+        let mut unused_buffer = String::new();
+        let mut has_output = false;
+
+        for complex_selector in children.iter() {
             // Check if this individual selector is unused
             let is_unused = is_complex_selector_unused(complex_selector, ctx);
 
+            if !is_unused {
+                all_unused = false;
+            }
+
             if is_unused {
-                // Comment out unused selector inline
-                if !first {
-                    result.push_str(" /* (unused) ");
-                } else {
-                    result.push_str("/* (unused) ");
-                }
-                // Get the selector text using the AST
+                // Buffer unused selector
                 let selector_text = get_selector_text(complex_selector);
-                result.push_str(&selector_text);
-                result.push_str("*/");
-            } else {
-                if !first {
-                    result.push_str(", ");
+                if !unused_buffer.is_empty() {
+                    unused_buffer.push_str(", ");
                 }
+                unused_buffer.push_str(&selector_text);
+            } else {
+                // This selector is used
+                // First, flush any buffered unused selectors
+                if !unused_buffer.is_empty() {
+                    result.push_str(" /* (unused) ");
+                    result.push_str(&unused_buffer);
+                    result.push_str("*/");
+                    unused_buffer.clear();
+                }
+                // Output separator if not first
+                if has_output {
+                    result.push_str(separator);
+                }
+                // Output the transformed selector
                 result.push_str(&transform_complex_selector(
                     complex_selector,
                     selector,
@@ -1468,9 +1565,25 @@ fn transform_selector_list(
                     css_source,
                     css_start,
                     is_nested,
+                    Some(ctx),
                 ));
+                has_output = true;
             }
-            first = false;
+        }
+
+        // Flush any remaining buffered unused selectors at the end
+        if !unused_buffer.is_empty() {
+            if all_unused {
+                // All selectors are unused - wrap entire thing
+                result.push_str("/* (unused) ");
+                result.push_str(&unused_buffer);
+                result.push_str("*/");
+            } else {
+                // Some trailing unused selectors
+                result.push_str(" /* (unused) ");
+                result.push_str(&unused_buffer);
+                result.push_str("*/");
+            }
         }
     } else {
         // Fallback: just get the raw selector text
@@ -1547,13 +1660,29 @@ fn transform_complex_selector(
     css_source: &str,
     css_start: usize,
     is_nested: bool,
+    ctx: Option<&CssContext>,
 ) -> String {
     let mut result = String::new();
     // Each complex selector resets specificity bumping - first element gets direct class
     // For nested rules, start with bumped=true to use :where() for specificity preservation
     let mut local_specificity_bumped = is_nested;
+    // Track if we've seen a :global() selector - elements AFTER :global() should use direct class
+    let mut seen_global = false;
 
     if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
+        // Pre-scan: check if ANY RelativeSelector in this ComplexSelector has :global()
+        // If so, we use direct class (not :where()) for :is()/:not()/:has() content
+        let has_global_anywhere = children.iter().any(|rs| {
+            if let Some(selectors) = rs.get("selectors").and_then(|s| s.as_array()) {
+                selectors.iter().any(|s| {
+                    s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                        && s.get("name").and_then(|n| n.as_str()) == Some("global")
+                })
+            } else {
+                false
+            }
+        });
+
         for relative_selector in children {
             // Get combinator
             if let Some(combinator) = relative_selector.get("combinator") {
@@ -1598,10 +1727,13 @@ fn transform_complex_selector(
                             css_source,
                             Some(css_start),
                             0,
+                            ctx,
+                            false,
                         ));
                     }
                 } else if is_entirely_global {
-                    // Handle :global selector - extract all content without scoping
+                    // Handle :global selector - extract :global() content without scoping,
+                    // but scope subsequent selectors like :is() with direct class
                     for sel in selectors {
                         if sel.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
                             && sel.get("name").and_then(|n| n.as_str()) == Some("global")
@@ -1623,9 +1755,21 @@ fn transform_complex_selector(
                                 }
                             }
                         } else {
-                            result.push_str(&format_simple_selector(sel));
+                            // For non-:global() selectors like :is(x) following :global(.foo),
+                            // pass the scoping class with use_direct_class=true
+                            result.push_str(&format_simple_selector_with_scope(
+                                sel,
+                                selector,
+                                css_source,
+                                Some(css_start),
+                                0,
+                                ctx,
+                                true, // Use direct class, not :where()
+                            ));
                         }
                     }
+                    // Mark that we've passed a :global() selector
+                    seen_global = true;
                 } else if has_partial_global {
                     // Handle partial :global() - scope non-global parts, unwrap :global() parts
                     let needs_scoping = relative_selector
@@ -1677,6 +1821,8 @@ fn transform_complex_selector(
                                 css_source,
                                 Some(css_start),
                                 0,
+                                ctx,
+                                has_global_anywhere, // Use direct class if any part has :global()
                             ));
 
                             // Add scoping after the last non-pseudo selector
@@ -1755,13 +1901,19 @@ fn transform_complex_selector(
                             css_source,
                             Some(css_start),
                             0,
+                            ctx,
+                            has_global_anywhere, // Use direct class if any part has :global()
                         ));
 
                         // Add scoping after the last non-pseudo selector
+                        // If we're after a :global(), use direct class (not :where()) for the first scoped selector
                         if needs_scoping && Some(idx) == last_non_pseudo_idx {
-                            let modifier = get_modifier(selector, &local_specificity_bumped);
+                            let should_use_where = local_specificity_bumped && !seen_global;
+                            let modifier = get_modifier(selector, &should_use_where);
                             selector_parts.push_str(&modifier);
                             local_specificity_bumped = true;
+                            // After using direct class following :global(), subsequent selectors should use :where()
+                            seen_global = false;
                         }
                     }
 
@@ -1785,16 +1937,19 @@ fn get_modifier(selector: &str, specificity_bumped: &bool) -> String {
 
 /// Format a simple selector
 fn format_simple_selector(sel: &Value) -> String {
-    format_simple_selector_with_scope(sel, "", "", None, 0)
+    format_simple_selector_with_scope(sel, "", "", None, 0, None, false)
 }
 
 /// Format a simple selector with optional scoping for inner selectors
+/// `use_direct_class` - When true, use direct class (e.g., .svelte-xyz) instead of :where() inside :is()/:not()/:has()
 fn format_simple_selector_with_scope(
     sel: &Value,
     selector: &str,
     css_source: &str,
     _css_start: Option<usize>,
     _depth: usize,
+    ctx: Option<&CssContext>,
+    use_direct_class: bool,
 ) -> String {
     let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
@@ -1838,11 +1993,18 @@ fn format_simple_selector_with_scope(
             let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
 
             // Handle :is(), :not(), :has() - these take selector lists as arguments
-            // and need to scope their inner selectors with :where()
+            // and need to scope their inner selectors
             if let Some(args) = sel.get("args") {
                 if (name == "is" || name == "not" || name == "has") && !selector.is_empty() {
-                    // Transform the inner selector list with :where() scoping
-                    let inner = transform_is_not_args(args, selector, css_source, name);
+                    // Transform the inner selector list with appropriate scoping
+                    let inner = transform_is_not_args(
+                        args,
+                        selector,
+                        css_source,
+                        name,
+                        ctx,
+                        use_direct_class,
+                    );
                     format!(":{}({})", name, inner)
                 } else {
                     format!(":{}({})", name, get_selector_text(args))
@@ -1865,27 +2027,68 @@ fn format_simple_selector_with_scope(
     }
 }
 
-/// Transform the arguments of :is(), :not(), or :has() with :where() scoping
+/// Transform the arguments of :is(), :not(), or :has() with optional :where() scoping
+/// Also handles partial unused marking - individual selectors that don't match
+/// any elements are commented out as /* (unused) selector*/
+/// When `use_direct_class` is true, use direct class (e.g., .svelte-xyz) instead of :where()
 fn transform_is_not_args(
     args: &Value,
     selector: &str,
     css_source: &str,
     pseudo_name: &str,
+    ctx: Option<&CssContext>,
+    use_direct_class: bool,
 ) -> String {
     let mut result = String::new();
 
     // args should be a SelectorList
     if let Some(children) = args.get("children").and_then(|c| c.as_array()) {
-        for (i, complex_selector) in children.iter().enumerate() {
+        let mut used_selectors = Vec::new();
+        let mut unused_selectors = Vec::new();
+
+        for complex_selector in children.iter() {
+            // Check if this selector is unused (only if we have context)
+            // Use the conservative check for inner selectors - only mark as unused
+            // if it's a simple class/id that definitely doesn't exist
+            let is_unused = ctx
+                .map(|c| is_is_inner_selector_unused(complex_selector, c))
+                .unwrap_or(false);
+
+            if is_unused {
+                // Collect the raw selector text for unused selectors
+                unused_selectors.push(get_selector_text(complex_selector));
+            } else {
+                // Transform and collect used selectors
+                used_selectors.push(transform_is_not_complex_selector(
+                    complex_selector,
+                    selector,
+                    css_source,
+                    pseudo_name,
+                    ctx,
+                    use_direct_class,
+                ));
+            }
+        }
+
+        // Build the result: used selectors first, then unused comment
+        for (i, sel) in used_selectors.iter().enumerate() {
             if i > 0 {
                 result.push_str(", ");
             }
-            result.push_str(&transform_is_not_complex_selector(
-                complex_selector,
-                selector,
-                css_source,
-                pseudo_name,
-            ));
+            result.push_str(sel);
+        }
+
+        // Add unused selectors as a comment if any
+        if !unused_selectors.is_empty() {
+            if !used_selectors.is_empty() {
+                result.push_str(" /* (unused) ");
+            } else {
+                // All selectors are unused - this case should be handled by the caller
+                // by marking the entire rule as unused
+                result.push_str("/* (unused) ");
+            }
+            result.push_str(&unused_selectors.join(", "));
+            result.push_str("*/");
         }
     } else {
         // Fallback to raw text
@@ -1895,12 +2098,15 @@ fn transform_is_not_args(
     result
 }
 
-/// Transform a complex selector inside :is()/:not()/:has() with :where() scoping
+/// Transform a complex selector inside :is()/:not()/:has() with optional :where() scoping
+/// When `use_direct_class` is true, use direct class (e.g., .svelte-xyz) instead of :where()
 fn transform_is_not_complex_selector(
     node: &Value,
     selector: &str,
     css_source: &str,
     pseudo_name: &str,
+    ctx: Option<&CssContext>,
+    use_direct_class: bool,
 ) -> String {
     let mut result = String::new();
 
@@ -1975,13 +2181,23 @@ fn transform_is_not_complex_selector(
 
                     for (idx, sel) in selectors.iter().enumerate() {
                         selector_parts.push_str(&format_simple_selector_with_scope(
-                            sel, selector, css_source, None, 1,
+                            sel,
+                            selector,
+                            css_source,
+                            None,
+                            1,
+                            ctx,
+                            use_direct_class,
                         ));
 
-                        // Add :where(.svelte-xyz) scoping after the last non-pseudo selector
-                        // Inside :is()/:has(), always use :where() to not affect specificity
+                        // Add scoping after the last non-pseudo selector
+                        // Use :where() to preserve specificity, unless use_direct_class is true
                         if Some(idx) == last_non_pseudo_idx && !selector.is_empty() {
-                            selector_parts.push_str(&format!(":where({})", selector));
+                            if use_direct_class {
+                                selector_parts.push_str(selector);
+                            } else {
+                                selector_parts.push_str(&format!(":where({})", selector));
+                            }
                         }
                     }
 
@@ -2013,7 +2229,28 @@ fn get_selector_text(node: &Value) -> String {
     if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
         let mut result = String::new();
         for child in children {
-            result.push_str(&get_selector_text(child));
+            // Check if this is a RelativeSelector with a combinator
+            if let Some(combinator) = child.get("combinator") {
+                if let Some(name) = combinator.get("name").and_then(|n| n.as_str()) {
+                    if !result.is_empty() {
+                        // Add combinator (space for descendant, or the actual combinator)
+                        if name == " " {
+                            result.push(' ');
+                        } else {
+                            result.push_str(&format!(" {} ", name));
+                        }
+                    }
+                }
+            }
+
+            // Add the selectors from this relative selector or child
+            if let Some(selectors) = child.get("selectors").and_then(|s| s.as_array()) {
+                for sel in selectors {
+                    result.push_str(&format_simple_selector(sel));
+                }
+            } else {
+                result.push_str(&get_selector_text(child));
+            }
         }
         result
     } else if let Some(selectors) = node.get("selectors").and_then(|s| s.as_array()) {

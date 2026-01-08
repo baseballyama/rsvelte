@@ -15,6 +15,7 @@
 //!
 //! Corresponds to Svelte's `2-analyze/` directory.
 
+pub mod control_flow;
 pub mod css;
 pub mod scope;
 mod scope_builder;
@@ -61,6 +62,10 @@ pub fn analyze_component(
 
     // Analyze the template using visitors
     visitors::analyze_template(ast, &mut analysis)?;
+
+    // Build sibling relationships for CSS analysis
+    // This must happen after template analysis builds the DOM structure
+    control_flow::build_sibling_relationships(&mut analysis.css.dom_structure, &ast.fragment);
 
     // Analyze CSS if present
     if let Some(ref stylesheet) = ast.css {

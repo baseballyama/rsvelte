@@ -371,6 +371,17 @@ pub struct DomStructure {
     pub elements: Vec<CssDomElement>,
 }
 
+/// Certainty level of sibling relationships.
+/// Used for control flow analysis to determine if sibling combinators are valid.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SiblingCertainty {
+    /// Element definitely exists in the DOM (not inside control flow)
+    #[default]
+    Definite,
+    /// Element may or may not exist (inside if/each/await block)
+    Probable,
+}
+
 /// Element information for CSS selector matching (DOM tree structure).
 #[derive(Debug, Clone)]
 pub struct CssDomElement {
@@ -386,6 +397,18 @@ pub struct CssDomElement {
     pub children_idx: Vec<usize>,
     /// Whether this element is a direct child of the component root
     pub is_root_child: bool,
+    /// Possible previous adjacent siblings (for + combinator)
+    /// Tuple of (element_index, certainty)
+    pub possible_prev_adjacent: Vec<(usize, SiblingCertainty)>,
+    /// Possible next adjacent siblings (for + combinator)
+    /// Tuple of (element_index, certainty)
+    pub possible_next_adjacent: Vec<(usize, SiblingCertainty)>,
+    /// Possible previous general siblings (for ~ combinator)
+    /// Tuple of (element_index, certainty)
+    pub possible_prev_general: Vec<(usize, SiblingCertainty)>,
+    /// Possible next general siblings (for ~ combinator)
+    /// Tuple of (element_index, certainty)
+    pub possible_next_general: Vec<(usize, SiblingCertainty)>,
 }
 
 /// Export information.
