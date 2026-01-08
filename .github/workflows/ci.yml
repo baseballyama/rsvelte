@@ -63,8 +63,19 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
+
+      - name: Build Svelte compiler
+        run: |
+          cd svelte
+          pnpm install --frozen-lockfile
+          pnpm build
 
       - name: Generate fixtures
         run: npm run generate-fixtures
