@@ -6,9 +6,15 @@
 #![allow(dead_code)]
 
 use regex::Regex;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
+
+// ============================================================================
+// Path utilities
+// ============================================================================
 
 /// Get the Svelte submodule commit hash.
 pub fn get_svelte_commit_hash() -> String {
@@ -60,6 +66,10 @@ pub fn ensure_fixtures_exist() {
     }
 }
 
+// ============================================================================
+// Fixture loading
+// ============================================================================
+
 /// Load expected output from fixture.
 pub fn load_fixture_output(category: &str, sample: &str, file: &str) -> Option<String> {
     let path = fixtures_path().join(category).join(sample).join(file);
@@ -68,7 +78,6 @@ pub fn load_fixture_output(category: &str, sample: &str, file: &str) -> Option<S
 }
 
 /// Load metadata from fixture.
-#[allow(dead_code)]
 pub fn load_fixture_metadata(category: &str, sample: &str) -> Option<serde_json::Value> {
     let content = load_fixture_output(category, sample, "metadata.json")?;
     serde_json::from_str(&content).ok()
@@ -88,11 +97,50 @@ pub fn get_fixture_samples(category: &str) -> Vec<PathBuf> {
             entries
                 .filter_map(|e| e.ok())
                 .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
+                .filter(|e| {
+                    e.file_name()
+                        .to_str()
+                        .map(|s| !s.starts_with('_'))
+                        .unwrap_or(false)
+                })
                 .map(|e| e.path())
                 .collect()
         })
         .unwrap_or_default()
 }
+
+/// Get all sample directories for a category from Svelte test suite.
+pub fn get_svelte_test_samples(category: &str) -> Vec<PathBuf> {
+    let samples_dir = svelte_path()
+        .join("packages/svelte/tests")
+        .join(category)
+        .join("samples");
+
+    if !samples_dir.exists() {
+        return Vec::new();
+    }
+
+    fs::read_dir(&samples_dir)
+        .ok()
+        .map(|entries| {
+            entries
+                .filter_map(|e| e.ok())
+                .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
+                .filter(|e| {
+                    e.file_name()
+                        .to_str()
+                        .map(|s| !s.starts_with('.'))
+                        .unwrap_or(false)
+                })
+                .map(|e| e.path())
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+// ============================================================================
+// Normalization utilities
+// ============================================================================
 
 /// Normalize JavaScript code for comparison.
 pub fn normalize_js(js: &str) -> String {
@@ -167,8 +215,12 @@ fn remove_internal_fields(value: &mut serde_json::Value) {
     }
 }
 
+// ============================================================================
+// Warning/Error structures
+// ============================================================================
+
 /// Warning structure for comparison.
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct FixtureWarning {
     pub code: String,
     pub message: String,
@@ -179,7 +231,7 @@ pub struct FixtureWarning {
 }
 
 /// Error structure for comparison.
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, PartialEq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct FixtureError {
     pub code: String,
     pub message: String,
@@ -210,6 +262,10 @@ pub fn load_fixture_error(category: &str, sample: &str) -> Option<FixtureError> 
     load_fixture_output(category, sample, "error.json").and_then(|s| serde_json::from_str(&s).ok())
 }
 
+// ============================================================================
+// Actual output writing
+// ============================================================================
+
 /// Get path to actual output directory for a sample.
 pub fn actual_output_path(category: &str, sample: &str) -> PathBuf {
     fixtures_path().join(category).join(sample).join("_actual")
@@ -223,8 +279,361 @@ pub fn write_actual_output(category: &str, sample: &str, file: &str, content: &s
 }
 
 /// Write actual JSON output to fixture directory.
-pub fn write_actual_json<T: serde::Serialize>(category: &str, sample: &str, file: &str, value: &T) {
+pub fn write_actual_json<T: Serialize>(category: &str, sample: &str, file: &str, value: &T) {
     if let Ok(json) = serde_json::to_string_pretty(value) {
         write_actual_output(category, sample, file, &json);
+    }
+}
+
+// ============================================================================
+// Compatibility Report Structures
+// ============================================================================
+
+/// Test result status.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TestStatus {
+    Passed,
+    Failed,
+    Skipped,
+    Error,
+}
+
+/// Result for a single test sample.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SampleResult {
+    pub name: String,
+    pub status: TestStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub skip_reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub details: Option<SampleDetails>,
+}
+
+/// Additional details for a test sample.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct SampleDetails {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_passed: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub server_passed: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub css_passed: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub warnings_matched: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub errors_matched: Option<bool>,
+}
+
+/// Statistics for a test category.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct CategoryStats {
+    pub total: usize,
+    pub passed: usize,
+    pub failed: usize,
+    pub skipped: usize,
+    pub errors: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_passed: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_total: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub server_passed: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub server_total: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub css_passed: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub css_total: Option<usize>,
+}
+
+impl CategoryStats {
+    /// Calculate pass percentage (excluding skipped tests).
+    pub fn pass_percentage(&self) -> f64 {
+        let run = self.total - self.skipped;
+        if run == 0 {
+            0.0
+        } else {
+            (self.passed as f64 / run as f64) * 100.0
+        }
+    }
+
+    /// Get run count (total - skipped).
+    pub fn run_count(&self) -> usize {
+        self.total - self.skipped
+    }
+}
+
+/// Results for a test category.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CategoryResult {
+    pub category: String,
+    pub stats: CategoryStats,
+    pub samples: Vec<SampleResult>,
+}
+
+impl CategoryResult {
+    pub fn new(category: &str) -> Self {
+        Self {
+            category: category.to_string(),
+            stats: CategoryStats::default(),
+            samples: Vec::new(),
+        }
+    }
+
+    /// Add a sample result and update statistics.
+    pub fn add_sample(&mut self, sample: SampleResult) {
+        self.stats.total += 1;
+        match sample.status {
+            TestStatus::Passed => self.stats.passed += 1,
+            TestStatus::Failed => self.stats.failed += 1,
+            TestStatus::Skipped => self.stats.skipped += 1,
+            TestStatus::Error => self.stats.errors += 1,
+        }
+
+        // Update detailed stats if available
+        if let Some(details) = &sample.details {
+            if let Some(passed) = details.client_passed {
+                *self.stats.client_total.get_or_insert(0) += 1;
+                if passed {
+                    *self.stats.client_passed.get_or_insert(0) += 1;
+                }
+            }
+            if let Some(passed) = details.server_passed {
+                *self.stats.server_total.get_or_insert(0) += 1;
+                if passed {
+                    *self.stats.server_passed.get_or_insert(0) += 1;
+                }
+            }
+            if let Some(passed) = details.css_passed {
+                *self.stats.css_total.get_or_insert(0) += 1;
+                if passed {
+                    *self.stats.css_passed.get_or_insert(0) += 1;
+                }
+            }
+        }
+
+        self.samples.push(sample);
+    }
+}
+
+/// Full compatibility report.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompatibilityReport {
+    pub svelte_commit: String,
+    pub svelte_short_hash: String,
+    pub generated_at: String,
+    pub categories: HashMap<String, CategoryResult>,
+    pub summary: ReportSummary,
+}
+
+/// Summary statistics across all categories.
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ReportSummary {
+    pub total_tests: usize,
+    pub total_passed: usize,
+    pub total_failed: usize,
+    pub total_skipped: usize,
+    pub total_errors: usize,
+    pub overall_percentage: f64,
+    pub category_percentages: HashMap<String, f64>,
+}
+
+impl CompatibilityReport {
+    /// Create a new report.
+    pub fn new() -> Self {
+        let commit = get_svelte_commit_hash();
+        let short_hash = commit[..12].to_string();
+        Self {
+            svelte_commit: commit,
+            svelte_short_hash: short_hash,
+            generated_at: chrono::Utc::now().to_rfc3339(),
+            categories: HashMap::new(),
+            summary: ReportSummary::default(),
+        }
+    }
+
+    /// Add a category result to the report.
+    pub fn add_category(&mut self, result: CategoryResult) {
+        let percentage = result.stats.pass_percentage();
+        self.summary
+            .category_percentages
+            .insert(result.category.clone(), percentage);
+
+        self.summary.total_tests += result.stats.total;
+        self.summary.total_passed += result.stats.passed;
+        self.summary.total_failed += result.stats.failed;
+        self.summary.total_skipped += result.stats.skipped;
+        self.summary.total_errors += result.stats.errors;
+
+        self.categories.insert(result.category.clone(), result);
+    }
+
+    /// Finalize the report (calculate overall percentage).
+    pub fn finalize(&mut self) {
+        let run = self.summary.total_tests - self.summary.total_skipped;
+        if run > 0 {
+            self.summary.overall_percentage =
+                (self.summary.total_passed as f64 / run as f64) * 100.0;
+        }
+    }
+
+    /// Save the report to a JSON file.
+    pub fn save_to_file(&self, path: &str) -> std::io::Result<()> {
+        let json = serde_json::to_string_pretty(self)?;
+        fs::write(path, json)
+    }
+
+    /// Get path to report file in fixtures directory.
+    pub fn default_report_path() -> PathBuf {
+        fixtures_path().join("compatibility-report.json")
+    }
+}
+
+impl Default for CompatibilityReport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ============================================================================
+// Test category definitions
+// ============================================================================
+
+/// All supported test categories.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TestCategory {
+    ParserModern,
+    ParserLegacy,
+    Snapshot,
+    Css,
+    Validator,
+    CompilerErrors,
+    RuntimeRunes,
+    RuntimeLegacy,
+    RuntimeBrowser,
+    Hydration,
+    ServerSideRendering,
+    Sourcemaps,
+    Preprocess,
+    Print,
+    Migrate,
+}
+
+impl TestCategory {
+    /// Get all test categories.
+    pub fn all() -> &'static [TestCategory] {
+        &[
+            TestCategory::ParserModern,
+            TestCategory::ParserLegacy,
+            TestCategory::Snapshot,
+            TestCategory::Css,
+            TestCategory::Validator,
+            TestCategory::CompilerErrors,
+            TestCategory::RuntimeRunes,
+            TestCategory::RuntimeLegacy,
+            TestCategory::RuntimeBrowser,
+            TestCategory::Hydration,
+            TestCategory::ServerSideRendering,
+            TestCategory::Sourcemaps,
+            TestCategory::Preprocess,
+            TestCategory::Print,
+            TestCategory::Migrate,
+        ]
+    }
+
+    /// Get the directory name for this category in Svelte tests.
+    pub fn svelte_dir(&self) -> &'static str {
+        match self {
+            TestCategory::ParserModern => "parser-modern",
+            TestCategory::ParserLegacy => "parser-legacy",
+            TestCategory::Snapshot => "snapshot",
+            TestCategory::Css => "css",
+            TestCategory::Validator => "validator",
+            TestCategory::CompilerErrors => "compiler-errors",
+            TestCategory::RuntimeRunes => "runtime-runes",
+            TestCategory::RuntimeLegacy => "runtime-legacy",
+            TestCategory::RuntimeBrowser => "runtime-browser",
+            TestCategory::Hydration => "hydration",
+            TestCategory::ServerSideRendering => "server-side-rendering",
+            TestCategory::Sourcemaps => "sourcemaps",
+            TestCategory::Preprocess => "preprocess",
+            TestCategory::Print => "print",
+            TestCategory::Migrate => "migrate",
+        }
+    }
+
+    /// Get the main input file name for this category.
+    pub fn main_file(&self) -> &'static str {
+        match self {
+            TestCategory::ParserModern
+            | TestCategory::ParserLegacy
+            | TestCategory::Css
+            | TestCategory::Validator
+            | TestCategory::Sourcemaps
+            | TestCategory::Preprocess
+            | TestCategory::Print => "input.svelte",
+            TestCategory::Snapshot => "index.svelte",
+            TestCategory::CompilerErrors
+            | TestCategory::RuntimeRunes
+            | TestCategory::RuntimeLegacy
+            | TestCategory::RuntimeBrowser
+            | TestCategory::Hydration
+            | TestCategory::ServerSideRendering => "main.svelte",
+            TestCategory::Migrate => "input.svelte",
+        }
+    }
+
+    /// Get human-readable display name.
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            TestCategory::ParserModern => "Parser (Modern)",
+            TestCategory::ParserLegacy => "Parser (Legacy)",
+            TestCategory::Snapshot => "Compiler Snapshot",
+            TestCategory::Css => "CSS Scoping",
+            TestCategory::Validator => "Validator",
+            TestCategory::CompilerErrors => "Compiler Errors",
+            TestCategory::RuntimeRunes => "Runtime (Runes)",
+            TestCategory::RuntimeLegacy => "Runtime (Legacy)",
+            TestCategory::RuntimeBrowser => "Runtime (Browser)",
+            TestCategory::Hydration => "Hydration",
+            TestCategory::ServerSideRendering => "Server-Side Rendering",
+            TestCategory::Sourcemaps => "Sourcemaps",
+            TestCategory::Preprocess => "Preprocess",
+            TestCategory::Print => "Print",
+            TestCategory::Migrate => "Migrate",
+        }
+    }
+
+    /// Check if this category is currently implemented.
+    pub fn is_implemented(&self) -> bool {
+        matches!(
+            self,
+            TestCategory::ParserModern
+                | TestCategory::ParserLegacy
+                | TestCategory::Snapshot
+                | TestCategory::Css
+                | TestCategory::Validator
+                | TestCategory::CompilerErrors
+                | TestCategory::RuntimeRunes
+                | TestCategory::RuntimeLegacy
+                | TestCategory::RuntimeBrowser
+                | TestCategory::Hydration
+                | TestCategory::ServerSideRendering
+                | TestCategory::Sourcemaps
+        )
+    }
+
+    /// Get the number of test samples in this category.
+    pub fn sample_count(&self) -> usize {
+        get_svelte_test_samples(self.svelte_dir()).len()
+    }
+}
+
+impl std::fmt::Display for TestCategory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.svelte_dir())
     }
 }

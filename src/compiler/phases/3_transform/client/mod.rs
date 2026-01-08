@@ -114,7 +114,11 @@ struct ClientCodeGenerator {
     /// Current child index within parent
     current_child_index: usize,
     /// State variable names (for $.set() and $.get() transformations)
+    /// Only contains primitive $state variables that need $.get() wrapping
     state_vars: Vec<String>,
+    /// Proxy state variable names (object/array $state that become $.proxy())
+    /// These don't need $.get() but their property access is still reactive
+    proxy_state_vars: Vec<String>,
     /// Constant variables (name -> value) for compile-time evaluation
     const_vars: HashMap<String, String>,
     /// Each block counter for template variable names
@@ -164,8 +168,10 @@ impl ClientCodeGenerator {
         uses_runes: bool,
         css_hash: Option<String>,
     ) -> Self {
-        // Collect state variables from script content
+        // Collect state variables from script content (primitive types only)
         let state_vars = collect_state_variables(&script_content);
+        // Collect proxy state variables (object/array types)
+        let proxy_state_vars = collect_proxy_state_variables(&script_content);
         // Collect constant variables (non-$state) with their values
         let const_vars = collect_constant_variables(&script_content);
         // Collect read-only destructured props
@@ -185,6 +191,7 @@ impl ClientCodeGenerator {
             element_stack: Vec::new(),
             current_child_index: 0,
             state_vars,
+            proxy_state_vars,
             const_vars,
             each_block_counter: 0,
             each_blocks: Vec::new(),
@@ -421,8 +428,9 @@ impl ClientCodeGenerator {
                         let expr_end = tag.end as usize;
                         if expr_start + 1 < expr_end && expr_end <= self.source.len() {
                             let expr = self.source[expr_start + 1..expr_end - 1].trim();
-                            // Check if expression contains any state variable
-                            return self.state_vars.iter().any(|sv| expr.contains(sv));
+                            // Check if expression contains any state variable (primitive or proxy)
+                            return self.state_vars.iter().any(|sv| expr.contains(sv))
+                                || self.proxy_state_vars.iter().any(|sv| expr.contains(sv));
                         }
                     }
                     false
@@ -662,8 +670,21 @@ impl ClientCodeGenerator {
                 }
             }
         }
-        // Check if expression contains any state variable
+        // Check if expression contains any state variable (primitive types)
         for var in &self.state_vars {
+            if expr.contains(var.as_str()) {
+                let pattern = format!(r"\b{}\b", regex::escape(var));
+                if regex::Regex::new(&pattern)
+                    .map(|re| re.is_match(expr))
+                    .unwrap_or(false)
+                {
+                    return true;
+                }
+            }
+        }
+        // Check if expression contains any proxy state variable (object/array types)
+        // Property access on proxy objects is still reactive (e.g., counter.count)
+        for var in &self.proxy_state_vars {
             if expr.contains(var.as_str()) {
                 let pattern = format!(r"\b{}\b", regex::escape(var));
                 if regex::Regex::new(&pattern)
@@ -1728,7 +1749,7 @@ impl ClientCodeGenerator {
     }
 
     fn build(self) -> String {
-        let html = self.html_parts.join("").trim_end().to_string();
+        let html = self.html_parts.join("");
         let is_fragment = self.root_element_count > 1;
         let has_each_blocks = !self.each_blocks.is_empty();
 
@@ -2079,13 +2100,20 @@ export default function {component_name}({fn_params}) {{
                 } else {
                     ""
                 };
+            // Add $.next(count) for static fragments (no runtime_code)
+            // This skips over the root elements that don't need runtime handling
+            let next_code = if runtime_code.trim().is_empty() && self.root_element_count > 0 {
+                format!("\t$.next({});\n", self.root_element_count)
+            } else {
+                String::new()
+            };
             format!(
                 r#"{system_imports}
 {hoisted_imports}{snippets_code}var root = $.from_html(`{html}`, {template_flags});
 
 export default function {component_name}({fn_params}) {{
 {script_code}	var fragment = root();
-{runtime_code}	$.append($$anchor, fragment);
+{runtime_code}{next_code}	$.append($$anchor, fragment);
 {pop_code}}}{delegation_code}"#,
                 system_imports = system_imports,
                 hoisted_imports = hoisted_imports,
@@ -2096,6 +2124,7 @@ export default function {component_name}({fn_params}) {{
                 fn_params = fn_params,
                 script_code = script_code,
                 runtime_code = runtime_code,
+                next_code = next_code,
                 pop_code = pop_code,
                 delegation_code = delegation_code
             )
@@ -2857,10 +2886,13 @@ export default function {component_name}({fn_params}) {{
 
         // Build function body
         let fn_body = if is_fragment {
-            vec![
-                var_decl("fragment", Some(call(id("root"), vec![]))),
-                stmt(svelte_append(id("$$anchor"), id("fragment"))),
-            ]
+            let mut stmts = vec![var_decl("fragment", Some(call(id("root"), vec![])))];
+            // Add $.next(count) for static fragments to skip over root elements
+            if self.root_element_count > 0 {
+                stmts.push(stmt(svelte_next(Some(self.root_element_count as i32))));
+            }
+            stmts.push(stmt(svelte_append(id("$$anchor"), id("fragment"))));
+            stmts
         } else {
             vec![
                 var_decl(&root_var, Some(call(id("root"), vec![]))),
@@ -3171,16 +3203,22 @@ export default function {component_name}({fn_params}) {{
                                 )));
                             }
                         } else {
+                            // Check if content uses any state variable (primitive or proxy)
                             let is_reactive = self
                                 .state_vars
                                 .iter()
-                                .any(|sv| content_template.contains(sv));
+                                .any(|sv| content_template.contains(sv))
+                                || self
+                                    .proxy_state_vars
+                                    .iter()
+                                    .any(|sv| content_template.contains(sv));
 
                             if is_reactive {
                                 let text_var = "text";
                                 statements
                                     .push(var_decl(text_var, Some(svelte_child(id(var), None))));
                                 statements.push(stmt(svelte_reset(id(var))));
+                                // For proxy state vars, don't wrap in $.get() - just use directly
                                 let template_str =
                                     wrap_state_vars_in_get(content_template, &self.state_vars);
                                 template_effect_parts.push((text_var.to_string(), template_str));
@@ -4552,7 +4590,8 @@ fn find_matching_paren(s: &str) -> Option<usize> {
     None
 }
 
-/// Collect variable names declared with $state().
+/// Collect variable names declared with $state() for primitive types only.
+/// Object/array state variables use $.proxy() and don't need $.get() wrapping.
 fn collect_state_variables(script: &str) -> Vec<String> {
     let mut vars = Vec::new();
 
@@ -4565,7 +4604,48 @@ fn collect_state_variables(script: &str) -> Vec<String> {
                 let before_eq = trimmed[..eq_pos].trim();
                 // Get the last word before = (the variable name)
                 if let Some(var_name) = before_eq.split_whitespace().last() {
+                    // Check if this is an object or array state (uses $.proxy(), not $.state())
+                    // Skip these as they don't need $.get() wrapping
+                    if let Some(state_pos) = trimmed.find("$state(") {
+                        let after_state = &trimmed[state_pos + 7..]; // after "$state("
+                        let content_start = after_state.trim_start();
+                        // Object literals start with { or [ - these become $.proxy()
+                        if content_start.starts_with('{') || content_start.starts_with('[') {
+                            continue;
+                        }
+                    }
                     vars.push(var_name.to_string());
+                }
+            }
+        }
+    }
+
+    vars
+}
+
+/// Collect variable names declared with $state() for object/array types (proxy).
+/// These use $.proxy() and are reactive but don't need $.get() wrapping.
+fn collect_proxy_state_variables(script: &str) -> Vec<String> {
+    let mut vars = Vec::new();
+
+    for line in script.lines() {
+        let trimmed = line.trim();
+        // Match patterns like: let varname = $state({...}) or let varname = $state([...])
+        if trimmed.contains("$state(") {
+            // Extract variable name between let/const and =
+            if let Some(eq_pos) = trimmed.find('=') {
+                let before_eq = trimmed[..eq_pos].trim();
+                // Get the last word before = (the variable name)
+                if let Some(var_name) = before_eq.split_whitespace().last() {
+                    // Check if this is an object or array state (uses $.proxy())
+                    if let Some(state_pos) = trimmed.find("$state(") {
+                        let after_state = &trimmed[state_pos + 7..]; // after "$state("
+                        let content_start = after_state.trim_start();
+                        // Object literals start with { or [ - these become $.proxy()
+                        if content_start.starts_with('{') || content_start.starts_with('[') {
+                            vars.push(var_name.to_string());
+                        }
+                    }
                 }
             }
         }

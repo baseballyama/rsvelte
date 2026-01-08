@@ -92,8 +92,16 @@ src/
     └── mod.rs
 
 tests/
-├── parser_fixtures.rs    # Parser fixture tests
-└── compiler_fixtures.rs  # Compiler fixture tests
+├── common/mod.rs            # Shared test utilities and report structures
+├── parser_fixtures.rs       # Parser fixture tests
+├── compiler_fixtures.rs     # Compiler fixture tests
+├── compatibility_report.rs  # Comprehensive compatibility report generator
+├── css.rs                   # CSS scoping tests
+├── validator.rs             # Validator tests
+├── compiler_errors.rs       # Compiler error tests
+├── runtime.rs               # Runtime tests (hydration, runtime-*)
+├── ssr.rs                   # Server-side rendering tests
+└── sourcemaps.rs            # Sourcemap tests
 
 benches/
 └── parser.rs           # Performance benchmarks
@@ -152,6 +160,66 @@ cargo test test_parser_modern_fixtures -- --nocapture
 
 # Run benchmarks
 cargo bench
+
+# Generate compatibility report (saves JSON to fixtures/)
+npm run compatibility-report
+
+# List all test categories with sample counts
+npm run list-categories
+
+# Generate fixtures from Svelte compiler (required before running tests)
+npm run generate-fixtures
+```
+
+### Compatibility Report
+
+The compatibility report system provides comprehensive tracking of test results against the official Svelte compiler.
+
+**Output location:** `fixtures/{svelte-commit}/compatibility-report.json`
+
+**JSON schema:**
+```json
+{
+  "svelte_commit": "...",
+  "svelte_short_hash": "...",
+  "generated_at": "ISO8601 timestamp",
+  "summary": {
+    "total_tests": 3027,
+    "total_passed": 330,
+    "total_failed": 2495,
+    "total_skipped": 197,
+    "overall_percentage": 11.6,
+    "category_percentages": { "parser-modern": 90.9, ... }
+  },
+  "categories": {
+    "parser-modern": {
+      "stats": { "total": 22, "passed": 20, "failed": 2, ... },
+      "samples": [{ "name": "...", "status": "passed|failed|skipped|error", ... }]
+    }
+  }
+}
+```
+
+This report can be used to track progress over time and power documentation dashboards.
+
+### Auto-updating Documentation
+
+Run tests and automatically update README.md and the documentation site:
+
+```bash
+# Run compatibility tests and update all documentation
+npm run test-and-update
+```
+
+This command:
+1. Generates `fixtures/{commit}/compatibility-report.json`
+2. Updates the compatibility table in `README.md`
+3. Updates `playground/static/test-results.json` for the progress dashboard
+
+Individual commands:
+```bash
+npm run compatibility-report  # Generate report only
+npm run update-docs           # Update docs from existing report
 ```
 
 ### Adding Parser Features
@@ -196,18 +264,31 @@ cargo test
 cargo test test_parser_modern_fixtures -- --nocapture
 cargo test --test compiler_fixtures -- --nocapture
 cargo test --test css -- --nocapture
+
+# Generate full compatibility report
+npm run compatibility-report
 ```
 
-**Current status (2025-01-08):**
+**Current status (2026-01-08):**
 
 | Test Suite | Passing | Total | Status |
 |------------|---------|-------|--------|
-| Parser Modern | 22 | 22 | ✅ 100% |
-| Parser Legacy | 82 | 83 | ✅ 99% (1 incompatible: JS comment attachment) |
-| Compiler Snapshot | 17 | 17 | ✅ 100% (8 skipped: async/hmr/fragments) |
-| CSS | 108 | 177 | ⚠️ 61% - In progress |
-| Validator | 8 | 252 | ❌ 3% - Not implemented |
-| Compiler Errors | 3 | 85 | ❌ 4% - Not implemented |
+| Parser Modern | 20 | 22 | ✅ 90.9% |
+| Parser Legacy | 82 | 82 | ✅ 100% |
+| Compiler Snapshot | 16 | 17 | ✅ 94.1% |
+| CSS | 110 | 177 | ⚠️ 62.1% |
+| Validator | 65 | 312 | ⚠️ 20.8% |
+| Compiler Errors | 0 | 118 | ❌ 0% |
+| Runtime Runes | 10 | 724 | ❌ 1.4% |
+| Runtime Legacy | 13 | 1198 | ❌ 1.1% |
+| Runtime Browser | 0 | 30 | ❌ 0% |
+| Hydration | 4 | 70 | ❌ 5.7% |
+| SSR | 10 | 80 | ❌ 12.5% |
+| Preprocess | 0 | 19 | ⏸️ Not implemented |
+| Print | 0 | 39 | ⏸️ Not implemented |
+| Migrate | 0 | 76 | ⏸️ Not implemented |
+
+**Overall: 330/2830 tests passed (11.7%)**
 
 **Test output must match JavaScript compiler exactly** (formatting differences are normalized).
 

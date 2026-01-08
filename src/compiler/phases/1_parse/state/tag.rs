@@ -13,8 +13,8 @@ use compact_str::CompactString;
 
 use crate::ast::js::Expression;
 use crate::ast::template::{
-    AwaitBlock, EachBlock, ExpressionTag, Fragment, FragmentType, HtmlTag, IfBlock, KeyBlock,
-    RenderTag, SnippetBlock, TemplateNode,
+    AwaitBlock, ConstTag, EachBlock, ExpressionTag, Fragment, FragmentType, HtmlTag, IfBlock,
+    KeyBlock, RenderTag, SnippetBlock, TemplateNode,
 };
 use crate::error::ParseResult;
 
@@ -66,6 +66,17 @@ impl Parser<'_> {
 
         let expr_content = &self.source[expr_start..self.index];
         self.advance(); // consume '}'
+
+        // Check for JavaScript parse errors
+        if let Some(error_message) =
+            super::super::expression::check_js_parse_error(expr_content.trim())
+        {
+            return Err(crate::error::ParseError::svelte(
+                "js_parse_error",
+                error_message,
+                (expr_start, expr_start),
+            ));
+        }
 
         let expression = self.parse_js_expression(expr_content.trim(), expr_start);
 
@@ -125,15 +136,18 @@ impl Parser<'_> {
         let alternate = self.parse_if_alternate()?;
 
         // Handle closing {/if} if not already consumed
+        let mut found_closing = false;
         if self.match_str("{/") {
             self.advance_by(2);
             self.eat("if");
             self.skip_whitespace();
             self.eat("}");
+            found_closing = true;
         }
 
-        // Pop from stack
-        if !self.stack.is_empty() {
+        // Pop from stack only if we found the closing tag
+        // If we reached EOF without closing, leave on stack for error reporting
+        if found_closing && !self.stack.is_empty() {
             self.stack.pop();
         }
 
@@ -263,7 +277,8 @@ impl Parser<'_> {
         if !found_as {
             // No "as" found - check for ", identifier" index syntax
             // For "{#each expr, index}", expr_content contains "expr, index"
-            let (final_expr, index_name) = {
+
+            let (final_expr, index_name, has_key) = {
                 let s = expr_content.to_string();
                 // Find the last top-level comma (not inside braces, brackets, or parens)
                 let mut depth = 0;
@@ -280,21 +295,60 @@ impl Parser<'_> {
                 if let Some(comma_pos) = last_comma {
                     let expr_part = s[..comma_pos].trim();
                     let idx_part = s[comma_pos + 1..].trim();
-                    // Check if idx_part is a simple identifier
-                    if !idx_part.is_empty()
-                        && idx_part.chars().all(|c| c.is_alphanumeric() || c == '_')
-                    {
-                        (
-                            self.parse_js_expression(expr_part, expr_start),
-                            Some(CompactString::from(idx_part)),
-                        )
+
+                    // Check if idx_part contains a key expression (contains '(' at top level)
+                    // e.g., "i (key)" means we have both index and key
+                    let idx_has_key = {
+                        let mut d = 0;
+                        let mut key_found = false;
+                        for ch in idx_part.chars() {
+                            match ch {
+                                '[' | '{' => d += 1,
+                                ']' | '}' => d -= 1,
+                                '(' if d == 0 => {
+                                    key_found = true;
+                                    break;
+                                }
+                                _ => {}
+                            }
+                        }
+                        key_found
+                    };
+
+                    // Check if idx_part is a simple identifier (or has a key after it)
+                    if !idx_part.is_empty() {
+                        // Extract the identifier part (before any '(')
+                        let idx_name = if idx_has_key {
+                            idx_part.split('(').next().unwrap_or("").trim()
+                        } else {
+                            idx_part
+                        };
+
+                        if idx_name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                            (
+                                self.parse_js_expression(expr_part, expr_start),
+                                Some(CompactString::from(idx_name)),
+                                idx_has_key,
+                            )
+                        } else {
+                            (expression, None, false)
+                        }
                     } else {
-                        (expression, None)
+                        (expression, None, false)
                     }
                 } else {
-                    (expression, None)
+                    (expression, None, false)
                 }
             };
+
+            // Error if we have a key without "as" clause
+            if has_key {
+                return Err(crate::error::ParseError::svelte(
+                    "each_key_without_as",
+                    "An `{#each ...}` block without an `as` clause cannot have a key",
+                    (start, self.index),
+                ));
+            }
 
             // Consume the closing }
             if self.current_char() == '}' {
@@ -501,12 +555,20 @@ impl Parser<'_> {
         // Check for {:else}
         let mut fallback = None;
         if self.match_str("{:") {
+            let continuation_start = self.index;
             self.advance_by(2);
             self.skip_whitespace();
             if self.eat("else") {
                 self.skip_whitespace();
                 self.eat("}");
                 fallback = Some(self.parse_fragment()?);
+            } else {
+                // Invalid continuation tag in each block - expected {:else}
+                return Err(crate::error::ParseError::svelte(
+                    "expected_token",
+                    "Expected token {:else}",
+                    (continuation_start, continuation_start),
+                ));
             }
         }
 
@@ -711,7 +773,12 @@ impl Parser<'_> {
 
                 catch_fragment = Some(self.parse_fragment()?);
             } else {
-                break;
+                // Invalid clause (e.g., {:else} in await block) - report error
+                return Err(crate::error::ParseError::svelte(
+                    "expected_token",
+                    "Expected token {:then ...} or {:catch ...}",
+                    (self.index - 2, self.index - 2),
+                ));
             }
         }
 
@@ -872,6 +939,35 @@ impl Parser<'_> {
             let params_end = self.index;
             let params_content = &self.source[params_start..params_end];
 
+            // Check for rest parameters (snippets don't support them)
+            // Look for ... at top level (not inside nested parens/brackets)
+            {
+                let trimmed = params_content.trim();
+                let chars: Vec<char> = trimmed.chars().collect();
+                let mut depth = 0;
+                for i in 0..chars.len() {
+                    let c = chars[i];
+                    if c == '(' || c == '[' || c == '{' {
+                        depth += 1;
+                    } else if c == ')' || c == ']' || c == '}' {
+                        depth -= 1;
+                    } else if depth == 0
+                        && c == '.'
+                        && i + 2 < chars.len()
+                        && chars[i + 1] == '.'
+                        && chars[i + 2] == '.'
+                    {
+                        // Found rest parameter
+                        let rest_start = params_start + i;
+                        return Err(crate::error::ParseError::svelte(
+                            "snippet_invalid_rest_parameter",
+                            "Snippets do not support rest parameters; use an array instead",
+                            (rest_start, rest_start + 7), // approximate end
+                        ));
+                    }
+                }
+            }
+
             // Parse parameters with TypeScript type annotations
             if !params_content.trim().is_empty() {
                 parameters = super::super::expression::parse_typescript_params(
@@ -885,7 +981,15 @@ impl Parser<'_> {
         }
 
         self.skip_whitespace();
-        self.eat("}"); // consume closing brace
+        // Check for closing brace
+        if !self.eat("}") {
+            // No closing brace found - report error
+            return Err(crate::error::ParseError::svelte(
+                "expected_token",
+                "Expected token }",
+                (self.index, self.index),
+            ));
+        }
 
         // Push to stack
         self.stack.push(StackEntry::SnippetBlock {
@@ -922,7 +1026,39 @@ impl Parser<'_> {
     pub fn parse_special_tag(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
         self.advance(); // consume '@'
 
-        let keyword = self.read_identifier();
+        // Try to match known keywords and check for whitespace
+        let _keyword_start = self.index;
+        let known_keywords = ["html", "render", "const", "debug", "attach"];
+
+        // Check each keyword to see if it matches
+        let mut keyword = CompactString::new("");
+        for kw in &known_keywords {
+            if self.match_str(kw) {
+                // Found a match - check if followed by identifier chars
+                let pos_after_kw = self.index + kw.len();
+                if pos_after_kw < self.source.len() {
+                    let next_char = self.source[pos_after_kw..].chars().next().unwrap_or('\0');
+                    if next_char.is_alphanumeric() || next_char == '_' {
+                        // Keyword followed by identifier chars without whitespace
+                        // This is an error like @constfoo
+                        return Err(crate::error::ParseError::svelte(
+                            "expected_whitespace",
+                            "Expected whitespace",
+                            (pos_after_kw, pos_after_kw),
+                        ));
+                    }
+                }
+                self.advance_by(kw.len());
+                keyword = CompactString::from(*kw);
+                break;
+            }
+        }
+
+        // If no keyword matched, read as identifier (unknown tag)
+        if keyword.is_empty() {
+            keyword = self.read_identifier();
+        }
+
         self.skip_whitespace();
 
         match keyword.as_str() {
@@ -951,7 +1087,20 @@ impl Parser<'_> {
                 let expr_content = &self.source[expr_start..self.index];
                 self.advance(); // consume '}'
 
-                let expression = self.parse_js_expression(expr_content.trim(), expr_start);
+                // Check for invalid call patterns (apply, bind, call)
+                let trimmed = expr_content.trim();
+                if trimmed.contains(".apply(")
+                    || trimmed.contains(".bind(")
+                    || trimmed.contains(".call(")
+                {
+                    return Err(crate::error::ParseError::svelte(
+                        "render_tag_invalid_call_expression",
+                        "Calling a snippet function using apply, bind or call is not allowed",
+                        (expr_start, expr_start),
+                    ));
+                }
+
+                let expression = self.parse_js_expression(trimmed, expr_start);
 
                 Ok(Some(TemplateNode::RenderTag(RenderTag {
                     start: start as u32,
@@ -959,7 +1108,81 @@ impl Parser<'_> {
                     expression,
                 })))
             }
-            "debug" | "const" | "attach" => {
+            "const" => {
+                // {@const foo = bar}
+                self.skip_whitespace();
+                let expr_start = self.index;
+                while !self.is_eof() && self.current_char() != '}' {
+                    self.advance();
+                }
+                let expr_content = &self.source[expr_start..self.index];
+                let expr_end = self.index;
+                self.advance(); // consume '}'
+
+                // Check for sequence expression (multiple declarations with comma)
+                // Parse the expression and check if it's a sequence expression
+                let trimmed = expr_content.trim();
+
+                // Simple check: if there's a comma at top level (outside parentheses/brackets),
+                // and not part of a single assignment, it's invalid
+                let mut depth = 0;
+                let mut in_string = false;
+                let mut string_char = '\0';
+                let chars: Vec<char> = trimmed.chars().collect();
+                let mut first_equals = None;
+
+                for (i, &c) in chars.iter().enumerate() {
+                    if in_string {
+                        if c == string_char && (i == 0 || chars[i - 1] != '\\') {
+                            in_string = false;
+                        }
+                        continue;
+                    }
+
+                    if c == '"' || c == '\'' || c == '`' {
+                        in_string = true;
+                        string_char = c;
+                        continue;
+                    }
+
+                    if c == '(' || c == '[' || c == '{' {
+                        depth += 1;
+                    } else if c == ')' || c == ']' || c == '}' {
+                        depth -= 1;
+                    } else if c == '=' && first_equals.is_none() && depth == 0 {
+                        // Check it's not ==, ===, !=, !==, <=, >=, =>
+                        if i + 1 < chars.len()
+                            && chars[i + 1] != '='
+                            && chars[i + 1] != '>'
+                            && (i == 0
+                                || (chars[i - 1] != '!'
+                                    && chars[i - 1] != '<'
+                                    && chars[i - 1] != '>'))
+                        {
+                            first_equals = Some(i);
+                        }
+                    } else if c == ',' && depth == 0 {
+                        // Found top-level comma after the first assignment - this is a sequence expression
+                        if first_equals.is_some() {
+                            return Err(crate::error::ParseError::svelte(
+                                "const_tag_invalid_expression",
+                                "{@const ...} must consist of a single variable declaration",
+                                (expr_start, expr_end),
+                            ));
+                        }
+                    }
+                }
+
+                // Return an actual ConstTag node
+                let declaration = self.parse_js_expression(trimmed, expr_start);
+
+                Ok(Some(TemplateNode::ConstTag(ConstTag {
+                    start: start as u32,
+                    end: self.index as u32,
+                    declaration,
+                })))
+            }
+            "debug" | "attach" => {
                 // Skip to closing brace
                 while !self.is_eof() && self.current_char() != '}' {
                     self.advance();

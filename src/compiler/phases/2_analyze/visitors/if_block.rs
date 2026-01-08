@@ -17,6 +17,9 @@ pub fn visit(block: &IfBlock, context: &mut VisitorContext) -> Result<(), Analys
     // Analyze the test expression
     // In a full implementation, we would analyze the expression for references
 
+    // Increment block depth for child analysis
+    context.block_depth += 1;
+
     // Analyze the consequent
     fragment::analyze(&block.consequent, context)?;
 
@@ -24,6 +27,9 @@ pub fn visit(block: &IfBlock, context: &mut VisitorContext) -> Result<(), Analys
     if let Some(ref alternate) = block.alternate {
         fragment::analyze(alternate, context)?;
     }
+
+    // Decrement block depth
+    context.block_depth -= 1;
 
     Ok(())
 }

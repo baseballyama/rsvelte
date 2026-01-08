@@ -64,6 +64,30 @@ pub enum ParseError {
         #[label("{message}")]
         span: (usize, usize),
     },
+
+    /// Svelte-compatible error with specific error code.
+    /// Used to match Svelte's error codes for compatibility testing.
+    #[error("{code}: {message}")]
+    #[diagnostic()]
+    SvelteError {
+        /// The Svelte error code (e.g., "element_unclosed", "void_element_invalid_content")
+        code: String,
+        /// The error message
+        message: String,
+        #[label("{message}")]
+        span: (usize, usize),
+    },
+}
+
+impl ParseError {
+    /// Create a Svelte-compatible error with a specific error code.
+    pub fn svelte(code: &str, message: impl Into<String>, span: (usize, usize)) -> Self {
+        ParseError::SvelteError {
+            code: code.to_string(),
+            message: message.into(),
+            span,
+        }
+    }
 }
 
 /// Result type for parse operations.

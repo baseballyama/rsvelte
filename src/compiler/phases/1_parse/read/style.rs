@@ -43,10 +43,28 @@ impl Parser<'_> {
         start: usize,
         attributes: Vec<crate::ast::Attribute>,
     ) -> ParseResult<Option<TemplateNode>> {
+        // Check for duplicate style tags
+        if self.stylesheet.is_some() {
+            return Err(crate::error::ParseError::svelte(
+                "style_duplicate",
+                "A component can have a single top-level `<style>` element",
+                (start, start),
+            ));
+        }
+
         let content_start = self.index;
 
         // Find the closing </style> tag (with optional whitespace before >)
+        // Also track if we see an invalid '<' that is not part of </style
+        let mut first_invalid_lt: Option<usize> = None;
         while !self.is_eof() && !self.is_valid_closing_tag("</style") {
+            // Check for '<' that is not part of </style - this is invalid in CSS
+            if self.current_char() == '<'
+                && !self.match_str("</style")
+                && first_invalid_lt.is_none()
+            {
+                first_invalid_lt = Some(self.index);
+            }
             self.advance();
         }
 
@@ -61,6 +79,21 @@ impl Parser<'_> {
                 self.advance();
             }
             self.eat(">"); // consume '>'
+        } else if self.is_eof() {
+            // Style tag was not closed - check if there was invalid '<' in content
+            if let Some(lt_pos) = first_invalid_lt {
+                return Err(crate::error::ParseError::svelte(
+                    "css_expected_identifier",
+                    "Expected a valid CSS identifier",
+                    (lt_pos, lt_pos),
+                ));
+            }
+            // Style tag was not closed
+            return Err(crate::error::ParseError::svelte(
+                "expected_token",
+                "Expected token </style",
+                (self.index, self.index),
+            ));
         }
 
         let end = self.index;

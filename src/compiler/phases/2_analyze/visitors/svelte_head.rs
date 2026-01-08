@@ -12,6 +12,15 @@ use crate::ast::template::SvelteElement;
 
 /// Visit a svelte:head.
 pub fn visit(head: &SvelteElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    // Check for duplicate
+    if context.has_svelte_head {
+        return Err(AnalysisError::validation(
+            "svelte_meta_duplicate",
+            "A component can only have one `<svelte:head>` element",
+        ));
+    }
+    context.has_svelte_head = true;
+
     // Validate placement
     validate_special_element_placement("svelte:head", context)?;
 

@@ -37,12 +37,7 @@ fn requires_unsupported_options(sample_name: &str) -> bool {
         if config.contains("async: true") {
             return true; // experimental.async not supported
         }
-        if config.contains("hmr: true") {
-            return true; // hmr not supported
-        }
-        if config.contains("fragments:") {
-            return true; // fragments option not supported
-        }
+        // hmr: true and fragments: are now supported (output matches expected)
     }
     false
 }

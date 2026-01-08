@@ -19,8 +19,14 @@ pub fn visit(block: &SnippetBlock, context: &mut VisitorContext) -> Result<(), A
     // Validate and register the snippet
     validate_snippet(block, context)?;
 
+    // Increment block depth for child analysis
+    context.block_depth += 1;
+
     // Analyze the body
     fragment::analyze(&block.body, context)?;
+
+    // Decrement block depth
+    context.block_depth -= 1;
 
     Ok(())
 }

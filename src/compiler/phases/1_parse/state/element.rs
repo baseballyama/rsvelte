@@ -39,7 +39,18 @@ impl Parser<'_> {
             }
 
             let data = &self.source[data_start..self.index];
-            self.advance_by(3); // consume '-->'
+
+            // Check if comment was closed
+            if self.match_str("-->") {
+                self.advance_by(3); // consume '-->'
+            } else if self.is_eof() {
+                // Comment was not closed
+                return Err(crate::error::ParseError::svelte(
+                    "expected_token",
+                    "Expected token -->",
+                    (self.index, self.index),
+                ));
+            }
 
             // Track comment as potential leading comment for a script
             self.pending_leading_comments.push(data.to_string());
@@ -53,9 +64,20 @@ impl Parser<'_> {
 
         // Check for closing tag
         if self.match_str("/") {
+            let close_start = self.index - 1; // start includes '<'
             self.advance(); // consume '/'
-            let _name = self.read_tag_name();
+            let name = self.read_tag_name();
             self.skip_whitespace();
+
+            // Check if closing a void element (which is invalid)
+            if is_void_element(&name) {
+                return Err(crate::error::ParseError::svelte(
+                    "void_element_invalid_content",
+                    "Void elements cannot have children or closing tags",
+                    (close_start, self.index),
+                ));
+            }
+
             self.expect(">")?;
 
             // Pop from stack
@@ -72,33 +94,40 @@ impl Parser<'_> {
         let name_end = self.index;
 
         if name.is_empty() {
+            // If we're at EOF with just '<', report unexpected_eof
+            if self.is_eof() {
+                return Err(crate::error::ParseError::svelte(
+                    "unexpected_eof",
+                    "Unexpected end of input",
+                    (self.index, self.index),
+                ));
+            }
             // Invalid tag, skip
             return Ok(None);
         }
 
         // Track position after tag name for unclosed elements at EOF
-        let pos_after_name = self.index;
+        let _pos_after_name = self.index;
         self.skip_whitespace();
 
         // Parse attributes
         let attributes = self.parse_attributes()?;
 
         // Track position before whitespace skip for unclosed elements at EOF
-        let pos_after_attrs = self.index;
+        let _pos_after_attrs = self.index;
         self.skip_whitespace();
 
         // Check for self-closing or void element
         let self_closing = self.eat("/");
         let has_closing_bracket = self.eat(">"); // consume '>'
 
-        // For unclosed elements at EOF, restore position to before trailing whitespace
+        // For unclosed elements at EOF, report unexpected_eof error
         if !has_closing_bracket && self.is_eof() {
-            // Restore to the earliest non-whitespace position
-            if attributes.is_empty() {
-                self.index = pos_after_name;
-            } else if self.index > pos_after_attrs {
-                self.index = pos_after_attrs;
-            }
+            return Err(crate::error::ParseError::svelte(
+                "unexpected_eof",
+                "Unexpected end of input",
+                (self.index, self.index),
+            ));
         }
 
         // Handle script and style tags specially
@@ -114,7 +143,7 @@ impl Parser<'_> {
 
         // Handle svelte:options specially - extract and store options
         if name == "svelte:options" {
-            return self.parse_svelte_options(start, attributes);
+            return self.parse_svelte_options(start, attributes, self_closing);
         }
 
         // Add character field for compatibility
@@ -151,6 +180,7 @@ impl Parser<'_> {
             }
 
             // Handle closing tag or block close
+            let mut found_closing_tag = false;
             if self.match_str("</") {
                 let close_start = self.index;
                 self.advance_by(2); // consume '</'
@@ -159,6 +189,7 @@ impl Parser<'_> {
 
                 // Verify matching tag
                 if closing_name == name {
+                    found_closing_tag = true;
                     // For raw text elements, the closing tag might have garbage before >
                     // (e.g., </textarea\n\n\n</textarea\n\n>)
                     // Scan forward to find the actual >
@@ -172,14 +203,22 @@ impl Parser<'_> {
                     // Mismatched close tag - in loose mode, auto-close current element
                     // and don't consume the close tag (let parent handle it)
                     self.index = close_start; // Reset to before '</...'
+                    // Still mark as found for backwards compatibility (auto-close behavior)
+                    found_closing_tag = true;
                 }
+            } else if self.match_str("{/") || self.match_str("{:") {
+                // If we encounter a block closing tag {/ or continuation {:
+                // while inside an element, auto-close the element
+                found_closing_tag = true;
+            } else if self.should_implicitly_close() {
+                // Element was implicitly closed by the next element
+                // Don't consume anything, let the next element be parsed
+                found_closing_tag = true;
             }
-            // If we encounter a block closing tag {/ while inside an element,
-            // the element is unclosed - auto-close it and let the block handle {/
-            // (We don't consume {/ here, parse_fragment already stopped at it)
 
-            // Pop from stack
-            if !self.stack.is_empty() {
+            // Pop from stack only if we found a closing mechanism (tag or block)
+            // If we reached EOF without a closing tag, leave on stack for error reporting
+            if found_closing_tag && !self.stack.is_empty() {
                 self.stack.pop();
             }
         }
@@ -670,44 +709,28 @@ impl Parser<'_> {
             let expr_content = &self.source[expr_start..expr_end];
             self.advance(); // consume '}'
 
+            // Check for empty shorthand - this is an error
+            if expr_content.trim().is_empty() {
+                return Err(crate::error::ParseError::svelte(
+                    "attribute_empty_shorthand",
+                    "Attribute shorthand cannot be empty",
+                    (start, self.index),
+                ));
+            }
+
             // Create the expression
-            let expression = if expr_content.trim().is_empty() {
-                // Empty expression: create identifier with loc and character field
-                super::super::expression::create_identifier_with_character(
-                    "",
-                    expr_start,
-                    expr_start,
-                    &self.line_offsets,
-                )
-            } else {
-                self.parse_js_expression(expr_content.trim(), expr_start)
-            };
+            let expression = self.parse_js_expression(expr_content.trim(), expr_start);
 
             // Create the attribute name from the expression (shorthand)
-            let name = if expr_content.trim().is_empty() {
-                "".to_string()
-            } else {
-                expr_content.trim().to_string()
-            };
+            let name = expr_content.trim().to_string();
 
             // Calculate name_loc
-            let name_loc = self.create_name_loc(
-                expr_start,
-                if expr_content.trim().is_empty() {
-                    expr_start
-                } else {
-                    expr_end
-                },
-            );
+            let name_loc = self.create_name_loc(expr_start, expr_end);
 
             // Create the ExpressionTag value
             let value = AttributeValue::Expression(ExpressionTag {
                 start: (start + 1) as u32, // start after {
-                end: if expr_content.trim().is_empty() {
-                    (start + 1) as u32
-                } else {
-                    expr_end as u32
-                },
+                end: expr_end as u32,
                 expression: expression.clone(),
             });
 
@@ -1643,6 +1666,16 @@ impl Parser<'_> {
 
     /// Parse attribute value.
     pub fn parse_attribute_value(&mut self) -> ParseResult<AttributeValue> {
+        // Check for missing value (e.g., `class= >` or `class=>`)
+        let c = self.current_char();
+        if c == '>' || c == '/' {
+            return Err(crate::error::ParseError::svelte(
+                "expected_attribute_value",
+                "Expected attribute value",
+                (self.index, self.index),
+            ));
+        }
+
         let quote = if self.eat("\"") {
             Some('"')
         } else if self.eat("'") {
@@ -1729,6 +1762,16 @@ impl Parser<'_> {
                     }
                     self.advance();
                 }
+
+                // Check if we found a closing brace
+                if depth > 0 {
+                    return Err(crate::error::ParseError::svelte(
+                        "expected_token",
+                        "Expected token }",
+                        (self.index, self.index),
+                    ));
+                }
+
                 let expr_end = self.index;
 
                 // Create expression tag

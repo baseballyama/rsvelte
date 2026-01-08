@@ -16,6 +16,10 @@
     "generate-fixtures": "node scripts/generate-fixtures.mjs",
     "generate-fixtures:force": "node scripts/generate-fixtures.mjs --force",
     "generate-fixtures:verbose": "node scripts/generate-fixtures.mjs --verbose",
-    "test-results": "cargo run --release --bin test_reporter -- --output playground/static/test-results.json"
+    "test-results": "cargo run --release --bin test_reporter -- --output playground/static/test-results.json",
+    "compatibility-report": "cargo test --release --test compatibility_report generate_compatibility_report -- --nocapture",
+    "list-categories": "cargo test --release --test compatibility_report list_test_categories -- --nocapture",
+    "update-docs": "node scripts/update-docs.mjs",
+    "test-and-update": "npm run compatibility-report && npm run update-docs"
   }
 }

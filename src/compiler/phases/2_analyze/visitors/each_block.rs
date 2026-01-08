@@ -20,6 +20,9 @@ pub fn visit(block: &EachBlock, context: &mut VisitorContext) -> Result<(), Anal
     // Create a new scope for the each block
     // The context binding and index are declared in this scope
 
+    // Increment block depth for child analysis
+    context.block_depth += 1;
+
     // Analyze the body
     fragment::analyze(&block.body, context)?;
 
@@ -27,6 +30,9 @@ pub fn visit(block: &EachBlock, context: &mut VisitorContext) -> Result<(), Anal
     if let Some(ref fallback) = block.fallback {
         fragment::analyze(fallback, context)?;
     }
+
+    // Decrement block depth
+    context.block_depth -= 1;
 
     Ok(())
 }

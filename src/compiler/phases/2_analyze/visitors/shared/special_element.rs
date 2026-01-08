@@ -32,49 +32,28 @@ pub fn validate_special_element_placement(
     match name {
         "svelte:head" => {
             // svelte:head can only appear at the top level
-            if context.path.iter().any(|node| {
-                matches!(
-                    node,
-                    crate::ast::template::TemplateNode::RegularElement(_)
-                        | crate::ast::template::TemplateNode::Component(_)
-                )
-            }) {
-                return Err(AnalysisError::Validation(
-                    "svelte:head can only appear at the top level of your component".to_string(),
+            if context.is_inside_element_or_block() {
+                return Err(AnalysisError::validation(
+                    "svelte_meta_invalid_placement",
+                    "`<svelte:head>` tags cannot be inside elements or blocks",
                 ));
             }
         }
         "svelte:body" | "svelte:window" | "svelte:document" => {
-            // These can only appear at the top level
-            if context.path.iter().any(|node| {
-                matches!(
-                    node,
-                    crate::ast::template::TemplateNode::RegularElement(_)
-                        | crate::ast::template::TemplateNode::Component(_)
-                )
-            }) {
-                return Err(AnalysisError::Validation(format!(
-                    "{} can only appear at the top level of your component",
-                    name
-                )));
+            // These can only appear at the top level (not inside elements or blocks)
+            if context.is_inside_element_or_block() {
+                return Err(AnalysisError::validation(
+                    "svelte_meta_invalid_placement",
+                    format!("`<{}>` tags cannot be inside elements or blocks", name),
+                ));
             }
         }
         "svelte:self" => {
             // svelte:self must be inside a conditional or loop
-            let in_conditional_or_loop = context.path.iter().any(|node| {
-                matches!(
-                    node,
-                    crate::ast::template::TemplateNode::IfBlock(_)
-                        | crate::ast::template::TemplateNode::EachBlock(_)
-                        | crate::ast::template::TemplateNode::AwaitBlock(_)
-                        | crate::ast::template::TemplateNode::SnippetBlock(_)
-                )
-            });
-
-            if !in_conditional_or_loop {
-                return Err(AnalysisError::Validation(
-                    "svelte:self can only be used inside an if block, each block, await block, or snippet"
-                        .to_string(),
+            if context.block_depth == 0 {
+                return Err(AnalysisError::validation(
+                    "svelte_self_invalid_placement",
+                    "`<svelte:self>` components can only exist inside {#if}, {#each}, {#snippet} blocks or component `children` snippets",
                 ));
             }
         }

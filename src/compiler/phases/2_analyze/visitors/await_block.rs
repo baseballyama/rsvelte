@@ -17,6 +17,9 @@ pub fn visit(block: &AwaitBlock, context: &mut VisitorContext) -> Result<(), Ana
     // Analyze the expression
     // In a full implementation, we would analyze the expression for references
 
+    // Increment block depth for child analysis
+    context.block_depth += 1;
+
     // Analyze the pending block
     if let Some(ref pending) = block.pending {
         fragment::analyze(pending, context)?;
@@ -31,6 +34,9 @@ pub fn visit(block: &AwaitBlock, context: &mut VisitorContext) -> Result<(), Ana
     if let Some(ref catch) = block.catch {
         fragment::analyze(catch, context)?;
     }
+
+    // Decrement block depth
+    context.block_depth -= 1;
 
     Ok(())
 }

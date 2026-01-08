@@ -16,7 +16,79 @@ use super::super::parser::Parser;
 impl Parser<'_> {
     /// Parse the source into a Root AST node.
     pub fn parse(&mut self) -> ParseResult<Root> {
+        use super::super::parser::StackEntry;
+        use super::super::utils::is_void_element;
+
         let mut fragment = self.parse_fragment()?;
+
+        // Check for unclosed elements or blocks on the stack
+        if let Some(entry) = self.stack.last() {
+            match entry {
+                StackEntry::Element { name, start, .. } => {
+                    return Err(crate::error::ParseError::svelte(
+                        "element_unclosed",
+                        format!("`<{}>` was left open", name),
+                        (*start as usize, *start as usize + 1),
+                    ));
+                }
+                StackEntry::IfBlock { start } => {
+                    return Err(crate::error::ParseError::svelte(
+                        "block_unclosed",
+                        "Block was left open",
+                        (*start as usize, *start as usize + 1),
+                    ));
+                }
+                StackEntry::EachBlock { start } => {
+                    return Err(crate::error::ParseError::svelte(
+                        "block_unclosed",
+                        "Block was left open",
+                        (*start as usize, *start as usize + 1),
+                    ));
+                }
+                StackEntry::AwaitBlock { start } => {
+                    return Err(crate::error::ParseError::svelte(
+                        "block_unclosed",
+                        "Block was left open",
+                        (*start as usize, *start as usize + 1),
+                    ));
+                }
+                StackEntry::KeyBlock { start } => {
+                    return Err(crate::error::ParseError::svelte(
+                        "block_unclosed",
+                        "Block was left open",
+                        (*start as usize, *start as usize + 1),
+                    ));
+                }
+                StackEntry::SnippetBlock { start } => {
+                    return Err(crate::error::ParseError::svelte(
+                        "block_unclosed",
+                        "Block was left open",
+                        (*start as usize, *start as usize + 1),
+                    ));
+                }
+                StackEntry::Root => {}
+            }
+        }
+
+        // Check for remaining unprocessed content (void element closing tags, etc.)
+        self.skip_whitespace();
+        if self.match_str("</") {
+            let close_start = self.index;
+            let tag_name_start = self.index + 2;
+            let rest = &self.source[tag_name_start..];
+            let tag_name: String = rest
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == ':')
+                .collect();
+
+            if is_void_element(&tag_name) {
+                return Err(crate::error::ParseError::svelte(
+                    "void_element_invalid_content",
+                    "Void elements cannot have children or closing tags",
+                    (close_start, close_start + 2 + tag_name.len()),
+                ));
+            }
+        }
 
         // Determine the end position of script/style tags
         let script_end = self
@@ -98,6 +170,9 @@ impl Parser<'_> {
 
     /// Parse a fragment (sequence of nodes).
     pub fn parse_fragment(&mut self) -> ParseResult<Fragment> {
+        use super::super::parser::StackEntry;
+        use super::super::utils::is_void_element;
+
         let mut nodes = Vec::new();
 
         while !self.is_eof() {
@@ -107,7 +182,44 @@ impl Parser<'_> {
                 self.match_str("{/") && !self.match_str("{/*") && !self.match_str("{//");
             let is_block_continuation =
                 self.match_str("{:") && !self.match_str("{:/*") && !self.match_str("{://");
-            if self.match_str("</") || is_block_close || is_block_continuation {
+
+            // If we see a closing tag and the stack only has Root (root level), this is an error
+            if self.match_str("</") {
+                // Check if this is a closing tag at root level (only Root on stack)
+                let is_root_level =
+                    self.stack.len() == 1 && matches!(self.stack.first(), Some(StackEntry::Root));
+                if is_root_level {
+                    // Peek ahead to get the tag name
+                    let close_start = self.index;
+                    let tag_name_start = self.index + 2;
+                    let rest = &self.source[tag_name_start..];
+                    let tag_name: String = rest
+                        .chars()
+                        .take_while(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == ':')
+                        .collect();
+
+                    if is_void_element(&tag_name) {
+                        return Err(crate::error::ParseError::svelte(
+                            "void_element_invalid_content",
+                            "Void elements cannot have children or closing tags",
+                            (close_start, close_start + 2 + tag_name.len()),
+                        ));
+                    } else {
+                        // Non-void closing tag without matching opening tag
+                        return Err(crate::error::ParseError::svelte(
+                            "element_invalid_closing_tag",
+                            format!(
+                                "`</{}>` attempted to close an element that was not open",
+                                tag_name
+                            ),
+                            (close_start, close_start),
+                        ));
+                    }
+                }
+                break;
+            }
+
+            if is_block_close || is_block_continuation {
                 break;
             }
 

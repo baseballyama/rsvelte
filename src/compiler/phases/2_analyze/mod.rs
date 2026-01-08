@@ -122,10 +122,23 @@ pub struct ModuleAnalysis {
 pub enum AnalysisError {
     /// Scope-related error
     Scope(String),
-    /// Validation error
+    /// Validation error (generic, legacy)
     Validation(String),
     /// CSS analysis error
     Css(String),
+    /// Validation error with error code (Svelte-compatible format)
+    /// The code is the Svelte error code (e.g., "attribute_duplicate")
+    ValidationWithCode { code: String, message: String },
+}
+
+impl AnalysisError {
+    /// Create a validation error with code
+    pub fn validation(code: &str, message: impl Into<String>) -> Self {
+        AnalysisError::ValidationWithCode {
+            code: code.to_string(),
+            message: message.into(),
+        }
+    }
 }
 
 impl std::fmt::Display for AnalysisError {
@@ -134,6 +147,9 @@ impl std::fmt::Display for AnalysisError {
             AnalysisError::Scope(msg) => write!(f, "Scope error: {}", msg),
             AnalysisError::Validation(msg) => write!(f, "Validation error: {}", msg),
             AnalysisError::Css(msg) => write!(f, "CSS error: {}", msg),
+            AnalysisError::ValidationWithCode { code, message } => {
+                write!(f, "{}: {}", code, message)
+            }
         }
     }
 }

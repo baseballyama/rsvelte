@@ -302,4 +302,22 @@ impl<'a> Parser<'a> {
     pub fn peek_chars(&self, n: usize) -> String {
         self.source[self.index..].chars().take(n).collect()
     }
+
+    /// Check if the svelte:options has customElement set.
+    pub fn has_custom_element_option(&self) -> bool {
+        if let Some(opts) = &self.svelte_options {
+            opts.custom_element.is_some()
+        } else {
+            false
+        }
+    }
+
+    /// Check if we're in runes mode via svelte:options.
+    pub fn is_runes_mode(&self) -> bool {
+        if let Some(opts) = &self.svelte_options {
+            opts.runes == Some(true)
+        } else {
+            false
+        }
+    }
 }

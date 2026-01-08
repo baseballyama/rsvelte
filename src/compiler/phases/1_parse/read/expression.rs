@@ -85,7 +85,7 @@ fn create_comment_object(
     value: String,
     start: usize,
     end: usize,
-    line_offsets: &[usize],
+    _line_offsets: &[usize],
 ) -> Value {
     let mut obj = Map::new();
 
@@ -99,9 +99,7 @@ fn create_comment_object(
     obj.insert("start".to_string(), Value::Number((start as i64).into()));
     obj.insert("end".to_string(), Value::Number((end as i64).into()));
 
-    // Add location information
-    let loc = create_loc(start, end, line_offsets);
-    obj.insert("loc".to_string(), loc);
+    // Note: Svelte's AST does not include 'loc' for comment objects
 
     Value::Object(obj)
 }
@@ -127,6 +125,38 @@ pub fn parse_expression(content: &str, offset: usize, line_offsets: &[usize]) ->
         parse_expression_with_typescript(content, offset, line_offsets, false)
             .unwrap_or_else(|| create_invalid_identifier(offset, offset + content.len()))
     })
+}
+
+/// Check if JavaScript expression has parse errors. Returns Some(error_message) if there is an error.
+pub fn check_js_parse_error(content: &str) -> Option<String> {
+    let allocator = Allocator::default();
+
+    // Try TypeScript first
+    let source_type = SourceType::ts();
+    let wrapped = format!("({})", content);
+    let parser = OxcParser::new(&allocator, &wrapped, source_type);
+    let result = parser.parse();
+
+    if result.errors.is_empty() {
+        return None;
+    }
+
+    // Try JavaScript
+    let allocator2 = Allocator::default();
+    let source_type2 = SourceType::mjs();
+    let parser2 = OxcParser::new(&allocator2, &wrapped, source_type2);
+    let result2 = parser2.parse();
+
+    if result2.errors.is_empty() {
+        return None;
+    }
+
+    // Return the error message
+    result2
+        .errors
+        .first()
+        .map(|e| e.message.to_string())
+        .or_else(|| result.errors.first().map(|e| e.message.to_string()))
 }
 
 /// Create an identifier for invalid expressions (no name, no loc)

@@ -117,6 +117,22 @@ pub struct VisitorContext<'a> {
     pub component_slots: std::collections::HashSet<String>,
     /// Stack of DOM element indices for tracking parent-child relationships.
     pub dom_element_stack: Vec<usize>,
+    /// Depth inside regular elements (for placement validation).
+    pub element_depth: usize,
+    /// Depth inside control flow blocks (for placement validation).
+    pub block_depth: usize,
+    /// Depth inside component elements (for placement validation).
+    pub component_depth: usize,
+    /// Whether we've seen svelte:window.
+    pub has_svelte_window: bool,
+    /// Whether we've seen svelte:body.
+    pub has_svelte_body: bool,
+    /// Whether we've seen svelte:document.
+    pub has_svelte_document: bool,
+    /// Whether we've seen svelte:head.
+    pub has_svelte_head: bool,
+    /// Whether we've seen svelte:options.
+    pub has_svelte_options: bool,
 }
 
 impl<'a> VisitorContext<'a> {
@@ -131,7 +147,20 @@ impl<'a> VisitorContext<'a> {
             has_props_rune: false,
             component_slots: std::collections::HashSet::new(),
             dom_element_stack: Vec::new(),
+            element_depth: 0,
+            block_depth: 0,
+            component_depth: 0,
+            has_svelte_window: false,
+            has_svelte_body: false,
+            has_svelte_document: false,
+            has_svelte_head: false,
+            has_svelte_options: false,
         }
+    }
+
+    /// Check if currently inside an element or block (for placement validation).
+    pub fn is_inside_element_or_block(&self) -> bool {
+        self.element_depth > 0 || self.block_depth > 0 || self.component_depth > 0
     }
 
     /// Add a DOM element to the structure and return its index.

@@ -98,6 +98,10 @@ pub fn visit(element: &RegularElement, context: &mut VisitorContext) -> Result<(
         parent_idx,
         children_idx: Vec::new(),
         is_root_child,
+        possible_prev_adjacent: Vec::new(),
+        possible_next_adjacent: Vec::new(),
+        possible_prev_general: Vec::new(),
+        possible_next_general: Vec::new(),
     };
 
     let element_idx = context.add_dom_element(dom_element);
@@ -116,8 +120,14 @@ pub fn visit(element: &RegularElement, context: &mut VisitorContext) -> Result<(
     // Push current element to stack for children
     context.dom_element_stack.push(element_idx);
 
+    // Increment element depth for child analysis
+    context.element_depth += 1;
+
     // Analyze children
     fragment::analyze(&element.fragment, context)?;
+
+    // Decrement element depth
+    context.element_depth -= 1;
 
     // Pop from stack
     context.dom_element_stack.pop();

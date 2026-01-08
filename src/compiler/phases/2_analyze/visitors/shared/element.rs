@@ -4,6 +4,8 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/shared/element.js`.
 
+use std::collections::HashSet;
+
 use super::super::super::AnalysisError;
 use super::super::VisitorContext;
 use super::attribute::{
@@ -24,6 +26,12 @@ pub const EVENT_MODIFIERS: &[&str] = &[
     "trusted",
 ];
 
+/// Void elements (self-closing elements that cannot have content).
+pub const VOID_ELEMENTS: &[&str] = &[
+    "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source",
+    "track", "wbr",
+];
+
 /// Validate an element and its attributes.
 pub fn validate_element(
     element: &RegularElement,
@@ -33,9 +41,30 @@ pub fn validate_element(
     let mut in_transition = false;
     let mut out_transition = false;
 
+    // Check for void elements with content
+    if VOID_ELEMENTS.contains(&element.name.as_str()) && !element.fragment.nodes.is_empty() {
+        return Err(AnalysisError::validation(
+            "void_element_invalid_content",
+            "Void elements cannot have children or closing tags",
+        ));
+    }
+
+    // Track seen attribute names for duplicate detection
+    let mut seen_attributes: HashSet<String> = HashSet::new();
+
     for attribute in &element.attributes {
         match attribute {
             Attribute::Attribute(attr) => {
+                // Check for duplicate attributes
+                let attr_name = attr.name.to_string();
+                if seen_attributes.contains(&attr_name) {
+                    return Err(AnalysisError::validation(
+                        "attribute_duplicate",
+                        "Attributes need to be unique",
+                    ));
+                }
+                seen_attributes.insert(attr_name);
+
                 // Validate the attribute
                 if context.analysis.runes {
                     validate_attribute(attr, element)?;
@@ -64,6 +93,63 @@ pub fn validate_element(
                         "Event handler '{}' must be an expression",
                         attr.name
                     )));
+                }
+            }
+            Attribute::ClassDirective(class_dir) => {
+                // Check for duplicate class directives
+                let class_name = format!("class:{}", class_dir.name);
+                if seen_attributes.contains(&class_name) {
+                    return Err(AnalysisError::validation(
+                        "attribute_duplicate",
+                        "Attributes need to be unique",
+                    ));
+                }
+                seen_attributes.insert(class_name);
+
+                // Check for empty class directive name
+                if class_dir.name.is_empty() {
+                    return Err(AnalysisError::validation(
+                        "directive_missing_name",
+                        "class: directive must have a name",
+                    ));
+                }
+            }
+            Attribute::StyleDirective(style_dir) => {
+                // Check for duplicate style directives
+                let style_name = format!("style:{}", style_dir.name);
+                if seen_attributes.contains(&style_name) {
+                    return Err(AnalysisError::validation(
+                        "attribute_duplicate",
+                        "Attributes need to be unique",
+                    ));
+                }
+                seen_attributes.insert(style_name);
+
+                // Check for empty style directive name
+                if style_dir.name.is_empty() {
+                    return Err(AnalysisError::validation(
+                        "directive_missing_name",
+                        "style: directive must have a name",
+                    ));
+                }
+            }
+            Attribute::BindDirective(bind_dir) => {
+                // Check for duplicate bind attributes (treat as attribute duplicates)
+                let bind_name = format!("bind:{}", bind_dir.name);
+                if seen_attributes.contains(&bind_name) {
+                    return Err(AnalysisError::validation(
+                        "attribute_duplicate",
+                        "Attributes need to be unique",
+                    ));
+                }
+                seen_attributes.insert(bind_name);
+
+                // Check for empty bind directive name
+                if bind_dir.name.is_empty() {
+                    return Err(AnalysisError::validation(
+                        "directive_missing_name",
+                        "bind: directive must have a name",
+                    ));
                 }
             }
             Attribute::AnimateDirective(_directive) => {
@@ -125,6 +211,15 @@ pub fn validate_element(
                 if has_passive && (has_nonpassive || has_prevent_default) {
                     return Err(AnalysisError::Validation(
                         "The 'passive' modifier cannot be combined with 'nonpassive' or 'preventDefault'".to_string(),
+                    ));
+                }
+            }
+            Attribute::UseDirective(use_dir) => {
+                // Check for empty use directive name
+                if use_dir.name.is_empty() {
+                    return Err(AnalysisError::validation(
+                        "directive_missing_name",
+                        "`use:` name cannot be empty",
                     ));
                 }
             }
