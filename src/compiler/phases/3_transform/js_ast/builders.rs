@@ -1050,6 +1050,41 @@ pub fn svelte_html(node: JsExpr, getter: JsExpr) -> JsExpr {
     svelte_call("html", vec![node, getter])
 }
 
+/// Create $.set_class(element, flags, class_attr, class_binding, class_map, class_directives).
+pub fn svelte_set_class(
+    element: JsExpr,
+    flags: JsExpr,
+    class_attr: JsExpr,
+    class_binding: JsExpr,
+    class_map: JsExpr,
+    class_directives: JsExpr,
+) -> JsExpr {
+    svelte_call(
+        "set_class",
+        vec![
+            element,
+            flags,
+            class_attr,
+            class_binding,
+            class_map,
+            class_directives,
+        ],
+    )
+}
+
+/// Create $.set_style(element, style_attr, style_binding, style_directives).
+pub fn svelte_set_style(
+    element: JsExpr,
+    style_attr: JsExpr,
+    style_binding: JsExpr,
+    style_directives: JsExpr,
+) -> JsExpr {
+    svelte_call(
+        "set_style",
+        vec![element, style_attr, style_binding, style_directives],
+    )
+}
+
 // ============================================================================
 // DOM Manipulation Helpers
 // ============================================================================

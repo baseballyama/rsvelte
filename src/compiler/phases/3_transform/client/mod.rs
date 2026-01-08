@@ -22,9 +22,9 @@ use super::js_ast::{
         svelte_autofocus, svelte_await, svelte_bind_value, svelte_child, svelte_each,
         svelte_element, svelte_first_child, svelte_from_html, svelte_get, svelte_html,
         svelte_index, svelte_next, svelte_remove_input_defaults, svelte_reset, svelte_set,
-        svelte_set_attribute, svelte_set_custom_element_data, svelte_set_sync, svelte_set_text,
-        svelte_sibling, svelte_template_effect, svelte_template_effect_with_values, svelte_text,
-        template, thunk, var_decl,
+        svelte_set_attribute, svelte_set_class, svelte_set_custom_element_data, svelte_set_style,
+        svelte_set_sync, svelte_set_text, svelte_sibling, svelte_template_effect,
+        svelte_template_effect_with_values, svelte_text, template, thunk, var_decl,
     },
     generate,
     nodes::{JsExpr, JsObjectMember, JsPattern, JsStatement},
@@ -32,9 +32,9 @@ use super::js_ast::{
 };
 use super::shared::{escape_attr, escape_html, is_void_element};
 use crate::ast::template::{
-    Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, Component, EachBlock,
-    ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, RegularElement, RenderTag, Root,
-    SnippetBlock, SvelteDynamicElement, TemplateNode, Text,
+    Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, ClassDirective,
+    Component, EachBlock, ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, RegularElement,
+    RenderTag, Root, SnippetBlock, StyleDirective, SvelteDynamicElement, TemplateNode, Text,
 };
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
@@ -736,6 +736,8 @@ impl ClientCodeGenerator {
                 // 2. It has special attributes that need runtime handling
                 let has_special_attrs = elem.attributes.iter().any(|attr| {
                     matches!(attr, Attribute::BindDirective(_))
+                        || matches!(attr, Attribute::ClassDirective(_))
+                        || matches!(attr, Attribute::StyleDirective(_))
                         || matches!(attr, Attribute::Attribute(a) if
                             a.name == "autofocus"
                             || (a.name == "muted" && (elem.name == "source" || elem.name == "video"))
@@ -946,58 +948,142 @@ impl ClientCodeGenerator {
     ) {
         let is_custom = elem.name.contains('-');
 
-        for attr in &elem.attributes {
-            if let Attribute::Attribute(node) = attr {
-                let attr_name = node.name.as_str();
+        // Collect class: and style: directives
+        let mut class_directives: Vec<&ClassDirective> = Vec::new();
+        let mut style_directives: Vec<&StyleDirective> = Vec::new();
 
-                match attr_name {
-                    "autofocus" => {
-                        stmts.push(stmt(svelte_autofocus(id(var_name), true)));
-                    }
-                    "muted" if elem.name == "source" || elem.name == "video" => {
-                        stmts.push(stmt(assign(member(id(var_name), "muted"), boolean(true))));
-                    }
-                    "value" if elem.name == "option" => {
-                        if let AttributeValue::Sequence(parts) = &node.value {
-                            let value: String = parts
-                                .iter()
-                                .filter_map(|p| {
-                                    if let AttributeValuePart::Text(t) = p {
-                                        Some(t.data.to_string())
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .collect();
-                            let inner = assign(member(id(var_name), "__value"), string(&value));
-                            stmts.push(stmt(assign(member(id(var_name), "value"), inner)));
+        for attr in &elem.attributes {
+            match attr {
+                Attribute::Attribute(node) => {
+                    let attr_name = node.name.as_str();
+
+                    match attr_name {
+                        "autofocus" => {
+                            stmts.push(stmt(svelte_autofocus(id(var_name), true)));
                         }
+                        "muted" if elem.name == "source" || elem.name == "video" => {
+                            stmts.push(stmt(assign(member(id(var_name), "muted"), boolean(true))));
+                        }
+                        "value" if elem.name == "option" => {
+                            if let AttributeValue::Sequence(parts) = &node.value {
+                                let value: String = parts
+                                    .iter()
+                                    .filter_map(|p| {
+                                        if let AttributeValuePart::Text(t) = p {
+                                            Some(t.data.to_string())
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .collect();
+                                let inner = assign(member(id(var_name), "__value"), string(&value));
+                                stmts.push(stmt(assign(member(id(var_name), "value"), inner)));
+                            }
+                        }
+                        _ if is_custom => {
+                            // Custom element attribute
+                            let attr_value = match &node.value {
+                                AttributeValue::True(_) => "true".to_string(),
+                                AttributeValue::Sequence(parts) => parts
+                                    .iter()
+                                    .filter_map(|p| {
+                                        if let AttributeValuePart::Text(t) = p {
+                                            Some(t.data.to_string())
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .collect(),
+                                _ => continue,
+                            };
+                            stmts.push(stmt(svelte_set_custom_element_data(
+                                id(var_name),
+                                attr_name,
+                                string(&attr_value),
+                            )));
+                        }
+                        _ => {}
                     }
-                    _ if is_custom => {
-                        // Custom element attribute
-                        let attr_value = match &node.value {
-                            AttributeValue::True(_) => "true".to_string(),
-                            AttributeValue::Sequence(parts) => parts
-                                .iter()
-                                .filter_map(|p| {
-                                    if let AttributeValuePart::Text(t) = p {
-                                        Some(t.data.to_string())
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .collect(),
-                            _ => continue,
-                        };
-                        stmts.push(stmt(svelte_set_custom_element_data(
-                            id(var_name),
-                            attr_name,
-                            string(&attr_value),
-                        )));
-                    }
-                    _ => {}
                 }
+                Attribute::ClassDirective(dir) => {
+                    class_directives.push(dir);
+                }
+                Attribute::StyleDirective(dir) => {
+                    style_directives.push(dir);
+                }
+                _ => {}
             }
+        }
+
+        // Generate $.set_class if there are class: directives
+        if !class_directives.is_empty() {
+            // Build class_directives object: { foo: true, bar: expr, ... }
+            let mut class_props: Vec<JsObjectMember> = Vec::new();
+            for dir in class_directives {
+                let class_name = dir.name.to_string();
+                // Extract expression value
+                let expr_start = dir.expression.start().unwrap_or(0) as usize;
+                let expr_end = dir.expression.end().unwrap_or(0) as usize;
+                let expr_value = if expr_end > expr_start && expr_end <= self.source.len() {
+                    let expr_str = self.source[expr_start..expr_end].trim();
+                    id(expr_str)
+                } else {
+                    boolean(true)
+                };
+                class_props.push(prop(&class_name, expr_value));
+            }
+
+            // Generate: $.set_class(element, 1, '', null, {}, { foo: true, ... })
+            stmts.push(stmt(svelte_set_class(
+                id(var_name),
+                id("1"),             // flags
+                string(""),          // class_attr
+                id("null"),          // class_binding
+                object(vec![]),      // class_map
+                object(class_props), // class_directives
+            )));
+        }
+
+        // Generate $.set_style if there are style: directives
+        if !style_directives.is_empty() {
+            // Build style_directives object: { color: 'red', ... }
+            let mut style_props: Vec<JsObjectMember> = Vec::new();
+            for dir in style_directives {
+                let style_name = dir.name.to_string();
+                // Extract value
+                let style_value = match &dir.value {
+                    AttributeValue::Sequence(parts) => {
+                        let mut value_str = String::new();
+                        for part in parts {
+                            match part {
+                                AttributeValuePart::Text(t) => {
+                                    value_str.push_str(&t.data);
+                                }
+                                AttributeValuePart::ExpressionTag(tag) => {
+                                    let expr_start = tag.start as usize;
+                                    let expr_end = tag.end as usize;
+                                    if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                                        value_str.push_str(
+                                            self.source[expr_start + 1..expr_end - 1].trim(),
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                        string(&value_str)
+                    }
+                    _ => string(""),
+                };
+                style_props.push(prop(&style_name, style_value));
+            }
+
+            // Generate: $.set_style(element, '', {}, { color: 'red', ... })
+            stmts.push(stmt(svelte_set_style(
+                id(var_name),
+                string(""),          // style_attr
+                object(vec![]),      // style_binding
+                object(style_props), // style_directives
+            )));
         }
     }
 
