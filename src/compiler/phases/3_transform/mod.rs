@@ -13,6 +13,7 @@ pub mod client;
 pub mod css;
 pub mod js_ast;
 pub mod server;
+pub mod shared;
 
 // Re-export commonly used types
 pub use js_ast::{JsExpr, JsProgram, JsStatement};

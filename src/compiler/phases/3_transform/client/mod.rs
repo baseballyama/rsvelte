@@ -3,7 +3,9 @@
 //! Generates JavaScript code for browser execution.
 
 mod state;
+pub mod utils;
 mod visitor;
+pub mod visitors;
 
 use state::{
     AwaitBlockInfo, BindThisComponent, ChildPart, ComponentWithBinding, ComponentWithChildren,
@@ -28,6 +30,7 @@ use super::js_ast::{
     nodes::{JsExpr, JsObjectMember, JsPattern, JsStatement},
     normalize_js,
 };
+use super::shared::{escape_attr, escape_html, is_void_element};
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, Component, EachBlock,
     ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, RegularElement, RenderTag, Root,
@@ -4127,42 +4130,6 @@ fn parse_numeric_expr(s: &str) -> Option<i64> {
     }
 
     None
-}
-
-/// Escape HTML special characters.
-fn escape_html(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-}
-
-/// Escape attribute value special characters.
-fn escape_attr(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('"', "&quot;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-}
-
-/// Check if an element is a void element.
-fn is_void_element(name: &str) -> bool {
-    matches!(
-        name,
-        "area"
-            | "base"
-            | "br"
-            | "col"
-            | "embed"
-            | "hr"
-            | "img"
-            | "input"
-            | "link"
-            | "meta"
-            | "param"
-            | "source"
-            | "track"
-            | "wbr"
-    )
 }
 
 /// Extract imports from script content.

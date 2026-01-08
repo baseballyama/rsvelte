@@ -2,8 +2,9 @@
 //!
 //! Generates JavaScript code for server-side rendering (SSR).
 
-use super::TransformError;
-use super::js_ast::normalize_js;
+use super::super::TransformError;
+use super::super::js_ast::normalize_js;
+use super::super::shared::{escape_attr, escape_html, is_void_element};
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, BindDirective,
     Component, EachBlock, ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, RegularElement,
@@ -11,6 +12,8 @@ use crate::ast::template::{
 };
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
+
+use std::collections::HashMap;
 
 /// Transform a component analysis into server-side JavaScript.
 ///
@@ -42,8 +45,6 @@ pub fn transform_server(
 
     Ok(generator.build())
 }
-
-use std::collections::HashMap;
 
 /// A snippet definition.
 #[derive(Debug)]
@@ -1361,18 +1362,14 @@ export default function {component_name}($$renderer{props_param}) {{}}"#,
 /// Detect if script uses the spread pattern for $props(): `let props = $props()`
 /// This requires a different transformation with $$renderer.component() wrapper.
 fn detect_props_spread_pattern(script: &str) -> bool {
-    // Look for patterns like "let props = $props()" or "let xxx = $props()"
     for line in script.lines() {
         let trimmed = line.trim();
         if (trimmed.starts_with("let ") || trimmed.starts_with("const "))
             && trimmed.contains("= $props()")
         {
-            // Check if it's a simple assignment (not destructuring)
-            // e.g., "let props = $props()" not "let { a, b } = $props()"
             let parts: Vec<&str> = trimmed.splitn(2, '=').collect();
             if parts.len() == 2 {
                 let left = parts[0].trim();
-                // If left side is just "let varname" (no braces), it's a spread pattern
                 if !left.contains('{') && !left.contains('[') {
                     return true;
                 }
@@ -1383,22 +1380,18 @@ fn detect_props_spread_pattern(script: &str) -> bool {
 }
 
 /// Transform script code to use proper destructuring for props spread pattern.
-/// Converts `let props = $$props` to `let { $$slots, $$events, ...props } = $$props`
 fn transform_props_spread(script: &str) -> String {
     let mut result = String::new();
 
     for line in script.lines() {
         let trimmed = line.trim();
 
-        // Check for `let xxx = $$props` pattern
         if (trimmed.starts_with("let ") || trimmed.starts_with("const "))
             && trimmed.contains("= $$props")
         {
-            // Extract the variable name
             let parts: Vec<&str> = trimmed.splitn(2, '=').collect();
             if parts.len() == 2 {
                 let left = parts[0].trim();
-                // Remove let/const prefix to get var name
                 let var_name = if let Some(stripped) = left.strip_prefix("let ") {
                     stripped.trim()
                 } else if let Some(stripped) = left.strip_prefix("const ") {
@@ -1407,7 +1400,6 @@ fn transform_props_spread(script: &str) -> String {
                     left
                 };
 
-                // Transform to destructuring pattern
                 result.push_str(&format!(
                     "\t\tlet {{ $$slots, $$events, ...{} }} = $$props;\n",
                     var_name
@@ -1416,13 +1408,11 @@ fn transform_props_spread(script: &str) -> String {
             }
         }
 
-        // Keep other lines with adjusted indentation (add extra tab for wrapper)
         if !trimmed.is_empty() {
             result.push_str(&format!("\t\t{}\n", trimmed));
         }
     }
 
-    // Remove trailing newline
     if result.ends_with('\n') {
         result.pop();
     }
@@ -1431,21 +1421,17 @@ fn transform_props_spread(script: &str) -> String {
 }
 
 /// Extract constant variable bindings from script content.
-/// A constant is a `let` or `const` with a simple string/number literal value
-/// that doesn't use $state(), $derived(), or other runes.
 fn extract_constant_vars(script: &str) -> HashMap<String, String> {
     let mut constants = HashMap::new();
 
     for line in script.lines() {
         let trimmed = line.trim();
 
-        // Skip lines with runes - these are reactive
         if trimmed.contains("$state") || trimmed.contains("$derived") || trimmed.contains("$props")
         {
             continue;
         }
 
-        // Look for `let name = 'value'` or `const name = 'value'` patterns
         let decl_start = if trimmed.starts_with("let ") {
             Some(4)
         } else if trimmed.starts_with("const ") {
@@ -1460,7 +1446,6 @@ fn extract_constant_vars(script: &str) -> HashMap<String, String> {
                 let name = rest[..eq_idx].trim();
                 let value = rest[eq_idx + 1..].trim().trim_end_matches(';');
 
-                // Only extract simple string literals
                 if (value.starts_with('\'') && value.ends_with('\''))
                     || (value.starts_with('"') && value.ends_with('"'))
                 {
@@ -1476,11 +1461,8 @@ fn extract_constant_vars(script: &str) -> HashMap<String, String> {
 
 /// Result of constant folding.
 enum ConstantFoldResult {
-    /// Expression is null/undefined - should be omitted
     Null,
-    /// Expression is a constant value (content without quotes)
     Constant(String),
-    /// Expression cannot be folded - needs runtime evaluation
     Dynamic,
 }
 
@@ -1488,12 +1470,10 @@ enum ConstantFoldResult {
 fn try_constant_fold_full(expr: &str) -> ConstantFoldResult {
     let trimmed = expr.trim();
 
-    // Handle null literal
     if trimmed == "null" || trimmed == "undefined" {
         return ConstantFoldResult::Null;
     }
 
-    // Handle number literals
     if let Ok(n) = trimmed.parse::<i64>() {
         return ConstantFoldResult::Constant(n.to_string());
     }
@@ -1501,37 +1481,28 @@ fn try_constant_fold_full(expr: &str) -> ConstantFoldResult {
         return ConstantFoldResult::Constant(n.to_string());
     }
 
-    // Check for string literals - these can be output directly
     if (trimmed.starts_with('\'') && trimmed.ends_with('\''))
         || (trimmed.starts_with('"') && trimmed.ends_with('"'))
     {
-        // Extract content without quotes
         let content = &trimmed[1..trimmed.len() - 1];
         return ConstantFoldResult::Constant(content.to_string());
     }
 
-    // Handle nullish coalescing: X ?? Y
     if let Some(idx) = trimmed.find("??") {
         let left = trimmed[..idx].trim();
         let right = trimmed[idx + 2..].trim();
 
-        // Recursively fold left side
         match try_constant_fold_full(left) {
             ConstantFoldResult::Null => {
-                // Left is null, evaluate right
                 return try_constant_fold_full(right);
             }
             ConstantFoldResult::Constant(val) => {
-                // Left is a non-null constant, use it
                 return ConstantFoldResult::Constant(val);
             }
-            ConstantFoldResult::Dynamic => {
-                // Left is dynamic, can't fold
-            }
+            ConstantFoldResult::Dynamic => {}
         }
     }
 
-    // Handle Math functions
     if trimmed.starts_with("Math.") {
         if let Some(result) = eval_math_expr(trimmed) {
             return ConstantFoldResult::Constant(result);
@@ -1635,45 +1606,7 @@ fn parse_numeric_expr(s: &str) -> Option<i64> {
     None
 }
 
-/// Escape HTML special characters.
-fn escape_html(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-}
-
-/// Escape attribute value special characters.
-fn escape_attr(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('"', "&quot;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-}
-
-/// Check if an element is a void element.
-fn is_void_element(name: &str) -> bool {
-    matches!(
-        name,
-        "area"
-            | "base"
-            | "br"
-            | "col"
-            | "embed"
-            | "hr"
-            | "img"
-            | "input"
-            | "link"
-            | "meta"
-            | "param"
-            | "source"
-            | "track"
-            | "wbr"
-    )
-}
-
 /// Extract import statements from script content.
-/// Returns (imports, rest) where imports is a Vec of import statements
-/// and rest is the remaining script content.
 fn extract_imports(script: &str) -> (Vec<String>, String) {
     let mut imports = Vec::new();
     let mut rest = String::new();
@@ -1681,16 +1614,13 @@ fn extract_imports(script: &str) -> (Vec<String>, String) {
     for line in script.lines() {
         let trimmed = line.trim();
         if trimmed.starts_with("import ") || trimmed.starts_with("import{") {
-            // This is an import statement - add to imports (without indentation)
             imports.push(trimmed.to_string());
         } else {
-            // Regular line - keep in rest
             rest.push_str(line);
             rest.push('\n');
         }
     }
 
-    // Trim trailing newline
     if rest.ends_with('\n') {
         rest.pop();
     }
@@ -1699,55 +1629,36 @@ fn extract_imports(script: &str) -> (Vec<String>, String) {
 }
 
 /// Transform script content for server-side rendering.
-/// - Replaces `$props()` with `$$props`
-/// - Replaces `$state(x)` with `x`
-/// - Replaces `$derived(x)` with `x`
-/// - Replaces `$derived.by(x)` with `x`
 fn transform_script_content(script: &str) -> String {
-    // First, transform the entire script to handle multi-line patterns
     let script = script.replace("$props()", "$$props");
-
-    // Transform $state(x) to x - handles multi-line patterns
     let script = transform_rune_call_multiline(&script, "$state(");
-
-    // Transform $derived.by(x) to x - must come before $derived(
     let script = transform_rune_call_multiline(&script, "$derived.by(");
-
-    // Transform $derived(x) to x
     let script = transform_rune_call_multiline(&script, "$derived(");
 
-    // Now process line by line for formatting
     let mut result = String::new();
     let lines: Vec<&str> = script.lines().collect();
 
     for line in lines {
         let trimmed = line.trim();
 
-        // Skip empty lines at the start
         if result.is_empty() && trimmed.is_empty() {
             continue;
         }
 
-        // Basic formatting fixes
         let line = format_js_line(line);
-
-        // Add semicolons to statements that need them (ASI fix)
         let line = add_statement_semicolon(&line);
 
-        // Normalize indentation to tabs
         if line.starts_with('\t') {
             result.push_str(&line);
         } else if trimmed.is_empty() {
-            // Empty line - just add a blank line
+            // Empty line
         } else {
-            // Strip leading spaces and add tab
             result.push('\t');
             result.push_str(trimmed);
         }
         result.push('\n');
     }
 
-    // Remove trailing newline
     if result.ends_with('\n') {
         result.pop();
     }
@@ -1755,7 +1666,6 @@ fn transform_script_content(script: &str) -> String {
     result
 }
 
-/// Basic formatting for JS lines - add spaces around operators
 fn format_js_line(line: &str) -> String {
     let mut result = String::new();
     let chars: Vec<char> = line.chars().collect();
@@ -1766,7 +1676,6 @@ fn format_js_line(line: &str) -> String {
     while i < chars.len() {
         let c = chars[i];
 
-        // Track string state
         if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
             if !in_string {
                 in_string = true;
@@ -1776,14 +1685,12 @@ fn format_js_line(line: &str) -> String {
             }
         }
 
-        // Don't modify content inside strings
         if in_string {
             result.push(c);
             i += 1;
             continue;
         }
 
-        // Add space around = in assignments (but not == or ===, +=, -=, *=, /=, =>)
         if c == '=' {
             let next = chars.get(i + 1).copied();
             let prev = if !result.is_empty() {
@@ -1792,10 +1699,9 @@ fn format_js_line(line: &str) -> String {
                 None
             };
 
-            // Check if this is == or === or =>
-            if next == Some('=') || next == Some('>') {
-                result.push(c);
-            } else if prev == Some('=')
+            if next == Some('=')
+                || next == Some('>')
+                || prev == Some('=')
                 || prev == Some('!')
                 || prev == Some('<')
                 || prev == Some('>')
@@ -1808,10 +1714,8 @@ fn format_js_line(line: &str) -> String {
                 || prev == Some('|')
                 || prev == Some('^')
             {
-                // Part of ==, !=, <=, >=, +=, -=, *=, /=, %=, &=, |=, ^=
                 result.push(c);
             } else {
-                // Regular assignment - ensure spaces
                 if prev != Some(' ') {
                     result.push(' ');
                 }
@@ -1824,7 +1728,6 @@ fn format_js_line(line: &str) -> String {
             continue;
         }
 
-        // Add space before { in function declarations
         if c == '{' {
             let prev = if !result.is_empty() {
                 result.chars().last()
@@ -1846,8 +1749,6 @@ fn format_js_line(line: &str) -> String {
     result
 }
 
-/// Transform rune calls that may span multiple lines.
-/// Handles patterns like $state(x), $derived(x), $derived.by(x).
 fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
     let mut result = String::new();
     let chars: Vec<char> = script.chars().collect();
@@ -1856,11 +1757,9 @@ fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
     let mut i = 0;
 
     while i < chars.len() {
-        // Check for the prefix
         if i + prefix_len <= chars.len() {
             let potential: String = chars[i..i + prefix_len].iter().collect();
             if potential == prefix {
-                // Find the matching closing paren
                 let mut depth = 1;
                 let start = i + prefix_len;
                 let mut end = start;
@@ -1870,7 +1769,6 @@ fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
                 while end < chars.len() && depth > 0 {
                     let c = chars[end];
 
-                    // Track string state to avoid counting parens inside strings
                     if (c == '"' || c == '\'' || c == '`') && (end == 0 || chars[end - 1] != '\\') {
                         if !in_string {
                             in_string = true;
@@ -1892,17 +1790,12 @@ fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
                     }
                 }
 
-                // Extract the inner expression
                 let inner: String = chars[start..end].iter().collect();
                 let trimmed_inner = inner.trim();
 
-                // Check if this is a class field pattern: `= $rune()`
-                // When inner is empty, check if we need to remove the `= ` before it
                 if trimmed_inner.is_empty() {
-                    // Look back to see if there's " = " before the rune call
                     let result_trimmed = result.trim_end();
                     if result_trimmed.ends_with('=') {
-                        // Remove the trailing " = " or "= "
                         while result.ends_with('=') || result.ends_with(' ') {
                             result.pop();
                         }
@@ -1911,7 +1804,7 @@ fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
                     result.push_str(&inner);
                 }
 
-                i = end + 1; // Skip past the closing paren
+                i = end + 1;
                 continue;
             }
         }
@@ -1923,17 +1816,13 @@ fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
     result
 }
 
-/// Add semicolons to statements that need them (ASI fix).
-/// This is a heuristic approach for common patterns.
 fn add_statement_semicolon(line: &str) -> String {
     let trimmed = line.trim();
 
-    // Skip empty lines
     if trimmed.is_empty() {
         return line.to_string();
     }
 
-    // Lines that already have proper termination
     if trimmed.ends_with(';')
         || trimmed.ends_with('{')
         || trimmed.ends_with('}')
@@ -1942,9 +1831,6 @@ fn add_statement_semicolon(line: &str) -> String {
         return line.to_string();
     }
 
-    // Lines that look like statements needing semicolons:
-    // - Variable declarations: const/let/var ... ending with )
-    // - Assignments ending with )
     if (trimmed.starts_with("const ") || trimmed.starts_with("let ") || trimmed.starts_with("var "))
         && trimmed.ends_with(')')
     {
@@ -1955,21 +1841,15 @@ fn add_statement_semicolon(line: &str) -> String {
 }
 
 /// Transform class fields with $derived runes for server-side.
-/// Server-side:
-/// - `$state` fields are transformed to plain values (already handled by transform_rune_call_multiline)
-/// - `$derived` fields become private fields with getter/setter
 fn transform_class_fields_server(script: &str) -> String {
-    // Check if script contains a class with $derived fields
     if !script.contains("class ") || !script.contains("$derived") {
         return script.to_string();
     }
 
-    // Find the class body
     let Some(class_pos) = script.find("class ") else {
         return script.to_string();
     };
 
-    // Find the opening brace of the class
     let after_class = &script[class_pos..];
     let Some(brace_pos) = after_class.find('{') else {
         return script.to_string();
@@ -1977,7 +1857,6 @@ fn transform_class_fields_server(script: &str) -> String {
 
     let class_header = &after_class[..brace_pos + 1];
 
-    // Find matching closing brace
     let class_body_start = class_pos + brace_pos + 1;
     let mut brace_depth = 1;
     let mut class_body_end = class_body_start;
@@ -1998,7 +1877,6 @@ fn transform_class_fields_server(script: &str) -> String {
 
     let class_body = &script[class_body_start..class_body_end];
 
-    // Parse class fields with $derived
     #[derive(Debug)]
     struct DerivedField {
         name: String,
@@ -2015,7 +1893,6 @@ fn transform_class_fields_server(script: &str) -> String {
     for line in class_body.lines() {
         let trimmed = line.trim();
 
-        // Track constructor
         if trimmed.contains("constructor(") {
             in_constructor = true;
             constructor_lines.push(trimmed.to_string());
@@ -2042,20 +1919,16 @@ fn transform_class_fields_server(script: &str) -> String {
             continue;
         }
 
-        // Check for $derived field
         if trimmed.contains("= $derived(") || trimmed.contains("=$derived(") {
-            // Parse the field
             let is_private = trimmed.starts_with('#');
             if let Some(eq_pos) = trimmed.find('=') {
                 let name = trimmed[..eq_pos].trim().trim_start_matches('#').to_string();
 
-                // Find the derived value
                 let derived_pattern = "$derived(";
                 if let Some(derived_pos) = trimmed.find(derived_pattern) {
                     let value_start = derived_pos + derived_pattern.len();
                     let after_paren = &trimmed[value_start..];
 
-                    // Find matching closing paren
                     if let Some(value_end) = find_matching_paren_server(after_paren) {
                         let value = after_paren[..value_end].to_string();
                         derived_fields.push(DerivedField {
@@ -2069,7 +1942,6 @@ fn transform_class_fields_server(script: &str) -> String {
             }
         }
 
-        // Other lines
         if !trimmed.is_empty() {
             other_lines.push(trimmed.to_string());
         }
@@ -2079,25 +1951,20 @@ fn transform_class_fields_server(script: &str) -> String {
         return script.to_string();
     }
 
-    // Build transformed class body
     let mut new_class_body = String::new();
 
-    // Add non-derived fields first
     for line in &other_lines {
         new_class_body.push_str(&format!("\t\t{}\n", line));
     }
 
-    // Add derived fields with getter/setter
     for field in &derived_fields {
         let private_name = format!("#{}", field.name);
 
-        // Private field with $.derived
         new_class_body.push_str(&format!(
             "\t\t{} = $.derived(() => ({}));\n",
             private_name, field.value
         ));
 
-        // Add getter/setter only for public fields
         if !field.is_private {
             new_class_body.push('\n');
             new_class_body.push_str(&format!(
@@ -2112,7 +1979,6 @@ fn transform_class_fields_server(script: &str) -> String {
         }
     }
 
-    // Add constructor
     if !constructor_lines.is_empty() {
         new_class_body.push('\n');
         for line in &constructor_lines {
@@ -2120,9 +1986,8 @@ fn transform_class_fields_server(script: &str) -> String {
         }
     }
 
-    // Build the final result
     let before_class = &script[..class_pos];
-    let after_class_body = &script[class_body_end + 1..]; // Skip closing brace
+    let after_class_body = &script[class_body_end + 1..];
 
     format!(
         "{}{}\n{}\t}}{}",
@@ -2130,7 +1995,6 @@ fn transform_class_fields_server(script: &str) -> String {
     )
 }
 
-/// Find matching parenthesis (for server-side parsing)
 fn find_matching_paren_server(s: &str) -> Option<usize> {
     let mut depth = 1;
     for (i, c) in s.char_indices() {
