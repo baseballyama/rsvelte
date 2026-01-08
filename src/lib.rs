@@ -23,7 +23,7 @@ pub mod error;
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
-pub use compiler::phases::phase1_parse::legacy::convert_to_legacy;
+pub use compiler::legacy::convert_to_legacy;
 #[cfg(not(feature = "native"))]
 pub use compiler::phases::phase1_parse::{ParseOptions, parse};
 #[cfg(feature = "native")]

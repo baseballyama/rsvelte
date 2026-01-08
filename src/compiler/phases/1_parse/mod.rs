@@ -8,17 +8,52 @@
 //! - **High performance**: Zero-copy parsing where possible, efficient memory layout
 //! - **Thread safety**: Parser state is isolated, enabling parallel parsing of multiple files
 //! - **Compatibility**: Output matches the official Svelte compiler's AST format
+//!
+//! # Directory Structure
+//!
+//! The directory structure mirrors the official Svelte compiler
+//! (`svelte/packages/svelte/src/compiler/phases/1-parse/`):
+//!
+//! ```text
+//! 1_parse/
+//! ├── mod.rs              # Public API: parse(), ParseOptions
+//! ├── parser.rs           # Parser struct + helper methods
+//! ├── read/               # Reading specific constructs
+//! │   ├── mod.rs
+//! │   ├── expression.rs   # Expression parsing (uses OXC)
+//! │   ├── script.rs       # parse_script_tag()
+//! │   ├── style.rs        # parse_style_tag() + CSS parsing
+//! │   └── options.rs      # parse_svelte_options()
+//! ├── state/              # Parser state machines
+//! │   ├── mod.rs
+//! │   ├── element.rs      # Element parsing, attributes, directives
+//! │   ├── fragment.rs     # parse_fragment(), parse_node() dispatcher
+//! │   ├── tag.rs          # Mustache tags, blocks (if/each/await/key/snippet)
+//! │   └── text.rs         # Text node parsing
+//! └── utils/              # Utility functions
+//!     ├── mod.rs
+//!     ├── html.rs         # is_void_element(), etc.
+//!     └── lexer.rs        # Tokenization and HTML entity decoding
+//! ```
+//!
+//! Note: Legacy AST conversion is in `compiler/legacy.rs` (matches Svelte's
+//! `svelte/packages/svelte/src/compiler/legacy.js`).
 
-pub mod css;
-mod expression;
-pub mod legacy;
-mod lexer;
+mod parser;
+mod read;
 mod state;
+pub(crate) mod utils;
+
+// Re-export CSS parsing for external use
+pub use read::style::parse_css;
+
+// Re-export expression from read module
+pub(crate) use read::expression;
 
 use crate::ast::Root;
 use crate::error::ParseResult;
 
-pub use state::Parser;
+pub use parser::Parser;
 
 /// Parse options.
 #[derive(Debug, Clone, Default)]
@@ -60,4 +95,63 @@ where
             (filename, parse(source, opts))
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ast::template::TemplateNode;
+
+    #[test]
+    fn test_parse_text() {
+        let mut parser = Parser::new("hello world", ParseOptions::default());
+        let result = parser.parse().unwrap();
+
+        assert_eq!(result.fragment.nodes.len(), 1);
+        match &result.fragment.nodes[0] {
+            TemplateNode::Text(text) => {
+                assert_eq!(text.data.as_str(), "hello world");
+                assert_eq!(text.raw.as_str(), "hello world");
+            }
+            _ => panic!("Expected Text node"),
+        }
+    }
+
+    #[test]
+    fn test_parse_empty() {
+        let mut parser = Parser::new("", ParseOptions::default());
+        let result = parser.parse().unwrap();
+
+        assert!(result.fragment.nodes.is_empty());
+    }
+
+    #[test]
+    fn test_parse_element() {
+        let mut parser = Parser::new("<div>hello</div>", ParseOptions::default());
+        let result = parser.parse().unwrap();
+
+        assert_eq!(result.fragment.nodes.len(), 1);
+        match &result.fragment.nodes[0] {
+            TemplateNode::RegularElement(el) => {
+                assert_eq!(el.name.as_str(), "div");
+                assert_eq!(el.fragment.nodes.len(), 1);
+            }
+            _ => panic!("Expected RegularElement node"),
+        }
+    }
+
+    #[test]
+    fn test_parse_if_block() {
+        let mut parser = Parser::new("{#if foo}bar{/if}", ParseOptions::default());
+        let result = parser.parse().unwrap();
+
+        assert_eq!(result.fragment.nodes.len(), 1);
+        match &result.fragment.nodes[0] {
+            TemplateNode::IfBlock(block) => {
+                assert!(!block.elseif);
+                assert_eq!(block.consequent.nodes.len(), 1);
+            }
+            _ => panic!("Expected IfBlock node"),
+        }
+    }
 }

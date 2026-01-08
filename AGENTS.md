@@ -52,17 +52,30 @@ src/
 │   ├── template.rs     # Svelte template nodes
 │   ├── js.rs           # JavaScript expression wrapper
 │   └── css.rs          # CSS stylesheet types
-├── compiler/           # Compiler implementation
+├── compiler/           # Compiler implementation (Svelte: compiler/)
 │   ├── mod.rs          # Public API: compile()
+│   ├── legacy.rs       # Legacy AST conversion (Svelte: compiler/legacy.js)
 │   └── phases/         # Compiler phases (matching Svelte's 1-parse, 2-analyze, 3-transform)
 │       ├── mod.rs
 │       ├── 1_parse/            # Phase 1: Parsing (Svelte: 1-parse/)
 │       │   ├── mod.rs          # Public API: parse(), parse_parallel()
-│       │   ├── css.rs          # CSS parsing
-│       │   ├── expression.rs   # Expression parsing
-│       │   ├── lexer.rs        # Tokenization utilities
-│       │   ├── legacy.rs       # Legacy AST conversion (Svelte 4 format)
-│       │   └── state.rs        # Parser state machine
+│       │   ├── parser.rs       # Parser struct + helper methods
+│       │   ├── read/           # Reading specific constructs
+│       │   │   ├── mod.rs
+│       │   │   ├── expression.rs # Expression parsing (uses OXC)
+│       │   │   ├── script.rs   # parse_script_tag()
+│       │   │   ├── style.rs    # parse_style_tag() + CSS parsing
+│       │   │   └── options.rs  # parse_svelte_options()
+│       │   ├── state/          # Parser state machines
+│       │   │   ├── mod.rs
+│       │   │   ├── element.rs  # Element/attribute/directive parsing
+│       │   │   ├── fragment.rs # parse_fragment(), parse_node()
+│       │   │   ├── tag.rs      # Mustache tags, blocks (if/each/await/key/snippet)
+│       │   │   └── text.rs     # Text node parsing
+│       │   └── utils/          # Utility functions
+│       │       ├── mod.rs
+│       │       ├── html.rs     # is_void_element(), etc.
+│       │       └── lexer.rs    # Tokenization and HTML entity decoding
 │       ├── 2_analyze/          # Phase 2: Analysis (Svelte: 2-analyze/)
 │       │   ├── mod.rs
 │       │   ├── scope.rs        # Scope/Binding definitions
@@ -144,7 +157,16 @@ cargo bench
 ### Adding Parser Features
 
 1. Check the Svelte parser implementation in `svelte/packages/svelte/src/compiler/phases/1-parse/`
-2. Implement the corresponding feature in `src/compiler/phases/1_parse/state.rs`
+2. Implement the corresponding feature in the appropriate module:
+   - `parser.rs` - Parser struct and basic helpers
+   - `state/fragment.rs` - Entry point and node dispatch
+   - `state/element.rs` - Element, attribute, directive parsing
+   - `state/tag.rs` - Mustache tags and blocks (if/each/await/key/snippet)
+   - `state/text.rs` - Text node parsing
+   - `read/script.rs` - Script tag parsing
+   - `read/style.rs` - Style tag parsing
+   - `read/options.rs` - svelte:options parsing
+   - `utils/html.rs` - HTML utility functions
 3. Run fixture tests to verify compatibility
 4. Use `scripts/compare-parsers.mjs` for debugging differences
 

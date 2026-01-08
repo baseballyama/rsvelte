@@ -10,6 +10,20 @@
 //! 2. **Phase 2: Analyze** - Semantic analysis (scopes, bindings, reactivity)
 //! 3. **Phase 3: Transform** - Code generation for client/server
 //!
+//! ## Directory Structure
+//!
+//! This directory mirrors the official Svelte compiler structure:
+//!
+//! ```text
+//! compiler/
+//! ├── mod.rs          # Public API: compile(), types
+//! ├── legacy.rs       # Legacy AST conversion (Svelte 4 format)
+//! └── phases/         # Compiler phases
+//!     ├── 1_parse/    # Parse source to AST
+//!     ├── 2_analyze/  # Semantic analysis
+//!     └── 3_transform/# Code generation
+//! ```
+//!
 //! ## Usage
 //!
 //! ```rust,ignore
@@ -24,6 +38,7 @@
 //! println!("{}", result.js.code);
 //! ```
 
+pub mod legacy;
 pub mod phases;
 
 use serde::{Deserialize, Serialize};
