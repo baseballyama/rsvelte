@@ -5,8 +5,8 @@
 
 use wasm_bindgen::prelude::*;
 
+use crate::compiler::phases::phase1_parse::{ParseOptions, parse};
 use crate::compiler::{CompileOptions, CssMode, GenerateMode, compile};
-use crate::parser::{ParseOptions, parse};
 
 /// Initialize panic hook for better error messages in the browser console.
 #[wasm_bindgen(start)]

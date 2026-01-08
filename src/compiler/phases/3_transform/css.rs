@@ -3,6 +3,7 @@
 //! Generates scoped CSS stylesheets with selector scoping.
 //! Preserves original whitespace from source using AST positions.
 
+use super::super::phase1_parse::css::parse_css;
 use super::{CssOutput, TransformError};
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
@@ -53,7 +54,7 @@ pub fn render_stylesheet(
     // Extract CSS content and its start position
     if let Some((css_content, css_start)) = extract_css_content(source) {
         // Parse the CSS with proper start offset
-        let children = crate::parser::css::parse_css(&css_content, css_start);
+        let children = parse_css(&css_content, css_start);
 
         // Collect keyframe names for animation value replacement
         let keyframes = collect_keyframe_names(&children);
@@ -1331,7 +1332,7 @@ mod tests {
 </style>"#;
 
         if let Some((css_content, css_start)) = extract_css_content(input) {
-            let children = crate::parser::css::parse_css(&css_content, css_start);
+            let children = parse_css(&css_content, css_start);
             println!("CSS Children: {:?}", children);
 
             let hash = "svelte-test";
@@ -1366,7 +1367,7 @@ mod tests {
 </style>"#;
 
         if let Some((css_content, css_start)) = extract_css_content(input) {
-            let children = crate::parser::css::parse_css(&css_content, css_start);
+            let children = parse_css(&css_content, css_start);
             println!("CSS AST: {:#?}", children);
 
             let hash = "svelte-test";

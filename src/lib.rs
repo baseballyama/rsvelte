@@ -23,12 +23,9 @@ pub mod error;
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
-// Re-export parser module from compiler::phases::phase1_parse for convenience
-pub use compiler::phases::phase1_parse as parser;
-
-pub use compiler::{CompileError, CompileOptions, CompileResult, GenerateMode, compile};
-pub use parser::legacy::convert_to_legacy;
+pub use compiler::phases::phase1_parse::legacy::convert_to_legacy;
 #[cfg(not(feature = "native"))]
-pub use parser::{ParseOptions, parse};
+pub use compiler::phases::phase1_parse::{ParseOptions, parse};
 #[cfg(feature = "native")]
-pub use parser::{ParseOptions, parse, parse_parallel};
+pub use compiler::phases::phase1_parse::{ParseOptions, parse, parse_parallel};
+pub use compiler::{CompileError, CompileOptions, CompileResult, GenerateMode, compile};

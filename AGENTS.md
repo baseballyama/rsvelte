@@ -99,6 +99,7 @@ scripts/
 5. **Testing**: Direct comparison with Svelte's output.json fixtures
 6. **No Double Parsing**: AST from Phase 1 is passed to Phase 3 (eliminates 20-30% overhead)
 7. **Scope Analysis**: ScopeBuilder walks AST to create scope tree with bindings
+8. **No Backward Compatibility**: This project does not maintain backward compatibility for internal APIs. Refactoring and restructuring are encouraged to keep the codebase clean and aligned with the official Svelte compiler structure.
 
 ## Development Guidelines
 
