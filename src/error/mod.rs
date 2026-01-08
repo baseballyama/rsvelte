@@ -1,11 +1,14 @@
 //! Error types for the Svelte parser.
 
+// The unused_assignments warning is a false positive from thiserror macro expansion
+// in newer Rust versions (1.92+). The fields are used in #[error(...)] format strings.
+#![allow(unused_assignments)]
+
 use miette::Diagnostic;
 use thiserror::Error;
 
 /// A parse error.
 #[derive(Debug, Error, Diagnostic)]
-#[allow(unused)] // Fields are used by thiserror macros
 pub enum ParseError {
     #[error("Unexpected end of input")]
     #[diagnostic(code(svelte::parse::unexpected_eof))]
