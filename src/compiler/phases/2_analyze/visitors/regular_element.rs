@@ -5,12 +5,13 @@
 //! Corresponds to Svelte's `2-analyze/visitors/RegularElement.js`.
 
 use super::super::AnalysisError;
-use super::super::types::ElementInfo;
+use super::super::types::{CssDomElement, ElementInfo};
 use super::VisitorContext;
 use super::shared::a11y::check_element as a11y_check;
 use super::shared::element::validate_element;
 use super::shared::fragment;
 use crate::ast::template::{Attribute, RegularElement};
+use std::collections::HashSet;
 
 /// Visit a regular element.
 pub fn visit(element: &RegularElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
@@ -25,6 +26,11 @@ pub fn visit(element: &RegularElement, context: &mut VisitorContext) -> Result<(
         .attributes
         .iter()
         .any(|attr| matches!(attr, Attribute::SpreadAttribute(_)));
+
+    // If element has spread attributes, classes could come from spread
+    if has_spread {
+        context.analysis.css.has_dynamic_classes = true;
+    }
 
     let has_dynamic_attributes = element.attributes.iter().any(|attr| match attr {
         Attribute::Attribute(a) => {
@@ -51,14 +57,22 @@ pub fn visit(element: &RegularElement, context: &mut VisitorContext) -> Result<(
         .used_elements
         .insert(element.name.to_string());
 
+    // Collect class names and id for DOM structure
+    let mut classes = HashSet::new();
+    let mut id = None;
+
     // Extract class and id values from attributes
     for attr in &element.attributes {
         match attr {
             Attribute::Attribute(attr_node) => {
                 if attr_node.name == "class" {
                     extract_classes_from_value(&attr_node.value, context);
+                    // Also collect for DOM structure
+                    collect_classes_from_value(&attr_node.value, &mut classes);
                 } else if attr_node.name == "id" {
                     extract_id_from_value(&attr_node.value, context);
+                    // Also collect for DOM structure
+                    id = collect_id_from_value(&attr_node.value);
                 }
             }
             Attribute::ClassDirective(class_dir) => {
@@ -67,17 +81,46 @@ pub fn visit(element: &RegularElement, context: &mut VisitorContext) -> Result<(
                     .css
                     .used_classes
                     .insert(class_dir.name.to_string());
+                classes.insert(class_dir.name.to_string());
             }
             _ => {}
         }
+    }
+
+    // Add element to DOM structure for CSS selector matching
+    let parent_idx = context.current_parent_idx();
+    let is_root_child = parent_idx.is_none();
+
+    let dom_element = CssDomElement {
+        tag_name: element.name.to_string(),
+        classes,
+        id,
+        parent_idx,
+        children_idx: Vec::new(),
+        is_root_child,
+    };
+
+    let element_idx = context.add_dom_element(dom_element);
+
+    // Update parent's children list
+    if let Some(parent_idx) = parent_idx {
+        context.analysis.css.dom_structure.elements[parent_idx]
+            .children_idx
+            .push(element_idx);
     }
 
     // Save parent element and set new one
     let old_parent = context.parent_element.clone();
     context.parent_element = Some(element.name.to_string());
 
+    // Push current element to stack for children
+    context.dom_element_stack.push(element_idx);
+
     // Analyze children
     fragment::analyze(&element.fragment, context)?;
+
+    // Pop from stack
+    context.dom_element_stack.pop();
 
     // Restore parent element
     context.parent_element = old_parent;
@@ -137,4 +180,39 @@ fn extract_id_from_value(
             }
         }
     }
+}
+
+/// Collect class names from attribute value for DOM structure.
+fn collect_classes_from_value(
+    value: &crate::ast::template::AttributeValue,
+    classes: &mut HashSet<String>,
+) {
+    use crate::ast::template::{AttributeValue, AttributeValuePart};
+
+    if let AttributeValue::Sequence(parts) = value {
+        for part in parts {
+            if let AttributeValuePart::Text(text) = part {
+                for class in text.data.split_whitespace() {
+                    classes.insert(class.to_string());
+                }
+            }
+        }
+    }
+}
+
+/// Collect ID from attribute value for DOM structure.
+fn collect_id_from_value(value: &crate::ast::template::AttributeValue) -> Option<String> {
+    use crate::ast::template::{AttributeValue, AttributeValuePart};
+
+    if let AttributeValue::Sequence(parts) = value {
+        for part in parts {
+            if let AttributeValuePart::Text(text) = part {
+                let id = text.data.trim();
+                if !id.is_empty() {
+                    return Some(id.to_string());
+                }
+            }
+        }
+    }
+    None
 }

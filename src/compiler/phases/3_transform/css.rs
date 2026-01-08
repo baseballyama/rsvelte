@@ -7,6 +7,7 @@ use super::super::phase1_parse::parse_css;
 use super::{CssOutput, TransformError};
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
+use crate::compiler::phases::phase2_analyze::types::DomStructure;
 use serde_json::Value;
 use std::collections::HashSet;
 
@@ -24,6 +25,8 @@ struct CssContext<'a> {
     has_dynamic_elements: bool,
     /// Whether there are dynamic class expressions
     has_dynamic_classes: bool,
+    /// DOM structure for advanced selector matching
+    dom_structure: &'a DomStructure,
 }
 
 /// Render the stylesheet for a component.
@@ -49,6 +52,7 @@ pub fn render_stylesheet(
         used_ids: &analysis.css.used_ids,
         has_dynamic_elements: analysis.css.has_dynamic_elements,
         has_dynamic_classes: analysis.css.has_dynamic_classes,
+        dom_structure: &analysis.css.dom_structure,
     };
 
     // Extract CSS content and its start position
@@ -185,6 +189,7 @@ fn transform_css(
             &mut specificity_bumped,
             &mut last_end,
             ctx,
+            false, // top-level rules are not nested
         );
     }
 
@@ -211,6 +216,7 @@ fn transform_node_preserving(
     specificity_bumped: &mut bool,
     last_end: &mut usize,
     ctx: &CssContext,
+    is_nested: bool,
 ) {
     match node.get("type").and_then(|t| t.as_str()) {
         Some("Rule") => {
@@ -224,6 +230,7 @@ fn transform_node_preserving(
                 specificity_bumped,
                 last_end,
                 ctx,
+                is_nested,
             );
         }
         Some("Atrule") => {
@@ -324,14 +331,46 @@ fn is_selector_unused(prelude: &Value, ctx: &CssContext) -> bool {
 }
 
 /// Check if a complex selector is unused
-/// A complex selector is unused if ANY of its relative selectors contains
-/// a simple selector that refers to something that doesn't exist in the template.
+/// A complex selector is unused if it doesn't match any element in the template.
 fn is_complex_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
     // Get the relative selectors (like "div > span" has multiple relative selectors)
     if let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array()) {
+        // Check for :host > element pattern
+        if is_host_child_selector_unused(rel_selectors, ctx) {
+            return true;
+        }
+
+        // Check for sibling combinator patterns (+ and ~)
+        if is_sibling_combinator_unused(rel_selectors, ctx) {
+            return true;
+        }
+
+        // Note: Descendant selector unused detection is disabled because it doesn't
+        // account for control flow (snippets, render tags, if/each blocks).
+        // TODO: Implement proper CSS pruning that tracks control flow relationships.
+        // if is_descendant_selector_unused(rel_selectors, ctx) {
+        //     return true;
+        // }
+
+        // Original simple check: if any simple selector refers to something that doesn't exist
         for rel in rel_selectors {
             // Check each simple selector in this relative selector
             if let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) {
+                // Skip :global() and :host pseudo-classes
+                let starts_with_global_or_host = selectors.first().is_some_and(|s| {
+                    let sel_type = s.get("type").and_then(|t| t.as_str());
+                    if sel_type == Some("PseudoClassSelector") {
+                        let name = s.get("name").and_then(|n| n.as_str());
+                        name == Some("global") || name == Some("host")
+                    } else {
+                        false
+                    }
+                });
+
+                if starts_with_global_or_host {
+                    continue;
+                }
+
                 for sel in selectors {
                     // Skip :global() selectors and their contents
                     let sel_type = sel.get("type").and_then(|t| t.as_str());
@@ -349,6 +388,497 @@ fn is_complex_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
             }
         }
     }
+    false
+}
+
+/// Check if a :host > element selector is unused
+/// This is true when the element after :host > is not a direct child of the component root
+fn is_host_child_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
+    if rel_selectors.len() < 2 {
+        return false;
+    }
+
+    // Check if first selector is :host
+    let first = &rel_selectors[0];
+    let first_is_host = first
+        .get("selectors")
+        .and_then(|s| s.as_array())
+        .and_then(|arr| arr.first())
+        .is_some_and(|s| {
+            s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                && s.get("name").and_then(|n| n.as_str()) == Some("host")
+        });
+
+    if !first_is_host {
+        return false;
+    }
+
+    // Check if second selector uses child combinator (>)
+    let second = &rel_selectors[1];
+    let combinator = second
+        .get("combinator")
+        .and_then(|c| c.get("name"))
+        .and_then(|n| n.as_str())
+        .unwrap_or(" ");
+
+    if combinator != ">" {
+        return false;
+    }
+
+    // Get the element type from the second selector
+    if let Some(selectors) = second.get("selectors").and_then(|s| s.as_array()) {
+        for sel in selectors {
+            let sel_type = sel.get("type").and_then(|t| t.as_str());
+            if sel_type == Some("TypeSelector") {
+                if let Some(tag_name) = sel.get("name").and_then(|n| n.as_str()) {
+                    // Universal selector might match
+                    if tag_name == "*" {
+                        return false;
+                    }
+                    // Check if this element is a root child in the DOM structure
+                    let is_root_child = ctx
+                        .dom_structure
+                        .elements
+                        .iter()
+                        .any(|el| el.is_root_child && el.tag_name == tag_name);
+                    if !is_root_child {
+                        return true;
+                    }
+                }
+            } else if sel_type == Some("ClassSelector") {
+                if let Some(class_name) = sel.get("name").and_then(|n| n.as_str()) {
+                    // Check if any root child has this class
+                    let is_root_child_with_class = ctx
+                        .dom_structure
+                        .elements
+                        .iter()
+                        .any(|el| el.is_root_child && el.classes.contains(class_name));
+                    if !is_root_child_with_class {
+                        return true;
+                    }
+                }
+            }
+        }
+    }
+
+    false
+}
+
+/// Check if a sibling combinator selector is unused
+/// A + B or A ~ B is unused if no parent element has children that satisfy the relationship
+fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
+    if rel_selectors.len() < 2 || ctx.dom_structure.elements.is_empty() {
+        return false;
+    }
+
+    // Check if the first selector is :global() - this affects how we check siblings
+    let first_is_global = rel_selectors.first().is_some_and(|rel| {
+        rel.get("selectors")
+            .and_then(|s| s.as_array())
+            .and_then(|arr| arr.first())
+            .is_some_and(|sel| {
+                sel.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                    && sel.get("name").and_then(|n| n.as_str()) == Some("global")
+            })
+    });
+
+    // For :global(X) + Y patterns, check if Y is a root-level element
+    // External elements can only be siblings of root-level component elements
+    if first_is_global && rel_selectors.len() == 2 {
+        let second = &rel_selectors[1];
+        let combinator = second
+            .get("combinator")
+            .and_then(|c| c.get("name"))
+            .and_then(|n| n.as_str())
+            .unwrap_or(" ");
+
+        if combinator == "+" || combinator == "~" {
+            // Check if the second selector matches any root-level element
+            let second_info = extract_selector_info(second);
+
+            // If it's a universal selector, it matches root elements
+            if second_info.is_universal {
+                return false;
+            }
+
+            // Check if any root-level element matches
+            let matches_root = ctx
+                .dom_structure
+                .elements
+                .iter()
+                .any(|el| el.is_root_child && selector_matches_element(&second_info, el));
+
+            return !matches_root; // Unused if no root element matches
+        }
+        return false;
+    }
+
+    // For other :global() patterns, skip the unused check (too complex)
+    if first_is_global {
+        return false;
+    }
+
+    // Check if this selector uses sibling combinators
+    let mut sibling_combinator_found = false;
+    let mut sibling_pairs: Vec<(usize, &str)> = Vec::new(); // (index, combinator)
+
+    for (i, rel) in rel_selectors.iter().enumerate().skip(1) {
+        let combinator = rel
+            .get("combinator")
+            .and_then(|c| c.get("name"))
+            .and_then(|n| n.as_str())
+            .unwrap_or(" ");
+
+        if combinator == "+" || combinator == "~" {
+            sibling_combinator_found = true;
+            sibling_pairs.push((i, combinator));
+        }
+    }
+
+    if !sibling_combinator_found {
+        return false;
+    }
+
+    // For now, handle the simple case: .parent > A + B
+    // where we need to check if .parent has children matching A followed by B
+
+    // First, get all elements that could be the "context" (parent) for the sibling relationship
+    // For simplicity, start with checking if ANY parent has 2+ children
+
+    // Check for the specific pattern: .class > * + * (universal sibling inside a parent)
+    if sibling_pairs.len() == 1 {
+        let (sibling_idx, combinator) = sibling_pairs[0];
+
+        // Get the selector before the sibling combinator
+        let before = &rel_selectors[sibling_idx - 1];
+        // Get the selector after the sibling combinator
+        let after = &rel_selectors[sibling_idx];
+
+        // Extract selector info for before and after
+        let before_info = extract_selector_info(before);
+        let after_info = extract_selector_info(after);
+
+        // If we have a parent context (e.g., .foo > A + B)
+        if sibling_idx >= 2 {
+            // Check the combinator before the sibling pattern
+            let parent_combinator = rel_selectors[sibling_idx - 1]
+                .get("combinator")
+                .and_then(|c| c.get("name"))
+                .and_then(|n| n.as_str())
+                .unwrap_or(" ");
+
+            if parent_combinator == ">" {
+                // Direct child context
+                // Get the parent selector
+                let parent_rel = &rel_selectors[sibling_idx - 2];
+                let parent_info = extract_selector_info(parent_rel);
+
+                // Find matching parent elements
+                for el in &ctx.dom_structure.elements {
+                    if selector_matches_element(&parent_info, el) {
+                        // Check if this parent has children that satisfy the sibling relationship
+                        if has_sibling_match(ctx, el, &before_info, &after_info, combinator) {
+                            return false; // Found a match, not unused
+                        }
+                    }
+                }
+                // No parent found with matching sibling children
+                return true;
+            }
+        }
+
+        // No specific parent context - check all parents for potential sibling children
+        // This is a more permissive check for patterns like "A + B" (without parent context)
+
+        // Check if ANY parent has children satisfying the sibling relationship
+        for el in &ctx.dom_structure.elements {
+            if el.children_idx.len() >= 2 {
+                // Has at least 2 children - potential sibling match
+                if has_sibling_match(ctx, el, &before_info, &after_info, combinator) {
+                    return false; // Found a match, not unused
+                }
+            }
+        }
+
+        // Also check root-level siblings (components can have multiple root children)
+        let root_children: Vec<_> = ctx
+            .dom_structure
+            .elements
+            .iter()
+            .filter(|e| e.is_root_child)
+            .collect();
+
+        if root_children.len() >= 2
+            && has_sibling_match_in_list(ctx, &root_children, &before_info, &after_info, combinator)
+        {
+            return false;
+        }
+
+        // No matching siblings found
+        return true;
+    }
+
+    // For complex cases with multiple sibling combinators, be conservative
+    false
+}
+
+/// Extract selector information from a relative selector
+#[derive(Debug)]
+struct SelectorInfo {
+    tag_name: Option<String>,
+    classes: Vec<String>,
+    id: Option<String>,
+    is_universal: bool,
+}
+
+fn extract_selector_info(rel_selector: &Value) -> SelectorInfo {
+    let mut info = SelectorInfo {
+        tag_name: None,
+        classes: Vec::new(),
+        id: None,
+        is_universal: false,
+    };
+
+    if let Some(selectors) = rel_selector.get("selectors").and_then(|s| s.as_array()) {
+        for sel in selectors {
+            let sel_type = sel.get("type").and_then(|t| t.as_str());
+            match sel_type {
+                Some("TypeSelector") => {
+                    if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                        if name == "*" {
+                            info.is_universal = true;
+                        } else {
+                            info.tag_name = Some(name.to_string());
+                        }
+                    }
+                }
+                Some("ClassSelector") => {
+                    if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                        info.classes.push(name.to_string());
+                    }
+                }
+                Some("IdSelector") => {
+                    if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                        info.id = Some(name.to_string());
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    info
+}
+
+fn selector_matches_element(
+    info: &SelectorInfo,
+    el: &crate::compiler::phases::phase2_analyze::types::CssDomElement,
+) -> bool {
+    // Universal selector matches everything
+    if info.is_universal {
+        return true;
+    }
+
+    // Check tag name
+    if let Some(ref tag) = info.tag_name {
+        if el.tag_name != *tag {
+            return false;
+        }
+    }
+
+    // Check classes
+    for class in &info.classes {
+        if !el.classes.contains(class) {
+            return false;
+        }
+    }
+
+    // Check ID
+    if let Some(ref id) = info.id {
+        if el.id.as_ref() != Some(id) {
+            return false;
+        }
+    }
+
+    // If no selector specified, it matches nothing specific
+    info.tag_name.is_some() || !info.classes.is_empty() || info.id.is_some() || info.is_universal
+}
+
+fn has_sibling_match(
+    ctx: &CssContext,
+    parent: &crate::compiler::phases::phase2_analyze::types::CssDomElement,
+    before: &SelectorInfo,
+    after: &SelectorInfo,
+    combinator: &str,
+) -> bool {
+    // Get children elements
+    let children: Vec<_> = parent
+        .children_idx
+        .iter()
+        .filter_map(|&idx| ctx.dom_structure.elements.get(idx))
+        .collect();
+
+    has_sibling_match_in_list(ctx, &children, before, after, combinator)
+}
+
+fn has_sibling_match_in_list(
+    _ctx: &CssContext,
+    children: &[&crate::compiler::phases::phase2_analyze::types::CssDomElement],
+    before: &SelectorInfo,
+    after: &SelectorInfo,
+    combinator: &str,
+) -> bool {
+    match combinator {
+        "+" => {
+            // Adjacent sibling: A immediately followed by B
+            for i in 0..children.len().saturating_sub(1) {
+                if selector_matches_element(before, children[i])
+                    && selector_matches_element(after, children[i + 1])
+                {
+                    return true;
+                }
+            }
+        }
+        "~" => {
+            // General sibling: A followed by B (not necessarily immediately)
+            for (i, first) in children.iter().enumerate() {
+                if selector_matches_element(before, first) {
+                    for second in children.iter().skip(i + 1) {
+                        if selector_matches_element(after, second) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+
+    false
+}
+
+/// Check if a descendant selector is unused based on DOM structure
+/// Note: Currently unused due to complexity with control flow (snippets, render tags, etc.)
+#[allow(dead_code)]
+fn is_descendant_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
+    if rel_selectors.len() < 2 || ctx.dom_structure.elements.is_empty() {
+        return false;
+    }
+
+    // Check if this uses only descendant/child combinators (not sibling combinators)
+    // If any sibling combinator (~, +) is present, skip this check
+    for rel in rel_selectors.iter().skip(1) {
+        let combinator = rel
+            .get("combinator")
+            .and_then(|c| c.get("name"))
+            .and_then(|n| n.as_str())
+            .unwrap_or(" ");
+        if combinator == "~" || combinator == "+" {
+            return false; // Skip sibling combinators
+        }
+    }
+
+    // Skip if first selector is :host, :global, etc.
+    let first = &rel_selectors[0];
+    let first_is_special = first
+        .get("selectors")
+        .and_then(|s| s.as_array())
+        .and_then(|arr| arr.first())
+        .is_some_and(|s| {
+            let sel_type = s.get("type").and_then(|t| t.as_str());
+            if sel_type == Some("PseudoClassSelector") {
+                let name = s.get("name").and_then(|n| n.as_str());
+                matches!(name, Some("host") | Some("global") | Some("root"))
+            } else {
+                false
+            }
+        });
+
+    if first_is_special {
+        return false;
+    }
+
+    // Get the parent element type (first selector)
+    let parent_tag = get_type_selector_name(&rel_selectors[0]);
+
+    if parent_tag.is_none() {
+        return false;
+    }
+
+    let parent_tag = parent_tag.unwrap();
+
+    // Get the child element type (last selector)
+    let last_idx = rel_selectors.len() - 1;
+    let child_tag = get_type_selector_name(&rel_selectors[last_idx]);
+
+    if child_tag.is_none() {
+        return false;
+    }
+
+    let child_tag = child_tag.unwrap();
+
+    // Check if the parent can contain the child in the DOM structure
+    // Find all elements that match the parent
+    let parent_indices: Vec<usize> = ctx
+        .dom_structure
+        .elements
+        .iter()
+        .enumerate()
+        .filter(|(_, el)| el.tag_name == parent_tag)
+        .map(|(i, _)| i)
+        .collect();
+
+    if parent_indices.is_empty() {
+        // Parent element doesn't exist
+        return false; // Will be caught by simple selector check
+    }
+
+    // Check if any child element is a descendant of any parent element
+    for parent_idx in &parent_indices {
+        if has_descendant_with_tag(ctx, *parent_idx, &child_tag) {
+            return false; // Found a valid parent-child relationship
+        }
+    }
+
+    // No valid parent-child relationship found
+    true
+}
+
+/// Get the type selector name from a relative selector
+#[allow(dead_code)]
+fn get_type_selector_name(rel_selector: &Value) -> Option<String> {
+    rel_selector
+        .get("selectors")
+        .and_then(|s| s.as_array())
+        .and_then(|arr| {
+            arr.iter().find_map(|sel| {
+                if sel.get("type").and_then(|t| t.as_str()) == Some("TypeSelector") {
+                    sel.get("name").and_then(|n| n.as_str()).map(String::from)
+                } else {
+                    None
+                }
+            })
+        })
+}
+
+/// Check if an element has a descendant with the given tag name
+#[allow(dead_code)]
+fn has_descendant_with_tag(ctx: &CssContext, parent_idx: usize, tag_name: &str) -> bool {
+    let element = &ctx.dom_structure.elements[parent_idx];
+
+    for &child_idx in &element.children_idx {
+        if child_idx < ctx.dom_structure.elements.len() {
+            let child = &ctx.dom_structure.elements[child_idx];
+            if child.tag_name == tag_name {
+                return true;
+            }
+            // Recursively check descendants
+            if has_descendant_with_tag(ctx, child_idx, tag_name) {
+                return true;
+            }
+        }
+    }
+
     false
 }
 
@@ -404,6 +934,7 @@ fn transform_rule_preserving(
     specificity_bumped: &mut bool,
     last_end: &mut usize,
     ctx: &CssContext,
+    is_nested: bool,
 ) {
     let node_start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
     let node_end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
@@ -476,6 +1007,8 @@ fn transform_rule_preserving(
             specificity_bumped,
             css_source,
             css_start,
+            ctx,
+            is_nested,
         );
         output.push_str(&transformed_selector);
 
@@ -583,6 +1116,7 @@ fn transform_block_with_nested_rules(
                             specificity_bumped,
                             &mut local_last_end,
                             ctx,
+                            true, // nested rules use :where() for specificity preservation
                         );
                     }
                 }
@@ -796,6 +1330,7 @@ fn transform_atrule_preserving(
                     specificity_bumped,
                     &mut inner_last_end,
                     ctx,
+                    false, // rules inside at-rules are not nested (they start fresh)
                 );
             }
             // Copy trailing content in block
@@ -818,6 +1353,7 @@ fn transform_atrule_preserving(
 }
 
 /// Transform a selector list
+#[allow(clippy::too_many_arguments)]
 fn transform_selector_list(
     prelude: &Value,
     selector: &str,
@@ -825,21 +1361,42 @@ fn transform_selector_list(
     specificity_bumped: &mut bool,
     css_source: &str,
     css_start: usize,
+    ctx: &CssContext,
+    is_nested: bool,
 ) -> String {
     let mut result = String::new();
 
     if let Some(children) = prelude.get("children").and_then(|c| c.as_array()) {
-        for (i, complex_selector) in children.iter().enumerate() {
-            if i > 0 {
-                result.push_str(", ");
+        let mut first = true;
+        for complex_selector in children {
+            // Check if this individual selector is unused
+            let is_unused = is_complex_selector_unused(complex_selector, ctx);
+
+            if is_unused {
+                // Comment out unused selector inline
+                if !first {
+                    result.push_str(" /* (unused) ");
+                } else {
+                    result.push_str("/* (unused) ");
+                }
+                // Get the selector text using the AST
+                let selector_text = get_selector_text(complex_selector);
+                result.push_str(&selector_text);
+                result.push_str("*/");
+            } else {
+                if !first {
+                    result.push_str(", ");
+                }
+                result.push_str(&transform_complex_selector(
+                    complex_selector,
+                    selector,
+                    specificity_bumped,
+                    css_source,
+                    css_start,
+                    is_nested,
+                ));
             }
-            result.push_str(&transform_complex_selector(
-                complex_selector,
-                selector,
-                specificity_bumped,
-                css_source,
-                css_start,
-            ));
+            first = false;
         }
     } else {
         // Fallback: just get the raw selector text
@@ -856,22 +1413,26 @@ fn is_global_like(relative_selector: &Value) -> bool {
         .get("selectors")
         .and_then(|s| s.as_array())
     {
+        if selectors.is_empty() {
+            return false;
+        }
+
+        let first = &selectors[0];
+        let first_type = first.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        let first_name = first.get("name").and_then(|n| n.as_str()).unwrap_or("");
+
+        // :host is global-like (regardless of other selectors in the same relative selector)
+        if first_type == "PseudoClassSelector" && first_name == "host" {
+            return true;
+        }
+
         // Check if all selectors are pseudo-classes or pseudo-elements
         let all_pseudo = selectors.iter().all(|s| {
             let sel_type = s.get("type").and_then(|t| t.as_str()).unwrap_or("");
             sel_type == "PseudoClassSelector" || sel_type == "PseudoElementSelector"
         });
 
-        if all_pseudo && !selectors.is_empty() {
-            let first = &selectors[0];
-            let first_type = first.get("type").and_then(|t| t.as_str()).unwrap_or("");
-            let first_name = first.get("name").and_then(|n| n.as_str()).unwrap_or("");
-
-            // :host is global-like
-            if first_type == "PseudoClassSelector" && first_name == "host" {
-                return true;
-            }
-
+        if all_pseudo {
             // ::view-transition* pseudo elements are global-like
             if first_type == "PseudoElementSelector" {
                 let view_transition_names = [
@@ -911,10 +1472,12 @@ fn transform_complex_selector(
     _specificity_bumped: &mut bool,
     css_source: &str,
     css_start: usize,
+    is_nested: bool,
 ) -> String {
     let mut result = String::new();
     // Each complex selector resets specificity bumping - first element gets direct class
-    let mut local_specificity_bumped = false;
+    // For nested rules, start with bumped=true to use :where() for specificity preservation
+    let mut local_specificity_bumped = is_nested;
 
     if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
         for relative_selector in children {
@@ -1073,14 +1636,15 @@ fn transform_complex_selector(
                     }
 
                     // If all selectors are pseudo-classes/elements, add scoping class first
-                    // But NOT for :is(), :has() which handle scoping internally
+                    // But NOT for :is(), :has(), :host, :root which handle scoping internally or should not be scoped
                     if needs_scoping && last_non_pseudo_idx.is_none() {
-                        // Check if first selector is :is or :has (which scope internally)
+                        // Check if first selector is one that should not have scoping added before it
                         let first_is_internal_scoping = selectors.first().is_some_and(|s| {
                             if s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
                             {
                                 let name = s.get("name").and_then(|n| n.as_str()).unwrap_or("");
-                                name == "is" || name == "has"
+                                // These pseudo-classes handle scoping internally or should not be scoped
+                                name == "is" || name == "has" || name == "host" || name == "root"
                             } else {
                                 false
                             }
@@ -1444,12 +2008,14 @@ mod tests {
             let used_elements = HashSet::new();
             let used_classes = HashSet::new();
             let used_ids = HashSet::new();
+            let dom_structure = DomStructure::default();
             let ctx = CssContext {
                 used_elements: &used_elements,
                 used_classes: &used_classes,
                 used_ids: &used_ids,
                 has_dynamic_elements: false,
                 has_dynamic_classes: false,
+                dom_structure: &dom_structure,
             };
             let output = transform_css(&children, selector, hash, &css_content, css_start, &ctx);
             println!("CSS Output:\n{}", output);
@@ -1479,12 +2045,14 @@ mod tests {
             let used_elements = HashSet::new();
             let used_classes = HashSet::new();
             let used_ids = HashSet::new();
+            let dom_structure = DomStructure::default();
             let ctx = CssContext {
                 used_elements: &used_elements,
                 used_classes: &used_classes,
                 used_ids: &used_ids,
                 has_dynamic_elements: false,
                 has_dynamic_classes: false,
+                dom_structure: &dom_structure,
             };
             let output = transform_css(&children, selector, hash, &css_content, css_start, &ctx);
             println!("CSS Output:\n{}", output);
