@@ -22,6 +22,121 @@ static REGEX_STARTS_WITH_WHITESPACE: LazyLock<Regex> =
 static REGEX_ENDS_WITH_WHITESPACE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s+$").unwrap());
 static REGEX_NOT_WHITESPACE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\S").unwrap());
 
+/// Converter from UTF-8 byte positions to UTF-16 code unit positions.
+struct Utf8ToUtf16 {
+    utf16_pos: Vec<usize>,
+    /// (byte offset, utf16 offset) for each line start
+    line_starts_byte: Vec<usize>,
+    line_starts_utf16: Vec<usize>,
+}
+
+impl Utf8ToUtf16 {
+    fn new(source: &str) -> Self {
+        let mut utf16_pos = Vec::with_capacity(source.len() + 1);
+        let mut utf16_idx = 0;
+        let mut line_starts_byte = vec![0];
+        let mut line_starts_utf16 = vec![0];
+        let mut byte_idx = 0;
+
+        for c in source.chars() {
+            let utf8_len = c.len_utf8();
+            let utf16_len = c.len_utf16();
+            for _ in 0..utf8_len {
+                utf16_pos.push(utf16_idx);
+            }
+            utf16_idx += utf16_len;
+            byte_idx += utf8_len;
+
+            if c == '\n' {
+                line_starts_byte.push(byte_idx);
+                line_starts_utf16.push(utf16_idx);
+            }
+        }
+        utf16_pos.push(utf16_idx);
+        Self {
+            utf16_pos,
+            line_starts_byte,
+            line_starts_utf16,
+        }
+    }
+
+    fn convert(&self, utf8_pos: usize) -> usize {
+        if utf8_pos >= self.utf16_pos.len() {
+            *self.utf16_pos.last().unwrap_or(&0)
+        } else {
+            self.utf16_pos[utf8_pos]
+        }
+    }
+
+    /// Convert a column from byte offset to UTF-16 code unit offset within a line.
+    /// line is 1-based, column is 0-based byte offset from line start.
+    fn convert_column(&self, line: usize, byte_column: usize) -> usize {
+        if line == 0 || line > self.line_starts_byte.len() {
+            return byte_column;
+        }
+
+        let line_start_byte = self.line_starts_byte[line - 1];
+        let line_start_utf16 = self.line_starts_utf16[line - 1];
+
+        // Calculate absolute byte position
+        let abs_byte_pos = line_start_byte + byte_column;
+
+        // Convert to UTF-16 position
+        let abs_utf16_pos = self.convert(abs_byte_pos);
+
+        // Return column as offset from line start in UTF-16
+        abs_utf16_pos.saturating_sub(line_start_utf16)
+    }
+}
+
+/// Recursively convert positions in JSON from UTF-8 to UTF-16.
+fn convert_positions_to_utf16(value: &mut Value, pos_conv: &Utf8ToUtf16) {
+    match value {
+        Value::Object(map) => {
+            if let Some(Value::Number(n)) = map.get("start") {
+                if let Some(pos) = n.as_u64() {
+                    map.insert("start".to_string(), json!(pos_conv.convert(pos as usize)));
+                }
+            }
+            if let Some(Value::Number(n)) = map.get("end") {
+                if let Some(pos) = n.as_u64() {
+                    map.insert("end".to_string(), json!(pos_conv.convert(pos as usize)));
+                }
+            }
+            if let Some(Value::Number(n)) = map.get("character") {
+                if let Some(pos) = n.as_u64() {
+                    map.insert(
+                        "character".to_string(),
+                        json!(pos_conv.convert(pos as usize)),
+                    );
+                }
+            }
+
+            // Convert column in loc objects (loc has line and column fields)
+            if map.contains_key("line") && map.contains_key("column") {
+                if let (Some(Value::Number(line)), Some(Value::Number(col))) =
+                    (map.get("line"), map.get("column"))
+                {
+                    if let (Some(line_num), Some(col_num)) = (line.as_u64(), col.as_u64()) {
+                        let new_col = pos_conv.convert_column(line_num as usize, col_num as usize);
+                        map.insert("column".to_string(), json!(new_col));
+                    }
+                }
+            }
+
+            for v in map.values_mut() {
+                convert_positions_to_utf16(v, pos_conv);
+            }
+        }
+        Value::Array(arr) => {
+            for item in arr {
+                convert_positions_to_utf16(item, pos_conv);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// Convert a modern AST to legacy AST format.
 pub fn convert_to_legacy(source: &str, ast: Root) -> Value {
     let mut result = Map::new();
@@ -118,7 +233,12 @@ pub fn convert_to_legacy(source: &str, ast: Root) -> Value {
         result.insert("css".to_string(), convert_css(&css));
     }
 
-    Value::Object(result)
+    // Convert all positions from UTF-8 to UTF-16
+    let pos_conv = Utf8ToUtf16::new(source);
+    let mut final_result = Value::Object(result);
+    convert_positions_to_utf16(&mut final_result, &pos_conv);
+
+    final_result
 }
 
 fn convert_script(script: &Script) -> Value {
@@ -600,8 +720,16 @@ fn convert_await_block(source: &str, await_block: &AwaitBlock) -> Value {
         let start = pending_end
             .or(first_start)
             .unwrap_or_else(|| find_closing_brace_after(source, expr_end));
-        let end = last_end
-            .unwrap_or_else(|| find_closing_brace_after(source, pending_end.unwrap_or(expr_end)));
+
+        // In legacy format, empty then blocks in error recovery have end = await_block.start - 2
+        let end = last_end.unwrap_or_else(|| {
+            if then.nodes.is_empty() {
+                // Error recovery case: end points backwards
+                await_block.start.saturating_sub(2) as usize
+            } else {
+                find_closing_brace_after(source, pending_end.unwrap_or(expr_end))
+            }
+        });
 
         then_block = json!({
             "type": "ThenBlock",
@@ -625,8 +753,15 @@ fn convert_await_block(source: &str, await_block: &AwaitBlock) -> Value {
             .or(pending_end)
             .or(first_start)
             .unwrap_or_else(|| find_closing_brace_after(source, expr_end));
+
+        // In legacy format, empty catch blocks in error recovery have end = await_block.start - 2
         let end = last_end.unwrap_or_else(|| {
-            find_closing_brace_after(source, then_end.or(pending_end).unwrap_or(expr_end))
+            if catch.nodes.is_empty() {
+                // Error recovery case: end points backwards
+                await_block.start.saturating_sub(2) as usize
+            } else {
+                find_closing_brace_after(source, then_end.or(pending_end).unwrap_or(expr_end))
+            }
         });
 
         catch_block = json!({

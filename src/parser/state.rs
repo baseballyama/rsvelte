@@ -11,7 +11,7 @@ use crate::ast::template::{Script, ScriptType};
 use crate::ast::{
     AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, Comment, Component,
     CustomElementOptions, EachBlock, ExpressionTag, Fragment, FragmentType, HtmlTag, IfBlock,
-    RegularElement, RenderTag, Root, RootType, ScriptContext, SlotElement, SnippetBlock,
+    KeyBlock, RegularElement, RenderTag, Root, RootType, ScriptContext, SlotElement, SnippetBlock,
     SvelteComponentElement, SvelteDynamicElement, SvelteElement, SvelteOptions, TemplateNode, Text,
     TitleElement,
 };
@@ -241,7 +241,12 @@ impl<'a> Parser<'a> {
 
         while !self.is_eof() {
             // Check for end conditions
-            if self.match_str("</") || self.match_str("{/") || self.match_str("{:") {
+            // Note: {/* and {// are JS comments, not block close/continuation tags
+            let is_block_close =
+                self.match_str("{/") && !self.match_str("{/*") && !self.match_str("{//");
+            let is_block_continuation =
+                self.match_str("{:") && !self.match_str("{:/*") && !self.match_str("{://");
+            if self.match_str("</") || is_block_close || is_block_continuation {
                 break;
             }
 
@@ -2117,8 +2122,8 @@ impl<'a> Parser<'a> {
             return Ok(None);
         }
 
-        if self.match_str("/") {
-            // Block close - should not happen at top level
+        if self.match_str("/") && !self.match_str("/*") && !self.match_str("//") {
+            // Block close (but not JS comment) - should not happen at top level
             return Ok(None);
         }
 
@@ -2815,15 +2820,46 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse {#key} block.
-    fn parse_key_block(&mut self, _start: usize) -> ParseResult<Option<TemplateNode>> {
-        // Simplified: just skip to closing and return placeholder
-        while !self.is_eof() && !self.match_str("{/key}") {
+    fn parse_key_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
+        self.skip_whitespace();
+
+        // Read the key expression
+        let expr_start = self.index;
+        while !self.is_eof() && self.current_char() != '}' {
             self.advance();
         }
-        if self.match_str("{/key}") {
-            self.advance_by(6);
+        let expr_content = &self.source[expr_start..self.index];
+        self.advance(); // consume '}'
+
+        let expression = self.parse_js_expression(expr_content.trim(), expr_start);
+
+        // Push block to stack
+        self.stack.push(StackEntry::KeyBlock {
+            start: start as u32,
+        });
+
+        // Parse body
+        let fragment = self.parse_fragment()?;
+
+        // Handle closing {/key} if present (but NOT other closing tags like {/if})
+        if self.match_str("{/key") {
+            self.advance_by(2); // consume '{/'
+            self.eat("key");
+            self.skip_whitespace();
+            self.eat("}");
         }
-        Ok(None)
+
+        // Pop from stack
+        if !self.stack.is_empty() {
+            self.stack.pop();
+        }
+
+        Ok(Some(TemplateNode::KeyBlock(KeyBlock {
+            start: start as u32,
+            end: self.index as u32,
+            expression,
+            fragment,
+        })))
     }
 
     /// Parse {#snippet name(params)} block.

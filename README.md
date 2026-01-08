@@ -40,9 +40,41 @@ cargo test test_parser_modern_fixtures -- --nocapture
 cargo bench
 ```
 
+## Compatibility
+
+Current compatibility with the official Svelte compiler test suite:
+
+| Test Suite | Passing | Total | Coverage | Notes |
+|------------|---------|-------|----------|-------|
+| Parser Modern | 22 | 22 | 100% | |
+| Parser Legacy | 82 | 83 | 99% | 1 incompatible |
+| Compiler Snapshot | 17 | 17 | 100% | |
+| CSS | 108 | 177 | 61% | |
+| Validator | 8 | 252 | 3% | |
+| Compiler Errors | 3 | 85 | 4% | |
+
+### Incompatibilities
+
+#### Parser Legacy: `javascript-comments` (1/83 tests)
+
+This test is incompatible due to fundamental differences in how JavaScript comments are represented between OXC and acorn/ESTree.
+
+**Root Cause:**
+
+The official Svelte compiler uses acorn, which attaches comments directly to AST nodes as `leadingComments` and `trailingComments` arrays (ESTree format). This implementation uses OXC, which provides comments as a separate list rather than attaching them to individual nodes.
+
+Converting OXC's comment list to ESTree's node-attached format would require complex heuristics to determine which comments belong to which nodes, and this transformation is not implemented.
+
+**Impact:**
+
+- This limitation only affects the legacy AST format (Svelte 4 compatibility mode)
+- The modern parser (Svelte 5) is fully compatible (22/22 tests passing)
+- Comment content is preserved in the source; only the AST representation differs
+- This does not affect runtime behavior or compiled output
+
 ## Status
 
-Work in Progress - Parser skeleton implemented.
+Work in Progress - Parser and core compiler implemented.
 
 See [AGENTS.md](./AGENTS.md) for detailed progress tracking.
 

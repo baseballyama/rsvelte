@@ -101,6 +101,7 @@ scripts/
 ### Setup
 
 After cloning, configure git hooks:
+
 ```bash
 git config core.hooksPath .githooks
 ```
@@ -108,12 +109,14 @@ git config core.hooksPath .githooks
 ### Pre-commit Hooks
 
 The project uses git hooks (`.githooks/pre-commit`) that run:
+
 1. `cargo fmt -- --check` - Code formatting
 2. `cargo clippy --all-targets --all-features -- -D warnings` - Linting
 
 ### CI/CD
 
 GitHub Actions (`.github/workflows/ci.yml`) runs on every push/PR:
+
 - Format check
 - Clippy check
 - Tests (Linux, macOS, Windows)
@@ -157,6 +160,7 @@ cargo bench
 ### Test Status
 
 Track progress by running:
+
 ```bash
 # Run all tests (some will fail - this is expected)
 cargo test
@@ -167,14 +171,14 @@ cargo test --test compiler_fixtures -- --nocapture
 cargo test --test css -- --nocapture
 ```
 
-**Current status (2025-01-05):**
+**Current status (2025-01-08):**
 
 | Test Suite | Passing | Total | Status |
 |------------|---------|-------|--------|
 | Parser Modern | 22 | 22 | ✅ 100% |
-| Parser Legacy | 0 | 83 | ❌ Not supported (Svelte 4) |
+| Parser Legacy | 82 | 83 | ✅ 99% (1 incompatible: JS comment attachment) |
 | Compiler Snapshot | 17 | 17 | ✅ 100% (8 skipped: async/hmr/fragments) |
-| CSS | 103 | 177 | ⚠️ 58% - In progress |
+| CSS | 108 | 177 | ⚠️ 61% - In progress |
 | Validator | 8 | 252 | ❌ 3% - Not implemented |
 | Compiler Errors | 3 | 85 | ❌ 4% - Not implemented |
 
@@ -182,51 +186,63 @@ cargo test --test css -- --nocapture
 
 ## Next Steps (Priority Order)
 
-### 1. CSS Scoping (103/177 → 177/177)
-Current implementation handles most selectors. Remaining issues (74 tests):
-- **Unused selector detection** (major blocker - 60+ tests need this feature)
-- Animation property keyframe name replacement
+### 1. CSS Scoping (108/177 → 177/177)
+
+Current implementation handles most selectors. Remaining issues (69 tests):
+
+- Complex unused selector detection (combinators, nesting, sibling relationships)
 - CSS escape sequences in selectors
-- Sibling combinator scoping with `:where()` specificity
+- `@layer`, `@page`, `@supports` at-rules edge cases
 
 **Recently implemented:**
+
 - `:global { ... }` block syntax (comments out `:global {` and `}`)
 - `:is()`, `:not()`, `:has()` scoping with `:where()` specificity
 - Partial `:global()` scoping (e.g., `.foo:global([attr])`)
 - Nested CSS rule parsing
 - Template element/class/id tracking for unused selector detection (phase 2 analysis)
+- Animation keyframe name replacement (`@keyframes foo` → `@keyframes svelte-hash-foo`)
+- Basic unused selector detection for simple single-class/id selectors
 
 ### 2. Validator (8/252)
+
 Implement warning/error detection:
+
 - A11y warnings
 - Unused CSS selectors
 - Invalid attribute combinations
 - Scope validation
 
 ### 3. Compiler Errors (3/85)
+
 Implement error detection for:
+
 - Invalid syntax patterns
 - Rune misuse
 - Invalid element nesting
 - Store subscription errors
 
-### 4. Parser Legacy (55/83)
-Legacy AST format for Svelte 4 compatibility. Remaining issues:
-- Expression `loc` fields in shorthand identifiers
-- Unquoted directive values (`style:color=red`)
-- Object expressions with double braces (`{{...}}`)
-- Script/loose mode parsing edge cases
+### 4. Parser Legacy (82/83)
+
+Legacy AST format for Svelte 4 compatibility. Remaining issue:
+
+- JS comment attachment (`leadingComments`/`trailingComments` in ESTree format)
+  - OXC parser provides comments separately; attaching them to AST nodes requires complex implementation
 
 ## Implemented Features
 
-### Parser (22/22 modern, 55/83 legacy tests)
+### Parser (22/22 modern, 82/83 legacy tests)
+
 - All Svelte 5 syntax: elements, blocks, directives, expressions
 - Script/Style parsing with CSS support
 - Legacy AST conversion module (`src/parser/legacy.rs`)
 - Directive parsing: use:, class:, style:, transition:, animate:, let:
 - Quoted expression handling in all directive types
+- UTF-8 to UTF-16 position conversion for legacy format
+- JS comment preservation in expressions (partial - comment attachment pending)
 
 ### Compiler (17/17 snapshot tests)
+
 - Phase 1/2/3 architecture (Parse → Analyze → Transform)
 - Client/Server code generation
 - `$state`, `$derived`, `$props` runes
@@ -234,30 +250,37 @@ Legacy AST format for Svelte 4 compatibility. Remaining issues:
 - Component instantiation, bindings, event handlers
 - CSS scoping with hash-based class names
 
-### CSS Scoping (89/167 tests)
+### CSS Scoping (108/177 tests)
+
 - Basic selector scoping with `.svelte-hash` class
 - Descendant/child combinator handling
 - `:global()` modifier support
+- `:is()`, `:not()`, `:has()` with `:where()` specificity preservation
+- Animation keyframe name prefixing
+- Basic unused selector detection (simple single selectors)
 
 ## Not Yet Implemented
 
-### CSS (78 failing tests)
-- Sibling combinators with `:where()` specificity bumping
-- `@layer`, `@page`, `@supports` at-rules
-- Complex `:global()` edge cases
-- CSS escape sequences
+### CSS (69 failing tests)
+
+- Complex unused selector detection (combinators, nesting)
+- `@layer`, `@page`, `@supports` at-rules edge cases
+- CSS escape sequences in selectors
 
 ### Validator (244 failing tests)
+
 - Warning generation system
 - A11y checks
 - Unused CSS detection
 
 ### Compiler Errors (82 failing tests)
+
 - Error detection for invalid patterns
 - Syntax error reporting
 - Rune validation
 
 ### Other
+
 - `{#if}` block client-side generation
 - `experimental.async`, `hmr`, `fragments` options
 - N-API bindings for Node.js
