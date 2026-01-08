@@ -6,7 +6,7 @@ fn main() {
 	}
 "#;
     println!("Parsing simple CSS...");
-    let children = svelte_compiler_rust::compiler::phases::phase1_parse::css::parse_css(css, 0);
+    let children = svelte_compiler_rust::compiler::phases::phase1_parse::parse_css(css, 0);
     println!("Parsed {} nodes", children.len());
 
     // Now test with @apply
@@ -16,6 +16,6 @@ fn main() {
 	}
 "#;
     println!("\nParsing CSS with @apply...");
-    let children2 = svelte_compiler_rust::compiler::phases::phase1_parse::css::parse_css(css2, 0);
+    let children2 = svelte_compiler_rust::compiler::phases::phase1_parse::parse_css(css2, 0);
     println!("Parsed {} nodes", children2.len());
 }

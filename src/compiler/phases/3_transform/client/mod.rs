@@ -367,9 +367,18 @@ impl ClientCodeGenerator {
         // Start tag
         self.html_parts.push(format!("<{}", name));
 
-        // Add CSS scoping class if present
+        // Check if element has class: directive (dynamic class)
+        let has_class_directive = element
+            .attributes
+            .iter()
+            .any(|attr| matches!(attr, Attribute::ClassDirective(_)));
+
+        // Add CSS scoping class if present, but skip if element has class: directive
+        // (class: directive elements get the class at runtime via $.set_class)
         if let Some(ref hash) = self.css_hash {
-            self.html_parts.push(format!(" class=\"{}\"", hash));
+            if !has_class_directive {
+                self.html_parts.push(format!(" class=\"{}\"", hash));
+            }
         }
 
         // Attributes (skip event handlers for now, they're handled at runtime)
@@ -1716,7 +1725,7 @@ impl ClientCodeGenerator {
     }
 
     fn build(self) -> String {
-        let html = self.html_parts.join("");
+        let html = self.html_parts.join("").trim_end().to_string();
         let is_fragment = self.root_element_count > 1;
         let has_each_blocks = !self.each_blocks.is_empty();
 
@@ -1732,6 +1741,18 @@ impl ClientCodeGenerator {
 
         // Check if script uses $props()
         let uses_props = self.script_content.contains("$props()");
+
+        // Check if script uses legacy mode with export let (requires $$props and $.push/$.pop)
+        let has_legacy_export_let = script_rest.lines().any(|line| {
+            let trimmed = line.trim();
+            trimmed.starts_with("export let ") || trimmed.starts_with("export let\t")
+        });
+
+        // Check if script has $: reactive statements (legacy mode)
+        let _has_reactive_statements = script_rest.lines().any(|line| {
+            let trimmed = line.trim();
+            trimmed.starts_with("$:") || trimmed.starts_with("$: ")
+        });
 
         // Check if class fields use $state or $derived runes
         // This requires $$props and $.push/$.pop wrapper
@@ -1784,6 +1805,10 @@ impl ClientCodeGenerator {
             // Wrap with $.push/$.pop for class with state fields
             let transformed = self.transform_script_content(&script_rest);
             format!("\t$.push($$props, true);\n\n{}", transformed)
+        } else if has_legacy_export_let {
+            // Legacy mode: transform export let to $.prop() calls
+            let transformed = self.transform_legacy_script_content(&script_rest);
+            format!("\t$.push($$props, false);\n\n{}", transformed)
         } else {
             self.transform_script_content(&script_rest)
         };
@@ -1811,8 +1836,8 @@ impl ClientCodeGenerator {
             format!("\n\n$.delegate([{}]);", events_str)
         };
 
-        // Determine function signature based on $props usage or class state fields
-        let fn_params = if uses_props || has_class_state_fields {
+        // Determine function signature based on $props usage, class state fields, or legacy export let
+        let fn_params = if uses_props || has_class_state_fields || has_legacy_export_let {
             "$$anchor, $$props"
         } else {
             "$$anchor"
@@ -2045,6 +2070,12 @@ export default function {component_name}({fn_params}) {{
             // - TEMPLATE_FRAGMENT = 1 (always for fragments)
             // - TEMPLATE_USE_IMPORT_NODE = 2 (for custom elements/video)
             let template_flags = if self.has_custom_elements { 3 } else { 1 };
+            let pop_code =
+                if has_legacy_export_let || uses_props_identifier || has_class_state_fields {
+                    "\t$.pop();\n"
+                } else {
+                    ""
+                };
             format!(
                 r#"{system_imports}
 {hoisted_imports}{snippets_code}var root = $.from_html(`{html}`, {template_flags});
@@ -2052,7 +2083,7 @@ export default function {component_name}({fn_params}) {{
 export default function {component_name}({fn_params}) {{
 {script_code}	var fragment = root();
 {runtime_code}	$.append($$anchor, fragment);
-}}{delegation_code}"#,
+{pop_code}}}{delegation_code}"#,
                 system_imports = system_imports,
                 hoisted_imports = hoisted_imports,
                 snippets_code = snippets_code,
@@ -2062,11 +2093,18 @@ export default function {component_name}({fn_params}) {{
                 fn_params = fn_params,
                 script_code = script_code,
                 runtime_code = runtime_code,
+                pop_code = pop_code,
                 delegation_code = delegation_code
             )
         } else {
             // Single root element
             let root_var = determine_root_var(&html);
+            let pop_code =
+                if has_legacy_export_let || uses_props_identifier || has_class_state_fields {
+                    "\t$.pop();\n"
+                } else {
+                    ""
+                };
             format!(
                 r#"{system_imports}
 {hoisted_imports}{snippets_code}var root = $.from_html(`{html}`);
@@ -2074,7 +2112,7 @@ export default function {component_name}({fn_params}) {{
 export default function {component_name}({fn_params}) {{
 {script_code}	var {root_var} = root();
 {runtime_code}	$.append($$anchor, {root_var});
-}}{delegation_code}"#,
+{pop_code}}}{delegation_code}"#,
                 system_imports = system_imports,
                 hoisted_imports = hoisted_imports,
                 snippets_code = snippets_code,
@@ -2084,6 +2122,7 @@ export default function {component_name}({fn_params}) {{
                 script_code = script_code,
                 root_var = root_var,
                 runtime_code = runtime_code,
+                pop_code = pop_code,
                 delegation_code = delegation_code
             )
         };
@@ -2521,6 +2560,120 @@ export default function {component_name}({fn_params}) {{
             result.push('\t');
             result.push_str(&transformed);
             result.push('\n');
+        }
+
+        result
+    }
+
+    /// Transform legacy script content (with export let and $: reactive statements).
+    /// Converts:
+    /// - `export let x = value` to `let x = $.prop($$props, 'x', 12, value)`
+    /// - `$: statement` to `$.legacy_pre_effect(() => deps, () => statement)`
+    fn transform_legacy_script_content(&self, script: &str) -> String {
+        if script.is_empty() {
+            return String::new();
+        }
+
+        let mut result = String::new();
+        let mut in_reactive_statement = false;
+        let mut has_reactive_statements = false;
+        let mut reactive_block_depth = 0;
+        let mut accumulated_reactive = String::new();
+
+        let lines: Vec<&str> = script.lines().collect();
+        let mut i = 0;
+
+        while i < lines.len() {
+            let line = lines[i];
+            let trimmed = line.trim();
+
+            // Skip empty lines at the start
+            if trimmed.is_empty() && result.is_empty() {
+                i += 1;
+                continue;
+            }
+
+            // Handle export let declarations
+            if trimmed.starts_with("export let ") {
+                let transformed = transform_export_let(trimmed);
+                result.push('\t');
+                result.push_str(&transformed);
+                result.push('\n');
+                i += 1;
+                continue;
+            }
+
+            // Handle $: reactive statements
+            if let Some(stripped) = trimmed.strip_prefix("$:") {
+                has_reactive_statements = true;
+                let after_label = stripped.trim();
+
+                // Check if this is a single-line or multi-line statement
+                if after_label.starts_with("if ") {
+                    // It's an if statement - may be multi-line
+                    in_reactive_statement = true;
+                    accumulated_reactive.clear();
+                    accumulated_reactive.push_str(after_label);
+                    reactive_block_depth = count_braces(after_label);
+
+                    // Check if the block is complete on this line
+                    if reactive_block_depth == 0
+                        && after_label.contains('{')
+                        && after_label.contains('}')
+                    {
+                        // Single-line if statement
+                        let transformed = transform_reactive_statement(&accumulated_reactive);
+                        result.push_str(&transformed);
+                        result.push('\n');
+                        in_reactive_statement = false;
+                        accumulated_reactive.clear();
+                    }
+                } else if after_label.contains('{') {
+                    // Multi-line block
+                    in_reactive_statement = true;
+                    accumulated_reactive.clear();
+                    accumulated_reactive.push_str(after_label);
+                    reactive_block_depth = count_braces(after_label);
+                } else {
+                    // Single-line reactive statement
+                    let transformed = transform_reactive_statement(after_label);
+                    result.push_str(&transformed);
+                    result.push('\n');
+                }
+                i += 1;
+                continue;
+            }
+
+            // Continue accumulating multi-line reactive statement
+            if in_reactive_statement {
+                accumulated_reactive.push('\n');
+                accumulated_reactive.push_str(trimmed);
+                reactive_block_depth += count_braces(trimmed);
+
+                if reactive_block_depth <= 0 {
+                    // Block is complete
+                    let transformed = transform_reactive_statement(&accumulated_reactive);
+                    result.push_str(&transformed);
+                    result.push('\n');
+                    in_reactive_statement = false;
+                    accumulated_reactive.clear();
+                }
+                i += 1;
+                continue;
+            }
+
+            // Regular line - pass through with standard transformation
+            if !trimmed.is_empty() {
+                result.push('\t');
+                result.push_str(trimmed);
+                result.push('\n');
+            }
+            i += 1;
+        }
+
+        // Add $.legacy_pre_effect_reset() after all reactive statements
+        if has_reactive_statements {
+            result.push_str("\t$.legacy_pre_effect_reset();\n");
         }
 
         result
@@ -4130,6 +4283,179 @@ fn transform_client_runes(line: &str) -> String {
     transform_client_runes_with_skip(line, &[])
 }
 
+/// Transform `export let x = value` to `let x = $.prop($$props, 'x', 12, value)`.
+/// Flag 12 = 8 (writable) + 4 (bindable)
+fn transform_export_let(line: &str) -> String {
+    let trimmed = line.trim();
+
+    // Pattern: export let name = value; or export let name;
+    if !trimmed.starts_with("export let ") {
+        return line.to_string();
+    }
+
+    let rest = trimmed[11..].trim(); // After "export let "
+
+    // Check for semicolon and remove it for processing
+    let rest = rest.trim_end_matches(';').trim();
+
+    // Parse: name = value or just name
+    if let Some(eq_pos) = rest.find('=') {
+        let name = rest[..eq_pos].trim();
+        let value = rest[eq_pos + 1..].trim();
+        format!("let {} = $.prop($$props, '{}', 12, {});", name, name, value)
+    } else {
+        // No default value
+        let name = rest;
+        format!("let {} = $.prop($$props, '{}', 12);", name, name)
+    }
+}
+
+/// Transform a reactive statement `if (cond) { body }` to
+/// `$.legacy_pre_effect(() => ($.deep_read_state(deps)), () => { ... })`
+fn transform_reactive_statement(stmt: &str) -> String {
+    let trimmed = stmt.trim();
+
+    // Extract dependencies (variables referenced in the condition/expression)
+    let deps = extract_reactive_dependencies(trimmed);
+
+    // Build the dependency expression
+    let dep_expr = if deps.is_empty() {
+        "".to_string()
+    } else {
+        deps.iter()
+            .map(|d| format!("$.deep_read_state({}())", d))
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+
+    // Transform the statement body - convert var references to function calls
+    let transformed_body = transform_reactive_body(trimmed);
+
+    // Build the $.legacy_pre_effect call
+    if deps.is_empty() {
+        format!(
+            "\t$.legacy_pre_effect(() => {{\n\t\t{}\n\t}});",
+            transformed_body
+        )
+    } else {
+        // Note: the dependency expression needs extra parentheses: () => (expr)
+        format!(
+            "\t$.legacy_pre_effect(() => ({}), () => {{\n\t\t{}\n\t}});",
+            dep_expr, transformed_body
+        )
+    }
+}
+
+/// Extract variable dependencies from a reactive statement.
+/// For `if (offsetWidth) { toggle = true; }`, returns ["offsetWidth"].
+fn extract_reactive_dependencies(stmt: &str) -> Vec<String> {
+    let mut deps = Vec::new();
+
+    // Look for the condition in if statements
+    if stmt.starts_with("if ") || stmt.starts_with("if(") {
+        // Find the condition between ( and )
+        if let Some(start) = stmt.find('(') {
+            let rest = &stmt[start + 1..];
+            if let Some(end) = rest.find(')') {
+                let cond = &rest[..end].trim();
+                // The condition itself is a dependency
+                // For simple cases like `if (offsetWidth)`, the var is the condition
+                let var = cond.trim();
+                if is_valid_identifier(var) {
+                    deps.push(var.to_string());
+                }
+            }
+        }
+    }
+
+    deps
+}
+
+/// Transform the body of a reactive statement, converting variable references to function calls.
+/// For `if (offsetWidth) { toggle = true; }`, returns `if (offsetWidth()) { toggle(true); }`.
+fn transform_reactive_body(stmt: &str) -> String {
+    let mut result = stmt.to_string();
+
+    // Transform if statement condition: `if (var)` -> `if (var())`
+    if result.starts_with("if ") || result.starts_with("if(") {
+        if let Some(start) = result.find('(') {
+            let after_paren = &result[start + 1..];
+            if let Some(end) = after_paren.find(')') {
+                let cond = after_paren[..end].trim();
+                if is_valid_identifier(cond) && !cond.ends_with("()") {
+                    // Add () to make it a function call
+                    let new_cond = format!("{}()", cond);
+                    // Reconstruct: "if (" + new_cond + ")" + rest
+                    let rest_after_close = &after_paren[end + 1..];
+                    result = format!("if ({}){}", new_cond, rest_after_close);
+                }
+            }
+        }
+    }
+
+    // Transform assignments like `toggle = true` to `toggle(true)`
+    // This is a simplified transformation - real implementation needs proper parsing
+    result = transform_reactive_assignments(&result);
+
+    result
+}
+
+/// Transform assignments in reactive body to function calls.
+/// `toggle = true` -> `toggle(true)`
+fn transform_reactive_assignments(body: &str) -> String {
+    let mut result = body.to_string();
+
+    // Look for patterns like `var = value` and transform to `var(value)`
+    // This is a simple regex-like approach
+    let re = regex::Regex::new(r"(\w+)\s*=\s*([^;{}]+)").unwrap();
+
+    for cap in re.captures_iter(body) {
+        let full_match = cap.get(0).unwrap().as_str();
+        let var_name = cap.get(1).unwrap().as_str();
+        let value = cap.get(2).unwrap().as_str().trim();
+
+        // Skip if this is a comparison (==, ===, !=, !==)
+        if body.contains(&format!("{} ==", var_name))
+            || body.contains(&format!("{}==", var_name))
+            || body.contains(&format!("{} !=", var_name))
+            || body.contains(&format!("{}!=", var_name))
+        {
+            continue;
+        }
+
+        // Skip if already a function call
+        if value.is_empty() {
+            continue;
+        }
+
+        // Transform: var = value -> var(value)
+        let replacement = format!("{}({})", var_name, value);
+        result = result.replace(full_match, &replacement);
+    }
+
+    result
+}
+
+/// Count opening and closing braces to track block depth.
+fn count_braces(s: &str) -> i32 {
+    let open = s.chars().filter(|&c| c == '{').count() as i32;
+    let close = s.chars().filter(|&c| c == '}').count() as i32;
+    open - close
+}
+
+/// Check if a string is a valid JavaScript identifier.
+fn is_valid_identifier(s: &str) -> bool {
+    if s.is_empty() {
+        return false;
+    }
+    let first = s.chars().next().unwrap();
+    if !first.is_alphabetic() && first != '_' && first != '$' {
+        return false;
+    }
+    s.chars()
+        .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+}
+
 /// Transform $props() usage.
 /// Handles:
 /// 1. Destructuring: `let { tag = "hr" } = $props()` → `let tag = $.prop($$props, 'tag', 3, 'hr')`
@@ -4330,6 +4656,22 @@ fn collect_read_only_props(script: &str) -> Vec<String> {
 
     for line in script.lines() {
         let trimmed = line.trim();
+
+        // Match legacy export let patterns: export let varname = value;
+        if let Some(stripped) = trimmed.strip_prefix("export let ") {
+            let rest = stripped.trim();
+            let rest = rest.trim_end_matches(';').trim();
+            // Parse: name = value or just name
+            let name = if let Some(eq_pos) = rest.find('=') {
+                rest[..eq_pos].trim()
+            } else {
+                rest
+            };
+            if !name.is_empty() {
+                props.push(name.to_string());
+            }
+            continue;
+        }
 
         // Match patterns like: let { prop1, prop2 } = $props();
         let is_let_destructure = trimmed.starts_with("let {") || trimmed.starts_with("let{");

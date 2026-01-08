@@ -1,0 +1,141 @@
+//! Fragment parsing - entry point and node dispatch.
+
+use crate::ast::template::{Fragment, FragmentType, Root, RootType, TemplateNode};
+use crate::error::ParseResult;
+
+use super::super::parser::Parser;
+
+impl Parser<'_> {
+    /// Parse the source into a Root AST node.
+    pub fn parse(&mut self) -> ParseResult<Root> {
+        let mut fragment = self.parse_fragment()?;
+
+        // Determine the end position of script/style tags
+        let script_end = self
+            .instance_script
+            .as_ref()
+            .map(|s| s.end)
+            .unwrap_or(0)
+            .max(self.module_script.as_ref().map(|s| s.end).unwrap_or(0));
+        let style_end = self.stylesheet.as_ref().map(|s| s.end).unwrap_or(0);
+        let max_special_end = script_end.max(style_end);
+
+        // Remove trailing whitespace-only Text nodes (Svelte doesn't include them)
+        // But only if they're at the very end of the file (after script/style too)
+        while let Some(TemplateNode::Text(text)) = fragment.nodes.last() {
+            let is_whitespace = text.data.chars().all(|c| c.is_whitespace());
+            let after_special = text.end >= max_special_end;
+            if is_whitespace && after_special {
+                fragment.nodes.pop();
+            } else {
+                break;
+            }
+        }
+
+        // Calculate end position - consider fragment nodes, script, and style
+        let fragment_end = fragment
+            .nodes
+            .last()
+            .map(|node| match node {
+                TemplateNode::Text(t) => t.end,
+                TemplateNode::Comment(c) => c.end,
+                TemplateNode::ExpressionTag(e) => e.end,
+                TemplateNode::HtmlTag(h) => h.end,
+                TemplateNode::ConstTag(c) => c.end,
+                TemplateNode::DebugTag(d) => d.end,
+                TemplateNode::RenderTag(r) => r.end,
+                TemplateNode::AttachTag(a) => a.end,
+                TemplateNode::IfBlock(b) => b.end,
+                TemplateNode::EachBlock(b) => b.end,
+                TemplateNode::AwaitBlock(b) => b.end,
+                TemplateNode::KeyBlock(b) => b.end,
+                TemplateNode::SnippetBlock(b) => b.end,
+                TemplateNode::RegularElement(e) => e.end,
+                TemplateNode::Component(c) => c.end,
+                TemplateNode::TitleElement(t) => t.end,
+                TemplateNode::SlotElement(s) => s.end,
+                TemplateNode::SvelteBody(s)
+                | TemplateNode::SvelteDocument(s)
+                | TemplateNode::SvelteFragment(s)
+                | TemplateNode::SvelteBoundary(s)
+                | TemplateNode::SvelteHead(s)
+                | TemplateNode::SvelteOptions(s)
+                | TemplateNode::SvelteSelf(s)
+                | TemplateNode::SvelteWindow(s) => s.end,
+                TemplateNode::SvelteComponent(c) => c.end,
+                TemplateNode::SvelteElement(e) => e.end,
+            })
+            .unwrap_or(0);
+
+        // End is the maximum of fragment end, script end, and style end
+        let end = fragment_end.max(max_special_end);
+
+        Ok(Root {
+            css: self.stylesheet.take().map(Box::new),
+            js: Vec::new(),
+            start: 0,
+            end,
+            node_type: RootType::Root,
+            fragment,
+            options: self.svelte_options.take().map(Box::new),
+            instance: self.instance_script.take().map(Box::new),
+            module: self.module_script.take().map(Box::new),
+        })
+    }
+
+    /// Check if the remaining content from current position to EOF is only whitespace.
+    pub fn remaining_is_whitespace_only(&self) -> bool {
+        self.source[self.index..].chars().all(|c| c.is_whitespace())
+    }
+
+    /// Parse a fragment (sequence of nodes).
+    pub fn parse_fragment(&mut self) -> ParseResult<Fragment> {
+        let mut nodes = Vec::new();
+
+        while !self.is_eof() {
+            // Check for end conditions
+            // Note: {/* and {// are JS comments, not block close/continuation tags
+            let is_block_close =
+                self.match_str("{/") && !self.match_str("{/*") && !self.match_str("{//");
+            let is_block_continuation =
+                self.match_str("{:") && !self.match_str("{:/*") && !self.match_str("{://");
+            if self.match_str("</") || is_block_close || is_block_continuation {
+                break;
+            }
+
+            // Check for implicit closing - if the next tag would implicitly close the current element
+            if self.should_implicitly_close() {
+                break;
+            }
+
+            // Skip trailing whitespace at EOF - don't parse it as a Text node
+            if self.remaining_is_whitespace_only() {
+                break;
+            }
+
+            if let Some(node) = self.parse_node()? {
+                nodes.push(node);
+            }
+        }
+
+        Ok(Fragment {
+            node_type: FragmentType::Fragment,
+            nodes,
+        })
+    }
+
+    /// Parse a single node.
+    pub fn parse_node(&mut self) -> ParseResult<Option<TemplateNode>> {
+        if self.is_eof() {
+            return Ok(None);
+        }
+
+        let c = self.current_char();
+
+        match c {
+            '<' => self.parse_element_or_comment(),
+            '{' => self.parse_mustache(),
+            _ => self.parse_text(),
+        }
+    }
+}

@@ -1,322 +1,22 @@
-//! Parser state machine.
-//!
-//! This module implements the main parser state and logic.
+//! Element and attribute parsing.
 
 use compact_str::CompactString;
 
-use crate::ast::css::StyleSheet;
 use crate::ast::js::Expression;
-use crate::ast::span::{LineColumn, SourceLocation};
-use crate::ast::template::{Script, ScriptType};
-use crate::ast::{
-    AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, Comment, Component,
-    CustomElementOptions, EachBlock, ExpressionTag, Fragment, FragmentType, HtmlTag, IfBlock,
-    KeyBlock, RegularElement, RenderTag, Root, RootType, ScriptContext, SlotElement, SnippetBlock,
-    SvelteComponentElement, SvelteDynamicElement, SvelteElement, SvelteOptions, TemplateNode, Text,
-    TitleElement,
+use crate::ast::template::{
+    AttributeNode, AttributeValue, AttributeValuePart, Comment, Component, ExpressionTag, Fragment,
+    FragmentType, RegularElement, SlotElement, SvelteComponentElement, SvelteDynamicElement,
+    SvelteElement, TemplateNode, Text, TitleElement,
 };
-use crate::error::{ParseError, ParseResult};
+use crate::error::ParseResult;
 
-use super::ParseOptions;
-use super::lexer::decode_html_entities;
+use super::super::parser::{ElementType, Parser, StackEntry};
+use super::super::utils::decode_html_entities;
+use super::super::utils::is_void_element;
 
-/// The parser state.
-pub struct Parser<'a> {
-    /// The source code being parsed.
-    source: &'a str,
-    /// Source as bytes for faster indexing.
-    bytes: &'a [u8],
-    /// Current byte position in the source.
-    index: usize,
-    /// Parser options.
-    #[allow(dead_code)]
-    options: ParseOptions,
-    /// Stack of open elements/blocks for validation.
-    stack: Vec<StackEntry>,
-    /// Line offsets for location calculation.
-    line_offsets: Vec<usize>,
-    /// Parsed instance script (context="default").
-    instance_script: Option<Script>,
-    /// Parsed module script (context="module").
-    module_script: Option<Script>,
-    /// Parsed stylesheet.
-    stylesheet: Option<StyleSheet>,
-    /// Parsed svelte:options.
-    svelte_options: Option<SvelteOptions>,
-    /// Pending comments that could become leading comments for a script.
-    pending_leading_comments: Vec<String>,
-}
-
-/// An entry on the parser stack.
-#[derive(Debug, Clone)]
-#[allow(dead_code)]
-enum StackEntry {
-    Root,
-    Element {
-        name: CompactString,
-        start: u32,
-        element_type: ElementType,
-    },
-    IfBlock {
-        start: u32,
-    },
-    EachBlock {
-        start: u32,
-    },
-    AwaitBlock {
-        start: u32,
-    },
-    KeyBlock {
-        start: u32,
-    },
-    SnippetBlock {
-        start: u32,
-    },
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ElementType {
-    Regular,
-    Component,
-    Slot,
-    Title,
-    SvelteHead,
-    SvelteBody,
-    SvelteWindow,
-    SvelteDocument,
-    SvelteFragment,
-    SvelteBoundary,
-    SvelteComponent,
-    SvelteElement,
-    SvelteSelf,
-    SvelteOptions,
-    ShadowrootTemplate,
-}
-
-impl<'a> Parser<'a> {
-    /// Create a new parser.
-    pub fn new(source: &'a str, options: ParseOptions) -> Self {
-        // Calculate line offsets for location calculation
-        let mut line_offsets = vec![0];
-        for (i, c) in source.char_indices() {
-            if c == '\n' {
-                line_offsets.push(i + 1);
-            }
-        }
-
-        Self {
-            source,
-            bytes: source.as_bytes(),
-            index: 0,
-            options,
-            stack: vec![StackEntry::Root],
-            line_offsets,
-            instance_script: None,
-            module_script: None,
-            stylesheet: None,
-            svelte_options: None,
-            pending_leading_comments: Vec::new(),
-        }
-    }
-
-    /// Get source location for a position.
-    fn get_location(&self, pos: usize) -> SourceLocation {
-        let line = self
-            .line_offsets
-            .partition_point(|&offset| offset <= pos)
-            .saturating_sub(1);
-        let line_start = self.line_offsets.get(line).copied().unwrap_or(0);
-        let column = pos - line_start;
-
-        SourceLocation {
-            start: LineColumn {
-                line: (line + 1) as u32,
-                column: column as u32,
-                character: pos as u32,
-            },
-            end: LineColumn {
-                line: (line + 1) as u32,
-                column: column as u32,
-                character: pos as u32,
-            },
-        }
-    }
-
-    /// Get source location for a range.
-    #[allow(dead_code)]
-    fn get_location_range(&self, start: usize, end: usize) -> SourceLocation {
-        let start_loc = self.get_location(start);
-        let end_loc = self.get_location(end);
-        SourceLocation {
-            start: start_loc.start,
-            end: end_loc.start,
-        }
-    }
-
-    /// Parse the source into a Root AST node.
-    pub fn parse(&mut self) -> ParseResult<Root> {
-        let mut fragment = self.parse_fragment()?;
-
-        // Determine the end position of script/style tags
-        let script_end = self
-            .instance_script
-            .as_ref()
-            .map(|s| s.end)
-            .unwrap_or(0)
-            .max(self.module_script.as_ref().map(|s| s.end).unwrap_or(0));
-        let style_end = self.stylesheet.as_ref().map(|s| s.end).unwrap_or(0);
-        let max_special_end = script_end.max(style_end);
-
-        // Remove trailing whitespace-only Text nodes (Svelte doesn't include them)
-        // But only if they're at the very end of the file (after script/style too)
-        while let Some(TemplateNode::Text(text)) = fragment.nodes.last() {
-            let is_whitespace = text.data.chars().all(|c| c.is_whitespace());
-            let after_special = text.end >= max_special_end;
-            if is_whitespace && after_special {
-                fragment.nodes.pop();
-            } else {
-                break;
-            }
-        }
-
-        // Calculate end position - consider fragment nodes, script, and style
-        let fragment_end = fragment
-            .nodes
-            .last()
-            .map(|node| match node {
-                TemplateNode::Text(t) => t.end,
-                TemplateNode::Comment(c) => c.end,
-                TemplateNode::ExpressionTag(e) => e.end,
-                TemplateNode::HtmlTag(h) => h.end,
-                TemplateNode::ConstTag(c) => c.end,
-                TemplateNode::DebugTag(d) => d.end,
-                TemplateNode::RenderTag(r) => r.end,
-                TemplateNode::AttachTag(a) => a.end,
-                TemplateNode::IfBlock(b) => b.end,
-                TemplateNode::EachBlock(b) => b.end,
-                TemplateNode::AwaitBlock(b) => b.end,
-                TemplateNode::KeyBlock(b) => b.end,
-                TemplateNode::SnippetBlock(b) => b.end,
-                TemplateNode::RegularElement(e) => e.end,
-                TemplateNode::Component(c) => c.end,
-                TemplateNode::TitleElement(t) => t.end,
-                TemplateNode::SlotElement(s) => s.end,
-                TemplateNode::SvelteBody(s)
-                | TemplateNode::SvelteDocument(s)
-                | TemplateNode::SvelteFragment(s)
-                | TemplateNode::SvelteBoundary(s)
-                | TemplateNode::SvelteHead(s)
-                | TemplateNode::SvelteOptions(s)
-                | TemplateNode::SvelteSelf(s)
-                | TemplateNode::SvelteWindow(s) => s.end,
-                TemplateNode::SvelteComponent(c) => c.end,
-                TemplateNode::SvelteElement(e) => e.end,
-            })
-            .unwrap_or(0);
-
-        // End is the maximum of fragment end, script end, and style end
-        let end = fragment_end.max(max_special_end);
-
-        Ok(Root {
-            css: self.stylesheet.take().map(Box::new),
-            js: Vec::new(),
-            start: 0,
-            end,
-            node_type: RootType::Root,
-            fragment,
-            options: self.svelte_options.take().map(Box::new),
-            instance: self.instance_script.take().map(Box::new),
-            module: self.module_script.take().map(Box::new),
-        })
-    }
-
-    /// Check if the remaining content from current position to EOF is only whitespace.
-    fn remaining_is_whitespace_only(&self) -> bool {
-        self.source[self.index..].chars().all(|c| c.is_whitespace())
-    }
-
-    /// Parse a fragment (sequence of nodes).
-    fn parse_fragment(&mut self) -> ParseResult<Fragment> {
-        let mut nodes = Vec::new();
-
-        while !self.is_eof() {
-            // Check for end conditions
-            // Note: {/* and {// are JS comments, not block close/continuation tags
-            let is_block_close =
-                self.match_str("{/") && !self.match_str("{/*") && !self.match_str("{//");
-            let is_block_continuation =
-                self.match_str("{:") && !self.match_str("{:/*") && !self.match_str("{://");
-            if self.match_str("</") || is_block_close || is_block_continuation {
-                break;
-            }
-
-            // Check for implicit closing - if the next tag would implicitly close the current element
-            if self.should_implicitly_close() {
-                break;
-            }
-
-            // Skip trailing whitespace at EOF - don't parse it as a Text node
-            if self.remaining_is_whitespace_only() {
-                break;
-            }
-
-            if let Some(node) = self.parse_node()? {
-                nodes.push(node);
-            }
-        }
-
-        Ok(Fragment {
-            node_type: FragmentType::Fragment,
-            nodes,
-        })
-    }
-
-    /// Parse a single node.
-    fn parse_node(&mut self) -> ParseResult<Option<TemplateNode>> {
-        if self.is_eof() {
-            return Ok(None);
-        }
-
-        let c = self.current_char();
-
-        match c {
-            '<' => self.parse_element_or_comment(),
-            '{' => self.parse_mustache(),
-            _ => self.parse_text(),
-        }
-    }
-
-    /// Parse text content.
-    fn parse_text(&mut self) -> ParseResult<Option<TemplateNode>> {
-        let start = self.index as u32;
-        let mut end = self.index;
-
-        while !self.is_eof() {
-            let c = self.current_char();
-            if c == '<' || c == '{' {
-                break;
-            }
-            self.advance();
-            end = self.index;
-        }
-
-        if end == start as usize {
-            return Ok(None);
-        }
-
-        let raw = &self.source[start as usize..end];
-        let data = decode_html_entities(raw);
-
-        Ok(Some(TemplateNode::Text(Text {
-            start,
-            end: end as u32,
-            raw: CompactString::from(raw),
-            data: CompactString::from(data),
-        })))
-    }
-
+impl Parser<'_> {
     /// Parse an element or comment.
-    fn parse_element_or_comment(&mut self) -> ParseResult<Option<TemplateNode>> {
+    pub fn parse_element_or_comment(&mut self) -> ParseResult<Option<TemplateNode>> {
         let start = self.index;
         self.advance(); // consume '<'
 
@@ -633,7 +333,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Extract the "this" attribute from a svelte:element to get the tag expression.
-    fn extract_this_attribute(&self, attributes: &[crate::ast::Attribute]) -> Expression {
+    pub fn extract_this_attribute(&self, attributes: &[crate::ast::Attribute]) -> Expression {
         for attr in attributes {
             if let crate::ast::Attribute::Attribute(node) = attr {
                 if node.name.as_str() == "this" {
@@ -668,27 +368,12 @@ impl<'a> Parser<'a> {
         Expression::from_json(serde_json::json!(null))
     }
 
-    /// Create name_loc with character field for Svelte compatibility.
-    fn create_name_loc(&self, start: usize, end: usize) -> SourceLocation {
-        let start_loc = self.get_location(start);
-        let end_loc = self.get_location(end);
-
-        SourceLocation {
-            start: LineColumn {
-                line: start_loc.start.line,
-                column: start_loc.start.column,
-                character: start_loc.start.character,
-            },
-            end: LineColumn {
-                line: end_loc.start.line,
-                column: end_loc.start.column,
-                character: end_loc.start.character,
-            },
-        }
-    }
-
     /// Get element type from tag name and attributes.
-    fn get_element_type(&self, name: &str, attributes: &[crate::ast::Attribute]) -> ElementType {
+    pub fn get_element_type(
+        &self,
+        name: &str,
+        attributes: &[crate::ast::Attribute],
+    ) -> ElementType {
         match name {
             "slot" => {
                 // Check if inside shadowroot template
@@ -735,7 +420,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Check if inside svelte:head.
-    fn is_inside_svelte_head(&self) -> bool {
+    pub fn is_inside_svelte_head(&self) -> bool {
         self.stack.iter().any(|entry| {
             matches!(
                 entry,
@@ -750,7 +435,7 @@ impl<'a> Parser<'a> {
     /// Check if current position starts a valid closing tag (e.g., `</textarea>` or `</textarea  >`).
     /// For RCDATA elements like textarea, a valid closing tag is `</tagname` followed by
     /// either immediately by `>` or whitespace, then anything until `>`.
-    fn is_valid_closing_tag(&self, closing_tag_start: &str) -> bool {
+    pub fn is_valid_closing_tag(&self, closing_tag_start: &str) -> bool {
         if !self.match_str(closing_tag_start) {
             return false;
         }
@@ -771,7 +456,7 @@ impl<'a> Parser<'a> {
 
     /// Check if the next opening tag should implicitly close the current element.
     /// This handles HTML5 optional end tags (e.g., <li> closes a previous <li>).
-    fn should_implicitly_close(&self) -> bool {
+    pub fn should_implicitly_close(&self) -> bool {
         // Get the IMMEDIATE parent element from the stack (not separated by blocks)
         // We only implicitly close if the direct parent is an element that can be implicitly closed
         let current_element = match self.stack.last() {
@@ -854,7 +539,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Check if inside shadowroot template.
-    fn is_inside_shadowroot_template(&self) -> bool {
+    pub fn is_inside_shadowroot_template(&self) -> bool {
         self.stack.iter().any(|entry| {
             matches!(
                 entry,
@@ -867,7 +552,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Check if a template element has shadowrootmode attribute.
-    fn has_shadowrootmode_attr(&self, attributes: &[crate::ast::Attribute]) -> bool {
+    pub fn has_shadowrootmode_attr(&self, attributes: &[crate::ast::Attribute]) -> bool {
         attributes.iter().any(|attr| {
             if let crate::ast::Attribute::Attribute(attr_node) = attr {
                 attr_node.name.as_str() == "shadowrootmode"
@@ -878,7 +563,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse attributes.
-    fn parse_attributes(&mut self) -> ParseResult<Vec<crate::ast::Attribute>> {
+    pub fn parse_attributes(&mut self) -> ParseResult<Vec<crate::ast::Attribute>> {
         let mut attributes = Vec::new();
 
         loop {
@@ -918,7 +603,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a single attribute.
-    fn parse_attribute(&mut self) -> ParseResult<Option<crate::ast::Attribute>> {
+    pub fn parse_attribute(&mut self) -> ParseResult<Option<crate::ast::Attribute>> {
         let start = self.index;
 
         // Check for spread attribute, @attach, or expression shorthand
@@ -979,7 +664,7 @@ impl<'a> Parser<'a> {
             // Create the expression
             let expression = if expr_content.trim().is_empty() {
                 // Empty expression: create identifier with loc and character field
-                super::expression::create_identifier_with_character(
+                super::super::expression::create_identifier_with_character(
                     "",
                     expr_start,
                     expr_start,
@@ -1098,7 +783,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse an on: directive (event handler).
-    fn parse_on_directive(
+    pub fn parse_on_directive(
         &mut self,
         start: usize,
         full_name: &str,
@@ -1204,7 +889,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a bind: directive (two-way binding).
-    fn parse_bind_directive(
+    pub fn parse_bind_directive(
         &mut self,
         start: usize,
         full_name: &str,
@@ -1268,7 +953,7 @@ impl<'a> Parser<'a> {
                         self.advance();
                     }
                     (
-                        super::expression::create_identifier_with_character(
+                        super::super::expression::create_identifier_with_character(
                             &prop_name,
                             name_start + 5,
                             name_end,
@@ -1301,7 +986,7 @@ impl<'a> Parser<'a> {
             } else {
                 // Shorthand: bind:value without expression means bind to a variable with same name
                 (
-                    super::expression::create_identifier_with_character(
+                    super::super::expression::create_identifier_with_character(
                         &prop_name,
                         name_start + 5, // start after "bind:"
                         name_end,
@@ -1313,7 +998,7 @@ impl<'a> Parser<'a> {
         } else {
             // Shorthand: bind:value means bind to variable named "value"
             (
-                super::expression::create_identifier_with_character(
+                super::super::expression::create_identifier_with_character(
                     &prop_name,
                     name_start + 5, // start after "bind:"
                     name_end,
@@ -1336,7 +1021,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a use: directive (action): `use:action`, `use:action={expression}`, or `use:action="{expression}"`.
-    fn parse_use_directive(
+    pub fn parse_use_directive(
         &mut self,
         start: usize,
         full_name: &str,
@@ -1433,7 +1118,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a class: directive: `class:name` or `class:name={expression}`.
-    fn parse_class_directive(
+    pub fn parse_class_directive(
         &mut self,
         start: usize,
         full_name: &str,
@@ -1465,7 +1150,7 @@ impl<'a> Parser<'a> {
                 self.parse_js_expression(expr_content, expr_start)
             } else {
                 // Shorthand: class:name means expression is Identifier("name")
-                super::expression::create_identifier_with_character(
+                super::super::expression::create_identifier_with_character(
                     class_name,
                     name_start + 6, // start after "class:"
                     name_end,
@@ -1474,7 +1159,7 @@ impl<'a> Parser<'a> {
             }
         } else {
             // Shorthand: class:name without = means expression is Identifier("name")
-            super::expression::create_identifier_with_character(
+            super::super::expression::create_identifier_with_character(
                 class_name,
                 name_start + 6, // start after "class:"
                 name_end,
@@ -1494,7 +1179,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a style: directive: `style:property={expression}` or `style:property="value"`.
-    fn parse_style_directive(
+    pub fn parse_style_directive(
         &mut self,
         start: usize,
         full_name: &str,
@@ -1692,7 +1377,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a transition: / in: / out: directive.
-    fn parse_transition_directive(
+    pub fn parse_transition_directive(
         &mut self,
         start: usize,
         full_name: &str,
@@ -1800,7 +1485,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Helper to extract name and modifiers from "name|mod1|mod2".
-    fn extract_name_and_modifiers(s: &str) -> (String, Vec<CompactString>) {
+    pub fn extract_name_and_modifiers(s: &str) -> (String, Vec<CompactString>) {
         if let Some(pipe_pos) = s.find('|') {
             let name = &s[..pipe_pos];
             let mods: Vec<CompactString> = s[pipe_pos + 1..]
@@ -1814,7 +1499,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse an animate: directive: `animate:name` or `animate:name={expression}`.
-    fn parse_animate_directive(
+    pub fn parse_animate_directive(
         &mut self,
         start: usize,
         full_name: &str,
@@ -1863,7 +1548,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse a let: directive: `let:item` or `let:item={expression}`.
-    fn parse_let_directive(
+    pub fn parse_let_directive(
         &mut self,
         start: usize,
         full_name: &str,
@@ -1912,7 +1597,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse an @attach attribute: `{@attach expression}`.
-    fn parse_attach_attribute(
+    pub fn parse_attach_attribute(
         &mut self,
         start: usize,
     ) -> ParseResult<Option<crate::ast::Attribute>> {
@@ -1948,7 +1633,7 @@ impl<'a> Parser<'a> {
     }
 
     /// Parse attribute value.
-    fn parse_attribute_value(&mut self) -> ParseResult<AttributeValue> {
+    pub fn parse_attribute_value(&mut self) -> ParseResult<AttributeValue> {
         let quote = if self.eat("\"") {
             Some('"')
         } else if self.eat("'") {
@@ -2105,1238 +1790,10 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Parse a mustache expression.
-    fn parse_mustache(&mut self) -> ParseResult<Option<TemplateNode>> {
-        let start = self.index;
-        self.advance(); // consume '{'
-
-        self.skip_whitespace();
-
-        // Check for block tags
-        if self.match_str("#") {
-            return self.parse_block_open(start);
-        }
-
-        if self.match_str(":") {
-            // Block continuation - should not happen at top level
-            return Ok(None);
-        }
-
-        if self.match_str("/") && !self.match_str("/*") && !self.match_str("//") {
-            // Block close (but not JS comment) - should not happen at top level
-            return Ok(None);
-        }
-
-        if self.match_str("@") {
-            return self.parse_special_tag(start);
-        }
-
-        // Regular expression tag
-        let expr_start = self.index;
-        let mut depth = 1;
-
-        while !self.is_eof() && depth > 0 {
-            let c = self.current_char();
-            if c == '{' {
-                depth += 1;
-            } else if c == '}' {
-                depth -= 1;
-                if depth == 0 {
-                    break;
-                }
-            }
-            self.advance();
-        }
-
-        let expr_content = &self.source[expr_start..self.index];
-        self.advance(); // consume '}'
-
-        let expression = self.parse_js_expression(expr_content.trim(), expr_start);
-
-        Ok(Some(TemplateNode::ExpressionTag(ExpressionTag {
-            start: start as u32,
-            end: self.index as u32,
-            expression,
-        })))
-    }
-
-    /// Parse block open tag ({#if}, {#each}, etc.)
-    fn parse_block_open(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
-        self.advance(); // consume '#'
-
-        let keyword = self.read_identifier();
-
-        match keyword.as_str() {
-            "if" => self.parse_if_block(start),
-            "each" => self.parse_each_block(start),
-            "await" => self.parse_await_block(start),
-            "key" => self.parse_key_block(start),
-            "snippet" => self.parse_snippet_block(start),
-            _ => {
-                // Unknown block, skip to closing brace
-                while !self.is_eof() && self.current_char() != '}' {
-                    self.advance();
-                }
-                self.advance(); // consume '}'
-                Ok(None)
-            }
-        }
-    }
-
-    /// Parse {#if} block.
-    fn parse_if_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
-        self.skip_whitespace();
-
-        // Read the test expression
-        let expr_start = self.index;
-        while !self.is_eof() && self.current_char() != '}' {
-            self.advance();
-        }
-        let expr_content = &self.source[expr_start..self.index];
-        self.advance(); // consume '}'
-
-        let test = self.parse_js_expression(expr_content.trim(), expr_start);
-
-        // Push block to stack
-        self.stack.push(StackEntry::IfBlock {
-            start: start as u32,
-        });
-
-        // Parse consequent
-        let consequent = self.parse_fragment()?;
-
-        // Check for {:else} or {:else if}
-        let alternate = self.parse_if_alternate()?;
-
-        // Handle closing {/if} if not already consumed
-        if self.match_str("{/") {
-            self.advance_by(2);
-            self.eat("if");
-            self.skip_whitespace();
-            self.eat("}");
-        }
-
-        // Pop from stack
-        if !self.stack.is_empty() {
-            self.stack.pop();
-        }
-
-        Ok(Some(TemplateNode::IfBlock(IfBlock {
-            start: start as u32,
-            end: self.index as u32,
-            elseif: false,
-            test,
-            consequent,
-            alternate,
-        })))
-    }
-
-    /// Parse {:else} or {:else if} blocks recursively
-    fn parse_if_alternate(&mut self) -> ParseResult<Option<Fragment>> {
-        if !self.match_str("{:") {
-            return Ok(None);
-        }
-
-        let else_block_start = self.index;
-        self.advance_by(2); // consume '{:'
-        self.skip_whitespace();
-
-        if !self.eat("else") {
-            // Not an else block, backtrack
-            self.index = else_block_start;
-            return Ok(None);
-        }
-
-        self.skip_whitespace();
-
-        if self.eat("if") {
-            // {:else if ...}
-            self.skip_whitespace();
-            let alt_expr_start = self.index;
-            while !self.is_eof() && self.current_char() != '}' {
-                self.advance();
-            }
-            let alt_expr_content = &self.source[alt_expr_start..self.index];
-            self.advance(); // consume '}'
-
-            let alt_test = self.parse_js_expression(alt_expr_content.trim(), alt_expr_start);
-            let alt_consequent = self.parse_fragment()?;
-
-            // Recursively check for another else/else-if
-            let alt_alternate = self.parse_if_alternate()?;
-
-            // Handle closing {/if} if present
-            if self.match_str("{/") {
-                self.advance_by(2);
-                self.eat("if");
-                self.skip_whitespace();
-                self.eat("}");
-            }
-
-            Ok(Some(Fragment {
-                node_type: FragmentType::Fragment,
-                nodes: vec![TemplateNode::IfBlock(IfBlock {
-                    start: else_block_start as u32,
-                    end: self.index as u32,
-                    elseif: true,
-                    test: alt_test,
-                    consequent: alt_consequent,
-                    alternate: alt_alternate,
-                })],
-            }))
-        } else {
-            // {:else}
-            self.skip_whitespace(); // Handle {:else } with space before }
-            self.eat("}");
-            let alt_fragment = self.parse_fragment()?;
-
-            // Handle closing {/if} if present
-            if self.match_str("{/") {
-                self.advance_by(2);
-                self.eat("if");
-                self.skip_whitespace();
-                self.eat("}");
-            }
-
-            Ok(Some(alt_fragment))
-        }
-    }
-
-    /// Parse {#each} block.
-    /// Syntax: {#each expression as context}...{:else}...{/each}
-    /// Or: {#each expression as context, index}...{/each}
-    /// Or: {#each expression as context (key)}...{/each}
-    fn parse_each_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
-        self.skip_whitespace();
-
-        // Parse the iterable expression (up to " as " or closing "}")
-        let expr_start = self.index;
-
-        // Find " as " to get the expression, tracking brace depth
-        let mut found_as = false;
-        let mut depth = 0;
-        while !self.is_eof() {
-            let c = self.current_char();
-
-            // Track brace depth
-            if c == '{' || c == '(' || c == '[' {
-                depth += 1;
-            } else if c == ')' || c == ']' {
-                depth -= 1;
-            } else if c == '}' {
-                if depth == 0 {
-                    // This is the closing brace of {#each}, not a nested brace
-                    break;
-                }
-                depth -= 1;
-            }
-
-            // Check for " as " at top level
-            if depth == 0 && self.match_str(" as ") {
-                found_as = true;
-                break;
-            }
-
-            self.advance();
-        }
-
-        let expr_end = self.index;
-        let expr_content = &self.source[expr_start..expr_end].trim();
-        let expression = self.parse_js_expression(expr_content, expr_start);
-
-        if !found_as {
-            // No "as" found - check for ", identifier" index syntax
-            // For "{#each expr, index}", expr_content contains "expr, index"
-            let (final_expr, index_name) = {
-                let s = expr_content.to_string();
-                // Find the last top-level comma (not inside braces, brackets, or parens)
-                let mut depth = 0;
-                let mut last_comma = None;
-                for (i, c) in s.char_indices() {
-                    match c {
-                        '(' | '[' | '{' => depth += 1,
-                        ')' | ']' | '}' => depth -= 1,
-                        ',' if depth == 0 => last_comma = Some(i),
-                        _ => {}
-                    }
-                }
-
-                if let Some(comma_pos) = last_comma {
-                    let expr_part = s[..comma_pos].trim();
-                    let idx_part = s[comma_pos + 1..].trim();
-                    // Check if idx_part is a simple identifier
-                    if !idx_part.is_empty()
-                        && idx_part.chars().all(|c| c.is_alphanumeric() || c == '_')
-                    {
-                        (
-                            self.parse_js_expression(expr_part, expr_start),
-                            Some(CompactString::from(idx_part)),
-                        )
-                    } else {
-                        (expression, None)
-                    }
-                } else {
-                    (expression, None)
-                }
-            };
-
-            // Consume the closing }
-            if self.current_char() == '}' {
-                self.advance();
-            }
-
-            // Parse body fragment
-            let body = self.parse_fragment()?;
-
-            // Handle {/each}
-            if self.match_str("{/each}") {
-                self.advance_by(7);
-            } else if self.match_str("{/") {
-                self.advance_by(2);
-                self.eat("each");
-                self.skip_whitespace();
-                self.eat("}");
-            }
-
-            return Ok(Some(TemplateNode::EachBlock(EachBlock {
-                start: start as u32,
-                end: self.index as u32,
-                expression: final_expr,
-                context: None, // No context when no "as" clause
-                index: index_name,
-                key: None,
-                body,
-                fallback: None,
-            })));
-        }
-
-        // Consume " as "
-        self.advance_by(4);
-        self.skip_whitespace();
-
-        // Parse the context (binding pattern)
-        let context_start = self.index;
-
-        // The context ends at:
-        // - "}" (no index, no key)
-        // - "," (has index)
-        // - "(" (has key)
-        // We need to handle nested braces for destructuring patterns like { name, cool = true }
-
-        let mut depth = 0;
-        while !self.is_eof() {
-            let c = self.current_char();
-
-            // Skip string literals - don't count braces inside strings
-            if c == '\'' || c == '"' {
-                let quote = c;
-                self.advance();
-                while !self.is_eof() && self.current_char() != quote {
-                    if self.current_char() == '\\' {
-                        self.advance(); // skip escape char
-                    }
-                    self.advance();
-                }
-                if !self.is_eof() {
-                    self.advance(); // consume closing quote
-                }
-                continue;
-            }
-
-            // Skip template literals - handle nested braces in template expressions
-            if c == '`' {
-                self.advance();
-                while !self.is_eof() && self.current_char() != '`' {
-                    if self.current_char() == '\\' {
-                        self.advance(); // skip escape char
-                        self.advance();
-                        continue;
-                    }
-                    if self.current_char() == '$'
-                        && self.index + 1 < self.source.len()
-                        && self.source.as_bytes()[self.index + 1] == b'{'
-                    {
-                        // Template expression - need to handle nested content
-                        self.advance(); // $
-                        self.advance(); // {
-                        let mut template_depth = 1;
-                        while !self.is_eof() && template_depth > 0 {
-                            let tc = self.current_char();
-                            if tc == '\\' {
-                                self.advance();
-                                self.advance();
-                                continue;
-                            }
-                            // Handle nested template literals
-                            if tc == '`' {
-                                self.advance();
-                                while !self.is_eof() && self.current_char() != '`' {
-                                    if self.current_char() == '\\' {
-                                        self.advance();
-                                    }
-                                    self.advance();
-                                }
-                                if !self.is_eof() {
-                                    self.advance(); // closing `
-                                }
-                                continue;
-                            }
-                            if tc == '{' {
-                                template_depth += 1;
-                            } else if tc == '}' {
-                                template_depth -= 1;
-                            }
-                            if template_depth > 0 {
-                                self.advance();
-                            }
-                        }
-                        if !self.is_eof() {
-                            self.advance(); // closing }
-                        }
-                        continue;
-                    }
-                    self.advance();
-                }
-                if !self.is_eof() {
-                    self.advance(); // consume closing backtick
-                }
-                continue;
-            }
-
-            if c == '{' || c == '[' {
-                depth += 1;
-            } else if c == '}' {
-                if depth == 0 {
-                    break; // End of block tag
-                }
-                depth -= 1;
-            } else if c == ']' {
-                if depth > 0 {
-                    depth -= 1;
-                }
-            } else if depth == 0 {
-                // Only check for , or ( at top level
-                if c == ',' || c == '(' {
-                    break;
-                }
-            }
-            self.advance();
-        }
-
-        let context_end = self.index;
-        let raw_content = &self.source[context_start..context_end];
-        let trimmed_content = raw_content.trim();
-        // Calculate actual start position after trimming leading whitespace
-        let leading_ws = raw_content.len() - raw_content.trim_start().len();
-        let actual_context_start = context_start + leading_ws;
-        let context = self.parse_binding_pattern(trimmed_content, actual_context_start);
-
-        // Check for index
-        let mut index = None;
-        if self.eat(",") {
-            self.skip_whitespace();
-            let idx_start = self.index;
-            while !self.is_eof() {
-                let c = self.current_char();
-                if c == '}' || c == '(' {
-                    break;
-                }
-                self.advance();
-            }
-            let idx_name = self.source[idx_start..self.index].trim();
-            if !idx_name.is_empty() {
-                index = Some(CompactString::from(idx_name));
-            }
-        }
-
-        // Check for key expression
-        let mut key = None;
-        if self.eat("(") {
-            self.skip_whitespace();
-            let key_start = self.index;
-            let mut key_depth = 1;
-            while !self.is_eof() && key_depth > 0 {
-                let c = self.current_char();
-                if c == '(' {
-                    key_depth += 1;
-                } else if c == ')' {
-                    key_depth -= 1;
-                }
-                if key_depth > 0 {
-                    self.advance();
-                }
-            }
-            let key_content = self.source[key_start..self.index].trim();
-            key = Some(self.parse_js_expression(key_content, key_start));
-            self.eat(")"); // consume closing paren
-        }
-
-        self.skip_whitespace();
-        self.eat("}"); // consume closing brace
-
-        // Push block to stack
-        self.stack.push(StackEntry::EachBlock {
-            start: start as u32,
-        });
-
-        // Parse body
-        let body = self.parse_fragment()?;
-
-        // Check for {:else}
-        let mut fallback = None;
-        if self.match_str("{:") {
-            self.advance_by(2);
-            self.skip_whitespace();
-            if self.eat("else") {
-                self.skip_whitespace();
-                self.eat("}");
-                fallback = Some(self.parse_fragment()?);
-            }
-        }
-
-        // Handle closing {/each}
-        if self.match_str("{/") {
-            self.advance_by(2);
-            self.eat("each");
-            self.skip_whitespace();
-            self.eat("}");
-        }
-
-        // Pop from stack
-        if !self.stack.is_empty() {
-            self.stack.pop();
-        }
-
-        Ok(Some(TemplateNode::EachBlock(EachBlock {
-            start: start as u32,
-            end: self.index as u32,
-            expression,
-            context: Some(context),
-            body,
-            fallback,
-            index,
-            key,
-        })))
-    }
-
-    /// Parse a binding pattern (for each block context).
-    fn parse_binding_pattern(&self, content: &str, offset: usize) -> Expression {
-        super::expression::parse_binding_pattern(content, offset, &self.line_offsets)
-    }
-
-    /// Parse {#await} block.
-    fn parse_await_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
-        self.skip_whitespace();
-
-        // Read the expression (until 'then', 'catch', or '}')
-        let expr_start = self.index;
-        let mut value: Option<Expression> = None;
-        let mut error: Option<Expression> = None;
-        let mut has_then = false;
-        let mut has_catch = false;
-
-        // Find the end of the expression part
-        while !self.is_eof() {
-            let c = self.current_char();
-            if c == '}' {
-                break;
-            }
-            // Check for 'then' or 'catch' keyword
-            if self.match_str("then") {
-                let after_idx = self.index + 4;
-                let is_word_boundary = if after_idx >= self.source.len() {
-                    true
-                } else {
-                    let next_char = self.source.as_bytes()[after_idx] as char;
-                    next_char.is_whitespace() || next_char == '}'
-                };
-                if is_word_boundary {
-                    has_then = true;
-                    break;
-                }
-            }
-            if self.match_str("catch") {
-                let after_idx = self.index + 5;
-                let is_word_boundary = if after_idx >= self.source.len() {
-                    true
-                } else {
-                    let next_char = self.source.as_bytes()[after_idx] as char;
-                    next_char.is_whitespace() || next_char == '}'
-                };
-                if is_word_boundary {
-                    has_catch = true;
-                    break;
-                }
-            }
-            self.advance();
-        }
-        let expr_content = &self.source[expr_start..self.index];
-        let expression = self.parse_js_expression(expr_content.trim(), expr_start);
-
-        // Parse 'then' value if present
-        if has_then {
-            self.advance_by(4); // consume 'then'
-            self.skip_whitespace();
-
-            // Check if there's a value identifier
-            if self.current_char() != '}' {
-                let value_start = self.index;
-                while !self.is_eof() && self.current_char() != '}' {
-                    self.advance();
-                }
-                let value_content = &self.source[value_start..self.index];
-                if !value_content.trim().is_empty() {
-                    value = Some(super::expression::create_identifier_with_character(
-                        value_content.trim(),
-                        value_start,
-                        self.index,
-                        &self.line_offsets,
-                    ));
-                }
-            }
-        }
-
-        // Parse 'catch' error if present
-        if has_catch {
-            self.advance_by(5); // consume 'catch'
-            self.skip_whitespace();
-
-            // Check if there's an error identifier
-            if self.current_char() != '}' {
-                let error_start = self.index;
-                while !self.is_eof() && self.current_char() != '}' {
-                    self.advance();
-                }
-                let error_content = &self.source[error_start..self.index];
-                if !error_content.trim().is_empty() {
-                    error = Some(super::expression::create_identifier_with_character(
-                        error_content.trim(),
-                        error_start,
-                        self.index,
-                        &self.line_offsets,
-                    ));
-                }
-            }
-        }
-
-        self.eat("}"); // consume closing '}'
-
-        // Push block to stack
-        self.stack.push(StackEntry::AwaitBlock {
-            start: start as u32,
-        });
-
-        // Parse the body
-        let body = self.parse_fragment()?;
-
-        // Handle intermediate {:then} or {:catch} clauses
-        let mut then_fragment: Option<Fragment> = None;
-        let mut catch_fragment: Option<Fragment> = None;
-        let mut pending_fragment: Option<Fragment> = None;
-
-        // If we had 'then' in the opening tag, the body is the 'then' fragment
-        if has_then {
-            then_fragment = Some(body);
-        } else if has_catch {
-            // If we had 'catch' in the opening tag, the body is the 'catch' fragment
-            catch_fragment = Some(body);
-        } else {
-            // The body is the pending fragment
-            pending_fragment = Some(body);
-        }
-
-        // Check for {:then} or {:catch} intermediate clauses
-        while self.match_str("{:") {
-            self.advance_by(2);
-            self.skip_whitespace();
-
-            if self.eat("then") {
-                self.skip_whitespace();
-
-                // Check if there's a value identifier
-                if self.current_char() != '}' {
-                    let value_start = self.index;
-                    while !self.is_eof() && self.current_char() != '}' {
-                        self.advance();
-                    }
-                    let value_content = &self.source[value_start..self.index];
-                    if !value_content.trim().is_empty() {
-                        value = Some(super::expression::create_identifier_with_character(
-                            value_content.trim(),
-                            value_start,
-                            self.index,
-                            &self.line_offsets,
-                        ));
-                    }
-                }
-                self.eat("}");
-
-                then_fragment = Some(self.parse_fragment()?);
-            } else if self.eat("catch") {
-                self.skip_whitespace();
-
-                // Check if there's an error identifier
-                if self.current_char() != '}' {
-                    let error_start = self.index;
-                    while !self.is_eof() && self.current_char() != '}' {
-                        self.advance();
-                    }
-                    let error_content = &self.source[error_start..self.index];
-                    if !error_content.trim().is_empty() {
-                        error = Some(super::expression::create_identifier_with_character(
-                            error_content.trim(),
-                            error_start,
-                            self.index,
-                            &self.line_offsets,
-                        ));
-                    }
-                }
-                self.eat("}");
-
-                catch_fragment = Some(self.parse_fragment()?);
-            } else {
-                break;
-            }
-        }
-
-        // Handle closing {/await}
-        if self.match_str("{/await}") {
-            self.advance_by(8);
-        }
-
-        // Pop the stack
-        self.stack.pop();
-
-        Ok(Some(TemplateNode::AwaitBlock(AwaitBlock {
-            start: start as u32,
-            end: self.index as u32,
-            expression,
-            value,
-            error,
-            pending: pending_fragment,
-            then: then_fragment,
-            catch: catch_fragment,
-        })))
-    }
-
-    /// Parse {#key} block.
-    fn parse_key_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
-        self.skip_whitespace();
-
-        // Read the key expression
-        let expr_start = self.index;
-        while !self.is_eof() && self.current_char() != '}' {
-            self.advance();
-        }
-        let expr_content = &self.source[expr_start..self.index];
-        self.advance(); // consume '}'
-
-        let expression = self.parse_js_expression(expr_content.trim(), expr_start);
-
-        // Push block to stack
-        self.stack.push(StackEntry::KeyBlock {
-            start: start as u32,
-        });
-
-        // Parse body
-        let fragment = self.parse_fragment()?;
-
-        // Handle closing {/key} if present (but NOT other closing tags like {/if})
-        if self.match_str("{/key") {
-            self.advance_by(2); // consume '{/'
-            self.eat("key");
-            self.skip_whitespace();
-            self.eat("}");
-        }
-
-        // Pop from stack
-        if !self.stack.is_empty() {
-            self.stack.pop();
-        }
-
-        Ok(Some(TemplateNode::KeyBlock(KeyBlock {
-            start: start as u32,
-            end: self.index as u32,
-            expression,
-            fragment,
-        })))
-    }
-
-    /// Parse {#snippet name(params)} block.
-    fn parse_snippet_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
-        self.skip_whitespace();
-
-        // Parse the snippet name (identifier)
-        let name_start = self.index;
-        let name = self.read_identifier();
-        let name_end = self.index;
-
-        // Create expression for the snippet name (with character field in loc)
-        let expression = super::expression::create_identifier_with_character(
-            &name,
-            name_start,
-            name_end,
-            &self.line_offsets,
-        );
-
-        // Parse optional type parameters (between < and >)
-        let mut type_params = None;
-        if self.eat("<") {
-            let type_params_start = self.index;
-            let mut depth = 1;
-            while !self.is_eof() && depth > 0 {
-                let c = self.current_char();
-                // Skip string literals
-                if c == '\'' || c == '"' {
-                    let quote = c;
-                    self.advance();
-                    while !self.is_eof() && self.current_char() != quote {
-                        if self.current_char() == '\\' {
-                            self.advance();
-                        }
-                        self.advance();
-                    }
-                    if !self.is_eof() {
-                        self.advance(); // consume closing quote
-                    }
-                    continue;
-                }
-                if c == '<' {
-                    depth += 1;
-                } else if c == '>' {
-                    depth -= 1;
-                }
-                if depth > 0 {
-                    self.advance();
-                }
-            }
-            let type_params_content = &self.source[type_params_start..self.index];
-            if !type_params_content.trim().is_empty() {
-                type_params = Some(CompactString::from(type_params_content.trim()));
-            }
-            self.eat(">"); // consume closing >
-        }
-
-        // Parse parameters (inside parentheses)
-        self.skip_whitespace();
-        let mut parameters = Vec::new();
-
-        if self.eat("(") {
-            let params_start = self.index;
-
-            // Find matching closing paren, accounting for nested parens and strings
-            let mut depth = 1;
-            while !self.is_eof() && depth > 0 {
-                let c = self.current_char();
-                // Skip string literals
-                if c == '\'' || c == '"' {
-                    let quote = c;
-                    self.advance();
-                    while !self.is_eof() && self.current_char() != quote {
-                        if self.current_char() == '\\' {
-                            self.advance();
-                        }
-                        self.advance();
-                    }
-                    if !self.is_eof() {
-                        self.advance(); // consume closing quote
-                    }
-                    continue;
-                }
-                if c == '(' {
-                    depth += 1;
-                } else if c == ')' {
-                    depth -= 1;
-                }
-                if depth > 0 {
-                    self.advance();
-                }
-            }
-
-            let params_end = self.index;
-            let params_content = &self.source[params_start..params_end];
-
-            // Parse parameters with TypeScript type annotations
-            if !params_content.trim().is_empty() {
-                parameters = super::expression::parse_typescript_params(
-                    params_content,
-                    params_start,
-                    &self.line_offsets,
-                );
-            }
-
-            self.eat(")"); // consume closing paren
-        }
-
-        self.skip_whitespace();
-        self.eat("}"); // consume closing brace
-
-        // Push to stack
-        self.stack.push(StackEntry::SnippetBlock {
-            start: start as u32,
-        });
-
-        // Parse body
-        let body = self.parse_fragment()?;
-
-        // Handle closing {/snippet}
-        if self.match_str("{/") {
-            self.advance_by(2);
-            self.eat("snippet");
-            self.skip_whitespace();
-            self.eat("}");
-        }
-
-        // Pop from stack
-        if !self.stack.is_empty() {
-            self.stack.pop();
-        }
-
-        Ok(Some(TemplateNode::SnippetBlock(SnippetBlock {
-            start: start as u32,
-            end: self.index as u32,
-            expression,
-            type_params,
-            parameters,
-            body,
-        })))
-    }
-
-    /// Parse special tag ({@html}, {@debug}, etc.)
-    fn parse_special_tag(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
-        self.advance(); // consume '@'
-
-        let keyword = self.read_identifier();
-        self.skip_whitespace();
-
-        match keyword.as_str() {
-            "html" => {
-                let expr_start = self.index;
-                while !self.is_eof() && self.current_char() != '}' {
-                    self.advance();
-                }
-                let expr_content = &self.source[expr_start..self.index];
-                self.advance(); // consume '}'
-
-                let expression = self.parse_js_expression(expr_content.trim(), expr_start);
-
-                Ok(Some(TemplateNode::HtmlTag(HtmlTag {
-                    start: start as u32,
-                    end: self.index as u32,
-                    expression,
-                })))
-            }
-            "render" => {
-                // {@render snippet(...)}
-                let expr_start = self.index;
-                while !self.is_eof() && self.current_char() != '}' {
-                    self.advance();
-                }
-                let expr_content = &self.source[expr_start..self.index];
-                self.advance(); // consume '}'
-
-                let expression = self.parse_js_expression(expr_content.trim(), expr_start);
-
-                Ok(Some(TemplateNode::RenderTag(RenderTag {
-                    start: start as u32,
-                    end: self.index as u32,
-                    expression,
-                })))
-            }
-            "debug" | "const" | "attach" => {
-                // Skip to closing brace
-                while !self.is_eof() && self.current_char() != '}' {
-                    self.advance();
-                }
-                self.advance(); // consume '}'
-                Ok(None)
-            }
-            _ => {
-                // Unknown special tag
-                while !self.is_eof() && self.current_char() != '}' {
-                    self.advance();
-                }
-                self.advance(); // consume '}'
-                Ok(None)
-            }
-        }
-    }
-
-    /// Parse a JavaScript expression and return as Expression.
-    fn parse_js_expression(&self, content: &str, offset: usize) -> Expression {
-        // Adjust offset for leading whitespace that gets trimmed
-        let leading_ws = content.len() - content.trim_start().len();
-        let trimmed = content.trim();
-        super::expression::parse_expression(trimmed, offset + leading_ws, &self.line_offsets)
-    }
-
-    /// Merge attribute value parts into a single Text for script/style tags.
-    /// This is needed because {curly braces} in quoted attribute values are NOT expressions.
-    fn merge_attribute_parts_to_text(
-        &self,
-        parts: &[AttributeValuePart],
-    ) -> Vec<AttributeValuePart> {
-        if parts.len() <= 1 {
-            // No merging needed
-            return parts.to_vec();
-        }
-
-        // Find the overall range and merge the content
-        let first_start = match parts.first() {
-            Some(AttributeValuePart::Text(t)) => t.start,
-            Some(AttributeValuePart::ExpressionTag(e)) => e.start,
-            None => return vec![],
-        };
-        let last_end = match parts.last() {
-            Some(AttributeValuePart::Text(t)) => t.end,
-            Some(AttributeValuePart::ExpressionTag(e)) => e.end,
-            None => return vec![],
-        };
-
-        // Get the raw content from the original source
-        let raw = &self.source[first_start as usize..last_end as usize];
-
-        vec![AttributeValuePart::Text(Text {
-            start: first_start,
-            end: last_end,
-            raw: CompactString::from(raw),
-            data: CompactString::from(raw),
-        })]
-    }
-
-    /// Parse a <script> tag and store it in instance_script or module_script.
-    fn parse_script_tag(
-        &mut self,
-        start: usize,
-        attributes: Vec<crate::ast::Attribute>,
-    ) -> ParseResult<Option<TemplateNode>> {
-        let content_start = self.index;
-
-        // Find the closing </script> tag (with optional whitespace before >)
-        while !self.is_eof() && !self.is_valid_closing_tag("</script") {
-            self.advance();
-        }
-
-        let content_end = self.index;
-        let script_content = &self.source[content_start..content_end];
-
-        // Consume </script followed by optional whitespace and >
-        if self.match_str("</script") {
-            self.advance_by(8); // consume '</script'
-            // Skip whitespace before >
-            while !self.is_eof() && self.current_char() != '>' {
-                self.advance();
-            }
-            self.eat(">"); // consume '>'
-        }
-
-        let end = self.index;
-
-        // Determine context and language from attributes
-        let mut context = ScriptContext::Default;
-        let mut is_typescript = false;
-        let mut script_attributes = Vec::new();
-
-        for attr in attributes {
-            if let crate::ast::Attribute::Attribute(mut attr_node) = attr {
-                // For script tags, merge expression parts back into text
-                // because {curly braces} in quoted attribute values are NOT expressions
-                if let AttributeValue::Sequence(ref parts) = attr_node.value {
-                    let merged = self.merge_attribute_parts_to_text(parts);
-                    attr_node.value = AttributeValue::Sequence(merged);
-                }
-
-                if attr_node.name.as_str() == "context" {
-                    if let AttributeValue::Sequence(parts) = &attr_node.value {
-                        if let Some(AttributeValuePart::Text(t)) = parts.first() {
-                            if t.data.as_str() == "module" {
-                                context = ScriptContext::Module;
-                            }
-                        }
-                    }
-                } else if attr_node.name.as_str() == "module" {
-                    // `module` attribute (boolean or with value) indicates module context
-                    context = ScriptContext::Module;
-                    script_attributes.push(attr_node);
-                    continue;
-                } else if attr_node.name.as_str() == "lang" {
-                    if let AttributeValue::Sequence(parts) = &attr_node.value {
-                        if let Some(AttributeValuePart::Text(t)) = parts.first() {
-                            let lang = t.data.as_str();
-                            if lang == "ts" || lang == "typescript" {
-                                is_typescript = true;
-                            }
-                        }
-                    }
-                    script_attributes.push(attr_node);
-                } else {
-                    script_attributes.push(attr_node);
-                }
-            }
-        }
-
-        // Parse the script content as a JavaScript/TypeScript Program
-        // Pass any pending leading comments (HTML comments before the script tag)
-        let leading_comments = std::mem::take(&mut self.pending_leading_comments);
-        let program = super::expression::parse_program(
-            script_content,
-            content_start,
-            &self.line_offsets,
-            is_typescript,
-            &leading_comments,
-        );
-
-        let script = Script {
-            node_type: ScriptType::Script,
-            start: start as u32,
-            end: end as u32,
-            context,
-            content: program,
-            attributes: script_attributes,
-        };
-
-        match context {
-            ScriptContext::Default => self.instance_script = Some(script),
-            ScriptContext::Module => self.module_script = Some(script),
-        }
-
-        // Return None - script tags don't appear in the fragment
-        Ok(None)
-    }
-
-    /// Parse a <style> tag and store it in stylesheet.
-    fn parse_style_tag(
-        &mut self,
-        start: usize,
-        attributes: Vec<crate::ast::Attribute>,
-    ) -> ParseResult<Option<TemplateNode>> {
-        let content_start = self.index;
-
-        // Find the closing </style> tag (with optional whitespace before >)
-        while !self.is_eof() && !self.is_valid_closing_tag("</style") {
-            self.advance();
-        }
-
-        let content_end = self.index;
-        let style_content = &self.source[content_start..content_end];
-
-        // Consume </style followed by optional whitespace and >
-        if self.match_str("</style") {
-            self.advance_by(7); // consume '</style'
-            // Skip whitespace before >
-            while !self.is_eof() && self.current_char() != '>' {
-                self.advance();
-            }
-            self.eat(">"); // consume '>'
-        }
-
-        let end = self.index;
-
-        // Convert attributes to JSON values
-        let style_attributes: Vec<serde_json::Value> = attributes
-            .iter()
-            .filter_map(|attr| {
-                if let crate::ast::Attribute::Attribute(attr_node) = attr {
-                    serde_json::to_value(attr_node).ok()
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        // Parse CSS content
-        let css_children = super::css::parse_css(style_content, content_start);
-
-        let stylesheet = StyleSheet {
-            node_type: crate::ast::css::StyleSheetType::StyleSheet,
-            start: start as u32,
-            end: end as u32,
-            attributes: style_attributes,
-            children: css_children,
-            content: crate::ast::css::StyleSheetContent {
-                start: content_start as u32,
-                end: content_end as u32,
-                styles: style_content.to_string(),
-                comment: None,
-            },
-        };
-
-        self.stylesheet = Some(stylesheet);
-
-        // Return None - style tags don't appear in the fragment
-        Ok(None)
-    }
-
-    /// Parse svelte:options element and extract options.
-    fn parse_svelte_options(
-        &mut self,
-        start: usize,
-        attributes: Vec<crate::ast::Attribute>,
-    ) -> ParseResult<Option<TemplateNode>> {
-        let end = self.index as u32;
-
-        // Extract option values from attributes
-        let mut runes = None;
-        let mut custom_element = None;
-
-        // Convert Vec<Attribute> to Vec<AttributeNode> for storage
-        let mut attr_nodes = Vec::new();
-
-        for attr in &attributes {
-            if let crate::ast::Attribute::Attribute(attr_node) = attr {
-                attr_nodes.push(attr_node.clone());
-
-                match attr_node.name.as_str() {
-                    "runes" => {
-                        // runes={true} or runes={false}
-                        if let AttributeValue::Expression(expr_tag) = &attr_node.value {
-                            if let Some(val) = expr_tag.expression.as_json().get("value") {
-                                if let Some(b) = val.as_bool() {
-                                    runes = Some(b);
-                                }
-                            }
-                        }
-                    }
-                    "customElement" => {
-                        // customElement="tag-name"
-                        if let AttributeValue::Sequence(parts) = &attr_node.value {
-                            if let Some(AttributeValuePart::Text(text)) = parts.first() {
-                                custom_element = Some(CustomElementOptions {
-                                    tag: Some(text.data.clone()),
-                                    shadow: None,
-                                    props: None,
-                                    extend: None,
-                                });
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        }
-
-        // Store the options
-        self.svelte_options = Some(SvelteOptions {
-            start: start as u32,
-            end,
-            runes,
-            immutable: None,
-            accessors: None,
-            preserve_whitespace: None,
-            namespace: None,
-            css: None,
-            custom_element,
-            attributes: attr_nodes,
-        });
-
-        // svelte:options doesn't produce a node in the fragment
-        Ok(None)
-    }
-
     /// Parse raw text content for elements like textarea, style (inside svelte:head).
     /// - For style: completely raw text, no expression parsing
     /// - For textarea: parses {expressions} but treats HTML as text
-    fn parse_raw_text_content(&mut self, tag_name: &str) -> ParseResult<Fragment> {
+    pub fn parse_raw_text_content(&mut self, tag_name: &str) -> ParseResult<Fragment> {
         let closing_tag = format!("</{}", tag_name);
         let is_style = tag_name == "style";
 
@@ -3408,209 +1865,5 @@ impl<'a> Parser<'a> {
             node_type: FragmentType::Fragment,
             nodes,
         })
-    }
-
-    // =========================================================================
-    // Low-level parsing utilities
-    // =========================================================================
-
-    /// Check if we've reached the end of the source.
-    #[inline]
-    fn is_eof(&self) -> bool {
-        self.index >= self.bytes.len()
-    }
-
-    /// Get the current character.
-    #[inline]
-    fn current_char(&self) -> char {
-        if self.is_eof() {
-            '\0'
-        } else {
-            self.source[self.index..].chars().next().unwrap_or('\0')
-        }
-    }
-
-    /// Advance the position by one character.
-    #[inline]
-    fn advance(&mut self) {
-        if !self.is_eof() {
-            let c = self.current_char();
-            self.index += c.len_utf8();
-        }
-    }
-
-    /// Advance by n bytes.
-    #[inline]
-    fn advance_by(&mut self, n: usize) {
-        self.index = (self.index + n).min(self.bytes.len());
-    }
-
-    /// Check if the source at current position starts with the given string.
-    #[inline]
-    fn match_str(&self, s: &str) -> bool {
-        self.source[self.index..].starts_with(s)
-    }
-
-    /// Consume a string if it matches.
-    fn eat(&mut self, s: &str) -> bool {
-        if self.match_str(s) {
-            self.advance_by(s.len());
-            true
-        } else {
-            false
-        }
-    }
-
-    /// Consume a string, returning an error if it doesn't match.
-    fn expect(&mut self, s: &str) -> ParseResult<()> {
-        if self.eat(s) {
-            Ok(())
-        } else {
-            Err(ParseError::UnexpectedToken {
-                expected: s.to_string(),
-                found: self.peek_chars(s.len()),
-                span: (self.index, self.index + 1),
-            })
-        }
-    }
-
-    /// Skip whitespace.
-    fn skip_whitespace(&mut self) {
-        while !self.is_eof() {
-            let c = self.current_char();
-            if !c.is_whitespace() {
-                break;
-            }
-            self.advance();
-        }
-    }
-
-    /// Read an identifier.
-    fn read_identifier(&mut self) -> CompactString {
-        let start = self.index;
-
-        while !self.is_eof() {
-            let c = self.current_char();
-            if !c.is_alphanumeric() && c != '_' && c != '$' {
-                break;
-            }
-            self.advance();
-        }
-
-        CompactString::from(&self.source[start..self.index])
-    }
-
-    /// Read a tag name.
-    fn read_tag_name(&mut self) -> CompactString {
-        let start = self.index;
-
-        while !self.is_eof() {
-            let c = self.current_char();
-            if c.is_whitespace() || c == '>' || c == '/' || c == '=' {
-                break;
-            }
-            self.advance();
-        }
-
-        CompactString::from(&self.source[start..self.index])
-    }
-
-    /// Read an attribute name.
-    fn read_attribute_name(&mut self) -> CompactString {
-        let start = self.index;
-
-        while !self.is_eof() {
-            let c = self.current_char();
-            if c.is_whitespace() || c == '=' || c == '>' || c == '/' || c == '"' || c == '\'' {
-                break;
-            }
-            self.advance();
-        }
-
-        CompactString::from(&self.source[start..self.index])
-    }
-
-    /// Peek at the next n characters.
-    fn peek_chars(&self, n: usize) -> String {
-        self.source[self.index..].chars().take(n).collect()
-    }
-}
-
-/// Check if an element is a void element.
-fn is_void_element(name: &str) -> bool {
-    matches!(
-        name,
-        "area"
-            | "base"
-            | "br"
-            | "col"
-            | "embed"
-            | "hr"
-            | "img"
-            | "input"
-            | "link"
-            | "meta"
-            | "param"
-            | "source"
-            | "track"
-            | "wbr"
-    )
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_text() {
-        let mut parser = Parser::new("hello world", ParseOptions::default());
-        let result = parser.parse().unwrap();
-
-        assert_eq!(result.fragment.nodes.len(), 1);
-        match &result.fragment.nodes[0] {
-            TemplateNode::Text(text) => {
-                assert_eq!(text.data.as_str(), "hello world");
-                assert_eq!(text.raw.as_str(), "hello world");
-            }
-            _ => panic!("Expected Text node"),
-        }
-    }
-
-    #[test]
-    fn test_parse_empty() {
-        let mut parser = Parser::new("", ParseOptions::default());
-        let result = parser.parse().unwrap();
-
-        assert!(result.fragment.nodes.is_empty());
-    }
-
-    #[test]
-    fn test_parse_element() {
-        let mut parser = Parser::new("<div>hello</div>", ParseOptions::default());
-        let result = parser.parse().unwrap();
-
-        assert_eq!(result.fragment.nodes.len(), 1);
-        match &result.fragment.nodes[0] {
-            TemplateNode::RegularElement(el) => {
-                assert_eq!(el.name.as_str(), "div");
-                assert_eq!(el.fragment.nodes.len(), 1);
-            }
-            _ => panic!("Expected RegularElement node"),
-        }
-    }
-
-    #[test]
-    fn test_parse_if_block() {
-        let mut parser = Parser::new("{#if foo}bar{/if}", ParseOptions::default());
-        let result = parser.parse().unwrap();
-
-        assert_eq!(result.fragment.nodes.len(), 1);
-        match &result.fragment.nodes[0] {
-            TemplateNode::IfBlock(block) => {
-                assert!(!block.elseif);
-                assert_eq!(block.consequent.nodes.len(), 1);
-            }
-            _ => panic!("Expected IfBlock node"),
-        }
     }
 }

@@ -3,7 +3,7 @@
 //! Generates scoped CSS stylesheets with selector scoping.
 //! Preserves original whitespace from source using AST positions.
 
-use super::super::phase1_parse::css::parse_css;
+use super::super::phase1_parse::parse_css;
 use super::{CssOutput, TransformError};
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;

@@ -1,7 +1,23 @@
-//! JavaScript expression parsing using oxc.
+//! JavaScript expression parsing using OXC.
 //!
-//! This module handles parsing JavaScript expressions from Svelte templates
-//! and converts them to a serde_json::Value format compatible with Svelte's AST.
+//! # Svelte Compiler Correspondence
+//!
+//! This module corresponds to:
+//! - `svelte/packages/svelte/src/compiler/phases/1-parse/read/expression.js`
+//! - `svelte/packages/svelte/src/compiler/phases/1-parse/acorn.js` (comment handling)
+//!
+//! ## Differences from Svelte
+//!
+//! - **Parser backend**: Svelte uses [Acorn](https://github.com/acornjs/acorn) for JavaScript
+//!   parsing, while this implementation uses [OXC](https://oxc.rs/) for better performance.
+//! - **AST conversion**: This module converts OXC's AST to a `serde_json::Value` format
+//!   compatible with Svelte's ESTree-based AST output.
+//! - **TypeScript support**: OXC provides native TypeScript support, which is used here
+//!   to parse TypeScript expressions without additional configuration.
+//! - **Line/column tracking**: This implementation computes ESTree-style `loc` fields
+//!   (with `line` and `column`) from OXC's byte offsets using pre-computed line offsets.
+//! - **Comment handling**: Comments are attached as `leadingComments` and `trailingComments`
+//!   following the ESTree convention. Block comments have their indentation normalized.
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::Expression as OxcExpression;
@@ -10,6 +26,99 @@ use oxc_span::{GetSpan, SourceType};
 use serde_json::{Map, Value};
 
 use crate::ast::js::Expression;
+
+// ============================================================================
+// Comment handling utilities
+// ============================================================================
+
+/// Normalize block comment indentation.
+///
+/// When a block comment spans multiple lines, this function removes the common
+/// leading indentation from each line. This matches Svelte's behavior for
+/// preserving comment formatting while removing artificial indentation.
+///
+/// # Arguments
+/// * `value` - The comment text (without /* and */)
+/// * `source` - The full source text
+/// * `comment_start` - The start position of the comment in the source
+fn normalize_block_comment_indentation(value: &str, source: &str, comment_start: usize) -> String {
+    // Only normalize if comment contains newlines
+    if !value.contains('\n') {
+        return value.to_string();
+    }
+
+    // Find the indentation at the start of the line where the comment begins
+    let mut line_start = comment_start;
+    while line_start > 0 && source.as_bytes().get(line_start - 1) != Some(&b'\n') {
+        line_start -= 1;
+    }
+
+    // Collect whitespace at the start of the line
+    let mut indent_end = line_start;
+    while indent_end < source.len() {
+        match source.as_bytes().get(indent_end) {
+            Some(b' ') | Some(b'\t') => indent_end += 1,
+            _ => break,
+        }
+    }
+
+    let indentation = &source[line_start..indent_end];
+    if indentation.is_empty() {
+        return value.to_string();
+    }
+
+    // Remove this indentation from the start of each line in the comment
+    let pattern = format!("\n{}", indentation);
+    value.replace(&pattern, "\n")
+}
+
+/// Create a comment object in ESTree format.
+///
+/// # Arguments
+/// * `kind` - The comment kind (Line or Block)
+/// * `value` - The comment text (without // or /* */)
+/// * `start` - Start position in the source
+/// * `end` - End position in the source
+/// * `line_offsets` - Line offset table for location calculation
+fn create_comment_object(
+    kind: oxc_ast::ast::CommentKind,
+    value: String,
+    start: usize,
+    end: usize,
+    line_offsets: &[usize],
+) -> Value {
+    let mut obj = Map::new();
+
+    let comment_type = match kind {
+        oxc_ast::ast::CommentKind::Line => "Line",
+        oxc_ast::ast::CommentKind::Block => "Block",
+    };
+
+    obj.insert("type".to_string(), Value::String(comment_type.to_string()));
+    obj.insert("value".to_string(), Value::String(value));
+    obj.insert("start".to_string(), Value::Number((start as i64).into()));
+    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+
+    // Add location information
+    let loc = create_loc(start, end, line_offsets);
+    obj.insert("loc".to_string(), loc);
+
+    Value::Object(obj)
+}
+
+/// Extract comment value from raw comment text.
+///
+/// Strips the comment delimiters (// or /* */) from the raw comment text.
+fn extract_comment_value(raw: &str, kind: oxc_ast::ast::CommentKind) -> String {
+    match kind {
+        oxc_ast::ast::CommentKind::Line => raw.strip_prefix("//").unwrap_or(raw).to_string(),
+        oxc_ast::ast::CommentKind::Block => raw
+            .strip_prefix("/*")
+            .and_then(|s| s.strip_suffix("*/"))
+            .unwrap_or(raw)
+            .to_string(),
+    }
+}
 
 /// Parse a JavaScript expression and return it as an Expression.
 pub fn parse_expression(content: &str, offset: usize, line_offsets: &[usize]) -> Expression {
@@ -55,64 +164,93 @@ fn parse_expression_with_typescript(
             // Adjust positions: subtract 1 for the opening paren we added
             let mut expr = convert_expression(&expr_stmt.expression, offset, line_offsets);
 
-            // Check for leading comments and attach them
+            // Attach comments to the expression
             if !result.program.comments.is_empty() {
-                // Get the actual expression's start position (unwrap ParenthesizedExpression)
-                // We need to look at the inner expression, not the wrapping parentheses
+                // Get the actual expression's start and end positions
                 let inner_expr = unwrap_parenthesized(&expr_stmt.expression);
                 let expr_start = inner_expr.span().start;
+                let expr_end = inner_expr.span().end;
 
-                // Find comments that appear before the expression
+                // Collect leading comments (before the expression)
                 let leading_comments: Vec<Value> = result
                     .program
                     .comments
                     .iter()
                     .filter(|comment| comment.span.end <= expr_start)
                     .map(|comment| {
-                        let mut comment_obj = Map::new();
-                        let comment_type = match comment.kind {
-                            oxc_ast::ast::CommentKind::Line => "Line",
-                            oxc_ast::ast::CommentKind::Block => "Block",
-                        };
-                        comment_obj
-                            .insert("type".to_string(), Value::String(comment_type.to_string()));
-
-                        // Extract comment value (text without // or /* */)
                         // Adjust positions: -1 for the paren, then add offset
                         let comment_start = offset + comment.span.start as usize - 1;
                         let comment_end = offset + comment.span.end as usize - 1;
 
-                        // Get the raw comment text from the wrapped content and strip prefix/suffix
+                        // Get raw comment text
                         let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
-                        let value = match comment.kind {
-                            oxc_ast::ast::CommentKind::Line => {
-                                raw.strip_prefix("//").unwrap_or(raw).to_string()
-                            }
-                            oxc_ast::ast::CommentKind::Block => raw
-                                .strip_prefix("/*")
-                                .and_then(|s| s.strip_suffix("*/"))
-                                .unwrap_or(raw)
-                                .to_string(),
-                        };
+                        let mut value = extract_comment_value(raw, comment.kind);
 
-                        comment_obj.insert("value".to_string(), Value::String(value));
-                        comment_obj.insert(
-                            "start".to_string(),
-                            Value::Number((comment_start as i64).into()),
-                        );
-                        comment_obj.insert(
-                            "end".to_string(),
-                            Value::Number((comment_end as i64).into()),
-                        );
-                        Value::Object(comment_obj)
+                        // Normalize block comment indentation
+                        if comment.kind == oxc_ast::ast::CommentKind::Block {
+                            value = normalize_block_comment_indentation(
+                                &value,
+                                content,
+                                comment.span.start as usize - 1,
+                            );
+                        }
+
+                        create_comment_object(
+                            comment.kind,
+                            value,
+                            comment_start,
+                            comment_end,
+                            line_offsets,
+                        )
                     })
                     .collect();
 
-                if !leading_comments.is_empty() {
-                    if let Expression::Value(Value::Object(ref mut obj)) = expr {
+                // Collect trailing comments (after the expression)
+                let trailing_comments: Vec<Value> = result
+                    .program
+                    .comments
+                    .iter()
+                    .filter(|comment| comment.span.start >= expr_end)
+                    .map(|comment| {
+                        // Adjust positions: -1 for the paren, then add offset
+                        let comment_start = offset + comment.span.start as usize - 1;
+                        let comment_end = offset + comment.span.end as usize - 1;
+
+                        // Get raw comment text
+                        let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
+                        let mut value = extract_comment_value(raw, comment.kind);
+
+                        // Normalize block comment indentation
+                        if comment.kind == oxc_ast::ast::CommentKind::Block {
+                            value = normalize_block_comment_indentation(
+                                &value,
+                                content,
+                                comment.span.start as usize - 1,
+                            );
+                        }
+
+                        create_comment_object(
+                            comment.kind,
+                            value,
+                            comment_start,
+                            comment_end,
+                            line_offsets,
+                        )
+                    })
+                    .collect();
+
+                // Attach comments to the expression
+                if let Expression::Value(Value::Object(ref mut obj)) = expr {
+                    if !leading_comments.is_empty() {
                         obj.insert(
                             "leadingComments".to_string(),
                             Value::Array(leading_comments),
+                        );
+                    }
+                    if !trailing_comments.is_empty() {
+                        obj.insert(
+                            "trailingComments".to_string(),
+                            Value::Array(trailing_comments),
                         );
                     }
                 }
@@ -564,6 +702,23 @@ fn convert_expression(expr: &OxcExpression, offset: usize, line_offsets: &[usize
             let start = offset + seq.span.start as usize - 1;
             let end = offset + seq.span.end as usize - 1;
             create_sequence_expression(seq, start, end, offset, line_offsets)
+        }
+        // TypeScript expression wrappers - unwrap and return the inner expression
+        // This matches Svelte's behavior of removing TypeScript syntax
+        OxcExpression::TSAsExpression(ts_as) => {
+            convert_expression(&ts_as.expression, offset, line_offsets)
+        }
+        OxcExpression::TSSatisfiesExpression(ts_satisfies) => {
+            convert_expression(&ts_satisfies.expression, offset, line_offsets)
+        }
+        OxcExpression::TSNonNullExpression(ts_non_null) => {
+            convert_expression(&ts_non_null.expression, offset, line_offsets)
+        }
+        OxcExpression::TSTypeAssertion(ts_assertion) => {
+            convert_expression(&ts_assertion.expression, offset, line_offsets)
+        }
+        OxcExpression::TSInstantiationExpression(ts_inst) => {
+            convert_expression(&ts_inst.expression, offset, line_offsets)
         }
         // Add more expression types as needed
         _ => {
@@ -3360,6 +3515,37 @@ fn convert_expression_with_adjustment(
                 line_offsets,
             )
         }
+        // TypeScript expression wrappers - unwrap and return the inner expression
+        OxcExpression::TSAsExpression(ts_as) => convert_expression_with_adjustment(
+            &ts_as.expression,
+            doc_offset,
+            prefix_len,
+            line_offsets,
+        ),
+        OxcExpression::TSSatisfiesExpression(ts_satisfies) => convert_expression_with_adjustment(
+            &ts_satisfies.expression,
+            doc_offset,
+            prefix_len,
+            line_offsets,
+        ),
+        OxcExpression::TSNonNullExpression(ts_non_null) => convert_expression_with_adjustment(
+            &ts_non_null.expression,
+            doc_offset,
+            prefix_len,
+            line_offsets,
+        ),
+        OxcExpression::TSTypeAssertion(ts_assertion) => convert_expression_with_adjustment(
+            &ts_assertion.expression,
+            doc_offset,
+            prefix_len,
+            line_offsets,
+        ),
+        OxcExpression::TSInstantiationExpression(ts_inst) => convert_expression_with_adjustment(
+            &ts_inst.expression,
+            doc_offset,
+            prefix_len,
+            line_offsets,
+        ),
         _ => {
             // Fallback for other expressions
             let span = expr.span();

@@ -1,0 +1,979 @@
+//! Mustache tag and block parsing.
+
+use compact_str::CompactString;
+
+use crate::ast::js::Expression;
+use crate::ast::template::{
+    AwaitBlock, EachBlock, ExpressionTag, Fragment, FragmentType, HtmlTag, IfBlock, KeyBlock,
+    RenderTag, SnippetBlock, TemplateNode,
+};
+use crate::error::ParseResult;
+
+use super::super::parser::{Parser, StackEntry};
+
+impl Parser<'_> {
+    /// Parse a mustache expression.
+    pub fn parse_mustache(&mut self) -> ParseResult<Option<TemplateNode>> {
+        let start = self.index;
+        self.advance(); // consume '{'
+
+        self.skip_whitespace();
+
+        // Check for block tags
+        if self.match_str("#") {
+            return self.parse_block_open(start);
+        }
+
+        if self.match_str(":") {
+            // Block continuation - should not happen at top level
+            return Ok(None);
+        }
+
+        if self.match_str("/") && !self.match_str("/*") && !self.match_str("//") {
+            // Block close (but not JS comment) - should not happen at top level
+            return Ok(None);
+        }
+
+        if self.match_str("@") {
+            return self.parse_special_tag(start);
+        }
+
+        // Regular expression tag
+        let expr_start = self.index;
+        let mut depth = 1;
+
+        while !self.is_eof() && depth > 0 {
+            let c = self.current_char();
+            if c == '{' {
+                depth += 1;
+            } else if c == '}' {
+                depth -= 1;
+                if depth == 0 {
+                    break;
+                }
+            }
+            self.advance();
+        }
+
+        let expr_content = &self.source[expr_start..self.index];
+        self.advance(); // consume '}'
+
+        let expression = self.parse_js_expression(expr_content.trim(), expr_start);
+
+        Ok(Some(TemplateNode::ExpressionTag(ExpressionTag {
+            start: start as u32,
+            end: self.index as u32,
+            expression,
+        })))
+    }
+
+    /// Parse block open tag ({#if}, {#each}, etc.)
+    pub fn parse_block_open(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
+        self.advance(); // consume '#'
+
+        let keyword = self.read_identifier();
+
+        match keyword.as_str() {
+            "if" => self.parse_if_block(start),
+            "each" => self.parse_each_block(start),
+            "await" => self.parse_await_block(start),
+            "key" => self.parse_key_block(start),
+            "snippet" => self.parse_snippet_block(start),
+            _ => {
+                // Unknown block, skip to closing brace
+                while !self.is_eof() && self.current_char() != '}' {
+                    self.advance();
+                }
+                self.advance(); // consume '}'
+                Ok(None)
+            }
+        }
+    }
+
+    /// Parse {#if} block.
+    pub fn parse_if_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
+        self.skip_whitespace();
+
+        // Read the test expression
+        let expr_start = self.index;
+        while !self.is_eof() && self.current_char() != '}' {
+            self.advance();
+        }
+        let expr_content = &self.source[expr_start..self.index];
+        self.advance(); // consume '}'
+
+        let test = self.parse_js_expression(expr_content.trim(), expr_start);
+
+        // Push block to stack
+        self.stack.push(StackEntry::IfBlock {
+            start: start as u32,
+        });
+
+        // Parse consequent
+        let consequent = self.parse_fragment()?;
+
+        // Check for {:else} or {:else if}
+        let alternate = self.parse_if_alternate()?;
+
+        // Handle closing {/if} if not already consumed
+        if self.match_str("{/") {
+            self.advance_by(2);
+            self.eat("if");
+            self.skip_whitespace();
+            self.eat("}");
+        }
+
+        // Pop from stack
+        if !self.stack.is_empty() {
+            self.stack.pop();
+        }
+
+        Ok(Some(TemplateNode::IfBlock(IfBlock {
+            start: start as u32,
+            end: self.index as u32,
+            elseif: false,
+            test,
+            consequent,
+            alternate,
+        })))
+    }
+
+    /// Parse {:else} or {:else if} blocks recursively
+    pub fn parse_if_alternate(&mut self) -> ParseResult<Option<Fragment>> {
+        if !self.match_str("{:") {
+            return Ok(None);
+        }
+
+        let else_block_start = self.index;
+        self.advance_by(2); // consume '{:'
+        self.skip_whitespace();
+
+        if !self.eat("else") {
+            // Not an else block, backtrack
+            self.index = else_block_start;
+            return Ok(None);
+        }
+
+        self.skip_whitespace();
+
+        if self.eat("if") {
+            // {:else if ...}
+            self.skip_whitespace();
+            let alt_expr_start = self.index;
+            while !self.is_eof() && self.current_char() != '}' {
+                self.advance();
+            }
+            let alt_expr_content = &self.source[alt_expr_start..self.index];
+            self.advance(); // consume '}'
+
+            let alt_test = self.parse_js_expression(alt_expr_content.trim(), alt_expr_start);
+            let alt_consequent = self.parse_fragment()?;
+
+            // Recursively check for another else/else-if
+            let alt_alternate = self.parse_if_alternate()?;
+
+            // Handle closing {/if} if present
+            if self.match_str("{/") {
+                self.advance_by(2);
+                self.eat("if");
+                self.skip_whitespace();
+                self.eat("}");
+            }
+
+            Ok(Some(Fragment {
+                node_type: FragmentType::Fragment,
+                nodes: vec![TemplateNode::IfBlock(IfBlock {
+                    start: else_block_start as u32,
+                    end: self.index as u32,
+                    elseif: true,
+                    test: alt_test,
+                    consequent: alt_consequent,
+                    alternate: alt_alternate,
+                })],
+            }))
+        } else {
+            // {:else}
+            self.skip_whitespace(); // Handle {:else } with space before }
+            self.eat("}");
+            let alt_fragment = self.parse_fragment()?;
+
+            // Handle closing {/if} if present
+            if self.match_str("{/") {
+                self.advance_by(2);
+                self.eat("if");
+                self.skip_whitespace();
+                self.eat("}");
+            }
+
+            Ok(Some(alt_fragment))
+        }
+    }
+
+    /// Parse {#each} block.
+    /// Syntax: {#each expression as context}...{:else}...{/each}
+    /// Or: {#each expression as context, index}...{/each}
+    /// Or: {#each expression as context (key)}...{/each}
+    pub fn parse_each_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
+        self.skip_whitespace();
+
+        // Parse the iterable expression (up to " as " or closing "}")
+        let expr_start = self.index;
+
+        // Find " as " to get the expression, tracking brace depth
+        let mut found_as = false;
+        let mut depth = 0;
+        while !self.is_eof() {
+            let c = self.current_char();
+
+            // Track brace depth
+            if c == '{' || c == '(' || c == '[' {
+                depth += 1;
+            } else if c == ')' || c == ']' {
+                depth -= 1;
+            } else if c == '}' {
+                if depth == 0 {
+                    // This is the closing brace of {#each}, not a nested brace
+                    break;
+                }
+                depth -= 1;
+            }
+
+            // Check for " as " at top level
+            if depth == 0 && self.match_str(" as ") {
+                found_as = true;
+                break;
+            }
+
+            self.advance();
+        }
+
+        let expr_end = self.index;
+        let expr_content = &self.source[expr_start..expr_end].trim();
+        let expression = self.parse_js_expression(expr_content, expr_start);
+
+        if !found_as {
+            // No "as" found - check for ", identifier" index syntax
+            // For "{#each expr, index}", expr_content contains "expr, index"
+            let (final_expr, index_name) = {
+                let s = expr_content.to_string();
+                // Find the last top-level comma (not inside braces, brackets, or parens)
+                let mut depth = 0;
+                let mut last_comma = None;
+                for (i, c) in s.char_indices() {
+                    match c {
+                        '(' | '[' | '{' => depth += 1,
+                        ')' | ']' | '}' => depth -= 1,
+                        ',' if depth == 0 => last_comma = Some(i),
+                        _ => {}
+                    }
+                }
+
+                if let Some(comma_pos) = last_comma {
+                    let expr_part = s[..comma_pos].trim();
+                    let idx_part = s[comma_pos + 1..].trim();
+                    // Check if idx_part is a simple identifier
+                    if !idx_part.is_empty()
+                        && idx_part.chars().all(|c| c.is_alphanumeric() || c == '_')
+                    {
+                        (
+                            self.parse_js_expression(expr_part, expr_start),
+                            Some(CompactString::from(idx_part)),
+                        )
+                    } else {
+                        (expression, None)
+                    }
+                } else {
+                    (expression, None)
+                }
+            };
+
+            // Consume the closing }
+            if self.current_char() == '}' {
+                self.advance();
+            }
+
+            // Parse body fragment
+            let body = self.parse_fragment()?;
+
+            // Handle {/each}
+            if self.match_str("{/each}") {
+                self.advance_by(7);
+            } else if self.match_str("{/") {
+                self.advance_by(2);
+                self.eat("each");
+                self.skip_whitespace();
+                self.eat("}");
+            }
+
+            return Ok(Some(TemplateNode::EachBlock(EachBlock {
+                start: start as u32,
+                end: self.index as u32,
+                expression: final_expr,
+                context: None, // No context when no "as" clause
+                index: index_name,
+                key: None,
+                body,
+                fallback: None,
+            })));
+        }
+
+        // Consume " as "
+        self.advance_by(4);
+        self.skip_whitespace();
+
+        // Parse the context (binding pattern)
+        let context_start = self.index;
+
+        // The context ends at:
+        // - "}" (no index, no key)
+        // - "," (has index)
+        // - "(" (has key)
+        // We need to handle nested braces for destructuring patterns like { name, cool = true }
+
+        let mut depth = 0;
+        while !self.is_eof() {
+            let c = self.current_char();
+
+            // Skip string literals - don't count braces inside strings
+            if c == '\'' || c == '"' {
+                let quote = c;
+                self.advance();
+                while !self.is_eof() && self.current_char() != quote {
+                    if self.current_char() == '\\' {
+                        self.advance(); // skip escape char
+                    }
+                    self.advance();
+                }
+                if !self.is_eof() {
+                    self.advance(); // consume closing quote
+                }
+                continue;
+            }
+
+            // Skip template literals - handle nested braces in template expressions
+            if c == '`' {
+                self.advance();
+                while !self.is_eof() && self.current_char() != '`' {
+                    if self.current_char() == '\\' {
+                        self.advance(); // skip escape char
+                        self.advance();
+                        continue;
+                    }
+                    if self.current_char() == '$'
+                        && self.index + 1 < self.source.len()
+                        && self.source.as_bytes()[self.index + 1] == b'{'
+                    {
+                        // Template expression - need to handle nested content
+                        self.advance(); // $
+                        self.advance(); // {
+                        let mut template_depth = 1;
+                        while !self.is_eof() && template_depth > 0 {
+                            let tc = self.current_char();
+                            if tc == '\\' {
+                                self.advance();
+                                self.advance();
+                                continue;
+                            }
+                            // Handle nested template literals
+                            if tc == '`' {
+                                self.advance();
+                                while !self.is_eof() && self.current_char() != '`' {
+                                    if self.current_char() == '\\' {
+                                        self.advance();
+                                    }
+                                    self.advance();
+                                }
+                                if !self.is_eof() {
+                                    self.advance(); // closing `
+                                }
+                                continue;
+                            }
+                            if tc == '{' {
+                                template_depth += 1;
+                            } else if tc == '}' {
+                                template_depth -= 1;
+                            }
+                            if template_depth > 0 {
+                                self.advance();
+                            }
+                        }
+                        if !self.is_eof() {
+                            self.advance(); // closing }
+                        }
+                        continue;
+                    }
+                    self.advance();
+                }
+                if !self.is_eof() {
+                    self.advance(); // consume closing backtick
+                }
+                continue;
+            }
+
+            if c == '{' || c == '[' {
+                depth += 1;
+            } else if c == '}' {
+                if depth == 0 {
+                    break; // End of block tag
+                }
+                depth -= 1;
+            } else if c == ']' {
+                if depth > 0 {
+                    depth -= 1;
+                }
+            } else if depth == 0 {
+                // Only check for , or ( at top level
+                if c == ',' || c == '(' {
+                    break;
+                }
+            }
+            self.advance();
+        }
+
+        let context_end = self.index;
+        let raw_content = &self.source[context_start..context_end];
+        let trimmed_content = raw_content.trim();
+        // Calculate actual start position after trimming leading whitespace
+        let leading_ws = raw_content.len() - raw_content.trim_start().len();
+        let actual_context_start = context_start + leading_ws;
+        let context = self.parse_binding_pattern(trimmed_content, actual_context_start);
+
+        // Check for index
+        let mut index = None;
+        if self.eat(",") {
+            self.skip_whitespace();
+            let idx_start = self.index;
+            while !self.is_eof() {
+                let c = self.current_char();
+                if c == '}' || c == '(' {
+                    break;
+                }
+                self.advance();
+            }
+            let idx_name = self.source[idx_start..self.index].trim();
+            if !idx_name.is_empty() {
+                index = Some(CompactString::from(idx_name));
+            }
+        }
+
+        // Check for key expression
+        let mut key = None;
+        if self.eat("(") {
+            self.skip_whitespace();
+            let key_start = self.index;
+            let mut key_depth = 1;
+            while !self.is_eof() && key_depth > 0 {
+                let c = self.current_char();
+                if c == '(' {
+                    key_depth += 1;
+                } else if c == ')' {
+                    key_depth -= 1;
+                }
+                if key_depth > 0 {
+                    self.advance();
+                }
+            }
+            let key_content = self.source[key_start..self.index].trim();
+            key = Some(self.parse_js_expression(key_content, key_start));
+            self.eat(")"); // consume closing paren
+        }
+
+        self.skip_whitespace();
+        self.eat("}"); // consume closing brace
+
+        // Push block to stack
+        self.stack.push(StackEntry::EachBlock {
+            start: start as u32,
+        });
+
+        // Parse body
+        let body = self.parse_fragment()?;
+
+        // Check for {:else}
+        let mut fallback = None;
+        if self.match_str("{:") {
+            self.advance_by(2);
+            self.skip_whitespace();
+            if self.eat("else") {
+                self.skip_whitespace();
+                self.eat("}");
+                fallback = Some(self.parse_fragment()?);
+            }
+        }
+
+        // Handle closing {/each}
+        if self.match_str("{/") {
+            self.advance_by(2);
+            self.eat("each");
+            self.skip_whitespace();
+            self.eat("}");
+        }
+
+        // Pop from stack
+        if !self.stack.is_empty() {
+            self.stack.pop();
+        }
+
+        Ok(Some(TemplateNode::EachBlock(EachBlock {
+            start: start as u32,
+            end: self.index as u32,
+            expression,
+            context: Some(context),
+            body,
+            fallback,
+            index,
+            key,
+        })))
+    }
+
+    /// Parse a binding pattern (for each block context).
+    pub fn parse_binding_pattern(&self, content: &str, offset: usize) -> Expression {
+        super::super::expression::parse_binding_pattern(content, offset, &self.line_offsets)
+    }
+
+    /// Parse {#await} block.
+    pub fn parse_await_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
+        self.skip_whitespace();
+
+        // Read the expression (until 'then', 'catch', or '}')
+        let expr_start = self.index;
+        let mut value: Option<Expression> = None;
+        let mut error: Option<Expression> = None;
+        let mut has_then = false;
+        let mut has_catch = false;
+
+        // Find the end of the expression part
+        while !self.is_eof() {
+            let c = self.current_char();
+            if c == '}' {
+                break;
+            }
+            // Check for 'then' or 'catch' keyword
+            if self.match_str("then") {
+                let after_idx = self.index + 4;
+                let is_word_boundary = if after_idx >= self.source.len() {
+                    true
+                } else {
+                    let next_char = self.source.as_bytes()[after_idx] as char;
+                    next_char.is_whitespace() || next_char == '}'
+                };
+                if is_word_boundary {
+                    has_then = true;
+                    break;
+                }
+            }
+            if self.match_str("catch") {
+                let after_idx = self.index + 5;
+                let is_word_boundary = if after_idx >= self.source.len() {
+                    true
+                } else {
+                    let next_char = self.source.as_bytes()[after_idx] as char;
+                    next_char.is_whitespace() || next_char == '}'
+                };
+                if is_word_boundary {
+                    has_catch = true;
+                    break;
+                }
+            }
+            self.advance();
+        }
+        let expr_content = &self.source[expr_start..self.index];
+        let expression = self.parse_js_expression(expr_content.trim(), expr_start);
+
+        // Parse 'then' value if present
+        if has_then {
+            self.advance_by(4); // consume 'then'
+            self.skip_whitespace();
+
+            // Check if there's a value identifier
+            if self.current_char() != '}' {
+                let value_start = self.index;
+                while !self.is_eof() && self.current_char() != '}' {
+                    self.advance();
+                }
+                let value_content = &self.source[value_start..self.index];
+                if !value_content.trim().is_empty() {
+                    value = Some(super::super::expression::create_identifier_with_character(
+                        value_content.trim(),
+                        value_start,
+                        self.index,
+                        &self.line_offsets,
+                    ));
+                }
+            }
+        }
+
+        // Parse 'catch' error if present
+        if has_catch {
+            self.advance_by(5); // consume 'catch'
+            self.skip_whitespace();
+
+            // Check if there's an error identifier
+            if self.current_char() != '}' {
+                let error_start = self.index;
+                while !self.is_eof() && self.current_char() != '}' {
+                    self.advance();
+                }
+                let error_content = &self.source[error_start..self.index];
+                if !error_content.trim().is_empty() {
+                    error = Some(super::super::expression::create_identifier_with_character(
+                        error_content.trim(),
+                        error_start,
+                        self.index,
+                        &self.line_offsets,
+                    ));
+                }
+            }
+        }
+
+        self.eat("}"); // consume closing '}'
+
+        // Push block to stack
+        self.stack.push(StackEntry::AwaitBlock {
+            start: start as u32,
+        });
+
+        // Parse the body
+        let body = self.parse_fragment()?;
+
+        // Handle intermediate {:then} or {:catch} clauses
+        let mut then_fragment: Option<Fragment> = None;
+        let mut catch_fragment: Option<Fragment> = None;
+        let mut pending_fragment: Option<Fragment> = None;
+
+        // If we had 'then' in the opening tag, the body is the 'then' fragment
+        if has_then {
+            then_fragment = Some(body);
+        } else if has_catch {
+            // If we had 'catch' in the opening tag, the body is the 'catch' fragment
+            catch_fragment = Some(body);
+        } else {
+            // The body is the pending fragment
+            pending_fragment = Some(body);
+        }
+
+        // Check for {:then} or {:catch} intermediate clauses
+        while self.match_str("{:") {
+            self.advance_by(2);
+            self.skip_whitespace();
+
+            if self.eat("then") {
+                self.skip_whitespace();
+
+                // Check if there's a value identifier
+                if self.current_char() != '}' {
+                    let value_start = self.index;
+                    while !self.is_eof() && self.current_char() != '}' {
+                        self.advance();
+                    }
+                    let value_content = &self.source[value_start..self.index];
+                    if !value_content.trim().is_empty() {
+                        value = Some(super::super::expression::create_identifier_with_character(
+                            value_content.trim(),
+                            value_start,
+                            self.index,
+                            &self.line_offsets,
+                        ));
+                    }
+                }
+                self.eat("}");
+
+                then_fragment = Some(self.parse_fragment()?);
+            } else if self.eat("catch") {
+                self.skip_whitespace();
+
+                // Check if there's an error identifier
+                if self.current_char() != '}' {
+                    let error_start = self.index;
+                    while !self.is_eof() && self.current_char() != '}' {
+                        self.advance();
+                    }
+                    let error_content = &self.source[error_start..self.index];
+                    if !error_content.trim().is_empty() {
+                        error = Some(super::super::expression::create_identifier_with_character(
+                            error_content.trim(),
+                            error_start,
+                            self.index,
+                            &self.line_offsets,
+                        ));
+                    }
+                }
+                self.eat("}");
+
+                catch_fragment = Some(self.parse_fragment()?);
+            } else {
+                break;
+            }
+        }
+
+        // Handle closing {/await}
+        if self.match_str("{/await}") {
+            self.advance_by(8);
+        }
+
+        // Pop the stack
+        self.stack.pop();
+
+        Ok(Some(TemplateNode::AwaitBlock(AwaitBlock {
+            start: start as u32,
+            end: self.index as u32,
+            expression,
+            value,
+            error,
+            pending: pending_fragment,
+            then: then_fragment,
+            catch: catch_fragment,
+        })))
+    }
+
+    /// Parse {#key} block.
+    pub fn parse_key_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
+        self.skip_whitespace();
+
+        // Read the key expression
+        let expr_start = self.index;
+        while !self.is_eof() && self.current_char() != '}' {
+            self.advance();
+        }
+        let expr_content = &self.source[expr_start..self.index];
+        self.advance(); // consume '}'
+
+        let expression = self.parse_js_expression(expr_content.trim(), expr_start);
+
+        // Push block to stack
+        self.stack.push(StackEntry::KeyBlock {
+            start: start as u32,
+        });
+
+        // Parse body
+        let fragment = self.parse_fragment()?;
+
+        // Handle closing {/key} if present (but NOT other closing tags like {/if})
+        if self.match_str("{/key") {
+            self.advance_by(2); // consume '{/'
+            self.eat("key");
+            self.skip_whitespace();
+            self.eat("}");
+        }
+
+        // Pop from stack
+        if !self.stack.is_empty() {
+            self.stack.pop();
+        }
+
+        Ok(Some(TemplateNode::KeyBlock(KeyBlock {
+            start: start as u32,
+            end: self.index as u32,
+            expression,
+            fragment,
+        })))
+    }
+
+    /// Parse {#snippet name(params)} block.
+    pub fn parse_snippet_block(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
+        self.skip_whitespace();
+
+        // Parse the snippet name (identifier)
+        let name_start = self.index;
+        let name = self.read_identifier();
+        let name_end = self.index;
+
+        // Create expression for the snippet name (with character field in loc)
+        let expression = super::super::expression::create_identifier_with_character(
+            &name,
+            name_start,
+            name_end,
+            &self.line_offsets,
+        );
+
+        // Parse optional type parameters (between < and >)
+        let mut type_params = None;
+        if self.eat("<") {
+            let type_params_start = self.index;
+            let mut depth = 1;
+            while !self.is_eof() && depth > 0 {
+                let c = self.current_char();
+                // Skip string literals
+                if c == '\'' || c == '"' {
+                    let quote = c;
+                    self.advance();
+                    while !self.is_eof() && self.current_char() != quote {
+                        if self.current_char() == '\\' {
+                            self.advance();
+                        }
+                        self.advance();
+                    }
+                    if !self.is_eof() {
+                        self.advance(); // consume closing quote
+                    }
+                    continue;
+                }
+                if c == '<' {
+                    depth += 1;
+                } else if c == '>' {
+                    depth -= 1;
+                }
+                if depth > 0 {
+                    self.advance();
+                }
+            }
+            let type_params_content = &self.source[type_params_start..self.index];
+            if !type_params_content.trim().is_empty() {
+                type_params = Some(CompactString::from(type_params_content.trim()));
+            }
+            self.eat(">"); // consume closing >
+        }
+
+        // Parse parameters (inside parentheses)
+        self.skip_whitespace();
+        let mut parameters = Vec::new();
+
+        if self.eat("(") {
+            let params_start = self.index;
+
+            // Find matching closing paren, accounting for nested parens and strings
+            let mut depth = 1;
+            while !self.is_eof() && depth > 0 {
+                let c = self.current_char();
+                // Skip string literals
+                if c == '\'' || c == '"' {
+                    let quote = c;
+                    self.advance();
+                    while !self.is_eof() && self.current_char() != quote {
+                        if self.current_char() == '\\' {
+                            self.advance();
+                        }
+                        self.advance();
+                    }
+                    if !self.is_eof() {
+                        self.advance(); // consume closing quote
+                    }
+                    continue;
+                }
+                if c == '(' {
+                    depth += 1;
+                } else if c == ')' {
+                    depth -= 1;
+                }
+                if depth > 0 {
+                    self.advance();
+                }
+            }
+
+            let params_end = self.index;
+            let params_content = &self.source[params_start..params_end];
+
+            // Parse parameters with TypeScript type annotations
+            if !params_content.trim().is_empty() {
+                parameters = super::super::expression::parse_typescript_params(
+                    params_content,
+                    params_start,
+                    &self.line_offsets,
+                );
+            }
+
+            self.eat(")"); // consume closing paren
+        }
+
+        self.skip_whitespace();
+        self.eat("}"); // consume closing brace
+
+        // Push to stack
+        self.stack.push(StackEntry::SnippetBlock {
+            start: start as u32,
+        });
+
+        // Parse body
+        let body = self.parse_fragment()?;
+
+        // Handle closing {/snippet}
+        if self.match_str("{/") {
+            self.advance_by(2);
+            self.eat("snippet");
+            self.skip_whitespace();
+            self.eat("}");
+        }
+
+        // Pop from stack
+        if !self.stack.is_empty() {
+            self.stack.pop();
+        }
+
+        Ok(Some(TemplateNode::SnippetBlock(SnippetBlock {
+            start: start as u32,
+            end: self.index as u32,
+            expression,
+            type_params,
+            parameters,
+            body,
+        })))
+    }
+
+    /// Parse special tag ({@html}, {@debug}, etc.)
+    pub fn parse_special_tag(&mut self, start: usize) -> ParseResult<Option<TemplateNode>> {
+        self.advance(); // consume '@'
+
+        let keyword = self.read_identifier();
+        self.skip_whitespace();
+
+        match keyword.as_str() {
+            "html" => {
+                let expr_start = self.index;
+                while !self.is_eof() && self.current_char() != '}' {
+                    self.advance();
+                }
+                let expr_content = &self.source[expr_start..self.index];
+                self.advance(); // consume '}'
+
+                let expression = self.parse_js_expression(expr_content.trim(), expr_start);
+
+                Ok(Some(TemplateNode::HtmlTag(HtmlTag {
+                    start: start as u32,
+                    end: self.index as u32,
+                    expression,
+                })))
+            }
+            "render" => {
+                // {@render snippet(...)}
+                let expr_start = self.index;
+                while !self.is_eof() && self.current_char() != '}' {
+                    self.advance();
+                }
+                let expr_content = &self.source[expr_start..self.index];
+                self.advance(); // consume '}'
+
+                let expression = self.parse_js_expression(expr_content.trim(), expr_start);
+
+                Ok(Some(TemplateNode::RenderTag(RenderTag {
+                    start: start as u32,
+                    end: self.index as u32,
+                    expression,
+                })))
+            }
+            "debug" | "const" | "attach" => {
+                // Skip to closing brace
+                while !self.is_eof() && self.current_char() != '}' {
+                    self.advance();
+                }
+                self.advance(); // consume '}'
+                Ok(None)
+            }
+            _ => {
+                // Unknown special tag
+                while !self.is_eof() && self.current_char() != '}' {
+                    self.advance();
+                }
+                self.advance(); // consume '}'
+                Ok(None)
+            }
+        }
+    }
+
+    /// Parse a JavaScript expression and return as Expression.
+    pub fn parse_js_expression(&self, content: &str, offset: usize) -> Expression {
+        // Adjust offset for leading whitespace that gets trimmed
+        let leading_ws = content.len() - content.trim_start().len();
+        let trimmed = content.trim();
+        super::super::expression::parse_expression(trimmed, offset + leading_ws, &self.line_offsets)
+    }
+}
