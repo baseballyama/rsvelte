@@ -6,8 +6,11 @@
 //! 2. **Analyze** (`2_analyze`): Semantic analysis - scopes, bindings, reactivity
 //! 3. **Transform** (`3_transform`): Code generation for client/server
 
+#[path = "1_parse/mod.rs"]
 pub mod phase1_parse;
+#[path = "2_analyze/mod.rs"]
 pub mod phase2_analyze;
+#[path = "3_transform/mod.rs"]
 pub mod phase3_transform;
 
 // Re-exports for convenience

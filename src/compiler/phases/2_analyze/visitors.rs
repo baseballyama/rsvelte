@@ -138,10 +138,16 @@ fn extract_classes_from_value(
     match value {
         AttributeValue::Sequence(parts) => {
             for part in parts {
-                if let AttributeValuePart::Text(text) = part {
-                    // Split by whitespace to get individual class names
-                    for class in text.data.split_whitespace() {
-                        analysis.css.used_classes.insert(class.to_string());
+                match part {
+                    AttributeValuePart::Text(text) => {
+                        // Split by whitespace to get individual class names
+                        for class in text.data.split_whitespace() {
+                            analysis.css.used_classes.insert(class.to_string());
+                        }
+                    }
+                    AttributeValuePart::ExpressionTag(_) => {
+                        // Dynamic class expression - can't statically analyze
+                        analysis.css.has_dynamic_classes = true;
                     }
                 }
             }

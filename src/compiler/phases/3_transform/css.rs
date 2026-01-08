@@ -11,6 +11,7 @@ use std::collections::HashSet;
 
 /// Context for CSS transformation containing analysis data and options
 #[derive(Clone)]
+#[allow(dead_code)] // used_elements reserved for future type selector detection
 struct CssContext<'a> {
     /// Element names used in the template
     used_elements: &'a HashSet<String>,
@@ -302,6 +303,7 @@ fn has_nested_rules(block: &Value) -> bool {
 }
 
 /// Check if a selector is unused (cannot match any element in the template)
+/// This is a conservative check - only marks simple single-class selectors as unused
 fn is_selector_unused(prelude: &Value, ctx: &CssContext) -> bool {
     // If there are dynamic elements or classes, we can't safely prune
     if ctx.has_dynamic_elements || ctx.has_dynamic_classes {
@@ -320,56 +322,49 @@ fn is_selector_unused(prelude: &Value, ctx: &CssContext) -> bool {
 }
 
 /// Check if a complex selector is unused
+/// Only marks as unused for simple selectors (single relative selector with single simple selector)
 fn is_complex_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
     // Get the relative selectors (like "div > span" has multiple relative selectors)
     if let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array()) {
-        // Check ALL relative selectors - if ANY is unused, the whole selector is unused
-        for rel in rel_selectors {
-            if is_relative_selector_unused(rel, ctx) {
-                return true;
+        // For now, only check if this is a simple selector (one relative selector)
+        // Complex selectors with combinators need DOM structure analysis
+        if rel_selectors.len() == 1 {
+            if let Some(first) = rel_selectors.first() {
+                return is_simple_relative_selector_unused(first, ctx);
             }
         }
     }
     false
 }
 
-/// Check if a relative selector is unused
-fn is_relative_selector_unused(rel: &Value, ctx: &CssContext) -> bool {
+/// Check if a simple relative selector (no combinators) is unused
+fn is_simple_relative_selector_unused(rel: &Value, ctx: &CssContext) -> bool {
+    // Don't consider unused if there's a non-null combinator (indicates relationship with other elements)
+    if let Some(c) = rel.get("combinator") {
+        if !c.is_null() {
+            return false;
+        }
+    }
+
     if let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) {
-        for sel in selectors {
-            let sel_type = sel.get("type").and_then(|t| t.as_str());
-            match sel_type {
-                Some("ClassSelector") => {
-                    if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
-                        if !ctx.used_classes.contains(name) {
-                            return true;
+        // For simple detection, only mark unused if there's a single class/type/id selector
+        // that's definitely not used. Compound selectors are too complex.
+        if selectors.len() == 1 {
+            if let Some(sel) = selectors.first() {
+                let sel_type = sel.get("type").and_then(|t| t.as_str());
+                match sel_type {
+                    Some("ClassSelector") => {
+                        if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                            return !ctx.used_classes.contains(name);
                         }
                     }
-                }
-                Some("TypeSelector") => {
-                    if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
-                        // Don't prune universal selector or global elements
-                        if name != "*" && !ctx.used_elements.contains(name) {
-                            return true;
+                    Some("IdSelector") => {
+                        if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                            return !ctx.used_ids.contains(name);
                         }
                     }
+                    _ => {}
                 }
-                Some("IdSelector") => {
-                    if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
-                        if !ctx.used_ids.contains(name) {
-                            return true;
-                        }
-                    }
-                }
-                Some("PseudoClassSelector") => {
-                    // Check for :global - if present, don't mark as unused
-                    if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
-                        if name == "global" {
-                            return false;
-                        }
-                    }
-                }
-                _ => {}
             }
         }
     }

@@ -40,6 +40,8 @@ Designed to be integrated into [oxc](https://oxc.rs/).
 
 ## Architecture
 
+Directory structure mirrors the official Svelte compiler (`svelte/packages/svelte/src/compiler/`).
+
 ```
 src/
 ├── lib.rs              # Library entry point
@@ -50,27 +52,29 @@ src/
 │   ├── template.rs     # Svelte template nodes
 │   ├── js.rs           # JavaScript expression wrapper
 │   └── css.rs          # CSS stylesheet types
-├── parser/             # Parser implementation
-│   ├── mod.rs          # Public API: parse(), parse_parallel()
-│   ├── lexer.rs        # Tokenization utilities
-│   ├── state.rs        # Parser state machine
-│   └── legacy.rs       # Legacy AST conversion (Svelte 4 format)
 ├── compiler/           # Compiler implementation
 │   ├── mod.rs          # Public API: compile()
-│   └── phases/         # Compiler phases (matching Svelte's architecture)
+│   └── phases/         # Compiler phases (matching Svelte's 1-parse, 2-analyze, 3-transform)
 │       ├── mod.rs
-│       ├── phase1_parse.rs     # Phase 1: Parsing
-│       ├── phase2_analyze/     # Phase 2: Analysis
+│       ├── 1_parse/            # Phase 1: Parsing (Svelte: 1-parse/)
+│       │   ├── mod.rs          # Public API: parse(), parse_parallel()
+│       │   ├── css.rs          # CSS parsing
+│       │   ├── expression.rs   # Expression parsing
+│       │   ├── lexer.rs        # Tokenization utilities
+│       │   ├── legacy.rs       # Legacy AST conversion (Svelte 4 format)
+│       │   └── state.rs        # Parser state machine
+│       ├── 2_analyze/          # Phase 2: Analysis (Svelte: 2-analyze/)
 │       │   ├── mod.rs
 │       │   ├── scope.rs        # Scope/Binding definitions
 │       │   ├── scope_builder.rs # Scope tree construction
 │       │   ├── types.rs        # Analysis types
 │       │   └── visitors.rs     # AST visitors
-│       └── phase3_transform/   # Phase 3: Code generation
+│       └── 3_transform/        # Phase 3: Code generation (Svelte: 3-transform/)
 │           ├── mod.rs
-│           ├── client.rs       # Client-side JS generation
+│           ├── css.rs          # CSS transformation
 │           ├── server.rs       # Server-side JS generation
-│           └── css.rs          # CSS transformation
+│           ├── client/         # Client-side JS generation
+│           └── js_ast/         # JS AST builders and codegen
 └── error/              # Error types
     └── mod.rs
 
@@ -139,7 +143,7 @@ cargo bench
 ### Adding Parser Features
 
 1. Check the Svelte parser implementation in `svelte/packages/svelte/src/compiler/phases/1-parse/`
-2. Implement the corresponding feature in `src/parser/state.rs`
+2. Implement the corresponding feature in `src/compiler/phases/1_parse/state.rs`
 3. Run fixture tests to verify compatibility
 4. Use `scripts/compare-parsers.mjs` for debugging differences
 
@@ -235,7 +239,7 @@ Legacy AST format for Svelte 4 compatibility. Remaining issue:
 
 - All Svelte 5 syntax: elements, blocks, directives, expressions
 - Script/Style parsing with CSS support
-- Legacy AST conversion module (`src/parser/legacy.rs`)
+- Legacy AST conversion module (`src/compiler/phases/1_parse/legacy.rs`)
 - Directive parsing: use:, class:, style:, transition:, animate:, let:
 - Quoted expression handling in all directive types
 - UTF-8 to UTF-16 position conversion for legacy format

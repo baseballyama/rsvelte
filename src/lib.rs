@@ -19,10 +19,12 @@
 pub mod ast;
 pub mod compiler;
 pub mod error;
-pub mod parser;
 
 #[cfg(feature = "wasm")]
 pub mod wasm;
+
+// Re-export parser module from compiler::phases::phase1_parse for convenience
+pub use compiler::phases::phase1_parse as parser;
 
 pub use compiler::{CompileError, CompileOptions, CompileResult, GenerateMode, compile};
 pub use parser::legacy::convert_to_legacy;
