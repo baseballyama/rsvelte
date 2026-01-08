@@ -5,6 +5,7 @@ use thiserror::Error;
 
 /// A parse error.
 #[derive(Debug, Error, Diagnostic)]
+#[allow(unused)] // Fields are used by thiserror macros
 pub enum ParseError {
     #[error("Unexpected end of input")]
     #[diagnostic(code(svelte::parse::unexpected_eof))]

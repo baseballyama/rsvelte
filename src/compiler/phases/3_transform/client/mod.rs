@@ -818,7 +818,11 @@ impl ClientCodeGenerator {
                     _ => self.next_node_var(),
                 };
 
-                let nav_expr = if prev_var.is_none() {
+                let nav_expr = if let Some(ref prev) = prev_var {
+                    // Subsequent dynamic child: $.sibling(prev, skipped)
+                    let skip_count = if skipped > 1 { Some(skipped) } else { None };
+                    svelte_sibling(id(prev), skip_count)
+                } else {
                     // First dynamic child: $.child(parent, preserve_whitespace?)
                     // Use preserve_whitespace=true when there's a text placeholder (space)
                     // This happens when an element like <h1>{title}</h1> becomes <h1> </h1>
@@ -833,10 +837,6 @@ impl ClientCodeGenerator {
                         preserve_whitespace
                     };
                     svelte_child(id(parent_var), if preserve { Some(true) } else { None })
-                } else {
-                    // Subsequent dynamic child: $.sibling(prev, skipped)
-                    let skip_count = if skipped > 1 { Some(skipped) } else { None };
-                    svelte_sibling(id(prev_var.as_ref().unwrap()), skip_count)
                 };
 
                 stmts.push(var_decl(&var_name, Some(nav_expr)));
@@ -3298,7 +3298,11 @@ export default function {component_name}({fn_params}) {{
                     _ => self.next_node_var(),
                 };
 
-                let nav_expr = if prev_var.is_none() {
+                let nav_expr = if let Some(ref prev) = prev_var {
+                    // Subsequent dynamic node: $.sibling(prev, skipped)
+                    let skip_count = if skipped > 1 { Some(skipped) } else { None };
+                    svelte_sibling(id(prev), skip_count)
+                } else {
                     // First dynamic node at root level
                     if skipped > 0 {
                         // $.sibling($.first_child(root), skipped)
@@ -3307,10 +3311,6 @@ export default function {component_name}({fn_params}) {{
                         // $.first_child(root)
                         svelte_first_child(id(root_var))
                     }
-                } else {
-                    // Subsequent dynamic node: $.sibling(prev, skipped)
-                    let skip_count = if skipped > 1 { Some(skipped) } else { None };
-                    svelte_sibling(id(prev_var.as_ref().unwrap()), skip_count)
                 };
 
                 stmts.push(var_decl(&var_name, Some(nav_expr)));
@@ -3466,71 +3466,73 @@ export default function {component_name}({fn_params}) {{
 
         // Handle trailing static nodes at root level
         // Svelte navigates to the first trailing static ELEMENT, then $.next() for the rest
-        if skipped > 1 && prev_var.is_some() {
-            // Collect nodes after the last dynamic element
-            let mut nodes_after_last_dynamic: Vec<&TemplateNode> = Vec::new();
-            let mut last_dynamic_idx = 0;
+        if let Some(ref prev) = prev_var {
+            if skipped > 1 {
+                // Collect nodes after the last dynamic element
+                let mut nodes_after_last_dynamic: Vec<&TemplateNode> = Vec::new();
+                let mut last_dynamic_idx = 0;
 
-            for (i, node) in fragment.nodes.iter().skip(start_idx).enumerate() {
-                if self.is_node_dynamic(node) {
-                    last_dynamic_idx = i;
+                for (i, node) in fragment.nodes.iter().skip(start_idx).enumerate() {
+                    if self.is_node_dynamic(node) {
+                        last_dynamic_idx = i;
+                    }
                 }
-            }
 
-            // Collect trailing nodes
-            for (i, node) in fragment.nodes.iter().skip(start_idx).enumerate() {
-                if i > last_dynamic_idx {
-                    nodes_after_last_dynamic.push(node);
+                // Collect trailing nodes
+                for (i, node) in fragment.nodes.iter().skip(start_idx).enumerate() {
+                    if i > last_dynamic_idx {
+                        nodes_after_last_dynamic.push(node);
+                    }
                 }
-            }
 
-            // Find first static element in trailing nodes
-            let mut trailing_element: Option<&RegularElement> = None;
-            let mut count_to_element: i32 = 0;
-            let mut remaining_count: i32 = 0;
-            let mut found_element = false;
+                // Find first static element in trailing nodes
+                let mut trailing_element: Option<&RegularElement> = None;
+                let mut count_to_element: i32 = 0;
+                let mut remaining_count: i32 = 0;
+                let mut found_element = false;
 
-            for node in &nodes_after_last_dynamic {
-                if !matches!(node, TemplateNode::Text(t) if t.data.trim().is_empty()) {
-                    if let TemplateNode::RegularElement(elem) = node {
-                        if !found_element {
-                            trailing_element = Some(elem);
-                            found_element = true;
+                for node in &nodes_after_last_dynamic {
+                    if !matches!(node, TemplateNode::Text(t) if t.data.trim().is_empty()) {
+                        if let TemplateNode::RegularElement(elem) = node {
+                            if !found_element {
+                                trailing_element = Some(elem);
+                                found_element = true;
+                            } else {
+                                remaining_count += 1;
+                            }
                         } else {
                             remaining_count += 1;
                         }
+                    } else if !found_element {
+                        count_to_element += 1;
                     } else {
                         remaining_count += 1;
                     }
-                } else if !found_element {
-                    count_to_element += 1;
-                } else {
-                    remaining_count += 1;
                 }
-            }
 
-            // Include the whitespace before the first trailing element
-            count_to_element += 1; // Add 1 for the sibling count from prev
+                // Include the whitespace before the first trailing element
+                count_to_element += 1; // Add 1 for the sibling count from prev
 
-            if let Some(elem) = trailing_element {
-                // Navigate to the first trailing element
-                let elem_var = self.next_var_name(&elem.name);
-                let skip_count = if count_to_element > 1 {
-                    Some(count_to_element)
+                if let Some(elem) = trailing_element {
+                    // Navigate to the first trailing element
+                    let elem_var = self.next_var_name(&elem.name);
+                    let skip_count = if count_to_element > 1 {
+                        Some(count_to_element)
+                    } else {
+                        None
+                    };
+                    stmts.push(var_decl(
+                        &elem_var,
+                        Some(svelte_sibling(id(prev), skip_count)),
+                    ));
+                    // Then $.next() for remaining
+                    if remaining_count > 0 {
+                        stmts.push(stmt(svelte_next(Some(remaining_count))));
+                    }
                 } else {
-                    None
-                };
-                stmts.push(var_decl(
-                    &elem_var,
-                    Some(svelte_sibling(id(prev_var.as_ref().unwrap()), skip_count)),
-                ));
-                // Then $.next() for remaining
-                if remaining_count > 0 {
-                    stmts.push(stmt(svelte_next(Some(remaining_count))));
+                    // No trailing elements, just skip all
+                    stmts.push(stmt(svelte_next(Some(skipped))));
                 }
-            } else {
-                // No trailing elements, just skip all
-                stmts.push(stmt(svelte_next(Some(skipped))));
             }
         }
 
