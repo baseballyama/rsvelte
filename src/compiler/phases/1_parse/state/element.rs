@@ -1,4 +1,13 @@
 //! Element and attribute parsing.
+//!
+//! # Svelte Compiler Correspondence
+//!
+//! This module corresponds to:
+//! - `svelte/packages/svelte/src/compiler/phases/1-parse/state/element.js`
+//!
+//! It handles parsing of HTML elements, Svelte special elements (`svelte:*`),
+//! components, attributes, and all directive types (`on:`, `bind:`, `use:`,
+//! `class:`, `style:`, `transition:`, `animate:`, `let:`).
 
 use compact_str::CompactString;
 

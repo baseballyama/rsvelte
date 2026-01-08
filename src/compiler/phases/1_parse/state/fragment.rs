@@ -1,4 +1,12 @@
 //! Fragment parsing - entry point and node dispatch.
+//!
+//! # Svelte Compiler Correspondence
+//!
+//! This module corresponds to:
+//! - `svelte/packages/svelte/src/compiler/phases/1-parse/state/fragment.js`
+//!
+//! It provides the main entry point for parsing Svelte templates, dispatching
+//! to element, text, and mustache tag parsers based on the current character.
 
 use crate::ast::template::{Fragment, FragmentType, Root, RootType, TemplateNode};
 use crate::error::ParseResult;

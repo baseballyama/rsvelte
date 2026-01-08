@@ -1,4 +1,12 @@
 //! Text node parsing.
+//!
+//! # Svelte Compiler Correspondence
+//!
+//! This module corresponds to:
+//! - `svelte/packages/svelte/src/compiler/phases/1-parse/state/text.js`
+//!
+//! It handles parsing of text content between elements and mustache tags,
+//! including HTML entity decoding.
 
 use compact_str::CompactString;
 

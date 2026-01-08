@@ -1,4 +1,12 @@
 //! Script tag parsing.
+//!
+//! # Svelte Compiler Correspondence
+//!
+//! This module corresponds to:
+//! - `svelte/packages/svelte/src/compiler/phases/1-parse/read/script.js`
+//!
+//! It provides script tag parsing for both instance (`<script>`) and module
+//! (`<script context="module">` or `<script module>`) scripts.
 
 use compact_str::CompactString;
 

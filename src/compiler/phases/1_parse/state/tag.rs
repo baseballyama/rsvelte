@@ -1,4 +1,13 @@
 //! Mustache tag and block parsing.
+//!
+//! # Svelte Compiler Correspondence
+//!
+//! This module corresponds to:
+//! - `svelte/packages/svelte/src/compiler/phases/1-parse/state/tag.js`
+//!
+//! It handles parsing of mustache expressions (`{expression}`), block tags
+//! (`{#if}`, `{#each}`, `{#await}`, `{#key}`, `{#snippet}`), and special tags
+//! (`{@html}`, `{@render}`, `{@debug}`, `{@const}`).
 
 use compact_str::CompactString;
 

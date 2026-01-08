@@ -20,10 +20,11 @@
 //! ├── parser.rs           # Parser struct + helper methods
 //! ├── read/               # Reading specific constructs
 //! │   ├── mod.rs
+//! │   ├── context.rs      # Pattern parsing for {#each} and {#snippet}
 //! │   ├── expression.rs   # Expression parsing (uses OXC)
+//! │   ├── options.rs      # parse_svelte_options()
 //! │   ├── script.rs       # parse_script_tag()
-//! │   ├── style.rs        # parse_style_tag() + CSS parsing
-//! │   └── options.rs      # parse_svelte_options()
+//! │   └── style.rs        # parse_style_tag() + CSS parsing
 //! ├── state/              # Parser state machines
 //! │   ├── mod.rs
 //! │   ├── element.rs      # Element parsing, attributes, directives
@@ -32,8 +33,12 @@
 //! │   └── text.rs         # Text node parsing
 //! └── utils/              # Utility functions
 //!     ├── mod.rs
-//!     ├── html.rs         # is_void_element(), etc.
-//!     └── lexer.rs        # Tokenization and HTML entity decoding
+//!     ├── bracket.rs      # Bracket matching utilities
+//!     ├── create.rs       # Factory functions for AST nodes
+//!     ├── entities.rs     # HTML entity decoding
+//!     ├── entities_data.rs # Named entity data (auto-generated)
+//!     ├── fuzzymatch.rs   # Fuzzy string matching for error messages
+//!     └── html.rs         # is_void_element(), etc.
 //! ```
 //!
 //! Note: Legacy AST conversion is in `compiler/legacy.rs` (matches Svelte's

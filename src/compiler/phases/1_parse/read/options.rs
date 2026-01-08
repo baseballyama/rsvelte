@@ -1,4 +1,12 @@
 //! Svelte options parsing.
+//!
+//! # Svelte Compiler Correspondence
+//!
+//! This module corresponds to:
+//! - `svelte/packages/svelte/src/compiler/phases/1-parse/read/options.js`
+//!
+//! It parses `<svelte:options>` elements and extracts compiler options such as
+//! `runes`, `customElement`, `accessors`, `immutable`, etc.
 
 use crate::ast::template::{
     AttributeValue, AttributeValuePart, CustomElementOptions, SvelteOptions, TemplateNode,
