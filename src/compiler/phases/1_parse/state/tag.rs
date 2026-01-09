@@ -651,8 +651,25 @@ impl Parser<'_> {
             }
             self.advance();
         }
-        let expr_content = &self.source[expr_start..self.index];
-        let expression = self.parse_js_expression(expr_content.trim(), expr_start);
+        let expr_end = self.index;
+        let expr_content = &self.source[expr_start..expr_end];
+        // Calculate the actual start position after trimming leading whitespace
+        let trimmed_content = expr_content.trim_start();
+        let leading_ws = expr_content.len() - trimmed_content.len();
+        let adjusted_start = expr_start + leading_ws;
+        let adjusted_end = expr_end - (expr_content.len() - trimmed_content.trim_end().len());
+        // For await blocks, we parse the expression with a known end position
+        // to avoid find_matching_bracket finding the block's closing }
+        let expression = super::super::expression::parse_expression_with_end(
+            trimmed_content.trim(),
+            adjusted_start,
+            adjusted_end,
+            &self.line_offsets,
+            self.source,
+            self.options.loose,
+            false,
+            '{',
+        );
 
         // Parse 'then' value if present
         if has_then {

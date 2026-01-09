@@ -58,7 +58,7 @@ impl Parser<'_> {
                 // There's content - this is an error
                 // First, find where the content ends
                 while !self.is_eof() && !self.match_str("</svelte:options") {
-                    self.advance_by(1);
+                    self.advance();
                 }
                 let content_end = self.index;
 

@@ -778,7 +778,7 @@ impl Parser<'_> {
             self.advance(); // consume '}'
 
             // Create the expression (handle empty shorthand for "loose" mode)
-            let expression = if expr_content.trim().is_empty() {
+            let mut expression = if expr_content.trim().is_empty() {
                 // Create an empty identifier for empty shorthand
                 self.parse_js_expression("", expr_start)
             } else {
@@ -787,6 +787,16 @@ impl Parser<'_> {
 
             // Create the attribute name from the expression (shorthand)
             let name = expr_content.trim().to_string();
+
+            // For empty shorthand attributes (<div {}>), add loc field to the expression
+            // This matches Svelte's behavior where read_identifier() adds loc
+            if name.is_empty()
+                && let Expression::Value(serde_json::Value::Object(obj)) = &mut expression
+            {
+                use crate::compiler::phases::phase1_parse::estree_compat::utils::create_loc_with_character;
+                let loc = create_loc_with_character(expr_start, expr_end, &self.line_offsets);
+                obj.insert("loc".to_string(), loc);
+            }
 
             // Calculate name_loc
             let name_loc = self.create_name_loc(expr_start, expr_end);

@@ -139,7 +139,7 @@ fn get_loose_identifier(
     template: &str,
     start: usize,
     opening_token: char,
-    line_offsets: &[usize],
+    _line_offsets: &[usize],
 ) -> Option<Expression> {
     // Find the next closing bracket and treat it as the end of the expression
     if let Some(end) = find_matching_bracket(template, start, opening_token) {
@@ -150,9 +150,9 @@ fn get_loose_identifier(
         obj.insert("end".to_string(), Value::Number((end as i64).into()));
         obj.insert("name".to_string(), Value::String("".to_string()));
 
-        // Add loc field
-        let loc = super::super::estree_compat::utils::create_loc(start, end, line_offsets);
-        obj.insert("loc".to_string(), loc);
+        // Note: loc field is NOT added here. It should be added by the caller
+        // for shorthand attributes (e.g., <div {}>), but not for regular attributes
+        // (e.g., <div foo={}>).
 
         return Some(Expression::Value(Value::Object(obj)));
     }
@@ -202,6 +202,53 @@ pub fn parse_expression(
 
     // Fall back to invalid identifier
     create_invalid_identifier(offset, offset + content.len(), line_offsets)
+}
+
+/// Parse a JavaScript expression with a known end position.
+///
+/// This is used when the expression's end position is already known (e.g., in await blocks
+/// where the expression ends at 'then' or 'catch'), to avoid find_matching_bracket finding
+/// the wrong closing bracket.
+///
+/// # Arguments
+/// * `content` - The expression content to parse
+/// * `offset` - Start position in the template
+/// * `end` - End position in the template
+/// * `line_offsets` - Line offsets for location calculation
+/// * `_template` - The full template string (unused in this version)
+/// * `loose` - Whether loose mode is enabled
+/// * `disallow_loose` - Whether to disallow loose identifiers
+/// * `_opening_token` - The opening token (usually '{')
+///
+/// # Returns
+/// A parsed `Expression` or an empty identifier in loose mode.
+#[allow(clippy::too_many_arguments)]
+pub fn parse_expression_with_end(
+    content: &str,
+    offset: usize,
+    end: usize,
+    line_offsets: &[usize],
+    _template: &str,
+    loose: bool,
+    disallow_loose: bool,
+    _opening_token: char,
+) -> Expression {
+    // Try TypeScript first, then fall back to JavaScript
+    let result = parse_expression_with_typescript(content, offset, line_offsets, true)
+        .or_else(|| parse_expression_with_typescript(content, offset, line_offsets, false));
+
+    if let Some(expr) = result {
+        return expr;
+    }
+
+    // If parsing failed and we're in loose mode (and not disallowed), create invalid identifier
+    // with the known end position
+    if loose && !disallow_loose {
+        return create_invalid_identifier(offset, end, line_offsets);
+    }
+
+    // Fall back to invalid identifier
+    create_invalid_identifier(offset, end, line_offsets)
 }
 
 /// Check if JavaScript expression has parse errors. Returns Some(error_message) if there is an error.
