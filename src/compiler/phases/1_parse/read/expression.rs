@@ -3149,7 +3149,8 @@ fn convert_binding_pattern(
             let start = offset + id.span.start as usize;
             let end = offset + id.span.end as usize;
 
-            // TODO: OXC v0.107 - type annotations moved to different location
+            // TODO: TypeScript type annotations need to be supported
+            // OXC v0.107 - type annotations are available but structure needs investigation
             let expr = create_identifier(&id.name, start, end, line_offsets);
             expr.as_json().clone()
         }

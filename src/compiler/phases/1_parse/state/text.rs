@@ -49,20 +49,20 @@ impl Parser<'_> {
     /// 4. Creates a Text node with both raw and decoded data
     pub fn parse_text(&mut self) -> ParseResult<Option<TemplateNode>> {
         let start = self.index as u32;
-        let mut data = String::new();
+        let start_pos = self.index;
 
         // Collect text data until we hit '<' or '{'
         while self.index < self.source.len() && !self.match_str("<") && !self.match_str("{") {
-            data.push(self.source.as_bytes()[self.index] as char);
-            self.index += 1;
+            self.advance();
         }
 
         // If no data was collected, return None
-        if data.is_empty() {
+        if self.index == start_pos {
             return Ok(None);
         }
 
         let end = self.index as u32;
+        let data = self.source[start_pos..self.index].to_string();
 
         // Decode character references (is_attribute_value = false)
         let decoded_data = decode_html_entities(&data, false);
