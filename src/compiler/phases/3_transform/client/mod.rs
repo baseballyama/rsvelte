@@ -740,6 +740,7 @@ impl ClientCodeGenerator {
                         || matches!(attr, Attribute::StyleDirective(_))
                         || matches!(attr, Attribute::Attribute(a) if
                             a.name == "autofocus"
+                            || a.name.starts_with("on")  // Event handlers (onclick, onmousedown, etc.)
                             || (a.name == "muted" && (elem.name == "source" || elem.name == "video"))
                             || (a.name == "value" && elem.name == "option")
                         )
@@ -948,14 +949,29 @@ impl ClientCodeGenerator {
     ) {
         let is_custom = elem.name.contains('-');
 
-        // Collect class: and style: directives
+        // Collect class: and style: directives, and event handlers
         let mut class_directives: Vec<&ClassDirective> = Vec::new();
         let mut style_directives: Vec<&StyleDirective> = Vec::new();
+        let mut event_handlers: Vec<(String, String)> = Vec::new();
 
         for attr in &elem.attributes {
             match attr {
                 Attribute::Attribute(node) => {
                     let attr_name = node.name.as_str();
+
+                    // Check for event handlers (onclick, onmousedown, etc.)
+                    if let Some(event_name) = attr_name.strip_prefix("on") {
+                        if let AttributeValue::Expression(expr_tag) = &node.value {
+                            let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                            let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                            if expr_end > expr_start && expr_end <= self.source.len() {
+                                let expr_source =
+                                    self.source[expr_start..expr_end].trim().to_string();
+                                event_handlers.push((event_name.to_string(), expr_source));
+                            }
+                        }
+                        continue;
+                    }
 
                     match attr_name {
                         "autofocus" => {
@@ -1083,6 +1099,16 @@ impl ClientCodeGenerator {
                 string(""),          // style_attr
                 object(vec![]),      // style_binding
                 object(style_props), // style_directives
+            )));
+        }
+
+        // Generate event handlers
+        for (event_name, handler) in event_handlers {
+            let transformed = transform_state_assignments(&handler, &self.state_vars);
+            let prop_name = format!("__{}", event_name);
+            stmts.push(stmt(assign(
+                member(id(var_name), &prop_name),
+                id(&transformed),
             )));
         }
     }
@@ -2272,6 +2298,19 @@ export default function {component_name}({fn_params}) {{
             "$$anchor"
         };
 
+        // Collect delegated events from fragment
+        let delegated_events = self.collect_delegated_events_from_fragment(fragment);
+        let delegation_code = if delegated_events.is_empty() {
+            String::new()
+        } else {
+            let events_str = delegated_events
+                .iter()
+                .map(|e| format!("\"{}\"", e))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("\n$.delegate([{}]);", events_str)
+        };
+
         // Check if there's any HTML content
         let has_html = !html.is_empty();
 
@@ -2299,7 +2338,7 @@ export default function {component_name}({fn_params}) {{
 export default function {component_name}({fn_params}) {{
 {script_code}	var {root_var} = root();
 {runtime_code}	$.append($$anchor, {root_var});
-}}"#,
+}}{delegation_code}"#,
                 system_imports = system_imports,
                 hoisted_imports = hoisted_imports,
                 html = html,
@@ -2309,6 +2348,7 @@ export default function {component_name}({fn_params}) {{
                 script_code = script_code,
                 root_var = root_var,
                 runtime_code = runtime_code,
+                delegation_code = delegation_code,
             )
         } else {
             // No HTML - just export the function
@@ -2889,6 +2929,66 @@ export default function {component_name}({fn_params}) {{
             }
         }
         events
+    }
+
+    /// Collect delegated events from fragment
+    fn collect_delegated_events_from_fragment(&self, fragment: &Fragment) -> Vec<String> {
+        let mut events: Vec<String> = Vec::new();
+        Self::collect_events_from_nodes(&fragment.nodes, &mut events);
+        events
+    }
+
+    /// Recursively collect event names from nodes
+    fn collect_events_from_nodes(nodes: &[TemplateNode], events: &mut Vec<String>) {
+        for node in nodes {
+            match node {
+                TemplateNode::RegularElement(elem) => {
+                    // Collect events from this element's attributes
+                    for attr in &elem.attributes {
+                        if let Attribute::Attribute(node) = attr {
+                            let attr_name = node.name.as_str();
+                            if let Some(event_name) = attr_name.strip_prefix("on") {
+                                if !events.contains(&event_name.to_string()) {
+                                    events.push(event_name.to_string());
+                                }
+                            }
+                        }
+                    }
+                    // Recursively process children
+                    Self::collect_events_from_nodes(&elem.fragment.nodes, events);
+                }
+                TemplateNode::IfBlock(block) => {
+                    Self::collect_events_from_nodes(&block.consequent.nodes, events);
+                    if let Some(ref alt) = block.alternate {
+                        Self::collect_events_from_nodes(&alt.nodes, events);
+                    }
+                }
+                TemplateNode::EachBlock(block) => {
+                    Self::collect_events_from_nodes(&block.body.nodes, events);
+                    if let Some(ref fallback) = block.fallback {
+                        Self::collect_events_from_nodes(&fallback.nodes, events);
+                    }
+                }
+                TemplateNode::AwaitBlock(block) => {
+                    if let Some(ref pending) = block.pending {
+                        Self::collect_events_from_nodes(&pending.nodes, events);
+                    }
+                    if let Some(ref then_block) = block.then {
+                        Self::collect_events_from_nodes(&then_block.nodes, events);
+                    }
+                    if let Some(ref catch_block) = block.catch {
+                        Self::collect_events_from_nodes(&catch_block.nodes, events);
+                    }
+                }
+                TemplateNode::KeyBlock(block) => {
+                    Self::collect_events_from_nodes(&block.fragment.nodes, events);
+                }
+                TemplateNode::SnippetBlock(block) => {
+                    Self::collect_events_from_nodes(&block.body.nodes, events);
+                }
+                _ => {}
+            }
+        }
     }
 
     // =========================================================================
@@ -3519,8 +3619,6 @@ export default function {component_name}({fn_params}) {{
         root_var: &str,
     ) -> String {
         let mut stmts: Vec<JsStatement> = Vec::new();
-        let mut prev_var: Option<String> = None;
-        let mut skipped: i32 = 0;
 
         // Find the first non-whitespace node (same as generate_component does for HTML)
         let start_idx = fragment
@@ -3528,6 +3626,37 @@ export default function {component_name}({fn_params}) {{
             .iter()
             .position(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()))
             .unwrap_or(0);
+
+        let non_whitespace_nodes: Vec<&TemplateNode> = fragment
+            .nodes
+            .iter()
+            .skip(start_idx)
+            .filter(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()))
+            .collect();
+
+        // If there's exactly one root element, process it specially
+        if non_whitespace_nodes.len() == 1 {
+            if let TemplateNode::RegularElement(elem) = non_whitespace_nodes[0] {
+                // Root element is already assigned to root_var by `var root_var = root()`
+                // Generate event handlers for root element first
+                self.generate_special_attr_stmts(root_var, elem, &mut stmts);
+
+                // Then process its children
+                let (child_stmts, has_dynamic, _trailing) =
+                    self.process_children_cursor(root_var, &elem.fragment.nodes);
+                stmts.extend(child_stmts);
+
+                if has_dynamic {
+                    stmts.push(stmt(svelte_reset(id(root_var))));
+                }
+
+                return self.statements_to_string(&stmts);
+            }
+        }
+
+        // Multiple root nodes or non-element root - use standard navigation
+        let mut prev_var: Option<String> = None;
+        let mut skipped: i32 = 0;
 
         // Process root-level nodes (skipping leading whitespace)
         for node in fragment.nodes.iter().skip(start_idx) {
@@ -4029,8 +4158,9 @@ fn has_nested_dynamic_content(fragment: &Fragment) -> bool {
     // 1. HtmlTag ({@html ...}) inside an element at any depth
     // 2. Custom elements with attributes inside containers
     // 3. Multiple nested levels of elements with dynamic content
+    // 4. Elements with event handlers that have child elements
 
-    fn check_for_html_tag(nodes: &[TemplateNode], depth: usize) -> bool {
+    fn check_needs_hierarchical(nodes: &[TemplateNode], depth: usize) -> bool {
         for node in nodes {
             match node {
                 TemplateNode::HtmlTag(_) => {
@@ -4040,8 +4170,24 @@ fn has_nested_dynamic_content(fragment: &Fragment) -> bool {
                     }
                 }
                 TemplateNode::RegularElement(elem) => {
+                    // Check if element has event handlers and has child elements
+                    let has_event_handlers = elem.attributes.iter().any(
+                        |attr| matches!(attr, Attribute::Attribute(a) if a.name.starts_with("on")),
+                    );
+
+                    let has_child_elements = elem
+                        .fragment
+                        .nodes
+                        .iter()
+                        .any(|child| matches!(child, TemplateNode::RegularElement(_)));
+
+                    // If element has event handlers and child elements, use hierarchical nav
+                    if has_event_handlers && has_child_elements {
+                        return true;
+                    }
+
                     // Check children at increased depth
-                    if check_for_html_tag(&elem.fragment.nodes, depth + 1) {
+                    if check_needs_hierarchical(&elem.fragment.nodes, depth + 1) {
                         return true;
                     }
                 }
@@ -4051,7 +4197,7 @@ fn has_nested_dynamic_content(fragment: &Fragment) -> bool {
         false
     }
 
-    check_for_html_tag(&fragment.nodes, 0)
+    check_needs_hierarchical(&fragment.nodes, 0)
 }
 
 /// Determine the root variable name from the HTML.
