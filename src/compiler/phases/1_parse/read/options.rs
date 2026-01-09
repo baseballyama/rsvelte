@@ -244,11 +244,20 @@ fn get_boolean_value(attr: &crate::ast::template::AttributeNode) -> ParseResult<
             if parts.is_empty() {
                 return Ok(true);
             }
-            if let AttributeValuePart::ExpressionTag(expr) = &parts[0]
-                && let Some(value) = expr.expression.as_json().get("value")
-                && let Some(b) = value.as_bool()
-            {
-                return Ok(b);
+            if let AttributeValuePart::ExpressionTag(expr) = &parts[0] {
+                let json = expr.expression.as_json();
+                eprintln!(
+                    "DEBUG: Expression JSON: {}",
+                    serde_json::to_string_pretty(&json).unwrap_or_else(|_| "error".to_string())
+                );
+
+                if let Some(value) = json.get("value") {
+                    eprintln!("DEBUG: Found value: {:?}", value);
+                    if let Some(b) = value.as_bool() {
+                        eprintln!("DEBUG: Boolean value: {}", b);
+                        return Ok(b);
+                    }
+                }
             }
 
             Err(ParseError::svelte(
