@@ -709,17 +709,13 @@ impl Parser<'_> {
             let expr_content = &self.source[expr_start..expr_end];
             self.advance(); // consume '}'
 
-            // Check for empty shorthand - this is an error
-            if expr_content.trim().is_empty() {
-                return Err(crate::error::ParseError::svelte(
-                    "attribute_empty_shorthand",
-                    "Attribute shorthand cannot be empty",
-                    (start, self.index),
-                ));
-            }
-
-            // Create the expression
-            let expression = self.parse_js_expression(expr_content.trim(), expr_start);
+            // Create the expression (handle empty shorthand for "loose" mode)
+            let expression = if expr_content.trim().is_empty() {
+                // Create an empty identifier for empty shorthand
+                self.parse_js_expression("", expr_start)
+            } else {
+                self.parse_js_expression(expr_content.trim(), expr_start)
+            };
 
             // Create the attribute name from the expression (shorthand)
             let name = expr_content.trim().to_string();

@@ -1732,8 +1732,13 @@ fn convert_variable_declarator(
     obj.insert("end".to_string(), Value::Number((end as i64).into()));
     obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
 
-    // Convert id (pattern)
-    let id = convert_binding_pattern_for_decl(&decl.id, offset, line_offsets);
+    // Convert id (pattern) with type annotation
+    let id = convert_binding_pattern_for_decl(
+        &decl.id,
+        offset,
+        line_offsets,
+        decl.type_annotation.as_deref(),
+    );
     obj.insert("id".to_string(), id);
 
     // Convert init
@@ -1756,11 +1761,18 @@ fn convert_binding_pattern_for_decl(
     pattern: &oxc_ast::ast::BindingPattern,
     offset: usize,
     line_offsets: &[usize],
+    type_annotation: Option<&oxc_ast::ast::TSTypeAnnotation>,
 ) -> Value {
     match pattern {
         oxc_ast::ast::BindingPattern::BindingIdentifier(id) => {
             let start = offset + id.span.start as usize - 1;
-            let end = offset + id.span.end as usize - 1;
+            // If there's a type annotation, extend the end to include it
+            let end = if let Some(type_ann) = type_annotation {
+                offset + type_ann.span.end as usize - 1
+            } else {
+                offset + id.span.end as usize - 1
+            };
+
             let mut obj = Map::new();
             obj.insert("type".to_string(), Value::String("Identifier".to_string()));
             obj.insert("start".to_string(), Value::Number((start as i64).into()));
@@ -1768,7 +1780,12 @@ fn convert_binding_pattern_for_decl(
             obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
             obj.insert("name".to_string(), Value::String(id.name.to_string()));
 
-            // TODO: OXC v0.107 - type annotations moved to different location
+            // OXC v0.107: type annotations are on VariableDeclarator, not BindingIdentifier
+            if let Some(type_ann) = type_annotation {
+                let type_ann_value =
+                    convert_type_annotation_adjusted(type_ann, offset - 1, line_offsets);
+                obj.insert("typeAnnotation".to_string(), type_ann_value);
+            }
 
             Value::Object(obj)
         }

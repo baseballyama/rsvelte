@@ -240,24 +240,13 @@ fn get_static_value(attr: &crate::ast::template::AttributeNode) -> ParseResult<O
 fn get_boolean_value(attr: &crate::ast::template::AttributeNode) -> ParseResult<bool> {
     match &attr.value {
         AttributeValue::True(_) => Ok(true),
-        AttributeValue::Sequence(parts) => {
-            if parts.is_empty() {
-                return Ok(true);
-            }
-            if let AttributeValuePart::ExpressionTag(expr) = &parts[0] {
-                let json = expr.expression.as_json();
-                eprintln!(
-                    "DEBUG: Expression JSON: {}",
-                    serde_json::to_string_pretty(&json).unwrap_or_else(|_| "error".to_string())
-                );
-
-                if let Some(value) = json.get("value") {
-                    eprintln!("DEBUG: Found value: {:?}", value);
-                    if let Some(b) = value.as_bool() {
-                        eprintln!("DEBUG: Boolean value: {}", b);
-                        return Ok(b);
-                    }
-                }
+        AttributeValue::Expression(expr) => {
+            // Handle {true} or {false} expression values
+            let json = expr.expression.as_json();
+            if let Some(value) = json.get("value")
+                && let Some(b) = value.as_bool()
+            {
+                return Ok(b);
             }
 
             Err(ParseError::svelte(
@@ -269,14 +258,26 @@ fn get_boolean_value(attr: &crate::ast::template::AttributeNode) -> ParseResult<
                 (attr.start as usize, attr.end as usize),
             ))
         }
-        _ => Err(ParseError::svelte(
-            "svelte_options_invalid_attribute_value",
-            format!(
-                "\"{}\" is not a valid value (expected true or false)",
-                attr.name
-            ),
-            (attr.start as usize, attr.end as usize),
-        )),
+        AttributeValue::Sequence(parts) => {
+            if parts.is_empty() {
+                return Ok(true);
+            }
+            if let AttributeValuePart::ExpressionTag(expr) = &parts[0]
+                && let Some(value) = expr.expression.as_json().get("value")
+                && let Some(b) = value.as_bool()
+            {
+                return Ok(b);
+            }
+
+            Err(ParseError::svelte(
+                "svelte_options_invalid_attribute_value",
+                format!(
+                    "\"{}\" is not a valid value (expected true or false)",
+                    attr.name
+                ),
+                (attr.start as usize, attr.end as usize),
+            ))
+        }
     }
 }
 

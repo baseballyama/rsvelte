@@ -982,13 +982,15 @@ impl<'a> SelectorParser<'a> {
 
         let name = self.read_identifier();
 
-        // Parse arguments in parentheses (e.g., ::view-transition-group(foo))
-        let args = if self.current_char() == '(' {
-            let args_start = self.offset + self.index + 1;
+        // Record end position after the name (before any arguments)
+        let end = self.offset + self.index;
+
+        // Skip arguments in parentheses (e.g., ::view-transition-group(foo))
+        // The arguments are consumed but not included in the AST to match Svelte's behavior
+        if self.current_char() == '(' {
             self.advance(); // consume '('
 
-            // Read content inside parentheses
-            let content_start = self.index;
+            // Skip content inside parentheses
             let mut depth = 1;
             while !self.is_eof() && depth > 0 {
                 let c = self.current_char();
@@ -1002,28 +1004,9 @@ impl<'a> SelectorParser<'a> {
                 }
                 self.advance();
             }
-            let content_end = self.index;
-            let content = &self.source[content_start..content_end];
-            let args_end = self.offset + self.index;
 
             self.advance(); // consume ')'
-
-            // Create args node with the raw content
-            let mut args_obj = Map::new();
-            args_obj.insert("type".to_string(), Value::String("Raw".to_string()));
-            args_obj.insert("value".to_string(), Value::String(content.to_string()));
-            args_obj.insert(
-                "start".to_string(),
-                Value::Number((args_start as i64).into()),
-            );
-            args_obj.insert("end".to_string(), Value::Number((args_end as i64).into()));
-            Some(Value::Object(args_obj))
-        } else {
-            None
-        };
-
-        // Record end position after everything (including parentheses)
-        let end = self.offset + self.index;
+        }
 
         let mut obj = Map::new();
         obj.insert(
@@ -1033,9 +1016,6 @@ impl<'a> SelectorParser<'a> {
         obj.insert("name".to_string(), Value::String(name));
         obj.insert("start".to_string(), Value::Number((start as i64).into()));
         obj.insert("end".to_string(), Value::Number((end as i64).into()));
-        if let Some(args_val) = args {
-            obj.insert("args".to_string(), args_val);
-        }
 
         Some(Value::Object(obj))
     }
