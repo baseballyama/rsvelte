@@ -216,7 +216,7 @@ pub enum TransformResult {
 /// Client-side transformation state.
 ///
 /// Corresponds to `ComponentClientTransformState` in Svelte's types.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ComponentClientTransformState<'a> {
     /// Current scope
     pub scope: &'a Scope,
@@ -290,7 +290,7 @@ pub struct IdentifierTransform {
 }
 
 /// Component metadata.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct ComponentMetadata {
     /// Namespace (html, svg, mathml)
     pub namespace: String,
@@ -302,7 +302,7 @@ pub struct ComponentMetadata {
 /// Template builder.
 ///
 /// Accumulates HTML template parts during traversal.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct TemplateBuilder {
     /// HTML parts being accumulated
     parts: Vec<String>,
@@ -363,7 +363,7 @@ impl TemplateBuilder {
 /// Memoizer for expressions.
 ///
 /// Tracks expressions that should be memoized to avoid redundant computation.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Memoizer {
     /// Counter for generating unique memoization variable names
     counter: usize,

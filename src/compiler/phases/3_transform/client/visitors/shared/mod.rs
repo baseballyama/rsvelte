@@ -25,4 +25,6 @@
 pub mod component;
 pub mod element;
 pub mod events;
+pub mod function;
+pub mod special_element;
 pub mod utils;

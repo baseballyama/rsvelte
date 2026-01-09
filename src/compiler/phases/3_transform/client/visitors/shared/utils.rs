@@ -181,9 +181,123 @@ pub struct BindDirective {
     pub expression: JsExpr,
 }
 
+/// Parse a directive name into a member expression.
+///
+/// This allows for accessing members of an object.
+/// For example, "fade.in" becomes `fade.in`, and "custom" becomes `custom`.
+///
+/// Corresponds to `parse_directive_name` in
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/utils.js`.
+///
+/// # Arguments
+///
+/// * `name` - The directive name (e.g., "fade", "custom.animation")
+///
+/// # Returns
+///
+/// Returns a member expression or identifier.
+pub fn parse_directive_name(name: &str) -> JsExpr {
+    let parts: Vec<&str> = name.split('.').collect();
+
+    if parts.is_empty() {
+        return b::id("unknown");
+    }
+
+    let mut expression = b::id(parts[0]);
+
+    for part in &parts[1..] {
+        // Check if the part is a valid identifier
+        let computed = !is_valid_identifier(part);
+
+        if computed {
+            expression = b::member_computed(expression, b::string(*part));
+        } else {
+            expression = b::member(expression, *part);
+        }
+    }
+
+    expression
+}
+
+/// Check if a string is a valid JavaScript identifier.
+fn is_valid_identifier(s: &str) -> bool {
+    if s.is_empty() {
+        return false;
+    }
+
+    // First character must be a letter, underscore, or dollar sign
+    let first_char = s.chars().next().unwrap();
+    if !first_char.is_alphabetic() && first_char != '_' && first_char != '$' {
+        return false;
+    }
+
+    // Remaining characters must be alphanumeric, underscore, or dollar sign
+    s.chars()
+        .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+}
+
+/// Validate a mutation in dev mode.
+///
+/// In development mode, this adds validation to ensure mutations
+/// are used correctly.
+///
+/// Corresponds to `validate_mutation` in
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/utils.js`.
+///
+/// # Arguments
+///
+/// * `node` - The original AST node being mutated
+/// * `context` - The component transformation context
+/// * `expression` - The transformed expression
+///
+/// # Returns
+///
+/// Returns the expression, potentially wrapped with validation.
+pub fn validate_mutation<T>(_node: &T, _context: &ComponentContext, expression: JsExpr) -> JsExpr {
+    // TODO: Implement dev mode mutation validation
+    // This would check:
+    // - Mutation is to a valid target
+    // - Target is not read-only
+    // - etc.
+    // For now, return as-is
+
+    expression
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_parse_directive_name_simple() {
+        let expr = parse_directive_name("fade");
+        match expr {
+            JsExpr::Identifier(name) => assert_eq!(name, "fade"),
+            _ => panic!("Expected identifier"),
+        }
+    }
+
+    #[test]
+    fn test_parse_directive_name_member() {
+        let expr = parse_directive_name("custom.animation");
+        match expr {
+            JsExpr::Member(_) => {
+                // Success - generated a member expression
+            }
+            _ => panic!("Expected member expression"),
+        }
+    }
+
+    #[test]
+    fn test_is_valid_identifier() {
+        assert!(is_valid_identifier("foo"));
+        assert!(is_valid_identifier("_bar"));
+        assert!(is_valid_identifier("$baz"));
+        assert!(is_valid_identifier("foo123"));
+        assert!(!is_valid_identifier("123foo"));
+        assert!(!is_valid_identifier("foo-bar"));
+        assert!(!is_valid_identifier(""));
+    }
 
     #[test]
     fn test_build_template_effect_simple() {

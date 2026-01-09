@@ -2861,7 +2861,46 @@ fn convert_variable_declarator_for_program(
     obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
 
     // Convert the id (pattern)
-    let id_value = convert_binding_pattern(&decl.id, offset, line_offsets);
+    let mut id_value = convert_binding_pattern(&decl.id, offset, line_offsets);
+
+    // Add TypeScript type annotation if present on the declarator
+    if let Some(type_annotation) = &decl.type_annotation
+        && let Value::Object(ref mut id_obj) = id_value
+    {
+        let ts_start = type_annotation.span.start as usize + offset;
+        let ts_end = type_annotation.span.end as usize + offset;
+
+        // Create TSTypeAnnotation object
+        let mut ts_obj = Map::new();
+        ts_obj.insert(
+            "type".to_string(),
+            Value::String("TSTypeAnnotation".to_string()),
+        );
+        ts_obj.insert("start".to_string(), Value::Number((ts_start as i64).into()));
+        ts_obj.insert("end".to_string(), Value::Number((ts_end as i64).into()));
+        ts_obj.insert(
+            "loc".to_string(),
+            create_loc(ts_start, ts_end, line_offsets),
+        );
+
+        // Convert the actual TypeScript type
+        let type_value = convert_ts_type(&type_annotation.type_annotation, offset, line_offsets);
+        ts_obj.insert("typeAnnotation".to_string(), type_value);
+
+        id_obj.insert("typeAnnotation".to_string(), Value::Object(ts_obj));
+
+        // Update end position to include type annotation
+        id_obj.insert("end".to_string(), Value::Number((ts_end as i64).into()));
+        id_obj.insert(
+            "loc".to_string(),
+            create_loc(
+                id_obj.get("start").and_then(|v| v.as_i64()).unwrap_or(0) as usize,
+                ts_end,
+                line_offsets,
+            ),
+        );
+    }
+
     obj.insert("id".to_string(), id_value);
 
     // Convert init if present

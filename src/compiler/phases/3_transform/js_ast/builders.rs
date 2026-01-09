@@ -39,6 +39,11 @@ pub fn null() -> JsExpr {
     JsExpr::Literal(JsLiteral::Null)
 }
 
+/// Create a generic literal from JsLiteral.
+pub fn literal(value: JsLiteral) -> JsExpr {
+    JsExpr::Literal(value)
+}
+
 /// Create an undefined literal (void 0).
 pub fn undefined() -> JsExpr {
     JsExpr::Void(Box::new(number(0.0)))
@@ -242,6 +247,11 @@ pub fn thunk(expr: JsExpr) -> JsExpr {
     arrow(vec![], expr)
 }
 
+/// Create a thunk with a block body.
+pub fn thunk_block(statements: Vec<JsStatement>) -> JsExpr {
+    arrow_block(vec![], statements)
+}
+
 /// Create an async thunk.
 pub fn async_thunk(expr: JsExpr) -> JsExpr {
     async_arrow(vec![], expr)
@@ -363,12 +373,42 @@ pub fn member_path(path: &str) -> JsExpr {
 // ============================================================================
 
 /// Create a binary expression.
-pub fn binary(op: JsBinaryOp, left: JsExpr, right: JsExpr) -> JsExpr {
+pub fn binary(op: impl Into<JsBinaryOp>, left: JsExpr, right: JsExpr) -> JsExpr {
     JsExpr::Binary(JsBinaryExpression {
-        operator: op,
+        operator: op.into(),
         left: Box::new(left),
         right: Box::new(right),
     })
+}
+
+/// Create a binary expression from an operator string.
+pub fn binary_str(op: &str, left: JsExpr, right: JsExpr) -> JsExpr {
+    let operator = match op {
+        "==" => JsBinaryOp::Eq,
+        "!=" => JsBinaryOp::Ne,
+        "===" => JsBinaryOp::StrictEq,
+        "!==" => JsBinaryOp::StrictNe,
+        "<" => JsBinaryOp::Lt,
+        "<=" => JsBinaryOp::Le,
+        ">" => JsBinaryOp::Gt,
+        ">=" => JsBinaryOp::Ge,
+        "<<" => JsBinaryOp::Shl,
+        ">>" => JsBinaryOp::Shr,
+        ">>>" => JsBinaryOp::UShr,
+        "+" => JsBinaryOp::Add,
+        "-" => JsBinaryOp::Sub,
+        "*" => JsBinaryOp::Mul,
+        "/" => JsBinaryOp::Div,
+        "%" => JsBinaryOp::Mod,
+        "**" => JsBinaryOp::Pow,
+        "|" => JsBinaryOp::BitOr,
+        "^" => JsBinaryOp::BitXor,
+        "&" => JsBinaryOp::BitAnd,
+        "in" => JsBinaryOp::In,
+        "instanceof" => JsBinaryOp::InstanceOf,
+        _ => JsBinaryOp::Add, // Default to addition
+    };
+    binary(operator, left, right)
 }
 
 /// Create a logical expression.
@@ -445,6 +485,30 @@ pub fn assignment(op: JsAssignmentOp, left: JsExpr, right: JsExpr) -> JsExpr {
 /// Create a simple assignment expression.
 pub fn assign(left: JsExpr, right: JsExpr) -> JsExpr {
     assignment(JsAssignmentOp::Assign, left, right)
+}
+
+/// Create an assignment expression from an operator string.
+pub fn assign_op(op: &str, left: JsExpr, right: JsExpr) -> JsExpr {
+    let operator = match op {
+        "=" => JsAssignmentOp::Assign,
+        "+=" => JsAssignmentOp::AddAssign,
+        "-=" => JsAssignmentOp::SubAssign,
+        "*=" => JsAssignmentOp::MulAssign,
+        "/=" => JsAssignmentOp::DivAssign,
+        "%=" => JsAssignmentOp::ModAssign,
+        "**=" => JsAssignmentOp::PowAssign,
+        "<<=" => JsAssignmentOp::ShlAssign,
+        ">>=" => JsAssignmentOp::ShrAssign,
+        ">>>=" => JsAssignmentOp::UShrAssign,
+        "|=" => JsAssignmentOp::BitOrAssign,
+        "^=" => JsAssignmentOp::BitXorAssign,
+        "&=" => JsAssignmentOp::BitAndAssign,
+        "||=" => JsAssignmentOp::OrAssign,
+        "&&=" => JsAssignmentOp::AndAssign,
+        "??=" => JsAssignmentOp::NullishAssign,
+        _ => JsAssignmentOp::Assign, // Default to simple assignment
+    };
+    assignment(operator, left, right)
 }
 
 /// Create a conditional (ternary) expression.

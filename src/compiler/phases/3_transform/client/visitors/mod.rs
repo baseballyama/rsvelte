@@ -54,7 +54,12 @@
 
 pub mod shared;
 
-// Visitor modules will be added here as they are extracted.
+// Visitor modules
+pub mod animate_directive;
+pub mod arrow_function_expression;
+pub mod assignment_expression;
+
+// Additional visitor modules will be added here as they are extracted.
 // Example:
 // pub mod text;
 // pub mod expression_tag;

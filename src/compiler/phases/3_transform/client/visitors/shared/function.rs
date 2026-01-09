@@ -21,32 +21,22 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 /// - Clears `in_constructor` flag (except for constructor MethodDefinitions)
 /// - Clears `in_derived` flag
 /// - Continues visiting child nodes with updated state
-pub fn visit_function(
-    node: &JsFunctionNode,
-    context: &mut ComponentContext,
-) -> TransformResult {
-    // Clone the current state and update flags
-    let mut new_state = context.state.clone();
-    new_state.in_constructor = false;
-    new_state.in_derived = false;
-
-    // Special case: if this is a FunctionExpression in a constructor MethodDefinition,
-    // keep in_constructor = true
-    if let JsFunctionNode::FunctionExpression(_) = node {
-        if let Some(parent) = context.path.last() {
-            // Check if parent is a MethodDefinition with kind = "constructor"
-            // This would require checking the parent node type
-            // For now, we'll check this in a simplified way
-            if is_constructor_method(parent) {
-                new_state.in_constructor = true;
-            }
-        }
-    }
-
-    // Continue visiting with the new state
-    // In the JS implementation, this calls context.next(state)
-    // which continues the visitor traversal with the new state
-    context.state = new_state;
+pub fn visit_function(_node: &JsFunctionNode, _context: &mut ComponentContext) -> TransformResult {
+    // TODO: Implement proper function scoping
+    //
+    // The JavaScript implementation clones the state and updates flags:
+    // - Clears `in_constructor` flag (except for constructor MethodDefinitions)
+    // - Clears `in_derived` flag
+    // - Continues visiting child nodes with updated state
+    //
+    // For now, this is a stub implementation that doesn't modify state.
+    // A complete implementation would:
+    // 1. Clone the current state
+    // 2. Update in_constructor and in_derived flags
+    // 3. Continue traversal with the new state
+    //
+    // However, the current ComponentClientTransformState doesn't have these fields,
+    // so this needs to be implemented later when the state structure is complete.
 
     TransformResult::None
 }
@@ -54,6 +44,7 @@ pub fn visit_function(
 /// Check if a node is a constructor method definition.
 ///
 /// This is a helper to determine if we're inside a class constructor.
+#[allow(dead_code)]
 fn is_constructor_method(_node: &crate::ast::template::TemplateNode) -> bool {
     // TODO: Implement proper MethodDefinition check
     // This would require:

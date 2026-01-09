@@ -3,6 +3,7 @@
 //! This module contains utilities that are shared between client and server
 //! code generation.
 
+pub mod assignments;
 pub mod template;
 
 pub use template::*;
