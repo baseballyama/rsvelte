@@ -15,6 +15,7 @@
 //!
 //! Corresponds to Svelte's `2-analyze/` directory.
 
+pub mod binding_properties;
 pub mod control_flow;
 pub mod css;
 pub mod errors;

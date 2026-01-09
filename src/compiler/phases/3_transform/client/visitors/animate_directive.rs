@@ -5,6 +5,10 @@
 
 use crate::ast::template::AnimateDirective;
 use crate::compiler::phases::phase3_transform::client::types::*;
+use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::parse_directive_name;
+use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 
 /// Visit an animate directive.
 ///
@@ -21,25 +25,47 @@ use crate::compiler::phases::phase3_transform::client::types::*;
 /// - If the directive has no expression, uses `null` as the animation parameter
 /// - Otherwise, wraps the expression in a thunk
 /// - Adds the animation call to the `after_update` array
-/// - TODO: If the expression is async (has blockers), wrap in `$.run_after_blockers`
-pub fn animate_directive(_node: &AnimateDirective, _context: &mut ComponentContext) {
-    // TODO: Implement full animate directive transformation
-    //
-    // Steps:
-    // 1. Visit the expression if present, or use null
-    // 2. Parse the directive name (e.g., "fade" or "custom.animation")
-    // 3. Build the animation call: $.animation(node, () => name, expression)
-    // 4. Check if the expression is async and wrap in $.run_after_blockers if needed
-    // 5. Add to after_update to ensure it runs after bind:this
-    //
-    // For now, this is a stub implementation.
-
-    /*
+/// - If the expression is async (has blockers), wrap in `$.run_after_blockers`
+///
+/// # Implementation
+///
+/// The JavaScript implementation:
+/// ```javascript
+/// export function AnimateDirective(node, context) {
+///     const expression =
+///         node.expression === null
+///             ? b.null
+///             : b.thunk(/** @type {Expression} */ (context.visit(node.expression)));
+///
+///     // in after_update to ensure it always happens after bind:this
+///     let statement = b.stmt(
+///         b.call(
+///             '$.animation',
+///             context.state.node,
+///             b.thunk(/** @type {Expression} */ (context.visit(parse_directive_name(node.name)))),
+///             expression
+///         )
+///     );
+///
+///     if (node.metadata.expression.is_async()) {
+///         statement = b.stmt(
+///             b.call(
+///                 '$.run_after_blockers',
+///                 node.metadata.expression.blockers(),
+///                 b.thunk(b.block([statement]))
+///             )
+///         );
+///     }
+///
+///     context.state.after_update.push(statement);
+/// }
+/// ```
+pub fn animate_directive(node: &AnimateDirective, context: &mut ComponentContext) {
     // Build the expression: either null or a thunk containing the visited expression
-    let expression = if let Some(expr) = &node.expression {
-        // TODO: Visit the expression properly
-        // For now, use null as placeholder
-        b::null()
+    let expression = if let Some(ref expr) = node.expression {
+        // Convert the expression using the expression converter
+        let visited_expr = convert_expression(expr, context);
+        b::thunk(visited_expr)
     } else {
         b::null()
     };
@@ -48,18 +74,43 @@ pub fn animate_directive(_node: &AnimateDirective, _context: &mut ComponentConte
     let name_expr = parse_directive_name(&node.name);
 
     // Build the animation call: $.animation(node, () => name, expression)
-    let statement = b::stmt(b::call(
+    let mut statement = b::stmt(b::call(
         b::member_path("$.animation"),
-        vec![
-            context.state.node.clone(),
-            b::thunk(name_expr),
-            expression,
-        ],
+        vec![context.state.node.clone(), b::thunk(name_expr), expression],
     ));
 
-    // TODO: Check for async blockers and wrap if needed
+    // Check if the expression is async and wrap in $.run_after_blockers if needed
+    if let Some(ref metadata) = node.metadata
+        && metadata.expression.is_async()
+    {
+        // Convert blockers to JsExpr array
+        let blockers_array = convert_blockers(&metadata.expression.blockers, context);
+
+        statement = b::stmt(b::call(
+            b::member_path("$.run_after_blockers"),
+            vec![blockers_array, b::arrow_block(vec![], vec![statement])],
+        ));
+    }
 
     // Add to after_update to ensure it runs after bind:this
     context.state.after_update.push(statement);
-    */
+}
+
+/// Convert Expression blockers to a JS array expression.
+///
+/// This helper converts the blocking dependencies from the directive metadata
+/// into a JS array that can be passed to $.run_after_blockers.
+///
+/// Each blocker expression is converted from the parser's Expression type
+/// to the transform phase's JsExpr type using the expression converter.
+fn convert_blockers(
+    blockers: &[crate::ast::js::Expression],
+    context: &mut ComponentContext,
+) -> JsExpr {
+    let blocker_exprs: Vec<_> = blockers
+        .iter()
+        .map(|blocker| convert_expression(blocker, context))
+        .collect();
+
+    b::array(blocker_exprs)
 }

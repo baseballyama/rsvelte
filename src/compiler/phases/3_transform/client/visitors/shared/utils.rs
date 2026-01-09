@@ -239,29 +239,226 @@ fn is_valid_identifier(s: &str) -> bool {
 /// Validate a mutation in dev mode.
 ///
 /// In development mode, this adds validation to ensure mutations
-/// are used correctly.
+/// to props are tracked correctly.
 ///
 /// Corresponds to `validate_mutation` in
 /// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/utils.js`.
 ///
 /// # Arguments
 ///
-/// * `node` - The original AST node being mutated
+/// * `node` - The original assignment/update node
 /// * `context` - The component transformation context
 /// * `expression` - The transformed expression
 ///
 /// # Returns
 ///
-/// Returns the expression, potentially wrapped with validation.
-pub fn validate_mutation<T>(_node: &T, _context: &ComponentContext, expression: JsExpr) -> JsExpr {
-    // TODO: Implement dev mode mutation validation
-    // This would check:
-    // - Mutation is to a valid target
-    // - Target is not read-only
-    // - etc.
-    // For now, return as-is
+/// Returns the expression, potentially wrapped with ownership validation.
+///
+/// # Implementation
+///
+/// The JavaScript implementation:
+/// ```javascript
+/// export function validate_mutation(node, context, expression) {
+///     let left = node.type === 'AssignmentExpression' ? node.left : node.argument;
+///
+///     if (!dev || left.type !== 'MemberExpression' || is_ignored(node, 'ownership_invalid_mutation')) {
+///         return expression;
+///     }
+///
+///     const name = object(left);
+///     if (!name) return expression;
+///
+///     const binding = context.state.scope.get(name.name);
+///     if (binding?.kind !== 'prop' && binding?.kind !== 'bindable_prop') return expression;
+///
+///     const state = context.state;
+///     state.analysis.needs_mutation_validation = true;
+///
+///     const path = [];
+///
+///     while (left.type === 'MemberExpression') {
+///         if (left.property.type === 'Literal') {
+///             path.unshift(left.property);
+///         } else if (left.property.type === 'Identifier') {
+///             const transform = context.state.transform[left.property.name];
+///             if (left.computed) {
+///                 path.unshift(transform?.read ? transform.read(left.property) : left.property);
+///             } else {
+///                 path.unshift(b.literal(left.property.name));
+///             }
+///         } else {
+///             return expression;
+///         }
+///
+///         left = left.object;
+///     }
+///
+///     path.unshift(b.literal(name.name));
+///
+///     const loc = locator(left.start);
+///
+///     return b.call(
+///         '$$ownership_validator.mutation',
+///         b.literal(binding.prop_alias),
+///         b.array(path),
+///         expression,
+///         loc && b.literal(loc.line),
+///         loc && b.literal(loc.column)
+///     );
+/// }
+/// ```
+pub fn validate_mutation(
+    node: &JsAssignmentExpression,
+    context: &ComponentContext,
+    expression: JsExpr,
+) -> JsExpr {
+    // Early return if not in dev mode
+    if !context.state.dev {
+        return expression;
+    }
 
-    expression
+    // Only validate member expressions
+    let member_expr = match node.left.as_ref() {
+        JsExpr::Member(m) => m,
+        _ => return expression,
+    };
+
+    // Get the root object of the member expression
+    let root_name = match get_root_object(member_expr) {
+        Some(name) => name,
+        None => return expression,
+    };
+
+    // Get the binding for the root object
+    let binding = match context.state.get_binding(&root_name) {
+        Some(b) => b,
+        None => return expression,
+    };
+
+    // Only validate mutations to props
+    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+    if !matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp) {
+        return expression;
+    }
+
+    // Build the property path array
+    let path = build_member_path(member_expr, context);
+
+    // Prepend the root name to the path
+    let mut full_path = vec![b::string(&root_name)];
+    full_path.extend(path);
+
+    // Build the validation call
+    let prop_alias = binding.prop_alias.as_ref().unwrap_or(&binding.name).clone();
+
+    let args = vec![b::string(&prop_alias), b::array(full_path), expression];
+
+    // TODO: Add source location when available
+    // if let Some((line, column)) = loc {
+    //     args.push(b::literal_number(line as f64));
+    //     args.push(b::literal_number(column as f64));
+    // }
+
+    b::call(b::member_path("$ownership_validator.mutation"), args)
+}
+
+/// Get the root object identifier from a member expression chain.
+///
+/// For example, `obj.foo.bar` returns `"obj"`.
+fn get_root_object(mut expr: &JsMemberExpression) -> Option<String> {
+    loop {
+        match expr.object.as_ref() {
+            JsExpr::Identifier(name) => return Some(name.clone()),
+            JsExpr::Member(m) => expr = m,
+            _ => return None,
+        }
+    }
+}
+
+/// Build the property path for a member expression.
+///
+/// Returns a list of property accessors (as strings or expressions).
+fn build_member_path(mut expr: &JsMemberExpression, context: &ComponentContext) -> Vec<JsExpr> {
+    let mut path = Vec::new();
+
+    loop {
+        // Add the current property to the path
+        match &expr.property {
+            JsMemberProperty::Identifier(name) => {
+                // Check if there's a transform for this identifier
+                let transform = context.state.transform.get(name);
+
+                if expr.computed {
+                    // Computed property: use the transform's read if available
+                    if let Some(t) = transform {
+                        if let Some(read_fn) = t.read {
+                            path.push(read_fn(JsExpr::Identifier(name.clone())));
+                        } else {
+                            path.push(JsExpr::Identifier(name.clone()));
+                        }
+                    } else {
+                        path.push(JsExpr::Identifier(name.clone()));
+                    }
+                } else {
+                    // Non-computed property: use as literal string
+                    path.push(b::string(name));
+                }
+            }
+            JsMemberProperty::Expression(expr_box) => {
+                match expr_box.as_ref() {
+                    JsExpr::Literal(lit) => {
+                        path.push(JsExpr::Literal(lit.clone()));
+                    }
+                    _ => {
+                        // Complex expression - can't build static path
+                        break;
+                    }
+                }
+            }
+            JsMemberProperty::PrivateIdentifier(name) => {
+                // Private identifier: use as literal string
+                path.push(b::string(name));
+            }
+        }
+
+        // Move to the parent object
+        match expr.object.as_ref() {
+            JsExpr::Member(m) => expr = m,
+            _ => break,
+        }
+    }
+
+    // Reverse the path since we built it from leaf to root
+    path.reverse();
+    path
+}
+
+/// Get source location (line, column) from a position.
+///
+/// TODO: This needs access to the source code to calculate line/column.
+/// For now, returns None as a placeholder.
+#[allow(dead_code)]
+fn get_source_location(_pos: u32) -> Option<(usize, usize)> {
+    // TODO: Implement proper source location lookup
+    // This would require:
+    // 1. Access to the original source code
+    // 2. A line/column mapping (similar to source maps)
+    // 3. Converting u32 position to (line, column)
+    None
+}
+
+/// Check if a node has an ignore annotation comment.
+///
+/// TODO: This needs to check for comments like `// @ts-ignore ownership_invalid_mutation`
+/// For now, always returns false.
+#[allow(dead_code)]
+fn is_ignored<T>(_node: &T, _check: &str) -> bool {
+    // TODO: Implement comment annotation checking
+    // This would require:
+    // 1. Access to comments attached to the node
+    // 2. Parsing the comment text for @ts-ignore or similar
+    // 3. Checking if the specific check is mentioned
+    false
 }
 
 #[cfg(test)]

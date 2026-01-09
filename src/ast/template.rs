@@ -660,6 +660,38 @@ impl serde::Serialize for TransitionDirective {
     }
 }
 
+/// Metadata for directives (animate, transition, etc.).
+///
+/// Contains information about the directive's expression dependencies.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct DirectiveMetadata {
+    /// Expression metadata (dependencies, blockers, etc.)
+    pub expression: DirectiveExpressionMetadata,
+}
+
+/// Expression metadata for directives.
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct DirectiveExpressionMetadata {
+    /// Whether the expression contains await
+    #[serde(default)]
+    pub has_await: bool,
+    /// Blocking dependencies (for async expressions)
+    #[serde(default)]
+    pub blockers: Vec<Expression>,
+}
+
+impl DirectiveExpressionMetadata {
+    /// Check if the expression is async (has await or blockers).
+    pub fn is_async(&self) -> bool {
+        self.has_await || !self.blockers.is_empty()
+    }
+
+    /// Get the blocking dependencies.
+    pub fn blockers(&self) -> &[Expression] {
+        &self.blockers
+    }
+}
+
 /// An animate directive: `animate:name`.
 #[derive(Debug, Clone, Deserialize)]
 pub struct AnimateDirective {
@@ -668,6 +700,8 @@ pub struct AnimateDirective {
     pub name: CompactString,
     pub name_loc: Option<SourceLocation>,
     pub expression: Option<Expression>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<DirectiveMetadata>,
 }
 
 impl serde::Serialize for AnimateDirective {
@@ -686,6 +720,9 @@ impl serde::Serialize for AnimateDirective {
         }
         if let Some(ref expression) = self.expression {
             map.serialize_entry("expression", expression)?;
+        }
+        if let Some(ref metadata) = self.metadata {
+            map.serialize_entry("metadata", metadata)?;
         }
         map.end()
     }

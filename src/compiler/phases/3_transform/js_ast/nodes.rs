@@ -330,6 +330,8 @@ pub enum JsExpr {
     Chain(JsChainExpression),
     /// Void expression
     Void(Box<JsExpr>),
+    /// Raw JavaScript code (as a string)
+    Raw(String),
 }
 
 /// Literal value.

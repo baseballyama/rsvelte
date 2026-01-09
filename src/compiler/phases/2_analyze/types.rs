@@ -111,6 +111,17 @@ pub struct ComponentAnalysis {
 
     /// Pre-extracted module script content (to avoid re-parsing in Phase 3)
     pub module_script_content: Option<ScriptContent>,
+
+    /// $derived expressions that contain await (async deriveds)
+    /// These need special handling during code generation
+    pub async_deriveds: HashSet<String>,
+
+    /// The identifier used for $props.id() (if any)
+    /// Used to track the props ID declaration
+    pub props_id: Option<String>,
+
+    /// Whether the component uses $inspect.trace()
+    pub tracing: bool,
 }
 
 impl ComponentAnalysis {
@@ -145,6 +156,9 @@ impl ComponentAnalysis {
             source: source.to_string(),
             instance_script_content: None,
             module_script_content: None,
+            async_deriveds: HashSet::new(),
+            props_id: None,
+            tracing: false,
         }
     }
 

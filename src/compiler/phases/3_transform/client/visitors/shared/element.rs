@@ -200,6 +200,7 @@ fn extract_metadata_from_tag(expr_tag: &ExpressionTag) -> ExpressionMetadata {
         has_member_expression: has_member,
         has_assignment: false, // TODO: Detect assignment
         dynamic: false,
+        blockers: Vec::new(), // TODO: Detect blockers
     }
 }
 
@@ -244,7 +245,9 @@ mod tests {
         // Create a minimal context (this would need proper setup in real tests)
         let analysis = ComponentAnalysis::new("", &Default::default());
         let scope = crate::compiler::phases::phase2_analyze::scope::Scope::new(None);
-        let state = ComponentClientTransformState::new(&scope, &analysis, b::id("node"));
+        let scope_root = crate::compiler::phases::phase2_analyze::scope::ScopeRoot::new();
+        let state =
+            ComponentClientTransformState::new(&scope, &scope_root, &analysis, b::id("node"));
         let mut context = ComponentContext::new(state, |_, _, _| TransformResult::None);
 
         let value = AttributeValue::True(true);
@@ -261,7 +264,9 @@ mod tests {
     fn test_build_attribute_value_text() {
         let analysis = ComponentAnalysis::new("", &Default::default());
         let scope = crate::compiler::phases::phase2_analyze::scope::Scope::new(None);
-        let state = ComponentClientTransformState::new(&scope, &analysis, b::id("node"));
+        let scope_root = crate::compiler::phases::phase2_analyze::scope::ScopeRoot::new();
+        let state =
+            ComponentClientTransformState::new(&scope, &scope_root, &analysis, b::id("node"));
         let mut context = ComponentContext::new(state, |_, _, _| TransformResult::None);
 
         let value = AttributeValue::Sequence(vec![AttributeValuePart::Text(Text {

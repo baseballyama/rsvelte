@@ -1180,3 +1180,16 @@ pub fn set_property(element: JsExpr, prop: impl Into<String>, value: JsExpr) -> 
 pub fn program(body: Vec<JsStatement>) -> JsProgram {
     JsProgram::with_body(body)
 }
+
+/// Create a raw JavaScript expression.
+///
+/// This creates a Raw node containing arbitrary JavaScript code.
+/// Use with caution - the string should be valid JavaScript.
+pub fn raw(code: impl Into<String>) -> JsExpr {
+    JsExpr::Raw(code.into())
+}
+
+/// Alias for `number` to match JavaScript builder API.
+pub fn literal_number(value: f64) -> JsExpr {
+    number(value)
+}

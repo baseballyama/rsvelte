@@ -476,6 +476,10 @@ impl JsCodegen {
                 self.output.push_str("void ");
                 self.emit_expression(inner);
             }
+            JsExpr::Raw(code) => {
+                // Emit raw JavaScript code as-is
+                self.output.push_str(code);
+            }
         }
     }
 

@@ -7,7 +7,7 @@
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/types.js`.
 
 use crate::ast::template::TemplateNode;
-use crate::compiler::phases::phase2_analyze::scope::Scope;
+use crate::compiler::phases::phase2_analyze::scope::{Binding, Scope, ScopeRoot};
 use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use std::collections::{HashMap, HashSet};
@@ -227,6 +227,9 @@ pub struct ComponentClientTransformState<'a> {
     /// Analysis results
     pub analysis: &'a ComponentAnalysis,
 
+    /// Root scope with all bindings
+    pub scope_root: &'a ScopeRoot,
+
     /// Template building state
     pub template: TemplateBuilder,
 
@@ -256,15 +259,33 @@ pub struct ComponentClientTransformState<'a> {
 
     /// Metadata about the component
     pub metadata: ComponentMetadata,
+
+    /// Whether we're inside a class constructor
+    pub in_constructor: bool,
+
+    /// Whether we're inside a $derived expression
+    pub in_derived: bool,
+
+    /// Whether we're in development mode
+    pub dev: bool,
+
+    /// State fields in class components (maps field name to field info)
+    pub state_fields: HashMap<String, StateField>,
 }
 
 impl<'a> ComponentClientTransformState<'a> {
     /// Create a new component client transform state.
-    pub fn new(scope: &'a Scope, analysis: &'a ComponentAnalysis, node: JsExpr) -> Self {
+    pub fn new(
+        scope: &'a Scope,
+        scope_root: &'a ScopeRoot,
+        analysis: &'a ComponentAnalysis,
+        node: JsExpr,
+    ) -> Self {
         Self {
             scope,
             scopes: HashMap::new(),
             analysis,
+            scope_root,
             template: TemplateBuilder::new(),
             init: Vec::new(),
             update: Vec::new(),
@@ -275,7 +296,17 @@ impl<'a> ComponentClientTransformState<'a> {
             let_directives: Vec::new(),
             events: HashSet::new(),
             metadata: ComponentMetadata::default(),
+            in_constructor: false,
+            in_derived: false,
+            dev: false,
+            state_fields: HashMap::new(),
         }
+    }
+
+    /// Get a binding by name from the current scope.
+    pub fn get_binding(&self, name: &str) -> Option<&Binding> {
+        let index = self.scope.declarations.get(name)?;
+        self.scope_root.bindings.get(*index)
     }
 }
 
@@ -442,6 +473,9 @@ pub struct ExpressionMetadata {
 
     /// Whether the expression is dynamic (needs reactive tracking)
     pub dynamic: bool,
+
+    /// Blocking dependencies (for async expressions)
+    pub blockers: Vec<JsExpr>,
 }
 
 impl ExpressionMetadata {
@@ -452,9 +486,34 @@ impl ExpressionMetadata {
 
     /// Check if the expression has any blocking dependencies.
     pub fn has_blockers(&self) -> bool {
-        // TODO: Implement blocker detection
-        false
+        !self.blockers.is_empty()
     }
+
+    /// Check if the expression is async (has await or blockers).
+    pub fn is_async(&self) -> bool {
+        self.has_await || self.has_blockers()
+    }
+
+    /// Get the blocking dependencies as a JS array expression.
+    pub fn blockers(&self) -> JsExpr {
+        use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+        b::array(self.blockers.clone())
+    }
+}
+
+/// State field in a class component.
+///
+/// Represents a field declared with $state, $derived, or similar runes.
+#[derive(Debug, Clone)]
+pub struct StateField {
+    /// The AST node where this field is declared
+    pub node: JsAssignmentExpression,
+
+    /// The key used to access this field (private or public identifier)
+    pub key: JsExpr,
+
+    /// The type of state field ($state, $derived, etc.)
+    pub field_type: String,
 }
 
 #[cfg(test)]

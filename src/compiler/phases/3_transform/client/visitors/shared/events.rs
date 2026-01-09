@@ -174,7 +174,9 @@ mod tests {
             &Default::default(),
         );
         let scope = crate::compiler::phases::phase2_analyze::scope::Scope::new(None);
-        let state = ComponentClientTransformState::new(&scope, &analysis, b::id("node"));
+        let scope_root = crate::compiler::phases::phase2_analyze::scope::ScopeRoot::new();
+        let state =
+            ComponentClientTransformState::new(&scope, &scope_root, &analysis, b::id("node"));
         let mut context = ComponentContext::new(state, |_, _, _| TransformResult::None);
 
         let handler = build_event_handler(None, &metadata, &mut context);
@@ -196,7 +198,9 @@ mod tests {
             &Default::default(),
         );
         let scope = crate::compiler::phases::phase2_analyze::scope::Scope::new(None);
-        let state = ComponentClientTransformState::new(&scope, &analysis, b::id("node"));
+        let scope_root = crate::compiler::phases::phase2_analyze::scope::ScopeRoot::new();
+        let state =
+            ComponentClientTransformState::new(&scope, &scope_root, &analysis, b::id("node"));
         let mut context = ComponentContext::new(state, |_, _, _| TransformResult::None);
 
         let arrow = b::arrow(vec![b::id_pattern("e")], b::id("undefined"));

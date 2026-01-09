@@ -1649,6 +1649,7 @@ impl Parser<'_> {
                 name: CompactString::from(animate_name),
                 name_loc: Some(name_loc),
                 expression,
+                metadata: None, // Populated during Phase 2 analysis
             },
         )))
     }
