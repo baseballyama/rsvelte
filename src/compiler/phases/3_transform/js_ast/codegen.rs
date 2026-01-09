@@ -545,11 +545,11 @@ impl JsCodegen {
     fn emit_object_member(&mut self, member: &JsObjectMember) {
         match member {
             JsObjectMember::Property(prop) => {
-                if prop.shorthand {
-                    if let JsPropertyKey::Identifier(name) = &prop.key {
-                        self.output.push_str(name);
-                        return;
-                    }
+                if prop.shorthand
+                    && let JsPropertyKey::Identifier(name) = &prop.key
+                {
+                    self.output.push_str(name);
+                    return;
                 }
 
                 match prop.kind {

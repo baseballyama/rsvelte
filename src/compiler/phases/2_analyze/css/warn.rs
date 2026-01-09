@@ -39,11 +39,11 @@ fn collect_node_warnings(node: &serde_json::Value, warnings: &mut Vec<CssWarning
                 collect_rule_warnings(node, warnings);
             }
             "Atrule" => {
-                if let Some(block) = node.get("block") {
-                    if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
-                        for child in children {
-                            collect_node_warnings(child, warnings);
-                        }
+                if let Some(block) = node.get("block")
+                    && let Some(children) = block.get("children").and_then(|c| c.as_array())
+                {
+                    for child in children {
+                        collect_node_warnings(child, warnings);
                     }
                 }
             }
@@ -54,28 +54,27 @@ fn collect_node_warnings(node: &serde_json::Value, warnings: &mut Vec<CssWarning
 
 fn collect_rule_warnings(rule: &serde_json::Value, warnings: &mut Vec<CssWarning>) {
     // Check if the rule has unused metadata
-    if let Some(metadata) = rule.get("metadata") {
-        if let Some(used) = metadata.get("used").and_then(|u| u.as_bool()) {
-            if !used {
-                let start = rule.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
-                let end = rule.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as u32;
+    if let Some(metadata) = rule.get("metadata")
+        && let Some(used) = metadata.get("used").and_then(|u| u.as_bool())
+        && !used
+    {
+        let start = rule.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as u32;
+        let end = rule.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as u32;
 
-                warnings.push(CssWarning {
-                    selector: format!("selector at {}:{}", start, end),
-                    start,
-                    end,
-                    message: "Unused CSS selector".to_string(),
-                });
-            }
-        }
+        warnings.push(CssWarning {
+            selector: format!("selector at {}:{}", start, end),
+            start,
+            end,
+            message: "Unused CSS selector".to_string(),
+        });
     }
 
     // Recursively check nested rules
-    if let Some(block) = rule.get("block") {
-        if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
-            for child in children {
-                collect_node_warnings(child, warnings);
-            }
+    if let Some(block) = rule.get("block")
+        && let Some(children) = block.get("children").and_then(|c| c.as_array())
+    {
+        for child in children {
+            collect_node_warnings(child, warnings);
         }
     }
 }

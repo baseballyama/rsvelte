@@ -21,11 +21,11 @@ fn prune_css_node(node: &serde_json::Value, analysis: &ComponentAnalysis) {
                 prune_rule(node, analysis);
             }
             "Atrule" => {
-                if let Some(block) = node.get("block") {
-                    if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
-                        for child in children {
-                            prune_css_node(child, analysis);
-                        }
+                if let Some(block) = node.get("block")
+                    && let Some(children) = block.get("children").and_then(|c| c.as_array())
+                {
+                    for child in children {
+                        prune_css_node(child, analysis);
                     }
                 }
             }
@@ -42,11 +42,11 @@ fn prune_rule(node: &serde_json::Value, analysis: &ComponentAnalysis) {
     }
 
     // Recursively prune nested rules
-    if let Some(block) = node.get("block") {
-        if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
-            for child in children {
-                prune_css_node(child, analysis);
-            }
+    if let Some(block) = node.get("block")
+        && let Some(children) = block.get("children").and_then(|c| c.as_array())
+    {
+        for child in children {
+            prune_css_node(child, analysis);
         }
     }
 }

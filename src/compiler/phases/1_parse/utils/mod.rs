@@ -23,6 +23,7 @@ pub use html::{decode_character_references, is_void_element, validate_code};
 /// JavaScript reserved words.
 ///
 /// Corresponds to `RESERVED_WORDS` in `svelte/packages/svelte/src/utils.js`.
+#[allow(dead_code)]
 const RESERVED_WORDS: &[&str] = &[
     "arguments",
     "await",
@@ -77,6 +78,7 @@ const RESERVED_WORDS: &[&str] = &[
 /// Returns `true` if `word` is a reserved JavaScript keyword.
 ///
 /// Corresponds to `is_reserved()` in `svelte/packages/svelte/src/utils.js`.
+#[allow(dead_code)]
 pub fn is_reserved(word: &str) -> bool {
     RESERVED_WORDS.contains(&word)
 }

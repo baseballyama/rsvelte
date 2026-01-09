@@ -228,11 +228,11 @@ impl ClientCodeGenerator {
         // Find first non-whitespace node
         let mut start_idx = 0;
         while start_idx < len {
-            if let TemplateNode::Text(text) = nodes[start_idx] {
-                if text.data.trim().is_empty() {
-                    start_idx += 1;
-                    continue;
-                }
+            if let TemplateNode::Text(text) = nodes[start_idx]
+                && text.data.trim().is_empty()
+            {
+                start_idx += 1;
+                continue;
             }
             break;
         }
@@ -240,14 +240,13 @@ impl ClientCodeGenerator {
         // Generate from first non-whitespace node
         for (i, node) in nodes.iter().enumerate().skip(start_idx) {
             // Add space separator between root elements (but not before first)
-            if i > start_idx {
-                if let TemplateNode::Text(text) = node {
-                    if text.data.trim().is_empty() {
-                        // Whitespace between elements - normalize to single space
-                        self.html_parts.push(" ".to_string());
-                        continue;
-                    }
-                }
+            if i > start_idx
+                && let TemplateNode::Text(text) = node
+                && text.data.trim().is_empty()
+            {
+                // Whitespace between elements - normalize to single space
+                self.html_parts.push(" ".to_string());
+                continue;
             }
             self.generate_node(node, true)?;
         }
@@ -325,15 +324,14 @@ impl ClientCodeGenerator {
                 Attribute::Attribute(node) => {
                     let attr_name = node.name.as_str();
                     // Check for event handlers (onclick, onmousedown, etc.)
-                    if let Some(event_name) = attr_name.strip_prefix("on") {
-                        if let AttributeValue::Expression(expr_tag) = &node.value {
-                            let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
-                            let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
-                            if expr_end > expr_start && expr_end <= self.source.len() {
-                                let expr_source =
-                                    self.source[expr_start..expr_end].trim().to_string();
-                                event_handlers.push((event_name.to_string(), expr_source));
-                            }
+                    if let Some(event_name) = attr_name.strip_prefix("on")
+                        && let AttributeValue::Expression(expr_tag) = &node.value
+                    {
+                        let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                        let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                        if expr_end > expr_start && expr_end <= self.source.len() {
+                            let expr_source = self.source[expr_start..expr_end].trim().to_string();
+                            event_handlers.push((event_name.to_string(), expr_source));
                         }
                     }
                 }
@@ -385,10 +383,10 @@ impl ClientCodeGenerator {
 
         // Add CSS scoping class if present, but skip if element has class: directive
         // (class: directive elements get the class at runtime via $.set_class)
-        if let Some(ref hash) = self.css_hash {
-            if !has_class_directive {
-                self.html_parts.push(format!(" class=\"{}\"", hash));
-            }
+        if let Some(ref hash) = self.css_hash
+            && !has_class_directive
+        {
+            self.html_parts.push(format!(" class=\"{}\"", hash));
         }
 
         // Attributes (skip event handlers for now, they're handled at runtime)
@@ -473,15 +471,14 @@ impl ClientCodeGenerator {
                     }
 
                     // Update the element's NodeInfo with the content template
-                    if !content_parts.is_empty() {
-                        if let Some(last_node) = self.nodes.last_mut() {
-                            if matches!(last_node.node_type, NodeType::Element(_)) {
-                                let combined = content_parts.join("");
-                                let trimmed = combined.trim().to_string();
-                                if !trimmed.is_empty() {
-                                    last_node.content_template = Some(trimmed);
-                                }
-                            }
+                    if !content_parts.is_empty()
+                        && let Some(last_node) = self.nodes.last_mut()
+                        && matches!(last_node.node_type, NodeType::Element(_))
+                    {
+                        let combined = content_parts.join("");
+                        let trimmed = combined.trim().to_string();
+                        if !trimmed.is_empty() {
+                            last_node.content_template = Some(trimmed);
                         }
                     }
                 } else {
@@ -495,10 +492,10 @@ impl ClientCodeGenerator {
                             if expr_start + 1 < expr_end && expr_end <= self.source.len() {
                                 let expr = self.source[expr_start + 1..expr_end - 1].trim();
                                 // Check if it's a function call: identifier()
-                                if let Some(func_name) = expr.strip_suffix("()") {
-                                    if func_name.chars().all(|c| c.is_alphanumeric() || c == '_') {
-                                        func_names.push(func_name.to_string());
-                                    }
+                                if let Some(func_name) = expr.strip_suffix("()")
+                                    && func_name.chars().all(|c| c.is_alphanumeric() || c == '_')
+                                {
+                                    func_names.push(func_name.to_string());
                                 }
                             }
                         }
@@ -510,23 +507,20 @@ impl ClientCodeGenerator {
 
                         // Store function names for template_effect generation
                         // The element needs $.child(), $.reset(), and special template_effect
-                        if let Some(last_node) = self.nodes.last_mut() {
-                            if matches!(last_node.node_type, NodeType::Element(_)) {
-                                // Build template with $N placeholders
-                                let template_parts: Vec<String> = func_names
-                                    .iter()
-                                    .enumerate()
-                                    .map(|(i, _)| format!("${{${} ?? ''}}", i))
-                                    .collect();
-                                // Store as special content_template with function array marker
-                                // Format: "FUNC_ARRAY:fn1,fn2:template"
-                                let template = template_parts.join("");
-                                last_node.content_template = Some(format!(
-                                    "FUNC_ARRAY:{}:{}",
-                                    func_names.join(","),
-                                    template
-                                ));
-                            }
+                        if let Some(last_node) = self.nodes.last_mut()
+                            && matches!(last_node.node_type, NodeType::Element(_))
+                        {
+                            // Build template with $N placeholders
+                            let template_parts: Vec<String> = func_names
+                                .iter()
+                                .enumerate()
+                                .map(|(i, _)| format!("${{${} ?? ''}}", i))
+                                .collect();
+                            // Store as special content_template with function array marker
+                            // Format: "FUNC_ARRAY:fn1,fn2:template"
+                            let template = template_parts.join("");
+                            last_node.content_template =
+                                Some(format!("FUNC_ARRAY:{}:{}", func_names.join(","), template));
                         }
                     } else {
                         // Single or non-function expressions - check if any are reactive
@@ -580,29 +574,29 @@ impl ClientCodeGenerator {
                         continue;
                     }
                     // Skip leading whitespace
-                    if let Some(first) = first_content {
-                        if i < first {
-                            self.current_child_index += 1;
-                            continue;
-                        }
+                    if let Some(first) = first_content
+                        && i < first
+                    {
+                        self.current_child_index += 1;
+                        continue;
                     }
                     // Skip trailing whitespace
-                    if let Some(last) = last_content {
-                        if i > last {
-                            self.current_child_index += 1;
-                            continue;
-                        }
+                    if let Some(last) = last_content
+                        && i > last
+                    {
+                        self.current_child_index += 1;
+                        continue;
                     }
                     // Skip whitespace-only text between comment and real content
-                    if let TemplateNode::Text(t) = child {
-                        if t.data.trim().is_empty() {
-                            // Check if there's only one real content child
-                            let real_content_count =
-                                children.iter().filter(|c| is_real_content(c)).count();
-                            if real_content_count == 1 {
-                                self.current_child_index += 1;
-                                continue;
-                            }
+                    if let TemplateNode::Text(t) = child
+                        && t.data.trim().is_empty()
+                    {
+                        // Check if there's only one real content child
+                        let real_content_count =
+                            children.iter().filter(|c| is_real_content(c)).count();
+                        if real_content_count == 1 {
+                            self.current_child_index += 1;
+                            continue;
                         }
                     }
                     self.generate_node(child, false)?;
@@ -832,16 +826,16 @@ impl ClientCodeGenerator {
 
         for (idx, child) in children.iter().enumerate() {
             // Skip leading whitespace (not in template HTML)
-            if let Some(first) = first_non_ws {
-                if idx < first {
-                    continue;
-                }
+            if let Some(first) = first_non_ws
+                && idx < first
+            {
+                continue;
             }
             // Skip trailing whitespace (not in template HTML)
-            if let Some(last) = last_non_ws {
-                if idx > last {
-                    continue;
-                }
+            if let Some(last) = last_non_ws
+                && idx > last
+            {
+                continue;
             }
             if self.is_node_dynamic(child) {
                 has_dynamic = true;
@@ -1331,15 +1325,16 @@ impl ClientCodeGenerator {
         }
 
         // If component has only bind:this and no other attributes, use special handling
-        if let Some(bind_var) = bind_this_var {
-            if !has_other_attrs && bind_value_var.is_none() {
-                // Don't add template placeholder - component will be called directly
-                self.bind_this_components.push(BindThisComponent {
-                    component_name: comp_name,
-                    bind_var,
-                });
-                return Ok(());
-            }
+        if let Some(bind_var) = bind_this_var
+            && !has_other_attrs
+            && bind_value_var.is_none()
+        {
+            // Don't add template placeholder - component will be called directly
+            self.bind_this_components.push(BindThisComponent {
+                component_name: comp_name,
+                bind_var,
+            });
+            return Ok(());
         }
 
         // If component has bind:value (or similar), track it for getter/setter generation
@@ -1486,21 +1481,21 @@ impl ClientCodeGenerator {
         let mut end_idx = body_nodes.len();
 
         while start_idx < end_idx {
-            if let TemplateNode::Text(text) = body_nodes[start_idx] {
-                if text.data.trim().is_empty() {
-                    start_idx += 1;
-                    continue;
-                }
+            if let TemplateNode::Text(text) = body_nodes[start_idx]
+                && text.data.trim().is_empty()
+            {
+                start_idx += 1;
+                continue;
             }
             break;
         }
 
         while end_idx > start_idx {
-            if let TemplateNode::Text(text) = body_nodes[end_idx - 1] {
-                if text.data.trim().is_empty() {
-                    end_idx -= 1;
-                    continue;
-                }
+            if let TemplateNode::Text(text) = body_nodes[end_idx - 1]
+                && text.data.trim().is_empty()
+            {
+                end_idx -= 1;
+                continue;
             }
             break;
         }
@@ -1838,10 +1833,11 @@ impl ClientCodeGenerator {
         let has_each_blocks = !self.each_blocks.is_empty();
 
         // Try simple AST-based generation for basic cases
-        if self.can_use_simple_ast() && !html.is_empty() {
-            if let Ok(output) = self.build_simple_component_ast(&html, is_fragment) {
-                return output;
-            }
+        if self.can_use_simple_ast()
+            && !html.is_empty()
+            && let Ok(output) = self.build_simple_component_ast(&html, is_fragment)
+        {
+            return output;
         }
 
         // Extract imports from script content
@@ -1876,12 +1872,11 @@ impl ClientCodeGenerator {
             if (trimmed.starts_with("let ") || trimmed.starts_with("const "))
                 && !trimmed.contains('{')
                 && trimmed.contains("= $props()")
+                && let Some(eq_pos) = trimmed.find('=')
             {
-                if let Some(eq_pos) = trimmed.find('=') {
-                    let before_eq = trimmed[..eq_pos].trim();
-                    if let Some(var_name) = before_eq.split_whitespace().last() {
-                        return Some(var_name.to_string());
-                    }
+                let before_eq = trimmed[..eq_pos].trim();
+                if let Some(var_name) = before_eq.split_whitespace().last() {
+                    return Some(var_name.to_string());
                 }
             }
             None
@@ -2947,10 +2942,10 @@ export default function {component_name}({fn_params}) {{
                     for attr in &elem.attributes {
                         if let Attribute::Attribute(node) = attr {
                             let attr_name = node.name.as_str();
-                            if let Some(event_name) = attr_name.strip_prefix("on") {
-                                if !events.contains(&event_name.to_string()) {
-                                    events.push(event_name.to_string());
-                                }
+                            if let Some(event_name) = attr_name.strip_prefix("on")
+                                && !events.contains(&event_name.to_string())
+                            {
+                                events.push(event_name.to_string());
                             }
                         }
                     }
@@ -3152,10 +3147,10 @@ export default function {component_name}({fn_params}) {{
         }
 
         // Add final quasi if needed
-        if !template_parts.is_empty() {
-            if let Some((_, Some(_))) = template_parts.last() {
-                quasis.push(quasi("", true));
-            }
+        if !template_parts.is_empty()
+            && let Some((_, Some(_))) = template_parts.last()
+        {
+            quasis.push(quasi("", true));
         }
 
         let template_lit = template(quasis, expressions);
@@ -3635,23 +3630,23 @@ export default function {component_name}({fn_params}) {{
             .collect();
 
         // If there's exactly one root element, process it specially
-        if non_whitespace_nodes.len() == 1 {
-            if let TemplateNode::RegularElement(elem) = non_whitespace_nodes[0] {
-                // Root element is already assigned to root_var by `var root_var = root()`
-                // Generate event handlers for root element first
-                self.generate_special_attr_stmts(root_var, elem, &mut stmts);
+        if non_whitespace_nodes.len() == 1
+            && let TemplateNode::RegularElement(elem) = non_whitespace_nodes[0]
+        {
+            // Root element is already assigned to root_var by `var root_var = root()`
+            // Generate event handlers for root element first
+            self.generate_special_attr_stmts(root_var, elem, &mut stmts);
 
-                // Then process its children
-                let (child_stmts, has_dynamic, _trailing) =
-                    self.process_children_cursor(root_var, &elem.fragment.nodes);
-                stmts.extend(child_stmts);
+            // Then process its children
+            let (child_stmts, has_dynamic, _trailing) =
+                self.process_children_cursor(root_var, &elem.fragment.nodes);
+            stmts.extend(child_stmts);
 
-                if has_dynamic {
-                    stmts.push(stmt(svelte_reset(id(root_var))));
-                }
-
-                return self.statements_to_string(&stmts);
+            if has_dynamic {
+                stmts.push(stmt(svelte_reset(id(root_var))));
             }
+
+            return self.statements_to_string(&stmts);
         }
 
         // Multiple root nodes or non-element root - use standard navigation
@@ -3661,11 +3656,11 @@ export default function {component_name}({fn_params}) {{
         // Process root-level nodes (skipping leading whitespace)
         for node in fragment.nodes.iter().skip(start_idx) {
             // Skip whitespace-only text nodes (these are normalized to spaces in HTML)
-            if let TemplateNode::Text(t) = node {
-                if t.data.trim().is_empty() {
-                    skipped += 1;
-                    continue;
-                }
+            if let TemplateNode::Text(t) = node
+                && t.data.trim().is_empty()
+            {
+                skipped += 1;
+                continue;
             }
 
             if self.is_node_dynamic(node) {
@@ -3818,73 +3813,73 @@ export default function {component_name}({fn_params}) {{
 
         // Handle trailing static nodes at root level
         // Svelte navigates to the first trailing static ELEMENT, then $.next() for the rest
-        if let Some(ref prev) = prev_var {
-            if skipped > 1 {
-                // Collect nodes after the last dynamic element
-                let mut nodes_after_last_dynamic: Vec<&TemplateNode> = Vec::new();
-                let mut last_dynamic_idx = 0;
+        if let Some(ref prev) = prev_var
+            && skipped > 1
+        {
+            // Collect nodes after the last dynamic element
+            let mut nodes_after_last_dynamic: Vec<&TemplateNode> = Vec::new();
+            let mut last_dynamic_idx = 0;
 
-                for (i, node) in fragment.nodes.iter().skip(start_idx).enumerate() {
-                    if self.is_node_dynamic(node) {
-                        last_dynamic_idx = i;
-                    }
+            for (i, node) in fragment.nodes.iter().skip(start_idx).enumerate() {
+                if self.is_node_dynamic(node) {
+                    last_dynamic_idx = i;
                 }
+            }
 
-                // Collect trailing nodes
-                for (i, node) in fragment.nodes.iter().skip(start_idx).enumerate() {
-                    if i > last_dynamic_idx {
-                        nodes_after_last_dynamic.push(node);
-                    }
+            // Collect trailing nodes
+            for (i, node) in fragment.nodes.iter().skip(start_idx).enumerate() {
+                if i > last_dynamic_idx {
+                    nodes_after_last_dynamic.push(node);
                 }
+            }
 
-                // Find first static element in trailing nodes
-                let mut trailing_element: Option<&RegularElement> = None;
-                let mut count_to_element: i32 = 0;
-                let mut remaining_count: i32 = 0;
-                let mut found_element = false;
+            // Find first static element in trailing nodes
+            let mut trailing_element: Option<&RegularElement> = None;
+            let mut count_to_element: i32 = 0;
+            let mut remaining_count: i32 = 0;
+            let mut found_element = false;
 
-                for node in &nodes_after_last_dynamic {
-                    if !matches!(node, TemplateNode::Text(t) if t.data.trim().is_empty()) {
-                        if let TemplateNode::RegularElement(elem) = node {
-                            if !found_element {
-                                trailing_element = Some(elem);
-                                found_element = true;
-                            } else {
-                                remaining_count += 1;
-                            }
+            for node in &nodes_after_last_dynamic {
+                if !matches!(node, TemplateNode::Text(t) if t.data.trim().is_empty()) {
+                    if let TemplateNode::RegularElement(elem) = node {
+                        if !found_element {
+                            trailing_element = Some(elem);
+                            found_element = true;
                         } else {
                             remaining_count += 1;
                         }
-                    } else if !found_element {
-                        count_to_element += 1;
                     } else {
                         remaining_count += 1;
                     }
-                }
-
-                // Include the whitespace before the first trailing element
-                count_to_element += 1; // Add 1 for the sibling count from prev
-
-                if let Some(elem) = trailing_element {
-                    // Navigate to the first trailing element
-                    let elem_var = self.next_var_name(&elem.name);
-                    let skip_count = if count_to_element > 1 {
-                        Some(count_to_element)
-                    } else {
-                        None
-                    };
-                    stmts.push(var_decl(
-                        &elem_var,
-                        Some(svelte_sibling(id(prev), skip_count)),
-                    ));
-                    // Then $.next() for remaining
-                    if remaining_count > 0 {
-                        stmts.push(stmt(svelte_next(Some(remaining_count))));
-                    }
+                } else if !found_element {
+                    count_to_element += 1;
                 } else {
-                    // No trailing elements, just skip all
-                    stmts.push(stmt(svelte_next(Some(skipped))));
+                    remaining_count += 1;
                 }
+            }
+
+            // Include the whitespace before the first trailing element
+            count_to_element += 1; // Add 1 for the sibling count from prev
+
+            if let Some(elem) = trailing_element {
+                // Navigate to the first trailing element
+                let elem_var = self.next_var_name(&elem.name);
+                let skip_count = if count_to_element > 1 {
+                    Some(count_to_element)
+                } else {
+                    None
+                };
+                stmts.push(var_decl(
+                    &elem_var,
+                    Some(svelte_sibling(id(prev), skip_count)),
+                ));
+                // Then $.next() for remaining
+                if remaining_count > 0 {
+                    stmts.push(stmt(svelte_next(Some(remaining_count))));
+                }
+            } else {
+                // No trailing elements, just skip all
+                stmts.push(stmt(svelte_next(Some(skipped))));
             }
         }
 
@@ -3979,30 +3974,30 @@ export default function {component_name}({fn_params}) {{
                 }
 
                 // Text content
-                if !each.body_expressions.is_empty() {
-                    if let Some(first) = each.body_expressions.first() {
-                        if let Some(template_content) = first.strip_prefix("TEMPLATE:") {
-                            body_stmts.push(stmt(set_text_content(
-                                id(elem_var),
-                                template(vec![quasi(template_content, true)], vec![]),
-                            )));
-                        } else {
-                            let expr_parts: Vec<String> = each
-                                .body_expressions
-                                .iter()
-                                .map(|expr| {
-                                    if expr.starts_with('\'') || expr.starts_with('"') {
-                                        expr[1..expr.len() - 1].to_string()
-                                    } else {
-                                        format!("${{{}}}", expr)
-                                    }
-                                })
-                                .collect();
-                            body_stmts.push(stmt(set_text_content(
-                                id(elem_var),
-                                template(vec![quasi(expr_parts.join(""), true)], vec![]),
-                            )));
-                        }
+                if !each.body_expressions.is_empty()
+                    && let Some(first) = each.body_expressions.first()
+                {
+                    if let Some(template_content) = first.strip_prefix("TEMPLATE:") {
+                        body_stmts.push(stmt(set_text_content(
+                            id(elem_var),
+                            template(vec![quasi(template_content, true)], vec![]),
+                        )));
+                    } else {
+                        let expr_parts: Vec<String> = each
+                            .body_expressions
+                            .iter()
+                            .map(|expr| {
+                                if expr.starts_with('\'') || expr.starts_with('"') {
+                                    expr[1..expr.len() - 1].to_string()
+                                } else {
+                                    format!("${{{}}}", expr)
+                                }
+                            })
+                            .collect();
+                        body_stmts.push(stmt(set_text_content(
+                            id(elem_var),
+                            template(vec![quasi(expr_parts.join(""), true)], vec![]),
+                        )));
                     }
                 }
 
@@ -4222,10 +4217,10 @@ fn try_constant_fold(expr: &str) -> String {
     let trimmed = expr.trim();
 
     // Check for Math.max/Math.min with constant arguments
-    if trimmed.starts_with("Math.") {
-        if let Some(result) = eval_math_expr(trimmed) {
-            return format!("'{}'", result);
-        }
+    if trimmed.starts_with("Math.")
+        && let Some(result) = eval_math_expr(trimmed)
+    {
+        return format!("'{}'", result);
     }
 
     // Check for nullish coalescing with constant left side
@@ -4416,28 +4411,28 @@ fn transform_client_runes_with_skip(line: &str, skip_state_vars: &[String]) -> S
     }
 
     // Transform $derived(x) to $.derived(() => x)
-    if let Some(pos) = result.find("$derived(") {
-        if result[..pos].contains("let ") || result[..pos].contains("const ") {
-            // Find the content inside $derived(...)
-            let derived_start = pos + 9; // after "$derived("
-            if let Some(content_end) = find_matching_paren(&result[derived_start..]) {
-                let content = &result[derived_start..derived_start + content_end];
-                // Wrap in arrow function if not already a function
-                let trimmed = content.trim();
-                if !trimmed.starts_with("()") && !trimmed.starts_with("function") {
-                    let new_derived = format!("$.derived(() => {})", content);
-                    result = format!(
-                        "{}{}{}",
-                        &result[..pos],
-                        new_derived,
-                        &result[derived_start + content_end + 1..]
-                    );
-                } else {
-                    result = result.replacen("$derived(", "$.derived(", 1);
-                }
+    if let Some(pos) = result.find("$derived(")
+        && (result[..pos].contains("let ") || result[..pos].contains("const "))
+    {
+        // Find the content inside $derived(...)
+        let derived_start = pos + 9; // after "$derived("
+        if let Some(content_end) = find_matching_paren(&result[derived_start..]) {
+            let content = &result[derived_start..derived_start + content_end];
+            // Wrap in arrow function if not already a function
+            let trimmed = content.trim();
+            if !trimmed.starts_with("()") && !trimmed.starts_with("function") {
+                let new_derived = format!("$.derived(() => {})", content);
+                result = format!(
+                    "{}{}{}",
+                    &result[..pos],
+                    new_derived,
+                    &result[derived_start + content_end + 1..]
+                );
             } else {
                 result = result.replacen("$derived(", "$.derived(", 1);
             }
+        } else {
+            result = result.replacen("$derived(", "$.derived(", 1);
         }
     }
 
@@ -4448,10 +4443,10 @@ fn transform_client_runes_with_skip(line: &str, skip_state_vars: &[String]) -> S
 
     // Transform $props() destructuring to $.prop() calls
     // e.g., let { tag = "hr" } = $props(); → let tag = $.prop($$props, 'tag', 3, 'hr');
-    if result.contains("$props()") {
-        if let Some(transformed) = transform_props_destructuring(&result) {
-            return transformed;
-        }
+    if result.contains("$props()")
+        && let Some(transformed) = transform_props_destructuring(&result)
+    {
+        return transformed;
     }
 
     result
@@ -4557,18 +4552,18 @@ fn transform_reactive_body(stmt: &str) -> String {
     let mut result = stmt.to_string();
 
     // Transform if statement condition: `if (var)` -> `if (var())`
-    if result.starts_with("if ") || result.starts_with("if(") {
-        if let Some(start) = result.find('(') {
-            let after_paren = &result[start + 1..];
-            if let Some(end) = after_paren.find(')') {
-                let cond = after_paren[..end].trim();
-                if is_valid_identifier(cond) && !cond.ends_with("()") {
-                    // Add () to make it a function call
-                    let new_cond = format!("{}()", cond);
-                    // Reconstruct: "if (" + new_cond + ")" + rest
-                    let rest_after_close = &after_paren[end + 1..];
-                    result = format!("if ({}){}", new_cond, rest_after_close);
-                }
+    if (result.starts_with("if ") || result.starts_with("if("))
+        && let Some(start) = result.find('(')
+    {
+        let after_paren = &result[start + 1..];
+        if let Some(end) = after_paren.find(')') {
+            let cond = after_paren[..end].trim();
+            if is_valid_identifier(cond) && !cond.ends_with("()") {
+                // Add () to make it a function call
+                let new_cond = format!("{}()", cond);
+                // Reconstruct: "if (" + new_cond + ")" + rest
+                let rest_after_close = &after_paren[end + 1..];
+                result = format!("if ({}){}", new_cond, rest_after_close);
             }
         }
     }
@@ -4846,22 +4841,22 @@ fn collect_constant_variables(script: &str) -> HashMap<String, String> {
         }
 
         // Match patterns like: let varname = 'value' or const varname = 'value'
-        if (trimmed.starts_with("let ") || trimmed.starts_with("const ")) && trimmed.contains(" = ")
+        if (trimmed.starts_with("let ") || trimmed.starts_with("const "))
+            && trimmed.contains(" = ")
+            && let Some(eq_pos) = trimmed.find(" = ")
         {
-            if let Some(eq_pos) = trimmed.find(" = ") {
-                let before_eq = trimmed[..eq_pos].trim();
-                let after_eq = trimmed[eq_pos + 3..].trim().trim_end_matches(';');
+            let before_eq = trimmed[..eq_pos].trim();
+            let after_eq = trimmed[eq_pos + 3..].trim().trim_end_matches(';');
 
-                // Get the last word before = (the variable name)
-                if let Some(var_name) = before_eq.split_whitespace().last() {
-                    // Check if value is a string literal
-                    if (after_eq.starts_with('\'') && after_eq.ends_with('\''))
-                        || (after_eq.starts_with('"') && after_eq.ends_with('"'))
-                    {
-                        // Extract the string value without quotes
-                        let value = &after_eq[1..after_eq.len() - 1];
-                        vars.insert(var_name.to_string(), value.to_string());
-                    }
+            // Get the last word before = (the variable name)
+            if let Some(var_name) = before_eq.split_whitespace().last() {
+                // Check if value is a string literal
+                if (after_eq.starts_with('\'') && after_eq.ends_with('\''))
+                    || (after_eq.starts_with('"') && after_eq.ends_with('"'))
+                {
+                    // Extract the string value without quotes
+                    let value = &after_eq[1..after_eq.len() - 1];
+                    vars.insert(var_name.to_string(), value.to_string());
                 }
             }
         }
@@ -4908,26 +4903,26 @@ fn collect_read_only_props(script: &str) -> Vec<String> {
         }
 
         // Find the destructuring pattern
-        if let (Some(brace_start), Some(brace_end)) = (trimmed.find('{'), trimmed.find('}')) {
-            if brace_end > brace_start {
-                let pattern = trimmed[brace_start + 1..brace_end].trim();
+        if let (Some(brace_start), Some(brace_end)) = (trimmed.find('{'), trimmed.find('}'))
+            && brace_end > brace_start
+        {
+            let pattern = trimmed[brace_start + 1..brace_end].trim();
 
-                // Parse the destructured properties
-                for part in pattern.split(',') {
-                    let part = part.trim();
-                    if part.is_empty() {
-                        continue;
-                    }
-
-                    // Check if has default value
-                    if part.contains('=') {
-                        // Has default value - not read-only, needs $.prop()
-                        continue;
-                    }
-
-                    // No default - could be read-only if not reassigned
-                    props.push(part.to_string());
+            // Parse the destructured properties
+            for part in pattern.split(',') {
+                let part = part.trim();
+                if part.is_empty() {
+                    continue;
                 }
+
+                // Check if has default value
+                if part.contains('=') {
+                    // Has default value - not read-only, needs $.prop()
+                    continue;
+                }
+
+                // No default - could be read-only if not reassigned
+                props.push(part.to_string());
             }
         }
     }
@@ -5184,30 +5179,30 @@ fn transform_arrow_function_expr(expr: &str, state_vars: &[String]) -> String {
                 (" /= ", " / "),
             ] {
                 let compound_pattern = format!("{}{}", var, op);
-                if body.contains(&compound_pattern) {
-                    if let Some(eq_pos) = body.find(&compound_pattern) {
-                        let value = &body[eq_pos + compound_pattern.len()..];
-                        return format!(
-                            "{} $.set({}, $.get({}){}{})",
-                            params,
-                            var,
-                            var,
-                            js_op,
-                            value.trim()
-                        );
-                    }
+                if body.contains(&compound_pattern)
+                    && let Some(eq_pos) = body.find(&compound_pattern)
+                {
+                    let value = &body[eq_pos + compound_pattern.len()..];
+                    return format!(
+                        "{} $.set({}, $.get({}){}{})",
+                        params,
+                        var,
+                        var,
+                        js_op,
+                        value.trim()
+                    );
                 }
             }
 
             // Handle simple assignment: count = expr
             let assignment_pattern = format!("{} = ", var);
-            if body.contains(&assignment_pattern) {
-                if let Some(eq_pos) = body.find(&assignment_pattern) {
-                    let value = &body[eq_pos + assignment_pattern.len()..];
-                    // Transform state vars in the value part
-                    let transformed_value = transform_state_in_expr(value.trim(), state_vars);
-                    return format!("{} $.set({}, {}, true)", params, var, transformed_value);
-                }
+            if body.contains(&assignment_pattern)
+                && let Some(eq_pos) = body.find(&assignment_pattern)
+            {
+                let value = &body[eq_pos + assignment_pattern.len()..];
+                // Transform state vars in the value part
+                let transformed_value = transform_state_in_expr(value.trim(), state_vars);
+                return format!("{} $.set({}, {}, true)", params, var, transformed_value);
             }
         }
     }
@@ -5498,10 +5493,10 @@ fn transform_class_fields_client(script: &str) -> String {
             }
         }
         // Check for $derived field: name = $derived(...) or #name = $derived(...)
-        else if trimmed.contains("= $derived(") || trimmed.contains("=$derived(") {
-            if let Some(field) = parse_state_field(trimmed, "$derived") {
-                fields.push(field);
-            }
+        else if (trimmed.contains("= $derived(") || trimmed.contains("=$derived("))
+            && let Some(field) = parse_state_field(trimmed, "$derived")
+        {
+            fields.push(field);
         }
     }
 

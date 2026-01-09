@@ -145,12 +145,12 @@ impl<'a> ServerCodeGenerator<'a> {
 
         for (i, node) in nodes.iter().enumerate() {
             // Skip leading/trailing whitespace-only text nodes at root level
-            if let TemplateNode::Text(text) = node {
-                if text.data.trim().is_empty() {
-                    // Skip if it's the first or last node
-                    if i == 0 || i == len - 1 {
-                        continue;
-                    }
+            if let TemplateNode::Text(text) = node
+                && text.data.trim().is_empty()
+            {
+                // Skip if it's the first or last node
+                if i == 0 || i == len - 1 {
+                    continue;
                 }
             }
             self.generate_node(node, true)?;
@@ -329,22 +329,22 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Skip leading whitespace
         while start_idx < len {
-            if let TemplateNode::Text(text) = children[start_idx] {
-                if text.data.trim().is_empty() {
-                    start_idx += 1;
-                    continue;
-                }
+            if let TemplateNode::Text(text) = children[start_idx]
+                && text.data.trim().is_empty()
+            {
+                start_idx += 1;
+                continue;
             }
             break;
         }
 
         // Skip trailing whitespace
         while end_idx > start_idx {
-            if let TemplateNode::Text(text) = children[end_idx - 1] {
-                if text.data.trim().is_empty() {
-                    end_idx -= 1;
-                    continue;
-                }
+            if let TemplateNode::Text(text) = children[end_idx - 1]
+                && text.data.trim().is_empty()
+            {
+                end_idx -= 1;
+                continue;
             }
             break;
         }
@@ -584,21 +584,21 @@ impl<'a> ServerCodeGenerator<'a> {
         let mut end_idx = len;
 
         while start_idx < len {
-            if let TemplateNode::Text(text) = children[start_idx] {
-                if text.data.trim().is_empty() {
-                    start_idx += 1;
-                    continue;
-                }
+            if let TemplateNode::Text(text) = children[start_idx]
+                && text.data.trim().is_empty()
+            {
+                start_idx += 1;
+                continue;
             }
             break;
         }
 
         while end_idx > start_idx {
-            if let TemplateNode::Text(text) = children[end_idx - 1] {
-                if text.data.trim().is_empty() {
-                    end_idx -= 1;
-                    continue;
-                }
+            if let TemplateNode::Text(text) = children[end_idx - 1]
+                && text.data.trim().is_empty()
+            {
+                end_idx -= 1;
+                continue;
             }
             break;
         }
@@ -618,18 +618,16 @@ impl<'a> ServerCodeGenerator<'a> {
         let mut is_first = true;
         for node in children.iter().take(end_idx).skip(start_idx) {
             // For the first text node, normalize leading whitespace
-            if is_first {
-                if let TemplateNode::Text(text) = node {
-                    // Normalize: trim leading whitespace, keep content
-                    let normalized = text.data.trim_start();
-                    if !normalized.is_empty() {
-                        body_generator
-                            .output_parts
-                            .push(OutputPart::Html(escape_html(normalized)));
-                    }
-                    is_first = false;
-                    continue;
+            if is_first && let TemplateNode::Text(text) = node {
+                // Normalize: trim leading whitespace, keep content
+                let normalized = text.data.trim_start();
+                if !normalized.is_empty() {
+                    body_generator
+                        .output_parts
+                        .push(OutputPart::Html(escape_html(normalized)));
                 }
+                is_first = false;
+                continue;
             }
             body_generator.generate_node(node, false)?;
             is_first = false;
@@ -679,22 +677,22 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Skip leading whitespace
         while start_idx < len {
-            if let TemplateNode::Text(text) = body_nodes[start_idx] {
-                if text.data.trim().is_empty() {
-                    start_idx += 1;
-                    continue;
-                }
+            if let TemplateNode::Text(text) = body_nodes[start_idx]
+                && text.data.trim().is_empty()
+            {
+                start_idx += 1;
+                continue;
             }
             break;
         }
 
         // Skip trailing whitespace
         while end_idx > start_idx {
-            if let TemplateNode::Text(text) = body_nodes[end_idx - 1] {
-                if text.data.trim().is_empty() {
-                    end_idx -= 1;
-                    continue;
-                }
+            if let TemplateNode::Text(text) = body_nodes[end_idx - 1]
+                && text.data.trim().is_empty()
+            {
+                end_idx -= 1;
+                continue;
             }
             break;
         }
@@ -704,10 +702,10 @@ impl<'a> ServerCodeGenerator<'a> {
             ServerCodeGenerator::new(self.component_name.clone(), self.source.clone(), None);
 
         // Check if first node is an expression - if so, add comment marker
-        if start_idx < end_idx {
-            if let TemplateNode::ExpressionTag(_) = body_nodes[start_idx] {
-                body_generator.output_parts.push(OutputPart::Comment);
-            }
+        if start_idx < end_idx
+            && let TemplateNode::ExpressionTag(_) = body_nodes[start_idx]
+        {
+            body_generator.output_parts.push(OutputPart::Comment);
         }
 
         for node in body_nodes.iter().take(end_idx).skip(start_idx) {
@@ -800,11 +798,11 @@ impl<'a> ServerCodeGenerator<'a> {
         // Find first non-whitespace node
         let mut start_idx = 0;
         while start_idx < len {
-            if let TemplateNode::Text(text) = body_nodes[start_idx] {
-                if text.data.trim().is_empty() {
-                    start_idx += 1;
-                    continue;
-                }
+            if let TemplateNode::Text(text) = body_nodes[start_idx]
+                && text.data.trim().is_empty()
+            {
+                start_idx += 1;
+                continue;
             }
             break;
         }
@@ -812,11 +810,11 @@ impl<'a> ServerCodeGenerator<'a> {
         // Find last non-whitespace node
         let mut end_idx = len;
         while end_idx > start_idx {
-            if let TemplateNode::Text(text) = body_nodes[end_idx - 1] {
-                if text.data.trim().is_empty() {
-                    end_idx -= 1;
-                    continue;
-                }
+            if let TemplateNode::Text(text) = body_nodes[end_idx - 1]
+                && text.data.trim().is_empty()
+            {
+                end_idx -= 1;
+                continue;
             }
             break;
         }
@@ -1503,10 +1501,10 @@ fn try_constant_fold_full(expr: &str) -> ConstantFoldResult {
         }
     }
 
-    if trimmed.starts_with("Math.") {
-        if let Some(result) = eval_math_expr(trimmed) {
-            return ConstantFoldResult::Constant(result);
-        }
+    if trimmed.starts_with("Math.")
+        && let Some(result) = eval_math_expr(trimmed)
+    {
+        return ConstantFoldResult::Constant(result);
     }
 
     ConstantFoldResult::Dynamic

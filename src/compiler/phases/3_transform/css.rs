@@ -101,28 +101,27 @@ fn collect_keyframe_names_from_node(node: &Value, keyframes: &mut HashSet<String
             if matches!(
                 name,
                 "keyframes" | "-webkit-keyframes" | "-moz-keyframes" | "-o-keyframes"
-            ) {
-                if let Some(prelude) = node.get("prelude").and_then(|p| p.as_str()) {
-                    let keyframe_name = prelude.trim();
-                    if !keyframe_name.starts_with("-global-") {
-                        keyframes.insert(keyframe_name.to_string());
-                    }
+            ) && let Some(prelude) = node.get("prelude").and_then(|p| p.as_str())
+            {
+                let keyframe_name = prelude.trim();
+                if !keyframe_name.starts_with("-global-") {
+                    keyframes.insert(keyframe_name.to_string());
                 }
             }
-            if let Some(block) = node.get("block") {
-                if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
-                    for child in children {
-                        collect_keyframe_names_from_node(child, keyframes);
-                    }
+            if let Some(block) = node.get("block")
+                && let Some(children) = block.get("children").and_then(|c| c.as_array())
+            {
+                for child in children {
+                    collect_keyframe_names_from_node(child, keyframes);
                 }
             }
         }
         Some("Rule") => {
-            if let Some(block) = node.get("block") {
-                if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
-                    for child in children {
-                        collect_keyframe_names_from_node(child, keyframes);
-                    }
+            if let Some(block) = node.get("block")
+                && let Some(children) = block.get("children").and_then(|c| c.as_array())
+            {
+                for child in children {
+                    collect_keyframe_names_from_node(child, keyframes);
                 }
             }
         }
@@ -270,34 +269,20 @@ fn has_declarations(block: &Value) -> bool {
 
 /// Check if a rule is a :global block (selector is just `:global` without arguments)
 fn is_global_block(node: &Value) -> bool {
-    if let Some(prelude) = node.get("prelude") {
-        if let Some(children) = prelude.get("children").and_then(|c| c.as_array()) {
-            if children.len() == 1 {
-                if let Some(complex) = children.first() {
-                    if let Some(relative_selectors) =
-                        complex.get("children").and_then(|c| c.as_array())
-                    {
-                        if relative_selectors.len() == 1 {
-                            if let Some(rel) = relative_selectors.first() {
-                                if let Some(selectors) =
-                                    rel.get("selectors").and_then(|s| s.as_array())
-                                {
-                                    if selectors.len() == 1 {
-                                        if let Some(sel) = selectors.first() {
-                                            return sel.get("type").and_then(|t| t.as_str())
-                                                == Some("PseudoClassSelector")
-                                                && sel.get("name").and_then(|n| n.as_str())
-                                                    == Some("global")
-                                                && sel.get("args").is_none();
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+    if let Some(prelude) = node.get("prelude")
+        && let Some(children) = prelude.get("children").and_then(|c| c.as_array())
+        && children.len() == 1
+        && let Some(complex) = children.first()
+        && let Some(relative_selectors) = complex.get("children").and_then(|c| c.as_array())
+        && relative_selectors.len() == 1
+        && let Some(rel) = relative_selectors.first()
+        && let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array())
+        && selectors.len() == 1
+        && let Some(sel) = selectors.first()
+    {
+        return sel.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+            && sel.get("name").and_then(|n| n.as_str()) == Some("global")
+            && sel.get("args").is_none();
     }
     false
 }
@@ -448,17 +433,17 @@ fn is_host_child_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
                         return true;
                     }
                 }
-            } else if sel_type == Some("ClassSelector") {
-                if let Some(class_name) = sel.get("name").and_then(|n| n.as_str()) {
-                    // Check if any root child has this class
-                    let is_root_child_with_class = ctx
-                        .dom_structure
-                        .elements
-                        .iter()
-                        .any(|el| el.is_root_child && el.classes.contains(class_name));
-                    if !is_root_child_with_class {
-                        return true;
-                    }
+            } else if sel_type == Some("ClassSelector")
+                && let Some(class_name) = sel.get("name").and_then(|n| n.as_str())
+            {
+                // Check if any root child has this class
+                let is_root_child_with_class = ctx
+                    .dom_structure
+                    .elements
+                    .iter()
+                    .any(|el| el.is_root_child && el.classes.contains(class_name));
+                if !is_root_child_with_class {
+                    return true;
                 }
             }
         }
@@ -610,10 +595,10 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
 
                 // Check if any possible sibling matches 'after' selector
                 for (sibling_idx, _certainty) in possible_siblings {
-                    if let Some(sibling) = ctx.dom_structure.elements.get(*sibling_idx) {
-                        if selector_matches_element(&after_info, sibling) {
-                            return false; // Found a match, not unused
-                        }
+                    if let Some(sibling) = ctx.dom_structure.elements.get(*sibling_idx)
+                        && selector_matches_element(&after_info, sibling)
+                    {
+                        return false; // Found a match, not unused
                     }
                 }
             }
@@ -685,10 +670,10 @@ fn selector_matches_element(
     }
 
     // Check tag name
-    if let Some(ref tag) = info.tag_name {
-        if el.tag_name != *tag {
-            return false;
-        }
+    if let Some(ref tag) = info.tag_name
+        && el.tag_name != *tag
+    {
+        return false;
     }
 
     // Check classes
@@ -699,10 +684,10 @@ fn selector_matches_element(
     }
 
     // Check ID
-    if let Some(ref id) = info.id {
-        if el.id.as_ref() != Some(id) {
-            return false;
-        }
+    if let Some(ref id) = info.id
+        && el.id.as_ref() != Some(id)
+    {
+        return false;
     }
 
     // If no selector specified, it matches nothing specific
@@ -918,17 +903,17 @@ fn decode_css_escape(name: &str) -> String {
                     }
 
                     // Parse hex and convert to char
-                    if let Ok(code) = u32::from_str_radix(&hex_str, 16) {
-                        if let Some(decoded) = char::from_u32(code) {
-                            result.push(decoded);
-                        }
+                    if let Ok(code) = u32::from_str_radix(&hex_str, 16)
+                        && let Some(decoded) = char::from_u32(code)
+                    {
+                        result.push(decoded);
                     }
 
                     // Consume optional single whitespace after hex escape
-                    if let Some(&ws) = chars.peek() {
-                        if ws == ' ' || ws == '\t' || ws == '\n' {
-                            chars.next();
-                        }
+                    if let Some(&ws) = chars.peek()
+                        && (ws == ' ' || ws == '\t' || ws == '\n')
+                    {
+                        chars.next();
                     }
                 } else if next == '\n' {
                     // \newline is a line continuation (skip it)
@@ -986,19 +971,18 @@ fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
         Some("PseudoClassSelector") => {
             // Check for :is()/:not()/:has() where ALL inner selectors are unused
             let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
-            if name == "is" || name == "not" || name == "has" {
-                if let Some(args) = sel.get("args") {
-                    if let Some(children) = args.get("children").and_then(|c| c.as_array()) {
-                        // Check if ALL selectors inside are definitely unused
-                        // Only mark as unused if ALL inner selectors are simple class/id
-                        // selectors that definitely don't exist in the template
-                        let all_unused = children
-                            .iter()
-                            .all(|child| is_is_inner_selector_unused(child, ctx));
-                        if all_unused && !children.is_empty() {
-                            return true;
-                        }
-                    }
+            if (name == "is" || name == "not" || name == "has")
+                && let Some(args) = sel.get("args")
+                && let Some(children) = args.get("children").and_then(|c| c.as_array())
+            {
+                // Check if ALL selectors inside are definitely unused
+                // Only mark as unused if ALL inner selectors are simple class/id
+                // selectors that definitely don't exist in the template
+                let all_unused = children
+                    .iter()
+                    .all(|child| is_is_inner_selector_unused(child, ctx));
+                if all_unused && !children.is_empty() {
+                    return true;
                 }
             }
             // Other pseudo-classes need more complex analysis, consider them potentially used
@@ -1026,36 +1010,36 @@ fn is_is_inner_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
             return false;
         }
 
-        if let Some(rel) = rel_selectors.first() {
-            if let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) {
-                // Check if all simple selectors in this relative selector are unused
-                // Be conservative - only mark as unused if we're sure
-                for sel in selectors {
-                    let sel_type = sel.get("type").and_then(|t| t.as_str());
-                    match sel_type {
-                        Some("ClassSelector") => {
-                            if ctx.has_dynamic_classes {
-                                return false;
-                            }
-                            if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
-                                let decoded = decode_css_escape(name);
-                                if !ctx.used_classes.contains(&decoded) {
-                                    return true;
-                                }
-                            }
-                        }
-                        Some("IdSelector") => {
-                            if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
-                                let decoded = decode_css_escape(name);
-                                if !ctx.used_ids.contains(&decoded) {
-                                    return true;
-                                }
-                            }
-                        }
-                        // Type selectors, pseudo selectors, etc. - be conservative
-                        _ => {
+        if let Some(rel) = rel_selectors.first()
+            && let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array())
+        {
+            // Check if all simple selectors in this relative selector are unused
+            // Be conservative - only mark as unused if we're sure
+            for sel in selectors {
+                let sel_type = sel.get("type").and_then(|t| t.as_str());
+                match sel_type {
+                    Some("ClassSelector") => {
+                        if ctx.has_dynamic_classes {
                             return false;
                         }
+                        if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                            let decoded = decode_css_escape(name);
+                            if !ctx.used_classes.contains(&decoded) {
+                                return true;
+                            }
+                        }
+                    }
+                    Some("IdSelector") => {
+                        if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                            let decoded = decode_css_escape(name);
+                            if !ctx.used_ids.contains(&decoded) {
+                                return true;
+                            }
+                        }
+                    }
+                    // Type selectors, pseudo selectors, etc. - be conservative
+                    _ => {
+                        return false;
                     }
                 }
             }
@@ -1116,25 +1100,25 @@ fn transform_rule_preserving(
     }
 
     // Check if the rule is unused (selector doesn't match any template elements)
-    if let Some(prelude) = node.get("prelude") {
-        if is_selector_unused(prelude, ctx) {
-            // Comment out unused rules
-            output.push_str("/* (unused) ");
+    if let Some(prelude) = node.get("prelude")
+        && is_selector_unused(prelude, ctx)
+    {
+        // Comment out unused rules
+        output.push_str("/* (unused) ");
 
-            // Get the original rule text
-            let rule_start = node_start.saturating_sub(css_start);
-            let rule_end = node_end.saturating_sub(css_start);
-            if rule_end <= css_source.len() && rule_start < rule_end {
-                let original = &css_source[rule_start..rule_end];
-                // Escape any */ in the content
-                let escaped = original.replace("*/", "*\\/");
-                output.push_str(&escaped);
-            }
-
-            output.push_str("*/");
-            *last_end = node_end;
-            return;
+        // Get the original rule text
+        let rule_start = node_start.saturating_sub(css_start);
+        let rule_end = node_end.saturating_sub(css_start);
+        if rule_end <= css_source.len() && rule_start < rule_end {
+            let original = &css_source[rule_start..rule_end];
+            // Escape any */ in the content
+            let escaped = original.replace("*/", "*\\/");
+            output.push_str(&escaped);
         }
+
+        output.push_str("*/");
+        *last_end = node_end;
+        return;
     }
 
     // Get the prelude (selector list)
@@ -1447,11 +1431,11 @@ fn transform_atrule_preserving(
     output.push('@');
     output.push_str(name);
 
-    if let Some(prelude) = node.get("prelude").and_then(|p| p.as_str()) {
-        if !prelude.is_empty() {
-            output.push(' ');
-            output.push_str(prelude);
-        }
+    if let Some(prelude) = node.get("prelude").and_then(|p| p.as_str())
+        && !prelude.is_empty()
+    {
+        output.push(' ');
+        output.push_str(prelude);
     }
 
     if let Some(block) = block {
@@ -1685,15 +1669,14 @@ fn transform_complex_selector(
 
         for relative_selector in children {
             // Get combinator
-            if let Some(combinator) = relative_selector.get("combinator") {
-                if let Some(name) = combinator.get("name").and_then(|n| n.as_str()) {
-                    if name != " " || !result.is_empty() {
-                        if name == " " {
-                            result.push(' ');
-                        } else {
-                            result.push_str(&format!(" {} ", name));
-                        }
-                    }
+            if let Some(combinator) = relative_selector.get("combinator")
+                && let Some(name) = combinator.get("name").and_then(|n| n.as_str())
+                && (name != " " || !result.is_empty())
+            {
+                if name == " " {
+                    result.push(' ');
+                } else {
+                    result.push_str(&format!(" {} ", name));
                 }
             }
 
@@ -2125,19 +2108,18 @@ fn transform_is_not_complex_selector(
 
         for relative_selector in children {
             // Get combinator
-            if let Some(combinator) = relative_selector.get("combinator") {
-                if let Some(name) = combinator.get("name").and_then(|n| n.as_str()) {
-                    if name != " " || !result.is_empty() {
-                        if name == " " {
-                            result.push(' ');
-                        } else if result.is_empty() {
-                            // First combinator - no leading space, no trailing space
-                            // This handles :has(~span) where ~span has no spaces
-                            result.push_str(name);
-                        } else {
-                            result.push_str(&format!(" {} ", name));
-                        }
-                    }
+            if let Some(combinator) = relative_selector.get("combinator")
+                && let Some(name) = combinator.get("name").and_then(|n| n.as_str())
+                && (name != " " || !result.is_empty())
+            {
+                if name == " " {
+                    result.push(' ');
+                } else if result.is_empty() {
+                    // First combinator - no leading space, no trailing space
+                    // This handles :has(~span) where ~span has no spaces
+                    result.push_str(name);
+                } else {
+                    result.push_str(&format!(" {} ", name));
                 }
             }
 
@@ -2230,16 +2212,15 @@ fn get_selector_text(node: &Value) -> String {
         let mut result = String::new();
         for child in children {
             // Check if this is a RelativeSelector with a combinator
-            if let Some(combinator) = child.get("combinator") {
-                if let Some(name) = combinator.get("name").and_then(|n| n.as_str()) {
-                    if !result.is_empty() {
-                        // Add combinator (space for descendant, or the actual combinator)
-                        if name == " " {
-                            result.push(' ');
-                        } else {
-                            result.push_str(&format!(" {} ", name));
-                        }
-                    }
+            if let Some(combinator) = child.get("combinator")
+                && let Some(name) = combinator.get("name").and_then(|n| n.as_str())
+                && !result.is_empty()
+            {
+                // Add combinator (space for descendant, or the actual combinator)
+                if name == " " {
+                    result.push(' ');
+                } else {
+                    result.push_str(&format!(" {} ", name));
                 }
             }
 

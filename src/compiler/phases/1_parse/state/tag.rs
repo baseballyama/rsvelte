@@ -152,10 +152,8 @@ impl Parser<'_> {
         }
 
         // Update end positions of all elseif blocks recursively
-        if found_closing {
-            if let Some(alt_fragment) = &mut alternate {
-                Self::update_if_block_ends(alt_fragment, self.index as u32);
-            }
+        if found_closing && let Some(alt_fragment) = &mut alternate {
+            Self::update_if_block_ends(alt_fragment, self.index as u32);
         }
 
         Ok(Some(TemplateNode::IfBlock(IfBlock {
@@ -171,13 +169,13 @@ impl Parser<'_> {
     /// Update end positions of all elseif IfBlocks recursively
     fn update_if_block_ends(fragment: &mut Fragment, end: u32) {
         for node in &mut fragment.nodes {
-            if let TemplateNode::IfBlock(if_block) = node {
-                if if_block.elseif {
-                    if_block.end = end;
-                    // Recursively update nested elseif blocks
-                    if let Some(alt) = &mut if_block.alternate {
-                        Self::update_if_block_ends(alt, end);
-                    }
+            if let TemplateNode::IfBlock(if_block) = node
+                && if_block.elseif
+            {
+                if_block.end = end;
+                // Recursively update nested elseif blocks
+                if let Some(alt) = &mut if_block.alternate {
+                    Self::update_if_block_ends(alt, end);
                 }
             }
         }

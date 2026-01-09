@@ -30,42 +30,44 @@ fn analyze_css_node(node: &serde_json::Value, analysis: &mut ComponentAnalysis) 
 }
 
 fn analyze_atrule(node: &serde_json::Value, analysis: &mut ComponentAnalysis) {
-    if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
-        if name == "keyframes" || name == "-webkit-keyframes" {
-            if let Some(prelude) = node.get("prelude").and_then(|p| p.as_str()) {
-                if !prelude.starts_with("-global-") {
-                    analysis.css.keyframes.push(prelude.to_string());
-                } else {
-                    analysis.css.has_global = true;
-                }
-            }
-        }
+    if let Some(name) = node.get("name").and_then(|n| n.as_str())
+        && (name == "keyframes" || name == "-webkit-keyframes")
+        && let Some(prelude) = node.get("prelude").and_then(|p| p.as_str())
+        && !prelude.starts_with("-global-")
+    {
+        analysis.css.keyframes.push(prelude.to_string());
+    } else if let Some(name) = node.get("name").and_then(|n| n.as_str())
+        && (name == "keyframes" || name == "-webkit-keyframes")
+        && let Some(prelude) = node.get("prelude").and_then(|p| p.as_str())
+        && prelude.starts_with("-global-")
+    {
+        analysis.css.has_global = true;
     }
 
     // Analyze children
-    if let Some(block) = node.get("block") {
-        if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
-            for child in children {
-                analyze_css_node(child, analysis);
-            }
+    if let Some(block) = node.get("block")
+        && let Some(children) = block.get("children").and_then(|c| c.as_array())
+    {
+        for child in children {
+            analyze_css_node(child, analysis);
         }
     }
 }
 
 fn analyze_rule(node: &serde_json::Value, analysis: &mut ComponentAnalysis) {
     // Check if this rule has global selectors
-    if let Some(prelude) = node.get("prelude") {
-        if has_global_selector(prelude) {
-            analysis.css.has_global = true;
-        }
+    if let Some(prelude) = node.get("prelude")
+        && has_global_selector(prelude)
+    {
+        analysis.css.has_global = true;
     }
 
     // Analyze children (nested rules)
-    if let Some(block) = node.get("block") {
-        if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
-            for child in children {
-                analyze_css_node(child, analysis);
-            }
+    if let Some(block) = node.get("block")
+        && let Some(children) = block.get("children").and_then(|c| c.as_array())
+    {
+        for child in children {
+            analyze_css_node(child, analysis);
         }
     }
 }
@@ -88,14 +90,12 @@ fn check_selector_for_global(selector: &serde_json::Value) -> bool {
         for child in children {
             if let Some(selectors) = child.get("selectors").and_then(|s| s.as_array()) {
                 for sel in selectors {
-                    if let Some(sel_type) = sel.get("type").and_then(|t| t.as_str()) {
-                        if sel_type == "PseudoClassSelector" {
-                            if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
-                                if name == "global" {
-                                    return true;
-                                }
-                            }
-                        }
+                    if let Some(sel_type) = sel.get("type").and_then(|t| t.as_str())
+                        && sel_type == "PseudoClassSelector"
+                        && let Some(name) = sel.get("name").and_then(|n| n.as_str())
+                        && name == "global"
+                    {
+                        return true;
                     }
                 }
             }

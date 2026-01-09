@@ -107,35 +107,34 @@ impl Utf8ToUtf16 {
 fn convert_positions_to_utf16(value: &mut Value, pos_conv: &Utf8ToUtf16) {
     match value {
         Value::Object(map) => {
-            if let Some(Value::Number(n)) = map.get("start") {
-                if let Some(pos) = n.as_u64() {
-                    map.insert("start".to_string(), json!(pos_conv.convert(pos as usize)));
-                }
+            if let Some(Value::Number(n)) = map.get("start")
+                && let Some(pos) = n.as_u64()
+            {
+                map.insert("start".to_string(), json!(pos_conv.convert(pos as usize)));
             }
-            if let Some(Value::Number(n)) = map.get("end") {
-                if let Some(pos) = n.as_u64() {
-                    map.insert("end".to_string(), json!(pos_conv.convert(pos as usize)));
-                }
+            if let Some(Value::Number(n)) = map.get("end")
+                && let Some(pos) = n.as_u64()
+            {
+                map.insert("end".to_string(), json!(pos_conv.convert(pos as usize)));
             }
-            if let Some(Value::Number(n)) = map.get("character") {
-                if let Some(pos) = n.as_u64() {
-                    map.insert(
-                        "character".to_string(),
-                        json!(pos_conv.convert(pos as usize)),
-                    );
-                }
+            if let Some(Value::Number(n)) = map.get("character")
+                && let Some(pos) = n.as_u64()
+            {
+                map.insert(
+                    "character".to_string(),
+                    json!(pos_conv.convert(pos as usize)),
+                );
             }
 
             // Convert column in loc objects (loc has line and column fields)
-            if map.contains_key("line") && map.contains_key("column") {
-                if let (Some(Value::Number(line)), Some(Value::Number(col))) =
+            if map.contains_key("line")
+                && map.contains_key("column")
+                && let (Some(Value::Number(line)), Some(Value::Number(col))) =
                     (map.get("line"), map.get("column"))
-                {
-                    if let (Some(line_num), Some(col_num)) = (line.as_u64(), col.as_u64()) {
-                        let new_col = pos_conv.convert_column(line_num as usize, col_num as usize);
-                        map.insert("column".to_string(), json!(new_col));
-                    }
-                }
+                && let (Some(line_num), Some(col_num)) = (line.as_u64(), col.as_u64())
+            {
+                let new_col = pos_conv.convert_column(line_num as usize, col_num as usize);
+                map.insert("column".to_string(), json!(new_col));
             }
 
             for v in map.values_mut() {
@@ -298,10 +297,10 @@ fn convert_css_node(node: &mut Value) {
                 for rs in relative_selectors {
                     if let Value::Object(rs_map) = rs {
                         // Add combinator if present
-                        if let Some(combinator) = rs_map.get("combinator") {
-                            if !combinator.is_null() {
-                                new_children.push(combinator.clone());
-                            }
+                        if let Some(combinator) = rs_map.get("combinator")
+                            && !combinator.is_null()
+                        {
+                            new_children.push(combinator.clone());
                         }
                         // Add selectors
                         if let Some(Value::Array(selectors)) = rs_map.get("selectors") {
@@ -445,41 +444,41 @@ fn convert_const_tag(const_tag: &ConstTag) -> Value {
     let declaration = &const_tag.declaration.as_json();
 
     // Extract the declarator from the VariableDeclaration
-    if let Some(declarations) = declaration.get("declarations").and_then(|d| d.as_array()) {
-        if let Some(first_decl) = declarations.first() {
-            let id = first_decl.get("id").cloned().unwrap_or(json!(null));
-            let init = first_decl.get("init").cloned().unwrap_or(json!(null));
+    if let Some(declarations) = declaration.get("declarations").and_then(|d| d.as_array())
+        && let Some(first_decl) = declarations.first()
+    {
+        let id = first_decl.get("id").cloned().unwrap_or(json!(null));
+        let init = first_decl.get("init").cloned().unwrap_or(json!(null));
 
-            // Remove typeAnnotation from id
-            let mut id = id;
-            if let Value::Object(ref mut id_map) = id {
-                id_map.remove("typeAnnotation");
-            }
-
-            // Calculate start position (after 'const ')
-            let decl_start = declaration
-                .get("start")
-                .and_then(|s| s.as_u64())
-                .unwrap_or(0);
-            let decl_end = declaration.get("end").and_then(|s| s.as_u64()).unwrap_or(0);
-
-            let mut result = Map::new();
-            result.insert("type".to_string(), json!("ConstTag"));
-            result.insert("start".to_string(), json!(const_tag.start));
-            result.insert("end".to_string(), json!(const_tag.end));
-            result.insert(
-                "expression".to_string(),
-                json!({
-                    "type": "AssignmentExpression",
-                    "start": decl_start + 6, // Skip 'const '
-                    "end": decl_end,
-                    "operator": "=",
-                    "left": id,
-                    "right": init
-                }),
-            );
-            return Value::Object(result);
+        // Remove typeAnnotation from id
+        let mut id = id;
+        if let Value::Object(ref mut id_map) = id {
+            id_map.remove("typeAnnotation");
         }
+
+        // Calculate start position (after 'const ')
+        let decl_start = declaration
+            .get("start")
+            .and_then(|s| s.as_u64())
+            .unwrap_or(0);
+        let decl_end = declaration.get("end").and_then(|s| s.as_u64()).unwrap_or(0);
+
+        let mut result = Map::new();
+        result.insert("type".to_string(), json!("ConstTag"));
+        result.insert("start".to_string(), json!(const_tag.start));
+        result.insert("end".to_string(), json!(const_tag.end));
+        result.insert(
+            "expression".to_string(),
+            json!({
+                "type": "AssignmentExpression",
+                "start": decl_start + 6, // Skip 'const '
+                "end": decl_end,
+                "operator": "=",
+                "left": id,
+                "right": init
+            }),
+        );
+        return Value::Object(result);
     }
 
     // Fallback
@@ -540,13 +539,12 @@ fn convert_if_block(source: &str, if_block: &IfBlock) -> Value {
         let mut nodes = alternate.nodes.clone();
 
         // Check if this is an else-if chain
-        if nodes.len() == 1 {
-            if let TemplateNode::IfBlock(inner_if) = &nodes[0] {
-                if inner_if.elseif {
-                    // Get children from the inner if block's consequent
-                    nodes = inner_if.consequent.nodes.clone();
-                }
-            }
+        if nodes.len() == 1
+            && let TemplateNode::IfBlock(inner_if) = &nodes[0]
+            && inner_if.elseif
+        {
+            // Get children from the inner if block's consequent
+            nodes = inner_if.consequent.nodes.clone();
         }
 
         let end = find_last_brace_before(source, if_block.end as usize);
@@ -1429,10 +1427,8 @@ fn convert_bind_directive(bind: &BindDirective) -> Value {
             .get("name")
             .and_then(|n| n.as_str())
             .is_some_and(|n| n == bind.name.as_str());
-    if is_shorthand {
-        if let Value::Object(ref mut expr_map) = expression {
-            expr_map.remove("loc");
-        }
+    if is_shorthand && let Value::Object(ref mut expr_map) = expression {
+        expr_map.remove("loc");
     }
 
     result.insert("expression".to_string(), expression);

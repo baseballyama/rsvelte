@@ -236,14 +236,14 @@ impl<'a> ScopeBuilder<'a> {
         let old_scope = self.push_scope();
 
         // Declare the item binding
-        if let Some(context) = block.context.as_ref() {
-            if let Some(name) = context.as_json().get("name").and_then(|n| n.as_str()) {
-                self.declare_binding(
-                    name.to_string(),
-                    BindingKind::EachItem,
-                    DeclarationKind::Const,
-                );
-            }
+        if let Some(context) = block.context.as_ref()
+            && let Some(name) = context.as_json().get("name").and_then(|n| n.as_str())
+        {
+            self.declare_binding(
+                name.to_string(),
+                BindingKind::EachItem,
+                DeclarationKind::Const,
+            );
         }
 
         // Declare the index binding if present
@@ -289,14 +289,14 @@ impl<'a> ScopeBuilder<'a> {
             let old_scope = self.push_scope();
 
             // Declare the then value binding
-            if let Some(ref value) = block.value {
-                if let Some(name) = value.as_json().get("name").and_then(|n| n.as_str()) {
-                    self.declare_binding(
-                        name.to_string(),
-                        BindingKind::AwaitThen,
-                        DeclarationKind::Const,
-                    );
-                }
+            if let Some(ref value) = block.value
+                && let Some(name) = value.as_json().get("name").and_then(|n| n.as_str())
+            {
+                self.declare_binding(
+                    name.to_string(),
+                    BindingKind::AwaitThen,
+                    DeclarationKind::Const,
+                );
             }
 
             self.visit_fragment(then);
@@ -308,14 +308,14 @@ impl<'a> ScopeBuilder<'a> {
             let old_scope = self.push_scope();
 
             // Declare the error binding
-            if let Some(ref error) = block.error {
-                if let Some(name) = error.as_json().get("name").and_then(|n| n.as_str()) {
-                    self.declare_binding(
-                        name.to_string(),
-                        BindingKind::AwaitCatch,
-                        DeclarationKind::Const,
-                    );
-                }
+            if let Some(ref error) = block.error
+                && let Some(name) = error.as_json().get("name").and_then(|n| n.as_str())
+            {
+                self.declare_binding(
+                    name.to_string(),
+                    BindingKind::AwaitCatch,
+                    DeclarationKind::Const,
+                );
             }
 
             self.visit_fragment(catch);

@@ -193,10 +193,10 @@ fn collect_state_variables(script_content: &str) -> Vec<String> {
             if let Some(name) = extract_state_var_name(rest) {
                 state_vars.push(name);
             }
-        } else if let Some(rest) = trimmed.strip_prefix("const ") {
-            if let Some(name) = extract_state_var_name(rest) {
-                state_vars.push(name);
-            }
+        } else if let Some(rest) = trimmed.strip_prefix("const ")
+            && let Some(name) = extract_state_var_name(rest)
+        {
+            state_vars.push(name);
         }
     }
 
@@ -228,10 +228,10 @@ fn collect_constant_variables(script_content: &str) -> HashMap<String, String> {
         let trimmed = line.trim();
 
         // Match const declarations that are NOT $state/$derived
-        if let Some(rest) = trimmed.strip_prefix("const ") {
-            if let Some((name, value)) = extract_const_var(rest) {
-                const_vars.insert(name, value);
-            }
+        if let Some(rest) = trimmed.strip_prefix("const ")
+            && let Some((name, value)) = extract_const_var(rest)
+        {
+            const_vars.insert(name, value);
         }
     }
 
@@ -267,18 +267,18 @@ fn collect_read_only_props(script_content: &str) -> Vec<String> {
         let trimmed = line.trim();
 
         // Match patterns like: let { prop1, prop2 } = $props()
-        if trimmed.contains("$props()") && trimmed.contains('{') {
-            if let Some(start) = trimmed.find('{') {
-                if let Some(end) = trimmed.find('}') {
-                    let props_str = &trimmed[start + 1..end];
-                    for prop in props_str.split(',') {
-                        let prop = prop.trim();
-                        // Handle default values: prop = default
-                        let prop_name = prop.split('=').next().unwrap_or(prop).trim();
-                        if !prop_name.is_empty() && !prop_name.starts_with("...") {
-                            props.push(prop_name.to_string());
-                        }
-                    }
+        if trimmed.contains("$props()")
+            && trimmed.contains('{')
+            && let Some(start) = trimmed.find('{')
+            && let Some(end) = trimmed.find('}')
+        {
+            let props_str = &trimmed[start + 1..end];
+            for prop in props_str.split(',') {
+                let prop = prop.trim();
+                // Handle default values: prop = default
+                let prop_name = prop.split('=').next().unwrap_or(prop).trim();
+                if !prop_name.is_empty() && !prop_name.starts_with("...") {
+                    props.push(prop_name.to_string());
                 }
             }
         }

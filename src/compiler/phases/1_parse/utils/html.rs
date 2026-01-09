@@ -63,17 +63,17 @@ pub fn validate_code(code: u32) -> u32 {
     }
 
     // Supplementary multilingual plane 0x10000 - 0x1ffff
-    if code >= 65536 && code <= 131071 {
+    if (65536..=131071).contains(&code) {
         return code;
     }
 
     // Supplementary ideographic plane 0x20000 - 0x2ffff
-    if code >= 131072 && code <= 196607 {
+    if (131072..=196607).contains(&code) {
         return code;
     }
 
     // Supplementary special-purpose plane 0xe0000 - 0xe07f and 0xe0100 - 0xe01ef
-    if (code >= 917504 && code <= 917631) || (code >= 917760 && code <= 917999) {
+    if (917504..=917631).contains(&code) || (917760..=917999).contains(&code) {
         return code;
     }
 
@@ -93,6 +93,7 @@ pub fn validate_code(code: u32) -> u32 {
 ///
 /// # Returns
 /// The decoded string with all character references replaced
+#[allow(dead_code)]
 pub fn decode_character_references(html: &str, is_attribute_value: bool) -> String {
     decode_html_entities(html, is_attribute_value)
 }

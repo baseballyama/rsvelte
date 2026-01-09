@@ -2,8 +2,6 @@
 
 use serde_json::{Map, Value};
 
-use super::utils::create_loc;
-
 /// OXC ProgramをESTree JSON形式に変換
 pub fn convert_program(
     _program: &oxc_ast::ast::Program,

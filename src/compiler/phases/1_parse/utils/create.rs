@@ -24,6 +24,7 @@ use crate::ast::template::{Fragment, FragmentType};
 /// assert_eq!(fragment.nodes.len(), 0);
 /// ```
 #[inline]
+#[allow(dead_code)]
 pub fn create_fragment(_transparent: bool) -> Fragment {
     Fragment {
         node_type: FragmentType::Fragment,
@@ -39,6 +40,7 @@ pub fn create_fragment(_transparent: bool) -> Fragment {
 
 /// Create an empty Fragment (backward compatibility).
 #[inline]
+#[allow(dead_code)]
 pub fn create_empty_fragment() -> Fragment {
     create_fragment(false)
 }
@@ -47,6 +49,7 @@ pub fn create_empty_fragment() -> Fragment {
 ///
 /// Note: This doesn't exist in the JS version.
 #[inline]
+#[allow(dead_code)]
 pub fn create_fragment_with_node(node: crate::ast::template::TemplateNode) -> Fragment {
     Fragment {
         node_type: FragmentType::Fragment,

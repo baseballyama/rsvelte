@@ -17,10 +17,10 @@ pub fn collect_state_var_names(script_content: &str) -> HashSet<String> {
             if let Some(name) = extract_state_var_name(rest) {
                 state_vars.insert(name);
             }
-        } else if let Some(rest) = trimmed.strip_prefix("const ") {
-            if let Some(name) = extract_state_var_name(rest) {
-                state_vars.insert(name);
-            }
+        } else if let Some(rest) = trimmed.strip_prefix("const ")
+            && let Some(name) = extract_state_var_name(rest)
+        {
+            state_vars.insert(name);
         }
     }
 

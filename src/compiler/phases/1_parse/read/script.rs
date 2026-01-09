@@ -113,12 +113,11 @@ impl Parser<'_> {
                 }
 
                 if attr_node.name.as_str() == "context" {
-                    if let AttributeValue::Sequence(parts) = &attr_node.value {
-                        if let Some(AttributeValuePart::Text(t)) = parts.first() {
-                            if t.data.as_str() == "module" {
-                                context = ScriptContext::Module;
-                            }
-                        }
+                    if let AttributeValue::Sequence(parts) = &attr_node.value
+                        && let Some(AttributeValuePart::Text(t)) = parts.first()
+                        && t.data.as_str() == "module"
+                    {
+                        context = ScriptContext::Module;
                     }
                 } else if attr_node.name.as_str() == "module" {
                     // `module` attribute (boolean or with value) indicates module context
@@ -126,12 +125,12 @@ impl Parser<'_> {
                     script_attributes.push(attr_node);
                     continue;
                 } else if attr_node.name.as_str() == "lang" {
-                    if let AttributeValue::Sequence(parts) = &attr_node.value {
-                        if let Some(AttributeValuePart::Text(t)) = parts.first() {
-                            let lang = t.data.as_str();
-                            if lang == "ts" || lang == "typescript" {
-                                is_typescript = true;
-                            }
+                    if let AttributeValue::Sequence(parts) = &attr_node.value
+                        && let Some(AttributeValuePart::Text(t)) = parts.first()
+                    {
+                        let lang = t.data.as_str();
+                        if lang == "ts" || lang == "typescript" {
+                            is_typescript = true;
                         }
                     }
                     script_attributes.push(attr_node);
@@ -173,14 +172,14 @@ impl Parser<'_> {
         }
 
         // Check for rune usage without parentheses (e.g., `= $props;` instead of `= $props()`)
-        if context == ScriptContext::Default {
-            if let Some((_rune, pos)) = find_rune_without_parentheses(script_content) {
-                return Err(crate::error::ParseError::svelte(
-                    "rune_missing_parentheses",
-                    "Cannot use rune without parentheses",
-                    (content_start + pos, content_start + pos),
-                ));
-            }
+        if context == ScriptContext::Default
+            && let Some((_rune, pos)) = find_rune_without_parentheses(script_content)
+        {
+            return Err(crate::error::ParseError::svelte(
+                "rune_missing_parentheses",
+                "Cannot use rune without parentheses",
+                (content_start + pos, content_start + pos),
+            ));
         }
 
         // Check for legacy export let in runes mode
@@ -209,64 +208,64 @@ impl Parser<'_> {
 
         // Check for $host() usage outside of custom element
         // (We can only do a simple check here - full validation requires knowing svelte:options)
-        if context == ScriptContext::Default {
-            if let Some(pos) = find_host_call(script_content) {
-                // For now, we always error on $host() - the svelte:options check
-                // would need to be done in the analyze phase with access to options
-                // But since we're in parse phase, we'll defer this to analyze phase
-                // Actually, let's check if the parser has svelte_options set
-                if !self.has_custom_element_option() {
-                    return Err(crate::error::ParseError::svelte(
-                        "host_invalid_placement",
-                        "`$host()` can only be used inside custom element component instances",
-                        (content_start + pos, content_start + pos),
-                    ));
-                }
+        if context == ScriptContext::Default
+            && let Some(pos) = find_host_call(script_content)
+        {
+            // For now, we always error on $host() - the svelte:options check
+            // would need to be done in the analyze phase with access to options
+            // But since we're in parse phase, we'll defer this to analyze phase
+            // Actually, let's check if the parser has svelte_options set
+            if !self.has_custom_element_option() {
+                return Err(crate::error::ParseError::svelte(
+                    "host_invalid_placement",
+                    "`$host()` can only be used inside custom element component instances",
+                    (content_start + pos, content_start + pos),
+                ));
             }
         }
 
         // Check for $props() with arguments (not allowed)
-        if context == ScriptContext::Default {
-            if let Some(pos) = find_props_with_arguments(script_content) {
-                return Err(crate::error::ParseError::svelte(
-                    "rune_invalid_arguments",
-                    "`$props` cannot be called with arguments",
-                    (content_start + pos, content_start + pos),
-                ));
-            }
+        if context == ScriptContext::Default
+            && let Some(pos) = find_props_with_arguments(script_content)
+        {
+            return Err(crate::error::ParseError::svelte(
+                "rune_invalid_arguments",
+                "`$props` cannot be called with arguments",
+                (content_start + pos, content_start + pos),
+            ));
         }
 
         // Check for $effect inside a return statement
-        if context == ScriptContext::Default {
-            if let Some(pos) = find_effect_in_return(script_content) {
-                return Err(crate::error::ParseError::svelte(
-                    "effect_invalid_placement",
-                    "`$effect` can only be used as an expression statement",
-                    (content_start + pos, content_start + pos),
-                ));
-            }
+        if context == ScriptContext::Default
+            && let Some(pos) = find_effect_in_return(script_content)
+        {
+            return Err(crate::error::ParseError::svelte(
+                "effect_invalid_placement",
+                "`$effect` can only be used as an expression statement",
+                (content_start + pos, content_start + pos),
+            ));
         }
 
         // Check for $bindable outside of $props()
-        if context == ScriptContext::Default {
-            if let Some(pos) = find_bindable_outside_props(script_content) {
-                return Err(crate::error::ParseError::svelte(
-                    "bindable_invalid_location",
-                    "`$bindable()` can only be used inside a `$props()` declaration",
-                    (content_start + pos, content_start + pos),
-                ));
-            }
+        if context == ScriptContext::Default
+            && let Some(pos) = find_bindable_outside_props(script_content)
+        {
+            return Err(crate::error::ParseError::svelte(
+                "bindable_invalid_location",
+                "`$bindable()` can only be used inside a `$props()` declaration",
+                (content_start + pos, content_start + pos),
+            ));
         }
 
         // Check for rune argument count
-        if context == ScriptContext::Default {
-            if let Some((rune, expected, pos)) = find_invalid_rune_arguments(script_content) {
-                return Err(crate::error::ParseError::svelte(
-                    "rune_invalid_arguments_length",
-                    format!("`{}` must be called with {}", rune, expected),
-                    (content_start + pos, content_start + pos),
-                ));
-            }
+        if context == ScriptContext::Default
+            && let Some((rune, expected, pos)) = find_invalid_rune_arguments(script_content)
+        {
+            return Err(crate::error::ParseError::svelte(
+                "rune_invalid_arguments_length",
+                format!("`{}` must be called with {}", rune, expected),
+                (content_start + pos, content_start + pos),
+            ));
         }
 
         // Parse the script content as a JavaScript/TypeScript Program
@@ -1209,10 +1208,10 @@ fn find_rune_with_wrong_arg_count(
             if matches {
                 // Found the pattern, now count arguments
                 let arg_start = i + pattern_chars.len();
-                if let Some(arg_count) = count_arguments(&chars, arg_start) {
-                    if arg_count < min_args || arg_count > max_args {
-                        return Some(i);
-                    }
+                if let Some(arg_count) = count_arguments(&chars, arg_start)
+                    && (arg_count < min_args || arg_count > max_args)
+                {
+                    return Some(i);
                 }
                 i += pattern_chars.len();
                 continue;

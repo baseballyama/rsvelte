@@ -45,10 +45,10 @@ pub fn visit(component: &Component, context: &mut VisitorContext) -> Result<(), 
 
     // Check for slot usage
     for attr in &component.attributes {
-        if let Attribute::Attribute(a) = attr {
-            if a.name == "slot" {
-                context.analysis.uses_slots = true;
-            }
+        if let Attribute::Attribute(a) = attr
+            && a.name == "slot"
+        {
+            context.analysis.uses_slots = true;
         }
     }
 
@@ -134,10 +134,10 @@ fn get_slot_name(node: &TemplateNode) -> Option<String> {
     }?;
 
     for attr in attributes {
-        if let Attribute::Attribute(a) = attr {
-            if a.name == "slot" {
-                return Some(get_static_value(&a.value).unwrap_or_default());
-            }
+        if let Attribute::Attribute(a) = attr
+            && a.name == "slot"
+        {
+            return Some(get_static_value(&a.value).unwrap_or_default());
         }
     }
 

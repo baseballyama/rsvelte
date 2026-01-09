@@ -17,11 +17,11 @@ fn is_if_block_exhaustive(block: &IfBlock) -> bool {
         Some(alt_fragment) => {
             // Check if the alternate is just another if block (else-if)
             // or if it's a real else branch
-            if alt_fragment.nodes.len() == 1 {
-                if let Some(TemplateNode::IfBlock(inner_if)) = alt_fragment.nodes.first() {
-                    // It's an else-if, recursively check if THAT is exhaustive
-                    return is_if_block_exhaustive(inner_if);
-                }
+            if alt_fragment.nodes.len() == 1
+                && let Some(TemplateNode::IfBlock(inner_if)) = alt_fragment.nodes.first()
+            {
+                // It's an else-if, recursively check if THAT is exhaustive
+                return is_if_block_exhaustive(inner_if);
             }
             // Has content that's not just another if - it's a real else
             !alt_fragment.nodes.is_empty()

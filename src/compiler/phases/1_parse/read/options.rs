@@ -105,7 +105,7 @@ impl Parser<'_> {
                 if RESERVED_ATTRIBUTES.contains(&attr_name) {
                     return Err(ParseError::svelte(
                         "script_reserved_attribute",
-                        &format!("`{}` is a reserved attribute and cannot be used", attr_name),
+                        format!("`{}` is a reserved attribute and cannot be used", attr_name),
                         (attr_node.start as usize, attr_node.end as usize),
                     ));
                 }
@@ -152,7 +152,7 @@ impl Parser<'_> {
                             _ => {
                                 return Err(ParseError::svelte(
                                     "svelte_options_invalid_attribute_value",
-                                    &format!(
+                                    format!(
                                         "\"{}\" is not a valid namespace (must be \"html\", \"mathml\" or \"svg\")",
                                         value.as_deref().unwrap_or("")
                                     ),
@@ -166,7 +166,7 @@ impl Parser<'_> {
                         if value.as_deref() != Some("injected") {
                             return Err(ParseError::svelte(
                                 "svelte_options_invalid_attribute_value",
-                                &format!(
+                                format!(
                                     "\"{}\" is not a valid value for the \"css\" option (must be \"injected\")",
                                     value.as_deref().unwrap_or("")
                                 ),
@@ -244,17 +244,16 @@ fn get_boolean_value(attr: &crate::ast::template::AttributeNode) -> ParseResult<
             if parts.is_empty() {
                 return Ok(true);
             }
-            if let AttributeValuePart::ExpressionTag(expr) = &parts[0] {
-                if let Some(value) = expr.expression.as_json().get("value") {
-                    if let Some(b) = value.as_bool() {
-                        return Ok(b);
-                    }
-                }
+            if let AttributeValuePart::ExpressionTag(expr) = &parts[0]
+                && let Some(value) = expr.expression.as_json().get("value")
+                && let Some(b) = value.as_bool()
+            {
+                return Ok(b);
             }
 
             Err(ParseError::svelte(
                 "svelte_options_invalid_attribute_value",
-                &format!(
+                format!(
                     "\"{}\" is not a valid value (expected true or false)",
                     attr.name
                 ),
@@ -263,7 +262,7 @@ fn get_boolean_value(attr: &crate::ast::template::AttributeNode) -> ParseResult<
         }
         _ => Err(ParseError::svelte(
             "svelte_options_invalid_attribute_value",
-            &format!(
+            format!(
                 "\"{}\" is not a valid value (expected true or false)",
                 attr.name
             ),
@@ -300,22 +299,22 @@ fn parse_custom_element_option(
                 let expr_json = expr.expression.as_json();
 
                 // Check for null value (backwards compat - disable custom element)
-                if expr_json.get("type") == Some(&JsonValue::String("Literal".to_string())) {
-                    if let Some(JsonValue::Null) = expr_json.get("value") {
-                        // customElement={null} - skip
-                        return Ok(CustomElementOptions {
-                            tag: None,
-                            shadow: None,
-                            props: None,
-                            extend: None,
-                        });
-                    }
+                if expr_json.get("type") == Some(&JsonValue::String("Literal".to_string()))
+                    && let Some(JsonValue::Null) = expr_json.get("value")
+                {
+                    // customElement={null} - skip
+                    return Ok(CustomElementOptions {
+                        tag: None,
+                        shadow: None,
+                        props: None,
+                        extend: None,
+                    });
                 }
 
                 // Object expression: customElement={{tag: "...", ...}}
                 if expr_json.get("type") == Some(&JsonValue::String("ObjectExpression".to_string()))
                 {
-                    return parse_custom_element_object(&expr_json, attr);
+                    return parse_custom_element_object(expr_json, attr);
                 }
             }
         }
@@ -359,28 +358,28 @@ fn parse_custom_element_object(
             if let Some(JsonValue::String(key_name)) = prop.get("key").and_then(|k| k.get("name")) {
                 match key_name.as_str() {
                     "tag" => {
-                        if let Some(tag_value) = prop.get("value").and_then(|v| v.get("value")) {
-                            if let Some(tag_str) = tag_value.as_str() {
-                                validate_tag_name(tag_str, attr)?;
-                                tag = Some(tag_str.to_string().into());
-                            }
+                        if let Some(tag_value) = prop.get("value").and_then(|v| v.get("value"))
+                            && let Some(tag_str) = tag_value.as_str()
+                        {
+                            validate_tag_name(tag_str, attr)?;
+                            tag = Some(tag_str.to_string().into());
                         }
                     }
                     "shadow" => {
-                        if let Some(shadow_value) = prop.get("value").and_then(|v| v.get("value")) {
-                            if let Some(shadow_str) = shadow_value.as_str() {
-                                shadow = Some(match shadow_str {
-                                    "open" => ShadowMode::Open,
-                                    "none" => ShadowMode::None,
-                                    _ => {
-                                        return Err(ParseError::svelte(
-                                            "svelte_options_invalid_customelement_shadow",
-                                            "`shadow` must be \"open\" or \"none\"",
-                                            (attr.start as usize, attr.end as usize),
-                                        ));
-                                    }
-                                });
-                            }
+                        if let Some(shadow_value) = prop.get("value").and_then(|v| v.get("value"))
+                            && let Some(shadow_str) = shadow_value.as_str()
+                        {
+                            shadow = Some(match shadow_str {
+                                "open" => ShadowMode::Open,
+                                "none" => ShadowMode::None,
+                                _ => {
+                                    return Err(ParseError::svelte(
+                                        "svelte_options_invalid_customelement_shadow",
+                                        "`shadow` must be \"open\" or \"none\"",
+                                        (attr.start as usize, attr.end as usize),
+                                    ));
+                                }
+                            });
                         }
                     }
                     "props" => {
@@ -447,7 +446,7 @@ fn validate_tag_name(tag: &str, attr: &crate::ast::template::AttributeNode) -> P
     if RESERVED_TAG_NAMES.contains(&tag) {
         return Err(ParseError::svelte(
             "svelte_options_reserved_tagname",
-            &format!("\"{}\" is a reserved tag name", tag),
+            format!("\"{}\" is a reserved tag name", tag),
             (attr.start as usize, attr.end as usize),
         ));
     }
@@ -455,14 +454,12 @@ fn validate_tag_name(tag: &str, attr: &crate::ast::template::AttributeNode) -> P
     // Validate characters (simplified version - full regex would be complex)
     // Valid: lowercase letters, digits, hyphen, dot, underscore, and certain unicode ranges
     for c in tag.chars() {
-        if !c.is_alphanumeric() && c != '-' && c != '_' && c != '.' {
-            if (c as u32) < 0xB7 {
-                return Err(ParseError::svelte(
-                    "svelte_options_invalid_tagname",
-                    &format!("Tag name contains invalid character '{}'", c),
-                    (attr.start as usize, attr.end as usize),
-                ));
-            }
+        if !c.is_alphanumeric() && c != '-' && c != '_' && c != '.' && (c as u32) < 0xB7 {
+            return Err(ParseError::svelte(
+                "svelte_options_invalid_tagname",
+                format!("Tag name contains invalid character '{}'", c),
+                (attr.start as usize, attr.end as usize),
+            ));
         }
     }
 

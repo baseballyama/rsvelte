@@ -383,31 +383,31 @@ impl Parser<'_> {
     /// Extract the "this" attribute from a svelte:element to get the tag expression.
     pub fn extract_this_attribute(&self, attributes: &[crate::ast::Attribute]) -> Expression {
         for attr in attributes {
-            if let crate::ast::Attribute::Attribute(node) = attr {
-                if node.name.as_str() == "this" {
-                    match &node.value {
-                        AttributeValue::Expression(expr_tag) => {
-                            return expr_tag.expression.clone();
-                        }
-                        AttributeValue::Sequence(parts) => {
-                            // Handle single-item sequences
-                            if parts.len() == 1 {
-                                match &parts[0] {
-                                    AttributeValuePart::Text(text) => {
-                                        // For quoted string values like this="div"
-                                        return Expression::from_json(serde_json::json!(
-                                            text.data.as_str()
-                                        ));
-                                    }
-                                    AttributeValuePart::ExpressionTag(expr_tag) => {
-                                        // For quoted expression like this="{expr}"
-                                        return expr_tag.expression.clone();
-                                    }
+            if let crate::ast::Attribute::Attribute(node) = attr
+                && node.name.as_str() == "this"
+            {
+                match &node.value {
+                    AttributeValue::Expression(expr_tag) => {
+                        return expr_tag.expression.clone();
+                    }
+                    AttributeValue::Sequence(parts) => {
+                        // Handle single-item sequences
+                        if parts.len() == 1 {
+                            match &parts[0] {
+                                AttributeValuePart::Text(text) => {
+                                    // For quoted string values like this="div"
+                                    return Expression::from_json(serde_json::json!(
+                                        text.data.as_str()
+                                    ));
+                                }
+                                AttributeValuePart::ExpressionTag(expr_tag) => {
+                                    // For quoted expression like this="{expr}"
+                                    return expr_tag.expression.clone();
                                 }
                             }
                         }
-                        _ => {}
                     }
+                    _ => {}
                 }
             }
         }
@@ -1710,22 +1710,22 @@ impl Parser<'_> {
             }
 
             // If the value ends with }, treat the whole thing as an expression
-            if let Some(brace_pos) = last_brace {
-                if brace_pos == value_end - 1 {
-                    // Consume the entire value
-                    while self.index < value_end {
-                        self.advance();
-                    }
-
-                    // The expression content is between { and the last }
-                    let expr_content = &self.source[expr_start + 1..brace_pos];
-
-                    return Ok(AttributeValue::Expression(ExpressionTag {
-                        start: expr_start as u32,
-                        end: value_end as u32,
-                        expression: self.parse_js_expression(expr_content, expr_start + 1),
-                    }));
+            if let Some(brace_pos) = last_brace
+                && brace_pos == value_end - 1
+            {
+                // Consume the entire value
+                while self.index < value_end {
+                    self.advance();
                 }
+
+                // The expression content is between { and the last }
+                let expr_content = &self.source[expr_start + 1..brace_pos];
+
+                return Ok(AttributeValue::Expression(ExpressionTag {
+                    start: expr_start as u32,
+                    end: value_end as u32,
+                    expression: self.parse_js_expression(expr_content, expr_start + 1),
+                }));
             }
         }
 

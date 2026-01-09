@@ -31,10 +31,10 @@ fn requires_unsupported_options(sample_name: &str) -> bool {
         .join(sample_name)
         .join("_config.js");
 
-    if let Ok(config) = fs::read_to_string(&config_path) {
-        if config.contains("async: true") {
-            return true;
-        }
+    if let Ok(config) = fs::read_to_string(&config_path)
+        && config.contains("async: true")
+    {
+        return true;
     }
     false
 }

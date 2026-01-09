@@ -46,16 +46,13 @@ fn get_type(node: &JsonValue) -> Option<&str> {
 
 /// Remove the first 'this' parameter from function parameters
 fn remove_this_param(node: &mut JsonValue) {
-    if let Some(params) = node.get_mut("params").and_then(|v| v.as_array_mut()) {
-        if let Some(first) = params.first() {
-            if get_type(first) == Some("Identifier") {
-                if let Some(name) = first.get("name").and_then(|v| v.as_str()) {
-                    if name == "this" {
-                        params.remove(0);
-                    }
-                }
-            }
-        }
+    if let Some(params) = node.get_mut("params").and_then(|v| v.as_array_mut())
+        && let Some(first) = params.first()
+        && get_type(first) == Some("Identifier")
+        && let Some(name) = first.get("name").and_then(|v| v.as_str())
+        && name == "this"
+    {
+        params.remove(0);
     }
 }
 
@@ -97,87 +94,85 @@ pub fn remove_typescript_nodes(node: &mut JsonValue, path: &[&str]) -> Result<()
 
         // Filter out type-only imports
         "ImportDeclaration" => {
-            if let Some(import_kind) = node.get("importKind").and_then(|v| v.as_str()) {
-                if import_kind == "type" {
-                    *node = empty_statement();
-                    return Ok(());
-                }
+            if let Some(import_kind) = node.get("importKind").and_then(|v| v.as_str())
+                && import_kind == "type"
+            {
+                *node = empty_statement();
+                return Ok(());
             }
 
             // Filter type-only specifiers
-            if let Some(specifiers) = node.get_mut("specifiers").and_then(|v| v.as_array_mut()) {
-                if !specifiers.is_empty() {
-                    specifiers
-                        .retain(|s| s.get("importKind").and_then(|v| v.as_str()) != Some("type"));
+            if let Some(specifiers) = node.get_mut("specifiers").and_then(|v| v.as_array_mut())
+                && !specifiers.is_empty()
+            {
+                specifiers.retain(|s| s.get("importKind").and_then(|v| v.as_str()) != Some("type"));
 
-                    if specifiers.is_empty() {
-                        *node = empty_statement();
-                        return Ok(());
-                    }
+                if specifiers.is_empty() {
+                    *node = empty_statement();
+                    return Ok(());
                 }
             }
         }
 
         // Filter out type-only exports
         "ExportNamedDeclaration" => {
-            if let Some(export_kind) = node.get("exportKind").and_then(|v| v.as_str()) {
-                if export_kind == "type" {
-                    *node = empty_statement();
-                    return Ok(());
-                }
+            if let Some(export_kind) = node.get("exportKind").and_then(|v| v.as_str())
+                && export_kind == "type"
+            {
+                *node = empty_statement();
+                return Ok(());
             }
 
             // Check if declaration became empty after visiting
-            if let Some(declaration) = node.get("declaration") {
-                if get_type(declaration) == Some("EmptyStatement") {
-                    *node = empty_statement();
-                    return Ok(());
-                }
+            if let Some(declaration) = node.get("declaration")
+                && get_type(declaration) == Some("EmptyStatement")
+            {
+                *node = empty_statement();
+                return Ok(());
             }
 
             // Filter type-only specifiers
-            if let Some(specifiers) = node.get_mut("specifiers").and_then(|v| v.as_array_mut()) {
-                if !specifiers.is_empty() {
-                    specifiers
-                        .retain(|s| s.get("exportKind").and_then(|v| v.as_str()) != Some("type"));
+            if let Some(specifiers) = node.get_mut("specifiers").and_then(|v| v.as_array_mut())
+                && !specifiers.is_empty()
+            {
+                specifiers.retain(|s| s.get("exportKind").and_then(|v| v.as_str()) != Some("type"));
 
-                    if specifiers.is_empty() {
-                        *node = empty_statement();
-                        return Ok(());
-                    }
+                if specifiers.is_empty() {
+                    *node = empty_statement();
+                    return Ok(());
                 }
             }
         }
 
         "ExportDefaultDeclaration" => {
-            if let Some(export_kind) = node.get("exportKind").and_then(|v| v.as_str()) {
-                if export_kind == "type" {
-                    *node = empty_statement();
-                    return Ok(());
-                }
+            if let Some(export_kind) = node.get("exportKind").and_then(|v| v.as_str())
+                && export_kind == "type"
+            {
+                *node = empty_statement();
+                return Ok(());
             }
         }
 
         "ExportAllDeclaration" => {
-            if let Some(export_kind) = node.get("exportKind").and_then(|v| v.as_str()) {
-                if export_kind == "type" {
-                    *node = empty_statement();
-                    return Ok(());
-                }
+            if let Some(export_kind) = node.get("exportKind").and_then(|v| v.as_str())
+                && export_kind == "type"
+            {
+                *node = empty_statement();
+                return Ok(());
             }
         }
 
         // Check for accessor fields (not stage 4)
         "PropertyDefinition" => {
-            if let Some(accessor) = node.get("accessor").and_then(|v| v.as_bool()) {
-                if accessor {
-                    let start = get_start(node);
-                    let end = get_end(node);
-                    return Err(ParseError::typescript_invalid_feature(
-                        "accessor fields (related TSC proposal is not stage 4 yet)",
-                        (start, end),
-                    ));
-                }
+            if let Some(accessor) = node.get("accessor").and_then(|v| v.as_bool())
+                && accessor
+            {
+                let start = get_start(node);
+                let end = get_end(node);
+                return Err(ParseError::typescript_invalid_feature(
+                    "accessor fields (related TSC proposal is not stage 4 yet)",
+                    (start, end),
+                ));
             }
         }
 
@@ -217,7 +212,7 @@ pub fn remove_typescript_nodes(node: &mut JsonValue, path: &[&str]) -> Result<()
                 || node.get("accessibility").is_some();
 
             // Check if we're in a constructor
-            let in_constructor = path.iter().any(|&p| p == "constructor");
+            let in_constructor = path.contains(&"constructor");
 
             if has_modifiers && in_constructor {
                 let start = get_start(node);
@@ -256,11 +251,11 @@ pub fn remove_typescript_nodes(node: &mut JsonValue, path: &[&str]) -> Result<()
 
         // Handle class declarations
         "ClassDeclaration" => {
-            if let Some(declare) = node.get("declare").and_then(|v| v.as_bool()) {
-                if declare {
-                    *node = empty_statement();
-                    return Ok(());
-                }
+            if let Some(declare) = node.get("declare").and_then(|v| v.as_bool())
+                && declare
+            {
+                *node = empty_statement();
+                return Ok(());
             }
 
             if let Some(obj) = node.as_object_mut() {
@@ -280,21 +275,21 @@ pub fn remove_typescript_nodes(node: &mut JsonValue, path: &[&str]) -> Result<()
 
         // Remove abstract methods
         "MethodDefinition" => {
-            if let Some(is_abstract) = node.get("abstract").and_then(|v| v.as_bool()) {
-                if is_abstract {
-                    *node = empty_statement();
-                    return Ok(());
-                }
+            if let Some(is_abstract) = node.get("abstract").and_then(|v| v.as_bool())
+                && is_abstract
+            {
+                *node = empty_statement();
+                return Ok(());
             }
         }
 
         // Remove declared variables
         "VariableDeclaration" => {
-            if let Some(declare) = node.get("declare").and_then(|v| v.as_bool()) {
-                if declare {
-                    *node = empty_statement();
-                    return Ok(());
-                }
+            if let Some(declare) = node.get("declare").and_then(|v| v.as_bool())
+                && declare
+            {
+                *node = empty_statement();
+                return Ok(());
             }
         }
 

@@ -190,115 +190,114 @@ fn parse_expression_with_typescript(
     let parser = OxcParser::new(&allocator, &wrapped, source_type);
     let result = parser.parse();
 
-    if result.errors.is_empty() {
-        if let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
+    if result.errors.is_empty()
+        && let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
             result.program.body.first()
-        {
-            // Adjust positions: subtract 1 for the opening paren we added
-            let mut expr = convert_expression(&expr_stmt.expression, offset, line_offsets);
+    {
+        // Adjust positions: subtract 1 for the opening paren we added
+        let mut expr = convert_expression(&expr_stmt.expression, offset, line_offsets);
+
+        // Attach comments to the expression
+        if !result.program.comments.is_empty() {
+            // Get the actual expression's start and end positions
+            let inner_expr = unwrap_parenthesized(&expr_stmt.expression);
+            let expr_start = inner_expr.span().start;
+            let expr_end = inner_expr.span().end;
+
+            // Collect leading comments (before the expression)
+            let leading_comments: Vec<Value> = result
+                .program
+                .comments
+                .iter()
+                .filter(|comment| comment.span.end <= expr_start)
+                .map(|comment| {
+                    // Adjust positions: -1 for the paren, then add offset
+                    let comment_start = offset + comment.span.start as usize - 1;
+                    let comment_end = offset + comment.span.end as usize - 1;
+
+                    // Get raw comment text
+                    let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
+                    let mut value = extract_comment_value(raw, comment.kind);
+
+                    // Normalize block comment indentation
+                    if matches!(
+                        comment.kind,
+                        oxc_ast::ast::CommentKind::SingleLineBlock
+                            | oxc_ast::ast::CommentKind::MultiLineBlock
+                    ) {
+                        value = normalize_block_comment_indentation(
+                            &value,
+                            content,
+                            comment.span.start as usize - 1,
+                        );
+                    }
+
+                    create_comment_object(
+                        comment.kind,
+                        value,
+                        comment_start,
+                        comment_end,
+                        line_offsets,
+                    )
+                })
+                .collect();
+
+            // Collect trailing comments (after the expression)
+            let trailing_comments: Vec<Value> = result
+                .program
+                .comments
+                .iter()
+                .filter(|comment| comment.span.start >= expr_end)
+                .map(|comment| {
+                    // Adjust positions: -1 for the paren, then add offset
+                    let comment_start = offset + comment.span.start as usize - 1;
+                    let comment_end = offset + comment.span.end as usize - 1;
+
+                    // Get raw comment text
+                    let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
+                    let mut value = extract_comment_value(raw, comment.kind);
+
+                    // Normalize block comment indentation
+                    if matches!(
+                        comment.kind,
+                        oxc_ast::ast::CommentKind::SingleLineBlock
+                            | oxc_ast::ast::CommentKind::MultiLineBlock
+                    ) {
+                        value = normalize_block_comment_indentation(
+                            &value,
+                            content,
+                            comment.span.start as usize - 1,
+                        );
+                    }
+
+                    create_comment_object(
+                        comment.kind,
+                        value,
+                        comment_start,
+                        comment_end,
+                        line_offsets,
+                    )
+                })
+                .collect();
 
             // Attach comments to the expression
-            if !result.program.comments.is_empty() {
-                // Get the actual expression's start and end positions
-                let inner_expr = unwrap_parenthesized(&expr_stmt.expression);
-                let expr_start = inner_expr.span().start;
-                let expr_end = inner_expr.span().end;
-
-                // Collect leading comments (before the expression)
-                let leading_comments: Vec<Value> = result
-                    .program
-                    .comments
-                    .iter()
-                    .filter(|comment| comment.span.end <= expr_start)
-                    .map(|comment| {
-                        // Adjust positions: -1 for the paren, then add offset
-                        let comment_start = offset + comment.span.start as usize - 1;
-                        let comment_end = offset + comment.span.end as usize - 1;
-
-                        // Get raw comment text
-                        let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
-                        let mut value = extract_comment_value(raw, comment.kind);
-
-                        // Normalize block comment indentation
-                        if matches!(
-                            comment.kind,
-                            oxc_ast::ast::CommentKind::SingleLineBlock
-                                | oxc_ast::ast::CommentKind::MultiLineBlock
-                        ) {
-                            value = normalize_block_comment_indentation(
-                                &value,
-                                content,
-                                comment.span.start as usize - 1,
-                            );
-                        }
-
-                        create_comment_object(
-                            comment.kind,
-                            value,
-                            comment_start,
-                            comment_end,
-                            line_offsets,
-                        )
-                    })
-                    .collect();
-
-                // Collect trailing comments (after the expression)
-                let trailing_comments: Vec<Value> = result
-                    .program
-                    .comments
-                    .iter()
-                    .filter(|comment| comment.span.start >= expr_end)
-                    .map(|comment| {
-                        // Adjust positions: -1 for the paren, then add offset
-                        let comment_start = offset + comment.span.start as usize - 1;
-                        let comment_end = offset + comment.span.end as usize - 1;
-
-                        // Get raw comment text
-                        let raw = &wrapped[comment.span.start as usize..comment.span.end as usize];
-                        let mut value = extract_comment_value(raw, comment.kind);
-
-                        // Normalize block comment indentation
-                        if matches!(
-                            comment.kind,
-                            oxc_ast::ast::CommentKind::SingleLineBlock
-                                | oxc_ast::ast::CommentKind::MultiLineBlock
-                        ) {
-                            value = normalize_block_comment_indentation(
-                                &value,
-                                content,
-                                comment.span.start as usize - 1,
-                            );
-                        }
-
-                        create_comment_object(
-                            comment.kind,
-                            value,
-                            comment_start,
-                            comment_end,
-                            line_offsets,
-                        )
-                    })
-                    .collect();
-
-                // Attach comments to the expression
-                if let Expression::Value(Value::Object(ref mut obj)) = expr {
-                    if !leading_comments.is_empty() {
-                        obj.insert(
-                            "leadingComments".to_string(),
-                            Value::Array(leading_comments),
-                        );
-                    }
-                    if !trailing_comments.is_empty() {
-                        obj.insert(
-                            "trailingComments".to_string(),
-                            Value::Array(trailing_comments),
-                        );
-                    }
+            if let Expression::Value(Value::Object(ref mut obj)) = expr {
+                if !leading_comments.is_empty() {
+                    obj.insert(
+                        "leadingComments".to_string(),
+                        Value::Array(leading_comments),
+                    );
+                }
+                if !trailing_comments.is_empty() {
+                    obj.insert(
+                        "trailingComments".to_string(),
+                        Value::Array(trailing_comments),
+                    );
                 }
             }
-
-            return Some(expr);
         }
+
+        return Some(expr);
     }
 
     None
@@ -331,17 +330,15 @@ pub fn parse_typescript_params(
 
     let mut params = Vec::new();
 
-    if result.errors.is_empty() {
-        if let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
+    if result.errors.is_empty()
+        && let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
             result.program.body.first()
-        {
-            if let OxcExpression::ArrowFunctionExpression(arrow) = &expr_stmt.expression {
-                for param in &arrow.params.items {
-                    // Adjust offset: -1 for the opening paren we added
-                    let param_expr = convert_formal_parameter(param, offset - 1, line_offsets);
-                    params.push(param_expr);
-                }
-            }
+        && let OxcExpression::ArrowFunctionExpression(arrow) = &expr_stmt.expression
+    {
+        for param in &arrow.params.items {
+            // Adjust offset: -1 for the opening paren we added
+            let param_expr = convert_formal_parameter(param, offset - 1, line_offsets);
+            params.push(param_expr);
         }
     }
 
@@ -375,27 +372,59 @@ fn convert_formal_parameter(
     match &param.pattern {
         BindingPattern::BindingIdentifier(id) => {
             let start = adjusted_offset + id.span.start as usize;
-            let end = adjusted_offset + id.span.end as usize;
             let name = id.name.as_str();
 
-            // TODO: OXC v0.107 moved type annotations to a different location
-            // Need to investigate where type annotations are now stored
+            // In OXC v0.107, type annotations are stored in FormalParameter, not BindingIdentifier
+            if let Some(type_ann) = &param.type_annotation {
+                let end = adjusted_offset + type_ann.span.end as usize;
+
+                let mut obj = Map::new();
+                obj.insert("type".to_string(), Value::String("Identifier".to_string()));
+                obj.insert("start".to_string(), Value::Number((start as i64).into()));
+                obj.insert("end".to_string(), Value::Number((end as i64).into()));
+                obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+                obj.insert("name".to_string(), Value::String(name.to_string()));
+
+                // Convert type annotation
+                let type_ann_obj =
+                    convert_type_annotation_adjusted(type_ann, adjusted_offset, line_offsets);
+                obj.insert("typeAnnotation".to_string(), type_ann_obj);
+
+                return Expression::Value(Value::Object(obj));
+            }
+
+            let end = adjusted_offset + id.span.end as usize;
             create_identifier(name, start, end, line_offsets)
         }
         BindingPattern::ObjectPattern(obj_pat) => {
             let start = adjusted_offset + obj_pat.span.start as usize;
-            let end = adjusted_offset + obj_pat.span.end as usize;
+            // If type annotation exists, include it in the end position
+            let end = if let Some(type_ann) = &param.type_annotation {
+                adjusted_offset + type_ann.span.end as usize
+            } else {
+                adjusted_offset + obj_pat.span.end as usize
+            };
             // For now, create a placeholder - this needs more work for full destructuring support
             create_identifier("{...}", start, end, line_offsets)
         }
         BindingPattern::ArrayPattern(arr_pat) => {
             let start = adjusted_offset + arr_pat.span.start as usize;
-            let end = adjusted_offset + arr_pat.span.end as usize;
+            // If type annotation exists, include it in the end position
+            let end = if let Some(type_ann) = &param.type_annotation {
+                adjusted_offset + type_ann.span.end as usize
+            } else {
+                adjusted_offset + arr_pat.span.end as usize
+            };
             create_identifier("[...]", start, end, line_offsets)
         }
         BindingPattern::AssignmentPattern(assign_pat) => {
             let start = adjusted_offset + assign_pat.span.start as usize;
-            let end = adjusted_offset + assign_pat.span.end as usize;
+            // If type annotation exists, include it in the end position
+            let end = if let Some(type_ann) = &param.type_annotation {
+                adjusted_offset + type_ann.span.end as usize
+            } else {
+                adjusted_offset + assign_pat.span.end as usize
+            };
             create_identifier("=...", start, end, line_offsets)
         }
     }
@@ -544,6 +573,7 @@ fn convert_ts_type_name_adjusted(
 }
 
 /// Convert oxc TSTypeAnnotation to a serde_json::Value.
+#[allow(dead_code)]
 fn convert_type_annotation(
     type_ann: &oxc_ast::ast::TSTypeAnnotation,
     offset: usize,
@@ -569,6 +599,7 @@ fn convert_type_annotation(
 }
 
 /// Convert oxc TSType to a serde_json::Value.
+#[allow(dead_code)]
 fn convert_ts_type(ts_type: &oxc_ast::ast::TSType, offset: usize, line_offsets: &[usize]) -> Value {
     use oxc_ast::ast::TSType;
 
@@ -1748,6 +1779,7 @@ fn convert_binding_pattern_for_decl(
 /// Convert a type annotation for declarations.
 /// Note: offset should be the raw document offset. This function applies -1 adjustment
 /// for the inner type because we're in paren-wrapped expression context.
+#[allow(dead_code)]
 fn convert_type_annotation_basic(
     type_ann: &oxc_ast::ast::TSTypeAnnotation,
     start: usize,
@@ -3182,36 +3214,34 @@ pub fn parse_binding_pattern(content: &str, offset: usize, line_offsets: &[usize
     let parser = OxcParser::new(&allocator, &wrapped, source_type);
     let result = parser.parse();
 
-    if result.errors.is_empty() {
-        if let Some(oxc_ast::ast::Statement::VariableDeclaration(var_decl)) =
+    if result.errors.is_empty()
+        && let Some(oxc_ast::ast::Statement::VariableDeclaration(var_decl)) =
             result.program.body.first()
-        {
-            if let Some(decl) = var_decl.declarations.first() {
-                // The pattern in wrapped string starts at position 4 (after "let ")
-                // We need to map positions: wrapped_pos - 4 + offset = document_pos
-                // So we pass offset - 4 to make the formula work: (offset - 4) + span.start = offset + (span.start - 4)
+        && let Some(decl) = var_decl.declarations.first()
+    {
+        // The pattern in wrapped string starts at position 4 (after "let ")
+        // We need to map positions: wrapped_pos - 4 + offset = document_pos
+        // So we pass offset - 4 to make the formula work: (offset - 4) + span.start = offset + (span.start - 4)
 
-                // For top-level simple identifier, use special format with character field
-                // and name before loc
-                if let oxc_ast::ast::BindingPattern::BindingIdentifier(id) = &decl.id {
-                    let start = offset + id.span.start as usize - 4;
-                    let end = offset + id.span.end as usize - 4;
-                    return Expression::Value(create_identifier_for_binding_toplevel(
-                        &id.name,
-                        start,
-                        end,
-                        line_offsets,
-                    ));
-                }
-
-                return Expression::Value(convert_binding_pattern_with_adjustment(
-                    &decl.id,
-                    offset,
-                    4,
-                    line_offsets,
-                ));
-            }
+        // For top-level simple identifier, use special format with character field
+        // and name before loc
+        if let oxc_ast::ast::BindingPattern::BindingIdentifier(id) = &decl.id {
+            let start = offset + id.span.start as usize - 4;
+            let end = offset + id.span.end as usize - 4;
+            return Expression::Value(create_identifier_for_binding_toplevel(
+                &id.name,
+                start,
+                end,
+                line_offsets,
+            ));
         }
+
+        return Expression::Value(convert_binding_pattern_with_adjustment(
+            &decl.id,
+            offset,
+            4,
+            line_offsets,
+        ));
     }
 
     // Fallback: return as simple identifier

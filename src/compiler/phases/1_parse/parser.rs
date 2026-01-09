@@ -193,10 +193,10 @@ impl<'a> Parser<'a> {
         )
         .unwrap();
 
-        if let Some(captures) = re.captures(source) {
-            if let Some(lang) = captures.get(1) {
-                return lang.as_str() == "ts";
-            }
+        if let Some(captures) = re.captures(source)
+            && let Some(lang) = captures.get(1)
+        {
+            return lang.as_str() == "ts";
         }
 
         false
@@ -417,12 +417,11 @@ impl<'a> Parser<'a> {
     /// search past the beginning, resulting in worse performance.
     pub fn match_regex(&self, pattern: &Regex) -> Option<String> {
         let remaining = &self.source[self.index..];
-        if let Some(captures) = pattern.captures(remaining) {
-            if let Some(m) = captures.get(0) {
-                if m.start() == 0 {
-                    return Some(m.as_str().to_string());
-                }
-            }
+        if let Some(captures) = pattern.captures(remaining)
+            && let Some(m) = captures.get(0)
+            && m.start() == 0
+        {
+            return Some(m.as_str().to_string());
         }
         None
     }
@@ -458,11 +457,11 @@ impl<'a> Parser<'a> {
         let start = self.index;
         let remaining = &self.source[start..];
 
-        if let Some(captures) = pattern.captures(remaining) {
-            if let Some(m) = captures.get(0) {
-                self.index = start + m.start();
-                return Ok(self.source[start..self.index].to_string());
-            }
+        if let Some(captures) = pattern.captures(remaining)
+            && let Some(m) = captures.get(0)
+        {
+            self.index = start + m.start();
+            return Ok(self.source[start..self.index].to_string());
         }
 
         self.index = self.source.len();

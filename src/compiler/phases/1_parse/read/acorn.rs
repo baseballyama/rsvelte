@@ -423,22 +423,22 @@ fn expression_to_json(expr: &oxc_ast::ast::Expression, source: &str) -> JsonValu
 
 /// Recursively adjust positions in AST JSON
 fn adjust_positions_recursive(obj: &mut Map<String, JsonValue>, offset: usize) {
-    if let Some(JsonValue::Number(start)) = obj.get("start") {
-        if let Some(start_num) = start.as_u64() {
-            obj.insert(
-                "start".to_string(),
-                JsonValue::Number((start_num as usize + offset).into()),
-            );
-        }
+    if let Some(JsonValue::Number(start)) = obj.get("start")
+        && let Some(start_num) = start.as_u64()
+    {
+        obj.insert(
+            "start".to_string(),
+            JsonValue::Number((start_num as usize + offset).into()),
+        );
     }
 
-    if let Some(JsonValue::Number(end)) = obj.get("end") {
-        if let Some(end_num) = end.as_u64() {
-            obj.insert(
-                "end".to_string(),
-                JsonValue::Number((end_num as usize + offset).into()),
-            );
-        }
+    if let Some(JsonValue::Number(end)) = obj.get("end")
+        && let Some(end_num) = end.as_u64()
+    {
+        obj.insert(
+            "end".to_string(),
+            JsonValue::Number((end_num as usize + offset).into()),
+        );
     }
 
     // Recursively process nested objects and arrays

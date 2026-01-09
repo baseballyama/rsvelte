@@ -257,11 +257,12 @@ impl FuzzySet {
         // Build results list
         let mut results: Vec<(f64, String)> = Vec::new();
         for (&index, &match_score) in &matches {
-            if let Some((item_normal, item_value)) = items.get(index) {
-                if *item_normal > 0.0 && vector_normal > 0.0 {
-                    let score = (match_score as f64) / (vector_normal * item_normal);
-                    results.push((score, item_value.clone()));
-                }
+            if let Some((item_normal, item_value)) = items.get(index)
+                && *item_normal > 0.0
+                && vector_normal > 0.0
+            {
+                let score = (match_score as f64) / (vector_normal * item_normal);
+                results.push((score, item_value.clone()));
             }
         }
 

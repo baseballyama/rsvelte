@@ -156,7 +156,7 @@ pub fn format_js_with_oxfmt(js: &str) -> String {
     let temp_file = temp_dir.join(format!("svelte_test_{}.js", timestamp));
 
     // Write JS to temp file
-    if let Err(_) = fs::write(&temp_file, js) {
+    if fs::write(&temp_file, js).is_err() {
         // Fallback to basic normalization if file write fails
         return normalize_js(js);
     }

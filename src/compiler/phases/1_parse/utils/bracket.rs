@@ -71,7 +71,8 @@ fn find_unescaped_char(string: &str, search_start_index: usize, ch: char) -> usi
             return usize::MAX;
         }
 
-        if found_index == 0 || count_leading_backslashes(string, found_index - 1) % 2 == 0 {
+        if found_index == 0 || count_leading_backslashes(string, found_index - 1).is_multiple_of(2)
+        {
             return found_index;
         }
 
@@ -208,6 +209,7 @@ pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option
 ///
 /// # Errors
 /// Returns an error if brackets are mismatched or EOF is reached
+#[allow(dead_code)]
 pub fn match_bracket(
     parser: &Parser,
     start: usize,
@@ -281,6 +283,7 @@ pub fn match_bracket(
 ///
 /// # Errors
 /// Returns an error if the string is not terminated
+#[allow(dead_code)]
 fn match_quote(parser: &Parser, start: usize, quote: char) -> ParseResult<usize> {
     let mut is_escaped = false;
     let mut i = start;

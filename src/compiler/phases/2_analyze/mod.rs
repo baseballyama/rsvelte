@@ -175,12 +175,12 @@ pub fn get_component_name(filename: &str) -> String {
     let mut name = basename.replace(".svelte", "");
 
     // If name is "index" and there's a parent dir (not "src"), use the parent dir name
-    if name == "index" {
-        if let Some(dir) = last_dir {
-            if dir != "src" && !dir.is_empty() {
-                name = dir.to_string();
-            }
-        }
+    if name == "index"
+        && let Some(dir) = last_dir
+        && dir != "src"
+        && !dir.is_empty()
+    {
+        name = dir.to_string();
     }
 
     // Capitalize first letter

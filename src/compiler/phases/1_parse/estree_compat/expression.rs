@@ -6,7 +6,7 @@ use oxc_ast::ast::Expression as OxcExpression;
 use oxc_span::GetSpan;
 use serde_json::{Map, Value};
 
-use super::utils::{create_loc, get_line_column};
+use super::utils::create_loc;
 
 /// OXC ExpressionをESTree JSON形式に変換
 ///

@@ -303,20 +303,19 @@ fn run_snapshot_tests() -> Category {
 
         // Check for unsupported options
         let config_path = sample_dir.join("_config.js");
-        if let Ok(config) = fs::read_to_string(&config_path) {
-            if config.contains("async: true")
+        if let Ok(config) = fs::read_to_string(&config_path)
+            && (config.contains("async: true")
                 || config.contains("hmr: true")
-                || config.contains("fragments:")
-            {
-                skipped += 1;
-                tests.push(TestCase {
-                    name: test_name,
-                    status: "skip".to_string(),
-                    error_message: None,
-                    skip_reason: Some("Requires unsupported compile options".to_string()),
-                });
-                continue;
-            }
+                || config.contains("fragments:"))
+        {
+            skipped += 1;
+            tests.push(TestCase {
+                name: test_name,
+                status: "skip".to_string(),
+                error_message: None,
+                skip_reason: Some("Requires unsupported compile options".to_string()),
+            });
+            continue;
         }
 
         let expected_client = sample_dir.join("_expected/client/index.svelte.js");

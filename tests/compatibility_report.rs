@@ -207,20 +207,19 @@ fn run_snapshot_tests() -> CategoryResult {
             .join(&name)
             .join("_config.js");
 
-        if let Ok(config) = fs::read_to_string(&config_path) {
-            if config.contains("async: true")
+        if let Ok(config) = fs::read_to_string(&config_path)
+            && (config.contains("async: true")
                 || config.contains("hmr: true")
-                || config.contains("fragments:")
-            {
-                result.add_sample(SampleResult {
-                    name,
-                    status: TestStatus::Skipped,
-                    error: None,
-                    skip_reason: Some("Requires unsupported compile options".to_string()),
-                    details: None,
-                });
-                continue;
-            }
+                || config.contains("fragments:"))
+        {
+            result.add_sample(SampleResult {
+                name,
+                status: TestStatus::Skipped,
+                error: None,
+                skip_reason: Some("Requires unsupported compile options".to_string()),
+                details: None,
+            });
+            continue;
         }
 
         let input = match fs::read_to_string(&input_path) {
@@ -825,17 +824,17 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
             .join(&name)
             .join("_config.js");
 
-        if let Ok(config) = fs::read_to_string(&config_path) {
-            if config.contains("async: true") || config.contains("hmr: true") {
-                result.add_sample(SampleResult {
-                    name,
-                    status: TestStatus::Skipped,
-                    error: None,
-                    skip_reason: Some("Requires unsupported compile options".to_string()),
-                    details: None,
-                });
-                continue;
-            }
+        if let Ok(config) = fs::read_to_string(&config_path)
+            && (config.contains("async: true") || config.contains("hmr: true"))
+        {
+            result.add_sample(SampleResult {
+                name,
+                status: TestStatus::Skipped,
+                error: None,
+                skip_reason: Some("Requires unsupported compile options".to_string()),
+                details: None,
+            });
+            continue;
         }
 
         let input = match fs::read_to_string(&input_path) {

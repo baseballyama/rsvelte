@@ -89,12 +89,11 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) {
             let name = attr.name.to_lowercase();
 
             // aria-props
-            if name.starts_with("aria-") {
+            if let Some(aria_type) = name.strip_prefix("aria-") {
                 if INVISIBLE_ELEMENTS.contains(&node.name.as_str()) {
                     // TODO: w.a11y_aria_attributes(attribute, node.name);
                 }
 
-                let aria_type = &name[5..];
                 if !ARIA_ATTRIBUTES.contains(&aria_type) {
                     // TODO: fuzzymatch and warning
                     // w.a11y_unknown_aria_attribute(attribute, type, match);
@@ -134,25 +133,22 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) {
                         }
 
                         // no-redundant-roles
-                        if let Some(implicit_role) = get_implicit_role(&node.name, &attribute_map) {
-                            if current_role == implicit_role
-                                && !["ul", "ol", "li"].contains(&node.name.as_str())
-                                && !(node.name == "a" && !attribute_map.contains_key("href"))
-                            {
-                                // TODO: w.a11y_no_redundant_roles(attribute, current_role);
-                            }
+                        if let Some(implicit_role) = get_implicit_role(&node.name, &attribute_map)
+                            && current_role == implicit_role
+                            && !["ul", "ol", "li"].contains(&node.name.as_str())
+                            && (node.name != "a" || attribute_map.contains_key("href"))
+                        {
+                            // TODO: w.a11y_no_redundant_roles(attribute, current_role);
                         }
 
                         // Footers and headers special case
                         let is_parent_section_or_article = is_parent(path, &["section", "article"]);
-                        if !is_parent_section_or_article {
-                            if let Some(nested_role) =
+                        if !is_parent_section_or_article
+                            && let Some(nested_role) =
                                 A11Y_NESTED_IMPLICIT_SEMANTICS.get(node.name.as_str())
-                            {
-                                if current_role == *nested_role {
-                                    // TODO: w.a11y_no_redundant_roles(attribute, current_role);
-                                }
-                            }
+                            && current_role == *nested_role
+                        {
+                            // TODO: w.a11y_no_redundant_roles(attribute, current_role);
                         }
 
                         // interactive-supports-focus
@@ -207,28 +203,22 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) {
             }
 
             // no-autofocus
-            if name == "autofocus" {
-                if node.name != "dialog" && !is_parent(path, &["dialog"]) {
-                    // TODO: w.a11y_autofocus(attribute);
-                }
+            if name == "autofocus" && node.name != "dialog" && !is_parent(path, &["dialog"]) {
+                // TODO: w.a11y_autofocus(attribute);
             }
 
             // scope
-            if name == "scope" {
-                if !is_dynamic_element && node.name != "th" {
-                    // TODO: w.a11y_misplaced_scope(attribute);
-                }
+            if name == "scope" && !is_dynamic_element && node.name != "th" {
+                // TODO: w.a11y_misplaced_scope(attribute);
             }
 
             // tabindex-no-positive
-            if name == "tabindex" {
-                if let Some(value) = get_static_value(attribute) {
-                    if let Ok(num) = value.parse::<i32>() {
-                        if num > 0 {
-                            // TODO: w.a11y_positive_tabindex(attribute);
-                        }
-                    }
-                }
+            if name == "tabindex"
+                && let Some(value) = get_static_value(attribute)
+                && let Ok(num) = value.parse::<i32>()
+                && num > 0
+            {
+                // TODO: w.a11y_positive_tabindex(attribute);
             }
         }
     }
@@ -259,27 +249,23 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) {
     // no-noninteractive-tabindex
     if !is_dynamic_element
         && !is_interactive_element(&node.name, &attribute_map)
-        && !role_static_value.map_or(false, |r| is_interactive_roles(r))
+        && !role_static_value.is_some_and(is_interactive_roles)
+        && let Some(tab_index) = attribute_map.get("tabindex")
+        && let Some(tab_index_value) = get_static_value(tab_index)
+        && let Ok(num) = tab_index_value.parse::<i32>()
+        && num >= 0
     {
-        if let Some(tab_index) = attribute_map.get("tabindex") {
-            if let Some(tab_index_value) = get_static_value(tab_index) {
-                if let Ok(num) = tab_index_value.parse::<i32>() {
-                    if num >= 0 {
-                        // TODO: w.a11y_no_noninteractive_tabindex(node);
-                    }
-                }
-            }
-        }
+        // TODO: w.a11y_no_noninteractive_tabindex(node);
     }
 
     // no-noninteractive-element-interactions
     if !has_spread
         && !has_contenteditable_attr
         && !is_hidden_from_screen_reader(&node.name, &attribute_map)
-        && role_static_value.map_or(false, |r| !is_presentation_role(r))
+        && role_static_value.is_some_and(|r| !is_presentation_role(r))
     {
         let should_check = if !is_interactive_element(&node.name, &attribute_map) {
-            role_static_value.map_or(false, |r| is_non_interactive_roles(r))
+            role_static_value.is_some_and(is_non_interactive_roles)
         } else if is_non_interactive_element(&node.name, &attribute_map) {
             role_static_value.is_none()
         } else {
@@ -300,12 +286,12 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) {
     if !has_spread
         && (role_static_value.is_none() || role_static_value.is_some())
         && !is_hidden_from_screen_reader(&node.name, &attribute_map)
-        && role_static_value.map_or(true, |r| !is_presentation_role(r))
+        && role_static_value.is_none_or(|r| !is_presentation_role(r))
         && !is_interactive_element(&node.name, &attribute_map)
-        && !role_static_value.map_or(false, |r| is_interactive_roles(r))
+        && !role_static_value.is_some_and(is_interactive_roles)
         && !is_non_interactive_element(&node.name, &attribute_map)
-        && !role_static_value.map_or(false, |r| is_non_interactive_roles(r))
-        && !role_static_value.map_or(false, |r| is_abstract_role(r))
+        && !role_static_value.is_some_and(is_non_interactive_roles)
+        && !role_static_value.is_some_and(is_abstract_role)
     {
         let interactive_handlers: Vec<_> = handlers
             .iter()
@@ -332,11 +318,11 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) {
 
     match node.name.as_str() {
         "a" | "button" => {
-            let is_hidden = attribute_map
+            let is_hidden = (attribute_map
                 .get("aria-hidden")
                 .and_then(|a| get_static_value(a))
-                .map_or(false, |v| v == "true")
-                || attribute_map.get("inert").is_some();
+                == Some("true"))
+                || attribute_map.contains_key("inert");
 
             if !has_spread && !is_hidden && !is_labelled && !has_content(node) {
                 // TODO: w.a11y_consider_explicit_label(node);
@@ -347,13 +333,12 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) {
                     .get("href")
                     .or_else(|| attribute_map.get("xlink:href"));
                 if let Some(href_attr) = href {
-                    if let Some(href_value) = get_static_value(href_attr) {
-                        if href_value.is_empty()
+                    if let Some(href_value) = get_static_value(href_attr)
+                        && (href_value.is_empty()
                             || href_value == "#"
-                            || REGEX_JS_PREFIX.is_match(href_value)
-                        {
-                            // TODO: w.a11y_invalid_attribute(href, href_value, href.name);
-                        }
+                            || REGEX_JS_PREFIX.is_match(href_value))
+                    {
+                        // TODO: w.a11y_invalid_attribute(href, href_value, href.name);
                     }
                 } else if !has_spread {
                     let id_attribute = attribute_map.get("id").and_then(|a| get_static_value(a));
@@ -387,14 +372,15 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) {
             }
         }
         "img" => {
-            if let Some(alt_attribute) = attribute_map.get("alt") {
-                if let Some(alt_value) = get_static_value(alt_attribute) {
-                    let aria_hidden = attribute_map.get("aria-hidden");
-                    if aria_hidden.is_none() && !has_spread {
-                        if REGEX_REDUNDANT_IMG_ALT.is_match(alt_value) {
-                            // TODO: w.a11y_img_redundant_alt(node);
-                        }
-                    }
+            if let Some(alt_attribute) = attribute_map.get("alt")
+                && let Some(alt_value) = get_static_value(alt_attribute)
+            {
+                let aria_hidden = attribute_map.get("aria-hidden");
+                if aria_hidden.is_none()
+                    && !has_spread
+                    && REGEX_REDUNDANT_IMG_ALT.is_match(alt_value)
+                {
+                    // TODO: w.a11y_img_redundant_alt(node);
                 }
             }
         }
@@ -407,7 +393,7 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) {
             let aria_hidden_exist = attribute_map
                 .get("aria-hidden")
                 .and_then(|a| get_static_value(a))
-                .map_or(false, |v| v == "true");
+                == Some("true");
 
             if attribute_map.contains_key("muted") || aria_hidden_exist || has_spread {
                 return;
@@ -462,24 +448,26 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) {
             let index = children.iter().position(|child| {
                 matches!(child, TemplateNode::RegularElement(el) if el.name == "figcaption")
             });
-            if let Some(idx) = index {
-                if idx != 0 && idx != children.len() - 1 {
-                    // TODO: w.a11y_figcaption_index(children[idx]);
-                }
+            if let Some(idx) = index
+                && idx != 0
+                && idx != children.len() - 1
+            {
+                // TODO: w.a11y_figcaption_index(children[idx]);
             }
         }
         _ => {}
     }
 
     // Check required attributes
-    if !has_spread && node.name != "a" {
-        if let Some(required_attributes) = A11Y_REQUIRED_ATTRIBUTES.get(node.name.as_str()) {
-            let has_attribute = required_attributes
-                .iter()
-                .any(|name| attribute_map.contains_key(*name));
-            if !has_attribute {
-                // TODO: warn_missing_attribute(node, required_attributes);
-            }
+    if !has_spread
+        && node.name != "a"
+        && let Some(required_attributes) = A11Y_REQUIRED_ATTRIBUTES.get(node.name.as_str())
+    {
+        let has_attribute = required_attributes
+            .iter()
+            .any(|name| attribute_map.contains_key(*name));
+        if !has_attribute {
+            // TODO: warn_missing_attribute(node, required_attributes);
         }
     }
 
@@ -509,12 +497,11 @@ fn is_hidden_from_screen_reader(
     tag_name: &str,
     attribute_map: &HashMap<String, &AttributeNode>,
 ) -> bool {
-    if tag_name == "input" {
-        if let Some(type_attr) = attribute_map.get("type") {
-            if get_static_value(type_attr) == Some("hidden") {
-                return true;
-            }
-        }
+    if tag_name == "input"
+        && let Some(type_attr) = attribute_map.get("type")
+        && get_static_value(type_attr) == Some("hidden")
+    {
+        return true;
     }
 
     if let Some(aria_hidden) = attribute_map.get("aria-hidden") {
@@ -528,16 +515,16 @@ fn is_hidden_from_screen_reader(
 }
 
 fn has_disabled_attribute(attribute_map: &HashMap<String, &AttributeNode>) -> bool {
-    if let Some(disabled) = attribute_map.get("disabled") {
-        if get_static_value(disabled).is_some() {
-            return true;
-        }
+    if let Some(disabled) = attribute_map.get("disabled")
+        && get_static_value(disabled).is_some()
+    {
+        return true;
     }
 
-    if let Some(aria_disabled) = attribute_map.get("aria-disabled") {
-        if get_static_value(aria_disabled) == Some("true") {
-            return true;
-        }
+    if let Some(aria_disabled) = attribute_map.get("aria-disabled")
+        && get_static_value(aria_disabled) == Some("true")
+    {
+        return true;
     }
 
     false
@@ -641,12 +628,11 @@ fn get_static_value(attribute: &AttributeNode) -> Option<&str> {
         if matches!(attr.value, AttributeValue::True(_)) {
             return Some("true");
         }
-        if let AttributeValue::Sequence(parts) = &attr.value {
-            if parts.len() == 1 {
-                if let crate::ast::template::AttributeValuePart::Text(text) = &parts[0] {
-                    return Some(&text.data);
-                }
-            }
+        if let AttributeValue::Sequence(parts) = &attr.value
+            && parts.len() == 1
+            && let crate::ast::template::AttributeValuePart::Text(text) = &parts[0]
+        {
+            return Some(&text.data);
         }
     }
     None
@@ -746,37 +732,37 @@ fn has_input_child(element: &RegularElement) -> bool {
                     if walk_fragment(&block.consequent) {
                         return true;
                     }
-                    if let Some(alt) = &block.alternate {
-                        if walk_fragment(alt) {
-                            return true;
-                        }
+                    if let Some(alt) = &block.alternate
+                        && walk_fragment(alt)
+                    {
+                        return true;
                     }
                 }
                 TemplateNode::EachBlock(block) => {
                     if walk_fragment(&block.body) {
                         return true;
                     }
-                    if let Some(fallback) = &block.fallback {
-                        if walk_fragment(fallback) {
-                            return true;
-                        }
+                    if let Some(fallback) = &block.fallback
+                        && walk_fragment(fallback)
+                    {
+                        return true;
                     }
                 }
                 TemplateNode::AwaitBlock(block) => {
-                    if let Some(pending) = &block.pending {
-                        if walk_fragment(pending) {
-                            return true;
-                        }
+                    if let Some(pending) = &block.pending
+                        && walk_fragment(pending)
+                    {
+                        return true;
                     }
-                    if let Some(then) = &block.then {
-                        if walk_fragment(then) {
-                            return true;
-                        }
+                    if let Some(then) = &block.then
+                        && walk_fragment(then)
+                    {
+                        return true;
                     }
-                    if let Some(catch) = &block.catch {
-                        if walk_fragment(catch) {
-                            return true;
-                        }
+                    if let Some(catch) = &block.catch
+                        && walk_fragment(catch)
+                    {
+                        return true;
                     }
                 }
                 _ => {}
