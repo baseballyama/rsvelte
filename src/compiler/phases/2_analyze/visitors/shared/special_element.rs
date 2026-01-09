@@ -86,3 +86,26 @@ pub fn get_allowed_attributes(name: &str) -> &'static [&'static str] {
         _ => &[],
     }
 }
+
+/// Disallow children for specific special elements.
+///
+/// Corresponds to `disallow_children` in special-element.js.
+///
+/// Some special elements like `<svelte:body>`, `<svelte:document>`, etc.
+/// cannot have children.
+///
+/// # Arguments
+///
+/// * `name` - The special element name
+/// * `fragment` - The fragment containing potential children
+pub fn disallow_children(
+    name: &str,
+    fragment: &crate::ast::template::Fragment,
+) -> Result<(), AnalysisError> {
+    if !fragment.nodes.is_empty() {
+        return Err(super::super::super::errors::svelte_meta_invalid_content(
+            name,
+        ));
+    }
+    Ok(())
+}

@@ -161,6 +161,7 @@ impl Parser<'_> {
         let mut fragment = Fragment {
             node_type: FragmentType::Fragment,
             nodes: Vec::new(),
+            ..Default::default()
         };
 
         // If not self-closing and not void, parse children
@@ -250,6 +251,7 @@ impl Parser<'_> {
                 name_loc: Some(name_loc_with_char),
                 attributes,
                 fragment,
+                metadata: Default::default(),
             }),
             ElementType::SvelteHead => TemplateNode::SvelteHead(SvelteElement {
                 start: start as u32,
@@ -1865,6 +1867,7 @@ impl Parser<'_> {
             return Ok(Fragment {
                 node_type: FragmentType::Fragment,
                 nodes,
+                ..Default::default()
             });
         }
 
@@ -1912,6 +1915,7 @@ impl Parser<'_> {
         Ok(Fragment {
             node_type: FragmentType::Fragment,
             nodes,
+            ..Default::default()
         })
     }
 }

@@ -67,17 +67,8 @@ impl Parser<'_> {
         let expr_content = &self.source[expr_start..self.index];
         self.advance(); // consume '}'
 
-        // Check for JavaScript parse errors
-        if let Some(error_message) =
-            super::super::expression::check_js_parse_error(expr_content.trim())
-        {
-            return Err(crate::error::ParseError::svelte(
-                "js_parse_error",
-                error_message,
-                (expr_start, expr_start),
-            ));
-        }
-
+        // Parse the expression directly - errors will be handled by parse_js_expression
+        // in loose mode (corresponds to Svelte's read_expression call)
         let expression = self.parse_js_expression(expr_content.trim(), expr_start);
 
         Ok(Some(TemplateNode::ExpressionTag(ExpressionTag {
@@ -227,6 +218,7 @@ impl Parser<'_> {
                     consequent: alt_consequent,
                     alternate: alt_alternate,
                 })],
+                ..Default::default()
             }))
         } else {
             // {:else}
@@ -280,7 +272,9 @@ impl Parser<'_> {
 
         let expr_end = self.index;
         let expr_content = &self.source[expr_start..expr_end].trim();
-        let expression = self.parse_js_expression(expr_content, expr_start);
+        // Use disallow_loose = true to prevent patterns like `as { y = z }` from being parsed as expressions
+        // (corresponds to Svelte's read_expression(parser, undefined, true))
+        let expression = self.parse_js_expression_internal(expr_content, expr_start, true, '{');
 
         if !found_as {
             // No "as" found - check for ", identifier" index syntax
@@ -545,7 +539,8 @@ impl Parser<'_> {
                 }
             }
             let key_content = self.source[key_start..self.index].trim();
-            key = Some(self.parse_js_expression(key_content, key_start));
+            // Use opening_token = '(' for key expressions (corresponds to Svelte's read_expression(parser, '('))
+            key = Some(self.parse_js_expression_internal(key_content, key_start, false, '('));
             self.eat(")"); // consume closing paren
         }
 
@@ -1209,11 +1204,41 @@ impl Parser<'_> {
         }
     }
 
-    /// Parse a JavaScript expression and return as Expression.
-    pub fn parse_js_expression(&self, content: &str, offset: usize) -> Expression {
+    /// Parse a JavaScript expression and return as Expression (internal version).
+    ///
+    /// Corresponds to calling `read_expression(parser)` in Svelte.
+    ///
+    /// # Arguments
+    /// * `content` - The expression string to parse
+    /// * `offset` - Byte offset in the source
+    /// * `disallow_loose` - Whether to disallow loose mode even if enabled
+    /// * `opening_token` - The opening bracket token (default: '{')
+    pub fn parse_js_expression_internal(
+        &self,
+        content: &str,
+        offset: usize,
+        disallow_loose: bool,
+        opening_token: char,
+    ) -> Expression {
         // Adjust offset for leading whitespace that gets trimmed
         let leading_ws = content.len() - content.trim_start().len();
         let trimmed = content.trim();
-        super::super::expression::parse_expression(trimmed, offset + leading_ws, &self.line_offsets)
+        super::super::expression::parse_expression(
+            trimmed,
+            offset + leading_ws,
+            &self.line_offsets,
+            self.source,
+            self.options.loose,
+            disallow_loose,
+            opening_token,
+        )
+    }
+
+    /// Parse a JavaScript expression and return as Expression.
+    ///
+    /// Convenience wrapper that calls `parse_js_expression_internal` with `disallow_loose = false`
+    /// and `opening_token = '{'`.
+    pub fn parse_js_expression(&self, content: &str, offset: usize) -> Expression {
+        self.parse_js_expression_internal(content, offset, false, '{')
     }
 }

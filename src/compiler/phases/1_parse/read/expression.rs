@@ -26,6 +26,7 @@ use oxc_span::{GetSpan, SourceType};
 use serde_json::{Map, Value};
 
 use crate::ast::js::Expression;
+use crate::compiler::phases::phase1_parse::utils::find_matching_bracket;
 
 // ============================================================================
 // Comment handling utilities
@@ -121,13 +122,77 @@ fn extract_comment_value(raw: &str, kind: oxc_ast::ast::CommentKind) -> String {
     }
 }
 
+/// Get a loose identifier when expression parsing fails.
+///
+/// This corresponds to `get_loose_identifier` in Svelte's `read/expression.js`.
+/// Finds the next closing bracket and returns an empty identifier spanning that range.
+///
+/// # Arguments
+/// * `template` - The full template string
+/// * `start` - Start position (after the opening bracket)
+/// * `opening_token` - The opening token (e.g., '{')
+///
+/// # Returns
+/// An empty `Identifier` node if a matching bracket is found, otherwise `None`.
+fn get_loose_identifier(template: &str, start: usize, opening_token: char) -> Option<Expression> {
+    // Find the next closing bracket and treat it as the end of the expression
+    if let Some(end) = find_matching_bracket(template, start, opening_token) {
+        // We don't know what the expression is and signal this by returning an empty identifier
+        let mut obj = Map::new();
+        obj.insert("type".to_string(), Value::String("Identifier".to_string()));
+        obj.insert("start".to_string(), Value::Number((start as i64).into()));
+        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+        obj.insert("name".to_string(), Value::String("".to_string()));
+
+        // Note: Svelte's get_loose_identifier does NOT include a 'loc' field
+        // (see svelte/packages/svelte/src/compiler/phases/1-parse/read/expression.js:20-25)
+
+        return Some(Expression::Value(Value::Object(obj)));
+    }
+    None
+}
+
 /// Parse a JavaScript expression and return it as an Expression.
-pub fn parse_expression(content: &str, offset: usize, line_offsets: &[usize]) -> Expression {
+///
+/// This corresponds to `read_expression` (default export) in Svelte's `read/expression.js`.
+///
+/// # Arguments
+/// * `content` - The expression string to parse
+/// * `offset` - Byte offset in the source
+/// * `line_offsets` - Line offsets for location calculation
+/// * `template` - The full template string (for loose mode bracket matching)
+/// * `loose` - Whether to use loose mode (allow invalid expressions)
+/// * `disallow_loose` - Whether to disallow loose mode even if `loose` is true
+/// * `opening_token` - The opening bracket token (default: '{')
+///
+/// # Returns
+/// A parsed `Expression` or an empty identifier in loose mode.
+pub fn parse_expression(
+    content: &str,
+    offset: usize,
+    line_offsets: &[usize],
+    template: &str,
+    loose: bool,
+    disallow_loose: bool,
+    opening_token: char,
+) -> Expression {
     // Try TypeScript first, then fall back to JavaScript
-    parse_expression_with_typescript(content, offset, line_offsets, true).unwrap_or_else(|| {
-        parse_expression_with_typescript(content, offset, line_offsets, false)
-            .unwrap_or_else(|| create_invalid_identifier(offset, offset + content.len()))
-    })
+    let result = parse_expression_with_typescript(content, offset, line_offsets, true)
+        .or_else(|| parse_expression_with_typescript(content, offset, line_offsets, false));
+
+    if let Some(expr) = result {
+        return expr;
+    }
+
+    // If parsing failed and we're in loose mode (and not disallowed), try loose identifier
+    if loose && !disallow_loose {
+        if let Some(loose_expr) = get_loose_identifier(template, offset, opening_token) {
+            return loose_expr;
+        }
+    }
+
+    // Fall back to invalid identifier
+    create_invalid_identifier(offset, offset + content.len(), line_offsets)
 }
 
 /// Check if JavaScript expression has parse errors. Returns Some(error_message) if there is an error.
@@ -162,13 +227,16 @@ pub fn check_js_parse_error(content: &str) -> Option<String> {
         .or_else(|| result.errors.first().map(|e| e.message.to_string()))
 }
 
-/// Create an identifier for invalid expressions (no name, no loc)
-fn create_invalid_identifier(start: usize, end: usize) -> Expression {
+/// Create an identifier for invalid expressions
+fn create_invalid_identifier(start: usize, end: usize, _line_offsets: &[usize]) -> Expression {
     let mut obj = Map::new();
     obj.insert("type".to_string(), Value::String("Identifier".to_string()));
     obj.insert("start".to_string(), Value::Number((start as i64).into()));
     obj.insert("end".to_string(), Value::Number((end as i64).into()));
     obj.insert("name".to_string(), Value::String("".to_string()));
+
+    // Note: Similar to get_loose_identifier, invalid identifiers don't include 'loc'
+
     Expression::Value(Value::Object(obj))
 }
 

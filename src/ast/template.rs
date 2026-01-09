@@ -47,12 +47,30 @@ pub enum RootType {
 // Fragment
 // =============================================================================
 
+/// Metadata for fragments.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct FragmentMetadata {
+    /// Whether the fragment's scope is transparent (delegates to parent scopes).
+    #[serde(default)]
+    pub transparent: bool,
+    /// Whether we need to traverse into the fragment during mount/hydrate.
+    #[serde(default)]
+    pub dynamic: bool,
+}
+
 /// A fragment is a container for template nodes.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Fragment {
     #[serde(rename = "type")]
     pub node_type: FragmentType,
     pub nodes: Vec<TemplateNode>,
+    /// Fragment metadata (used internally during analysis).
+    #[serde(default, skip_serializing_if = "is_default_metadata")]
+    pub metadata: FragmentMetadata,
+}
+
+fn is_default_metadata(metadata: &FragmentMetadata) -> bool {
+    !metadata.transparent && !metadata.dynamic
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -298,6 +316,9 @@ pub struct Component {
     pub name_loc: Option<SourceLocation>,
     pub attributes: Vec<Attribute>,
     pub fragment: Fragment,
+    /// Metadata populated during analysis (Phase 2)
+    #[serde(skip)]
+    pub metadata: ComponentNodeMetadata,
 }
 
 /// A title element.
@@ -816,4 +837,15 @@ pub struct CustomElementOptions {
 pub enum ShadowMode {
     Open,
     None,
+}
+
+// =============================================================================
+// Component Metadata (populated during analysis)
+// =============================================================================
+
+/// Metadata for Component nodes, populated during Phase 2 analysis.
+#[derive(Debug, Clone, Default)]
+pub struct ComponentNodeMetadata {
+    /// Whether this is a dynamic component (e.g., <svelte:component>)
+    pub dynamic: bool,
 }

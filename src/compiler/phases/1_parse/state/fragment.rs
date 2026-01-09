@@ -263,6 +263,7 @@ impl Parser<'_> {
         Ok(Fragment {
             node_type: FragmentType::Fragment,
             nodes,
+            ..Default::default()
         })
     }
 

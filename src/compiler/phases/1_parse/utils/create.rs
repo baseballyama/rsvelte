@@ -6,7 +6,7 @@
 //!
 //! It provides factory functions for creating AST nodes with sensible defaults.
 
-use crate::ast::template::{Fragment, FragmentType};
+use crate::ast::template::{Fragment, FragmentMetadata, FragmentType};
 
 /// Create a new Fragment with metadata.
 ///
@@ -25,13 +25,14 @@ use crate::ast::template::{Fragment, FragmentType};
 /// ```
 #[inline]
 #[allow(dead_code)]
-pub fn create_fragment(_transparent: bool) -> Fragment {
+pub fn create_fragment(transparent: bool) -> Fragment {
     Fragment {
         node_type: FragmentType::Fragment,
         nodes: Vec::new(),
-        // Note: The JS version has metadata: { transparent, dynamic: false }
-        // but our Rust Fragment struct doesn't have a metadata field yet.
-        // This will need to be added to match the JS implementation exactly.
+        metadata: FragmentMetadata {
+            transparent,
+            dynamic: false,
+        },
     }
 }
 
@@ -54,6 +55,7 @@ pub fn create_fragment_with_node(node: crate::ast::template::TemplateNode) -> Fr
     Fragment {
         node_type: FragmentType::Fragment,
         nodes: vec![node],
+        metadata: FragmentMetadata::default(),
     }
 }
 

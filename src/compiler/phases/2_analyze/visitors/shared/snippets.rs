@@ -4,7 +4,7 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/shared/snippets.js`.
 
-use super::super::super::AnalysisError;
+use super::super::super::{AnalysisError, Binding, BindingKind, DeclarationKind};
 use super::super::VisitorContext;
 use crate::ast::template::SnippetBlock;
 
@@ -58,4 +58,54 @@ pub fn get_parameter_names(snippet: &SnippetBlock) -> Vec<String> {
                 .map(String::from)
         })
         .collect()
+}
+
+/// Returns `true` if a binding unambiguously resolves to a specific
+/// snippet declaration, or is external to the current component.
+///
+/// Corresponds to `is_resolved_snippet` in snippets.js.
+///
+/// # Arguments
+///
+/// * `binding` - The binding to check (can be None)
+///
+/// # Returns
+///
+/// Returns `true` if:
+/// - The binding is None (external to component)
+/// - The binding is an import
+/// - The binding is a prop, rest_prop, or bindable_prop
+/// - The binding's initial value is a SnippetBlock
+pub fn is_resolved_snippet(binding: Option<&Binding>) -> bool {
+    match binding {
+        None => true, // External to component
+        Some(binding) => {
+            // Check if it's an import
+            if binding.declaration_kind == DeclarationKind::Import {
+                return true;
+            }
+
+            // Check if it's a prop type
+            if matches!(
+                binding.kind,
+                BindingKind::Prop | BindingKind::RestProp | BindingKind::BindableProp
+            ) {
+                return true;
+            }
+
+            // Check if the initial value is a snippet block
+            // In the original JS: binding?.initial?.type === 'SnippetBlock'
+            // Since we store initial as Option<String>, we need to check differently
+            // For now, we can check if the binding kind is SnippetParam
+            // TODO: Improve this by properly tracking snippet declarations
+            if let Some(initial) = &binding.initial {
+                // Check if the initial value indicates a snippet
+                // This is a simplified check - ideally we'd parse the initial value
+                let initial_str: &str = initial;
+                return initial_str.contains("SnippetBlock");
+            }
+
+            false
+        }
+    }
 }

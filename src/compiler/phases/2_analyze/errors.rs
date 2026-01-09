@@ -270,3 +270,70 @@ pub fn not_implemented(feature: &str) -> AnalysisError {
         format!("`{}` is not yet implemented", feature),
     )
 }
+
+// Assignment-related errors
+
+/// Cannot reassign or bind to each block item
+pub fn each_item_invalid_assignment() -> AnalysisError {
+    error(
+        "each_item_invalid_assignment",
+        "Cannot reassign or bind to each block item",
+    )
+}
+
+/// Cannot reassign or bind to snippet parameter
+pub fn snippet_parameter_assignment() -> AnalysisError {
+    error(
+        "snippet_parameter_assignment",
+        "Cannot reassign or bind to snippet parameter",
+    )
+}
+
+/// Cannot assign to %thing% before initialization
+pub fn state_field_invalid_assignment() -> AnalysisError {
+    error(
+        "state_field_invalid_assignment",
+        "Cannot assign to state field before initialization in constructor",
+    )
+}
+
+// Block-related errors
+
+/// %block% must start with {%expected%
+pub fn block_unexpected_character(expected: &str) -> AnalysisError {
+    error(
+        "block_unexpected_character",
+        format!("Block must start with {{{}", expected),
+    )
+}
+
+// Identifier-related errors
+
+/// `$` is an invalid variable name
+pub fn dollar_binding_invalid() -> AnalysisError {
+    error("dollar_binding_invalid", "`$` is an invalid variable name")
+}
+
+/// Variable name cannot start with `$` (this is reserved for Svelte internals)
+pub fn dollar_prefix_invalid() -> AnalysisError {
+    error(
+        "dollar_prefix_invalid",
+        "Variable name cannot start with `$` (this is reserved for Svelte internals)",
+    )
+}
+
+/// Cannot export reassigned state
+pub fn state_invalid_export() -> AnalysisError {
+    error(
+        "state_invalid_export",
+        "Cannot export reassigned state from a module. To expose the current state value, export a function returning its value",
+    )
+}
+
+/// %name% cannot have children
+pub fn svelte_meta_invalid_content(name: &str) -> AnalysisError {
+    error(
+        "svelte_meta_invalid_content",
+        format!("`<{}>` cannot have children", name),
+    )
+}
