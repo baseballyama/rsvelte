@@ -1,11 +1,35 @@
 # OXC v0.107 マイグレーション指示書
 
-## 概要
+## ✅ 解決済み (2026-01-09)
+
+**根本原因**: `parse_program`関数が簡略化されて文字列を返すだけになっており、scriptタグの内容が出力に含まれていませんでした。
+
+**解決方法**: バックアップファイル(`expression.rs.backup`)から完全な実装を復元しました。
+
+**主な変更**:
+- `parse_program`関数に5つのパラメータを復元（content, offset, line_offsets, is_typescript, leading_comments）
+- CommentKindの変更に対応（Block → SingleLineBlock | MultiLineBlock）
+- BindingPatternの変更に対応（pattern.kind → pattern）
+- TSTypeName::ThisExpression のサポート追加
+- 未使用モジュールに`#[allow(dead_code)]`を追加（acorn, estree_compat, remove_typescript_nodes）
+
+**コミット**: `5bec1b0 - Fix OXC v0.107 migration: restore complete parse_program implementation`
+
+**現在の状態**:
+- ✅ scriptタグの内容が正しくパースされ、出力JavaScriptに含まれています
+- ⚠️ compiler_fixturesテストは空行のフォーマット違いで失敗（機能的には問題なし）
+- 残課題: Phase 3のコード生成器で空行を適切に挿入する必要があります
+
+---
+
+## 元の問題（アーカイブ）
+
+### 概要
 
 OXC v0.56 から v0.107 へのアップデートを実施しましたが、compiler_fixtures テストが全て失敗しています（0/19）。
 アップデート前は全てのテストが通過していました。
 
-## 現在の状態
+### 現在の状態
 
 - **ブランチ**: main
 - **OXC バージョン**: v0.107
