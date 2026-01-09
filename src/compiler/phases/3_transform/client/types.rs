@@ -317,7 +317,19 @@ pub struct IdentifierTransform {
     pub read: Option<fn(JsExpr) -> JsExpr>,
 
     /// How to assign to the identifier
-    pub assign: Option<fn(JsExpr, JsExpr) -> JsExpr>,
+    ///
+    /// Parameters:
+    /// - identifier: The identifier being assigned to
+    /// - value: The value being assigned
+    /// - needs_proxy: Whether the value needs to be proxified
+    pub assign: Option<fn(JsExpr, JsExpr, bool) -> JsExpr>,
+
+    /// How to handle mutations to the identifier
+    ///
+    /// Parameters:
+    /// - identifier: The identifier being mutated
+    /// - mutation_expr: The mutation expression (e.g., `obj.prop = value`)
+    pub mutate: Option<fn(JsExpr, JsExpr) -> JsExpr>,
 }
 
 /// Component metadata.

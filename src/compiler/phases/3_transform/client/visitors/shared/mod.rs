@@ -6,6 +6,7 @@
 //!
 //! # Submodules
 //!
+//! - `assignment_helpers.rs` - Assignment expression helper functions
 //! - `component.rs` - Component instantiation utilities
 //! - `element.rs` - Element attribute/property handling
 //! - `events.rs` - Event handler utilities
@@ -22,6 +23,7 @@
 //! effects, handling bindings, and processing children should be
 //! implemented here.
 
+pub mod assignment_helpers;
 pub mod component;
 pub mod element;
 pub mod events;
