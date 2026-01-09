@@ -269,11 +269,11 @@ cargo test --test css -- --nocapture
 npm run compatibility-report
 ```
 
-**Current status (2026-01-08):**
+**Current status (2026-01-09):**
 
 | Test Suite | Passing | Total | Status |
 |------------|---------|-------|--------|
-| Parser Modern | 20 | 22 | ✅ 90.9% |
+| Parser Modern | 18 | 22 | ⚠️ 81.8% |
 | Parser Legacy | 82 | 82 | ✅ 100% |
 | Compiler Snapshot | 16 | 17 | ✅ 94.1% |
 | CSS | 110 | 177 | ⚠️ 62.1% |
@@ -288,9 +288,17 @@ npm run compatibility-report
 | Print | 0 | 39 | ⏸️ Not implemented |
 | Migrate | 0 | 76 | ⏸️ Not implemented |
 
-**Overall: 330/2830 tests passed (11.7%)**
+**Overall: 326/2830 tests passed (11.5%)**
 
 **Test output must match JavaScript compiler exactly** (formatting differences are normalized).
+
+**Parser Modern remaining failures (4/22):**
+- `loose-invalid-expression` - Invalid JS expressions (e.g., `a.`, `x.`)
+- `loose-unclosed-tag` - Unclosed tags at EOF
+- `loose-unclosed-open-tag` - Unclosed opening tags at EOF
+- `comment-before-script` - Comment positioning/ordering
+
+See [NEXT_STEPS.md](./NEXT_STEPS.md) for detailed instructions on fixing these issues.
 
 ## Next Steps (Priority Order)
 
