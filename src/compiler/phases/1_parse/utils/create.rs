@@ -6,48 +6,48 @@
 //!
 //! It provides factory functions for creating AST nodes with sensible defaults.
 
-// Allow dead code for library functions that will be used as the parser is extended
-#![allow(dead_code)]
+use crate::ast::template::{Fragment, FragmentType};
 
-use crate::ast::template::{Fragment, FragmentType, TemplateNode};
-
-/// Create a new Fragment with the given nodes.
+/// Create a new Fragment with metadata.
+///
+/// Corresponds to JavaScript's `create_fragment(transparent = false)`.
 ///
 /// # Arguments
-/// * `nodes` - The child nodes of the fragment
+/// * `transparent` - Whether the fragment is transparent (default: false)
+///
+/// # Returns
+/// A new Fragment with empty nodes and the specified metadata
 ///
 /// # Example
 /// ```ignore
-/// let fragment = create_fragment(vec![
-///     TemplateNode::Text(Text { ... }),
-///     TemplateNode::Element(Element { ... }),
-/// ]);
+/// let fragment = create_fragment(false);
+/// assert_eq!(fragment.nodes.len(), 0);
 /// ```
 #[inline]
-pub fn create_fragment(nodes: Vec<TemplateNode>) -> Fragment {
-    Fragment {
-        node_type: FragmentType::Fragment,
-        nodes,
-    }
-}
-
-/// Create an empty Fragment.
-///
-/// This is useful when initializing a fragment that will be populated later.
-#[inline]
-pub fn create_empty_fragment() -> Fragment {
+pub fn create_fragment(_transparent: bool) -> Fragment {
     Fragment {
         node_type: FragmentType::Fragment,
         nodes: Vec::new(),
+        // Note: The JS version has metadata: { transparent, dynamic: false }
+        // but our Rust Fragment struct doesn't have a metadata field yet.
+        // This will need to be added to match the JS implementation exactly.
     }
 }
 
-/// Create a Fragment with a single node.
-///
-/// # Arguments
-/// * `node` - The single child node
+// Note: The following functions are kept for backward compatibility
+// with existing Rust code, but they don't correspond to the JS implementation.
+
+/// Create an empty Fragment (backward compatibility).
 #[inline]
-pub fn create_fragment_with_node(node: TemplateNode) -> Fragment {
+pub fn create_empty_fragment() -> Fragment {
+    create_fragment(false)
+}
+
+/// Create a Fragment with a single node (backward compatibility).
+///
+/// Note: This doesn't exist in the JS version.
+#[inline]
+pub fn create_fragment_with_node(node: crate::ast::template::TemplateNode) -> Fragment {
     Fragment {
         node_type: FragmentType::Fragment,
         nodes: vec![node],
@@ -57,21 +57,19 @@ pub fn create_fragment_with_node(node: TemplateNode) -> Fragment {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::template::Text;
-    use compact_str::CompactString;
 
     #[test]
     fn test_create_fragment() {
-        let text = TemplateNode::Text(Text {
-            start: 0,
-            end: 5,
-            raw: CompactString::from("hello"),
-            data: CompactString::from("hello"),
-        });
-
-        let fragment = create_fragment(vec![text]);
+        let fragment = create_fragment(false);
         assert_eq!(fragment.node_type, FragmentType::Fragment);
-        assert_eq!(fragment.nodes.len(), 1);
+        assert!(fragment.nodes.is_empty());
+    }
+
+    #[test]
+    fn test_create_fragment_transparent() {
+        let fragment = create_fragment(true);
+        assert_eq!(fragment.node_type, FragmentType::Fragment);
+        assert!(fragment.nodes.is_empty());
     }
 
     #[test]
@@ -79,19 +77,5 @@ mod tests {
         let fragment = create_empty_fragment();
         assert_eq!(fragment.node_type, FragmentType::Fragment);
         assert!(fragment.nodes.is_empty());
-    }
-
-    #[test]
-    fn test_create_fragment_with_node() {
-        let text = TemplateNode::Text(Text {
-            start: 0,
-            end: 5,
-            raw: CompactString::from("hello"),
-            data: CompactString::from("hello"),
-        });
-
-        let fragment = create_fragment_with_node(text);
-        assert_eq!(fragment.node_type, FragmentType::Fragment);
-        assert_eq!(fragment.nodes.len(), 1);
     }
 }

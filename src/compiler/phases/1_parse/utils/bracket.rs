@@ -3,398 +3,315 @@
 //! # Svelte Compiler Correspondence
 //!
 //! This module corresponds to `svelte/packages/svelte/src/compiler/phases/1-parse/utils/bracket.js`
-//!
-//! It provides utilities for:
-//! - Finding matching brackets (parentheses, braces, square brackets)
-//! - Skipping over quoted strings and template literals
-//! - Tracking bracket depth while parsing
 
-// Allow dead code for library functions that will be used as the parser is extended
-#![allow(dead_code)]
+use crate::error::{ParseError, ParseResult};
+use std::collections::HashMap;
 
-/// Character types for bracket matching
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BracketType {
-    /// Round parenthesis: ( )
-    Paren,
-    /// Curly brace: { }
-    Brace,
-    /// Square bracket: [ ]
-    Square,
-}
+use super::super::parser::Parser;
 
-impl BracketType {
-    /// Get the opening character for this bracket type
-    #[inline]
-    pub fn open_char(self) -> char {
-        match self {
-            BracketType::Paren => '(',
-            BracketType::Brace => '{',
-            BracketType::Square => '[',
-        }
-    }
-
-    /// Get the closing character for this bracket type
-    #[inline]
-    pub fn close_char(self) -> char {
-        match self {
-            BracketType::Paren => ')',
-            BracketType::Brace => '}',
-            BracketType::Square => ']',
-        }
-    }
-
-    /// Create a BracketType from an opening character
-    pub fn from_open_char(c: char) -> Option<Self> {
-        match c {
-            '(' => Some(BracketType::Paren),
-            '{' => Some(BracketType::Brace),
-            '[' => Some(BracketType::Square),
-            _ => None,
-        }
-    }
-
-    /// Create a BracketType from a closing character
-    pub fn from_close_char(c: char) -> Option<Self> {
-        match c {
-            ')' => Some(BracketType::Paren),
-            '}' => Some(BracketType::Brace),
-            ']' => Some(BracketType::Square),
-            _ => None,
-        }
-    }
-}
-
-/// Check if a character is an opening bracket
-#[inline]
-pub fn is_opening_bracket(c: char) -> bool {
-    matches!(c, '(' | '{' | '[')
-}
-
-/// Check if a character is a closing bracket
-#[inline]
-pub fn is_closing_bracket(c: char) -> bool {
-    matches!(c, ')' | '}' | ']')
-}
-
-/// Check if a character is a quote character
-#[inline]
-pub fn is_quote(c: char) -> bool {
-    matches!(c, '\'' | '"' | '`')
-}
-
-/// Find the position of the matching closing bracket.
+/// Returns `usize::MAX` if `num` is negative, else `num` as usize.
 ///
-/// This function handles nested brackets and properly skips over
-/// string literals and template literals.
+/// Corresponds to JS `Infinity` when negative.
+#[inline]
+fn infinity_if_negative(num: i32) -> usize {
+    if num < 0 { usize::MAX } else { num as usize }
+}
+
+/// Find the end of a string expression.
 ///
 /// # Arguments
-/// * `source` - The source string
-/// * `start` - The position of the opening bracket
+/// * `string` - The string to search
+/// * `search_start_index` - The index to start searching at
+/// * `string_start_char` - The character that started this string (`'`, `"`, or `` ` ``)
 ///
 /// # Returns
-/// The position of the matching closing bracket, or None if not found
-pub fn find_matching_bracket(source: &str, start: usize) -> Option<usize> {
-    let bytes = source.as_bytes();
-    if start >= bytes.len() {
-        return None;
+/// The index of the end of this string expression, or `usize::MAX` if not found
+fn find_string_end(string: &str, search_start_index: usize, string_start_char: char) -> usize {
+    let string_to_search = if string_start_char == '`' {
+        string
+    } else {
+        // we could slice at the search start index, but this way the index remains valid
+        let newline_pos = string[search_start_index..]
+            .find('\n')
+            .map(|p| search_start_index + p)
+            .unwrap_or(-1i32 as usize); // Will become usize::MAX
+        &string[0..infinity_if_negative(newline_pos as i32)]
+    };
+
+    find_unescaped_char(string_to_search, search_start_index, string_start_char)
+}
+
+/// Find the end of a regex expression.
+///
+/// # Arguments
+/// * `string` - The string to search
+/// * `search_start_index` - The index to start searching at
+///
+/// # Returns
+/// The index of the end of this regex expression, or `usize::MAX` if not found
+fn find_regex_end(string: &str, search_start_index: usize) -> usize {
+    find_unescaped_char(string, search_start_index, '/')
+}
+
+/// Find the first unescaped instance of a character.
+///
+/// # Arguments
+/// * `string` - The string to search
+/// * `search_start_index` - The index to begin the search at
+/// * `char` - The character to search for
+///
+/// # Returns
+/// The index of the first unescaped instance of `char`, or `usize::MAX` if not found
+fn find_unescaped_char(string: &str, search_start_index: usize, ch: char) -> usize {
+    let mut i = search_start_index;
+    loop {
+        let found_index = string[i..].find(ch).map(|p| i + p).unwrap_or(usize::MAX);
+
+        if found_index == usize::MAX {
+            return usize::MAX;
+        }
+
+        if found_index == 0 || count_leading_backslashes(string, found_index - 1) % 2 == 0 {
+            return found_index;
+        }
+
+        i = found_index + 1;
+    }
+}
+
+/// Count consecutive leading backslashes before `search_start_index`.
+///
+/// # Example
+/// ```
+/// // count_leading_backslashes("\\\\\\foo", 2) == 3
+/// // (the backslashes have to be escaped in the string literal)
+/// ```
+///
+/// # Arguments
+/// * `string` - The string to search
+/// * `search_start_index` - The index to begin the search at (searching backwards)
+fn count_leading_backslashes(string: &str, search_start_index: usize) -> usize {
+    let bytes = string.as_bytes();
+    let mut i = search_start_index;
+    let mut count = 0;
+
+    while i < bytes.len() && bytes[i] == b'\\' {
+        count += 1;
+        if i == 0 {
+            break;
+        }
+        i = i.wrapping_sub(1);
     }
 
-    let open_char = bytes[start] as char;
-    let bracket_type = BracketType::from_open_char(open_char)?;
-    let close_char = bracket_type.close_char();
+    count
+}
 
-    let mut depth = 1;
-    let mut i = start + 1;
+/// Finds the corresponding closing bracket, ignoring brackets found inside comments,
+/// strings, or regex expressions.
+///
+/// # Arguments
+/// * `template` - The string to search
+/// * `index` - The index to begin the search at (after the opening bracket)
+/// * `open` - The opening bracket (e.g., `'{'` will search for `'}'`)
+///
+/// # Returns
+/// The index of the closing bracket, or `None` if not found
+pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option<usize> {
+    let default_brackets: HashMap<char, char> = [('{', '}'), ('(', ')'), ('[', ']')]
+        .iter()
+        .cloned()
+        .collect();
 
-    while i < bytes.len() && depth > 0 {
-        let c = bytes[i] as char;
+    let close = default_brackets.get(&open)?;
+    let mut brackets = 1;
+    let mut i = index;
+    let bytes = template.as_bytes();
 
-        // Skip string literals
-        if c == '\'' || c == '"' {
-            i = skip_string_literal(source, i)?;
-            continue;
-        }
+    while brackets > 0 && i < template.len() {
+        let ch = bytes[i] as char;
 
-        // Skip template literals
-        if c == '`' {
-            i = skip_template_literal(source, i)?;
-            continue;
-        }
-
-        // Skip comments
-        if c == '/' && i + 1 < bytes.len() {
-            let next = bytes[i + 1] as char;
-            if next == '/' {
-                // Line comment - skip to end of line
-                i += 2;
-                while i < bytes.len() && bytes[i] != b'\n' {
+        match ch {
+            '\'' | '"' | '`' => {
+                i = find_string_end(template, i + 1, ch);
+                if i == usize::MAX {
+                    i = template.len();
+                } else {
                     i += 1;
-                }
-                if i < bytes.len() {
-                    i += 1; // skip newline
-                }
-                continue;
-            } else if next == '*' {
-                // Block comment - skip to */
-                i += 2;
-                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
-                    i += 1;
-                }
-                if i + 1 < bytes.len() {
-                    i += 2; // skip */
                 }
                 continue;
             }
-        }
-
-        if c == open_char {
-            depth += 1;
-        } else if c == close_char {
-            depth -= 1;
-            if depth == 0 {
-                return Some(i);
-            }
-        }
-
-        i += 1;
-    }
-
-    None
-}
-
-/// Skip over a string literal (single or double quoted).
-///
-/// # Arguments
-/// * `source` - The source string
-/// * `start` - The position of the opening quote
-///
-/// # Returns
-/// The position after the closing quote, or None if not found
-pub fn skip_string_literal(source: &str, start: usize) -> Option<usize> {
-    let bytes = source.as_bytes();
-    if start >= bytes.len() {
-        return None;
-    }
-
-    let quote = bytes[start];
-    if quote != b'\'' && quote != b'"' {
-        return None;
-    }
-
-    let mut i = start + 1;
-    while i < bytes.len() {
-        let c = bytes[i];
-        if c == quote {
-            return Some(i + 1); // Position after closing quote
-        }
-        if c == b'\\' && i + 1 < bytes.len() {
-            i += 2; // Skip escape sequence
-        } else {
-            i += 1;
-        }
-    }
-
-    None // Unclosed string
-}
-
-/// Skip over a template literal (backtick quoted).
-///
-/// This properly handles nested template expressions `${...}`.
-///
-/// # Arguments
-/// * `source` - The source string
-/// * `start` - The position of the opening backtick
-///
-/// # Returns
-/// The position after the closing backtick, or None if not found
-pub fn skip_template_literal(source: &str, start: usize) -> Option<usize> {
-    let bytes = source.as_bytes();
-    if start >= bytes.len() || bytes[start] != b'`' {
-        return None;
-    }
-
-    let mut i = start + 1;
-    while i < bytes.len() {
-        let c = bytes[i];
-
-        if c == b'`' {
-            return Some(i + 1); // Position after closing backtick
-        }
-
-        if c == b'\\' && i + 1 < bytes.len() {
-            i += 2; // Skip escape sequence
-            continue;
-        }
-
-        // Handle template expression ${...}
-        if c == b'$' && i + 1 < bytes.len() && bytes[i + 1] == b'{' {
-            i += 2; // Skip ${
-            let mut expr_depth = 1;
-
-            while i < bytes.len() && expr_depth > 0 {
-                let ec = bytes[i];
-
-                if ec == b'\\' && i + 1 < bytes.len() {
-                    i += 2;
+            '/' => {
+                if i + 1 >= template.len() {
+                    i += 1;
                     continue;
                 }
 
-                // Handle strings inside template expression
-                if ec == b'\'' || ec == b'"' {
-                    if let Some(end) = skip_string_literal(source, i) {
-                        i = end;
-                        continue;
-                    }
+                let next_char = bytes[i + 1] as char;
+
+                if next_char == '/' {
+                    // Line comment
+                    let newline_pos = template[i + 1..]
+                        .find('\n')
+                        .map(|p| i + 1 + p)
+                        .unwrap_or(-1i32 as usize);
+                    i = infinity_if_negative(newline_pos as i32) + "\n".len();
+                    continue;
                 }
 
-                // Handle nested template literals
-                if ec == b'`' {
-                    if let Some(end) = skip_template_literal(source, i) {
-                        i = end;
-                        continue;
-                    }
+                if next_char == '*' {
+                    // Block comment
+                    let end_pos = template[i + 1..]
+                        .find("*/")
+                        .map(|p| i + 1 + p)
+                        .unwrap_or(-1i32 as usize);
+                    i = infinity_if_negative(end_pos as i32) + "*/".len();
+                    continue;
                 }
 
-                if ec == b'{' {
-                    expr_depth += 1;
-                } else if ec == b'}' {
-                    expr_depth -= 1;
+                // Regex
+                i = find_regex_end(template, i + 1);
+                if i == usize::MAX {
+                    i = template.len();
+                } else {
+                    i += "/".len();
                 }
-
-                if expr_depth > 0 {
-                    i += 1;
-                }
-            }
-
-            if i < bytes.len() {
-                i += 1; // Skip closing }
-            }
-            continue;
-        }
-
-        i += 1;
-    }
-
-    None // Unclosed template literal
-}
-
-/// Find the end of an expression, stopping at specified terminators.
-///
-/// This function properly handles nested brackets and string literals.
-///
-/// # Arguments
-/// * `source` - The source string
-/// * `start` - The starting position
-/// * `terminators` - Characters that terminate the expression (at depth 0)
-/// * `include_all_brackets` - If true, all bracket types affect depth
-///
-/// # Returns
-/// The position of the terminator, or None if end of string reached
-pub fn find_expression_end(
-    source: &str,
-    start: usize,
-    terminators: &[char],
-    include_all_brackets: bool,
-) -> Option<usize> {
-    let bytes = source.as_bytes();
-    let mut i = start;
-    let mut depth: i32 = 0;
-
-    while i < bytes.len() {
-        let c = bytes[i] as char;
-
-        // Skip string literals
-        if c == '\'' || c == '"' {
-            if let Some(end) = skip_string_literal(source, i) {
-                i = end;
                 continue;
             }
-        }
+            _ => {
+                if ch == open {
+                    brackets += 1;
+                } else if ch == *close {
+                    brackets -= 1;
+                }
 
-        // Skip template literals
-        if c == '`' {
-            if let Some(end) = skip_template_literal(source, i) {
-                i = end;
-                continue;
-            }
-        }
-
-        // Check terminators at depth 0
-        if depth == 0 && terminators.contains(&c) {
-            return Some(i);
-        }
-
-        // Track bracket depth
-        if include_all_brackets {
-            if is_opening_bracket(c) {
-                depth += 1;
-            } else if is_closing_bracket(c) {
-                if depth == 0 && terminators.contains(&c) {
+                if brackets == 0 {
                     return Some(i);
                 }
-                depth = depth.saturating_sub(1);
-            }
-        } else {
-            // Only track braces
-            if c == '{' {
-                depth += 1;
-            } else if c == '}' {
-                if depth == 0 {
-                    return Some(i);
-                }
-                depth -= 1;
+
+                i += 1;
             }
         }
-
-        i += 1;
     }
 
     None
 }
 
-/// A helper struct for tracking bracket depth during parsing.
-#[derive(Debug, Default, Clone, Copy)]
-pub struct BracketDepth {
-    /// Depth of round parentheses
-    pub paren: i32,
-    /// Depth of curly braces
-    pub brace: i32,
-    /// Depth of square brackets
-    pub square: i32,
-}
+/// Match brackets in the parser, handling nested brackets and quoted strings.
+///
+/// # Arguments
+/// * `parser` - The parser instance
+/// * `start` - The starting position (at the opening bracket)
+/// * `brackets` - Optional custom bracket mappings
+///
+/// # Returns
+/// The position after the closing bracket
+///
+/// # Errors
+/// Returns an error if brackets are mismatched or EOF is reached
+pub fn match_bracket(
+    parser: &Parser,
+    start: usize,
+    brackets: Option<&HashMap<char, char>>,
+) -> ParseResult<usize> {
+    let default_brackets: HashMap<char, char> = [('{', '}'), ('(', ')'), ('[', ']')]
+        .iter()
+        .cloned()
+        .collect();
 
-impl BracketDepth {
-    /// Create a new BracketDepth with all counts at zero
-    pub fn new() -> Self {
-        Self::default()
-    }
+    let brackets = brackets.unwrap_or(&default_brackets);
+    let close: Vec<char> = brackets.values().cloned().collect();
+    let mut bracket_stack: Vec<char> = Vec::new();
 
-    /// Update depth based on a character
-    #[inline]
-    pub fn update(&mut self, c: char) {
-        match c {
-            '(' => self.paren += 1,
-            ')' => self.paren -= 1,
-            '{' => self.brace += 1,
-            '}' => self.brace -= 1,
-            '[' => self.square += 1,
-            ']' => self.square -= 1,
-            _ => {}
+    let mut i = start;
+    let bytes = parser.source.as_bytes();
+
+    while i < parser.source.len() {
+        let ch = bytes[i] as char;
+        i += 1;
+
+        if ch == '\'' || ch == '"' || ch == '`' {
+            i = match_quote(parser, i, ch)?;
+            continue;
+        }
+
+        if brackets.contains_key(&ch) {
+            bracket_stack.push(ch);
+        } else if close.contains(&ch) {
+            let popped = bracket_stack
+                .pop()
+                .ok_or_else(|| ParseError::UnexpectedToken {
+                    expected: "opening bracket".to_string(),
+                    found: ch.to_string(),
+                    span: (i - 1, i),
+                })?;
+
+            let expected = brackets.get(&popped).ok_or_else(|| ParseError::Generic {
+                message: format!("internal error: unknown bracket '{}'", popped),
+                span: (i - 1, i),
+            })?;
+
+            if ch != *expected {
+                return Err(ParseError::UnexpectedToken {
+                    expected: expected.to_string(),
+                    found: ch.to_string(),
+                    span: (i - 1, i),
+                });
+            }
+
+            if bracket_stack.is_empty() {
+                return Ok(i);
+            }
         }
     }
 
-    /// Check if we're at the top level (all depths are zero or less)
-    #[inline]
-    pub fn is_top_level(&self) -> bool {
-        self.paren <= 0 && self.brace <= 0 && self.square <= 0
+    Err(ParseError::UnexpectedEof {
+        span: (parser.source.len(), parser.source.len()),
+    })
+}
+
+/// Match a quoted string in the parser.
+///
+/// # Arguments
+/// * `parser` - The parser instance
+/// * `start` - The position after the opening quote
+/// * `quote` - The quote character (`'`, `"`, or `` ` ``)
+///
+/// # Returns
+/// The position after the closing quote
+///
+/// # Errors
+/// Returns an error if the string is not terminated
+fn match_quote(parser: &Parser, start: usize, quote: char) -> ParseResult<usize> {
+    let mut is_escaped = false;
+    let mut i = start;
+    let bytes = parser.source.as_bytes();
+
+    while i < parser.source.len() {
+        let ch = bytes[i] as char;
+        i += 1;
+
+        if is_escaped {
+            is_escaped = false;
+            continue;
+        }
+
+        if ch == quote {
+            return Ok(i);
+        }
+
+        if ch == '\\' {
+            is_escaped = true;
+        }
+
+        if quote == '`' && ch == '$' && i < parser.source.len() && bytes[i] == b'{' {
+            i = match_bracket(parser, i, None)?;
+        }
     }
 
-    /// Get total depth across all bracket types
-    #[inline]
-    pub fn total(&self) -> i32 {
-        self.paren.max(0) + self.brace.max(0) + self.square.max(0)
-    }
+    Err(ParseError::Generic {
+        message: "Unterminated string constant".to_string(),
+        span: (start - 1, start),
+    })
 }
 
 #[cfg(test)]
@@ -402,79 +319,45 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_find_matching_bracket_simple() {
-        assert_eq!(find_matching_bracket("(a + b)", 0), Some(6));
-        assert_eq!(find_matching_bracket("{x: 1}", 0), Some(5));
-        assert_eq!(find_matching_bracket("[1, 2]", 0), Some(5));
+    fn test_infinity_if_negative() {
+        assert_eq!(infinity_if_negative(-1), usize::MAX);
+        assert_eq!(infinity_if_negative(0), 0);
+        assert_eq!(infinity_if_negative(10), 10);
     }
 
     #[test]
-    fn test_find_matching_bracket_nested() {
-        assert_eq!(find_matching_bracket("(a + (b * c))", 0), Some(12));
-        assert_eq!(find_matching_bracket("{x: {y: 1}}", 0), Some(10));
-        assert_eq!(find_matching_bracket("[[1], [2]]", 0), Some(9));
+    fn test_count_leading_backslashes() {
+        assert_eq!(count_leading_backslashes(r"\\\foo", 2), 3);
+        assert_eq!(count_leading_backslashes(r"\\foo", 1), 2);
+        assert_eq!(count_leading_backslashes(r"\foo", 0), 1);
+        assert_eq!(count_leading_backslashes("foo", 1), 0);
+    }
+
+    #[test]
+    fn test_find_unescaped_char() {
+        assert_eq!(find_unescaped_char("hello'world", 0, '\''), 5);
+        assert_eq!(find_unescaped_char(r"hello\'world'", 0, '\''), 12);
+        assert_eq!(find_unescaped_char("hello", 0, '\''), usize::MAX);
+    }
+
+    #[test]
+    fn test_find_matching_bracket() {
+        assert_eq!(find_matching_bracket("{}", 1, '{'), Some(1));
+        assert_eq!(find_matching_bracket("{a}", 1, '{'), Some(2));
+        assert_eq!(find_matching_bracket("{{a}}", 1, '{'), Some(4));
+        assert_eq!(find_matching_bracket("{a, b}", 1, '{'), Some(5));
     }
 
     #[test]
     fn test_find_matching_bracket_with_strings() {
-        assert_eq!(find_matching_bracket("(')')", 0), Some(4));
-        assert_eq!(find_matching_bracket("(\")\")", 0), Some(4));
-        assert_eq!(find_matching_bracket("(`}`)", 0), Some(4));
-    }
-
-    #[test]
-    fn test_find_matching_bracket_with_escaped_quotes() {
-        assert_eq!(find_matching_bracket(r"('\'')", 0), Some(5));
-        assert_eq!(find_matching_bracket(r#"("\"")"#, 0), Some(5));
-    }
-
-    #[test]
-    fn test_skip_string_literal() {
-        assert_eq!(skip_string_literal("'hello'", 0), Some(7));
-        assert_eq!(skip_string_literal("\"world\"", 0), Some(7));
-        assert_eq!(skip_string_literal(r"'it\'s'", 0), Some(7));
-    }
-
-    #[test]
-    fn test_skip_template_literal() {
-        assert_eq!(skip_template_literal("`hello`", 0), Some(7));
-        assert_eq!(skip_template_literal("`${x}`", 0), Some(6));
-        assert_eq!(skip_template_literal("`${x + y}`", 0), Some(10));
-        assert_eq!(skip_template_literal("`${{a: 1}}`", 0), Some(11));
-    }
-
-    #[test]
-    fn test_skip_template_literal_nested() {
-        // Nested template literal
-        assert_eq!(skip_template_literal("`${`nested`}`", 0), Some(13));
-    }
-
-    #[test]
-    fn test_find_expression_end() {
-        assert_eq!(find_expression_end("a, b", 0, &[','], true), Some(1));
-        assert_eq!(find_expression_end("(a, b), c", 0, &[','], true), Some(6));
-        assert_eq!(find_expression_end("{a: 1}, b", 0, &[','], true), Some(6));
-    }
-
-    #[test]
-    fn test_bracket_depth() {
-        let mut depth = BracketDepth::new();
-        assert!(depth.is_top_level());
-
-        depth.update('(');
-        assert!(!depth.is_top_level());
-        assert_eq!(depth.paren, 1);
-
-        depth.update(')');
-        assert!(depth.is_top_level());
-        assert_eq!(depth.paren, 0);
+        assert_eq!(find_matching_bracket(r#"{"}"}"#, 1, '{'), Some(4));
+        assert_eq!(find_matching_bracket(r"{'}'}", 1, '{'), Some(4));
+        assert_eq!(find_matching_bracket("{`}`}", 1, '{'), Some(4));
     }
 
     #[test]
     fn test_find_matching_bracket_with_comments() {
-        // Line comment
-        assert_eq!(find_matching_bracket("(a // )\n)", 0), Some(8));
-        // Block comment
-        assert_eq!(find_matching_bracket("(a /* ) */ )", 0), Some(11));
+        assert_eq!(find_matching_bracket("{a // }\n}", 1, '{'), Some(8));
+        assert_eq!(find_matching_bracket("{a /* } */}", 1, '{'), Some(10));
     }
 }

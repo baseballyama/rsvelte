@@ -20,6 +20,11 @@
     "compatibility-report": "cargo test --release --test compatibility_report generate_compatibility_report -- --nocapture",
     "list-categories": "cargo test --release --test compatibility_report list_test_categories -- --nocapture",
     "update-docs": "node scripts/update-docs.mjs",
-    "test-and-update": "npm run compatibility-report && npm run update-docs"
+    "test-and-update": "npm run compatibility-report && npm run update-docs",
+    "generate-entities": "node scripts/generate-entities-from-svelte.mjs",
+    "verify-entities": "node scripts/verify-entities-compatibility.mjs"
+  },
+  "devDependencies": {
+    "oxfmt": "^0.23.0"
   }
 }

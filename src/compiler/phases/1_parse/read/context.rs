@@ -49,7 +49,8 @@ pub fn read_pattern(source: &str, start: usize, line_offsets: &[usize]) -> (Expr
     // Check for destructuring pattern
     if c == b'{' || c == b'[' {
         // Find matching bracket
-        if let Some(end_pos) = find_matching_bracket(source, i) {
+        let open_char = c as char;
+        if let Some(end_pos) = find_matching_bracket(source, i + 1, open_char) {
             let pattern_str = &source[i..=end_pos];
             let pattern = super::expression::parse_binding_pattern(pattern_str, i, line_offsets);
 

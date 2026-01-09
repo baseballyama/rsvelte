@@ -2,23 +2,32 @@
 //!
 //! # Svelte Compiler Correspondence
 //!
-//! This module corresponds to the functionality provided by the `entities` npm package
-//! that Svelte uses for decoding HTML named character references.
+//! This module corresponds to:
+//! - `svelte/packages/svelte/src/compiler/phases/1-parse/utils/entities.js`
+//! - Entity data from WHATWG HTML specification (https://html.spec.whatwg.org/entities.json)
+//!
+//! The entity data in `entities_data.rs` is generated directly from Svelte's entities.js
+//! using `scripts/generate-entities-from-svelte.mjs`, ensuring 100% compatibility.
 //!
 //! ## Features
 //!
-//! - Comprehensive support for all HTML5 named character references (~2125 entities)
+//! - Comprehensive support for all HTML5 named character references (2125 entities)
 //! - Numeric character references (decimal and hexadecimal)
 //! - Legacy entity handling (entities without trailing semicolon)
+//! - Complete compatibility with Svelte's entity decoding behavior
 
 // Allow dead code for library functions that will be used as the parser is extended
 #![allow(dead_code)]
 
 // Re-export from sibling module
 pub use super::entities_data::decode_named_entity;
+use super::html::validate_code;
 
 /// Decode a numeric HTML entity (without & prefix).
 /// Handles both decimal (&#123;) and hexadecimal (&#x7B;) forms.
+///
+/// Uses `validate_code` to ensure proper Unicode code point handling,
+/// matching Svelte's behavior exactly.
 ///
 /// # Arguments
 /// * `entity` - The entity string after `&#`, e.g., "123" or "x7B" (with or without `;`)
@@ -37,47 +46,12 @@ pub fn decode_numeric_entity(entity: &str) -> Option<char> {
         entity.parse().ok()
     };
 
-    num.and_then(|n| {
-        // Handle replacement characters for invalid codepoints
-        // See: https://html.spec.whatwg.org/multipage/parsing.html#numeric-character-reference-end-state
-        match n {
-            0 => Some('\u{FFFD}'), // NULL -> REPLACEMENT CHARACTER
-            // Surrogate range
-            0xD800..=0xDFFF => Some('\u{FFFD}'),
-            // Out of range
-            n if n > 0x10FFFF => Some('\u{FFFD}'),
-            // Control characters that map to specific characters
-            0x80 => Some('\u{20AC}'), // EURO SIGN
-            0x82 => Some('\u{201A}'), // SINGLE LOW-9 QUOTATION MARK
-            0x83 => Some('\u{0192}'), // LATIN SMALL LETTER F WITH HOOK
-            0x84 => Some('\u{201E}'), // DOUBLE LOW-9 QUOTATION MARK
-            0x85 => Some('\u{2026}'), // HORIZONTAL ELLIPSIS
-            0x86 => Some('\u{2020}'), // DAGGER
-            0x87 => Some('\u{2021}'), // DOUBLE DAGGER
-            0x88 => Some('\u{02C6}'), // MODIFIER LETTER CIRCUMFLEX ACCENT
-            0x89 => Some('\u{2030}'), // PER MILLE SIGN
-            0x8A => Some('\u{0160}'), // LATIN CAPITAL LETTER S WITH CARON
-            0x8B => Some('\u{2039}'), // SINGLE LEFT-POINTING ANGLE QUOTATION MARK
-            0x8C => Some('\u{0152}'), // LATIN CAPITAL LIGATURE OE
-            0x8E => Some('\u{017D}'), // LATIN CAPITAL LETTER Z WITH CARON
-            0x91 => Some('\u{2018}'), // LEFT SINGLE QUOTATION MARK
-            0x92 => Some('\u{2019}'), // RIGHT SINGLE QUOTATION MARK
-            0x93 => Some('\u{201C}'), // LEFT DOUBLE QUOTATION MARK
-            0x94 => Some('\u{201D}'), // RIGHT DOUBLE QUOTATION MARK
-            0x95 => Some('\u{2022}'), // BULLET
-            0x96 => Some('\u{2013}'), // EN DASH
-            0x97 => Some('\u{2014}'), // EM DASH
-            0x98 => Some('\u{02DC}'), // SMALL TILDE
-            0x99 => Some('\u{2122}'), // TRADE MARK SIGN
-            0x9A => Some('\u{0161}'), // LATIN SMALL LETTER S WITH CARON
-            0x9B => Some('\u{203A}'), // SINGLE RIGHT-POINTING ANGLE QUOTATION MARK
-            0x9C => Some('\u{0153}'), // LATIN SMALL LIGATURE OE
-            0x9E => Some('\u{017E}'), // LATIN SMALL LETTER Z WITH CARON
-            0x9F => Some('\u{0178}'), // LATIN CAPITAL LETTER Y WITH DIAERESIS
-            // Other noncharacters
-            0xFFFE | 0xFFFF => Some('\u{FFFD}'),
-            // Valid codepoint
-            n => char::from_u32(n),
+    num.and_then(|code| {
+        let validated = validate_code(code);
+        if validated == 0 {
+            None
+        } else {
+            char::from_u32(validated)
         }
     })
 }
@@ -113,12 +87,17 @@ pub fn decode_entity(entity: &str) -> Option<String> {
 /// - Numeric character references
 /// - Legacy entities without semicolons
 ///
+/// Corresponds to `decode_character_references` in Svelte's `utils/html.js`.
+///
 /// # Arguments
 /// * `s` - The string containing HTML entities
+/// * `is_attribute_value` - If true, applies attribute value decoding rules per HTML spec:
+///   https://html.spec.whatwg.org/multipage/parsing.html#named-character-reference-state
+///   For entities without semicolons, doesn't decode if followed by `=` or alphanumeric.
 ///
 /// # Returns
 /// The decoded string with all entities replaced
-pub fn decode_html_entities(s: &str) -> String {
+pub fn decode_html_entities(s: &str, is_attribute_value: bool) -> String {
     let mut result = String::with_capacity(s.len());
     let bytes = s.as_bytes();
     let len = bytes.len();
@@ -181,8 +160,21 @@ pub fn decode_html_entities(s: &str) -> String {
                     decode_named_entity(entity_without_semi)
                 }
             } else {
-                // Legacy: try common entities without semicolon
-                decode_legacy_entity(&s[entity_start..i])
+                // For attribute values without semicolon, check if we should skip decoding
+                // Per HTML spec, don't decode if followed by '=' or alphanumeric (word boundary check)
+                if is_attribute_value && i < len {
+                    let next_byte = bytes[i];
+                    if next_byte == b'=' || next_byte.is_ascii_alphanumeric() {
+                        // Don't decode, output as-is
+                        None
+                    } else {
+                        // Try legacy decode
+                        decode_legacy_entity(&s[entity_start..i])
+                    }
+                } else {
+                    // Legacy: try common entities without semicolon
+                    decode_legacy_entity(&s[entity_start..i])
+                }
             };
 
             if let Some(decoded) = decoded {
@@ -272,12 +264,12 @@ mod tests {
 
     #[test]
     fn test_decode_numeric_entity_edge_cases() {
-        // NULL replacement
-        assert_eq!(decode_numeric_entity("0"), Some('\u{FFFD}'));
-        // Surrogate replacement
-        assert_eq!(decode_numeric_entity("xD800"), Some('\u{FFFD}'));
-        // Out of range replacement
-        assert_eq!(decode_numeric_entity("x110000"), Some('\u{FFFD}'));
+        // NULL - validate_code returns 0, which results in None
+        assert_eq!(decode_numeric_entity("0"), None);
+        // Surrogate - validate_code returns 0, which results in None
+        assert_eq!(decode_numeric_entity("xD800"), None);
+        // Out of range - beyond valid Unicode planes
+        assert_eq!(decode_numeric_entity("x110000"), None);
         // Windows-1252 mapping
         assert_eq!(decode_numeric_entity("x80"), Some('\u{20AC}')); // Euro
         assert_eq!(decode_numeric_entity("x99"), Some('\u{2122}')); // Trademark
@@ -285,73 +277,98 @@ mod tests {
 
     #[test]
     fn test_decode_html_entities_basic() {
-        assert_eq!(decode_html_entities("&amp;"), "&");
-        assert_eq!(decode_html_entities("&lt;"), "<");
-        assert_eq!(decode_html_entities("&gt;"), ">");
-        assert_eq!(decode_html_entities("&quot;"), "\"");
-        assert_eq!(decode_html_entities("&apos;"), "'");
-        assert_eq!(decode_html_entities("&nbsp;"), "\u{00A0}");
+        assert_eq!(decode_html_entities("&amp;", false), "&");
+        assert_eq!(decode_html_entities("&lt;", false), "<");
+        assert_eq!(decode_html_entities("&gt;", false), ">");
+        assert_eq!(decode_html_entities("&quot;", false), "\"");
+        assert_eq!(decode_html_entities("&apos;", false), "'");
+        assert_eq!(decode_html_entities("&nbsp;", false), "\u{00A0}");
     }
 
     #[test]
     fn test_decode_html_entities_numeric() {
-        assert_eq!(decode_html_entities("&#65;"), "A");
-        assert_eq!(decode_html_entities("&#x41;"), "A");
-        assert_eq!(decode_html_entities("&#X41;"), "A");
+        assert_eq!(decode_html_entities("&#65;", false), "A");
+        assert_eq!(decode_html_entities("&#x41;", false), "A");
+        assert_eq!(decode_html_entities("&#X41;", false), "A");
     }
 
     #[test]
     fn test_decode_html_entities_mixed() {
-        assert_eq!(decode_html_entities("Hello &amp; World"), "Hello & World");
         assert_eq!(
-            decode_html_entities("&lt;div&gt;content&lt;/div&gt;"),
+            decode_html_entities("Hello &amp; World", false),
+            "Hello & World"
+        );
+        assert_eq!(
+            decode_html_entities("&lt;div&gt;content&lt;/div&gt;", false),
             "<div>content</div>"
         );
         assert_eq!(
-            decode_html_entities("a &lt; b &amp;&amp; c &gt; d"),
+            decode_html_entities("a &lt; b &amp;&amp; c &gt; d", false),
             "a < b && c > d"
         );
     }
 
     #[test]
     fn test_decode_html_entities_extended() {
-        assert_eq!(decode_html_entities("&copy;"), "\u{00A9}"); // ©
-        assert_eq!(decode_html_entities("&reg;"), "\u{00AE}"); // ®
-        assert_eq!(decode_html_entities("&trade;"), "\u{2122}"); // ™
-        assert_eq!(decode_html_entities("&euro;"), "\u{20AC}"); // €
+        assert_eq!(decode_html_entities("&copy;", false), "\u{00A9}"); // ©
+        assert_eq!(decode_html_entities("&reg;", false), "\u{00AE}"); // ®
+        assert_eq!(decode_html_entities("&trade;", false), "\u{2122}"); // ™
+        assert_eq!(decode_html_entities("&euro;", false), "\u{20AC}"); // €
     }
 
     #[test]
     fn test_decode_html_entities_multi_codepoint() {
-        // Some entities decode to multiple characters
-        let decoded = decode_html_entities("&nGt;");
-        assert!(decoded.chars().count() == 2); // ≫⃒
+        // Test an entity that decodes to a single character
+        let decoded = decode_html_entities("&nGt;", false);
+        assert_eq!(decoded, "≫"); // U+226B
+        assert_eq!(decoded.chars().count(), 1);
     }
 
     #[test]
     fn test_decode_html_entities_legacy() {
         // Legacy entities without semicolon
-        assert_eq!(decode_html_entities("&amp"), "&");
-        assert_eq!(decode_html_entities("&lt"), "<");
-        assert_eq!(decode_html_entities("&copy"), "\u{00A9}");
+        assert_eq!(decode_html_entities("&amp", false), "&");
+        assert_eq!(decode_html_entities("&lt", false), "<");
+        assert_eq!(decode_html_entities("&copy", false), "\u{00A9}");
+    }
+
+    #[test]
+    fn test_decode_html_entities_attribute_value() {
+        // In attribute values, entities without semicolon followed by '=' or alphanumeric should not be decoded
+        assert_eq!(decode_html_entities("&amp=", true), "&amp=");
+        assert_eq!(decode_html_entities("&ampa", true), "&ampa");
+        assert_eq!(decode_html_entities("&amp9", true), "&amp9");
+
+        // But should decode if followed by other characters
+        assert_eq!(decode_html_entities("&amp ", true), "& ");
+        assert_eq!(decode_html_entities("&amp;", true), "&");
+
+        // With semicolon, always decode
+        assert_eq!(decode_html_entities("&amp;=", true), "&=");
     }
 
     #[test]
     fn test_decode_html_entities_unknown() {
-        assert_eq!(decode_html_entities("&notanentity;"), "&notanentity;");
-        assert_eq!(decode_html_entities("&foo"), "&foo");
+        assert_eq!(
+            decode_html_entities("&notanentity;", false),
+            "&notanentity;"
+        );
+        assert_eq!(decode_html_entities("&foo", false), "&foo");
     }
 
     #[test]
     fn test_decode_html_entities_no_entities() {
-        assert_eq!(decode_html_entities("no entities here"), "no entities here");
-        assert_eq!(decode_html_entities(""), "");
+        assert_eq!(
+            decode_html_entities("no entities here", false),
+            "no entities here"
+        );
+        assert_eq!(decode_html_entities("", false), "");
     }
 
     #[test]
     fn test_decode_html_entities_utf8() {
         assert_eq!(
-            decode_html_entities("日本語 &amp; 한국어"),
+            decode_html_entities("日本語 &amp; 한국어", false),
             "日本語 & 한국어"
         );
     }

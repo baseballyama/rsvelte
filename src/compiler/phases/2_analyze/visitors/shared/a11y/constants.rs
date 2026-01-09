@@ -3,19 +3,22 @@
 //! Valid ARIA attributes, roles, and other accessibility-related constants.
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/shared/a11y/constants.js`.
+//!
+//! This file is auto-generated from the official Svelte compiler.
+//! Do not edit manually.
 
-/// Valid ARIA attributes.
-pub const VALID_ARIA_ATTRIBUTES: &[&str] = &[
+use std::collections::{HashMap, HashSet};
+use std::sync::LazyLock;
+
+/// ARIA attributes list.
+pub const ARIA_ATTRIBUTES: &[&str] = &[
     "activedescendant",
     "atomic",
     "autocomplete",
-    "braillelabel",
-    "brailleroledescription",
     "busy",
     "checked",
     "colcount",
     "colindex",
-    "colindextext",
     "colspan",
     "controls",
     "current",
@@ -50,7 +53,6 @@ pub const VALID_ARIA_ATTRIBUTES: &[&str] = &[
     "roledescription",
     "rowcount",
     "rowindex",
-    "rowindextext",
     "rowspan",
     "selected",
     "setsize",
@@ -61,144 +63,1483 @@ pub const VALID_ARIA_ATTRIBUTES: &[&str] = &[
     "valuetext",
 ];
 
-/// Valid ARIA roles.
-pub const VALID_ROLES: &[&str] = &[
+/// Required attributes for specific elements.
+pub static A11Y_REQUIRED_ATTRIBUTES: LazyLock<HashMap<&'static str, &'static [&'static str]>> =
+    LazyLock::new(|| {
+        let mut m = HashMap::new();
+        m.insert("a", &["href"] as &[&str]);
+        m.insert("area", &["alt", "aria-label", "aria-labelledby"] as &[&str]);
+        m.insert("html", &["lang"] as &[&str]);
+        m.insert("iframe", &["title"] as &[&str]);
+        m.insert("img", &["alt"] as &[&str]);
+        m.insert(
+            "object",
+            &["title", "aria-label", "aria-labelledby"] as &[&str],
+        );
+        m
+    });
+
+/// Distracting elements.
+pub const A11Y_DISTRACTING_ELEMENTS: &[&str] = &["blink", "marquee"];
+
+/// Elements that require content.
+pub const A11Y_REQUIRED_CONTENT: &[&str] = &["h1", "h2", "h3", "h4", "h5", "h6"];
+
+/// Labelable elements.
+pub const A11Y_LABELABLE: &[&str] = &[
+    "button", "input", "keygen", "meter", "output", "progress", "select", "textarea",
+];
+
+/// Interactive event handlers.
+pub const A11Y_INTERACTIVE_HANDLERS: &[&str] = &[
+    "keypress",
+    "keydown",
+    "keyup",
+    "click",
+    "contextmenu",
+    "dblclick",
+    "drag",
+    "dragend",
+    "dragenter",
+    "dragexit",
+    "dragleave",
+    "dragover",
+    "dragstart",
+    "drop",
+    "mousedown",
+    "mouseenter",
+    "mouseleave",
+    "mousemove",
+    "mouseout",
+    "mouseover",
+    "mouseup",
+];
+
+/// Recommended interactive event handlers.
+pub const A11Y_RECOMMENDED_INTERACTIVE_HANDLERS: &[&str] = &[
+    "click",
+    "mousedown",
+    "mouseup",
+    "keypress",
+    "keydown",
+    "keyup",
+];
+
+/// Nested implicit semantics map.
+pub static A11Y_NESTED_IMPLICIT_SEMANTICS: LazyLock<HashMap<&'static str, &'static str>> =
+    LazyLock::new(|| {
+        let mut m = HashMap::new();
+        m.insert("header", "banner");
+        m.insert("footer", "contentinfo");
+        m
+    });
+
+/// Implicit semantics map.
+pub static A11Y_IMPLICIT_SEMANTICS: LazyLock<HashMap<&'static str, &'static str>> =
+    LazyLock::new(|| {
+        let mut m = HashMap::new();
+        m.insert("a", "link");
+        m.insert("area", "link");
+        m.insert("article", "article");
+        m.insert("aside", "complementary");
+        m.insert("body", "document");
+        m.insert("button", "button");
+        m.insert("datalist", "listbox");
+        m.insert("dd", "definition");
+        m.insert("dfn", "term");
+        m.insert("dialog", "dialog");
+        m.insert("details", "group");
+        m.insert("dt", "term");
+        m.insert("fieldset", "group");
+        m.insert("figure", "figure");
+        m.insert("form", "form");
+        m.insert("h1", "heading");
+        m.insert("h2", "heading");
+        m.insert("h3", "heading");
+        m.insert("h4", "heading");
+        m.insert("h5", "heading");
+        m.insert("h6", "heading");
+        m.insert("hr", "separator");
+        m.insert("img", "img");
+        m.insert("li", "listitem");
+        m.insert("link", "link");
+        m.insert("main", "main");
+        m.insert("menu", "list");
+        m.insert("meter", "progressbar");
+        m.insert("nav", "navigation");
+        m.insert("ol", "list");
+        m.insert("option", "option");
+        m.insert("optgroup", "group");
+        m.insert("output", "status");
+        m.insert("progress", "progressbar");
+        m.insert("section", "region");
+        m.insert("summary", "button");
+        m.insert("table", "table");
+        m.insert("tbody", "rowgroup");
+        m.insert("textarea", "textbox");
+        m.insert("tfoot", "rowgroup");
+        m.insert("thead", "rowgroup");
+        m.insert("tr", "row");
+        m.insert("ul", "list");
+        m
+    });
+
+/// Menuitem type to implicit role map.
+pub static MENUITEM_TYPE_TO_IMPLICIT_ROLE: LazyLock<HashMap<&'static str, &'static str>> =
+    LazyLock::new(|| {
+        let mut m = HashMap::new();
+        m.insert("command", "menuitem");
+        m.insert("checkbox", "menuitemcheckbox");
+        m.insert("radio", "menuitemradio");
+        m
+    });
+
+/// Input type to implicit role map.
+pub static INPUT_TYPE_TO_IMPLICIT_ROLE: LazyLock<HashMap<&'static str, &'static str>> =
+    LazyLock::new(|| {
+        let mut m = HashMap::new();
+        m.insert("button", "button");
+        m.insert("image", "button");
+        m.insert("reset", "button");
+        m.insert("submit", "button");
+        m.insert("checkbox", "checkbox");
+        m.insert("radio", "radio");
+        m.insert("range", "slider");
+        m.insert("number", "spinbutton");
+        m.insert("email", "textbox");
+        m.insert("search", "searchbox");
+        m.insert("tel", "textbox");
+        m.insert("text", "textbox");
+        m.insert("url", "textbox");
+        m
+    });
+
+/// Non-interactive element to interactive role exceptions.
+pub static A11Y_NON_INTERACTIVE_ELEMENT_TO_INTERACTIVE_ROLE_EXCEPTIONS: LazyLock<
+    HashMap<&'static str, &'static [&'static str]>,
+> = LazyLock::new(|| {
+    let mut m = HashMap::new();
+    m.insert(
+        "ul",
+        &[
+            "listbox",
+            "menu",
+            "menubar",
+            "radiogroup",
+            "tablist",
+            "tree",
+            "treegrid",
+        ] as &[&str],
+    );
+    m.insert(
+        "ol",
+        &[
+            "listbox",
+            "menu",
+            "menubar",
+            "radiogroup",
+            "tablist",
+            "tree",
+            "treegrid",
+        ] as &[&str],
+    );
+    m.insert(
+        "li",
+        &["menuitem", "option", "row", "tab", "treeitem"] as &[&str],
+    );
+    m.insert("table", &["grid"] as &[&str]);
+    m.insert("td", &["gridcell"] as &[&str]);
+    m.insert("fieldset", &["radiogroup", "presentation"] as &[&str]);
+    m
+});
+
+/// Combobox if list.
+pub const COMBOBOX_IF_LIST: &[&str] = &["email", "search", "tel", "text", "url"];
+
+/// Address type tokens.
+pub const ADDRESS_TYPE_TOKENS: &[&str] = &["shipping", "billing"];
+
+/// Autofill field name tokens.
+pub const AUTOFILL_FIELD_NAME_TOKENS: &[&str] = &[
+    "",
+    "on",
+    "off",
+    "name",
+    "honorific-prefix",
+    "given-name",
+    "additional-name",
+    "family-name",
+    "honorific-suffix",
+    "nickname",
+    "username",
+    "new-password",
+    "current-password",
+    "one-time-code",
+    "organization-title",
+    "organization",
+    "street-address",
+    "address-line1",
+    "address-line2",
+    "address-line3",
+    "address-level4",
+    "address-level3",
+    "address-level2",
+    "address-level1",
+    "country",
+    "country-name",
+    "postal-code",
+    "cc-name",
+    "cc-given-name",
+    "cc-additional-name",
+    "cc-family-name",
+    "cc-number",
+    "cc-exp",
+    "cc-exp-month",
+    "cc-exp-year",
+    "cc-csc",
+    "cc-type",
+    "transaction-currency",
+    "transaction-amount",
+    "language",
+    "bday",
+    "bday-day",
+    "bday-month",
+    "bday-year",
+    "sex",
+    "url",
+    "photo",
+];
+
+/// Contact type tokens.
+pub const CONTACT_TYPE_TOKENS: &[&str] = &["home", "work", "mobile", "fax", "pager"];
+
+/// Autofill contact field name tokens.
+pub const AUTOFILL_CONTACT_FIELD_NAME_TOKENS: &[&str] = &[
+    "tel",
+    "tel-country-code",
+    "tel-national",
+    "tel-area-code",
+    "tel-local",
+    "tel-local-prefix",
+    "tel-local-suffix",
+    "tel-extension",
+    "email",
+    "impp",
+];
+
+/// Element interactivity enum values.
+pub mod element_interactivity {
+    pub const INTERACTIVE: &str = "interactive";
+    pub const NON_INTERACTIVE: &str = "non-interactive";
+    pub const STATIC: &str = "static";
+}
+
+/// Invisible elements.
+pub const INVISIBLE_ELEMENTS: &[&str] = &["meta", "html", "script", "style"];
+
+/// All ARIA roles.
+pub static ARIA_ROLES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    let mut s = HashSet::new();
+    s.insert("command");
+    s.insert("composite");
+    s.insert("input");
+    s.insert("landmark");
+    s.insert("range");
+    s.insert("roletype");
+    s.insert("section");
+    s.insert("sectionhead");
+    s.insert("select");
+    s.insert("structure");
+    s.insert("widget");
+    s.insert("window");
+    s.insert("alert");
+    s.insert("alertdialog");
+    s.insert("application");
+    s.insert("article");
+    s.insert("banner");
+    s.insert("blockquote");
+    s.insert("button");
+    s.insert("caption");
+    s.insert("cell");
+    s.insert("checkbox");
+    s.insert("code");
+    s.insert("columnheader");
+    s.insert("combobox");
+    s.insert("complementary");
+    s.insert("contentinfo");
+    s.insert("definition");
+    s.insert("deletion");
+    s.insert("dialog");
+    s.insert("directory");
+    s.insert("document");
+    s.insert("emphasis");
+    s.insert("feed");
+    s.insert("figure");
+    s.insert("form");
+    s.insert("generic");
+    s.insert("grid");
+    s.insert("gridcell");
+    s.insert("group");
+    s.insert("heading");
+    s.insert("img");
+    s.insert("insertion");
+    s.insert("link");
+    s.insert("list");
+    s.insert("listbox");
+    s.insert("listitem");
+    s.insert("log");
+    s.insert("main");
+    s.insert("mark");
+    s.insert("marquee");
+    s.insert("math");
+    s.insert("menu");
+    s.insert("menubar");
+    s.insert("menuitem");
+    s.insert("menuitemcheckbox");
+    s.insert("menuitemradio");
+    s.insert("meter");
+    s.insert("navigation");
+    s.insert("none");
+    s.insert("note");
+    s.insert("option");
+    s.insert("paragraph");
+    s.insert("presentation");
+    s.insert("progressbar");
+    s.insert("radio");
+    s.insert("radiogroup");
+    s.insert("region");
+    s.insert("row");
+    s.insert("rowgroup");
+    s.insert("rowheader");
+    s.insert("scrollbar");
+    s.insert("search");
+    s.insert("searchbox");
+    s.insert("separator");
+    s.insert("slider");
+    s.insert("spinbutton");
+    s.insert("status");
+    s.insert("strong");
+    s.insert("subscript");
+    s.insert("superscript");
+    s.insert("switch");
+    s.insert("tab");
+    s.insert("table");
+    s.insert("tablist");
+    s.insert("tabpanel");
+    s.insert("term");
+    s.insert("textbox");
+    s.insert("time");
+    s.insert("timer");
+    s.insert("toolbar");
+    s.insert("tooltip");
+    s.insert("tree");
+    s.insert("treegrid");
+    s.insert("treeitem");
+    s.insert("doc-abstract");
+    s.insert("doc-acknowledgments");
+    s.insert("doc-afterword");
+    s.insert("doc-appendix");
+    s.insert("doc-backlink");
+    s.insert("doc-biblioentry");
+    s.insert("doc-bibliography");
+    s.insert("doc-biblioref");
+    s.insert("doc-chapter");
+    s.insert("doc-colophon");
+    s.insert("doc-conclusion");
+    s.insert("doc-cover");
+    s.insert("doc-credit");
+    s.insert("doc-credits");
+    s.insert("doc-dedication");
+    s.insert("doc-endnote");
+    s.insert("doc-endnotes");
+    s.insert("doc-epigraph");
+    s.insert("doc-epilogue");
+    s.insert("doc-errata");
+    s.insert("doc-example");
+    s.insert("doc-footnote");
+    s.insert("doc-foreword");
+    s.insert("doc-glossary");
+    s.insert("doc-glossref");
+    s.insert("doc-index");
+    s.insert("doc-introduction");
+    s.insert("doc-noteref");
+    s.insert("doc-notice");
+    s.insert("doc-pagebreak");
+    s.insert("doc-pagefooter");
+    s.insert("doc-pageheader");
+    s.insert("doc-pagelist");
+    s.insert("doc-part");
+    s.insert("doc-preface");
+    s.insert("doc-prologue");
+    s.insert("doc-pullquote");
+    s.insert("doc-qna");
+    s.insert("doc-subtitle");
+    s.insert("doc-tip");
+    s.insert("doc-toc");
+    s.insert("graphics-document");
+    s.insert("graphics-object");
+    s.insert("graphics-symbol");
+    s
+});
+
+/// Abstract ARIA roles.
+pub static ABSTRACT_ROLES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    let mut s = HashSet::new();
+    s.insert("command");
+    s.insert("composite");
+    s.insert("input");
+    s.insert("landmark");
+    s.insert("range");
+    s.insert("roletype");
+    s.insert("section");
+    s.insert("sectionhead");
+    s.insert("select");
+    s.insert("structure");
+    s.insert("widget");
+    s.insert("window");
+    s
+});
+
+/// Non-interactive roles.
+pub const NON_INTERACTIVE_ROLES: &[&str] = &[
     "alert",
-    "alertdialog",
     "application",
     "article",
     "banner",
     "blockquote",
-    "button",
     "caption",
-    "cell",
-    "checkbox",
     "code",
-    "columnheader",
-    "combobox",
-    "command",
-    "comment",
     "complementary",
-    "composite",
     "contentinfo",
     "definition",
     "deletion",
-    "dialog",
     "directory",
     "document",
     "emphasis",
     "feed",
     "figure",
     "form",
-    "generic",
-    "grid",
-    "gridcell",
     "group",
     "heading",
     "img",
-    "input",
     "insertion",
-    "landmark",
-    "link",
     "list",
-    "listbox",
     "listitem",
     "log",
     "main",
     "mark",
     "marquee",
     "math",
+    "meter",
+    "navigation",
+    "none",
+    "note",
+    "paragraph",
+    "presentation",
+    "region",
+    "rowgroup",
+    "search",
+    "separator",
+    "status",
+    "strong",
+    "subscript",
+    "superscript",
+    "table",
+    "term",
+    "time",
+    "timer",
+    "tooltip",
+    "doc-abstract",
+    "doc-acknowledgments",
+    "doc-afterword",
+    "doc-appendix",
+    "doc-biblioentry",
+    "doc-bibliography",
+    "doc-chapter",
+    "doc-colophon",
+    "doc-conclusion",
+    "doc-cover",
+    "doc-credit",
+    "doc-credits",
+    "doc-dedication",
+    "doc-endnote",
+    "doc-endnotes",
+    "doc-epigraph",
+    "doc-epilogue",
+    "doc-errata",
+    "doc-example",
+    "doc-footnote",
+    "doc-foreword",
+    "doc-glossary",
+    "doc-index",
+    "doc-introduction",
+    "doc-notice",
+    "doc-pagebreak",
+    "doc-pagefooter",
+    "doc-pageheader",
+    "doc-pagelist",
+    "doc-part",
+    "doc-preface",
+    "doc-prologue",
+    "doc-pullquote",
+    "doc-qna",
+    "doc-subtitle",
+    "doc-tip",
+    "doc-toc",
+    "graphics-document",
+    "graphics-object",
+    "graphics-symbol",
+    "progressbar",
+];
+
+/// Interactive roles.
+pub const INTERACTIVE_ROLES: &[&str] = &[
+    "alertdialog",
+    "button",
+    "cell",
+    "checkbox",
+    "columnheader",
+    "combobox",
+    "dialog",
+    "grid",
+    "gridcell",
+    "link",
+    "listbox",
     "menu",
     "menubar",
     "menuitem",
     "menuitemcheckbox",
     "menuitemradio",
-    "meter",
-    "navigation",
-    "none",
-    "note",
     "option",
-    "paragraph",
-    "presentation",
-    "progressbar",
     "radio",
     "radiogroup",
-    "range",
-    "region",
-    "roletype",
     "row",
-    "rowgroup",
     "rowheader",
     "scrollbar",
-    "search",
     "searchbox",
-    "section",
-    "sectionhead",
-    "select",
-    "separator",
     "slider",
     "spinbutton",
-    "status",
-    "strong",
-    "structure",
-    "subscript",
-    "suggestion",
-    "superscript",
     "switch",
     "tab",
-    "table",
     "tablist",
     "tabpanel",
-    "term",
     "textbox",
-    "time",
-    "timer",
     "toolbar",
-    "tooltip",
     "tree",
     "treegrid",
     "treeitem",
-    "widget",
-    "window",
+    "doc-backlink",
+    "doc-biblioref",
+    "doc-glossref",
+    "doc-noteref",
 ];
 
-/// Elements that are interactive by default.
-pub const INTERACTIVE_ELEMENTS: &[&str] = &[
-    "a", "button", "details", "embed", "iframe", "label", "select", "textarea", "input", "audio",
-    "video",
-];
+/// Presentation roles.
+pub const PRESENTATION_ROLES: &[&str] = &["presentation", "none"];
 
-/// Elements that should not have certain roles.
-pub const ELEMENT_ROLE_RESTRICTIONS: &[(&str, &[&str])] = &[
-    (
-        "a",
-        &[
-            "button",
-            "checkbox",
-            "menuitem",
-            "menuitemcheckbox",
-            "menuitemradio",
-            "option",
-            "radio",
-            "switch",
-            "tab",
-            "treeitem",
-        ],
-    ),
-    (
-        "button",
-        &[
-            "checkbox",
-            "combobox",
-            "link",
-            "menuitem",
-            "menuitemcheckbox",
-            "menuitemradio",
-            "option",
-            "radio",
-            "switch",
-            "tab",
-        ],
-    ),
-    ("img", &["none", "presentation"]),
-];
+/// Schema for role relation concept.
+#[derive(Debug, Clone)]
+pub struct RoleRelationConcept {
+    pub name: String,
+    pub attributes: Option<Vec<RoleRelationConceptAttribute>>,
+}
+
+/// Schema attribute for role relation concept.
+#[derive(Debug, Clone)]
+pub struct RoleRelationConceptAttribute {
+    pub name: String,
+    pub value: Option<String>,
+}
+
+/// Non-interactive element role schemas.
+pub static NON_INTERACTIVE_ELEMENT_ROLE_SCHEMAS: LazyLock<Vec<RoleRelationConcept>> =
+    LazyLock::new(|| {
+        vec![
+            RoleRelationConcept {
+                name: "article".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "header".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "blockquote".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "caption".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "code".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "aside".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "aside".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "aria-label".to_string(),
+                    value: None,
+                }]),
+            },
+            RoleRelationConcept {
+                name: "aside".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "aria-labelledby".to_string(),
+                    value: None,
+                }]),
+            },
+            RoleRelationConcept {
+                name: "footer".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "dd".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "del".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "html".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "em".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "figure".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "form".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "aria-label".to_string(),
+                    value: None,
+                }]),
+            },
+            RoleRelationConcept {
+                name: "form".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "aria-labelledby".to_string(),
+                    value: None,
+                }]),
+            },
+            RoleRelationConcept {
+                name: "form".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "name".to_string(),
+                    value: None,
+                }]),
+            },
+            RoleRelationConcept {
+                name: "details".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "fieldset".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "optgroup".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "address".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "h1".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "h2".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "h3".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "h4".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "h5".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "h6".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "img".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "alt".to_string(),
+                    value: None,
+                }]),
+            },
+            RoleRelationConcept {
+                name: "img".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "alt".to_string(),
+                    value: None,
+                }]),
+            },
+            RoleRelationConcept {
+                name: "ins".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "menu".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "ol".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "ul".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "li".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "main".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "mark".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "math".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "meter".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "nav".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "p".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "img".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "alt".to_string(),
+                    value: None,
+                }]),
+            },
+            RoleRelationConcept {
+                name: "progress".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "section".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "aria-label".to_string(),
+                    value: None,
+                }]),
+            },
+            RoleRelationConcept {
+                name: "section".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "aria-labelledby".to_string(),
+                    value: None,
+                }]),
+            },
+            RoleRelationConcept {
+                name: "tbody".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "tfoot".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "thead".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "hr".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "output".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "strong".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "sub".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "sup".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "table".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "dfn".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "dt".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "time".to_string(),
+                attributes: None,
+            },
+        ]
+    });
+
+/// Interactive element role schemas.
+pub static INTERACTIVE_ELEMENT_ROLE_SCHEMAS: LazyLock<Vec<RoleRelationConcept>> =
+    LazyLock::new(|| {
+        vec![
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "type".to_string(),
+                    value: Some("button".to_string()),
+                }]),
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "type".to_string(),
+                    value: Some("image".to_string()),
+                }]),
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "type".to_string(),
+                    value: Some("reset".to_string()),
+                }]),
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "type".to_string(),
+                    value: Some("submit".to_string()),
+                }]),
+            },
+            RoleRelationConcept {
+                name: "button".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "td".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "type".to_string(),
+                    value: Some("checkbox".to_string()),
+                }]),
+            },
+            RoleRelationConcept {
+                name: "th".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "th".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "scope".to_string(),
+                    value: Some("col".to_string()),
+                }]),
+            },
+            RoleRelationConcept {
+                name: "th".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "scope".to_string(),
+                    value: Some("colgroup".to_string()),
+                }]),
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![
+                    RoleRelationConceptAttribute {
+                        name: "list".to_string(),
+                        value: None,
+                    },
+                    RoleRelationConceptAttribute {
+                        name: "type".to_string(),
+                        value: Some("email".to_string()),
+                    },
+                ]),
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![
+                    RoleRelationConceptAttribute {
+                        name: "list".to_string(),
+                        value: None,
+                    },
+                    RoleRelationConceptAttribute {
+                        name: "type".to_string(),
+                        value: Some("search".to_string()),
+                    },
+                ]),
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![
+                    RoleRelationConceptAttribute {
+                        name: "list".to_string(),
+                        value: None,
+                    },
+                    RoleRelationConceptAttribute {
+                        name: "type".to_string(),
+                        value: Some("tel".to_string()),
+                    },
+                ]),
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![
+                    RoleRelationConceptAttribute {
+                        name: "list".to_string(),
+                        value: None,
+                    },
+                    RoleRelationConceptAttribute {
+                        name: "type".to_string(),
+                        value: Some("text".to_string()),
+                    },
+                ]),
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![
+                    RoleRelationConceptAttribute {
+                        name: "list".to_string(),
+                        value: None,
+                    },
+                    RoleRelationConceptAttribute {
+                        name: "type".to_string(),
+                        value: Some("url".to_string()),
+                    },
+                ]),
+            },
+            RoleRelationConcept {
+                name: "select".to_string(),
+                attributes: Some(vec![
+                    RoleRelationConceptAttribute {
+                        name: "multiple".to_string(),
+                        value: None,
+                    },
+                    RoleRelationConceptAttribute {
+                        name: "size".to_string(),
+                        value: None,
+                    },
+                ]),
+            },
+            RoleRelationConcept {
+                name: "dialog".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "td".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "a".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "href".to_string(),
+                    value: None,
+                }]),
+            },
+            RoleRelationConcept {
+                name: "area".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "href".to_string(),
+                    value: None,
+                }]),
+            },
+            RoleRelationConcept {
+                name: "select".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "size".to_string(),
+                    value: None,
+                }]),
+            },
+            RoleRelationConcept {
+                name: "select".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "multiple".to_string(),
+                    value: None,
+                }]),
+            },
+            RoleRelationConcept {
+                name: "datalist".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "option".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "type".to_string(),
+                    value: Some("radio".to_string()),
+                }]),
+            },
+            RoleRelationConcept {
+                name: "tr".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "th".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "scope".to_string(),
+                    value: Some("row".to_string()),
+                }]),
+            },
+            RoleRelationConcept {
+                name: "th".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "scope".to_string(),
+                    value: Some("rowgroup".to_string()),
+                }]),
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![
+                    RoleRelationConceptAttribute {
+                        name: "list".to_string(),
+                        value: None,
+                    },
+                    RoleRelationConceptAttribute {
+                        name: "type".to_string(),
+                        value: Some("search".to_string()),
+                    },
+                ]),
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "type".to_string(),
+                    value: Some("range".to_string()),
+                }]),
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "type".to_string(),
+                    value: Some("number".to_string()),
+                }]),
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![
+                    RoleRelationConceptAttribute {
+                        name: "type".to_string(),
+                        value: None,
+                    },
+                    RoleRelationConceptAttribute {
+                        name: "list".to_string(),
+                        value: None,
+                    },
+                ]),
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![
+                    RoleRelationConceptAttribute {
+                        name: "list".to_string(),
+                        value: None,
+                    },
+                    RoleRelationConceptAttribute {
+                        name: "type".to_string(),
+                        value: Some("email".to_string()),
+                    },
+                ]),
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![
+                    RoleRelationConceptAttribute {
+                        name: "list".to_string(),
+                        value: None,
+                    },
+                    RoleRelationConceptAttribute {
+                        name: "type".to_string(),
+                        value: Some("tel".to_string()),
+                    },
+                ]),
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![
+                    RoleRelationConceptAttribute {
+                        name: "list".to_string(),
+                        value: None,
+                    },
+                    RoleRelationConceptAttribute {
+                        name: "type".to_string(),
+                        value: Some("text".to_string()),
+                    },
+                ]),
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![
+                    RoleRelationConceptAttribute {
+                        name: "list".to_string(),
+                        value: None,
+                    },
+                    RoleRelationConceptAttribute {
+                        name: "type".to_string(),
+                        value: Some("url".to_string()),
+                    },
+                ]),
+            },
+            RoleRelationConcept {
+                name: "textarea".to_string(),
+                attributes: None,
+            },
+        ]
+    });
+
+/// Interactive element AX object schemas.
+pub static INTERACTIVE_ELEMENT_AX_OBJECT_SCHEMAS: LazyLock<Vec<RoleRelationConcept>> =
+    LazyLock::new(|| {
+        vec![
+            RoleRelationConcept {
+                name: "audio".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "button".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "canvas".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "td".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "type".to_string(),
+                    value: Some("checkbox".to_string()),
+                }]),
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "type".to_string(),
+                    value: Some("color".to_string()),
+                }]),
+            },
+            RoleRelationConcept {
+                name: "th".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "select".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "type".to_string(),
+                    value: Some("date".to_string()),
+                }]),
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "type".to_string(),
+                    value: Some("datetime".to_string()),
+                }]),
+            },
+            RoleRelationConcept {
+                name: "summary".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "embed".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "type".to_string(),
+                    value: Some("time".to_string()),
+                }]),
+            },
+            RoleRelationConcept {
+                name: "a".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "href".to_string(),
+                    value: None,
+                }]),
+            },
+            RoleRelationConcept {
+                name: "option".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "datalist".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "menuitem".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "type".to_string(),
+                    value: Some("radio".to_string()),
+                }]),
+            },
+            RoleRelationConcept {
+                name: "th".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "scope".to_string(),
+                    value: Some("row".to_string()),
+                }]),
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "type".to_string(),
+                    value: Some("search".to_string()),
+                }]),
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "type".to_string(),
+                    value: Some("range".to_string()),
+                }]),
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "type".to_string(),
+                    value: Some("number".to_string()),
+                }]),
+            },
+            RoleRelationConcept {
+                name: "textarea".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "input".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "type".to_string(),
+                    value: Some("text".to_string()),
+                }]),
+            },
+            RoleRelationConcept {
+                name: "video".to_string(),
+                attributes: None,
+            },
+        ]
+    });
+
+/// Non-interactive element AX object schemas.
+pub static NON_INTERACTIVE_ELEMENT_AX_OBJECT_SCHEMAS: LazyLock<Vec<RoleRelationConcept>> =
+    LazyLock::new(|| {
+        vec![
+            RoleRelationConcept {
+                name: "abbr".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "article".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "blockquote".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "caption".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "dfn".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "dd".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "dl".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "dt".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "details".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "dir".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "figcaption".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "figure".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "footer".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "form".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "h1".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "h2".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "h3".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "h4".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "h5".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "h6".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "img".to_string(),
+                attributes: Some(vec![RoleRelationConceptAttribute {
+                    name: "usemap".to_string(),
+                    value: None,
+                }]),
+            },
+            RoleRelationConcept {
+                name: "img".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "label".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "legend".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "br".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "li".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "ul".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "ol".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "main".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "mark".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "marquee".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "menu".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "meter".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "nav".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "p".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "pre".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "progress".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "tr".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "ruby".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "table".to_string(),
+                attributes: None,
+            },
+            RoleRelationConcept {
+                name: "time".to_string(),
+                attributes: None,
+            },
+        ]
+    });

@@ -18,6 +18,8 @@
 //!   construction for efficient location calculation.
 
 use compact_str::CompactString;
+use regex::Regex;
+use std::collections::HashMap;
 
 use crate::ast::css::StyleSheet;
 use crate::ast::span::{LineColumn, SourceLocation};
@@ -26,7 +28,20 @@ use crate::error::{ParseError, ParseResult};
 
 use super::ParseOptions;
 
+/// Last auto-closed tag information.
+///
+/// Corresponds to `LastAutoClosedTag` in `svelte/packages/svelte/src/compiler/phases/1-parse/index.js`.
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub struct LastAutoClosedTag {
+    pub tag: CompactString,
+    pub reason: CompactString,
+    pub depth: usize,
+}
+
 /// The parser state.
+///
+/// Corresponds to the `Parser` class in `svelte/packages/svelte/src/compiler/phases/1-parse/index.js`.
 pub struct Parser<'a> {
     /// The source code being parsed.
     pub(crate) source: &'a str,
@@ -51,6 +66,21 @@ pub struct Parser<'a> {
     pub(crate) svelte_options: Option<SvelteOptions>,
     /// Pending comments that could become leading comments for a script.
     pub(crate) pending_leading_comments: Vec<String>,
+    /// Whether we're in TypeScript mode.
+    ///
+    /// Corresponds to `ts` field in JavaScript Parser.
+    #[allow(dead_code)]
+    pub(crate) ts: bool,
+    /// Meta tags (e.g., svelte:head, svelte:options).
+    ///
+    /// Corresponds to `meta_tags` field in JavaScript Parser.
+    #[allow(dead_code)]
+    pub(crate) meta_tags: HashMap<String, bool>,
+    /// Last auto-closed tag.
+    ///
+    /// Corresponds to `last_auto_closed_tag` field in JavaScript Parser.
+    #[allow(dead_code)]
+    pub(crate) last_auto_closed_tag: Option<LastAutoClosedTag>,
 }
 
 /// An entry on the parser stack.
@@ -101,6 +131,8 @@ pub enum ElementType {
 
 impl<'a> Parser<'a> {
     /// Create a new parser.
+    ///
+    /// Corresponds to the `Parser` constructor in `svelte/packages/svelte/src/compiler/phases/1-parse/index.js`.
     pub fn new(source: &'a str, options: ParseOptions) -> Self {
         // Calculate line offsets for location calculation
         let mut line_offsets = vec![0];
@@ -109,6 +141,10 @@ impl<'a> Parser<'a> {
                 line_offsets.push(i + 1);
             }
         }
+
+        // Detect TypeScript mode by looking for lang="ts" in script tags
+        // Corresponds to the TypeScript detection logic in JavaScript Parser constructor
+        let ts = Self::detect_typescript_mode(source);
 
         Self {
             source,
@@ -122,7 +158,48 @@ impl<'a> Parser<'a> {
             stylesheet: None,
             svelte_options: None,
             pending_leading_comments: Vec::new(),
+            ts,
+            meta_tags: HashMap::new(),
+            last_auto_closed_tag: None,
         }
+    }
+
+    /// Detect TypeScript mode by looking for `lang="ts"` or `lang='ts'` in script tags.
+    ///
+    /// Corresponds to the regex-based TypeScript detection in JavaScript Parser constructor.
+    fn detect_typescript_mode(source: &str) -> bool {
+        // regex_lang_attribute from JavaScript:
+        // /<!--[^]*?-->|<script\s+(?:[^>]*|(?:[^=>'"/]+=(?:"[^"]*"|'[^']*'|[^>\s]+)\s+)*)lang=(["'])?([^"' >]+)\1[^>]*>/g
+        //
+        // This regex:
+        // 1. Skips HTML comments: <!--[\s\S]*?--> ([\s\S] is equivalent to [^] in JS)
+        // 2. Matches script tags with lang attribute
+        // 3. Captures the lang value
+        //
+        // For simplicity and performance, we use a simpler approach:
+        // Look for <script with lang="ts" or lang='ts'
+        let re = Regex::new(
+            r#"(?x)
+            <!--[\s\S]*?-->       # Skip HTML comments ([\s\S] matches any char including newline)
+            |
+            <script\s+            # <script with whitespace
+            (?:[^>]*?)            # Any attributes before lang
+            lang=                 # lang attribute
+            (?:["'])?             # Optional quote
+            (ts)                  # Capture "ts"
+            (?:["'])?             # Optional quote
+            [^>]*>                # Rest of tag
+            "#,
+        )
+        .unwrap();
+
+        if let Some(captures) = re.captures(source) {
+            if let Some(lang) = captures.get(1) {
+                return lang.as_str() == "ts";
+            }
+        }
+
+        false
     }
 
     /// Get source location for a position.
@@ -319,5 +396,111 @@ impl<'a> Parser<'a> {
         } else {
             false
         }
+    }
+
+    // =========================================================================
+    // JavaScript Parser compatibility methods
+    // =========================================================================
+
+    /// Get the current element/block from the stack.
+    ///
+    /// Corresponds to `current()` in JavaScript Parser.
+    pub fn current(&self) -> Option<&StackEntry> {
+        self.stack.last()
+    }
+
+    /// Match a regex at the current index.
+    ///
+    /// Corresponds to `match_regex()` in JavaScript Parser.
+    ///
+    /// The pattern should have a `^` anchor at the start so the regex doesn't
+    /// search past the beginning, resulting in worse performance.
+    pub fn match_regex(&self, pattern: &Regex) -> Option<String> {
+        let remaining = &self.source[self.index..];
+        if let Some(captures) = pattern.captures(remaining) {
+            if let Some(m) = captures.get(0) {
+                if m.start() == 0 {
+                    return Some(m.as_str().to_string());
+                }
+            }
+        }
+        None
+    }
+
+    /// Search for a regex starting at the current index and return the result if it matches.
+    ///
+    /// Corresponds to `read()` in JavaScript Parser.
+    ///
+    /// The pattern should have a `^` anchor at the start so the regex doesn't
+    /// search past the beginning, resulting in worse performance.
+    pub fn read(&mut self, pattern: &Regex) -> Option<String> {
+        if let Some(result) = self.match_regex(pattern) {
+            self.index += result.len();
+            Some(result)
+        } else {
+            None
+        }
+    }
+
+    /// Read until a pattern is found.
+    ///
+    /// Corresponds to `read_until()` in JavaScript Parser.
+    pub fn read_until(&mut self, pattern: &Regex) -> ParseResult<String> {
+        if self.index >= self.source.len() {
+            if self.options.loose {
+                return Ok(String::new());
+            }
+            return Err(ParseError::UnexpectedEof {
+                span: (self.source.len(), self.source.len()),
+            });
+        }
+
+        let start = self.index;
+        let remaining = &self.source[start..];
+
+        if let Some(captures) = pattern.captures(remaining) {
+            if let Some(m) = captures.get(0) {
+                self.index = start + m.start();
+                return Ok(self.source[start..self.index].to_string());
+            }
+        }
+
+        self.index = self.source.len();
+        Ok(self.source[start..].to_string())
+    }
+
+    /// Require whitespace at the current position.
+    ///
+    /// Corresponds to `require_whitespace()` in JavaScript Parser.
+    pub fn require_whitespace(&mut self) -> ParseResult<()> {
+        if self.is_eof() || !self.current_char().is_whitespace() {
+            return Err(ParseError::svelte(
+                "expected_whitespace",
+                "Expected whitespace",
+                (self.index, self.index + 1),
+            ));
+        }
+
+        self.skip_whitespace();
+        Ok(())
+    }
+
+    /// Handle an acorn error.
+    ///
+    /// Corresponds to `acorn_error()` in JavaScript Parser.
+    pub fn acorn_error(&self, pos: usize, message: &str) -> ParseError {
+        // Remove position indicator from message (e.g., " (10:5)")
+        let clean_message = message
+            .trim_end_matches(|c: char| c == ')' || c.is_ascii_digit() || c == ':' || c == '(');
+
+        ParseError::svelte("js_parse_error", clean_message, (pos, pos + 1))
+    }
+
+    /// Allow whitespace (skip it if present).
+    ///
+    /// Corresponds to `allow_whitespace()` in JavaScript Parser.
+    /// This is just an alias for `skip_whitespace()`.
+    pub fn allow_whitespace(&mut self) {
+        self.skip_whitespace();
     }
 }

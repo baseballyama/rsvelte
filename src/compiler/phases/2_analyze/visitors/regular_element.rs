@@ -19,7 +19,8 @@ pub fn visit(element: &RegularElement, context: &mut VisitorContext) -> Result<(
     validate_element(element, context)?;
 
     // Check accessibility
-    a11y_check(element, context)?;
+    let path_refs: Vec<&_> = context.path.iter().map(|node| *node).collect();
+    a11y_check(element, &path_refs);
 
     // Track element info for CSS analysis
     let has_spread = element

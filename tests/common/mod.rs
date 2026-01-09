@@ -142,7 +142,48 @@ pub fn get_svelte_test_samples(category: &str) -> Vec<PathBuf> {
 // Normalization utilities
 // ============================================================================
 
-/// Normalize JavaScript code for comparison.
+/// Format JavaScript code using oxfmt for comparison.
+/// Falls back to basic normalization if oxfmt is not available or fails.
+pub fn format_js_with_oxfmt(js: &str) -> String {
+    use std::time::SystemTime;
+
+    // Create a temporary file for oxfmt to process
+    let temp_dir = std::env::temp_dir();
+    let timestamp = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let temp_file = temp_dir.join(format!("svelte_test_{}.js", timestamp));
+
+    // Write JS to temp file
+    if let Err(_) = fs::write(&temp_file, js) {
+        // Fallback to basic normalization if file write fails
+        return normalize_js(js);
+    }
+
+    // Try to format with oxfmt using npx
+    let output = Command::new("npx")
+        .args(["oxfmt", temp_file.to_str().unwrap(), "--write"])
+        .output();
+
+    let formatted = match output {
+        Ok(result) if result.status.success() => {
+            // Read the formatted output
+            fs::read_to_string(&temp_file).unwrap_or_else(|_| js.to_string())
+        }
+        _ => {
+            // Fallback to basic normalization if oxfmt fails
+            normalize_js(js)
+        }
+    };
+
+    // Clean up temp file
+    let _ = fs::remove_file(temp_file);
+
+    formatted
+}
+
+/// Normalize JavaScript code for comparison (basic fallback).
 pub fn normalize_js(js: &str) -> String {
     js.lines()
         .filter(|line| !line.trim().is_empty())

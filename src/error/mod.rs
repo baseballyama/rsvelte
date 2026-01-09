@@ -77,6 +77,17 @@ pub enum ParseError {
         #[label("{message}")]
         span: (usize, usize),
     },
+
+    /// TypeScript feature that is not supported.
+    #[error(
+        "typescript_invalid_feature: TypeScript language features like {feature} are not natively supported"
+    )]
+    #[diagnostic(code(svelte::parse::typescript_invalid_feature))]
+    TypeScriptInvalidFeature {
+        feature: String,
+        #[label("TypeScript feature not supported")]
+        span: (usize, usize),
+    },
 }
 
 impl ParseError {
@@ -85,6 +96,14 @@ impl ParseError {
         ParseError::SvelteError {
             code: code.to_string(),
             message: message.into(),
+            span,
+        }
+    }
+
+    /// Create a TypeScript invalid feature error.
+    pub fn typescript_invalid_feature(feature: impl Into<String>, span: (usize, usize)) -> Self {
+        ParseError::TypeScriptInvalidFeature {
+            feature: feature.into(),
             span,
         }
     }

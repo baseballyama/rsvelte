@@ -94,33 +94,43 @@ fn levenshtein(str1: &str, str2: &str) -> usize {
 }
 
 /// Generate n-grams from a string.
+///
+/// Corresponds to `iterate_grams` in fuzzymatch.js.
+/// Note: The JavaScript implementation has a bug where it tries to pad `value`
+/// instead of `simplified`, so padding doesn't actually work. We replicate this
+/// exact behavior for compatibility.
 fn iterate_grams(value: &str, gram_size: usize) -> Vec<String> {
-    // Normalize: lowercase and remove non-word characters, add delimiters
+    // JavaScript: const simplified = '-' + value.toLowerCase().replace(non_word_regex, '') + '-';
+    // where non_word_regex = /[^\w, ]+/
+    // \w in JavaScript is [a-zA-Z0-9_]
     let simplified: String = format!(
         "-{}-",
         value
             .to_lowercase()
             .chars()
-            .filter(|c| c.is_alphanumeric() || *c == ' ' || *c == ',')
+            .filter(|c| c.is_alphanumeric() || *c == '_' || *c == ' ' || *c == ',')
             .collect::<String>()
     );
 
     let chars: Vec<char> = simplified.chars().collect();
     let len = chars.len();
 
-    if len < gram_size {
-        // Pad with dashes if too short
-        let mut padded = simplified.clone();
-        for _ in 0..(gram_size - len) {
-            padded.push('-');
-        }
-        return vec![padded];
-    }
+    // JavaScript code has a bug where it pads `value` instead of `simplified`:
+    // if (len_diff > 0) {
+    //   for (let i = 0; i < len_diff; ++i) {
+    //     value += '-';  // Bug: should be simplified
+    //   }
+    // }
+    // This means if simplified.length < gram_size, the loop just returns fewer grams.
+    // We replicate this exact behavior.
 
-    let mut results = Vec::with_capacity(len - gram_size + 1);
-    for i in 0..=len - gram_size {
-        results.push(chars[i..i + gram_size].iter().collect());
+    let mut results = Vec::new();
+    if len >= gram_size {
+        for i in 0..=len - gram_size {
+            results.push(chars[i..i + gram_size].iter().collect());
+        }
     }
+    // If len < gram_size, return empty vector (matching JavaScript bug behavior)
     results
 }
 

@@ -13,8 +13,8 @@ use std::fs;
 
 use common::{
     CategoryResult, CompatibilityReport, SampleDetails, SampleResult, TestCategory, TestStatus,
-    ensure_fixtures_exist, fixtures_path, get_fixture_samples, get_svelte_test_samples,
-    load_fixture_output, normalize_css, svelte_path, write_actual_output,
+    ensure_fixtures_exist, fixtures_path, format_js_with_oxfmt, get_fixture_samples,
+    get_svelte_test_samples, load_fixture_output, normalize_css, svelte_path, write_actual_output,
 };
 use svelte_compiler_rust::{
     CompileOptions, GenerateMode, ParseOptions, compile, compiler::CssMode, convert_to_legacy,
@@ -252,7 +252,7 @@ fn run_snapshot_tests() -> CategoryResult {
                 Ok(compile_result) => {
                     write_actual_output("snapshot", &name, "client.js", &compile_result.js.code);
 
-                    if normalize_js(&compile_result.js.code) == normalize_js(expected) {
+                    if compare_js(&compile_result.js.code, expected) {
                         details.client_passed = Some(true);
                     } else {
                         details.client_passed = Some(false);
@@ -280,7 +280,7 @@ fn run_snapshot_tests() -> CategoryResult {
                 Ok(compile_result) => {
                     write_actual_output("snapshot", &name, "server.js", &compile_result.js.code);
 
-                    if normalize_js(&compile_result.js.code) == normalize_js(expected) {
+                    if compare_js(&compile_result.js.code, expected) {
                         details.server_passed = Some(true);
                     } else {
                         details.server_passed = Some(false);
@@ -868,7 +868,7 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
                 Ok(compile_result) => {
                     write_actual_output(category, &name, "client.js", &compile_result.js.code);
 
-                    if normalize_js(&compile_result.js.code) == normalize_js(expected) {
+                    if compare_js(&compile_result.js.code, expected) {
                         details.client_passed = Some(true);
                     } else {
                         details.client_passed = Some(false);
@@ -897,7 +897,7 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
                 Ok(compile_result) => {
                     write_actual_output(category, &name, "server.js", &compile_result.js.code);
 
-                    if normalize_js(&compile_result.js.code) == normalize_js(expected) {
+                    if compare_js(&compile_result.js.code, expected) {
                         details.server_passed = Some(true);
                     } else {
                         details.server_passed = Some(false);
@@ -966,6 +966,15 @@ fn run_not_implemented_tests(category: &str, reason: &str) -> CategoryResult {
 // Utility Functions
 // ============================================================================
 
+/// Compare two JavaScript outputs using oxfmt for formatting.
+fn compare_js(actual: &str, expected: &str) -> bool {
+    let formatted_actual = format_js_with_oxfmt(actual);
+    let formatted_expected = format_js_with_oxfmt(expected);
+    formatted_actual == formatted_expected
+}
+
+// Legacy normalization function (kept for reference, but no longer used)
+#[allow(dead_code)]
 fn normalize_js(js: &str) -> String {
     let js = normalize_quotes(js);
     let js = collapse_multiline_constructs(&js);
@@ -978,6 +987,7 @@ fn normalize_js(js: &str) -> String {
         .join("\n")
 }
 
+#[allow(dead_code)]
 fn normalize_quotes(js: &str) -> String {
     let mut result = String::new();
     let chars: Vec<char> = js.chars().collect();
@@ -996,6 +1006,7 @@ fn normalize_quotes(js: &str) -> String {
     result
 }
 
+#[allow(dead_code)]
 fn collapse_multiline_constructs(js: &str) -> String {
     let mut result = String::new();
     let mut depth = 0;
@@ -1055,6 +1066,7 @@ fn collapse_multiline_constructs(js: &str) -> String {
     result
 }
 
+#[allow(dead_code)]
 fn normalize_spacing(line: &str) -> String {
     let line = line.replace(",...", ", ...");
     let mut result = String::new();

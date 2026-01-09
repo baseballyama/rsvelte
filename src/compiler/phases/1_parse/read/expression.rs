@@ -91,7 +91,9 @@ fn create_comment_object(
 
     let comment_type = match kind {
         oxc_ast::ast::CommentKind::Line => "Line",
-        oxc_ast::ast::CommentKind::Block => "Block",
+        oxc_ast::ast::CommentKind::SingleLineBlock | oxc_ast::ast::CommentKind::MultiLineBlock => {
+            "Block"
+        }
     };
 
     obj.insert("type".to_string(), Value::String(comment_type.to_string()));
@@ -110,11 +112,12 @@ fn create_comment_object(
 fn extract_comment_value(raw: &str, kind: oxc_ast::ast::CommentKind) -> String {
     match kind {
         oxc_ast::ast::CommentKind::Line => raw.strip_prefix("//").unwrap_or(raw).to_string(),
-        oxc_ast::ast::CommentKind::Block => raw
-            .strip_prefix("/*")
-            .and_then(|s| s.strip_suffix("*/"))
-            .unwrap_or(raw)
-            .to_string(),
+        oxc_ast::ast::CommentKind::SingleLineBlock | oxc_ast::ast::CommentKind::MultiLineBlock => {
+            raw.strip_prefix("/*")
+                .and_then(|s| s.strip_suffix("*/"))
+                .unwrap_or(raw)
+                .to_string()
+        }
     }
 }
 
@@ -217,7 +220,11 @@ fn parse_expression_with_typescript(
                         let mut value = extract_comment_value(raw, comment.kind);
 
                         // Normalize block comment indentation
-                        if comment.kind == oxc_ast::ast::CommentKind::Block {
+                        if matches!(
+                            comment.kind,
+                            oxc_ast::ast::CommentKind::SingleLineBlock
+                                | oxc_ast::ast::CommentKind::MultiLineBlock
+                        ) {
                             value = normalize_block_comment_indentation(
                                 &value,
                                 content,
@@ -251,7 +258,11 @@ fn parse_expression_with_typescript(
                         let mut value = extract_comment_value(raw, comment.kind);
 
                         // Normalize block comment indentation
-                        if comment.kind == oxc_ast::ast::CommentKind::Block {
+                        if matches!(
+                            comment.kind,
+                            oxc_ast::ast::CommentKind::SingleLineBlock
+                                | oxc_ast::ast::CommentKind::MultiLineBlock
+                        ) {
                             value = normalize_block_comment_indentation(
                                 &value,
                                 content,
@@ -359,47 +370,30 @@ fn convert_formal_parameter(
     adjusted_offset: usize,
     line_offsets: &[usize],
 ) -> Expression {
-    use oxc_ast::ast::BindingPatternKind;
+    use oxc_ast::ast::BindingPattern;
 
-    match &param.pattern.kind {
-        BindingPatternKind::BindingIdentifier(id) => {
+    match &param.pattern {
+        BindingPattern::BindingIdentifier(id) => {
             let start = adjusted_offset + id.span.start as usize;
+            let end = adjusted_offset + id.span.end as usize;
             let name = id.name.as_str();
 
-            // Check if there's a type annotation
-            if let Some(type_ann) = &param.pattern.type_annotation {
-                let end = adjusted_offset + type_ann.span.end as usize;
-
-                let mut obj = Map::new();
-                obj.insert("type".to_string(), Value::String("Identifier".to_string()));
-                obj.insert("start".to_string(), Value::Number((start as i64).into()));
-                obj.insert("end".to_string(), Value::Number((end as i64).into()));
-                obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
-                obj.insert("name".to_string(), Value::String(name.to_string()));
-
-                // Add type annotation
-                let type_ann_obj =
-                    convert_type_annotation_adjusted(type_ann, adjusted_offset, line_offsets);
-                obj.insert("typeAnnotation".to_string(), type_ann_obj);
-
-                Expression::Value(Value::Object(obj))
-            } else {
-                let end = adjusted_offset + id.span.end as usize;
-                create_identifier(name, start, end, line_offsets)
-            }
+            // TODO: OXC v0.107 moved type annotations to a different location
+            // Need to investigate where type annotations are now stored
+            create_identifier(name, start, end, line_offsets)
         }
-        BindingPatternKind::ObjectPattern(obj_pat) => {
+        BindingPattern::ObjectPattern(obj_pat) => {
             let start = adjusted_offset + obj_pat.span.start as usize;
             let end = adjusted_offset + obj_pat.span.end as usize;
             // For now, create a placeholder - this needs more work for full destructuring support
             create_identifier("{...}", start, end, line_offsets)
         }
-        BindingPatternKind::ArrayPattern(arr_pat) => {
+        BindingPattern::ArrayPattern(arr_pat) => {
             let start = adjusted_offset + arr_pat.span.start as usize;
             let end = adjusted_offset + arr_pat.span.end as usize;
             create_identifier("[...]", start, end, line_offsets)
         }
-        BindingPatternKind::AssignmentPattern(assign_pat) => {
+        BindingPattern::AssignmentPattern(assign_pat) => {
             let start = adjusted_offset + assign_pat.span.start as usize;
             let end = adjusted_offset + assign_pat.span.end as usize;
             create_identifier("=...", start, end, line_offsets)
@@ -523,6 +517,22 @@ fn convert_ts_type_name_adjusted(
             obj.insert(
                 "type".to_string(),
                 Value::String("TSQualifiedName".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+            Value::Object(obj)
+        }
+        oxc_ast::ast::TSTypeName::ThisExpression(this) => {
+            // Handle this type (e.g., this.foo)
+            let start = adjusted_offset + this.span.start as usize;
+            let end = adjusted_offset + this.span.end as usize;
+
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("ThisExpression".to_string()),
             );
             obj.insert("start".to_string(), Value::Number((start as i64).into()));
             obj.insert("end".to_string(), Value::Number((end as i64).into()));
@@ -1716,8 +1726,8 @@ fn convert_binding_pattern_for_decl(
     offset: usize,
     line_offsets: &[usize],
 ) -> Value {
-    match &pattern.kind {
-        oxc_ast::ast::BindingPatternKind::BindingIdentifier(id) => {
+    match pattern {
+        oxc_ast::ast::BindingPattern::BindingIdentifier(id) => {
             let start = offset + id.span.start as usize - 1;
             let end = offset + id.span.end as usize - 1;
             let mut obj = Map::new();
@@ -1727,21 +1737,7 @@ fn convert_binding_pattern_for_decl(
             obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
             obj.insert("name".to_string(), Value::String(id.name.to_string()));
 
-            // Add type annotation if present
-            if let Some(type_ann) = &pattern.type_annotation {
-                let ann_start = offset + type_ann.span.start as usize - 1;
-                let ann_end = offset + type_ann.span.end as usize - 1;
-                obj.insert(
-                    "typeAnnotation".to_string(),
-                    convert_type_annotation_basic(
-                        type_ann,
-                        ann_start,
-                        ann_end,
-                        offset,
-                        line_offsets,
-                    ),
-                );
-            }
+            // TODO: OXC v0.107 - type annotations moved to different location
 
             Value::Object(obj)
         }
@@ -2192,7 +2188,8 @@ pub fn parse_program(
                 let mut comment_obj = Map::new();
                 let comment_type = match comment.kind {
                     oxc_ast::ast::CommentKind::Line => "Line",
-                    oxc_ast::ast::CommentKind::Block => "Block",
+                    oxc_ast::ast::CommentKind::SingleLineBlock
+                    | oxc_ast::ast::CommentKind::MultiLineBlock => "Block",
                 };
                 comment_obj.insert("type".to_string(), Value::String(comment_type.to_string()));
 
@@ -2205,7 +2202,8 @@ pub fn parse_program(
                         oxc_ast::ast::CommentKind::Line => {
                             raw.strip_prefix("//").unwrap_or(raw).to_string()
                         }
-                        oxc_ast::ast::CommentKind::Block => raw
+                        oxc_ast::ast::CommentKind::SingleLineBlock
+                        | oxc_ast::ast::CommentKind::MultiLineBlock => raw
                             .strip_prefix("/*")
                             .and_then(|s| s.strip_suffix("*/"))
                             .unwrap_or(raw)
@@ -2972,39 +2970,22 @@ fn convert_binding_pattern(
     offset: usize,
     line_offsets: &[usize],
 ) -> Value {
-    match &pattern.kind {
-        oxc_ast::ast::BindingPatternKind::BindingIdentifier(id) => {
+    match pattern {
+        oxc_ast::ast::BindingPattern::BindingIdentifier(id) => {
             let start = offset + id.span.start as usize;
+            let end = offset + id.span.end as usize;
 
-            // Check if there's a type annotation
-            if let Some(type_ann) = &pattern.type_annotation {
-                let end = offset + type_ann.span.end as usize;
-
-                let mut obj = Map::new();
-                obj.insert("type".to_string(), Value::String("Identifier".to_string()));
-                obj.insert("start".to_string(), Value::Number((start as i64).into()));
-                obj.insert("end".to_string(), Value::Number((end as i64).into()));
-                obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
-                obj.insert("name".to_string(), Value::String(id.name.to_string()));
-
-                // Add type annotation
-                let type_ann_obj = convert_type_annotation(type_ann, offset, line_offsets);
-                obj.insert("typeAnnotation".to_string(), type_ann_obj);
-
-                Value::Object(obj)
-            } else {
-                let end = offset + id.span.end as usize;
-                let expr = create_identifier(&id.name, start, end, line_offsets);
-                expr.as_json().clone()
-            }
+            // TODO: OXC v0.107 - type annotations moved to different location
+            let expr = create_identifier(&id.name, start, end, line_offsets);
+            expr.as_json().clone()
         }
-        oxc_ast::ast::BindingPatternKind::ObjectPattern(obj_pat) => {
+        oxc_ast::ast::BindingPattern::ObjectPattern(obj_pat) => {
             convert_object_pattern(obj_pat, offset, line_offsets)
         }
-        oxc_ast::ast::BindingPatternKind::ArrayPattern(arr_pat) => {
+        oxc_ast::ast::BindingPattern::ArrayPattern(arr_pat) => {
             convert_array_pattern(arr_pat, offset, line_offsets)
         }
-        oxc_ast::ast::BindingPatternKind::AssignmentPattern(assign_pat) => {
+        oxc_ast::ast::BindingPattern::AssignmentPattern(assign_pat) => {
             convert_assignment_pattern(assign_pat, offset, line_offsets)
         }
     }
@@ -3212,7 +3193,7 @@ pub fn parse_binding_pattern(content: &str, offset: usize, line_offsets: &[usize
 
                 // For top-level simple identifier, use special format with character field
                 // and name before loc
-                if let oxc_ast::ast::BindingPatternKind::BindingIdentifier(id) = &decl.id.kind {
+                if let oxc_ast::ast::BindingPattern::BindingIdentifier(id) = &decl.id {
                     let start = offset + id.span.start as usize - 4;
                     let end = offset + id.span.end as usize - 4;
                     return Expression::Value(create_identifier_for_binding_toplevel(
@@ -3245,20 +3226,20 @@ fn convert_binding_pattern_with_adjustment(
     prefix_len: usize,
     line_offsets: &[usize],
 ) -> Value {
-    match &pattern.kind {
-        oxc_ast::ast::BindingPatternKind::BindingIdentifier(id) => {
+    match pattern {
+        oxc_ast::ast::BindingPattern::BindingIdentifier(id) => {
             // Position in document = doc_offset + (span_pos - prefix_len)
             let start = doc_offset + id.span.start as usize - prefix_len;
             let end = doc_offset + id.span.end as usize - prefix_len;
             create_identifier_for_binding(&id.name, start, end, line_offsets)
         }
-        oxc_ast::ast::BindingPatternKind::ObjectPattern(obj_pat) => {
+        oxc_ast::ast::BindingPattern::ObjectPattern(obj_pat) => {
             convert_object_pattern_with_adjustment(obj_pat, doc_offset, prefix_len, line_offsets)
         }
-        oxc_ast::ast::BindingPatternKind::ArrayPattern(arr_pat) => {
+        oxc_ast::ast::BindingPattern::ArrayPattern(arr_pat) => {
             convert_array_pattern_with_adjustment(arr_pat, doc_offset, prefix_len, line_offsets)
         }
-        oxc_ast::ast::BindingPatternKind::AssignmentPattern(assign_pat) => {
+        oxc_ast::ast::BindingPattern::AssignmentPattern(assign_pat) => {
             convert_assignment_pattern_with_adjustment(
                 assign_pat,
                 doc_offset,

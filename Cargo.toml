@@ -2,7 +2,7 @@
 name = "svelte-compiler-rust"
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.90"
 description = "A high-performance Rust implementation of the Svelte compiler"
 license = "MIT"
 
@@ -27,13 +27,13 @@ bumpalo = { version = "3.16", features = ["collections"] }
 compact_str = { version = "0.8", features = ["serde"] }
 
 # JavaScript parsing and code generation
-oxc_allocator = "0.56"
-oxc_parser = "0.56"
-oxc_ast = "0.56"
-oxc_span = "0.56"
-oxc_diagnostics = "0.56"
-oxc_codegen = "0.56"
-oxc_syntax = "0.56"
+oxc_allocator = "0.107"
+oxc_parser = "0.107"
+oxc_ast = { version = "0.107", features = ["serialize"] }
+oxc_span = "0.107"
+oxc_diagnostics = "0.107"
+oxc_codegen = "0.107"
+oxc_syntax = "0.107"
 
 # Error handling
 thiserror = "2.0"
@@ -52,6 +52,7 @@ chrono = "0.4"
 wasm-bindgen = { version = "0.2", optional = true }
 console_error_panic_hook = { version = "0.1", optional = true }
 getrandom = { version = "0.2", optional = true }
+lazy_static = "1.5.0"
 
 [dev-dependencies]
 # Testing

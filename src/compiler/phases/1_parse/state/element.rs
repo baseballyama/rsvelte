@@ -1802,7 +1802,7 @@ impl Parser<'_> {
 
                 if text_end > text_start {
                     let raw = &self.source[text_start..text_end];
-                    let data = decode_html_entities(raw);
+                    let data = decode_html_entities(raw, true);
                     parts.push(AttributeValuePart::Text(Text {
                         start: text_start as u32,
                         end: text_end as u32,

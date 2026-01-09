@@ -7,6 +7,28 @@
 //!
 //! It provides the main entry point for parsing Svelte templates, dispatching
 //! to element, text, and mustache tag parsers based on the current character.
+//!
+//! ## JavaScript Implementation
+//!
+//! ```javascript
+//! export default function fragment(parser) {
+//!     if (parser.match('<')) {
+//!         return element;
+//!     }
+//!
+//!     if (parser.match('{')) {
+//!         return tag;
+//!     }
+//!
+//!     return text;
+//! }
+//! ```
+//!
+//! The JavaScript version uses a state machine pattern where each state function
+//! returns the next state function. The Rust implementation is more direct,
+//! using methods that parse and return nodes directly rather than returning
+//! function pointers. The `parse_node()` method corresponds to the `fragment()`
+//! function's dispatch logic.
 
 use crate::ast::template::{Fragment, FragmentType, Root, RootType, TemplateNode};
 use crate::error::ParseResult;
@@ -245,6 +267,17 @@ impl Parser<'_> {
     }
 
     /// Parse a single node.
+    ///
+    /// Corresponds to the `fragment()` function in `state/fragment.js`.
+    ///
+    /// The JavaScript version returns the next state function (element, tag, or text),
+    /// while this Rust version directly dispatches to the appropriate parsing method
+    /// and returns the parsed node.
+    ///
+    /// Dispatch logic:
+    /// - `parser.match('<')` → `element` (JS) / `parse_element_or_comment()` (Rust)
+    /// - `parser.match('{')` → `tag` (JS) / `parse_mustache()` (Rust)
+    /// - Otherwise → `text` (JS) / `parse_text()` (Rust)
     pub fn parse_node(&mut self) -> ParseResult<Option<TemplateNode>> {
         if self.is_eof() {
             return Ok(None);

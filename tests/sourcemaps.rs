@@ -9,8 +9,8 @@ use std::fs;
 use std::path::Path;
 
 use common::{
-    ensure_fixtures_exist, get_fixture_samples, load_fixture_output, svelte_path,
-    write_actual_output,
+    ensure_fixtures_exist, format_js_with_oxfmt, get_fixture_samples, load_fixture_output,
+    svelte_path, write_actual_output,
 };
 use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 
@@ -79,20 +79,11 @@ impl TestResult {
     }
 }
 
-/// Normalize JavaScript code for comparison.
-fn normalize_js(js: &str) -> String {
-    let js = js.replace('"', "'");
-
-    js.lines()
-        .filter(|line| !line.trim().is_empty())
-        .map(|line| line.trim_end())
-        .collect::<Vec<_>>()
-        .join("\n")
-}
-
-/// Compare two JavaScript outputs.
+/// Compare two JavaScript outputs using oxfmt for formatting.
 fn compare_js(actual: &str, expected: &str) -> bool {
-    normalize_js(actual) == normalize_js(expected)
+    let formatted_actual = format_js_with_oxfmt(actual);
+    let formatted_expected = format_js_with_oxfmt(expected);
+    formatted_actual == formatted_expected
 }
 
 /// Run a single sourcemap fixture test.

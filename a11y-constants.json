@@ -1,0 +1,1798 @@
+{
+  "aria_attributes": [
+    "activedescendant",
+    "atomic",
+    "autocomplete",
+    "busy",
+    "checked",
+    "colcount",
+    "colindex",
+    "colspan",
+    "controls",
+    "current",
+    "describedby",
+    "description",
+    "details",
+    "disabled",
+    "dropeffect",
+    "errormessage",
+    "expanded",
+    "flowto",
+    "grabbed",
+    "haspopup",
+    "hidden",
+    "invalid",
+    "keyshortcuts",
+    "label",
+    "labelledby",
+    "level",
+    "live",
+    "modal",
+    "multiline",
+    "multiselectable",
+    "orientation",
+    "owns",
+    "placeholder",
+    "posinset",
+    "pressed",
+    "readonly",
+    "relevant",
+    "required",
+    "roledescription",
+    "rowcount",
+    "rowindex",
+    "rowspan",
+    "selected",
+    "setsize",
+    "sort",
+    "valuemax",
+    "valuemin",
+    "valuenow",
+    "valuetext"
+  ],
+  "a11y_required_attributes": {
+    "a": [
+      "href"
+    ],
+    "area": [
+      "alt",
+      "aria-label",
+      "aria-labelledby"
+    ],
+    "html": [
+      "lang"
+    ],
+    "iframe": [
+      "title"
+    ],
+    "img": [
+      "alt"
+    ],
+    "object": [
+      "title",
+      "aria-label",
+      "aria-labelledby"
+    ]
+  },
+  "a11y_distracting_elements": [
+    "blink",
+    "marquee"
+  ],
+  "a11y_required_content": [
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6"
+  ],
+  "a11y_labelable": [
+    "button",
+    "input",
+    "keygen",
+    "meter",
+    "output",
+    "progress",
+    "select",
+    "textarea"
+  ],
+  "a11y_interactive_handlers": [
+    "keypress",
+    "keydown",
+    "keyup",
+    "click",
+    "contextmenu",
+    "dblclick",
+    "drag",
+    "dragend",
+    "dragenter",
+    "dragexit",
+    "dragleave",
+    "dragover",
+    "dragstart",
+    "drop",
+    "mousedown",
+    "mouseenter",
+    "mouseleave",
+    "mousemove",
+    "mouseout",
+    "mouseover",
+    "mouseup"
+  ],
+  "a11y_recommended_interactive_handlers": [
+    "click",
+    "mousedown",
+    "mouseup",
+    "keypress",
+    "keydown",
+    "keyup"
+  ],
+  "a11y_nested_implicit_semantics": [
+    [
+      "header",
+      "banner"
+    ],
+    [
+      "footer",
+      "contentinfo"
+    ]
+  ],
+  "a11y_implicit_semantics": [
+    [
+      "a",
+      "link"
+    ],
+    [
+      "area",
+      "link"
+    ],
+    [
+      "article",
+      "article"
+    ],
+    [
+      "aside",
+      "complementary"
+    ],
+    [
+      "body",
+      "document"
+    ],
+    [
+      "button",
+      "button"
+    ],
+    [
+      "datalist",
+      "listbox"
+    ],
+    [
+      "dd",
+      "definition"
+    ],
+    [
+      "dfn",
+      "term"
+    ],
+    [
+      "dialog",
+      "dialog"
+    ],
+    [
+      "details",
+      "group"
+    ],
+    [
+      "dt",
+      "term"
+    ],
+    [
+      "fieldset",
+      "group"
+    ],
+    [
+      "figure",
+      "figure"
+    ],
+    [
+      "form",
+      "form"
+    ],
+    [
+      "h1",
+      "heading"
+    ],
+    [
+      "h2",
+      "heading"
+    ],
+    [
+      "h3",
+      "heading"
+    ],
+    [
+      "h4",
+      "heading"
+    ],
+    [
+      "h5",
+      "heading"
+    ],
+    [
+      "h6",
+      "heading"
+    ],
+    [
+      "hr",
+      "separator"
+    ],
+    [
+      "img",
+      "img"
+    ],
+    [
+      "li",
+      "listitem"
+    ],
+    [
+      "link",
+      "link"
+    ],
+    [
+      "main",
+      "main"
+    ],
+    [
+      "menu",
+      "list"
+    ],
+    [
+      "meter",
+      "progressbar"
+    ],
+    [
+      "nav",
+      "navigation"
+    ],
+    [
+      "ol",
+      "list"
+    ],
+    [
+      "option",
+      "option"
+    ],
+    [
+      "optgroup",
+      "group"
+    ],
+    [
+      "output",
+      "status"
+    ],
+    [
+      "progress",
+      "progressbar"
+    ],
+    [
+      "section",
+      "region"
+    ],
+    [
+      "summary",
+      "button"
+    ],
+    [
+      "table",
+      "table"
+    ],
+    [
+      "tbody",
+      "rowgroup"
+    ],
+    [
+      "textarea",
+      "textbox"
+    ],
+    [
+      "tfoot",
+      "rowgroup"
+    ],
+    [
+      "thead",
+      "rowgroup"
+    ],
+    [
+      "tr",
+      "row"
+    ],
+    [
+      "ul",
+      "list"
+    ]
+  ],
+  "menuitem_type_to_implicit_role": [
+    [
+      "command",
+      "menuitem"
+    ],
+    [
+      "checkbox",
+      "menuitemcheckbox"
+    ],
+    [
+      "radio",
+      "menuitemradio"
+    ]
+  ],
+  "input_type_to_implicit_role": [
+    [
+      "button",
+      "button"
+    ],
+    [
+      "image",
+      "button"
+    ],
+    [
+      "reset",
+      "button"
+    ],
+    [
+      "submit",
+      "button"
+    ],
+    [
+      "checkbox",
+      "checkbox"
+    ],
+    [
+      "radio",
+      "radio"
+    ],
+    [
+      "range",
+      "slider"
+    ],
+    [
+      "number",
+      "spinbutton"
+    ],
+    [
+      "email",
+      "textbox"
+    ],
+    [
+      "search",
+      "searchbox"
+    ],
+    [
+      "tel",
+      "textbox"
+    ],
+    [
+      "text",
+      "textbox"
+    ],
+    [
+      "url",
+      "textbox"
+    ]
+  ],
+  "a11y_non_interactive_element_to_interactive_role_exceptions": {
+    "ul": [
+      "listbox",
+      "menu",
+      "menubar",
+      "radiogroup",
+      "tablist",
+      "tree",
+      "treegrid"
+    ],
+    "ol": [
+      "listbox",
+      "menu",
+      "menubar",
+      "radiogroup",
+      "tablist",
+      "tree",
+      "treegrid"
+    ],
+    "li": [
+      "menuitem",
+      "option",
+      "row",
+      "tab",
+      "treeitem"
+    ],
+    "table": [
+      "grid"
+    ],
+    "td": [
+      "gridcell"
+    ],
+    "fieldset": [
+      "radiogroup",
+      "presentation"
+    ]
+  },
+  "combobox_if_list": [
+    "email",
+    "search",
+    "tel",
+    "text",
+    "url"
+  ],
+  "address_type_tokens": [
+    "shipping",
+    "billing"
+  ],
+  "autofill_field_name_tokens": [
+    "",
+    "on",
+    "off",
+    "name",
+    "honorific-prefix",
+    "given-name",
+    "additional-name",
+    "family-name",
+    "honorific-suffix",
+    "nickname",
+    "username",
+    "new-password",
+    "current-password",
+    "one-time-code",
+    "organization-title",
+    "organization",
+    "street-address",
+    "address-line1",
+    "address-line2",
+    "address-line3",
+    "address-level4",
+    "address-level3",
+    "address-level2",
+    "address-level1",
+    "country",
+    "country-name",
+    "postal-code",
+    "cc-name",
+    "cc-given-name",
+    "cc-additional-name",
+    "cc-family-name",
+    "cc-number",
+    "cc-exp",
+    "cc-exp-month",
+    "cc-exp-year",
+    "cc-csc",
+    "cc-type",
+    "transaction-currency",
+    "transaction-amount",
+    "language",
+    "bday",
+    "bday-day",
+    "bday-month",
+    "bday-year",
+    "sex",
+    "url",
+    "photo"
+  ],
+  "contact_type_tokens": [
+    "home",
+    "work",
+    "mobile",
+    "fax",
+    "pager"
+  ],
+  "autofill_contact_field_name_tokens": [
+    "tel",
+    "tel-country-code",
+    "tel-national",
+    "tel-area-code",
+    "tel-local",
+    "tel-local-prefix",
+    "tel-local-suffix",
+    "tel-extension",
+    "email",
+    "impp"
+  ],
+  "ElementInteractivity": {
+    "Interactive": "interactive",
+    "NonInteractive": "non-interactive",
+    "Static": "static"
+  },
+  "invisible_elements": [
+    "meta",
+    "html",
+    "script",
+    "style"
+  ],
+  "aria_roles": [
+    "command",
+    "composite",
+    "input",
+    "landmark",
+    "range",
+    "roletype",
+    "section",
+    "sectionhead",
+    "select",
+    "structure",
+    "widget",
+    "window",
+    "alert",
+    "alertdialog",
+    "application",
+    "article",
+    "banner",
+    "blockquote",
+    "button",
+    "caption",
+    "cell",
+    "checkbox",
+    "code",
+    "columnheader",
+    "combobox",
+    "complementary",
+    "contentinfo",
+    "definition",
+    "deletion",
+    "dialog",
+    "directory",
+    "document",
+    "emphasis",
+    "feed",
+    "figure",
+    "form",
+    "generic",
+    "grid",
+    "gridcell",
+    "group",
+    "heading",
+    "img",
+    "insertion",
+    "link",
+    "list",
+    "listbox",
+    "listitem",
+    "log",
+    "main",
+    "mark",
+    "marquee",
+    "math",
+    "menu",
+    "menubar",
+    "menuitem",
+    "menuitemcheckbox",
+    "menuitemradio",
+    "meter",
+    "navigation",
+    "none",
+    "note",
+    "option",
+    "paragraph",
+    "presentation",
+    "progressbar",
+    "radio",
+    "radiogroup",
+    "region",
+    "row",
+    "rowgroup",
+    "rowheader",
+    "scrollbar",
+    "search",
+    "searchbox",
+    "separator",
+    "slider",
+    "spinbutton",
+    "status",
+    "strong",
+    "subscript",
+    "superscript",
+    "switch",
+    "tab",
+    "table",
+    "tablist",
+    "tabpanel",
+    "term",
+    "textbox",
+    "time",
+    "timer",
+    "toolbar",
+    "tooltip",
+    "tree",
+    "treegrid",
+    "treeitem",
+    "doc-abstract",
+    "doc-acknowledgments",
+    "doc-afterword",
+    "doc-appendix",
+    "doc-backlink",
+    "doc-biblioentry",
+    "doc-bibliography",
+    "doc-biblioref",
+    "doc-chapter",
+    "doc-colophon",
+    "doc-conclusion",
+    "doc-cover",
+    "doc-credit",
+    "doc-credits",
+    "doc-dedication",
+    "doc-endnote",
+    "doc-endnotes",
+    "doc-epigraph",
+    "doc-epilogue",
+    "doc-errata",
+    "doc-example",
+    "doc-footnote",
+    "doc-foreword",
+    "doc-glossary",
+    "doc-glossref",
+    "doc-index",
+    "doc-introduction",
+    "doc-noteref",
+    "doc-notice",
+    "doc-pagebreak",
+    "doc-pagefooter",
+    "doc-pageheader",
+    "doc-pagelist",
+    "doc-part",
+    "doc-preface",
+    "doc-prologue",
+    "doc-pullquote",
+    "doc-qna",
+    "doc-subtitle",
+    "doc-tip",
+    "doc-toc",
+    "graphics-document",
+    "graphics-object",
+    "graphics-symbol"
+  ],
+  "abstract_roles": [
+    "command",
+    "composite",
+    "input",
+    "landmark",
+    "range",
+    "roletype",
+    "section",
+    "sectionhead",
+    "select",
+    "structure",
+    "widget",
+    "window"
+  ],
+  "non_interactive_roles": [
+    "alert",
+    "application",
+    "article",
+    "banner",
+    "blockquote",
+    "caption",
+    "code",
+    "complementary",
+    "contentinfo",
+    "definition",
+    "deletion",
+    "directory",
+    "document",
+    "emphasis",
+    "feed",
+    "figure",
+    "form",
+    "group",
+    "heading",
+    "img",
+    "insertion",
+    "list",
+    "listitem",
+    "log",
+    "main",
+    "mark",
+    "marquee",
+    "math",
+    "meter",
+    "navigation",
+    "none",
+    "note",
+    "paragraph",
+    "presentation",
+    "region",
+    "rowgroup",
+    "search",
+    "separator",
+    "status",
+    "strong",
+    "subscript",
+    "superscript",
+    "table",
+    "term",
+    "time",
+    "timer",
+    "tooltip",
+    "doc-abstract",
+    "doc-acknowledgments",
+    "doc-afterword",
+    "doc-appendix",
+    "doc-biblioentry",
+    "doc-bibliography",
+    "doc-chapter",
+    "doc-colophon",
+    "doc-conclusion",
+    "doc-cover",
+    "doc-credit",
+    "doc-credits",
+    "doc-dedication",
+    "doc-endnote",
+    "doc-endnotes",
+    "doc-epigraph",
+    "doc-epilogue",
+    "doc-errata",
+    "doc-example",
+    "doc-footnote",
+    "doc-foreword",
+    "doc-glossary",
+    "doc-index",
+    "doc-introduction",
+    "doc-notice",
+    "doc-pagebreak",
+    "doc-pagefooter",
+    "doc-pageheader",
+    "doc-pagelist",
+    "doc-part",
+    "doc-preface",
+    "doc-prologue",
+    "doc-pullquote",
+    "doc-qna",
+    "doc-subtitle",
+    "doc-tip",
+    "doc-toc",
+    "graphics-document",
+    "graphics-object",
+    "graphics-symbol",
+    "progressbar"
+  ],
+  "interactive_roles": [
+    "alertdialog",
+    "button",
+    "cell",
+    "checkbox",
+    "columnheader",
+    "combobox",
+    "dialog",
+    "grid",
+    "gridcell",
+    "link",
+    "listbox",
+    "menu",
+    "menubar",
+    "menuitem",
+    "menuitemcheckbox",
+    "menuitemradio",
+    "option",
+    "radio",
+    "radiogroup",
+    "row",
+    "rowheader",
+    "scrollbar",
+    "searchbox",
+    "slider",
+    "spinbutton",
+    "switch",
+    "tab",
+    "tablist",
+    "tabpanel",
+    "textbox",
+    "toolbar",
+    "tree",
+    "treegrid",
+    "treeitem",
+    "doc-backlink",
+    "doc-biblioref",
+    "doc-glossref",
+    "doc-noteref"
+  ],
+  "presentation_roles": [
+    "presentation",
+    "none"
+  ],
+  "non_interactive_element_role_schemas": [
+    {
+      "name": "article",
+      "attributes": null
+    },
+    {
+      "name": "header",
+      "attributes": null
+    },
+    {
+      "name": "blockquote",
+      "attributes": null
+    },
+    {
+      "name": "caption",
+      "attributes": null
+    },
+    {
+      "name": "code",
+      "attributes": null
+    },
+    {
+      "name": "aside",
+      "attributes": null
+    },
+    {
+      "name": "aside",
+      "attributes": [
+        {
+          "constraints": [
+            "set"
+          ],
+          "name": "aria-label"
+        }
+      ]
+    },
+    {
+      "name": "aside",
+      "attributes": [
+        {
+          "constraints": [
+            "set"
+          ],
+          "name": "aria-labelledby"
+        }
+      ]
+    },
+    {
+      "name": "footer",
+      "attributes": null
+    },
+    {
+      "name": "dd",
+      "attributes": null
+    },
+    {
+      "name": "del",
+      "attributes": null
+    },
+    {
+      "name": "html",
+      "attributes": null
+    },
+    {
+      "name": "em",
+      "attributes": null
+    },
+    {
+      "name": "figure",
+      "attributes": null
+    },
+    {
+      "name": "form",
+      "attributes": [
+        {
+          "constraints": [
+            "set"
+          ],
+          "name": "aria-label"
+        }
+      ]
+    },
+    {
+      "name": "form",
+      "attributes": [
+        {
+          "constraints": [
+            "set"
+          ],
+          "name": "aria-labelledby"
+        }
+      ]
+    },
+    {
+      "name": "form",
+      "attributes": [
+        {
+          "constraints": [
+            "set"
+          ],
+          "name": "name"
+        }
+      ]
+    },
+    {
+      "name": "details",
+      "attributes": null
+    },
+    {
+      "name": "fieldset",
+      "attributes": null
+    },
+    {
+      "name": "optgroup",
+      "attributes": null
+    },
+    {
+      "name": "address",
+      "attributes": null
+    },
+    {
+      "name": "h1",
+      "attributes": null
+    },
+    {
+      "name": "h2",
+      "attributes": null
+    },
+    {
+      "name": "h3",
+      "attributes": null
+    },
+    {
+      "name": "h4",
+      "attributes": null
+    },
+    {
+      "name": "h5",
+      "attributes": null
+    },
+    {
+      "name": "h6",
+      "attributes": null
+    },
+    {
+      "name": "img",
+      "attributes": [
+        {
+          "constraints": [
+            "set"
+          ],
+          "name": "alt"
+        }
+      ]
+    },
+    {
+      "name": "img",
+      "attributes": [
+        {
+          "constraints": [
+            "undefined"
+          ],
+          "name": "alt"
+        }
+      ]
+    },
+    {
+      "name": "ins",
+      "attributes": null
+    },
+    {
+      "name": "menu",
+      "attributes": null
+    },
+    {
+      "name": "ol",
+      "attributes": null
+    },
+    {
+      "name": "ul",
+      "attributes": null
+    },
+    {
+      "name": "li",
+      "attributes": null
+    },
+    {
+      "name": "main",
+      "attributes": null
+    },
+    {
+      "name": "mark",
+      "attributes": null
+    },
+    {
+      "name": "math",
+      "attributes": null
+    },
+    {
+      "name": "meter",
+      "attributes": null
+    },
+    {
+      "name": "nav",
+      "attributes": null
+    },
+    {
+      "name": "p",
+      "attributes": null
+    },
+    {
+      "name": "img",
+      "attributes": [
+        {
+          "name": "alt",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "progress",
+      "attributes": null
+    },
+    {
+      "name": "section",
+      "attributes": [
+        {
+          "constraints": [
+            "set"
+          ],
+          "name": "aria-label"
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "attributes": [
+        {
+          "constraints": [
+            "set"
+          ],
+          "name": "aria-labelledby"
+        }
+      ]
+    },
+    {
+      "name": "tbody",
+      "attributes": null
+    },
+    {
+      "name": "tfoot",
+      "attributes": null
+    },
+    {
+      "name": "thead",
+      "attributes": null
+    },
+    {
+      "name": "hr",
+      "attributes": null
+    },
+    {
+      "name": "output",
+      "attributes": null
+    },
+    {
+      "name": "strong",
+      "attributes": null
+    },
+    {
+      "name": "sub",
+      "attributes": null
+    },
+    {
+      "name": "sup",
+      "attributes": null
+    },
+    {
+      "name": "table",
+      "attributes": null
+    },
+    {
+      "name": "dfn",
+      "attributes": null
+    },
+    {
+      "name": "dt",
+      "attributes": null
+    },
+    {
+      "name": "time",
+      "attributes": null
+    }
+  ],
+  "interactive_element_role_schemas": [
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "name": "type",
+          "value": "button"
+        }
+      ]
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "name": "type",
+          "value": "image"
+        }
+      ]
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "name": "type",
+          "value": "reset"
+        }
+      ]
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "name": "type",
+          "value": "submit"
+        }
+      ]
+    },
+    {
+      "name": "button",
+      "attributes": null
+    },
+    {
+      "name": "td",
+      "attributes": null
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "name": "type",
+          "value": "checkbox"
+        }
+      ]
+    },
+    {
+      "name": "th",
+      "attributes": null
+    },
+    {
+      "name": "th",
+      "attributes": [
+        {
+          "name": "scope",
+          "value": "col"
+        }
+      ]
+    },
+    {
+      "name": "th",
+      "attributes": [
+        {
+          "name": "scope",
+          "value": "colgroup"
+        }
+      ]
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "constraints": [
+            "set"
+          ],
+          "name": "list"
+        },
+        {
+          "name": "type",
+          "value": "email"
+        }
+      ]
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "constraints": [
+            "set"
+          ],
+          "name": "list"
+        },
+        {
+          "name": "type",
+          "value": "search"
+        }
+      ]
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "constraints": [
+            "set"
+          ],
+          "name": "list"
+        },
+        {
+          "name": "type",
+          "value": "tel"
+        }
+      ]
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "constraints": [
+            "set"
+          ],
+          "name": "list"
+        },
+        {
+          "name": "type",
+          "value": "text"
+        }
+      ]
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "constraints": [
+            "set"
+          ],
+          "name": "list"
+        },
+        {
+          "name": "type",
+          "value": "url"
+        }
+      ]
+    },
+    {
+      "name": "select",
+      "attributes": [
+        {
+          "constraints": [
+            "undefined"
+          ],
+          "name": "multiple"
+        },
+        {
+          "constraints": [
+            "undefined"
+          ],
+          "name": "size"
+        }
+      ]
+    },
+    {
+      "name": "dialog",
+      "attributes": null
+    },
+    {
+      "name": "td",
+      "attributes": null
+    },
+    {
+      "name": "a",
+      "attributes": [
+        {
+          "constraints": [
+            "set"
+          ],
+          "name": "href"
+        }
+      ]
+    },
+    {
+      "name": "area",
+      "attributes": [
+        {
+          "constraints": [
+            "set"
+          ],
+          "name": "href"
+        }
+      ]
+    },
+    {
+      "name": "select",
+      "attributes": [
+        {
+          "constraints": [
+            ">1"
+          ],
+          "name": "size"
+        }
+      ]
+    },
+    {
+      "name": "select",
+      "attributes": [
+        {
+          "name": "multiple"
+        }
+      ]
+    },
+    {
+      "name": "datalist",
+      "attributes": null
+    },
+    {
+      "name": "option",
+      "attributes": null
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "name": "type",
+          "value": "radio"
+        }
+      ]
+    },
+    {
+      "name": "tr",
+      "attributes": null
+    },
+    {
+      "name": "th",
+      "attributes": [
+        {
+          "name": "scope",
+          "value": "row"
+        }
+      ]
+    },
+    {
+      "name": "th",
+      "attributes": [
+        {
+          "name": "scope",
+          "value": "rowgroup"
+        }
+      ]
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "constraints": [
+            "undefined"
+          ],
+          "name": "list"
+        },
+        {
+          "name": "type",
+          "value": "search"
+        }
+      ]
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "name": "type",
+          "value": "range"
+        }
+      ]
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "name": "type",
+          "value": "number"
+        }
+      ]
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "constraints": [
+            "undefined"
+          ],
+          "name": "type"
+        },
+        {
+          "constraints": [
+            "undefined"
+          ],
+          "name": "list"
+        }
+      ]
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "constraints": [
+            "undefined"
+          ],
+          "name": "list"
+        },
+        {
+          "name": "type",
+          "value": "email"
+        }
+      ]
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "constraints": [
+            "undefined"
+          ],
+          "name": "list"
+        },
+        {
+          "name": "type",
+          "value": "tel"
+        }
+      ]
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "constraints": [
+            "undefined"
+          ],
+          "name": "list"
+        },
+        {
+          "name": "type",
+          "value": "text"
+        }
+      ]
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "constraints": [
+            "undefined"
+          ],
+          "name": "list"
+        },
+        {
+          "name": "type",
+          "value": "url"
+        }
+      ]
+    },
+    {
+      "name": "textarea",
+      "attributes": null
+    }
+  ],
+  "interactive_element_ax_object_schemas": [
+    {
+      "name": "audio",
+      "attributes": null
+    },
+    {
+      "name": "button",
+      "attributes": null
+    },
+    {
+      "name": "canvas",
+      "attributes": null
+    },
+    {
+      "name": "td",
+      "attributes": null
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "name": "type",
+          "value": "checkbox"
+        }
+      ]
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "name": "type",
+          "value": "color"
+        }
+      ]
+    },
+    {
+      "name": "th",
+      "attributes": null
+    },
+    {
+      "name": "select",
+      "attributes": null
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "name": "type",
+          "value": "date"
+        }
+      ]
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "name": "type",
+          "value": "datetime"
+        }
+      ]
+    },
+    {
+      "name": "summary",
+      "attributes": null
+    },
+    {
+      "name": "embed",
+      "attributes": null
+    },
+    {
+      "name": "input",
+      "attributes": null
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "name": "type",
+          "value": "time"
+        }
+      ]
+    },
+    {
+      "name": "a",
+      "attributes": [
+        {
+          "name": "href"
+        }
+      ]
+    },
+    {
+      "name": "option",
+      "attributes": null
+    },
+    {
+      "name": "datalist",
+      "attributes": null
+    },
+    {
+      "name": "menuitem",
+      "attributes": null
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "name": "type",
+          "value": "radio"
+        }
+      ]
+    },
+    {
+      "name": "th",
+      "attributes": [
+        {
+          "name": "scope",
+          "value": "row"
+        }
+      ]
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "name": "type",
+          "value": "search"
+        }
+      ]
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "name": "type",
+          "value": "range"
+        }
+      ]
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "name": "type",
+          "value": "number"
+        }
+      ]
+    },
+    {
+      "name": "textarea",
+      "attributes": null
+    },
+    {
+      "name": "input",
+      "attributes": [
+        {
+          "name": "type",
+          "value": "text"
+        }
+      ]
+    },
+    {
+      "name": "video",
+      "attributes": null
+    }
+  ],
+  "non_interactive_element_ax_object_schemas": [
+    {
+      "name": "abbr",
+      "attributes": null
+    },
+    {
+      "name": "article",
+      "attributes": null
+    },
+    {
+      "name": "blockquote",
+      "attributes": null
+    },
+    {
+      "name": "caption",
+      "attributes": null
+    },
+    {
+      "name": "dfn",
+      "attributes": null
+    },
+    {
+      "name": "dd",
+      "attributes": null
+    },
+    {
+      "name": "dl",
+      "attributes": null
+    },
+    {
+      "name": "dt",
+      "attributes": null
+    },
+    {
+      "name": "details",
+      "attributes": null
+    },
+    {
+      "name": "dir",
+      "attributes": null
+    },
+    {
+      "name": "figcaption",
+      "attributes": null
+    },
+    {
+      "name": "figure",
+      "attributes": null
+    },
+    {
+      "name": "footer",
+      "attributes": null
+    },
+    {
+      "name": "form",
+      "attributes": null
+    },
+    {
+      "name": "h1",
+      "attributes": null
+    },
+    {
+      "name": "h2",
+      "attributes": null
+    },
+    {
+      "name": "h3",
+      "attributes": null
+    },
+    {
+      "name": "h4",
+      "attributes": null
+    },
+    {
+      "name": "h5",
+      "attributes": null
+    },
+    {
+      "name": "h6",
+      "attributes": null
+    },
+    {
+      "name": "img",
+      "attributes": [
+        {
+          "name": "usemap"
+        }
+      ]
+    },
+    {
+      "name": "img",
+      "attributes": null
+    },
+    {
+      "name": "label",
+      "attributes": null
+    },
+    {
+      "name": "legend",
+      "attributes": null
+    },
+    {
+      "name": "br",
+      "attributes": null
+    },
+    {
+      "name": "li",
+      "attributes": null
+    },
+    {
+      "name": "ul",
+      "attributes": null
+    },
+    {
+      "name": "ol",
+      "attributes": null
+    },
+    {
+      "name": "main",
+      "attributes": null
+    },
+    {
+      "name": "mark",
+      "attributes": null
+    },
+    {
+      "name": "marquee",
+      "attributes": null
+    },
+    {
+      "name": "menu",
+      "attributes": null
+    },
+    {
+      "name": "meter",
+      "attributes": null
+    },
+    {
+      "name": "nav",
+      "attributes": null
+    },
+    {
+      "name": "p",
+      "attributes": null
+    },
+    {
+      "name": "pre",
+      "attributes": null
+    },
+    {
+      "name": "progress",
+      "attributes": null
+    },
+    {
+      "name": "tr",
+      "attributes": null
+    },
+    {
+      "name": "ruby",
+      "attributes": null
+    },
+    {
+      "name": "table",
+      "attributes": null
+    },
+    {
+      "name": "time",
+      "attributes": null
+    }
+  ]
+}
