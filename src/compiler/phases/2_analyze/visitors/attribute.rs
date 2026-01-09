@@ -25,10 +25,11 @@ pub fn visit(attribute: &AttributeNode, context: &mut VisitorContext) -> Result<
     let parent = context.path.last();
 
     // Special case: <option value=""> must be handled dynamically
-    if let Some(TemplateNode::RegularElement(element)) = parent {
-        if attribute.name == "value" && element.name == "option" {
-            mark_subtree_dynamic(&context.path);
-        }
+    if let Some(TemplateNode::RegularElement(element)) = parent
+        && attribute.name == "value"
+        && element.name == "option"
+    {
+        mark_subtree_dynamic(&context.path);
     }
 
     // Event attributes require dynamic handling
@@ -86,14 +87,14 @@ pub fn visit(attribute: &AttributeNode, context: &mut VisitorContext) -> Result<
 
         // Event attribute handling
         if is_event_attribute(attribute) {
-            if let Some(parent) = parent {
-                if matches!(
+            if let Some(parent) = parent
+                && matches!(
                     parent,
                     TemplateNode::RegularElement(_) | TemplateNode::SvelteElement(_)
-                ) {
-                    // Track that this component uses event attributes
-                    context.analysis.uses_event_attributes = true;
-                }
+                )
+            {
+                // Track that this component uses event attributes
+                context.analysis.uses_event_attributes = true;
             }
 
             // Check if event can be delegated

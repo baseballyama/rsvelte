@@ -2,6 +2,16 @@
 
 This file provides guidelines for AI agents working on this project.
 
+## TODO Implementation Guides
+
+Phase 2 Analyze の visitor 実装で残された TODO を解決するためのガイド：
+
+- **[TODO_QUICKSTART.md](./TODO_QUICKSTART.md)** - 🚀 すぐに始める実践ガイド（推奨）
+- **[TODO_CHECKLIST.md](./TODO_CHECKLIST.md)** - 📋 簡潔なタスクリストと優先順位
+- **[TODO_IMPLEMENTATION_GUIDE.md](./TODO_IMPLEMENTATION_GUIDE.md)** - 📚 完全な実装ガイド（詳細版）
+
+実装者は **QUICKSTART** から始めることを推奨します。
+
 ## Project Goals
 
 ### 1. 100% Test Compatibility

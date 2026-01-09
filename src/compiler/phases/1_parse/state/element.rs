@@ -126,16 +126,14 @@ impl Parser<'_> {
         let has_closing_bracket = self.eat(">"); // consume '>'
 
         // For unclosed elements at EOF, report unexpected_eof error (unless in loose mode)
-        if !has_closing_bracket && self.is_eof() {
-            if !self.options.loose {
-                return Err(crate::error::ParseError::svelte(
-                    "unexpected_eof",
-                    "Unexpected end of input",
-                    (self.index, self.index),
-                ));
-            }
-            // In loose mode, treat as an unclosed element and continue
+        if !has_closing_bracket && self.is_eof() && !self.options.loose {
+            return Err(crate::error::ParseError::svelte(
+                "unexpected_eof",
+                "Unexpected end of input",
+                (self.index, self.index),
+            ));
         }
+        // In loose mode, treat as an unclosed element and continue
 
         // Handle script and style tags specially
         if name == "script" {
@@ -235,13 +233,25 @@ impl Parser<'_> {
 
         // Calculate end position
         let end = if !has_closing_bracket {
-            // Unclosed opening tag: use position after attributes (or after tag name if no attributes)
-            // This handles both EOF and other cases where the opening tag wasn't properly closed
-            if attributes.is_empty() {
-                pos_after_name as u32
+            // Unclosed opening tag: use position after tag name and whitespace
+            let base_pos = if attributes.is_empty() {
+                pos_after_name
             } else {
-                pos_after_attrs as u32
+                pos_after_attrs
+            };
+
+            // Check if there's a newline after the tag name/attributes,
+            // but only if it's not at EOF (if there's more content after the newline)
+            let mut end_pos = base_pos;
+            if end_pos < self.source.len() && self.source.as_bytes()[end_pos] == b'\n' {
+                // Check if there's content after the newline (not just EOF)
+                if end_pos + 1 < self.source.len() {
+                    // There's content after the newline, so include it
+                    end_pos += 1;
+                }
+                // If it's EOF after the newline, don't include the newline
             }
+            end_pos as u32
         } else if !self_closing && !is_void && has_closing_bracket && !found_closing_tag {
             // Element has opening tag but no closing tag (auto-closed at EOF)
             // Use the end of the last child node in the fragment

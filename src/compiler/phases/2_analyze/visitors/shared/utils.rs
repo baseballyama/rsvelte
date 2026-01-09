@@ -93,34 +93,34 @@ pub fn validate_no_const_assignment(
         Some("ObjectPattern") => {
             if let Some(properties) = argument.get("properties").and_then(|p| p.as_array()) {
                 for property in properties {
-                    if property.get("type").and_then(|t| t.as_str()) == Some("Property") {
-                        if let Some(value) = property.get("value") {
-                            validate_no_const_assignment(value, context, is_binding)?;
-                        }
+                    if property.get("type").and_then(|t| t.as_str()) == Some("Property")
+                        && let Some(value) = property.get("value")
+                    {
+                        validate_no_const_assignment(value, context, is_binding)?;
                     }
                 }
             }
         }
         Some("Identifier") => {
-            if let Some(name) = argument.get("name").and_then(|n| n.as_str()) {
-                if let Some(binding_idx) = context.analysis.root.scope.declarations.get(name) {
-                    let binding = &context.analysis.root.bindings[*binding_idx];
+            if let Some(name) = argument.get("name").and_then(|n| n.as_str())
+                && let Some(binding_idx) = context.analysis.root.scope.declarations.get(name)
+            {
+                let binding = &context.analysis.root.bindings[*binding_idx];
 
-                    if binding.declaration_kind == DeclarationKind::Import
-                        || (binding.declaration_kind == DeclarationKind::Const
-                            && binding.kind != BindingKind::EachItem)
-                    {
-                        let thing = if binding.declaration_kind == DeclarationKind::Import {
-                            "import"
-                        } else {
-                            "constant"
-                        };
+                if binding.declaration_kind == DeclarationKind::Import
+                    || (binding.declaration_kind == DeclarationKind::Const
+                        && binding.kind != BindingKind::EachItem)
+                {
+                    let thing = if binding.declaration_kind == DeclarationKind::Import {
+                        "import"
+                    } else {
+                        "constant"
+                    };
 
-                        if is_binding {
-                            return Err(errors::constant_binding(thing));
-                        } else {
-                            return Err(errors::constant_assignment(thing));
-                        }
+                    if is_binding {
+                        return Err(errors::constant_binding(thing));
+                    } else {
+                        return Err(errors::constant_assignment(thing));
                     }
                 }
             }
@@ -167,13 +167,12 @@ pub fn validate_opening_tag(
 pub fn validate_block_not_empty(fragment: Option<&Fragment>) -> Result<(), AnalysisError> {
     if let Some(fragment) = fragment {
         // If the block has exactly one text node that's only whitespace, warn
-        if fragment.nodes.len() == 1 {
-            if let TemplateNode::Text(text) = &fragment.nodes[0] {
-                if text.raw.trim().is_empty() {
-                    // TODO: Add warning system
-                    // w.block_empty(node)
-                }
-            }
+        if fragment.nodes.len() == 1
+            && let TemplateNode::Text(text) = &fragment.nodes[0]
+            && text.raw.trim().is_empty()
+        {
+            // TODO: Add warning system
+            // w.block_empty(node)
         }
     }
     Ok(())
@@ -289,23 +288,20 @@ pub fn is_safe_identifier(expression: &Value, context: &VisitorContext) -> bool 
     // Check if it's a store subscription ($store)
     if binding.kind == BindingKind::StoreSub {
         // Recursively check the underlying store (remove $)
-        if name.starts_with('$') {
-            let store_name = &name[1..];
-            if context
+        if let Some(store_name) = name.strip_prefix('$')
+            && context
                 .analysis
                 .root
                 .scope
                 .declarations
-                .get(store_name)
-                .is_some()
-            {
-                // Create a synthetic identifier for the store
-                let store_expr = serde_json::json!({
-                    "type": "Identifier",
-                    "name": store_name
-                });
-                return is_safe_identifier(&store_expr, context);
-            }
+                .contains_key(store_name)
+        {
+            // Create a synthetic identifier for the store
+            let store_expr = serde_json::json!({
+                "type": "Identifier",
+                "name": store_name
+            });
+            return is_safe_identifier(&store_expr, context);
         }
     }
 
@@ -420,7 +416,7 @@ pub fn validate_identifier_name(
     if declaration_kind != DeclarationKind::Synthetic
         && declaration_kind != DeclarationKind::Param
         && declaration_kind != DeclarationKind::RestParam
-        && function_depth.map_or(true, |depth| depth <= 1)
+        && function_depth.is_none_or(|depth| depth <= 1)
     {
         let name = &binding.name;
 

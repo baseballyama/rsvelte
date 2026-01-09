@@ -131,10 +131,16 @@ fn extract_comment_value(raw: &str, kind: oxc_ast::ast::CommentKind) -> String {
 /// * `template` - The full template string
 /// * `start` - Start position (after the opening bracket)
 /// * `opening_token` - The opening token (e.g., '{')
+/// * `line_offsets` - Line offsets for location calculation
 ///
 /// # Returns
 /// An empty `Identifier` node if a matching bracket is found, otherwise `None`.
-fn get_loose_identifier(template: &str, start: usize, opening_token: char) -> Option<Expression> {
+fn get_loose_identifier(
+    template: &str,
+    start: usize,
+    opening_token: char,
+    line_offsets: &[usize],
+) -> Option<Expression> {
     // Find the next closing bracket and treat it as the end of the expression
     if let Some(end) = find_matching_bracket(template, start, opening_token) {
         // We don't know what the expression is and signal this by returning an empty identifier
@@ -144,8 +150,9 @@ fn get_loose_identifier(template: &str, start: usize, opening_token: char) -> Op
         obj.insert("end".to_string(), Value::Number((end as i64).into()));
         obj.insert("name".to_string(), Value::String("".to_string()));
 
-        // Note: Svelte's get_loose_identifier does NOT include a 'loc' field
-        // (see svelte/packages/svelte/src/compiler/phases/1-parse/read/expression.js:20-25)
+        // Add loc field
+        let loc = super::super::estree_compat::utils::create_loc(start, end, line_offsets);
+        obj.insert("loc".to_string(), loc);
 
         return Some(Expression::Value(Value::Object(obj)));
     }
@@ -185,10 +192,12 @@ pub fn parse_expression(
     }
 
     // If parsing failed and we're in loose mode (and not disallowed), try loose identifier
-    if loose && !disallow_loose {
-        if let Some(loose_expr) = get_loose_identifier(template, offset, opening_token) {
-            return loose_expr;
-        }
+    if loose
+        && !disallow_loose
+        && let Some(loose_expr) =
+            get_loose_identifier(template, offset, opening_token, line_offsets)
+    {
+        return loose_expr;
     }
 
     // Fall back to invalid identifier
@@ -196,6 +205,7 @@ pub fn parse_expression(
 }
 
 /// Check if JavaScript expression has parse errors. Returns Some(error_message) if there is an error.
+#[allow(dead_code)]
 pub fn check_js_parse_error(content: &str) -> Option<String> {
     let allocator = Allocator::default();
 

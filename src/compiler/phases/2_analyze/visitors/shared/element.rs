@@ -30,7 +30,7 @@ pub const EVENT_MODIFIERS: &[&str] = &[
 /// Regex for illegal attribute characters.
 /// Corresponds to `regex_illegal_attribute_character` in patterns.js.
 static REGEX_ILLEGAL_ATTRIBUTE_CHARACTER: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(^[0-9-.])|[\^$@%&#?!|()[\]{}^*+~;]").unwrap());
+    LazyLock::new(|| Regex::new(r"(^[0-9-.])|[\^$@%&#?!|()\[\]{}^*+~;]").unwrap());
 
 /// React attributes that should be corrected to Svelte equivalents.
 fn get_react_attribute_correction(name: &str) -> Option<&'static str> {
@@ -60,42 +60,40 @@ pub fn validate_element(
                 if context.analysis.runes {
                     validate_attribute(attr, node)?;
 
-                    if is_expression {
-                        if let Some(expression_tag) = get_attribute_expression(attr) {
-                            // Check for SequenceExpression
-                            if let Some(expr_type) = expression_tag.expression.node_type() {
-                                if expr_type == "SequenceExpression" {
-                                    // Check if it's parenthesized
-                                    if let Some(start) = expression_tag.expression.start() {
-                                        let mut i = start as usize;
-                                        let mut is_parenthesized = false;
+                    if is_expression && let Some(expression_tag) = get_attribute_expression(attr) {
+                        // Check for SequenceExpression
+                        if let Some(expr_type) = expression_tag.expression.node_type()
+                            && expr_type == "SequenceExpression"
+                        {
+                            // Check if it's parenthesized
+                            if let Some(start) = expression_tag.expression.start() {
+                                let mut i = start as usize;
+                                let mut is_parenthesized = false;
 
-                                        while i > 0 {
-                                            i -= 1;
-                                            if i >= context.analysis.source.len() {
-                                                break;
-                                            }
-                                            let ch = context.analysis.source.chars().nth(i);
-                                            match ch {
-                                                Some('(') => {
-                                                    is_parenthesized = true;
-                                                    break;
-                                                }
-                                                Some('{') => {
-                                                    break;
-                                                }
-                                                _ => {}
-                                            }
+                                while i > 0 {
+                                    i -= 1;
+                                    if i >= context.analysis.source.len() {
+                                        break;
+                                    }
+                                    let ch = context.analysis.source.chars().nth(i);
+                                    match ch {
+                                        Some('(') => {
+                                            is_parenthesized = true;
+                                            break;
                                         }
+                                        Some('{') => {
+                                            break;
+                                        }
+                                        _ => {}
+                                    }
+                                }
 
-                                        if !is_parenthesized {
-                                            return Err(AnalysisError::Validation(
+                                if !is_parenthesized {
+                                    return Err(AnalysisError::Validation(
                                                 "Sequence expressions are not allowed as attribute values. \
                                                  Wrap the expression in parentheses."
                                                     .to_string(),
                                             ));
-                                        }
-                                    }
                                 }
                             }
                         }
@@ -111,34 +109,32 @@ pub fn validate_element(
                 }
 
                 // Check for event handlers
-                if attr.name.starts_with("on") && attr.name.len() > 2 {
-                    if !is_expression {
-                        return Err(AnalysisError::Validation(format!(
-                            "Event attribute '{}' must be an expression",
-                            attr.name
-                        )));
-                    }
-
-                    // Check for global event reference
-                    // TODO: Implement proper scope lookup
-                    // In JavaScript: context.state.scope.get(value.name)
-                    // In Rust, we need to look up bindings in the scope tree
-                    // For now, this warning is skipped
-                    //
-                    // if let Some(expression_tag) = get_attribute_expression(attr) {
-                    //     if let Some(expr_type) = expression_tag.expression.node_type() {
-                    //         if expr_type == "Identifier" {
-                    //             let expr_value = expression_tag.expression.as_json();
-                    //             if let Some(name) = expr_value.get("name").and_then(|n| n.as_str()) {
-                    //                 if name == attr.name {
-                    //                     // Check if binding exists in scope
-                    //                     // w.attribute_global_event_reference(attribute, attribute.name)
-                    //                 }
-                    //             }
-                    //         }
-                    //     }
-                    // }
+                if attr.name.starts_with("on") && attr.name.len() > 2 && !is_expression {
+                    return Err(AnalysisError::Validation(format!(
+                        "Event attribute '{}' must be an expression",
+                        attr.name
+                    )));
                 }
+
+                // Check for global event reference
+                // TODO: Implement proper scope lookup
+                // In JavaScript: context.state.scope.get(value.name)
+                // In Rust, we need to look up bindings in the scope tree
+                // For now, this warning is skipped
+                //
+                // if let Some(expression_tag) = get_attribute_expression(attr) {
+                //     if let Some(expr_type) = expression_tag.expression.node_type() {
+                //         if expr_type == "Identifier" {
+                //             let expr_value = expression_tag.expression.as_json();
+                //             if let Some(name) = expr_value.get("name").and_then(|n| n.as_str()) {
+                //                 if name == attr.name {
+                //                     // Check if binding exists in scope
+                //                     // w.attribute_global_event_reference(attribute, attribute.name)
+                //                 }
+                //             }
+                //         }
+                //     }
+                // }
 
                 // Validate slot attribute
                 if attr.name == "slot" {
@@ -161,48 +157,48 @@ pub fn validate_element(
             Attribute::AnimateDirective(_directive) => {
                 // Check that we're inside an EachBlock
                 let parent_idx = context.path.len().saturating_sub(2);
-                if parent_idx < context.path.len() {
-                    if let Some(parent) = context.path.get(parent_idx) {
-                        let is_each_block =
-                            matches!(parent, crate::ast::template::TemplateNode::EachBlock(_));
+                if parent_idx < context.path.len()
+                    && let Some(parent) = context.path.get(parent_idx)
+                {
+                    let is_each_block =
+                        matches!(parent, crate::ast::template::TemplateNode::EachBlock(_));
 
-                        if !is_each_block {
+                    if !is_each_block {
+                        return Err(AnalysisError::Validation(
+                            "Animate directives can only be used on elements inside an each block"
+                                .to_string(),
+                        ));
+                    }
+
+                    // Check for key on the EachBlock
+                    if let crate::ast::template::TemplateNode::EachBlock(each) = parent {
+                        if each.key.is_none() {
                             return Err(AnalysisError::Validation(
-                                "Animate directives can only be used on elements inside an each block"
+                                "Animate directives require the each block to have a key"
                                     .to_string(),
                             ));
                         }
 
-                        // Check for key on the EachBlock
-                        if let crate::ast::template::TemplateNode::EachBlock(each) = parent {
-                            if each.key.is_none() {
-                                return Err(AnalysisError::Validation(
-                                    "Animate directives require the each block to have a key"
-                                        .to_string(),
-                                ));
-                            }
+                        // Check that there's only one child element (excluding comments, empty text, const tags)
+                        let non_empty_children = each
+                            .body
+                            .nodes
+                            .iter()
+                            .filter(|n| match n {
+                                crate::ast::template::TemplateNode::Comment(_) => false,
+                                crate::ast::template::TemplateNode::ConstTag(_) => false,
+                                crate::ast::template::TemplateNode::Text(text) => {
+                                    !text.data.trim().is_empty()
+                                }
+                                _ => true,
+                            })
+                            .count();
 
-                            // Check that there's only one child element (excluding comments, empty text, const tags)
-                            let non_empty_children = each
-                                .body
-                                .nodes
-                                .iter()
-                                .filter(|n| match n {
-                                    crate::ast::template::TemplateNode::Comment(_) => false,
-                                    crate::ast::template::TemplateNode::ConstTag(_) => false,
-                                    crate::ast::template::TemplateNode::Text(text) => {
-                                        !text.data.trim().is_empty()
-                                    }
-                                    _ => true,
-                                })
-                                .count();
-
-                            if non_empty_children > 1 {
-                                return Err(AnalysisError::Validation(
+                        if non_empty_children > 1 {
+                            return Err(AnalysisError::Validation(
                                     "An element with an animate directive must be the only child of an each block"
                                         .to_string(),
                                 ));
-                            }
                         }
                     }
                 }
