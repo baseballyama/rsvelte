@@ -208,19 +208,51 @@ fn build_assignment(
 /// Get the root identifier and its transform from an assignment target.
 ///
 /// Returns (root_identifier, transform) if the target contains a transformable identifier.
+///
+/// # Examples
+///
+/// ```ignore
+/// // x = 1 -> (x, transform_for_x)
+/// // x.y = 1 -> (x, transform_for_x)
+/// // x[y] = 1 -> (x, transform_for_x)
+/// // x?.y = 1 -> (x, transform_for_x)
+/// ```
 fn get_assignment_root<'a>(
-    _expr: &JsExpr,
-    _context: &'a ComponentContext,
+    expr: &JsExpr,
+    context: &'a ComponentContext,
 ) -> Option<(JsExpr, Option<&'a IdentifierTransform>)> {
-    // TODO: Implement extraction of root identifier from:
-    // - Identifier: x
-    // - MemberExpression: x.y, x[y]
-    // - ChainExpression: x?.y
-    //
-    // Should walk down the left side to find the root identifier,
-    // then check context.state.transform for a transform rule.
+    // Extract the root identifier by recursively walking the expression
+    let root_name = extract_root_identifier(expr)?;
 
-    None
+    // Look up the transform for this identifier
+    let transform = context.state.transform.get(&root_name);
+
+    // Return the root identifier as a JsExpr and its transform
+    Some((JsExpr::Identifier(root_name), transform))
+}
+
+/// Extract the root identifier name from an expression.
+///
+/// Recursively walks down member expressions, computed member expressions,
+/// and optional chaining to find the leftmost identifier.
+fn extract_root_identifier(expr: &JsExpr) -> Option<String> {
+    match expr {
+        // Base case: identifier
+        JsExpr::Identifier(name) => Some(name.clone()),
+
+        // Member expression: obj.prop or obj[prop]
+        JsExpr::Member(member) => extract_root_identifier(&member.object),
+
+        // Optional chaining: obj?.prop
+        JsExpr::Chain(chain) => {
+            // Chain expressions wrap the underlying expression
+            // Recursively extract from the wrapped expression
+            extract_root_identifier(&chain.expression)
+        }
+
+        // Assignment to other expressions (literals, calls, etc.) doesn't have a root identifier
+        _ => None,
+    }
 }
 
 /// Check if two expressions refer to the same identifier.
@@ -228,5 +260,110 @@ fn is_same_identifier(a: &JsExpr, b: &JsExpr) -> bool {
     match (a, b) {
         (JsExpr::Identifier(name_a), JsExpr::Identifier(name_b)) => name_a == name_b,
         _ => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_root_identifier_simple() {
+        let expr = JsExpr::Identifier("x".to_string());
+        let root = extract_root_identifier(&expr);
+        assert_eq!(root, Some("x".to_string()));
+    }
+
+    #[test]
+    fn test_extract_root_identifier_member() {
+        // x.y -> x
+        let expr = JsExpr::Member(JsMemberExpression {
+            object: Box::new(JsExpr::Identifier("x".to_string())),
+            property: JsMemberProperty::Identifier("y".to_string()),
+            computed: false,
+            optional: false,
+        });
+        let root = extract_root_identifier(&expr);
+        assert_eq!(root, Some("x".to_string()));
+    }
+
+    #[test]
+    fn test_extract_root_identifier_nested_member() {
+        // x.y.z -> x
+        let expr = JsExpr::Member(JsMemberExpression {
+            object: Box::new(JsExpr::Member(JsMemberExpression {
+                object: Box::new(JsExpr::Identifier("x".to_string())),
+                property: JsMemberProperty::Identifier("y".to_string()),
+                computed: false,
+                optional: false,
+            })),
+            property: JsMemberProperty::Identifier("z".to_string()),
+            computed: false,
+            optional: false,
+        });
+        let root = extract_root_identifier(&expr);
+        assert_eq!(root, Some("x".to_string()));
+    }
+
+    #[test]
+    fn test_extract_root_identifier_computed() {
+        // x[y] -> x
+        let expr = JsExpr::Member(JsMemberExpression {
+            object: Box::new(JsExpr::Identifier("x".to_string())),
+            property: JsMemberProperty::Expression(Box::new(JsExpr::Identifier("y".to_string()))),
+            computed: true,
+            optional: false,
+        });
+        let root = extract_root_identifier(&expr);
+        assert_eq!(root, Some("x".to_string()));
+    }
+
+    #[test]
+    fn test_extract_root_identifier_chain() {
+        // x?.y -> x
+        let expr = JsExpr::Chain(JsChainExpression {
+            expression: Box::new(JsExpr::Member(JsMemberExpression {
+                object: Box::new(JsExpr::Identifier("x".to_string())),
+                property: JsMemberProperty::Identifier("y".to_string()),
+                computed: false,
+                optional: true,
+            })),
+        });
+        let root = extract_root_identifier(&expr);
+        assert_eq!(root, Some("x".to_string()));
+    }
+
+    #[test]
+    fn test_extract_root_identifier_non_identifier() {
+        // 42.toString() -> None (literal, not identifier)
+        let expr = JsExpr::Member(JsMemberExpression {
+            object: Box::new(JsExpr::Literal(JsLiteral::Number(42.0))),
+            property: JsMemberProperty::Identifier("toString".to_string()),
+            computed: false,
+            optional: false,
+        });
+        let root = extract_root_identifier(&expr);
+        assert_eq!(root, None);
+    }
+
+    #[test]
+    fn test_is_same_identifier_true() {
+        let a = JsExpr::Identifier("x".to_string());
+        let b = JsExpr::Identifier("x".to_string());
+        assert!(is_same_identifier(&a, &b));
+    }
+
+    #[test]
+    fn test_is_same_identifier_false() {
+        let a = JsExpr::Identifier("x".to_string());
+        let b = JsExpr::Identifier("y".to_string());
+        assert!(!is_same_identifier(&a, &b));
+    }
+
+    #[test]
+    fn test_is_same_identifier_non_identifier() {
+        let a = JsExpr::Identifier("x".to_string());
+        let b = JsExpr::Literal(JsLiteral::Number(42.0));
+        assert!(!is_same_identifier(&a, &b));
     }
 }
