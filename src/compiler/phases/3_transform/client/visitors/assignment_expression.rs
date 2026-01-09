@@ -102,21 +102,21 @@ fn build_assignment(
             && let Some(field_name) = name
             && let Some(field) = context.state.state_fields.get(&field_name)
         {
-            // TODO: Visit the right side
-            // let value = visit(build_assignment_value(operator, left, right));
+            // Build the assignment value (expand compound operators)
+            let value = build_assignment_value(operator, left, right);
 
             // Check if proxy is needed
-            // let needs_proxy = field.field_type == "$state"
-            //     && is_non_coercive_operator(operator)
-            //     && should_proxy(right, context.state.scope);
+            // TODO: Pass Expression to should_proxy
+            let needs_proxy = field.field_type == "$state" && is_non_coercive_operator(operator);
+            // && should_proxy(right_expr, context.state.scope);
 
-            // return Some(b::call(
-            //     b::id("$.set"),
-            //     vec![left.clone(), value, b::bool_literal(needs_proxy)],
-            // ));
+            // Call $.set() with optional proxy flag
+            let mut args = vec![left.clone(), value];
+            if needs_proxy {
+                args.push(b::boolean(true));
+            }
 
-            // Placeholder for now
-            let _ = field; // Suppress unused warning
+            return Some(b::call(b::id("$.set"), args));
         }
     }
 
@@ -126,22 +126,20 @@ fn build_assignment(
         && let Some(t) = transform
         && let Some(assign_fn) = t.assign
     {
-        // TODO: Determine if this is a primitive assignment
-        // let is_primitive = check_if_primitive_path(context);
+        // Build the assignment value (expand compound operators)
+        let value = build_assignment_value(operator, left, right);
 
-        // TODO: Visit the right side
-        // let value = visit(build_assignment_value(operator, left, right));
+        // TODO: Determine if this is a primitive assignment by checking path
+        // For now, conservatively assume it's not primitive
+        let is_primitive = false;
 
-        // TODO: Determine if proxy is needed
-        // let needs_proxy = !is_primitive
-        //     && context.state.analysis.runes
-        //     && should_proxy(right, context.state.scope)
-        //     && is_non_coercive_operator(operator);
+        // Determine if proxy is needed
+        // TODO: Pass Expression to should_proxy instead of using placeholder
+        let needs_proxy =
+            !is_primitive && context.state.analysis.runes && is_non_coercive_operator(operator);
+        // && should_proxy(right_expr, context.state.scope)
 
-        // return Some(assign_fn(object.clone(), value, needs_proxy));
-
-        // Placeholder for now
-        let _ = assign_fn; // Suppress unused warning
+        return Some(assign_fn(object.clone(), value, needs_proxy));
     }
 
     // Case 4: Mutation (object !== left)
@@ -149,17 +147,12 @@ fn build_assignment(
     if let Some(t) = transform
         && let Some(mutate_fn) = t.mutate
     {
-        // TODO: Visit left and right
-        // let visited_left = visit(left);
-        // let visited_right = visit(right);
+        // Build the mutation expression
+        // TODO: Visit left and right for full transformation
+        // For now, use them directly
+        let mutation_expr = b::assign_op(operator, left.clone(), right.clone());
 
-        // return Some(mutate_fn(
-        //     object.clone(),
-        //     b::assign_op(operator, visited_left, visited_right),
-        // ));
-
-        // Placeholder for now
-        let _ = mutate_fn; // Suppress unused warning
+        return Some(mutate_fn(object.clone(), mutation_expr));
     }
 
     // Case 5: Proxified assignments in dev mode
