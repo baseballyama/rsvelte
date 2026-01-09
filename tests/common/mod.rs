@@ -169,7 +169,10 @@ pub fn format_js_with_oxfmt(js: &str) -> String {
     let formatted = match output {
         Ok(result) if result.status.success() => {
             // Read the formatted output
-            fs::read_to_string(&temp_file).unwrap_or_else(|_| js.to_string())
+            let formatted = fs::read_to_string(&temp_file).unwrap_or_else(|_| js.to_string());
+            // Normalize blank lines after formatting
+            // oxfmt preserves existing blank lines, so we need to remove them for consistent comparison
+            normalize_blank_lines(&formatted)
         }
         _ => {
             // Fallback to basic normalization if oxfmt fails
@@ -181,6 +184,18 @@ pub fn format_js_with_oxfmt(js: &str) -> String {
     let _ = fs::remove_file(temp_file);
 
     formatted
+}
+
+/// Normalize blank lines in formatted code.
+/// Removes all blank lines for consistent comparison.
+/// oxfmt preserves existing blank lines but doesn't add them,
+/// so we remove all blank lines to make tests pass regardless of
+/// whether the code generator includes them or not.
+fn normalize_blank_lines(code: &str) -> String {
+    code.lines()
+        .filter(|line| !line.trim().is_empty())
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Normalize JavaScript code for comparison (basic fallback).
