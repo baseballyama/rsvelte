@@ -337,3 +337,11 @@ pub fn svelte_meta_invalid_content(name: &str) -> AnalysisError {
         format!("`<{}>` cannot have children", name),
     )
 }
+
+/// `use:`, `transition:` and `animate:` directives, attachments and bindings do not support await expressions
+pub fn illegal_await_expression() -> AnalysisError {
+    error(
+        "illegal_await_expression",
+        "`use:`, `transition:` and `animate:` directives, attachments and bindings do not support await expressions",
+    )
+}

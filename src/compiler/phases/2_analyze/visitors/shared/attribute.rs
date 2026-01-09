@@ -90,3 +90,40 @@ pub fn get_correct_attribute_name(name: &str) -> Option<&'static str> {
         _ => None,
     }
 }
+
+/// Check if an attribute is an event attribute (starts with "on" and has expression value).
+///
+/// Corresponds to `is_event_attribute` in ast.js.
+pub fn is_event_attribute(attribute: &AttributeNode) -> bool {
+    attribute.name.starts_with("on") && is_expression_attribute(attribute)
+}
+
+/// Get the chunks of an attribute value.
+///
+/// Corresponds to `get_attribute_chunks` in ast.js.
+///
+/// Returns the expression tags and text nodes that make up an attribute value.
+pub fn get_attribute_chunks(
+    value: &crate::ast::template::AttributeValue,
+) -> Vec<AttributeChunk<'_>> {
+    use crate::ast::template::{AttributeValue, AttributeValuePart};
+
+    match value {
+        AttributeValue::True(_) => Vec::new(),
+        AttributeValue::Expression(expr) => vec![AttributeChunk::Expression(expr)],
+        AttributeValue::Sequence(seq) => seq
+            .iter()
+            .map(|node| match node {
+                AttributeValuePart::Text(text) => AttributeChunk::Text(text),
+                AttributeValuePart::ExpressionTag(expr) => AttributeChunk::Expression(expr),
+            })
+            .collect(),
+    }
+}
+
+/// A chunk of an attribute value (text or expression).
+#[derive(Debug)]
+pub enum AttributeChunk<'a> {
+    Text(&'a crate::ast::template::Text),
+    Expression(&'a crate::ast::template::ExpressionTag),
+}

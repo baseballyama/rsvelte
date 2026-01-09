@@ -43,52 +43,54 @@ impl Parser<'_> {
 
         let mut fragment = self.parse_fragment()?;
 
-        // Check for unclosed elements or blocks on the stack
-        if let Some(entry) = self.stack.last() {
-            match entry {
-                StackEntry::Element { name, start, .. } => {
-                    return Err(crate::error::ParseError::svelte(
-                        "element_unclosed",
-                        format!("`<{}>` was left open", name),
-                        (*start as usize, *start as usize + 1),
-                    ));
+        // Check for unclosed elements or blocks on the stack (unless in loose mode)
+        if !self.options.loose {
+            if let Some(entry) = self.stack.last() {
+                match entry {
+                    StackEntry::Element { name, start, .. } => {
+                        return Err(crate::error::ParseError::svelte(
+                            "element_unclosed",
+                            format!("`<{}>` was left open", name),
+                            (*start as usize, *start as usize + 1),
+                        ));
+                    }
+                    StackEntry::IfBlock { start } => {
+                        return Err(crate::error::ParseError::svelte(
+                            "block_unclosed",
+                            "Block was left open",
+                            (*start as usize, *start as usize + 1),
+                        ));
+                    }
+                    StackEntry::EachBlock { start } => {
+                        return Err(crate::error::ParseError::svelte(
+                            "block_unclosed",
+                            "Block was left open",
+                            (*start as usize, *start as usize + 1),
+                        ));
+                    }
+                    StackEntry::AwaitBlock { start } => {
+                        return Err(crate::error::ParseError::svelte(
+                            "block_unclosed",
+                            "Block was left open",
+                            (*start as usize, *start as usize + 1),
+                        ));
+                    }
+                    StackEntry::KeyBlock { start } => {
+                        return Err(crate::error::ParseError::svelte(
+                            "block_unclosed",
+                            "Block was left open",
+                            (*start as usize, *start as usize + 1),
+                        ));
+                    }
+                    StackEntry::SnippetBlock { start } => {
+                        return Err(crate::error::ParseError::svelte(
+                            "block_unclosed",
+                            "Block was left open",
+                            (*start as usize, *start as usize + 1),
+                        ));
+                    }
+                    StackEntry::Root => {}
                 }
-                StackEntry::IfBlock { start } => {
-                    return Err(crate::error::ParseError::svelte(
-                        "block_unclosed",
-                        "Block was left open",
-                        (*start as usize, *start as usize + 1),
-                    ));
-                }
-                StackEntry::EachBlock { start } => {
-                    return Err(crate::error::ParseError::svelte(
-                        "block_unclosed",
-                        "Block was left open",
-                        (*start as usize, *start as usize + 1),
-                    ));
-                }
-                StackEntry::AwaitBlock { start } => {
-                    return Err(crate::error::ParseError::svelte(
-                        "block_unclosed",
-                        "Block was left open",
-                        (*start as usize, *start as usize + 1),
-                    ));
-                }
-                StackEntry::KeyBlock { start } => {
-                    return Err(crate::error::ParseError::svelte(
-                        "block_unclosed",
-                        "Block was left open",
-                        (*start as usize, *start as usize + 1),
-                    ));
-                }
-                StackEntry::SnippetBlock { start } => {
-                    return Err(crate::error::ParseError::svelte(
-                        "block_unclosed",
-                        "Block was left open",
-                        (*start as usize, *start as usize + 1),
-                    ));
-                }
-                StackEntry::Root => {}
             }
         }
 

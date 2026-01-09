@@ -94,8 +94,12 @@ impl Parser<'_> {
         let name_end = self.index;
 
         if name.is_empty() {
-            // If we're at EOF with just '<', report unexpected_eof
+            // If we're at EOF with just '<', report unexpected_eof (unless in loose mode)
             if self.is_eof() {
+                if self.options.loose {
+                    // In loose mode, allow EOF after '<'
+                    return Ok(None);
+                }
                 return Err(crate::error::ParseError::svelte(
                     "unexpected_eof",
                     "Unexpected end of input",
@@ -107,27 +111,30 @@ impl Parser<'_> {
         }
 
         // Track position after tag name for unclosed elements at EOF
-        let _pos_after_name = self.index;
+        let pos_after_name = self.index;
         self.skip_whitespace();
 
         // Parse attributes
         let attributes = self.parse_attributes()?;
 
-        // Track position before whitespace skip for unclosed elements at EOF
-        let _pos_after_attrs = self.index;
+        // Track position after attributes for unclosed elements at EOF
+        let pos_after_attrs = self.index;
         self.skip_whitespace();
 
         // Check for self-closing or void element
         let self_closing = self.eat("/");
         let has_closing_bracket = self.eat(">"); // consume '>'
 
-        // For unclosed elements at EOF, report unexpected_eof error
+        // For unclosed elements at EOF, report unexpected_eof error (unless in loose mode)
         if !has_closing_bracket && self.is_eof() {
-            return Err(crate::error::ParseError::svelte(
-                "unexpected_eof",
-                "Unexpected end of input",
-                (self.index, self.index),
-            ));
+            if !self.options.loose {
+                return Err(crate::error::ParseError::svelte(
+                    "unexpected_eof",
+                    "Unexpected end of input",
+                    (self.index, self.index),
+                ));
+            }
+            // In loose mode, treat as an unclosed element and continue
         }
 
         // Handle script and style tags specially
@@ -164,6 +171,9 @@ impl Parser<'_> {
             ..Default::default()
         };
 
+        // Track whether we found a closing tag
+        let mut found_closing_tag = false;
+
         // If not self-closing and not void, parse children
         // But only if we found the closing bracket '>' - otherwise the element is malformed
         if !self_closing && !is_void && has_closing_bracket {
@@ -181,7 +191,6 @@ impl Parser<'_> {
             }
 
             // Handle closing tag or block close
-            let mut found_closing_tag = false;
             if self.match_str("</") {
                 let close_start = self.index;
                 self.advance_by(2); // consume '</'
@@ -224,7 +233,54 @@ impl Parser<'_> {
             }
         }
 
-        let end = self.index as u32;
+        // Calculate end position
+        let end = if !has_closing_bracket {
+            // Unclosed opening tag: use position after attributes (or after tag name if no attributes)
+            // This handles both EOF and other cases where the opening tag wasn't properly closed
+            if attributes.is_empty() {
+                pos_after_name as u32
+            } else {
+                pos_after_attrs as u32
+            }
+        } else if !self_closing && !is_void && has_closing_bracket && !found_closing_tag {
+            // Element has opening tag but no closing tag (auto-closed at EOF)
+            // Use the end of the last child node in the fragment
+            fragment
+                .nodes
+                .last()
+                .map(|node| match node {
+                    TemplateNode::Text(t) => t.end,
+                    TemplateNode::Comment(c) => c.end,
+                    TemplateNode::ExpressionTag(e) => e.end,
+                    TemplateNode::HtmlTag(h) => h.end,
+                    TemplateNode::ConstTag(c) => c.end,
+                    TemplateNode::DebugTag(d) => d.end,
+                    TemplateNode::RenderTag(r) => r.end,
+                    TemplateNode::AttachTag(a) => a.end,
+                    TemplateNode::IfBlock(b) => b.end,
+                    TemplateNode::EachBlock(b) => b.end,
+                    TemplateNode::AwaitBlock(b) => b.end,
+                    TemplateNode::KeyBlock(b) => b.end,
+                    TemplateNode::SnippetBlock(b) => b.end,
+                    TemplateNode::RegularElement(e) => e.end,
+                    TemplateNode::Component(c) => c.end,
+                    TemplateNode::TitleElement(t) => t.end,
+                    TemplateNode::SlotElement(s) => s.end,
+                    TemplateNode::SvelteBody(s)
+                    | TemplateNode::SvelteDocument(s)
+                    | TemplateNode::SvelteFragment(s)
+                    | TemplateNode::SvelteBoundary(s)
+                    | TemplateNode::SvelteHead(s)
+                    | TemplateNode::SvelteOptions(s)
+                    | TemplateNode::SvelteSelf(s)
+                    | TemplateNode::SvelteWindow(s) => s.end,
+                    TemplateNode::SvelteComponent(c) => c.end,
+                    TemplateNode::SvelteElement(e) => e.end,
+                })
+                .unwrap_or(self.index as u32)
+        } else {
+            self.index as u32
+        };
 
         // Create the appropriate element type
         let node = match element_type {

@@ -85,6 +85,9 @@ pub struct ComponentAnalysis {
     /// Whether the component uses component bindings
     pub uses_component_bindings: bool,
 
+    /// Whether the component uses event attributes (on:event={handler})
+    pub uses_event_attributes: bool,
+
     /// Whether the component needs context
     pub needs_context: bool,
 
@@ -133,6 +136,7 @@ impl ComponentAnalysis {
             uses_slots: false,
             uses_render_tags: false,
             uses_component_bindings: false,
+            uses_event_attributes: false,
             needs_context: false,
             needs_props: false,
             exports: Vec::new(),
