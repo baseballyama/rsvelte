@@ -819,12 +819,11 @@ pub fn escape_html(s: &str) -> String {
 /// Returns true if the expression is an Identifier with the same name.
 pub fn is_shorthand_identifier(expr: &crate::ast::js::Expression, name: &str) -> bool {
     let crate::ast::js::Expression::Value(value) = expr;
-    if let Some(obj) = value.as_object() {
-        if obj.get("type") == Some(&serde_json::Value::String("Identifier".to_string())) {
-            if let Some(expr_name) = obj.get("name").and_then(|v| v.as_str()) {
-                return expr_name == name;
-            }
-        }
+    if let Some(obj) = value.as_object()
+        && obj.get("type") == Some(&serde_json::Value::String("Identifier".to_string()))
+        && let Some(expr_name) = obj.get("name").and_then(|v| v.as_str())
+    {
+        return expr_name == name;
     }
     false
 }
