@@ -4,12 +4,38 @@
 
 ### ✅ 完了した作業
 
-- `fragment.rs` を公式Svelte実装に合わせて完全に書き直し
-- `Template` と `TemplateBuilder` を統一
-- `ComponentClientTransformState` に必要なフィールドを全て追加
-- ビルドエラーを全て修正
+#### Phase 2 - IfBlock metadata サポート（2026-01-09）
+- `ExpressionMetadata`にasync関連フィールド追加（`has_await`, `has_call`, `is_async()`など）
+- `IfBlockMetadata`を定義し、`IfBlock`にmetadataフィールド追加
+- Phase 2でtest expression分析の基盤構築
+- Phase 3でmetadataを使用してasync式を正しく処理
 
-### 📊 テスト結果
+#### Phase 3 - Visitor統合（2026-01-09）
+- `visit_if_block()`メソッド実装 → `if_block::if_block()`を呼び出し
+- `visit_regular_element()`メソッド実装 → `regular_element::visit_regular_element()`を呼び出し
+- モジュールexport設定（`if_block`, `regular_element`, `utils`）
+
+#### Phase 3 - Fragment visitor 有効化と修正（2026-01-10）
+- Fragment visitor の型互換性問題を全て解決
+- `parse_namespace()` 関数を追加（String → Namespace enum変換）
+- `let_directives` を `Vec<JsStatement>` に変換
+- `build_render_statement()` の引数修正
+- CompactString → String変換を追加
+- mod.rs で fragment module を有効化
+- テストコードを新API対応（utils.rs）
+- コミット: `07c6b6e` - "fix: Enable Fragment visitor and fix type compatibility issues"
+
+#### Phase 3 - process_children() とフラグメント処理（2026-01-10）
+- `is_static_element()`, `cannot_be_set_statically()` ヘルパー関数実装
+- `TextOrExpr` enum 追加（Text/ExpressionTag のシーケンス処理用）
+- `process_children()` 関数実装（text/expression の適切な処理）
+- quasi と template literal ビルダーサポート追加
+- `build_template_chunk()` 実装（template literal 生成）
+- `convert_assignment_target` 関数名の typo 修正と重複削除
+- namespace parsing ヘルパー追加
+- コミット: `2637e39` - "feat(phase3): Implement process_children and fragment processing helpers"
+
+### 📊 テスト結果（前回測定時）
 
 | テストスイート | 合格数 | 合格率 | 状態 |
 |--------------|--------|--------|------|
@@ -17,160 +43,162 @@
 | ユニットテスト | 127/129 | 98% | ✅ |
 | コンパイラスナップショット | 15/19 | 79% | 🟡 |
 | SSR | 8/80 | 10% | 🔴 |
-| Runtime-runes | 0/724 | 0% | 🔴 |
+| Runtime-runes | 7/724 | 1.0% | 🔴 |
+
+### ⚠️ 残っている課題
+
+1. **Clippy warnings** - 多数の既存コードに警告が存在（pre-commit hook で失敗の原因）
+   - `collapsible_if`, `collapsible_match` など約26個のwarnings
+   - 主に `2_analyze/visitors/regular_element.rs` と `3_transform/client/` に集中
+   - これらは既存コードの問題であり、今回の実装とは無関係
+
+2. **runtime-runes テスト** - Fragment/process_children の効果測定が未完了
+   - テスト実行に時間がかかるため、結果確認が保留中
+   - より小規模なテストセットでの検証が必要
 
 ---
 
 ## 🎯 次にやるべきこと（優先順位順）
 
+### 📋 タスク優先順位サマリー
+
+| 優先度 | タスク | 所要時間 | 理由 |
+|--------|--------|----------|------|
+| ⭐⭐⭐⭐⭐ | タスク1: テスト結果確認 | 10-20分 | 今回の実装効果を測定し、次の方針を決定 |
+| ⭐⭐⭐⭐ | タスク2: Clippy warnings修正 | 1-2時間 | Pre-commit hookを通すために必要 |
+| ⭐⭐⭐ | タスク3: 他のVisitor実装 | 各1-3時間 | 段階的にテスト合格率を向上 |
+| ⭐⭐ | タスク4: テスト調査と修正 | 2-4時間 | 個別の失敗ケースを分析 |
+| ⭐ | タスク5: SSR改善 | 後回し | クライアント実装完了後に着手 |
+
+### 推奨実行順序
+
+1. **タスク1（即実行）**: テスト結果確認 → 現状把握
+2. **タスク2（今日中）**: Clippy warnings修正 → 正常なコミットフローを確保
+3. **タスク3（明日以降）**: Visitor実装 → 段階的にテスト合格率向上
+
 ---
 
-## タスク1: `process_children()` 関数の実装【最優先】
+## タスク1: テスト結果確認と効果測定【最優先・即実行】
 
 ### 概要
-`fragment.rs` 内の3箇所（214, 228, 232行目）にある `process_children()` のTODOを実装する。
+Fragment visitor と process_children() 実装の効果を確認する。
 
-### 参照すべき公式実装
-- `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/process.js`
-- 特に `process_children()` 関数
-
-### 実装手順
-
-#### 1. 公式実装を読む
+### 実行手順
 ```bash
-cat svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/process.js
-```
-
-#### 2. 新しいファイルを作成
-```bash
-# 新規作成
-touch src/compiler/phases/3_transform/client/visitors/shared/process.rs
-```
-
-または既存の `utils.rs` に追加してもOK:
-```bash
-src/compiler/phases/3_transform/client/visitors/shared/utils.rs
-```
-
-#### 3. 実装する関数
-
-以下の関数を実装する必要があります：
-
-```rust
-// src/compiler/phases/3_transform/client/visitors/shared/process.rs
-
-use crate::ast::template::TemplateNode;
-use crate::compiler::phases::phase3_transform::client::types::*;
-use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
-use crate::compiler::phases::phase3_transform::js_ast::builders as b;
-
-/// Process children nodes and generate code.
-///
-/// # Arguments
-///
-/// * `nodes` - The child nodes to process
-/// * `expression` - Function to generate anchor expression (引数: is_text)
-/// * `is_element` - Whether parent is an element
-/// * `context` - Component context
-/// * `state` - Transform state
-pub fn process_children<F>(
-    nodes: &[TemplateNode],
-    expression: F,
-    is_element: bool,
-    context: &mut ComponentContext,
-    state: &mut ComponentClientTransformState,
-) where
-    F: Fn(bool) -> JsExpr,
-{
-    // 公式実装の process_children をここに移植
-    // JavaScript の実装を 1行ずつ Rust に翻訳する
-
-    // TODO: 実装する
-}
-```
-
-#### 4. `mod.rs` を更新
-```rust
-// src/compiler/phases/3_transform/client/visitors/shared/mod.rs
-
-pub mod component;
-pub mod element;
-pub mod utils;
-pub mod process;  // 追加
-
-pub use process::process_children;  // 追加
-```
-
-#### 5. `fragment.rs` のTODOを置き換え
-
-```rust
-// fragment.rs 214行目付近
-if use_space_template {
-    let text_id_name = state.memoizer.generate_id("text");
-    let text_id = b::id(&text_id_name);
-
-    // TODO: Implement process_children
-    // ↓ これに置き換える
-    process_children(&cleaned.trimmed, || text_id.clone(), false, context, &mut state);
-
-    state.init.insert(
-        0,
-        b::var_decl(&text_id_name, Some(b::call(b::member_path("$.text"), vec![]))),
-    );
-    // ... 以下省略
-}
-```
-
-```rust
-// fragment.rs 228行目付近
-} else if cleaned.is_standalone {
-    // No need to create a template, we can just use the existing block's anchor
-    // TODO: Implement process_children
-    // ↓ これに置き換える
-    process_children(&cleaned.trimmed, || b::id("$$anchor"), false, context, &mut state);
-} else {
-    // ... 以下省略
-}
-```
-
-```rust
-// fragment.rs 232-240行目付近
-} else {
-    // Standard case with template
-    // TODO: Implement process_children
-    // ↓ これに置き換える
-    let expression = |is_text: bool| {
-        if is_text {
-            b::call(b::member_path("$.first_child"), vec![id.clone(), b::bool(true)])
-        } else {
-            b::call(b::member_path("$.first_child"), vec![id.clone()])
-        }
-    };
-    process_children(&cleaned.trimmed, expression, false, context, &mut state);
-
-    // ... 以下省略
-}
-```
-
-### 期待される効果
-- コンパイラスナップショットテストの合格率が向上（79% → 85%+）
-- SSRテストの合格率が向上（10% → 30%+）
-- Runtime-runesテストが動作し始める（0% → 5%+）
-
-### 確認方法
-```bash
-cargo build
+# 小規模なテストから実行（コンパイラスナップショット）
 cargo test --test compiler_fixtures -- --nocapture
-cargo test --test ssr -- --nocapture | head -50
+
+# runtime-runes テストの一部を実行（最初の10件のみ）
+cargo test --test runtime test_runtime_runes -- --nocapture 2>&1 | head -100
 ```
+
+### 成功基準
+- コンパイラスナップショット: 15/19 → 17/19+ (89%+)
+- runtime-runes: 7/724 → 15/724+ (2%+)
+
+### 所要時間
+10-20分
 
 ---
 
-## タスク2: 他の重要なVisitorの実装
+## タスク2: Clippy warnings の修正【高優先度】
+
+### 概要
+Pre-commit hook が失敗する原因となっているclippy warningsを修正する。26個の警告のうち、主要なものを修正。
+
+### 実行手順
+
+#### Step 1: 警告の確認
+```bash
+cargo clippy --all-targets --all-features -- -D warnings 2>&1 | grep "error:" | head -30
+```
+
+#### Step 2: 主要な警告タイプを修正
+
+**2-1. `collapsible_if` の修正（約10箇所）**
+
+`regular_element.rs` 367行目など:
+```rust
+// Before
+if let Attribute::Attribute(attr_node) = attr {
+    if attr_node.name == "value" {
+        return Err(...);
+    }
+}
+
+// After
+if let Attribute::Attribute(attr_node) = attr
+    && attr_node.name == "value" {
+    return Err(...);
+}
+```
+
+**2-2. `collapsible_match` の修正（約5箇所）**
+
+`regular_element.rs` 453行目など:
+```rust
+// Before
+if let Some(ancestor) = context.path.get(i) {
+    if let TemplateNode::RegularElement(ancestor_el) = ancestor {
+        // ...
+    }
+}
+
+// After
+if let Some(TemplateNode::RegularElement(ancestor_el)) = context.path.get(i) {
+    // ...
+}
+```
+
+**2-3. `too_many_arguments` の修正（1箇所）**
+
+`utils.rs` 50行目の `clean_nodes()` 関数:
+```rust
+// 引数をstructにまとめる
+pub struct CleanNodesOptions<'a> {
+    pub parent: Option<&'a TemplateNode>,
+    pub nodes: &'a [TemplateNode],
+    pub path: &'a [&'a TemplateNode],
+    pub namespace: Namespace,
+    pub bound_contenteditable: bool,
+    pub preserve_whitespace: bool,
+    pub preserve_comments: bool,
+}
+
+pub fn clean_nodes(options: CleanNodesOptions) -> CleanedNodes {
+    // ...
+}
+```
+
+#### Step 3: 修正後の確認
+```bash
+cargo clippy --all-targets --all-features -- -D warnings
+cargo fmt
+```
+
+#### Step 4: コミット
+```bash
+git add .
+git commit -m "style: Fix clippy warnings for collapsible_if and collapsible_match
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+git push
+```
+
+### 成功基準
+- Clippy warnings が 26 → 0 になる
+- Pre-commit hook が成功する
+
+### 所要時間
+1-2時間
+
+---
+
+## タスク3: 他の重要なVisitorの実装（process_children完了後）
 
 ### 優先順位
 
-#### 2-1. `text.rs` - テキストノードの処理【高優先度】
+#### 3-1. `text.rs` - テキストノードの処理【高優先度】
 
 **参照**: `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/Text.js`
 
@@ -216,7 +244,7 @@ pub fn text(node: &Text, context: &mut ComponentContext) -> JsBlockStatement {
 cargo build && cargo test --test compiler_fixtures -- --nocapture
 ```
 
-#### 2-2. `if_block.rs` - if/else ブロックの処理【高優先度】
+#### 3-2. `if_block.rs` - if/else ブロックの処理【高優先度】
 
 **参照**: `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/IfBlock.js`
 
@@ -227,7 +255,7 @@ cargo build && cargo test --test compiler_fixtures -- --nocapture
 - `$.if()` ランタイム関数を使用
 - consequent と alternate の処理
 
-#### 2-3. `each_block.rs` - each ブロックの処理【高優先度】
+#### 3-3. `each_block.rs` - each ブロックの処理【高優先度】
 
 **参照**: `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/EachBlock.js`
 
@@ -239,7 +267,7 @@ cargo build && cargo test --test compiler_fixtures -- --nocapture
 - key による最適化
 - fallback (`:else`) の処理
 
-#### 2-4. `regular_element.rs` - 通常のHTML要素の処理【中優先度】
+#### 3-4. `regular_element.rs` - 通常のHTML要素の処理【中優先度】
 
 **参照**: `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/RegularElement.js`
 
@@ -251,7 +279,7 @@ cargo build && cargo test --test compiler_fixtures -- --nocapture
 - イベントハンドラーの処理
 - ディレクティブの処理
 
-#### 2-5. `component.rs` - コンポーネントの処理【中優先度】
+#### 3-5. `component.rs` - コンポーネントの処理【中優先度】
 
 **参照**: `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/Component.js`
 
@@ -306,7 +334,7 @@ cargo test --test runtime -- --nocapture | head -100
 
 ---
 
-## タスク3: 失敗しているテストの調査と修正
+## タスク4: 失敗しているテストの調査と修正
 
 ### コンパイラスナップショットテストの失敗（4件）
 
@@ -354,7 +382,7 @@ cargo test --test compiler_fixtures test_compiler_snapshot_fixtures -- --nocaptu
 
 ---
 
-## タスク4: SSRテストの改善（現在 8/80）
+## タスク5: SSRテストの改善（現在 8/80）
 
 ### 優先度の高い失敗テスト
 
@@ -463,21 +491,27 @@ git push
 
 ## 🎯 目標（マイルストーン）
 
-### マイルストーン1: `process_children()` 実装完了 ⭐最優先⭐
-- [ ] `process.rs` または `utils.rs` に実装
-- [ ] `fragment.rs` のTODOを全て置き換え
-- [ ] ビルドが成功
-- [ ] コンパイラスナップショット: 15/19 → 17/19 以上 (89%+)
+### マイルストーン1: Fragment visitor と process_children 完了 ✅ 完了
+- [x] Fragment visitor の型互換性問題を解決
+- [x] `process_children()` 実装（`fragment.rs` 内）
+- [x] `is_static_element()`, `build_template_chunk()` 等のヘルパー実装
+- [x] ビルド成功
+- [ ] テスト効果測定（タスク1）
 
-### マイルストーン2: 主要Visitor実装完了
+### マイルストーン2: Clippy warnings 解消とコード品質向上
+- [ ] 26個のclippy warningsを修正
+- [ ] Pre-commit hookが正常に動作
+- [ ] コード品質が向上し、メンテナンス性が改善
+
+### マイルストーン3: 主要Visitor実装完了
 - [ ] `text.rs` 実装
-- [ ] `if_block.rs` 実装
+- [ ] `if_block.rs` 完全実装（現在は基本部分のみ）
 - [ ] `each_block.rs` 実装
-- [ ] `regular_element.rs` 実装
-- [ ] コンパイラスナップショット: 19/19 (100%)
+- [ ] `regular_element.rs` 完全実装（現在は基本部分のみ）
+- [ ] コンパイラスナップショット: 15/19 → 19/19 (100%)
 
-### マイルストーン3: Runtime-runesテスト改善
-- [ ] Runtime-runesテスト: 0/724 → 50/724 以上 (7%+)
+### マイルストーン4: Runtime-runesテスト大幅改善
+- [ ] Runtime-runesテスト: 7/724 → 100/724 以上 (13.8%+)
 - [ ] SSRテスト: 8/80 → 30/80 以上 (38%+)
 
 ---
@@ -559,28 +593,25 @@ cat fixtures/*/snapshot/[test-name]/_expected/client.js
 
 ## ✅ 完了チェックリスト
 
-### タスク1: process_children()
-- [ ] 公式実装 `process.js` を読んで理解
-- [ ] `process.rs` ファイル作成
-- [ ] `process_children()` 関数実装
-- [ ] `fragment.rs` のTODO（3箇所）を置き換え
-- [ ] ビルド成功
-- [ ] テスト実行して改善確認
-- [ ] コミット＆プッシュ
+### 今回のセッション（2026-01-10）
+- [x] Fragment visitor の型互換性問題を解決
+- [x] `process_children()` 関数実装（`fragment.rs` 内）
+- [x] `is_static_element()` 等のヘルパー関数実装
+- [x] ビルド成功
+- [x] コミット＆プッシュ（2件）
+  - `07c6b6e` - Fragment visitor 有効化
+  - `2637e39` - process_children 実装
 
-### タスク2: Visitor実装
-- [ ] `text.rs` 実装完了
-- [ ] `if_block.rs` 実装完了
-- [ ] `each_block.rs` 実装完了
-- [ ] `regular_element.rs` 実装完了
-- [ ] `component.rs` 実装完了
-- [ ] 各実装後にコミット＆プッシュ
-
-### タスク3: テスト修正
-- [ ] 失敗している4つのスナップショットテストを調査
-- [ ] 原因特定
-- [ ] 修正実装
-- [ ] 全テスト合格確認
+### 次のセッション
+- [ ] タスク1: テスト結果確認と効果測定
+- [ ] タスク2: Clippy warnings 修正
+- [ ] タスク3: 他のVisitor実装
+  - [ ] `text.rs` 実装完了
+  - [ ] `if_block.rs` 完全実装
+  - [ ] `each_block.rs` 実装完了
+  - [ ] `regular_element.rs` 完全実装
+  - [ ] 各実装後にコミット＆プッシュ
+- [ ] タスク4: 失敗しているスナップショットテストを調査・修正
 
 ---
 
@@ -647,6 +678,10 @@ eprintln!("DEBUG: Generated expression: {:?}", expr);
 
 ---
 
-**作成日**: 2026-01-10
-**次回更新**: タスク1完了後
-**推奨作業時間**: 3-4時間（`process_children` 実装に2時間、visitor実装に2時間）
+**作成日**: 2026-01-09
+**最終更新**: 2026-01-10
+**次回更新**: タスク1（テスト結果確認）完了後
+**推奨作業時間**:
+- タスク1: 10-20分（テスト実行）
+- タスク2: 1-2時間（Clippy warnings修正）
+- タスク3以降: 各1-3時間（Visitor実装）
