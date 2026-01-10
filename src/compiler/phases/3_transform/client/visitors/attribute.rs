@@ -208,7 +208,7 @@ fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContext) {
         let statement = b::stmt(event_call);
 
         // Check if the parent is a special element (svelte:window, svelte:document, svelte:body)
-        let is_special_element = context.current_parent().map_or(false, |parent| {
+        let is_special_element = context.current_parent().is_some_and(|parent| {
             use crate::ast::template::TemplateNode;
             matches!(
                 parent,
@@ -445,10 +445,10 @@ fn convert_expression_to_js(
     // In the full implementation, this would be a full expression visitor
     match expression {
         Expression::Value(val) => {
-            if let Some(obj) = val.as_object() {
-                if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
-                    return b::id(name);
-                }
+            if let Some(obj) = val.as_object()
+                && let Some(name) = obj.get("name").and_then(|v| v.as_str())
+            {
+                return b::id(name);
             }
             // Fallback: create a placeholder
             b::id("handler")
@@ -466,10 +466,10 @@ fn expression_has_call(expression: &crate::ast::js::Expression) -> bool {
 
     match expression {
         Expression::Value(val) => {
-            if let Some(obj) = val.as_object() {
-                if let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) {
-                    return expr_type == "CallExpression";
-                }
+            if let Some(obj) = val.as_object()
+                && let Some(expr_type) = obj.get("type").and_then(|v| v.as_str())
+            {
+                return expr_type == "CallExpression";
             }
             false
         }

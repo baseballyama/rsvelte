@@ -52,6 +52,7 @@ pub fn visit_regular_element(
     let mut attributes = Vec::new();
     let mut class_directives = Vec::new();
     let mut style_directives = Vec::new();
+    let mut on_directives = Vec::new();
     let has_spread = node
         .attributes
         .iter()
@@ -67,6 +68,9 @@ pub fn visit_regular_element(
             }
             Attribute::StyleDirective(dir) => {
                 style_directives.push(dir.clone());
+            }
+            Attribute::OnDirective(dir) => {
+                on_directives.push(dir.clone());
             }
             Attribute::SpreadAttribute(_) => {
                 attributes.push(attribute.clone());
@@ -193,6 +197,14 @@ pub fn visit_regular_element(
             b::member_path("$.reset"),
             vec![context.state.node.clone()],
         )));
+    }
+
+    // Process event handlers (OnDirective)
+    for on_directive in &on_directives {
+        if let TransformResult::Expression(event_call) = context.visit_on_directive(on_directive) {
+            // Event handlers go into after_update for regular elements
+            context.state.after_update.push(b::stmt(event_call));
+        }
     }
 
     context.state.template.pop_element();

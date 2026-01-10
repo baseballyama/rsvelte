@@ -74,5 +74,6 @@ pub mod if_block;
 // pub mod html_tag;
 // pub mod render_tag;
 // pub mod svelte_element;
-// pub mod attribute;
+pub mod attribute;
 pub mod fragment;
+pub mod on_directive;

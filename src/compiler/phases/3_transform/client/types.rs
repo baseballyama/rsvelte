@@ -200,6 +200,15 @@ impl<'a> ComponentContext<'a> {
         // TODO: Implement {@html} transformation
         TransformResult::None
     }
+
+    pub fn visit_on_directive(
+        &mut self,
+        on_directive: &crate::ast::template::OnDirective,
+    ) -> TransformResult {
+        use crate::compiler::phases::phase3_transform::client::visitors::on_directive::on_directive as visit_on_directive_impl;
+        let expr = visit_on_directive_impl(on_directive, self);
+        TransformResult::Expression(expr)
+    }
 }
 
 /// Result of visiting a node.

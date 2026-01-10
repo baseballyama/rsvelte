@@ -332,17 +332,8 @@ fn process_on_directive(
     context: &mut ComponentContext,
     events: &mut HashMap<String, Vec<JsExpr>>,
 ) {
-    // Extract expression and metadata
-    let (expression, metadata) = if let Some(expr) = &on_directive.expression {
-        let js_expr = extract_js_expression(expr);
-        let meta = extract_expression_metadata(expr);
-        (Some(js_expr), meta)
-    } else {
-        (None, ExpressionMetadata::new())
-    };
-
-    // Build base event handler
-    let mut handler = build_event_handler(expression.as_ref(), &metadata, context);
+    // Build base event handler using the new signature
+    let mut handler = build_event_handler(on_directive.expression.as_ref(), on_directive, context);
 
     // Apply modifiers
     // Check for stopPropagation modifier
