@@ -51,7 +51,10 @@ pub fn visit_regular_element(
     context: &mut ComponentContext,
 ) -> TransformResult {
     // Push element to template
-    context.state.template.push_element(&node.name, node.start);
+    context
+        .state
+        .template
+        .push_element(node.name.to_string(), node.start);
 
     // Handle <noscript> - it's skipped entirely
     if node.name == "noscript" {

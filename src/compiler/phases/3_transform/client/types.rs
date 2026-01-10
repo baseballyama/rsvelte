@@ -148,10 +148,10 @@ impl<'a> ComponentContext<'a> {
 
     fn visit_regular_element(
         &mut self,
-        _elem: &crate::ast::template::RegularElement,
+        elem: &crate::ast::template::RegularElement,
     ) -> TransformResult {
-        // TODO: Implement regular element transformation
-        TransformResult::None
+        use crate::compiler::phases::phase3_transform::client::visitors::regular_element::visit_regular_element;
+        visit_regular_element(elem, self)
     }
 
     fn visit_text(&mut self, _text: &crate::ast::template::Text) -> TransformResult {
@@ -159,8 +159,9 @@ impl<'a> ComponentContext<'a> {
         TransformResult::None
     }
 
-    fn visit_if_block(&mut self, _if_block: &crate::ast::template::IfBlock) -> TransformResult {
-        // TODO: Implement {#if} transformation
+    fn visit_if_block(&mut self, if_block: &crate::ast::template::IfBlock) -> TransformResult {
+        use crate::compiler::phases::phase3_transform::client::visitors::if_block::if_block as visit_if_block_impl;
+        visit_if_block_impl(if_block, self);
         TransformResult::None
     }
 

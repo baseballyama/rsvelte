@@ -125,7 +125,7 @@ fn generate_id(base: &str) -> String {
 
 pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
     // Push a comment placeholder into the template
-    context.state.template.push_comment();
+    context.state.template.push_comment(None);
 
     // Collect statements to build the if block
     let mut statements = Vec::new();

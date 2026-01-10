@@ -64,10 +64,10 @@ pub mod expression_converter;
 // Example:
 // pub mod text;
 // pub mod expression_tag;
-// pub mod regular_element;
+pub mod regular_element;
 // pub mod component;
 // pub mod each_block;
-// pub mod if_block;
+pub mod if_block;
 // pub mod await_block;
 // pub mod key_block;
 // pub mod snippet_block;
@@ -75,4 +75,4 @@ pub mod expression_converter;
 // pub mod render_tag;
 // pub mod svelte_element;
 // pub mod attribute;
-// pub mod fragment;
+// pub mod fragment; // TODO: Fix type compatibility issues

@@ -11,9 +11,7 @@ use crate::compiler::phases::phase3_transform::client::transform_template::{
     Namespace, Template, transform_template,
 };
 use crate::compiler::phases::phase3_transform::client::types::*;
-use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
-    build_render_statement, Memoizer,
-};
+use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_render_statement;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use crate::compiler::phases::phase3_transform::utils::{clean_nodes, infer_namespace};

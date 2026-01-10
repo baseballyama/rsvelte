@@ -3,7 +3,7 @@
 //! Corresponds to utilities in:
 //! - `svelte/packages/svelte/src/compiler/phases/3-transform/utils.js`
 
-use crate::ast::template::{Fragment, TemplateNode};
+use crate::ast::template::TemplateNode;
 use crate::compiler::phases::phase2_analyze::scope::Scope;
 use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
 
