@@ -112,3 +112,22 @@ pub fn slot_element_deprecated() -> AnalysisWarning {
         "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead",
     )
 }
+
+/// `<svelte:self>` is deprecated — use self-imports (e.g. `import Component from './Component.svelte'`) instead
+pub fn svelte_self_deprecated(name: &str, basename: &str) -> AnalysisWarning {
+    warning(
+        "svelte_self_deprecated",
+        format!(
+            "`<svelte:self>` is deprecated — use self-imports (e.g. `import {} from './{}'`) instead\nhttps://svelte.dev/e/svelte_self_deprecated",
+            name, basename
+        ),
+    )
+}
+
+/// `<svelte:component>` is deprecated in runes mode — components are dynamic by default
+pub fn svelte_component_deprecated() -> AnalysisWarning {
+    warning(
+        "svelte_component_deprecated",
+        "`<svelte:component>` is deprecated in runes mode — components are dynamic by default",
+    )
+}
