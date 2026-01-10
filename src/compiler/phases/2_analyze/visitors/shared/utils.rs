@@ -2,7 +2,7 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/shared/utils.js`.
 
-use super::super::super::{Binding, BindingKind, DeclarationKind, errors};
+use super::super::super::{Binding, BindingKind, DeclarationKind, Scope, errors};
 use super::super::{AnalysisError, VisitorContext};
 use crate::ast::template::{Fragment, TemplateNode};
 use lazy_static::lazy_static;
@@ -19,6 +19,196 @@ lazy_static! {
     /// Corresponds to `regex_illegal_attribute_character` in patterns.js.
     pub static ref REGEX_ILLEGAL_ATTRIBUTE_CHARACTER: Regex =
         Regex::new(r"(^[0-9\-.])|([\^$@%&#?!|()\[\]{}*+~;])").unwrap();
+}
+
+/// Get the name from an AST node (Identifier, Literal, or PrivateIdentifier).
+///
+/// Corresponds to `get_name` in nodes.js.
+///
+/// # Arguments
+///
+/// * `node` - The AST node (Identifier, Literal, or PrivateIdentifier)
+///
+/// # Returns
+///
+/// The name as a string, or None if the node type is not supported
+fn get_name(node: &Value) -> Option<String> {
+    match node.get("type").and_then(|t| t.as_str()) {
+        Some("Literal") => {
+            // Return the literal value as a string
+            if let Some(value) = node.get("value") {
+                Some(value.to_string())
+            } else {
+                None
+            }
+        }
+        Some("PrivateIdentifier") => {
+            // Return '#' + name
+            if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
+                Some(format!("#{}", name))
+            } else {
+                None
+            }
+        }
+        Some("Identifier") => {
+            // Return the identifier name
+            node.get("name").and_then(|n| n.as_str()).map(String::from)
+        }
+        _ => None,
+    }
+}
+
+/// Get a parent node from the path, handling TypeScript wrapper nodes.
+///
+/// Corresponds to `get_parent` in utils/ast.js.
+///
+/// # Arguments
+///
+/// * `path` - The AST path (stack of nodes)
+/// * `at` - The index to access (supports negative indexing)
+///
+/// # Returns
+///
+/// The parent node at the given index, skipping TypeScript wrapper nodes
+fn get_parent<'a>(path: &'a [Value], at: isize) -> Option<&'a Value> {
+    let len = path.len() as isize;
+    let index = if at < 0 { len + at } else { at };
+
+    if index < 0 || index >= len {
+        return None;
+    }
+
+    let node = &path[index as usize];
+
+    // Skip TypeScript wrapper nodes
+    match node.get("type").and_then(|t| t.as_str()) {
+        Some("TSNonNullExpression") | Some("TSAsExpression") => {
+            // Get the next node in the appropriate direction
+            let next_index = if at < 0 { at - 1 } else { at + 1 };
+            get_parent(path, next_index)
+        }
+        _ => Some(node),
+    }
+}
+
+/// Get the rune name from a CallExpression node.
+///
+/// Wrapper around the phase 3 get_rune implementation that works with JSON values.
+/// Corresponds to `get_rune` in scope.js.
+///
+/// # Arguments
+///
+/// * `node` - The CallExpression node
+/// * `scope` - The current scope
+///
+/// # Returns
+///
+/// The rune name (e.g., "$state", "$derived.by", "$effect.tracking") or None
+fn get_rune_from_json(node: &Value, scope: &Scope) -> Option<String> {
+    // Check if node is a CallExpression
+    if node.get("type").and_then(|t| t.as_str()) != Some("CallExpression") {
+        return None;
+    }
+
+    let callee = node.get("callee")?;
+    let keypath = get_global_keypath(callee, scope)?;
+
+    // Check if it's a valid rune
+    if !is_rune(&keypath) {
+        return None;
+    }
+
+    Some(keypath)
+}
+
+/// Get the global keypath for an expression (e.g., "$state", "$derived.by", "$effect.tracking").
+///
+/// Corresponds to `get_global_keypath` in scope.js.
+///
+/// # Arguments
+///
+/// * `node` - The expression node
+/// * `scope` - The current scope
+///
+/// # Returns
+///
+/// The keypath string or None if not a global
+fn get_global_keypath(node: &Value, scope: &Scope) -> Option<String> {
+    let mut n = node;
+    let mut joined = String::new();
+
+    // Traverse MemberExpression chain
+    while n.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
+        // Must be non-computed
+        if n.get("computed").and_then(|c| c.as_bool()).unwrap_or(false) {
+            return None;
+        }
+
+        // Property must be Identifier
+        let property = n.get("property")?;
+        if property.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
+            return None;
+        }
+
+        let property_name = property.get("name").and_then(|n| n.as_str())?;
+        joined = format!(".{}{}", property_name, joined);
+
+        n = n.get("object")?;
+    }
+
+    // Handle CallExpression() pattern
+    if n.get("type").and_then(|t| t.as_str()) == Some("CallExpression")
+        && n.get("callee")
+            .and_then(|c| c.get("type"))
+            .and_then(|t| t.as_str())
+            == Some("Identifier")
+    {
+        joined = format!("(){}", joined);
+        n = n.get("callee")?;
+    }
+
+    // Must end with an Identifier
+    if n.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
+        return None;
+    }
+
+    let name = n.get("name").and_then(|n| n.as_str())?;
+
+    // Check if it's shadowed by a local binding
+    if scope.declarations.contains_key(name) {
+        return None;
+    }
+
+    Some(format!("{}{}", name, joined))
+}
+
+/// Check if a string is a valid rune name.
+///
+/// # Arguments
+///
+/// * `name` - The name to check
+///
+/// # Returns
+///
+/// `true` if the name is a valid rune
+fn is_rune(name: &str) -> bool {
+    matches!(
+        name,
+        "$state"
+            | "$state.raw"
+            | "$state.snapshot"
+            | "$derived"
+            | "$derived.by"
+            | "$effect"
+            | "$effect.pre"
+            | "$effect.tracking"
+            | "$effect.root"
+            | "$props"
+            | "$bindable"
+            | "$inspect"
+            | "$inspect.trace"
+            | "$host"
+    )
 }
 
 /// Validate an assignment or update expression.
@@ -42,13 +232,17 @@ pub fn validate_assignment(
     // Handle Identifier assignments
     if let Some(name) = argument.get("name").and_then(|n| n.as_str()) {
         // Check if there's a binding for this identifier
-        if let Some(binding) = context.analysis.root.scope.declarations.get(name) {
-            let binding = &context.analysis.root.bindings[*binding];
+        if let Some(binding_idx) = context.analysis.root.scope.declarations.get(name) {
+            let binding = &context.analysis.root.bindings[*binding_idx];
 
             // Check for $props.id() assignment
             if context.analysis.runes {
-                // TODO: Implement $props.id() check
-                // if binding.node === context.state.analysis.props_id
+                // Check if this binding is the props_id identifier
+                if let Some(ref props_id) = context.analysis.props_id {
+                    if &binding.name == props_id {
+                        return Err(errors::constant_assignment("$props.id()"));
+                    }
+                }
             }
 
             // Check for each block item assignment
@@ -71,8 +265,70 @@ pub fn validate_assignment(
             .and_then(|t| t.as_str())
             == Some("ThisExpression")
     {
-        // TODO: Implement state field validation
-        // This requires tracking state fields during analysis
+        // Get the property name
+        let name = if argument
+            .get("computed")
+            .and_then(|c| c.as_bool())
+            .unwrap_or(false)
+            && argument
+                .get("property")
+                .and_then(|p| p.get("type"))
+                .and_then(|t| t.as_str())
+                != Some("Literal")
+        {
+            None
+        } else {
+            argument.get("property").and_then(|p| get_name(p))
+        };
+
+        // Check if this is a state field
+        if let Some(ref field_name) = name {
+            if let Some(field) = context.state_fields.get(field_name) {
+                // Check we're not assigning to a state field before its declaration in the constructor
+                if field.node.get("type").and_then(|t| t.as_str()) == Some("AssignmentExpression") {
+                    // Walk up the path to find if we're in a constructor
+                    let mut i = context.js_path.len();
+                    while i > 0 {
+                        i -= 1;
+                        let parent = &context.js_path[i];
+                        let parent_type = parent.get("type").and_then(|t| t.as_str());
+
+                        if matches!(
+                            parent_type,
+                            Some("FunctionDeclaration")
+                                | Some("FunctionExpression")
+                                | Some("ArrowFunctionExpression")
+                        ) {
+                            // Get the grandparent
+                            if let Some(grandparent) =
+                                get_parent(&context.js_path, (i as isize) - 1)
+                            {
+                                if grandparent.get("type").and_then(|t| t.as_str())
+                                    == Some("MethodDefinition")
+                                    && grandparent.get("kind").and_then(|k| k.as_str())
+                                        == Some("constructor")
+                                {
+                                    // We're in a constructor - check if assignment is before field declaration
+                                    let node_start = argument.get("start").and_then(|s| s.as_u64());
+                                    let field_start =
+                                        field.node.get("start").and_then(|s| s.as_u64());
+
+                                    if let (Some(node_start), Some(field_start)) =
+                                        (node_start, field_start)
+                                    {
+                                        if node_start < field_start {
+                                            return Err(errors::state_field_invalid_assignment());
+                                        }
+                                    }
+                                }
+                            }
+
+                            break;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     Ok(())
@@ -382,10 +638,17 @@ pub fn is_pure(node: &Value, context: &VisitorContext) -> bool {
     }
 
     // Check if it's $effect.tracking (not pure)
-    // TODO: Implement rune detection
-    // if (get_rune(b.call(node), context.state.scope) === '$effect.tracking') {
-    //     return false;
-    // }
+    // Create a synthetic CallExpression to check with get_rune
+    let call_node = serde_json::json!({
+        "type": "CallExpression",
+        "callee": node
+    });
+
+    if let Some(rune) = get_rune_from_json(&call_node, &context.analysis.root.scope) {
+        if rune == "$effect.tracking" {
+            return false;
+        }
+    }
 
     // Navigate to the leftmost node
     let mut left = node;

@@ -1,36 +1,405 @@
 //! VariableDeclarator visitor.
 //!
-//! Analyzes variable declarators.
+//! Analyzes variable declarators, detects runes ($state, $derived, $props),
+//! and validates patterns.
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/VariableDeclarator.js`.
 
-use super::super::errors;
+use super::super::{AnalysisError, errors, warnings};
 use super::VisitorContext;
-use crate::compiler::phases::phase2_analyze::AnalysisError;
+use super::shared::utils;
+use crate::compiler::phases::phase2_analyze::BindingKind;
 use serde_json::Value;
 
 /// Visit a variable declarator.
+///
+/// Corresponds to `VariableDeclarator` in VariableDeclarator.js.
 pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    // Create bindings for declared variables
-    // Detect rune initializers ($state, $derived, etc.)
+    // Ensure no conflict with module imports
+    utils::ensure_no_module_import_conflict(node, context)?;
 
-    // Check if init is $props() rune
+    if context.analysis.runes {
+        // Runes mode path
+        visit_runes_mode(node, context)?;
+    } else {
+        // Non-runes mode - check for invalid rune usage
+        visit_non_runes_mode(node, context)?;
+    }
+
+    // Handle visitation order
     if let Some(init) = node.get("init") {
         let rune = get_rune(init, context);
 
-        // Validate $props() pattern
         if rune.as_deref() == Some("$props") {
-            // Check that the pattern is either ObjectPattern or Identifier
+            // For $props(), visit the id with incremented function_depth
+            // to prevent erroneous `state_referenced_locally` warnings
             if let Some(id) = node.get("id") {
-                let id_type = id.get("type").and_then(|t| t.as_str());
-                if !matches!(id_type, Some("ObjectPattern") | Some("Identifier")) {
-                    return Err(errors::props_invalid_identifier());
+                let original_depth = context.function_depth;
+                context.function_depth += 1;
+                super::script::walk_js_node(id, context)?;
+                context.function_depth = original_depth;
+            }
+
+            // Visit init normally
+            super::script::walk_js_node(init, context)?;
+        } else {
+            // Normal visitation - visit both id and init
+            if let Some(id) = node.get("id") {
+                super::script::walk_js_node(id, context)?;
+            }
+            super::script::walk_js_node(init, context)?;
+        }
+    } else {
+        // No init - just visit the id
+        if let Some(id) = node.get("id") {
+            super::script::walk_js_node(id, context)?;
+        }
+    }
+
+    Ok(())
+}
+
+/// Process variable declarator in runes mode.
+fn visit_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    let init = node.get("init");
+    let rune = init.and_then(|i| get_rune(i, context));
+
+    // Extract paths from the pattern
+    let paths = if let Some(id) = node.get("id") {
+        extract_paths(id)
+    } else {
+        Vec::new()
+    };
+
+    // Validate identifier names
+    for path in &paths {
+        if let Some(name) = path.get("name").and_then(|n| n.as_str()) {
+            if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name) {
+                let binding = &context.analysis.root.bindings[binding_idx];
+                utils::validate_identifier_name(binding, Some(context.function_depth))?;
+            }
+        }
+    }
+
+    // Process rune initializers
+    if let Some(ref rune_name) = rune {
+        match rune_name.as_str() {
+            "$state" | "$state.raw" | "$derived" | "$derived.by" | "$props" => {
+                update_binding_kinds(&paths, rune_name, node, context)?;
+            }
+            _ => {}
+        }
+    }
+
+    // Handle $props() specifically
+    if rune.as_deref() == Some("$props") {
+        process_props_declaration(node, context)?;
+    }
+
+    Ok(())
+}
+
+/// Update binding kinds based on rune type.
+fn update_binding_kinds(
+    paths: &[Value],
+    rune: &str,
+    node: &Value,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
+    for path in paths {
+        if let Some(name) = path.get("name").and_then(|n| n.as_str()) {
+            if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name) {
+                let binding = &mut context.analysis.root.bindings[binding_idx];
+
+                // Determine the binding kind based on rune and whether it's a rest element
+                let is_rest = path
+                    .get("is_rest")
+                    .and_then(|r| r.as_bool())
+                    .unwrap_or(false);
+
+                binding.kind = match rune {
+                    "$state" => BindingKind::State,
+                    "$state.raw" => BindingKind::RawState,
+                    "$derived" | "$derived.by" => BindingKind::Derived,
+                    "$props" => {
+                        if is_rest {
+                            BindingKind::RestProp
+                        } else {
+                            BindingKind::Prop
+                        }
+                    }
+                    _ => binding.kind,
+                };
+
+                // For rest props in ObjectPattern, track excluded properties
+                if rune == "$props" && is_rest {
+                    if let Some(id) = node.get("id")
+                        && id.get("type").and_then(|t| t.as_str()) == Some("ObjectPattern")
+                        && let Some(properties) = id.get("properties").and_then(|p| p.as_array())
+                    {
+                        let mut exclude_props = Vec::new();
+
+                        for property in properties {
+                            if property.get("type").and_then(|t| t.as_str()) == Some("RestElement")
+                            {
+                                continue;
+                            }
+
+                            if let Some(key) = property.get("key") {
+                                let key_name = match key.get("type").and_then(|t| t.as_str()) {
+                                    Some("Identifier") => {
+                                        key.get("name").and_then(|n| n.as_str()).map(String::from)
+                                    }
+                                    Some("Literal") => key.get("value").and_then(|v| {
+                                        if let Some(s) = v.as_str() {
+                                            Some(s.to_string())
+                                        } else if let Some(n) = v.as_i64() {
+                                            Some(n.to_string())
+                                        } else {
+                                            None
+                                        }
+                                    }),
+                                    _ => None,
+                                };
+
+                                if let Some(name) = key_name {
+                                    exclude_props.push(name);
+                                }
+                            }
+                        }
+
+                        // Store exclude_props in binding metadata
+                        // TODO: Add metadata field to Binding struct
+                        // binding.metadata = Some(BindingMetadata { exclude_props });
+                    }
                 }
             }
         }
+    }
 
-        // Visit the initializer expression
-        super::script::walk_js_node(init, context)?;
+    Ok(())
+}
+
+/// Process $props() declaration.
+fn process_props_declaration(
+    node: &Value,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
+    let id = node.get("id");
+
+    // Validate pattern type
+    if let Some(id) = id {
+        let id_type = id.get("type").and_then(|t| t.as_str());
+
+        if !matches!(id_type, Some("ObjectPattern") | Some("Identifier")) {
+            return Err(errors::props_invalid_identifier());
+        }
+
+        // Warn about custom element configuration
+        if context.analysis.custom_element.is_some() {
+            // TODO: Check context.options.customElementOptions?.props
+            // For now, we'll check if it's an Identifier or has RestElement
+
+            let warn_on = if id_type == Some("Identifier") {
+                true
+            } else if id_type == Some("ObjectPattern") {
+                // Check if there's a RestElement
+                id.get("properties")
+                    .and_then(|p| p.as_array())
+                    .map(|props| {
+                        props
+                            .iter()
+                            .any(|p| p.get("type").and_then(|t| t.as_str()) == Some("RestElement"))
+                    })
+                    .unwrap_or(false)
+            } else {
+                false
+            };
+
+            if warn_on {
+                // TODO: Emit warning
+                // w.custom_element_props_identifier(node);
+                let _ = warnings::custom_element_props_identifier();
+            }
+        }
+
+        // Set needs_props flag
+        context.analysis.needs_props = true;
+
+        // Handle different pattern types
+        match id_type {
+            Some("Identifier") => {
+                // `let props = $props()`
+                if let Some(name) = id.get("name").and_then(|n| n.as_str())
+                    && let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name)
+                {
+                    let binding = &mut context.analysis.root.bindings[binding_idx];
+                    binding.initial = None; // Clear initial ($props() call)
+                    binding.kind = BindingKind::RestProp;
+                }
+            }
+            Some("ObjectPattern") => {
+                // `let { a, b = 1, ...rest } = $props()`
+                process_props_object_pattern(id, context)?;
+            }
+            _ => {}
+        }
+    }
+
+    Ok(())
+}
+
+/// Process ObjectPattern in $props() declaration.
+fn process_props_object_pattern(
+    pattern: &Value,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
+    if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
+        for property in properties {
+            let prop_type = property.get("type").and_then(|t| t.as_str());
+
+            if prop_type != Some("Property") {
+                continue;
+            }
+
+            // Check for computed property
+            if property
+                .get("computed")
+                .and_then(|c| c.as_bool())
+                .unwrap_or(false)
+            {
+                return Err(errors::props_invalid_pattern());
+            }
+
+            // Check for illegal property name (starting with $$)
+            if let Some(key) = property.get("key")
+                && key.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                && let Some(name) = key.get("name").and_then(|n| n.as_str())
+                && name.starts_with("$$")
+            {
+                return Err(errors::props_illegal_name());
+            }
+
+            // Get the value node (the variable being bound)
+            let value = property
+                .get("value")
+                .and_then(|v| {
+                    // Handle AssignmentPattern (default value)
+                    if v.get("type").and_then(|t| t.as_str()) == Some("AssignmentPattern") {
+                        v.get("left")
+                    } else {
+                        Some(v)
+                    }
+                })
+                .ok_or_else(|| errors::props_invalid_pattern())?;
+
+            // Value must be an Identifier
+            if value.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
+                return Err(errors::props_invalid_pattern());
+            }
+
+            let value_name = value
+                .get("name")
+                .and_then(|n| n.as_str())
+                .ok_or_else(|| errors::props_invalid_pattern())?;
+
+            // Get the alias (property key name)
+            let alias = if let Some(key) = property.get("key") {
+                match key.get("type").and_then(|t| t.as_str()) {
+                    Some("Identifier") => {
+                        key.get("name").and_then(|n| n.as_str()).map(String::from)
+                    }
+                    Some("Literal") => key.get("value").and_then(|v| {
+                        if let Some(s) = v.as_str() {
+                            Some(s.to_string())
+                        } else if let Some(n) = v.as_i64() {
+                            Some(n.to_string())
+                        } else {
+                            None
+                        }
+                    }),
+                    _ => None,
+                }
+            } else {
+                None
+            }
+            .ok_or_else(|| errors::props_invalid_pattern())?;
+
+            // Get initial value (default value from AssignmentPattern)
+            let initial = property.get("value").and_then(|v| {
+                if v.get("type").and_then(|t| t.as_str()) == Some("AssignmentPattern") {
+                    v.get("right")
+                } else {
+                    None
+                }
+            });
+
+            // Update binding
+            if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(value_name) {
+                let binding = &mut context.analysis.root.bindings[binding_idx];
+                binding.prop_alias = Some(alias);
+
+                // Check for $bindable() wrapper
+                if let Some(init) = initial {
+                    if init.get("type").and_then(|t| t.as_str()) == Some("CallExpression")
+                        && let Some(callee) = init.get("callee")
+                        && callee.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                        && callee.get("name").and_then(|n| n.as_str()) == Some("$bindable")
+                    {
+                        // Extract the argument from $bindable()
+                        let bindable_arg = init
+                            .get("arguments")
+                            .and_then(|args| args.as_array())
+                            .and_then(|args| args.first())
+                            .cloned();
+
+                        binding.initial = bindable_arg.and_then(|arg| {
+                            // Convert to string representation
+                            // TODO: Properly serialize expression
+                            Some(format!("{:?}", arg))
+                        });
+                        binding.kind = BindingKind::BindableProp;
+                    } else {
+                        // Regular initial value
+                        // TODO: Properly serialize expression
+                        binding.initial = Some(format!("{:?}", init));
+                    }
+                } else {
+                    binding.initial = None;
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Process variable declarator in non-runes mode.
+fn visit_non_runes_mode(node: &Value, context: &VisitorContext) -> Result<(), AnalysisError> {
+    // Check for invalid rune usage
+    if let Some(init) = node.get("init")
+        && init.get("type").and_then(|t| t.as_str()) == Some("CallExpression")
+        && let Some(callee) = init.get("callee")
+        && callee.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+        && let Some(name) = callee.get("name").and_then(|n| n.as_str())
+    {
+        // Check if it's a rune call
+        if matches!(name, "$state" | "$derived" | "$props") {
+            // Make sure it's not a store subscription
+            let is_store_sub = context
+                .analysis
+                .root
+                .scope
+                .declarations
+                .get(name)
+                .and_then(|&idx| context.analysis.root.bindings.get(idx))
+                .map(|binding| binding.kind == BindingKind::StoreSub)
+                .unwrap_or(false);
+
+            if !is_store_sub {
+                return Err(errors::rune_invalid_usage(name));
+            }
+        }
     }
 
     Ok(())
@@ -55,6 +424,8 @@ fn get_rune(node: &Value, context: &VisitorContext) -> Option<String> {
 }
 
 /// Get the global keypath of an expression.
+///
+/// Corresponds to `get_global_keypath` in scope.js.
 fn get_global_keypath(node: &Value, context: &VisitorContext) -> Option<String> {
     let mut n = node;
     let mut joined = String::new();
@@ -93,10 +464,65 @@ fn get_global_keypath(node: &Value, context: &VisitorContext) -> Option<String> 
 
     let name = n.get("name").and_then(|n| n.as_str())?;
 
-    // Check if it's a binding (if so, it's not a rune)
+    // Check if it's a binding (if so, it's not a global/rune)
     if context.analysis.root.scope.declarations.contains_key(name) {
         return None;
     }
 
     Some(format!("{}{}", name, joined))
+}
+
+/// Extract paths from a pattern (Identifier, ArrayPattern, ObjectPattern).
+///
+/// This is a simplified version of `extract_paths` from utils/ast.js.
+/// Returns an array of path objects with `name` and `is_rest` fields.
+fn extract_paths(pattern: &Value) -> Vec<Value> {
+    let mut paths = Vec::new();
+    extract_paths_recursive(pattern, &mut paths, false);
+    paths
+}
+
+fn extract_paths_recursive(pattern: &Value, paths: &mut Vec<Value>, is_rest: bool) {
+    match pattern.get("type").and_then(|t| t.as_str()) {
+        Some("Identifier") => {
+            paths.push(serde_json::json!({
+                "name": pattern.get("name"),
+                "is_rest": is_rest,
+            }));
+        }
+        Some("ArrayPattern") => {
+            if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
+                for element in elements {
+                    if !element.is_null() {
+                        if element.get("type").and_then(|t| t.as_str()) == Some("RestElement") {
+                            if let Some(argument) = element.get("argument") {
+                                extract_paths_recursive(argument, paths, true);
+                            }
+                        } else {
+                            extract_paths_recursive(element, paths, false);
+                        }
+                    }
+                }
+            }
+        }
+        Some("ObjectPattern") => {
+            if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
+                for property in properties {
+                    if property.get("type").and_then(|t| t.as_str()) == Some("RestElement") {
+                        if let Some(argument) = property.get("argument") {
+                            extract_paths_recursive(argument, paths, true);
+                        }
+                    } else if let Some(value) = property.get("value") {
+                        extract_paths_recursive(value, paths, false);
+                    }
+                }
+            }
+        }
+        Some("AssignmentPattern") => {
+            if let Some(left) = pattern.get("left") {
+                extract_paths_recursive(left, paths, is_rest);
+            }
+        }
+        _ => {}
+    }
 }

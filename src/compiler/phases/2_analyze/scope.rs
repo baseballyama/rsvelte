@@ -191,6 +191,7 @@ impl Binding {
             references: Vec::new(),
             mutations: Vec::new(),
             prop_alias: None,
+            blocker: None,
         }
     }
 

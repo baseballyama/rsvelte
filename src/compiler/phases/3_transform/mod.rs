@@ -82,6 +82,10 @@ pub fn transform_component(
     let js = match options.generate {
         GenerateMode::Client => client::transform_client(analysis, ast, source, options)?,
         GenerateMode::Server => server::transform_server(analysis, ast, source, options)?,
+        GenerateMode::None => {
+            // Don't generate code - useful for tooling that only needs warnings
+            String::new()
+        }
     };
 
     let css = if analysis.css.has_css && !analysis.inject_styles {

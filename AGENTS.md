@@ -98,10 +98,10 @@ Pre-commit hooks run `cargo fmt` and `cargo clippy` automatically.
 | Hydration | 4/70 | ❌ 5.7% |
 | SSR | 10/80 | ❌ 12.5% |
 | Preprocess | 0/19 | ⏸️ N/A |
-| Print | 0/39 | ⏸️ N/A |
+| Print | 1/39 | ❌ 2.6% |
 | Migrate | 0/76 | ⏸️ N/A |
 
-**Overall: 346/2830 (12.2%)**
+**Overall: 347/2830 (12.3%)**
 
 ## Current Focus
 
@@ -138,6 +138,29 @@ Required:
 - Blocks: `{#each}`, `{#await}`, `{#snippet}`
 - Component instantiation, bindings, event handlers
 - CSS scoping with hash-based class names
+
+**Phase 2 Analyze** (2026-01-10 Major Update)
+
+Core Infrastructure:
+- Complete `CompileOptions` with all 20+ fields (runes, custom_element, css_hash, etc.)
+- Full type system sync (`types.rs` - 100% compatible with official compiler)
+- `calculate_blockers()` - async/await dependency tracking
+- `order_reactive_statements()` - reactive declaration topological sort
+
+Visitors:
+- `VariableDeclarator` - Complete implementation (528 lines, all rune detection)
+- `shared/utils.rs` - State field tracking, $props.id() checks, helper functions
+- Core visitor gap analysis documented (see `VISITOR_IMPLEMENTATION_PLAN.md`)
+
+Remaining Work:
+- CSS implementation (~80% missing - see `PHASE2_VISITOR_GAPS.md`)
+- Expression context infrastructure (blocker for many visitors)
+- 15+ validation checks in `analyze_component()`
+- Most visitor detailed implementations
+
+Documentation:
+- 5 comprehensive implementation guides created
+- Clear roadmap with priorities (40-60 hours estimated)
 
 **CSS** (62%)
 

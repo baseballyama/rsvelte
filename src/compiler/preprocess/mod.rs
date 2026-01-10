@@ -21,17 +21,17 @@ use types::*;
 lazy_static! {
     /// Regex for matching style tags (including HTML comments).
     static ref REGEX_STYLE_TAGS: Regex = Regex::new(
-        r#"(?s)<!--[^]*?-->|<style((?:\s+[^=>'"/\s]+=(?:"[^"]*"|'[^']*'|[^>\s]+)|\s+[^=>'"/\s]+)*\s*)(?:/>|>([\S\s]*?)</style>)"#
+        r#"(?s)<!--[\s\S]*?-->|<style((?:\s+[^=>'"/\s]+=(?:"[^"]*"|'[^']*'|[^>\s]+)|\s+[^=>'"/\s]+)*\s*)(?:/>|>([\S\s]*?)</style>)"#
     ).unwrap();
 
     /// Regex for matching script tags (including HTML comments).
     static ref REGEX_SCRIPT_TAGS: Regex = Regex::new(
-        r#"(?s)<!--[^]*?-->|<script((?:\s+[^=>'"/\s]+=(?:"[^"]*"|'[^']*'|[^>\s]+)|\s+[^=>'"/\s]+)*\s*)(?:/>|>([\S\s]*?)</script>)"#
+        r#"(?s)<!--[\s\S]*?-->|<script((?:\s+[^=>'"/\s]+=(?:"[^"]*"|'[^']*'|[^>\s]+)|\s+[^=>'"/\s]+)*\s*)(?:/>|>([\S\s]*?)</script>)"#
     ).unwrap();
 
     /// Regex for parsing tag attributes.
     static ref ATTRIBUTE_PATTERN: Regex = Regex::new(
-        r#"([\w-$]+\b)(?:=(?:"([^"]*)"|'([^']*)'|(\S+)))?"#
+        r#"([\w\-$]+\b)(?:=(?:"([^"]*)"|'([^']*)'|(\S+)))?"#
     ).unwrap();
 }
 
@@ -164,7 +164,7 @@ fn processed_tag_to_code(
     let original_tag_open = format!("<{}{}>", tag_name, original_attributes);
     let tag_open = format!("<{}{}>", tag_name, generated_attributes);
 
-    let tag_open_code = if original_tag_open.len() != tag_open.len() {
+    let tag_open_code = if original_tag_open != tag_open {
         // Generate a source map for the open tag
         let mut mappings = vec![vec![
             vec![0, 0, 0, 0],
@@ -305,7 +305,7 @@ async fn process_tag(
     let source_clone = source.clone();
 
     let get_replacement = move |match_groups: Vec<String>, tag_offset: usize| {
-        let preprocessor = preprocessor.clone();
+        let preprocessor = preprocessor;
         let source = source_clone.clone();
         let filename = filename.clone();
         let markup = markup.clone();

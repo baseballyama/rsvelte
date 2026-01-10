@@ -2,6 +2,7 @@
 //!
 //! Corresponds to `replace_in_code.js` from the official Svelte compiler.
 
+#[allow(unused_imports)]
 use super::types::{Location, MappedCode, PreprocessError, Replacement, SimpleDecodedMap, Source};
 use regex::Regex;
 use std::future::Future;
@@ -358,11 +359,12 @@ fn merge_tables<T: Clone + Eq>(this_table: &[T], other_table: &[T]) -> (Vec<T>, 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
 
     fn create_test_source(code: &str) -> Source {
         Source {
             source: code.to_string(),
-            get_location: Box::new(|_| Location { line: 0, column: 0 }),
+            get_location: Arc::new(|_| Location { line: 0, column: 0 }),
             file_basename: "test.svelte".to_string(),
             filename: Some("test.svelte".to_string()),
         }

@@ -114,7 +114,7 @@ pub fn is_element_node(node: &crate::ast::template::TemplateNode) -> bool {
     use crate::ast::template::TemplateNode;
     matches!(
         node,
-        TemplateNode::Element(_)
+        TemplateNode::RegularElement(_)
             | TemplateNode::Component(_)
             | TemplateNode::SvelteElement(_)
             | TemplateNode::SlotElement(_)

@@ -839,6 +839,13 @@ impl<'a> CssParser<'a> {
         }
     }
 
+    /// Alias for eat() to match the naming in Parser.
+    /// In CssParser, all eat() calls are optional (no error throwing).
+    #[inline]
+    fn eat_optional(&mut self, s: &str) -> bool {
+        self.eat(s)
+    }
+
     fn skip_whitespace(&mut self) {
         while !self.is_eof() && self.current_char().is_whitespace() {
             self.advance();

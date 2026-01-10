@@ -461,3 +461,13 @@ pub fn a11y_unknown_role(role: &str, suggestion: Option<&str>) -> AnalysisWarnin
     };
     warning("a11y_unknown_role", message)
 }
+
+// Custom element warnings
+
+/// When creating a custom element, props should be defined using the `customElement.props` compiler option
+pub fn custom_element_props_identifier() -> AnalysisWarning {
+    warning(
+        "custom_element_props_identifier",
+        "When creating a custom element, props should be defined using the `customElement.props` compiler option",
+    )
+}

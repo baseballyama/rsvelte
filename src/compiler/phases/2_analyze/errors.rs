@@ -609,3 +609,22 @@ pub fn attribute_contenteditable_missing() -> AnalysisError {
         "'contenteditable' attribute is required for textContent, innerHTML and innerText two-way bindings",
     )
 }
+
+/// Cannot use `%rune%` rune in non-runes mode
+pub fn rune_invalid_usage(rune: &str) -> AnalysisError {
+    error(
+        "rune_invalid_usage",
+        format!(
+            "Cannot use `{}` rune in non-runes mode\nhttps://svelte.dev/e/rune_invalid_usage",
+            rune
+        ),
+    )
+}
+
+/// Props destructuring pattern cannot use computed properties
+pub fn props_invalid_pattern() -> AnalysisError {
+    error(
+        "props_invalid_pattern",
+        "Props destructuring pattern cannot use computed properties or non-identifier keys",
+    )
+}

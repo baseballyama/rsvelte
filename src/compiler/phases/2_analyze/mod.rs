@@ -264,7 +264,7 @@ pub fn order_reactive_statements(
     }
 
     // Check for cycles using depth-first search
-    if let Some(cycle) = check_graph_for_cycles(&edges) {
+    if let Some(cycle) = utils::check_graph_for_cycles(&edges) {
         // The cycle contains binding indices, we need to report it
         // For now, just return an error with the cycle information
         return Err(AnalysisError::Validation(format!(
@@ -327,80 +327,6 @@ pub fn order_reactive_statements(
     }
 
     Ok(reactive_declarations)
-}
-
-/// Check a graph for cycles using depth-first search.
-///
-/// Corresponds to `check_graph_for_cycles()` in Svelte's
-/// `2-analyze/utils/check_graph_for_cycles.js`.
-///
-/// # Arguments
-///
-/// * `edges` - List of directed edges (from, to)
-///
-/// # Returns
-///
-/// Returns the first cycle found, or None if no cycles exist.
-fn check_graph_for_cycles(edges: &[(usize, usize)]) -> Option<Vec<usize>> {
-    use std::collections::{HashMap, HashSet};
-
-    // Build adjacency list
-    let mut graph: HashMap<usize, Vec<usize>> = HashMap::new();
-    for &(u, v) in edges {
-        graph.entry(u).or_insert_with(Vec::new);
-        graph.entry(v).or_insert_with(Vec::new);
-        graph.get_mut(&u).unwrap().push(v);
-    }
-
-    let mut visited: HashSet<usize> = HashSet::new();
-    let mut on_stack: HashSet<usize> = HashSet::new();
-    let mut stack_vec: Vec<usize> = Vec::new();
-    let mut cycles: Vec<Vec<usize>> = Vec::new();
-
-    fn visit(
-        v: usize,
-        graph: &HashMap<usize, Vec<usize>>,
-        visited: &mut HashSet<usize>,
-        on_stack: &mut HashSet<usize>,
-        stack_vec: &mut Vec<usize>,
-        cycles: &mut Vec<Vec<usize>>,
-    ) {
-        visited.insert(v);
-        on_stack.insert(v);
-        stack_vec.push(v);
-
-        if let Some(neighbors) = graph.get(&v) {
-            for &w in neighbors {
-                if !visited.contains(&w) {
-                    visit(w, graph, visited, on_stack, stack_vec, cycles);
-                } else if on_stack.contains(&w) {
-                    // Found a cycle
-                    let mut cycle = stack_vec.clone();
-                    cycle.push(w);
-                    cycles.push(cycle);
-                }
-            }
-        }
-
-        on_stack.remove(&v);
-        stack_vec.pop();
-    }
-
-    // Visit all nodes
-    for &v in graph.keys() {
-        if !visited.contains(&v) {
-            visit(
-                v,
-                &graph,
-                &mut visited,
-                &mut on_stack,
-                &mut stack_vec,
-                &mut cycles,
-            );
-        }
-    }
-
-    cycles.first().cloned()
 }
 
 #[cfg(test)]
@@ -521,30 +447,5 @@ mod tests {
         let ordered = order_reactive_statements(statements).unwrap();
         assert_eq!(ordered.len(), 1);
         assert_eq!(ordered[0].0, "stmt_a");
-    }
-
-    #[test]
-    fn test_check_graph_for_cycles_no_cycle() {
-        let edges = vec![(0, 1), (1, 2), (2, 3)];
-        let result = check_graph_for_cycles(&edges);
-        assert!(result.is_none());
-    }
-
-    #[test]
-    fn test_check_graph_for_cycles_simple_cycle() {
-        let edges = vec![(0, 1), (1, 2), (2, 0)];
-        let result = check_graph_for_cycles(&edges);
-        assert!(result.is_some());
-        let cycle = result.unwrap();
-        assert!(cycle.contains(&0));
-        assert!(cycle.contains(&1));
-        assert!(cycle.contains(&2));
-    }
-
-    #[test]
-    fn test_check_graph_for_cycles_self_loop() {
-        let edges = vec![(0, 0)];
-        let result = check_graph_for_cycles(&edges);
-        assert!(result.is_some());
     }
 }
