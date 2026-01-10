@@ -10,7 +10,10 @@ use super::shared::fragment;
 use crate::ast::template::SvelteElement;
 
 /// Visit a svelte:boundary.
-pub fn visit(boundary: &mut SvelteElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit(
+    boundary: &mut SvelteElement,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
     // Analyze children
     fragment::analyze(&mut boundary.fragment, context)?;
 

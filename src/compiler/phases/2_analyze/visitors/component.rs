@@ -50,7 +50,11 @@ pub fn visit(component: &mut Component, context: &mut VisitorContext) -> Result<
 
         // Update expression metadata
         component.metadata.expression.has_state = is_dynamic;
-        component.metadata.expression.dependencies.insert(binding_idx);
+        component
+            .metadata
+            .expression
+            .dependencies
+            .insert(binding_idx);
         component.metadata.expression.references.insert(binding_idx);
 
         // Check if the binding contains state

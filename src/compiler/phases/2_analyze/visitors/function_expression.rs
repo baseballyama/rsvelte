@@ -4,8 +4,8 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/FunctionExpression.js`.
 
-use super::shared::function::visit_function;
 use super::VisitorContext;
+use super::shared::function::visit_function;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use serde_json::Value;
 

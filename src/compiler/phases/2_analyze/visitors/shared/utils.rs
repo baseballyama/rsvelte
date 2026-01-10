@@ -661,7 +661,10 @@ pub fn is_reference(node: &Value, parent: Option<&Value>) -> bool {
 
     // Handle MemberExpression
     if node_type == Some("MemberExpression") {
-        let computed = node.get("computed").and_then(|c| c.as_bool()).unwrap_or(false);
+        let computed = node
+            .get("computed")
+            .and_then(|c| c.as_bool())
+            .unwrap_or(false);
         if !computed {
             if let Some(object) = node.get("object") {
                 return is_reference(object, Some(node));

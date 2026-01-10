@@ -14,7 +14,10 @@ use crate::ast::template::{Attribute, RegularElement};
 use std::collections::HashSet;
 
 /// Visit a regular element.
-pub fn visit(element: &mut RegularElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit(
+    element: &mut RegularElement,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
     // Validate the element
     validate_element(element, context)?;
 

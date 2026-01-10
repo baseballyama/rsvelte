@@ -4,11 +4,11 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/Identifier.js`.
 
+use super::VisitorContext;
 use super::shared::fragment::mark_subtree_dynamic;
 use super::shared::function::is_rune;
 use super::shared::utils::is_reference;
-use super::VisitorContext;
-use crate::compiler::phases::phase2_analyze::{errors, AnalysisError, BindingKind};
+use crate::compiler::phases::phase2_analyze::{AnalysisError, BindingKind, errors};
 use serde_json::Value;
 
 /// Visit an identifier.
@@ -68,14 +68,13 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     if context.analysis.runes {
         if is_rune(name) {
             // Check if this is actually a rune (not a store subscription)
-            let is_store_sub = if let Some(binding_idx) =
-                context.analysis.root.scope.declarations.get(name)
-            {
-                let binding = &context.analysis.root.bindings[*binding_idx];
-                binding.kind == BindingKind::StoreSub
-            } else {
-                false
-            };
+            let is_store_sub =
+                if let Some(binding_idx) = context.analysis.root.scope.declarations.get(name) {
+                    let binding = &context.analysis.root.bindings[*binding_idx];
+                    binding.kind == BindingKind::StoreSub
+                } else {
+                    false
+                };
 
             // Also check for store without $ prefix
             let has_store_binding = if name.starts_with('$') {

@@ -433,6 +433,9 @@ pub fn rune_missing_parentheses() -> AnalysisError {
 pub fn const_tag_invalid_reference(name: &str) -> AnalysisError {
     error(
         "const_tag_invalid_reference",
-        format!("{{@const}} tag cannot reference `{}` in this context - it can only be used with declarations from an implicit children snippet", name),
+        format!(
+            "{{@const}} tag cannot reference `{}` in this context - it can only be used with declarations from an implicit children snippet",
+            name
+        ),
     )
 }

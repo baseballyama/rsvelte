@@ -6,7 +6,7 @@
 
 use std::collections::HashSet;
 
-use super::super::{AnalysisError, Binding, BindingKind};
+use super::super::{AnalysisError, Binding, BindingKind, errors};
 use super::VisitorContext;
 use super::shared::fragment;
 use super::shared::utils::{validate_block_not_empty, validate_opening_tag};
@@ -53,29 +53,19 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
         false
     };
 
-    // TODO: Set node.metadata.keyed = is_keyed
-    // This requires adding metadata to EachBlock nodes
+    // Set metadata
+    block.metadata.keyed = is_keyed;
 
     // If keyed but no context, error
     if is_keyed && block.context.is_none() {
-        // TODO: Implement proper error for each_key_without_as
-        return Err(AnalysisError::Validation(
-            "Each key requires 'as' binding".to_string(),
-        ));
+        return Err(errors::each_key_without_as());
     }
 
-    // TODO: Visit the expression in parent scope
-    // The JavaScript code does:
-    //   context.visit(node.expression, {
-    //       ...context.state,
-    //       expression: node.metadata.expression,
-    //       scope: context.state.scope.parent
-    //   });
-    //
-    // This requires:
-    // 1. Implementing visitor for Expression nodes
-    // 2. Supporting scope changes during visiting
-    // 3. Adding metadata.expression to EachBlock nodes
+    // Visit the expression in parent scope
+    // Extract the JavaScript expression value
+    if let crate::ast::js::Expression::Value(value) = &block.expression {
+        let _ = super::script::walk_js_node(value, context);
+    }
 
     // Mark that we have control flow affecting sibling relationships
     context.analysis.css.has_control_flow = true;
@@ -84,13 +74,17 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
     context.block_depth += 1;
 
     // Visit the body and fallback
-    fragment::analyze(&mut block.body, context)?;
-    if let Some(ref mut fallback) = block.fallback {
+    fragment::analyze(&block.body, context)?;
+    if let Some(fallback) = &block.fallback {
         fragment::analyze(fallback, context)?;
     }
 
-    // TODO: Visit the key expression if present
-    // context.visit(node.key)
+    // Visit the key expression if present
+    if let Some(key) = &block.key {
+        if let crate::ast::js::Expression::Value(value) = key {
+            let _ = super::script::walk_js_node(value, context);
+        }
+    }
 
     // Decrement block depth
     context.block_depth -= 1;

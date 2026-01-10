@@ -35,6 +35,9 @@ pub fn visit(block: &mut IfBlock, context: &mut VisitorContext) -> Result<(), An
 }
 
 /// Alias for visit function.
-pub fn visit_if_block(block: &mut IfBlock, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit_if_block(
+    block: &mut IfBlock,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
     visit(block, context)
 }

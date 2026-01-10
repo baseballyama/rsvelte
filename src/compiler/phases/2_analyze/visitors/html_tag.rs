@@ -4,8 +4,8 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/HtmlTag.js`.
 
-use super::shared::fragment::mark_subtree_dynamic;
 use super::VisitorContext;
+use super::shared::fragment::mark_subtree_dynamic;
 use crate::ast::template::HtmlTag;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
