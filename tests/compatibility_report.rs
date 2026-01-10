@@ -13,8 +13,9 @@ use std::fs;
 
 use common::{
     CategoryResult, CompatibilityReport, SampleDetails, SampleResult, TestCategory, TestStatus,
-    ensure_fixtures_exist, fixtures_path, format_js_with_oxfmt, get_fixture_samples,
-    get_svelte_test_samples, load_fixture_output, normalize_css, svelte_path, write_actual_output,
+    ensure_fixtures_exist, fixtures_path, get_fixture_samples, get_svelte_test_samples,
+    load_fixture_output, normalize_css, normalize_js as common_normalize_js, svelte_path,
+    write_actual_output,
 };
 use svelte_compiler_rust::{
     CompileOptions, GenerateMode, ParseOptions, compile, compiler::CssMode, convert_to_legacy,
@@ -965,11 +966,12 @@ fn run_not_implemented_tests(category: &str, reason: &str) -> CategoryResult {
 // Utility Functions
 // ============================================================================
 
-/// Compare two JavaScript outputs using oxfmt for formatting.
+/// Compare two JavaScript outputs using lightweight normalization.
+/// This is much faster than using oxfmt and suitable for comparing essential code structure.
 fn compare_js(actual: &str, expected: &str) -> bool {
-    let formatted_actual = format_js_with_oxfmt(actual);
-    let formatted_expected = format_js_with_oxfmt(expected);
-    formatted_actual == formatted_expected
+    let normalized_actual = common_normalize_js(actual);
+    let normalized_expected = common_normalize_js(expected);
+    normalized_actual == normalized_expected
 }
 
 // Legacy normalization function (kept for reference, but no longer used)

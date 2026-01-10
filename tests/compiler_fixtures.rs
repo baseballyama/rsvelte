@@ -9,8 +9,8 @@ use std::fs;
 use std::path::Path;
 
 use common::{
-    ensure_fixtures_exist, format_js_with_oxfmt, get_fixture_samples, load_fixture_output,
-    svelte_path, write_actual_output,
+    ensure_fixtures_exist, get_fixture_samples, load_fixture_output, normalize_js, svelte_path,
+    write_actual_output,
 };
 use rayon::prelude::*;
 use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
@@ -95,11 +95,12 @@ impl TestResult {
     }
 }
 
-/// Compare two JavaScript outputs using oxfmt for formatting.
+/// Compare two JavaScript outputs using lightweight normalization.
+/// This is much faster than using oxfmt and suitable for comparing essential code structure.
 fn compare_js(actual: &str, expected: &str) -> bool {
-    let formatted_actual = format_js_with_oxfmt(actual);
-    let formatted_expected = format_js_with_oxfmt(expected);
-    formatted_actual == formatted_expected
+    let normalized_actual = normalize_js(actual);
+    let normalized_expected = normalize_js(expected);
+    normalized_actual == normalized_expected
 }
 
 /// Run a single snapshot fixture test.
