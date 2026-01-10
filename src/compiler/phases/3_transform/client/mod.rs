@@ -3318,15 +3318,23 @@ export default function {component_name}({fn_params}) {{
                         statements.push(stmt(svelte_remove_input_defaults(id(var))));
                     }
 
-                    // Event handlers - use $.event(event_name, element, handler)
+                    // Event handlers - use delegated pattern for supported events
                     for (event_name, handler) in &node.event_handlers {
                         let transformed = transform_state_assignments(handler, &self.state_vars);
-                        // $.event('click', button, handler)
-                        statements.push(stmt(super::js_ast::builders::svelte_event(
-                            event_name.as_str(),
-                            id(var),
-                            id(&transformed),
-                        )));
+
+                        if is_delegated_event_name(event_name) {
+                            // Delegated event: element.__click = handler
+                            let prop_name = format!("__{}", event_name);
+                            statements
+                                .push(stmt(assign(member(id(var), &prop_name), id(&transformed))));
+                        } else {
+                            // Non-delegated event: $.event('eventname', element, handler)
+                            statements.push(stmt(super::js_ast::builders::svelte_event(
+                                event_name.as_str(),
+                                id(var),
+                                id(&transformed),
+                            )));
+                        }
                     }
 
                     // Content template handling
@@ -5774,6 +5782,41 @@ fn transform_read_only_props(expr: &str, read_only_props: &[String]) -> String {
     }
 
     result
+}
+
+/// Determines if an event should use delegated event handling.
+///
+/// Delegated events are attached to the document and use event delegation
+/// for better performance with many event handlers.
+///
+/// This list matches Svelte's DELEGATED_EVENTS in src/utils.js.
+fn is_delegated_event_name(event_name: &str) -> bool {
+    matches!(
+        event_name,
+        "beforeinput"
+            | "click"
+            | "change"
+            | "dblclick"
+            | "contextmenu"
+            | "focusin"
+            | "focusout"
+            | "input"
+            | "keydown"
+            | "keyup"
+            | "mousedown"
+            | "mousemove"
+            | "mouseout"
+            | "mouseover"
+            | "mouseup"
+            | "pointerdown"
+            | "pointermove"
+            | "pointerout"
+            | "pointerover"
+            | "pointerup"
+            | "touchend"
+            | "touchmove"
+            | "touchstart"
+    )
 }
 
 /// Escape special regex characters in a string.
