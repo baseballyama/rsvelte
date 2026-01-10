@@ -568,8 +568,22 @@ pub fn visit(
     // Increment element depth for child analysis
     context.element_depth += 1;
 
+    // Push this element to the path before visiting children
+    // This allows child elements to check their ancestors for a11y rules
+    // SAFETY: We need to convert &mut RegularElement to &TemplateNode temporarily.
+    // This is safe because:
+    // 1. We only store a reference in the path vector
+    // 2. We immediately pop it after analyzing children
+    // 3. The element is not mutated while the reference is in the path
+    let element_ref: &TemplateNode =
+        unsafe { &*(element as *const RegularElement as *const TemplateNode) };
+    context.path.push(element_ref);
+
     // Analyze children
     analyze(&mut element.fragment, context)?;
+
+    // Pop this element from the path
+    context.path.pop();
 
     // Decrement element depth
     context.element_depth -= 1;

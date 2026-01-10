@@ -29,6 +29,7 @@ static REGEX_STARTS_WITH_VOWEL: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^[aeiou]").unwrap());
 static REGEX_WHITESPACES: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s+").unwrap());
 
+use crate::compiler::phases::phase1_parse::utils::fuzzymatch::fuzzymatch;
 use crate::compiler::phases::phase2_analyze::warnings as w;
 
 /// Check element for a11y issues.
@@ -93,12 +94,15 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
             // aria-props
             if let Some(aria_type) = name.strip_prefix("aria-") {
                 if INVISIBLE_ELEMENTS.contains(&node.name.as_str()) {
-                    // TODO: w.a11y_aria_attributes(attribute, node.name);
+                    warnings.push(w::a11y_aria_attributes(&node.name));
                 }
 
                 if !ARIA_ATTRIBUTES.contains(&aria_type) {
-                    // TODO: fuzzymatch and warning
-                    // w.a11y_unknown_aria_attribute(attribute, type, match);
+                    let suggestion = fuzzymatch(aria_type, ARIA_ATTRIBUTES);
+                    warnings.push(w::a11y_unknown_aria_attribute(
+                        aria_type,
+                        suggestion.as_deref(),
+                    ));
                 }
 
                 if name == "aria-hidden" && REGEX_HEADING_TAGS.is_match(&node.name) {
@@ -285,8 +289,11 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
     }
 
     // no-static-element-interactions
+    // Check: (!role || role_static_value !== null)
+    // This means: either there's no role attribute, OR if there is a role, it has a static value
+    let has_role_attr = attribute_map.contains_key("role");
     if !has_spread
-        && (role_static_value.is_none() || role_static_value.is_some())
+        && (!has_role_attr || role_static_value.is_some())
         && !is_hidden_from_screen_reader(&node.name, &attribute_map)
         && role_static_value.is_none_or(|r| !is_presentation_role(r))
         && !is_interactive_element(&node.name, &attribute_map)
@@ -298,9 +305,14 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
         let interactive_handlers: Vec<_> = handlers
             .iter()
             .filter(|h| A11Y_INTERACTIVE_HANDLERS.contains(&h.as_str()))
+            .map(|s| s.as_str())
             .collect();
         if !interactive_handlers.is_empty() {
-            // TODO: w.a11y_no_static_element_interactions(node, node.name, list(interactive_handlers));
+            let handler_list = list(&interactive_handlers, "or");
+            warnings.push(w::a11y_no_static_element_interactions(
+                &node.name,
+                &handler_list,
+            ));
         }
     }
 
@@ -810,4 +822,22 @@ fn warn_missing_attribute(
     };
 
     warnings.push(w::a11y_missing_attribute(name, article, &sequence));
+}
+
+/// Format a list of strings with a conjunction.
+/// Examples:
+/// - ["a"] -> "a"
+/// - ["a", "b"] -> "a or b"
+/// - ["a", "b", "c"] -> "a, b or c"
+fn list(strings: &[&str], conjunction: &str) -> String {
+    match strings.len() {
+        0 => String::new(),
+        1 => strings[0].to_string(),
+        2 => format!("{} {} {}", strings[0], conjunction, strings[1]),
+        _ => {
+            let last = strings.last().unwrap();
+            let rest = &strings[..strings.len() - 1];
+            format!("{} {} {}", rest.join(", "), conjunction, last)
+        }
+    }
 }
