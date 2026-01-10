@@ -5,6 +5,7 @@
 
 use compact_str::CompactString;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
 use super::css::StyleSheet;
 use super::js::Expression;
@@ -177,12 +178,22 @@ pub struct HtmlTag {
     pub expression: Expression,
 }
 
+/// Metadata for tags (ConstTag, DebugTag).
+#[derive(Debug, Clone, Default)]
+pub struct TagMetadata {
+    /// Expression metadata
+    pub expression: ExpressionMetadata,
+}
+
 /// A const tag: `{@const declaration}`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConstTag {
     pub start: u32,
     pub end: u32,
     pub declaration: Expression,
+    /// Metadata (not serialized)
+    #[serde(skip)]
+    pub metadata: TagMetadata,
 }
 
 /// A debug tag: `{@debug identifiers}`.
@@ -191,6 +202,9 @@ pub struct DebugTag {
     pub start: u32,
     pub end: u32,
     pub identifiers: Vec<Expression>,
+    /// Metadata (not serialized)
+    #[serde(skip)]
+    pub metadata: TagMetadata,
 }
 
 /// A render tag: `{@render snippet(...)}`.
@@ -239,6 +253,17 @@ pub struct IfBlock {
     pub alternate: Option<Fragment>,
 }
 
+/// Metadata for EachBlock nodes.
+#[derive(Debug, Clone, Default)]
+pub struct EachBlockMetadata {
+    /// Whether this is a keyed each block
+    pub keyed: bool,
+    /// Expression metadata for the iterable expression
+    pub expression: ExpressionMetadata,
+    /// Transitive dependencies (for legacy reactivity)
+    pub transitive_deps: HashSet<usize>,
+}
+
 /// An each block: `{#each items as item (key)}...{:else}...{/each}`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EachBlock {
@@ -254,6 +279,9 @@ pub struct EachBlock {
     pub index: Option<CompactString>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub key: Option<Expression>,
+    /// Metadata (not serialized)
+    #[serde(skip)]
+    pub metadata: EachBlockMetadata,
 }
 
 /// An await block: `{#await promise}...{:then value}...{:catch error}...{/await}`.
@@ -880,9 +908,26 @@ pub enum ShadowMode {
 // Component Metadata (populated during analysis)
 // =============================================================================
 
+/// Metadata for JavaScript expressions, tracking dependencies and state.
+#[derive(Debug, Clone, Default)]
+pub struct ExpressionMetadata {
+    /// Whether the expression contains state ($state, $derived, etc.)
+    pub has_state: bool,
+    /// Bindings that this expression depends on (indices into analysis bindings)
+    pub dependencies: HashSet<usize>,
+    /// Bindings that this expression references (indices into analysis bindings)
+    pub references: HashSet<usize>,
+}
+
 /// Metadata for Component nodes, populated during Phase 2 analysis.
 #[derive(Debug, Clone, Default)]
 pub struct ComponentNodeMetadata {
     /// Whether this is a dynamic component (e.g., <svelte:component>)
     pub dynamic: bool,
+    /// Path from root to this node (for error reporting)
+    pub path: Vec<String>,
+    /// Snippets that this component might render (indices into snippet blocks)
+    pub snippets: HashSet<usize>,
+    /// Expression metadata for component name resolution
+    pub expression: ExpressionMetadata,
 }

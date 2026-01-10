@@ -21,7 +21,7 @@ use crate::ast::template::{Attribute, Component};
 ///
 /// Corresponds to `visit_component(node, context)` in shared/component.js.
 pub fn visit_component(
-    component: &Component,
+    component: &mut Component,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     // TODO: Set node.metadata.path = [...context.path]
@@ -128,7 +128,7 @@ pub fn visit_component(
     // 3. Visit each slot's content with the correct scope
     //
     // For now, just visit the fragment normally
-    fragment::analyze(&component.fragment, context)?;
+    fragment::analyze(&mut component.fragment, context)?;
 
     Ok(())
 }

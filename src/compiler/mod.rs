@@ -157,10 +157,10 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
         loose: false,
         filename: options.filename.clone(),
     };
-    let ast = phases::phase1_parse::parse(source, parse_options)?;
+    let mut ast = phases::phase1_parse::parse(source, parse_options)?;
 
     // Phase 2: Analyze
-    let analysis = phases::phase2_analyze::analyze_component(&ast, source, &options)?;
+    let analysis = phases::phase2_analyze::analyze_component(&mut ast, source, &options)?;
 
     // Phase 3: Transform (pass AST to avoid re-parsing)
     let transform_result =

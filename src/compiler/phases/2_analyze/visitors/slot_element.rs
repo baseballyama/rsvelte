@@ -10,7 +10,7 @@ use crate::ast::template::SlotElement;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
 /// Visit a slot element.
-pub fn visit(slot: &SlotElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit(slot: &mut SlotElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Mark that we use slots
     context.analysis.uses_slots = true;
 
@@ -19,7 +19,7 @@ pub fn visit(slot: &SlotElement, context: &mut VisitorContext) -> Result<(), Ana
     context.analysis.css.has_control_flow = true;
 
     // Analyze fallback children
-    fragment::analyze(&slot.fragment, context)?;
+    fragment::analyze(&mut slot.fragment, context)?;
 
     Ok(())
 }

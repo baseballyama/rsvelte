@@ -14,7 +14,7 @@ use crate::ast::template::{Attribute, RegularElement};
 use std::collections::HashSet;
 
 /// Visit a regular element.
-pub fn visit(element: &RegularElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit(element: &mut RegularElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Validate the element
     validate_element(element, context)?;
 
@@ -125,7 +125,7 @@ pub fn visit(element: &RegularElement, context: &mut VisitorContext) -> Result<(
     context.element_depth += 1;
 
     // Analyze children
-    fragment::analyze(&element.fragment, context)?;
+    fragment::analyze(&mut element.fragment, context)?;
 
     // Decrement element depth
     context.element_depth -= 1;
@@ -141,7 +141,7 @@ pub fn visit(element: &RegularElement, context: &mut VisitorContext) -> Result<(
 
 /// Alias for visit function.
 pub fn visit_regular_element(
-    element: &RegularElement,
+    element: &mut RegularElement,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     visit(element, context)

@@ -18,7 +18,7 @@ use crate::compiler::phases::phase2_analyze::AnalysisError;
 ///
 /// * `block` - The await block to analyze
 /// * `context` - The visitor context
-pub fn visit(block: &AwaitBlock, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Validate that blocks are not empty (only whitespace)
     validate_block_not_empty(block.pending.as_ref())?;
     validate_block_not_empty(block.then.as_ref())?;
@@ -84,18 +84,18 @@ pub fn visit(block: &AwaitBlock, context: &mut VisitorContext) -> Result<(), Ana
     context.block_depth += 1;
 
     // Analyze the pending block (shown while awaiting)
-    if let Some(ref pending) = block.pending {
+    if let Some(ref mut pending) = block.pending {
         fragment::analyze(pending, context)?;
     }
 
     // Analyze the then block (shown on success, creates scope for value)
-    if let Some(ref then) = block.then {
+    if let Some(ref mut then) = block.then {
         // TODO: Create a scope for the value binding if it exists
         fragment::analyze(then, context)?;
     }
 
     // Analyze the catch block (shown on error, creates scope for error)
-    if let Some(ref catch) = block.catch {
+    if let Some(ref mut catch) = block.catch {
         // TODO: Create a scope for the error binding if it exists
         fragment::analyze(catch, context)?;
     }
@@ -108,7 +108,7 @@ pub fn visit(block: &AwaitBlock, context: &mut VisitorContext) -> Result<(), Ana
 
 /// Alias for visit function.
 pub fn visit_await_block(
-    block: &AwaitBlock,
+    block: &mut AwaitBlock,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     visit(block, context)

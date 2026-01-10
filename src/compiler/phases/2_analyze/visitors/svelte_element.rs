@@ -11,7 +11,7 @@ use crate::ast::template::{Attribute, SvelteDynamicElement};
 
 /// Visit a svelte:element.
 pub fn visit(
-    element: &SvelteDynamicElement,
+    element: &mut SvelteDynamicElement,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     // Mark that we have dynamic elements (can't safely prune type selectors)
@@ -53,7 +53,7 @@ pub fn visit(
     }
 
     // Analyze children
-    fragment::analyze(&element.fragment, context)?;
+    fragment::analyze(&mut element.fragment, context)?;
 
     Ok(())
 }

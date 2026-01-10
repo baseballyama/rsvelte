@@ -16,7 +16,7 @@ use crate::ast::template::Component;
 /// delegates to the shared visit_component function for full analysis.
 ///
 /// Corresponds to `Component(node, context)` in Component.js.
-pub fn visit(component: &Component, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit(component: &mut Component, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Extract the base name from the component name
     // If the name contains a dot (e.g., Foo.Bar), use the part before the dot
     let base_name = if let Some(dot_pos) = component.name.find('.') {
@@ -36,25 +36,32 @@ pub fn visit(component: &Component, context: &mut VisitorContext) -> Result<(), 
     //
     // In Svelte 4, you had to use <svelte:component> to switch components dynamically.
     // In Svelte 5 with runes, regular components can be dynamic if the above conditions are met.
-    let _is_dynamic = context.analysis.runes && binding.is_some() && {
+    let is_dynamic = context.analysis.runes && binding.is_some() && {
         let binding_idx = binding.unwrap();
         let binding = &context.analysis.root.bindings[*binding_idx];
         binding.kind != super::super::BindingKind::Normal || component.name.contains('.')
     };
 
-    // TODO: Set node.metadata.dynamic = is_dynamic
-    // This requires adding metadata fields to the Component AST node
+    // Set metadata.dynamic
+    component.metadata.dynamic = is_dynamic;
 
-    if let Some(binding_idx) = binding {
-        // TODO: Update node.metadata.expression.has_state = is_dynamic
-        // TODO: Add binding to node.metadata.expression.dependencies
-        // TODO: Add binding to node.metadata.expression.references
-        //
-        // These operations require:
-        // 1. Adding expression metadata to Component nodes
-        // 2. Tracking dependencies and references as sets of binding indices
-        let _binding = &context.analysis.root.bindings[*binding_idx];
-        // For now, we just acknowledge that we found the binding
+    if let Some(&binding_idx) = binding {
+        let binding = &context.analysis.root.bindings[binding_idx];
+
+        // Update expression metadata
+        component.metadata.expression.has_state = is_dynamic;
+        component.metadata.expression.dependencies.insert(binding_idx);
+        component.metadata.expression.references.insert(binding_idx);
+
+        // Check if the binding contains state
+        if matches!(
+            binding.kind,
+            super::super::BindingKind::State
+                | super::super::BindingKind::RawState
+                | super::super::BindingKind::Derived
+        ) {
+            component.metadata.expression.has_state = true;
+        }
     }
 
     // Delegate to shared validate_component for the full component analysis

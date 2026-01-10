@@ -10,7 +10,7 @@ use super::VisitorContext;
 use crate::ast::template::SvelteElement;
 
 /// Visit a svelte:body.
-pub fn visit(body: &SvelteElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit(body: &mut SvelteElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Check for duplicate
     if context.has_svelte_body {
         return Err(errors::svelte_meta_duplicate("svelte:body"));

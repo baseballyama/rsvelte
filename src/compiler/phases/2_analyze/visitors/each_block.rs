@@ -19,7 +19,7 @@ use crate::ast::template::EachBlock;
 /// special dependency tracking for reactivity.
 ///
 /// Corresponds to `EachBlock(node, context)` in EachBlock.js.
-pub fn visit(block: &EachBlock, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Validate that the tag starts with '{#' (no whitespace in runes mode)
     validate_opening_tag(block.start as usize, &context.analysis.source, '#')?;
 
@@ -84,8 +84,8 @@ pub fn visit(block: &EachBlock, context: &mut VisitorContext) -> Result<(), Anal
     context.block_depth += 1;
 
     // Visit the body and fallback
-    fragment::analyze(&block.body, context)?;
-    if let Some(ref fallback) = block.fallback {
+    fragment::analyze(&mut block.body, context)?;
+    if let Some(ref mut fallback) = block.fallback {
         fragment::analyze(fallback, context)?;
     }
 
@@ -163,7 +163,7 @@ fn collect_transitive_dependencies(
 
 /// Alias for visit function.
 pub fn visit_each_block(
-    block: &EachBlock,
+    block: &mut EachBlock,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     visit(block, context)

@@ -10,9 +10,9 @@ use crate::ast::template::TitleElement;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
 /// Visit a title element.
-pub fn visit(title: &TitleElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit(title: &mut TitleElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Analyze children
-    fragment::analyze(&title.fragment, context)?;
+    fragment::analyze(&mut title.fragment, context)?;
 
     Ok(())
 }

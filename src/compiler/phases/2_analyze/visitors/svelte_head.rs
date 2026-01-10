@@ -11,7 +11,7 @@ use super::shared::fragment;
 use crate::ast::template::SvelteElement;
 
 /// Visit a svelte:head.
-pub fn visit(head: &SvelteElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit(head: &mut SvelteElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Check for duplicate
     if context.has_svelte_head {
         return Err(errors::svelte_meta_duplicate("svelte:head"));
@@ -24,7 +24,7 @@ pub fn visit(head: &SvelteElement, context: &mut VisitorContext) -> Result<(), A
     }
 
     // Analyze children
-    fragment::analyze(&head.fragment, context)?;
+    fragment::analyze(&mut head.fragment, context)?;
 
     Ok(())
 }

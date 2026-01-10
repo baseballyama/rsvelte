@@ -185,14 +185,14 @@ impl<'a> VisitorContext<'a> {
 }
 
 /// Analyze the template portion of the AST.
-pub fn analyze_template(ast: &Root, analysis: &mut ComponentAnalysis) -> Result<(), AnalysisError> {
+pub fn analyze_template(ast: &mut Root, analysis: &mut ComponentAnalysis) -> Result<(), AnalysisError> {
     let mut context = VisitorContext::new(analysis);
-    fragment::analyze(&ast.fragment, &mut context)?;
+    fragment::analyze(&mut ast.fragment, &mut context)?;
     Ok(())
 }
 
 /// Visit a template node and dispatch to the appropriate visitor.
-pub fn visit_node(node: &TemplateNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit_node(node: &mut TemplateNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     match node {
         TemplateNode::Text(text) => text::visit(text, context),
         TemplateNode::RegularElement(element) => regular_element::visit(element, context),

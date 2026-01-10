@@ -11,7 +11,7 @@ use crate::ast::template::SnippetBlock;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
 /// Visit a snippet block.
-pub fn visit(block: &SnippetBlock, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit(block: &mut SnippetBlock, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Mark that we have control flow affecting sibling relationships
     // (snippets can be rendered at any point via @render)
     context.analysis.css.has_control_flow = true;
@@ -23,7 +23,7 @@ pub fn visit(block: &SnippetBlock, context: &mut VisitorContext) -> Result<(), A
     context.block_depth += 1;
 
     // Analyze the body
-    fragment::analyze(&block.body, context)?;
+    fragment::analyze(&mut block.body, context)?;
 
     // Decrement block depth
     context.block_depth -= 1;
@@ -33,7 +33,7 @@ pub fn visit(block: &SnippetBlock, context: &mut VisitorContext) -> Result<(), A
 
 /// Alias for visit function.
 pub fn visit_snippet_block(
-    block: &SnippetBlock,
+    block: &mut SnippetBlock,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     visit(block, context)

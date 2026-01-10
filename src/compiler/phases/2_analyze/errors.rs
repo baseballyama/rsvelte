@@ -383,3 +383,56 @@ pub fn illegal_await_expression() -> AnalysisError {
         "`use:`, `transition:` and `animate:` directives, attachments and bindings do not support await expressions",
     )
 }
+
+/// `arguments` cannot be used outside of functions
+pub fn invalid_arguments_usage() -> AnalysisError {
+    error(
+        "invalid_arguments_usage",
+        "`arguments` cannot be used outside of functions",
+    )
+}
+
+/// Runes cannot use computed properties
+pub fn rune_invalid_computed_property() -> AnalysisError {
+    error(
+        "rune_invalid_computed_property",
+        "Runes cannot use computed member expressions",
+    )
+}
+
+/// Rune %old_name% has been renamed to %new_name%
+pub fn rune_renamed(old_name: &str, new_name: &str) -> AnalysisError {
+    error(
+        "rune_renamed",
+        format!("`{}` has been renamed to `{}`", old_name, new_name),
+    )
+}
+
+/// Rune %name% has been removed
+pub fn rune_removed(name: &str) -> AnalysisError {
+    error("rune_removed", format!("`{}` has been removed", name))
+}
+
+/// Invalid rune name %name%
+pub fn rune_invalid_name(name: &str) -> AnalysisError {
+    error(
+        "rune_invalid_name",
+        format!("`{}` is not a valid rune", name),
+    )
+}
+
+/// Runes must be called
+pub fn rune_missing_parentheses() -> AnalysisError {
+    error(
+        "rune_missing_parentheses",
+        "Runes must be called as functions",
+    )
+}
+
+/// {@const} tag cannot reference %name% in this context
+pub fn const_tag_invalid_reference(name: &str) -> AnalysisError {
+    error(
+        "const_tag_invalid_reference",
+        format!("{{@const}} tag cannot reference `{}` in this context - it can only be used with declarations from an implicit children snippet", name),
+    )
+}

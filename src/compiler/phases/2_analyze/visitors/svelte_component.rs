@@ -11,14 +11,14 @@ use crate::ast::template::SvelteComponentElement;
 
 /// Visit a svelte:component.
 pub fn visit(
-    component: &SvelteComponentElement,
+    component: &mut SvelteComponentElement,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     // svelte:component requires a `this` expression
     // The expression is analyzed for references
 
     // Analyze children
-    fragment::analyze(&component.fragment, context)?;
+    fragment::analyze(&mut component.fragment, context)?;
 
     Ok(())
 }

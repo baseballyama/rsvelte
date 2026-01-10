@@ -379,6 +379,7 @@ impl Parser<'_> {
                 key: None,
                 body,
                 fallback: None,
+                metadata: Default::default(),
             })));
         }
 
@@ -597,6 +598,7 @@ impl Parser<'_> {
             fallback,
             index,
             key,
+            metadata: Default::default(),
         })))
     }
 
@@ -1200,6 +1202,7 @@ impl Parser<'_> {
                     start: start as u32,
                     end: self.index as u32,
                     declaration,
+                    metadata: Default::default(),
                 })))
             }
             "debug" | "attach" => {

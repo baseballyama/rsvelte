@@ -640,3 +640,145 @@ pub fn is_mathml_element(name: &str) -> bool {
             | "semantics"
     )
 }
+
+/// Determine whether an AST node is a reference.
+///
+/// Corresponds to the `is-reference` npm package.
+///
+/// A reference is an identifier that is being read from (as opposed to written to,
+/// or being used as a property key, etc).
+///
+/// # Arguments
+///
+/// * `node` - The AST node to check
+/// * `parent` - The parent AST node
+///
+/// # Returns
+///
+/// `true` if the node is a reference, `false` otherwise
+pub fn is_reference(node: &Value, parent: Option<&Value>) -> bool {
+    let node_type = node.get("type").and_then(|t| t.as_str());
+
+    // Handle MemberExpression
+    if node_type == Some("MemberExpression") {
+        let computed = node.get("computed").and_then(|c| c.as_bool()).unwrap_or(false);
+        if !computed {
+            if let Some(object) = node.get("object") {
+                return is_reference(object, Some(node));
+            }
+        }
+        return false;
+    }
+
+    // Only Identifier nodes can be references
+    if node_type != Some("Identifier") {
+        return false;
+    }
+
+    // No parent means it's a reference
+    let parent = match parent {
+        Some(p) => p,
+        None => return true,
+    };
+
+    let parent_type = parent.get("type").and_then(|t| t.as_str());
+
+    match parent_type {
+        // Disregard `bar` in `foo.bar`
+        Some("MemberExpression") => {
+            let computed = parent
+                .get("computed")
+                .and_then(|c| c.as_bool())
+                .unwrap_or(false);
+            if computed {
+                return true;
+            }
+            // Check if node is the object (not the property)
+            if let Some(object) = parent.get("object") {
+                return nodes_equal(node, object);
+            }
+            false
+        }
+
+        // Disregard the `foo` in `class {foo(){}}` but keep it in `class {[foo](){}}`
+        Some("MethodDefinition") => parent
+            .get("computed")
+            .and_then(|c| c.as_bool())
+            .unwrap_or(false),
+
+        // Disregard the `meta` in `import.meta`
+        Some("MetaProperty") => {
+            if let Some(meta) = parent.get("meta") {
+                nodes_equal(meta, node)
+            } else {
+                false
+            }
+        }
+
+        // Disregard the `foo` in `class {foo=bar}` but keep it in `class {[foo]=bar}` and `class {bar=foo}`
+        Some("PropertyDefinition") => {
+            let computed = parent
+                .get("computed")
+                .and_then(|c| c.as_bool())
+                .unwrap_or(false);
+            if computed {
+                return true;
+            }
+            // Check if node is the value (not the key)
+            if let Some(value) = parent.get("value") {
+                return nodes_equal(node, value);
+            }
+            false
+        }
+
+        // Disregard the `bar` in `{ bar: foo }`, but keep it in `{ [bar]: foo }`
+        Some("Property") => {
+            let computed = parent
+                .get("computed")
+                .and_then(|c| c.as_bool())
+                .unwrap_or(false);
+            if computed {
+                return true;
+            }
+            // Check if node is the value (not the key)
+            if let Some(value) = parent.get("value") {
+                return nodes_equal(node, value);
+            }
+            false
+        }
+
+        // Disregard the `bar` in `export { foo as bar }` or
+        // the foo in `import { foo as bar }`
+        Some("ExportSpecifier") | Some("ImportSpecifier") => {
+            if let Some(local) = parent.get("local") {
+                nodes_equal(node, local)
+            } else {
+                false
+            }
+        }
+
+        // Disregard the `foo` in `foo: while (...) { ... break foo; ... continue foo;}`
+        Some("LabeledStatement") | Some("BreakStatement") | Some("ContinueStatement") => false,
+
+        // Default: it's a reference
+        _ => true,
+    }
+}
+
+/// Check if two JSON AST nodes are equal by comparing their identity.
+///
+/// This is a simplified version that compares the name field for Identifiers.
+fn nodes_equal(a: &Value, b: &Value) -> bool {
+    // For simplicity, compare by pointer address if available
+    // Otherwise, compare by name for Identifiers
+    if let (Some(a_name), Some(b_name)) = (
+        a.get("name").and_then(|n| n.as_str()),
+        b.get("name").and_then(|n| n.as_str()),
+    ) {
+        return a_name == b_name;
+    }
+
+    // For other nodes, we can't reliably compare equality
+    // In the JavaScript version, this uses object reference equality
+    false
+}

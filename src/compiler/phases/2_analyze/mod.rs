@@ -24,6 +24,7 @@ mod scope_builder;
 pub mod types;
 pub mod utils;
 pub mod visitors;
+pub mod warnings;
 
 pub use scope::{
     Binding, BindingKind, BindingReference, DeclarationKind, Mutation, MutationKind, Scope,
@@ -50,7 +51,7 @@ use crate::compiler::CompileOptions;
 ///
 /// Returns a `ComponentAnalysis` containing all semantic information.
 pub fn analyze_component(
-    ast: &Root,
+    ast: &mut Root,
     source: &str,
     options: &CompileOptions,
 ) -> Result<ComponentAnalysis, AnalysisError> {

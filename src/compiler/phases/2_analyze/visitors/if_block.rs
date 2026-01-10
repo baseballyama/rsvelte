@@ -10,7 +10,7 @@ use crate::ast::template::IfBlock;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
 /// Visit an if block.
-pub fn visit(block: &IfBlock, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit(block: &mut IfBlock, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Mark that we have control flow affecting sibling relationships
     context.analysis.css.has_control_flow = true;
 
@@ -21,10 +21,10 @@ pub fn visit(block: &IfBlock, context: &mut VisitorContext) -> Result<(), Analys
     context.block_depth += 1;
 
     // Analyze the consequent
-    fragment::analyze(&block.consequent, context)?;
+    fragment::analyze(&mut block.consequent, context)?;
 
     // Analyze the alternate if present
-    if let Some(ref alternate) = block.alternate {
+    if let Some(ref mut alternate) = block.alternate {
         fragment::analyze(alternate, context)?;
     }
 
@@ -35,6 +35,6 @@ pub fn visit(block: &IfBlock, context: &mut VisitorContext) -> Result<(), Analys
 }
 
 /// Alias for visit function.
-pub fn visit_if_block(block: &IfBlock, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit_if_block(block: &mut IfBlock, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     visit(block, context)
 }
