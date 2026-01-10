@@ -371,6 +371,14 @@ pub fn visit(
         .used_elements
         .insert(element.name.to_string());
 
+    // Build DOM structure for CSS sibling combinator detection
+    let parent_idx = context.current_parent_idx();
+    let is_root_child = parent_idx.is_none();
+
+    // Extract classes and ID from attributes
+    let mut element_classes = std::collections::HashSet::new();
+    let mut element_id: Option<String> = None;
+
     // Track class names and IDs from attributes
     for attr in &element.attributes {
         if let Attribute::Attribute(attr_node) = attr {
@@ -388,6 +396,8 @@ pub fn visit(
                                             .css
                                             .used_classes
                                             .insert(class_name.to_string());
+                                        // Also add to element's classes for DOM structure
+                                        element_classes.insert(class_name.to_string());
                                     }
                                 }
                                 AttributeValuePart::ExpressionTag(expr_tag) => {
@@ -408,6 +418,7 @@ pub fn visit(
                                                         .css
                                                         .used_classes
                                                         .insert(class_name.to_string());
+                                                    element_classes.insert(class_name.to_string());
                                                 }
                                             }
                                         } else {
@@ -431,6 +442,7 @@ pub fn visit(
                                 let id = text.data.trim();
                                 if !id.is_empty() {
                                     context.analysis.css.used_ids.insert(id.to_string());
+                                    element_id = Some(id.to_string());
                                 }
                             }
                         }
@@ -630,6 +642,31 @@ pub fn visit(
         }
     }
 
+    // Create and track DOM element for CSS sibling combinator detection
+    let dom_element = super::super::types::CssDomElement {
+        tag_name: element.name.to_string(),
+        classes: element_classes,
+        id: element_id,
+        parent_idx,
+        children_idx: Vec::new(),
+        is_root_child,
+        possible_prev_adjacent: Vec::new(),
+        possible_next_adjacent: Vec::new(),
+        possible_prev_general: Vec::new(),
+        possible_next_general: Vec::new(),
+    };
+
+    let element_idx = context.add_dom_element(dom_element);
+
+    // Update parent's children list
+    if let Some(parent_idx) = parent_idx
+        && parent_idx < context.analysis.css.dom_structure.elements.len()
+    {
+        context.analysis.css.dom_structure.elements[parent_idx]
+            .children_idx
+            .push(element_idx);
+    }
+
     // Visit attributes
     for attr in &element.attributes {
         if let Attribute::Attribute(attr_node) = attr {
@@ -656,8 +693,14 @@ pub fn visit(
         unsafe { &*(element as *const RegularElement as *const TemplateNode) };
     context.path.push(element_ref);
 
+    // Push this element index to DOM element stack for tracking children
+    context.dom_element_stack.push(element_idx);
+
     // Analyze children
     analyze(&mut element.fragment, context)?;
+
+    // Pop this element from DOM element stack
+    context.dom_element_stack.pop();
 
     // Pop this element from the path
     context.path.pop();

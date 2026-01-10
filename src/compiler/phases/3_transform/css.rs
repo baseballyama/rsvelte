@@ -353,11 +353,9 @@ fn check_selector_unused(prelude: &Value, ctx: &CssContext) -> UnusedStatus {
 /// Returns UnusedStatus to distinguish between unused and no-match cases
 fn check_complex_selector_unused(complex: &Value, ctx: &CssContext) -> UnusedStatus {
     let unused = is_complex_selector_unused_impl(complex, ctx);
-    eprintln!("check_complex_selector_unused: unused={}", unused);
     if unused {
         // Check if it's a no-match case (sibling combinator that absolutely cannot match)
         let no_match = is_sibling_combinator_no_match(complex, ctx);
-        eprintln!("  is_sibling_combinator_no_match: {}", no_match);
         if no_match {
             UnusedStatus::NoMatch
         } else {
@@ -575,20 +573,6 @@ fn is_sibling_combinator_no_match_impl(rel_selectors: &[Value], ctx: &CssContext
         // Find all elements matching 'before' and check their possible siblings
         let mut found_before_element = false;
         let mut found_any_match = false;
-
-        eprintln!(
-            "Checking sibling combinator: before={:?}, after={:?}, combinator={}",
-            before_info
-                .tag_name
-                .as_ref()
-                .or(before_info.classes.first()),
-            after_info.tag_name.as_ref().or(after_info.classes.first()),
-            combinator
-        );
-        eprintln!(
-            "DOM structure has {} elements",
-            ctx.dom_structure.elements.len()
-        );
 
         for el in ctx.dom_structure.elements.iter() {
             if selector_matches_element(&before_info, el) {

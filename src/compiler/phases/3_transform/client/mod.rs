@@ -2736,6 +2736,10 @@ export default function {component_name}({fn_params}) {{
             // Transform state variable assignments to $.set()
             transformed = transform_state_assignments(&transformed, &self.state_vars);
 
+            // Transform state/derived variable reads to $.get() inside reactive functions
+            // TODO: Implement wrap_reactive_reads_with_get
+            // transformed = wrap_reactive_reads_with_get(&transformed, &self.state_vars, &self.derived_vars);
+
             result.push('\t');
             result.push_str(&transformed);
             result.push('\n');
@@ -5555,6 +5559,82 @@ fn transform_state_assignments(line: &str, state_vars: &[String]) -> String {
             }
         }
     }
+
+    result
+}
+
+/// Wrap reactive variable reads with $.get() inside $.derived() and $.user_effect().
+/// This transforms code like:
+/// - `$.derived(() => count * 2)` -> `$.derived(() => $.get(count) * 2)`
+/// - `$.user_effect(() => { console.log(count); })` -> `$.user_effect(() => { console.log($.get(count)); })`
+#[allow(dead_code)]
+fn wrap_reactive_reads_with_get(
+    line: &str,
+    state_vars: &[String],
+    derived_vars: &[String],
+) -> String {
+    // Only process lines that contain reactive functions
+    if !line.contains("$.derived(") && !line.contains("$.user_effect(") {
+        return line.to_string();
+    }
+
+    let mut result = line.to_string();
+
+    // Combine all reactive variables
+    let all_vars: Vec<&String> = state_vars.iter().chain(derived_vars.iter()).collect();
+
+    // For each variable, try to wrap it with $.get()
+    for var_name in all_vars {
+        // Skip empty variable names
+        if var_name.is_empty() {
+            continue;
+        }
+
+        // Create a regex pattern to match the variable name
+        // We need to ensure it's a whole word (not part of another identifier)
+        // and not already wrapped with $.get()
+        let patterns = vec![
+            // Pattern: variable at start of expression or after operator
+            format!(r"([\(\s\+\-\*\/\%\&\|\^\<\>\=\!\,\:]){}([^\w])", var_name),
+            // Pattern: variable at end of expression or before operator
+            format!(r"([^\w]){}([\s\+\-\*\/\%\&\|\^\<\>\=\!\,\)\;\:])", var_name),
+        ];
+
+        for _pattern in &patterns {
+            // Simple replacement approach: look for the variable name with boundaries
+            // This is a simplified implementation that handles common cases
+            let search = format!(" {} ", var_name);
+            let replace = format!(" $.get({}) ", var_name);
+            result = result.replace(&search, &replace);
+
+            let search = format!("({})", var_name);
+            let replace = format!("($.get({}))", var_name);
+            result = result.replace(&search, &replace);
+
+            let search = format!("({} ", var_name);
+            let replace = format!("($.get({}) ", var_name);
+            result = result.replace(&search, &replace);
+
+            let search = format!(" {})", var_name);
+            let replace = format!(" $.get({}))", var_name);
+            result = result.replace(&search, &replace);
+
+            // Handle operators
+            for op in &["+", "-", "*", "/", "%", "<", ">", "==", "===", "!=", "!=="] {
+                let search = format!("{} {} ", var_name, op);
+                let replace = format!("$.get({}) {} ", var_name, op);
+                result = result.replace(&search, &replace);
+
+                let search = format!(" {} {}", op, var_name);
+                let replace = format!(" {} $.get({})", op, var_name);
+                result = result.replace(&search, &replace);
+            }
+        }
+    }
+
+    // Clean up: remove double wrapping if it occurred
+    result = result.replace("$.get($.get(", "$.get(");
+    result = result.replace(")))", "))");
 
     result
 }
