@@ -9,7 +9,7 @@ use svelte_compiler_rust::compiler::preprocess::{
     preprocess,
     types::{
         AttributeValue, MarkupPreprocessorOptions, PreprocessError, PreprocessorGroup,
-        PreprocessorOptions, Processed,
+        PreprocessorOptions, Processed, SourceMapInput,
     },
 };
 
@@ -667,4 +667,221 @@ async fn test_dependency_deduplication() {
     assert_eq!(result.dependencies.len(), 2);
     assert!(result.dependencies.contains(&"./foo.css".to_string()));
     assert!(result.dependencies.contains(&"./bar.css".to_string()));
+}
+#[tokio::test]
+async fn test_attributes_with_closing_tag() {
+    // Test case: attributes-with-closing-tag
+    // Tests that generics attribute with '>' character is handled correctly
+    let input = r#"<script generics="T extends Record<string, string>">
+	foo {}
+</script>"#
+        .to_string();
+
+    let preprocessor = script_preprocessor(|opts| {
+        // Check if generics attribute contains '>'
+        if let Some(AttributeValue::String(generics)) = opts.attributes.get("generics") {
+            if generics.contains('>') {
+                // Return empty code
+                return Ok(Some(Processed {
+                    code: String::new(),
+                    dependencies: vec![],
+                    map: None,
+                    attributes: None,
+                }));
+            }
+        }
+        Ok(None)
+    });
+
+    let result = preprocess(input, vec![preprocessor], Some("input.svelte".to_string()))
+        .await
+        .unwrap();
+
+    // The script tag should have empty content
+    assert!(
+        result
+            .code
+            .contains(r#"<script generics="T extends Record<string, string>"></script>"#)
+    );
+}
+
+#[tokio::test]
+async fn test_empty_sourcemap() {
+    // Test case: empty-sourcemap
+    // Tests that empty sourcemap (with empty mappings string) is handled correctly
+    use serde_json::json;
+
+    let input = r#"<div class="foo">bar</div>
+
+<style>
+	.foo {
+		color: red;
+	}
+</style>"#
+        .to_string();
+
+    let preprocessor = style_preprocessor(|opts| {
+        // Return a source map with empty mappings string
+        let map_json = json!({
+            "version": 3,
+            "sources": ["input.svelte"],
+            "names": [],
+            "mappings": ""
+        })
+        .to_string();
+
+        Ok(Some(Processed {
+            code: opts.content,
+            dependencies: vec![],
+            map: Some(SourceMapInput::Json(map_json)),
+            attributes: None,
+        }))
+    });
+
+    let result = preprocess(
+        input.clone(),
+        vec![preprocessor],
+        Some("input.svelte".to_string()),
+    )
+    .await
+    .unwrap();
+
+    // Code should be unchanged
+    assert_eq!(result.code, input);
+    // Source map should be present (even though mappings is empty)
+    assert!(result.map.is_some());
+}
+
+#[tokio::test]
+async fn test_style_async() {
+    // Test case: style-async
+    // Tests async preprocessor (already tested in test_style_preprocessor, but this is explicit)
+    let input = r#"<div class='brand-color'>$brand</div>
+
+<style>
+	.brand-color {
+		color: $brand;
+	}
+</style>"#
+        .to_string();
+
+    // Create async preprocessor using Arc
+    let preprocessor = PreprocessorGroup {
+        name: Some("async-style".to_string()),
+        markup: None,
+        script: None,
+        style: Some(Box::new(|opts| {
+            Box::pin(async move {
+                // Simulate async operation
+                let code = opts.content.replace("$brand", "purple");
+                Ok(Some(Processed {
+                    code,
+                    dependencies: vec![],
+                    map: None,
+                    attributes: None,
+                }))
+            })
+        })),
+    };
+
+    let result = preprocess(input, vec![preprocessor], Some("input.svelte".to_string()))
+        .await
+        .unwrap();
+
+    assert!(result.code.contains("color: purple;"));
+    // The markup part still contains $brand, only the style part should be replaced
+    assert!(
+        result
+            .code
+            .contains("<div class='brand-color'>$brand</div>")
+    );
+    // Check that the style tag doesn't contain $brand anymore
+    let style_start = result.code.find("<style>").unwrap();
+    let style_end = result.code.find("</style>").unwrap();
+    let style_content = &result.code[style_start..style_end];
+    assert!(!style_content.contains("$brand"));
+}
+
+#[tokio::test]
+async fn test_style_attributes_modified_longer() {
+    // Test case: style-attributes-modified-longer
+    // Tests modifying style tag attributes to a much longer value
+    let input = r#"foo
+
+<style lang='scss'>BEFORE</style>
+
+bar"#
+        .to_string();
+
+    let preprocessor = style_preprocessor(|opts| {
+        // Verify input attributes
+        assert_eq!(
+            opts.attributes.get("lang"),
+            Some(&AttributeValue::String("scss".to_string()))
+        );
+
+        // Return with modified code and much longer attributes
+        let mut new_attrs = HashMap::new();
+        new_attrs.insert(
+            "sth".to_string(),
+            AttributeValue::String("wayyyyyyyyyyyyy looooooonger".to_string()),
+        );
+
+        Ok(Some(Processed {
+            code: "PROCESSED".to_string(),
+            dependencies: vec![],
+            map: None,
+            attributes: Some(new_attrs),
+        }))
+    });
+
+    let result = preprocess(input, vec![preprocessor], Some("input.svelte".to_string()))
+        .await
+        .unwrap();
+
+    // Check that code was replaced
+    assert!(result.code.contains("PROCESSED"));
+    assert!(!result.code.contains("BEFORE"));
+
+    // Check that attributes were updated to the longer value
+    assert!(
+        result
+            .code
+            .contains(r#"sth="wayyyyyyyyyyyyy looooooonger""#)
+    );
+    assert!(!result.code.contains("lang="));
+
+    // Check that surrounding content is preserved
+    assert!(result.code.contains("foo"));
+    assert!(result.code.contains("bar"));
+}
+
+#[tokio::test]
+async fn test_no_preprocessor_changes() {
+    // Test that code passes through unchanged when preprocessor returns None
+    let input = r#"<h1>Hello</h1>
+<script>
+	let x = 1;
+</script>
+<style>
+	h1 { color: blue; }
+</style>"#
+        .to_string();
+
+    let preprocessor = PreprocessorGroup {
+        name: Some("no-op".to_string()),
+        markup: Some(Box::new(|_opts| Box::pin(async move { Ok(None) }))),
+        script: Some(Box::new(|_opts| Box::pin(async move { Ok(None) }))),
+        style: Some(Box::new(|_opts| Box::pin(async move { Ok(None) }))),
+    };
+
+    let result = preprocess(
+        input.clone(),
+        vec![preprocessor],
+        Some("input.svelte".to_string()),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(result.code, input);
 }
