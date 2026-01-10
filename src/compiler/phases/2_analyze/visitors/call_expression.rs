@@ -315,9 +315,24 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         }
     }
 
+    // Track expression metadata for non-rune calls
+    // Check if this call is pure (we need to do this before borrowing expression mutably)
+    let is_pure_call = node
+        .get("callee")
+        .map(|callee| super::shared::utils::is_pure(callee, context))
+        .unwrap_or(false);
+
+    if let Some(expression) = context.current_expression() {
+        let has_dependencies = !expression.dependencies.is_empty();
+
+        if !is_pure_call || has_dependencies {
+            expression.has_call = true;
+            expression.has_state = true;
+        }
+    }
+
     // TODO: Handle $derived expression tracking for async deriveds
     // TODO: Handle $inspect expression tracking
-    // TODO: Handle expression metadata (has_call, has_state)
 
     Ok(())
 }

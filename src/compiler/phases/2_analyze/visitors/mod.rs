@@ -216,6 +216,17 @@ impl<'a> VisitorContext<'a> {
     pub fn emit_warning(&mut self, warning: super::warnings::AnalysisWarning) {
         self.analysis.warnings.push(warning);
     }
+
+    /// Get the current expression being analyzed.
+    ///
+    /// Returns a mutable reference to the ExpressionMetadata if we're currently
+    /// analyzing an expression, or None otherwise.
+    ///
+    /// This is used by visitors to track metadata about the current expression,
+    /// such as whether it contains calls, state references, or assignments.
+    pub fn current_expression(&mut self) -> Option<&mut crate::ast::template::ExpressionMetadata> {
+        self.expression.and_then(|ptr| unsafe { ptr.as_mut() })
+    }
 }
 
 /// Analyze the template portion of the AST.

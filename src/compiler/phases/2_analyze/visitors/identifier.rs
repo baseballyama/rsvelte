@@ -97,7 +97,7 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     }
 
     // Look up the binding
-    let _binding_idx = match context.analysis.root.scope.declarations.get(name) {
+    let binding_idx = match context.analysis.root.scope.declarations.get(name) {
         Some(idx) => *idx,
         None => return Ok(()), // No binding, might be a global
     };
@@ -113,9 +113,24 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         }
     }
 
-    // TODO: Implement full binding dependency tracking
-    // This requires expression context tracking which is not yet fully implemented
-    // let binding = &context.analysis.root.bindings[binding_idx];
+    // Track dependencies and references in the current expression
+    if let Some(expression_ptr) = context.expression {
+        let expression = unsafe { &mut *expression_ptr };
+        expression.dependencies.insert(binding_idx);
+        expression.references.insert(binding_idx);
+
+        // Check if this reference involves state
+        let binding = &context.analysis.root.bindings[binding_idx];
+        let involves_state = binding.kind != BindingKind::Static
+            && (binding.kind == BindingKind::Prop
+                || binding.kind == BindingKind::BindableProp
+                || binding.kind == BindingKind::RestProp
+                || !binding.is_function());
+
+        if involves_state {
+            expression.has_state = true;
+        }
+    }
 
     // TODO: Implement state reference validation
     // TODO: Implement reactive declaration warnings

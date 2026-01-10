@@ -7,7 +7,9 @@
 //! Reference: svelte/packages/svelte/src/compiler/print/index.js (lines 327-890)
 
 use super::Context;
-use super::helpers::{LINE_BREAK_THRESHOLD, is_void_element};
+use super::helpers::{
+    LINE_BREAK_THRESHOLD, expression_to_string, is_shorthand_identifier, is_void_element,
+};
 use crate::ast::css::StyleSheet;
 use crate::ast::{
     Attribute, AttributeValue, AttributeValuePart, Fragment, Root, TemplateNode, Text,
@@ -280,29 +282,144 @@ fn visit_attribute(context: &mut Context, attribute: &Attribute) {
         Attribute::SpreadAttribute(_spread) => {
             context.write("{.../* spread */}");
         }
-        Attribute::BindDirective(_bind) => {
-            context.write("bind:/* TODO */");
+        Attribute::BindDirective(dir) => {
+            context.write("bind:");
+            context.write(dir.name.as_str());
+
+            // Shorthand detection: bind:value (expression is Identifier with name === "value")
+            if !is_shorthand_identifier(&dir.expression, dir.name.as_str()) {
+                context.write("={");
+                context.write(&expression_to_string(&dir.expression));
+                context.write("}");
+            }
         }
-        Attribute::OnDirective(_on) => {
-            context.write("on/* TODO */");
+        Attribute::OnDirective(dir) => {
+            context.write("on:");
+            context.write(dir.name.as_str());
+
+            // Modifiers: on:click|preventDefault|stopPropagation
+            for modifier in &dir.modifiers {
+                context.write("|");
+                context.write(modifier.as_str());
+            }
+
+            // Shorthand detection
+            if let Some(ref expr) = dir.expression {
+                if !is_shorthand_identifier(expr, dir.name.as_str()) {
+                    context.write("={");
+                    context.write(&expression_to_string(expr));
+                    context.write("}");
+                }
+            }
         }
-        Attribute::ClassDirective(_class) => {
-            context.write("class:/* TODO */");
+        Attribute::ClassDirective(dir) => {
+            context.write("class:");
+            context.write(dir.name.as_str());
+
+            if !is_shorthand_identifier(&dir.expression, dir.name.as_str()) {
+                context.write("={");
+                context.write(&expression_to_string(&dir.expression));
+                context.write("}");
+            }
         }
-        Attribute::StyleDirective(_style) => {
-            context.write("style:/* TODO */");
+        Attribute::StyleDirective(dir) => {
+            context.write("style:");
+            context.write(dir.name.as_str());
+
+            // Modifiers: style:color|important
+            for modifier in &dir.modifiers {
+                context.write("|");
+                context.write(modifier.as_str());
+            }
+
+            match &dir.value {
+                AttributeValue::True(_) => {
+                    // style:color (shorthand)
+                }
+                AttributeValue::Expression(expr) => {
+                    context.write("={");
+                    context.write(&expression_to_string(&expr.expression));
+                    context.write("}");
+                }
+                AttributeValue::Sequence(parts) => {
+                    context.write("=\"");
+                    for part in parts {
+                        match part {
+                            AttributeValuePart::Text(text) => context.write(&text.raw),
+                            AttributeValuePart::ExpressionTag(expr) => {
+                                context.write("{");
+                                context.write(&expression_to_string(&expr.expression));
+                                context.write("}");
+                            }
+                        }
+                    }
+                    context.write("\"");
+                }
+            }
         }
-        Attribute::TransitionDirective(_transition) => {
-            context.write("transition:/* TODO */");
+        Attribute::TransitionDirective(dir) => {
+            // intro, outro, or both
+            let keyword = if dir.intro && dir.outro {
+                "transition"
+            } else if dir.intro {
+                "in"
+            } else {
+                "out"
+            };
+
+            context.write(keyword);
+            context.write(":");
+            context.write(dir.name.as_str());
+
+            // Modifiers: transition:fade|local
+            for modifier in &dir.modifiers {
+                context.write("|");
+                context.write(modifier.as_str());
+            }
+
+            if let Some(ref expr) = dir.expression {
+                if !is_shorthand_identifier(expr, dir.name.as_str()) {
+                    context.write("={");
+                    context.write(&expression_to_string(expr));
+                    context.write("}");
+                }
+            }
         }
-        Attribute::AnimateDirective(_animate) => {
-            context.write("animate:/* TODO */");
+        Attribute::AnimateDirective(dir) => {
+            context.write("animate:");
+            context.write(dir.name.as_str());
+
+            if let Some(ref expr) = dir.expression {
+                if !is_shorthand_identifier(expr, dir.name.as_str()) {
+                    context.write("={");
+                    context.write(&expression_to_string(expr));
+                    context.write("}");
+                }
+            }
         }
-        Attribute::UseDirective(_use_dir) => {
-            context.write("use:/* TODO */");
+        Attribute::UseDirective(dir) => {
+            context.write("use:");
+            context.write(dir.name.as_str());
+
+            if let Some(ref expr) = dir.expression {
+                if !is_shorthand_identifier(expr, dir.name.as_str()) {
+                    context.write("={");
+                    context.write(&expression_to_string(expr));
+                    context.write("}");
+                }
+            }
         }
-        Attribute::LetDirective(_let_dir) => {
-            context.write("let:/* TODO */");
+        Attribute::LetDirective(dir) => {
+            context.write("let:");
+            context.write(dir.name.as_str());
+
+            if let Some(ref expr) = dir.expression {
+                if !is_shorthand_identifier(expr, dir.name.as_str()) {
+                    context.write("={");
+                    context.write(&expression_to_string(expr));
+                    context.write("}");
+                }
+            }
         }
         Attribute::AttachTag(_attach) => {
             context.write("<!-- TODO: AttachTag -->");

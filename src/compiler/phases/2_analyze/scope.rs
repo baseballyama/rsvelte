@@ -227,6 +227,27 @@ impl Binding {
             }
         }
     }
+
+    /// Check if this binding represents a function.
+    /// Returns true for function declarations and arrow functions.
+    pub fn is_function(&self) -> bool {
+        // Function declarations have Function declaration kind
+        if self.declaration_kind == DeclarationKind::Function {
+            return true;
+        }
+
+        // For other bindings, check the initial value if it exists
+        // The initial field is a string representation, so we check if it contains function-like patterns
+        // This is a simplified check - in the full implementation we'd parse the initial value
+        if let Some(ref initial) = self.initial {
+            // Check for common function patterns in the string
+            initial.contains("FunctionExpression")
+                || initial.contains("ArrowFunctionExpression")
+                || initial.contains("FunctionDeclaration")
+        } else {
+            false
+        }
+    }
 }
 
 /// The kind of binding.

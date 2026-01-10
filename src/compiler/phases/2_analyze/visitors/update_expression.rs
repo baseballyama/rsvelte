@@ -27,36 +27,25 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     }
 
     // Track assignments in reactive statements (legacy mode)
-    // In the JavaScript implementation:
-    // if (context.state.reactive_statement) {
-    //   const id = node.argument.type === 'MemberExpression' ? object(node.argument) : node.argument;
-    //   if (id?.type === 'Identifier') {
-    //     const binding = context.state.scope.get(id.name);
-    //     if (binding) {
-    //       context.state.reactive_statement.assignments.add(binding);
-    //     }
-    //   }
-    // }
-    //
-    // To implement this, we need to:
-    // 1. Check if we're inside a reactive statement (tracked via a state flag)
-    // 2. Get the base identifier (using object() for MemberExpression)
-    // 3. Look up the binding and add it to assignments
-    //
-    // However, the current VisitorContext doesn't track reactive_statement state.
-    // This is tracked in ComponentAnalysis.reactive_statements which is populated
-    // during LabeledStatement visitor traversal.
-    //
-    // The reactive statement tracking happens in two phases:
-    // 1. LabeledStatement visitor creates ReactiveStatement and stores in analysis
-    // 2. Child visitors (like this one) would update the current reactive statement
-    //
-    // Since we don't have a current_reactive_statement field in VisitorContext yet,
-    // we'll leave this as a TODO for now. The reactive statement dependencies are
-    // already computed in labeled_statement.rs using collect_references().
-    //
-    // TODO: Add current_reactive_statement to VisitorContext if needed for
-    // incremental reactive statement analysis during traversal.
+    if let Some(reactive_stmt_ptr) = context.reactive_statement {
+        if let Some(argument) = node.get("argument") {
+            let reactive_stmt = unsafe { &mut *reactive_stmt_ptr };
+
+            let id = if argument.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
+                get_object_identifier(argument)
+            } else {
+                Some(argument.clone())
+            };
+
+            if let Some(identifier) = id {
+                if let Some(name) = identifier.get("name").and_then(|n| n.as_str()) {
+                    if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name) {
+                        reactive_stmt.assignments.insert(binding_idx);
+                    }
+                }
+            }
+        }
+    }
 
     // Track expression assignments (for expression metadata)
     // In the JavaScript implementation:
@@ -96,7 +85,6 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
 /// # Returns
 ///
 /// The leftmost identifier, or None if not found or not an Identifier
-#[allow(dead_code)]
 fn get_object_identifier(expression: &Value) -> Option<Value> {
     let mut current = expression;
 
