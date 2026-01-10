@@ -213,6 +213,49 @@ pub enum TransformResult {
     None,
 }
 
+/// Compile options for transformation.
+///
+/// Corresponds to `ValidatedCompileOptions` in Svelte's types (simplified).
+#[derive(Debug, Clone)]
+pub struct TransformOptions {
+    /// Development mode
+    pub dev: bool,
+
+    /// Fragments mode (html or tree)
+    pub fragments: FragmentsMode,
+
+    /// Whether to preserve whitespace
+    pub preserve_whitespace: bool,
+
+    /// Whether to preserve comments
+    pub preserve_comments: bool,
+}
+
+impl Default for TransformOptions {
+    fn default() -> Self {
+        Self {
+            dev: false,
+            fragments: FragmentsMode::Html,
+            preserve_whitespace: false,
+            preserve_comments: false,
+        }
+    }
+}
+
+/// Fragments mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FragmentsMode {
+    Html,
+    Tree,
+}
+
+/// Async const declarations.
+#[derive(Debug, Clone)]
+pub struct AsyncConsts {
+    pub id: JsExpr,
+    pub thunks: Vec<JsExpr>,
+}
+
 /// Client-side transformation state.
 ///
 /// Corresponds to `ComponentClientTransformState` in Svelte's types.
@@ -230,6 +273,12 @@ pub struct ComponentClientTransformState<'a> {
     /// Root scope with all bindings
     pub scope_root: &'a ScopeRoot,
 
+    /// Compile options
+    pub options: TransformOptions,
+
+    /// Hoisted statements (declarations that go at the top level)
+    pub hoisted: Vec<JsStatement>,
+
     /// Template building state
     pub template: TemplateBuilder,
 
@@ -242,6 +291,15 @@ pub struct ComponentClientTransformState<'a> {
     /// After-update statements (run after DOM updates)
     pub after_update: Vec<JsStatement>,
 
+    /// Transformed {@const} declarations
+    pub consts: Vec<JsStatement>,
+
+    /// Transformed async {@const} declarations (if any)
+    pub async_consts: Option<AsyncConsts>,
+
+    /// Transformed let: directives
+    pub let_directives: Vec<JsExpressionStatement>,
+
     /// Current node being processed (usually an anchor)
     pub node: JsExpr,
 
@@ -250,9 +308,6 @@ pub struct ComponentClientTransformState<'a> {
 
     /// Transform rules for identifiers
     pub transform: HashMap<String, IdentifierTransform>,
-
-    /// Let directives in the current scope
-    pub let_directives: Vec<JsExpressionStatement>,
 
     /// Delegated events
     pub events: HashSet<String>,
@@ -266,11 +321,20 @@ pub struct ComponentClientTransformState<'a> {
     /// Whether we're inside a $derived expression
     pub in_derived: bool,
 
-    /// Whether we're in development mode
+    /// Whether we're in development mode (deprecated, use options.dev)
     pub dev: bool,
 
     /// State fields in class components (maps field name to field info)
     pub state_fields: HashMap<String, StateField>,
+
+    /// Whether the current context belongs to the instance scope
+    pub is_instance: bool,
+
+    /// Imports that should be re-evaluated in legacy mode following a mutation
+    pub legacy_reactive_imports: Vec<JsStatement>,
+
+    /// Whether to preserve whitespace (deprecated, use options.preserve_whitespace)
+    pub preserve_whitespace: bool,
 }
 
 impl<'a> ComponentClientTransformState<'a> {
@@ -286,20 +350,27 @@ impl<'a> ComponentClientTransformState<'a> {
             scopes: HashMap::new(),
             analysis,
             scope_root,
+            options: TransformOptions::default(),
+            hoisted: Vec::new(),
             template: TemplateBuilder::new(),
             init: Vec::new(),
             update: Vec::new(),
             after_update: Vec::new(),
+            consts: Vec::new(),
+            async_consts: None,
+            let_directives: Vec::new(),
             node,
             memoizer: Memoizer::new(),
             transform: HashMap::new(),
-            let_directives: Vec::new(),
             events: HashSet::new(),
             metadata: ComponentMetadata::default(),
             in_constructor: false,
             in_derived: false,
             dev: false,
             state_fields: HashMap::new(),
+            is_instance: false,
+            legacy_reactive_imports: Vec::new(),
+            preserve_whitespace: false,
         }
     }
 

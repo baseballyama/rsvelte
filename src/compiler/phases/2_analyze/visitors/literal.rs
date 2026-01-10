@@ -5,7 +5,7 @@
 //! Corresponds to Svelte's `2-analyze/visitors/Literal.js`.
 
 use super::VisitorContext;
-use crate::compiler::phases::phase2_analyze::AnalysisError;
+use crate::compiler::phases::phase2_analyze::{AnalysisError, warnings};
 use regex::Regex;
 use serde_json::Value;
 use std::sync::OnceLock;
@@ -51,22 +51,14 @@ fn get_bidirectional_regex() -> &'static Regex {
 /// ```javascript
 /// const text = "Hello\u202eWorld"; // Would trigger warning
 /// ```
-pub fn visit(node: &Value, _context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Check if the literal is a string
     if let Some(value) = node.get("value")
         && let Some(string_value) = value.as_str()
     {
         // Test for bidirectional control characters
         if get_bidirectional_regex().is_match(string_value) {
-            // TODO: Once the warning system is implemented, emit warning here:
-            // w::bidirectional_control_characters(node);
-            //
-            // For now, we detect the issue but don't emit warnings since
-            // the warning infrastructure isn't fully implemented yet.
-            // The warning message should be:
-            // "A bidirectional control character was detected in your code.
-            //  These characters can be used to alter the visual direction of
-            //  your code and could have unintended consequences"
+            context.emit_warning(warnings::bidirectional_control_characters());
         }
     }
 

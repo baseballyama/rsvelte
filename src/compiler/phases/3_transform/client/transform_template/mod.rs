@@ -13,9 +13,6 @@ pub mod types;
 
 // Re-export commonly used items
 pub use fix_attribute_casing::fix_attribute_casing;
-pub use index::{
-    transform_template, Analysis, ComponentClientTransformState, FragmentsMode, Locator, Location,
-    Namespace, TransformOptions,
-};
+pub use index::{transform_template, Locator, Location, Namespace};
 pub use template::Template;
 pub use types::{Comment, Element, Node, TextNode};

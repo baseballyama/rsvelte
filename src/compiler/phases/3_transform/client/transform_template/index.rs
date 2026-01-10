@@ -5,8 +5,11 @@
 
 use super::template::Template;
 use super::types::{Element, Node};
-use crate::compiler::phases::3_transform::js_ast::builders as b;
-use crate::compiler::phases::3_transform::js_ast::nodes::JsExpr;
+use crate::compiler::phases::phase3_transform::client::types::{
+    ComponentClientTransformState, FragmentsMode,
+};
+use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 
 // Constants from svelte/packages/svelte/src/constants.js
 const TEMPLATE_USE_SVG: u32 = 1 << 2;
@@ -28,32 +31,6 @@ impl Namespace {
             Namespace::Mathml => "mathml",
         }
     }
-}
-
-/// Component client transform state.
-/// This is a placeholder for the actual state structure used in the compiler.
-pub struct ComponentClientTransformState {
-    pub template: Template,
-    pub options: TransformOptions,
-    pub analysis: Analysis,
-}
-
-/// Transform options.
-pub struct TransformOptions {
-    pub fragments: FragmentsMode,
-    pub dev: bool,
-}
-
-/// Fragments mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum FragmentsMode {
-    Html,
-    Tree,
-}
-
-/// Analysis data.
-pub struct Analysis {
-    pub name: String,
 }
 
 /// Locator function type for getting line and column from position.
@@ -100,8 +77,8 @@ fn build_locations(nodes: &[Node], locator: &Locator) -> JsExpr {
 /// * `namespace` - Element namespace (html, svg, mathml)
 /// * `flags` - Optional flags for template creation
 /// * `locator` - Optional locator function for dev mode
-pub fn transform_template(
-    state: &mut ComponentClientTransformState,
+pub fn transform_template<'a>(
+    state: &mut ComponentClientTransformState<'a>,
     namespace: Namespace,
     flags: Option<u32>,
     locator: Option<&Locator>,

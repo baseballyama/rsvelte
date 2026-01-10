@@ -5,7 +5,7 @@
 //! Corresponds to Svelte's `2-analyze/visitors/NewExpression.js`.
 
 use super::VisitorContext;
-use crate::compiler::phases::phase2_analyze::AnalysisError;
+use crate::compiler::phases::phase2_analyze::{AnalysisError, warnings};
 use serde_json::Value;
 
 /// Visit a new expression.
@@ -45,14 +45,7 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         && callee.get("type").and_then(|t| t.as_str()) == Some("ClassExpression")
         && context.function_depth > 0
     {
-        // TODO: Issue performance warning
-        // w.perf_avoid_inline_class(node);
-        //
-        // For now, we just detect the pattern but don't emit the warning
-        // since the warning system is not fully implemented yet.
-        //
-        // The warning message would be:
-        // "Avoid 'new class' — instead, declare the class at the top level scope"
+        context.emit_warning(warnings::perf_avoid_inline_class());
     }
 
     // Mark that we need context for new expressions
