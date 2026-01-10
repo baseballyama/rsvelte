@@ -34,6 +34,12 @@
 //! });
 //! ```
 
+// Allow lints for this file as it contains many TODO stubs
+#![allow(irrefutable_let_patterns)]
+#![allow(unreachable_patterns)]
+#![allow(dead_code)]
+#![allow(clippy::too_many_arguments)]
+
 use crate::ast::js::Expression;
 use crate::ast::template::{Attribute, EachBlock, TemplateNode};
 use crate::compiler::constants::*;

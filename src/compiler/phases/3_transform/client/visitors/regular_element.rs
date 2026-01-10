@@ -5,6 +5,9 @@
 //!
 //! This visitor handles regular HTML elements like `<div>`, `<span>`, etc.
 
+// Allow dead code for TODO event handler stubs
+#![allow(dead_code)]
+
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, RegularElement as RegularElementNode,
 };
