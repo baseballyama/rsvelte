@@ -75,4 +75,4 @@ pub mod if_block;
 // pub mod render_tag;
 // pub mod svelte_element;
 // pub mod attribute;
-// pub mod fragment; // TODO: Fix type compatibility issues
+pub mod fragment;

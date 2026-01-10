@@ -22,6 +22,15 @@ use std::collections::HashMap;
 const TEMPLATE_FRAGMENT: u32 = 1;
 const TEMPLATE_USE_IMPORT_NODE: u32 = 2;
 
+/// Convert string namespace to Namespace enum
+fn parse_namespace(namespace: &str) -> Namespace {
+    match namespace {
+        "svg" => Namespace::Svg,
+        "mathml" => Namespace::Mathml,
+        _ => Namespace::Html,
+    }
+}
+
 /// Visit a Fragment node and generate client-side code.
 ///
 /// Creates a new block which looks roughly like this:
@@ -150,8 +159,11 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
             };
 
             // Transform template
-            let template_expr = transform_template(&mut element_state, namespace, flags, None);
-            state.hoisted.push(b::var_decl(&template_name, Some(template_expr)));
+            let template_expr =
+                transform_template(&mut element_state, parse_namespace(&namespace), flags, None);
+            state
+                .hoisted
+                .push(b::var_decl(&template_name, Some(template_expr)));
 
             // Initialize element
             state.init.insert(
@@ -181,7 +193,10 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
                 0,
                 b::var_decl(
                     &id_name,
-                    Some(b::call(b::member_path("$.text"), vec![b::string(&text.data)])),
+                    Some(b::call(
+                        b::member_path("$.text"),
+                        vec![b::string(text.data.to_string())],
+                    )),
                 ),
             );
 
@@ -211,11 +226,19 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
             let text_id = b::id(&text_id_name);
 
             let text_id_clone = text_id.clone();
-            process_children(&cleaned.trimmed, move |_is_text| text_id_clone.clone(), false, context);
+            process_children(
+                &cleaned.trimmed,
+                move |_is_text| text_id_clone.clone(),
+                false,
+                context,
+            );
 
             state.init.insert(
                 0,
-                b::var_decl(&text_id_name, Some(b::call(b::member_path("$.text"), vec![]))),
+                b::var_decl(
+                    &text_id_name,
+                    Some(b::call(b::member_path("$.text"), vec![])),
+                ),
             );
 
             close = Some(b::stmt(b::call(
@@ -224,7 +247,12 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
             )));
         } else if cleaned.is_standalone {
             // No need to create a template, we can just use the existing block's anchor
-            process_children(&cleaned.trimmed, |_is_text| b::id("$$anchor"), false, context);
+            process_children(
+                &cleaned.trimmed,
+                |_is_text| b::id("$$anchor"),
+                false,
+                context,
+            );
         } else {
             // Standard case with template
             let id_for_closure = id.clone();
@@ -237,7 +265,10 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
                             vec![id_for_closure.clone(), b::literal(JsLiteral::Boolean(true))],
                         )
                     } else {
-                        b::call(b::member_path("$.first_child"), vec![id_for_closure.clone()])
+                        b::call(
+                            b::member_path("$.first_child"),
+                            vec![id_for_closure.clone()],
+                        )
                     }
                 },
                 false,
@@ -253,16 +284,22 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
             if state.template.nodes.len() == 1 {
                 // TODO: Check if node is a comment
                 // For now, use standard template case
-                let template_expr = transform_template(&mut state, namespace, Some(flags), None);
-                state.hoisted.push(b::var_decl(&template_name, Some(template_expr)));
+                let template_expr =
+                    transform_template(&mut state, parse_namespace(&namespace), Some(flags), None);
+                state
+                    .hoisted
+                    .push(b::var_decl(&template_name, Some(template_expr)));
                 state.init.insert(
                     0,
                     b::var_decl(&id_name, Some(b::call(b::id(&template_name), vec![]))),
                 );
             } else {
                 // Standard template case
-                let template_expr = transform_template(&mut state, namespace, Some(flags), None);
-                state.hoisted.push(b::var_decl(&template_name, Some(template_expr)));
+                let template_expr =
+                    transform_template(&mut state, parse_namespace(&namespace), Some(flags), None);
+                state
+                    .hoisted
+                    .push(b::var_decl(&template_name, Some(template_expr)));
                 state.init.insert(
                     0,
                     b::var_decl(&id_name, Some(b::call(b::id(&template_name), vec![]))),
@@ -277,20 +314,25 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
     }
 
     // Build the final body
-    body.extend(state.let_directives);
+    body.extend(
+        state
+            .let_directives
+            .into_iter()
+            .map(JsStatement::Expression),
+    );
     body.extend(state.consts);
 
     // Handle async_consts
-    if let Some(async_consts) = state.async_consts {
-        if !async_consts.thunks.is_empty() {
-            body.push(b::var_decl(
-                "__async_consts",
-                Some(b::call(
-                    b::member_path("$.run"),
-                    vec![b::array(async_consts.thunks)],
-                )),
-            ));
-        }
+    if let Some(async_consts) = state.async_consts
+        && !async_consts.thunks.is_empty()
+    {
+        body.push(b::var_decl(
+            "__async_consts",
+            Some(b::call(
+                b::member_path("$.run"),
+                vec![b::array(async_consts.thunks)],
+            )),
+        ));
     }
 
     // Skip over inserted comment if text_first
@@ -302,7 +344,7 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
 
     // Add render effect if there are updates
     if !state.update.is_empty() {
-        body.push(build_render_statement(&state));
+        body.push(b::stmt(build_render_statement(state.update)));
     }
 
     body.extend(state.after_update);

@@ -173,12 +173,13 @@ mod tests {
 
     #[test]
     fn test_clean_nodes_empty() {
-        use crate::compiler::phases::phase2_analyze::scope::{Scope, ScopeRoot};
+        use crate::compiler::phases::phase2_analyze::scope::Scope;
         use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
+        use crate::compiler::CompileOptions;
 
-        let scope_root = ScopeRoot::new();
-        let scope = Scope::new_component(&scope_root, None);
-        let analysis = ComponentAnalysis::new();
+        let options = CompileOptions::default();
+        let scope = Scope::new(None);
+        let analysis = ComponentAnalysis::new("", &options);
 
         let cleaned = clean_nodes(None, &[], &[], "html", &scope, &analysis, false, false);
 
@@ -191,8 +192,10 @@ mod tests {
     #[test]
     fn test_infer_namespace_default() {
         use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
+        use crate::compiler::CompileOptions;
 
-        let analysis = ComponentAnalysis::new();
+        let options = CompileOptions::default();
+        let analysis = ComponentAnalysis::new("", &options);
         let namespace = infer_namespace("html", None, &[], &analysis);
 
         assert_eq!(namespace, "html");
