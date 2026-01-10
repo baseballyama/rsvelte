@@ -121,6 +121,10 @@ struct ClientCodeGenerator {
     /// Proxy state variable names (object/array $state that become $.proxy())
     /// These don't need $.get() but their property access is still reactive
     proxy_state_vars: Vec<String>,
+    /// Derived variable names (declared with $derived())
+    /// These need $.get() wrapping when accessed
+    #[allow(dead_code)]
+    derived_vars: Vec<String>,
     /// Constant variables (name -> value) for compile-time evaluation
     const_vars: HashMap<String, String>,
     /// Each block counter for template variable names
@@ -176,6 +180,8 @@ impl ClientCodeGenerator {
         let state_vars = collect_state_variables(&script_content);
         // Collect proxy state variables (object/array types)
         let proxy_state_vars = collect_proxy_state_variables(&script_content);
+        // Collect derived variables
+        let derived_vars = collect_derived_variables(&script_content);
         // Collect constant variables (non-$state) with their values
         let const_vars = collect_constant_variables(&script_content);
         // Collect read-only destructured props
@@ -196,6 +202,7 @@ impl ClientCodeGenerator {
             current_child_index: 0,
             state_vars,
             proxy_state_vars,
+            derived_vars,
             const_vars,
             each_block_counter: 0,
             each_blocks: Vec::new(),
@@ -5116,6 +5123,30 @@ fn collect_read_only_props(script: &str) -> Vec<String> {
         .into_iter()
         .filter(|p| !reassigned.contains(p))
         .collect()
+}
+
+/// Collect variable names declared with $derived().
+/// These variables need $.get() wrapping when accessed.
+fn collect_derived_variables(script: &str) -> Vec<String> {
+    let mut vars = Vec::new();
+
+    for line in script.lines() {
+        let trimmed = line.trim();
+
+        // Match patterns like: let varname = $derived(...)
+        if trimmed.contains("$derived(") {
+            // Extract variable name between let/const and =
+            if let Some(eq_pos) = trimmed.find('=') {
+                let before_eq = trimmed[..eq_pos].trim();
+                // Get the last word before = (the variable name)
+                if let Some(var_name) = before_eq.split_whitespace().last() {
+                    vars.push(var_name.to_string());
+                }
+            }
+        }
+    }
+
+    vars
 }
 
 /// Evaluate a content template by replacing constant variable references with their values.
