@@ -20,12 +20,18 @@ pub fn visit_script(script_ast: &Value, context: &mut VisitorContext) -> Result<
     if let Some(node_type) = script_ast.get("type").and_then(|t| t.as_str())
         && node_type == "Program"
     {
+        // Push Program node to js_path so placement checks can find it
+        context.js_path.push(script_ast.clone());
+
         // Visit the program body
         if let Some(body) = script_ast.get("body").and_then(|b| b.as_array()) {
             for statement in body {
                 walk_js_node(statement, context)?;
             }
         }
+
+        // Pop Program node
+        context.js_path.pop();
     }
 
     Ok(())

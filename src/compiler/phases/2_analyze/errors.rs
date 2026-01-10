@@ -33,11 +33,19 @@ pub fn host_invalid_placement() -> AnalysisError {
     )
 }
 
-/// `$props()` can only be used with an object destructuring pattern
+/// `$props()` can only be used as a variable declaration initializer at the top level of the `<script>` tag
 pub fn props_invalid_placement() -> AnalysisError {
     error(
         "props_invalid_placement",
-        "`$props()` can only be used with an object destructuring pattern",
+        "`$props()` can only be used as a variable declaration initializer at the top level of the `<script>` tag",
+    )
+}
+
+/// `$props()` can only be used with an object destructuring pattern or an identifier
+pub fn props_invalid_identifier() -> AnalysisError {
+    error(
+        "props_invalid_identifier",
+        "`$props()` can only be used with an object destructuring pattern or an identifier",
     )
 }
 
