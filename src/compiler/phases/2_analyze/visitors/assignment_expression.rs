@@ -19,18 +19,6 @@ pub fn visit(
     node: &Value, // The AssignmentExpression node from JavaScript AST
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
-    // DEBUG: Check if this visitor is being called
-    if let Some(left) = node.get("left") {
-        if let Some(name) = left.get("name").and_then(|n| n.as_str()) {
-            eprintln!("DEBUG assignment_expression: left = {}", name);
-            eprintln!(
-                "DEBUG scope.declarations.contains_key({}) = {}",
-                name,
-                context.analysis.root.scope.declarations.contains_key(name)
-            );
-        }
-    }
-
     // Validate that we can assign to the left-hand side
     // In JS: validate_assignment(node, node.left, context);
     if let Some(left) = node.get("left") {

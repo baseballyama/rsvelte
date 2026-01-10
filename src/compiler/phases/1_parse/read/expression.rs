@@ -2499,9 +2499,29 @@ fn convert_statement_for_program(
                 obj.insert("id".to_string(), Value::Null);
             }
 
-            // Simplified - just return the basic structure
-            obj.insert("params".to_string(), Value::Array(vec![]));
-            obj.insert("body".to_string(), Value::Null);
+            obj.insert("generator".to_string(), Value::Bool(func_decl.generator));
+            obj.insert("async".to_string(), Value::Bool(func_decl.r#async));
+
+            // Convert params
+            let params: Vec<Value> = func_decl
+                .params
+                .items
+                .iter()
+                .map(|param| {
+                    convert_formal_parameter(param, offset, line_offsets)
+                        .as_json()
+                        .clone()
+                })
+                .collect();
+            obj.insert("params".to_string(), Value::Array(params));
+
+            // Convert body
+            if let Some(body) = &func_decl.body {
+                let body_value = convert_function_body_for_program(body, offset, line_offsets);
+                obj.insert("body".to_string(), body_value);
+            } else {
+                obj.insert("body".to_string(), Value::Null);
+            }
 
             Some(Value::Object(obj))
         }
@@ -2710,8 +2730,29 @@ fn convert_declaration_for_program(
                 obj.insert("id".to_string(), Value::Null);
             }
 
-            obj.insert("params".to_string(), Value::Array(vec![]));
-            obj.insert("body".to_string(), Value::Null);
+            obj.insert("generator".to_string(), Value::Bool(func_decl.generator));
+            obj.insert("async".to_string(), Value::Bool(func_decl.r#async));
+
+            // Convert params
+            let params: Vec<Value> = func_decl
+                .params
+                .items
+                .iter()
+                .map(|param| {
+                    convert_formal_parameter(param, offset, line_offsets)
+                        .as_json()
+                        .clone()
+                })
+                .collect();
+            obj.insert("params".to_string(), Value::Array(params));
+
+            // Convert body
+            if let Some(body) = &func_decl.body {
+                let body_value = convert_function_body_for_program(body, offset, line_offsets);
+                obj.insert("body".to_string(), body_value);
+            } else {
+                obj.insert("body".to_string(), Value::Null);
+            }
 
             Value::Object(obj)
         }
@@ -3345,6 +3386,79 @@ fn convert_assignment_pattern(
     );
 
     Value::Object(obj)
+}
+
+/// Convert an assignment target for program context (no -1 offset adjustment).
+fn convert_assignment_target_for_program(
+    target: &oxc_ast::ast::AssignmentTarget,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    use oxc_ast::ast::AssignmentTarget;
+
+    match target {
+        AssignmentTarget::AssignmentTargetIdentifier(id) => {
+            let start = offset + id.span.start as usize;
+            let end = offset + id.span.end as usize;
+            create_identifier(&id.name, start, end, line_offsets)
+                .as_json()
+                .clone()
+        }
+        AssignmentTarget::StaticMemberExpression(member) => {
+            let start = offset + member.span.start as usize;
+            let end = offset + member.span.end as usize;
+
+            let object = convert_expression_for_program(&member.object, offset, line_offsets);
+            let property = create_identifier(
+                &member.property.name,
+                offset + member.property.span.start as usize,
+                offset + member.property.span.end as usize,
+                line_offsets,
+            );
+
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("MemberExpression".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            obj.insert("object".to_string(), object.as_json().clone());
+            obj.insert("property".to_string(), property.as_json().clone());
+            obj.insert("computed".to_string(), Value::Bool(false));
+            obj.insert("optional".to_string(), Value::Bool(member.optional));
+
+            Value::Object(obj)
+        }
+        AssignmentTarget::ComputedMemberExpression(member) => {
+            let start = offset + member.span.start as usize;
+            let end = offset + member.span.end as usize;
+
+            let object = convert_expression_for_program(&member.object, offset, line_offsets);
+            let property = convert_expression_for_program(&member.expression, offset, line_offsets);
+
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("MemberExpression".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            obj.insert("object".to_string(), object.as_json().clone());
+            obj.insert("property".to_string(), property.as_json().clone());
+            obj.insert("computed".to_string(), Value::Bool(true));
+            obj.insert("optional".to_string(), Value::Bool(member.optional));
+
+            Value::Object(obj)
+        }
+        _ => {
+            // For complex patterns (ArrayAssignmentTarget, ObjectAssignmentTarget, etc.),
+            // fallback to placeholder. These are rarely used in Svelte templates.
+            Value::Null
+        }
+    }
 }
 
 /// Convert a binding property to JSON.

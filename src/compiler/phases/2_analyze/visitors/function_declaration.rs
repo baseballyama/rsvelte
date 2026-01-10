@@ -32,16 +32,18 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         }
     }
 
-    // Visit the function with incremented function depth
-    visit_function(context, |ctx| {
-        // Visit function body
-        if let Some(body) = node.get("body") {
-            eprintln!("DEBUG function_declaration: body = {:?}", body);
-            let _ = super::script::walk_js_node(body, ctx);
-        } else {
-            eprintln!("DEBUG function_declaration: NO body found");
-        }
-    });
+    // Increment function depth
+    context.function_depth += 1;
 
-    Ok(())
+    // Visit function body
+    let result = if let Some(body) = node.get("body") {
+        super::script::walk_js_node(body, context)
+    } else {
+        Ok(())
+    };
+
+    // Decrement function depth
+    context.function_depth -= 1;
+
+    result
 }
