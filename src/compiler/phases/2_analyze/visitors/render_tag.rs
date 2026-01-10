@@ -24,7 +24,7 @@ pub fn visit(tag: &mut RenderTag, context: &mut VisitorContext) -> Result<(), An
         .collect();
 
     // Unwrap optional chaining if present
-    let expression = unwrap_optional(&tag.expression.value);
+    let expression = unwrap_optional(tag.expression.as_json());
 
     // Get the callee from the call expression
     let callee = expression
@@ -58,10 +58,10 @@ pub fn visit(tag: &mut RenderTag, context: &mut VisitorContext) -> Result<(), An
     // - Binding is an import
     // - Binding is a prop/rest_prop/bindable_prop
     // - Binding's initial value is a SnippetBlock
-    let resolved = is_resolved_snippet(binding);
+    let _resolved = is_resolved_snippet(binding);
 
     // If the callee is an identifier that unambiguously references a local snippet, track it
-    if let Some(binding) = binding {
+    if let Some(_binding) = binding {
         // Check if the binding's initial node is a SnippetBlock
         // For now, we'll track snippet indices separately
         // TODO: Link to actual snippet blocks when we have a proper index mapping

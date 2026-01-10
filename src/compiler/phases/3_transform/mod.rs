@@ -88,11 +88,21 @@ pub fn transform_component(
         None
     };
 
+    // Convert Phase 2 analysis warnings to transform warnings
+    let warnings = analysis
+        .warnings
+        .iter()
+        .map(|w| TransformWarning {
+            code: w.code.clone(),
+            message: w.message.clone(),
+        })
+        .collect();
+
     Ok(TransformResult {
         js,
         js_map: None,
         css,
-        warnings: Vec::new(),
+        warnings,
     })
 }
 

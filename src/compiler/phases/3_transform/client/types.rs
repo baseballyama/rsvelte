@@ -455,6 +455,24 @@ impl Memoizer {
         expression
     }
 
+    /// Generate a unique identifier with a given base name.
+    ///
+    /// # Arguments
+    ///
+    /// * `base` - The base name for the identifier (e.g., "text", "div", "fragment")
+    ///
+    /// # Returns
+    ///
+    /// A unique identifier like "text", "text_2", "text_3", etc.
+    pub fn generate_id(&mut self, base: &str) -> String {
+        self.counter += 1;
+        if self.counter == 1 {
+            base.to_string()
+        } else {
+            format!("{}_{}", base, self.counter)
+        }
+    }
+
     /// Reset the memoizer state.
     pub fn reset(&mut self) {
         self.counter = 0;

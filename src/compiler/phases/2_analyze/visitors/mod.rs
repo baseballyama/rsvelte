@@ -182,6 +182,11 @@ impl<'a> VisitorContext<'a> {
     pub fn current_parent_idx(&self) -> Option<usize> {
         self.dom_element_stack.last().copied()
     }
+
+    /// Emit a warning during analysis.
+    pub fn emit_warning(&mut self, warning: super::warnings::AnalysisWarning) {
+        self.analysis.warnings.push(warning);
+    }
 }
 
 /// Analyze the template portion of the AST.
