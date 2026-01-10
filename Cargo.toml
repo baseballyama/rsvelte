@@ -42,6 +42,9 @@ miette = "7.4"
 # Regex
 regex = "1.11"
 
+# Source map handling
+sourcemap = "9.0"
+
 # File system
 walkdir = "2.5"
 

@@ -2089,7 +2089,7 @@ fn format_simple_selector_with_scope(
     sel: &Value,
     selector: &str,
     css_source: &str,
-    _css_start: Option<usize>,
+    css_start: Option<usize>,
     _depth: usize,
     ctx: Option<&CssContext>,
     use_direct_class: bool,
@@ -2102,15 +2102,35 @@ fn format_simple_selector_with_scope(
             .and_then(|n| n.as_str())
             .unwrap_or("")
             .to_string(),
-        "ClassSelector" => {
+        "ClassSelector" | "IdSelector" => {
+            // For class and ID selectors, use the original source to preserve
+            // Unicode escape sequences and their terminating whitespace
+            let prefix = if sel_type == "ClassSelector" {
+                "."
+            } else {
+                "#"
+            };
+
+            // Try to extract from original source first (preserves escape sequences)
+            if let (Some(start), Some(end), Some(css_start)) = (
+                sel.get("start").and_then(|s| s.as_u64()),
+                sel.get("end").and_then(|e| e.as_u64()),
+                css_start,
+            ) {
+                let start = start as usize;
+                let end = end as usize;
+                let src_start = start.saturating_sub(css_start);
+                let src_end = end.saturating_sub(css_start);
+
+                if src_end <= css_source.len() && src_start < src_end {
+                    return css_source[src_start..src_end].to_string();
+                }
+            }
+
+            // Fallback: reconstruct from name (may lose escape sequence whitespace)
             format!(
-                ".{}",
-                sel.get("name").and_then(|n| n.as_str()).unwrap_or("")
-            )
-        }
-        "IdSelector" => {
-            format!(
-                "#{}",
+                "{}{}",
+                prefix,
                 sel.get("name").and_then(|n| n.as_str()).unwrap_or("")
             )
         }

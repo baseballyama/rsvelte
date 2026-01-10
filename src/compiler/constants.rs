@@ -57,3 +57,41 @@ pub const PROPS_IS_LAZY_INITIAL: i32 = 1 << 4;
 // TODO: Add component flags when needed
 // pub const COMPONENT_IS_DYNAMIC: i32 = 1;
 // pub const COMPONENT_HAS_BINDINGS: i32 = 1 << 1;
+
+// =============================================================================
+// Hydration Markers
+// =============================================================================
+
+/// Hydration start marker
+pub const HYDRATION_START: &str = "[";
+
+/// Hydration start marker for else blocks
+pub const HYDRATION_START_ELSE: &str = "[!";
+
+/// Hydration end marker
+pub const HYDRATION_END: &str = "]";
+
+/// Block open marker (for hydration boundaries)
+pub const BLOCK_OPEN: &str = "<!--[-->";
+
+/// Block open marker for else blocks
+pub const BLOCK_OPEN_ELSE: &str = "<!--[!-->";
+
+/// Block close marker (for hydration boundaries)
+pub const BLOCK_CLOSE: &str = "<!--]-->";
+
+/// Empty comment marker (for anchors)
+pub const EMPTY_COMMENT: &str = "<!---->";
+
+// =============================================================================
+// Element Flags
+// =============================================================================
+
+/// Element is in a namespace (SVG or MathML)
+pub const ELEMENT_IS_NAMESPACED: i32 = 1;
+
+/// Preserve attribute case (for SVG, MathML, or custom elements)
+pub const ELEMENT_PRESERVE_ATTRIBUTE_CASE: i32 = 1 << 1;
+
+/// Element is an input element
+pub const ELEMENT_IS_INPUT: i32 = 1 << 2;

@@ -27,6 +27,47 @@ pub struct ReactiveStatement {
     pub dependencies: Vec<usize>,
 }
 
+/// Pre-transformed instance script body sections.
+/// Used for optimization during code generation.
+/// Corresponds to `instance_body` in ComponentAnalysis (phases/types.d.ts).
+#[derive(Debug, Default, Clone)]
+pub struct InstanceBody {
+    /// Statements hoisted to the top (imports)
+    pub hoisted: Vec<serde_json::Value>,
+    /// Synchronous statements (regular let/const declarations, function declarations)
+    pub sync: Vec<serde_json::Value>,
+    /// Asynchronous statements (with their await status)
+    pub async_: Vec<AsyncStatement>,
+    /// Variable declarations (identifiers that need blocker tracking)
+    pub declarations: Vec<String>,
+}
+
+/// An asynchronous statement with its await status.
+/// Corresponds to items in `instance_body.async` array.
+#[derive(Debug, Clone)]
+pub struct AsyncStatement {
+    /// The statement node (VariableDeclarator or Statement)
+    pub node: serde_json::Value,
+    /// Whether this statement contains await expressions
+    pub has_await: bool,
+}
+
+/// Declaration for an awaited value in an await block.
+/// Corresponds to AwaitedDeclaration in the official compiler.
+#[derive(Debug, Clone)]
+pub struct AwaitedDeclaration {
+    /// The identifier being declared
+    pub id: String,
+    /// Whether this declaration has await in its value
+    pub has_await: bool,
+    /// The pattern being destructured (if applicable)
+    pub pattern: Option<String>,
+    /// Expression metadata for the declaration
+    pub metadata: crate::ast::template::ExpressionMetadata,
+    /// Identifiers that update this declaration
+    pub updated_by: HashSet<String>,
+}
+
 impl ScriptContent {
     /// Extract script content from an AST Script node and source.
     pub fn from_script(script: &Script, source: &str) -> Self {
@@ -106,6 +147,9 @@ pub struct ComponentAnalysis {
     /// Whether the component needs props validation
     pub needs_props: bool,
 
+    /// Whether the component needs mutation validation (for reactive state tracking)
+    pub needs_mutation_validation: bool,
+
     /// Exported names and their aliases
     pub exports: Vec<Export>,
 
@@ -143,6 +187,31 @@ pub struct ComponentAnalysis {
     /// Maps from the labeled statement node (JSON string) to its analysis
     pub reactive_statements: HashMap<String, ReactiveStatement>,
 
+    /// Whether the component is immutable (no reactivity)
+    pub immutable: bool,
+
+    /// Whether the component uses accessors mode
+    pub accessors: bool,
+
+    /// Await expressions needing context preservation (pickled awaits)
+    pub pickled_awaits: HashSet<String>,
+
+    /// Identifiers that make up bind:group expressions -> internal group binding name
+    /// Maps from (key, bindings) to the generated identifier
+    pub binding_groups: HashMap<String, String>,
+
+    /// Slot names mapped to their SlotElement nodes
+    pub slot_names: HashMap<String, String>,
+
+    /// Every render tag/component and whether it could be definitively resolved
+    pub snippet_renderers: HashMap<String, bool>,
+
+    /// Pre-transformed <script> instance body (for optimization)
+    pub instance_body: InstanceBody,
+
+    /// JS comments from the AST (for preservation)
+    pub comments: Vec<String>,
+
     /// Warnings generated during analysis
     pub warnings: Vec<super::warnings::AnalysisWarning>,
 }
@@ -174,6 +243,7 @@ impl ComponentAnalysis {
             event_directive_node: None,
             needs_context: false,
             needs_props: false,
+            needs_mutation_validation: false,
             exports: Vec::new(),
             custom_element: None,
             inject_styles: options.css == crate::compiler::CssMode::Injected,
@@ -185,6 +255,14 @@ impl ComponentAnalysis {
             tracing: false,
             classes: HashMap::new(),
             reactive_statements: HashMap::new(),
+            immutable: false,
+            accessors: false,
+            pickled_awaits: HashSet::new(),
+            binding_groups: HashMap::new(),
+            slot_names: HashMap::new(),
+            snippet_renderers: HashMap::new(),
+            instance_body: InstanceBody::default(),
+            comments: Vec::new(),
             warnings: Vec::new(),
         }
     }

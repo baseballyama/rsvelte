@@ -53,7 +53,7 @@ impl Parser<'_> {
                 // No children, just closing tag - consume it
                 self.advance_by("</svelte:options".len());
                 self.skip_whitespace();
-                self.eat(">");
+                self.eat_optional(">");
             } else if !self.is_eof() {
                 // There's content - this is an error
                 // First, find where the content ends
@@ -76,7 +76,7 @@ impl Parser<'_> {
                 if self.match_str("</svelte:options") {
                     self.advance_by("</svelte:options".len());
                     self.skip_whitespace();
-                    self.eat(">");
+                    self.eat_optional(">");
                 }
             }
         }

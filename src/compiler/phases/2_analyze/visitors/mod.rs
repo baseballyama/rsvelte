@@ -104,6 +104,7 @@ use super::types::{ComponentAnalysis, CssDomElement, DomStructure, SiblingCertai
 use crate::ast::template::{Root, TemplateNode};
 
 /// Context for AST visitor traversal.
+/// Corresponds to AnalysisState in the official compiler.
 pub struct VisitorContext<'a> {
     /// The current scope.
     pub scope: usize,
@@ -118,13 +119,22 @@ pub struct VisitorContext<'a> {
     /// Set to Some(metadata) when visiting an expression, directive value, or block condition.
     pub expression: Option<*mut crate::ast::template::ExpressionMetadata>,
     /// Parent element name (for validation).
+    /// Tag name of parent element. None if parent is svelte:element, #snippet, component or root.
     pub parent_element: Option<String>,
     /// Current function depth.
     pub function_depth: usize,
+    /// Depth inside $derived(...) expressions (but not $derived.by(...)) or @const
+    pub derived_function_depth: usize,
     /// Whether we have a $props() rune.
     pub has_props_rune: bool,
     /// Current component slots.
     pub component_slots: std::collections::HashSet<String>,
+    /// AST type being analyzed ('instance', 'template', or 'module')
+    pub ast_type: AstType,
+    /// Current reactive statement being analyzed (for legacy mode)
+    pub reactive_statement: Option<*mut super::types::ReactiveStatement>,
+    /// State fields in the current class (for class body analysis)
+    pub state_fields: std::collections::HashMap<String, super::types::StateField>,
     /// Stack of DOM element indices for tracking parent-child relationships.
     pub dom_element_stack: Vec<usize>,
     /// Depth inside regular elements (for placement validation).
@@ -145,6 +155,17 @@ pub struct VisitorContext<'a> {
     pub has_svelte_options: bool,
 }
 
+/// Type of AST being analyzed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AstType {
+    /// Instance script (<script>)
+    Instance,
+    /// Template (component body)
+    Template,
+    /// Module script (<script context="module">)
+    Module,
+}
+
 impl<'a> VisitorContext<'a> {
     /// Create a new visitor context.
     pub fn new(analysis: &'a mut ComponentAnalysis) -> Self {
@@ -156,8 +177,12 @@ impl<'a> VisitorContext<'a> {
             expression: None,
             parent_element: None,
             function_depth: 0,
+            derived_function_depth: 0,
             has_props_rune: false,
             component_slots: std::collections::HashSet::new(),
+            ast_type: AstType::Template,
+            reactive_statement: None,
+            state_fields: std::collections::HashMap::new(),
             dom_element_stack: Vec::new(),
             element_depth: 0,
             block_depth: 0,

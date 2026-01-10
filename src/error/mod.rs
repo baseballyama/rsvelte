@@ -100,6 +100,17 @@ impl ParseError {
         }
     }
 
+    /// Create an expected token error.
+    ///
+    /// Corresponds to `expected_token()` in JavaScript errors.
+    pub fn expected_token(expected: &str, position: usize) -> Self {
+        ParseError::svelte(
+            "expected_token",
+            format!("Expected token {}", expected),
+            (position, position + 1),
+        )
+    }
+
     /// Create a TypeScript invalid feature error.
     pub fn typescript_invalid_feature(feature: impl Into<String>, span: (usize, usize)) -> Self {
         ParseError::TypeScriptInvalidFeature {

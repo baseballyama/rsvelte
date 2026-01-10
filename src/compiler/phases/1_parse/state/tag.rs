@@ -130,9 +130,9 @@ impl Parser<'_> {
         let mut found_closing = false;
         if self.match_str("{/") {
             self.advance_by(2);
-            self.eat("if");
+            self.eat_optional("if");
             self.skip_whitespace();
-            self.eat("}");
+            self.eat_optional("}");
             found_closing = true;
         }
 
@@ -183,7 +183,7 @@ impl Parser<'_> {
         self.advance_by(2); // consume '{:'
         self.skip_whitespace();
 
-        if !self.eat("else") {
+        if !self.eat_optional("else") {
             // Not an else block, backtrack
             self.index = else_block_start;
             return Ok(None);
@@ -191,7 +191,7 @@ impl Parser<'_> {
 
         self.skip_whitespace();
 
-        if self.eat("if") {
+        if self.eat_optional("if") {
             // {:else if ...}
             self.skip_whitespace();
             let alt_expr_start = self.index;
@@ -225,7 +225,7 @@ impl Parser<'_> {
         } else {
             // {:else}
             self.skip_whitespace(); // Handle {:else } with space before }
-            self.eat("}");
+            self.eat_optional("}");
             let alt_fragment = self.parse_fragment()?;
 
             // Don't consume {/if} here - let parse_if_block handle it
@@ -367,9 +367,9 @@ impl Parser<'_> {
                 self.advance_by(7);
             } else if self.match_str("{/") {
                 self.advance_by(2);
-                self.eat("each");
+                self.eat_optional("each");
                 self.skip_whitespace();
-                self.eat("}");
+                self.eat_optional("}");
             }
 
             return Ok(Some(TemplateNode::EachBlock(EachBlock {
@@ -508,7 +508,7 @@ impl Parser<'_> {
 
         // Check for index
         let mut index = None;
-        if self.eat(",") {
+        if self.eat_optional(",") {
             self.skip_whitespace();
             let idx_start = self.index;
             while !self.is_eof() {
@@ -526,7 +526,7 @@ impl Parser<'_> {
 
         // Check for key expression
         let mut key = None;
-        if self.eat("(") {
+        if self.eat_optional("(") {
             self.skip_whitespace();
             let key_start = self.index;
             let mut key_depth = 1;
@@ -544,11 +544,11 @@ impl Parser<'_> {
             let key_content = self.source[key_start..self.index].trim();
             // Use opening_token = '(' for key expressions (corresponds to Svelte's read_expression(parser, '('))
             key = Some(self.parse_js_expression_internal(key_content, key_start, false, '('));
-            self.eat(")"); // consume closing paren
+            self.eat_optional(")"); // consume closing paren
         }
 
         self.skip_whitespace();
-        self.eat("}"); // consume closing brace
+        self.eat_optional("}"); // consume closing brace
 
         // Push block to stack
         self.stack.push(StackEntry::EachBlock {
@@ -564,9 +564,9 @@ impl Parser<'_> {
             let continuation_start = self.index;
             self.advance_by(2);
             self.skip_whitespace();
-            if self.eat("else") {
+            if self.eat_optional("else") {
                 self.skip_whitespace();
-                self.eat("}");
+                self.eat_optional("}");
                 fallback = Some(self.parse_fragment()?);
             } else {
                 // Invalid continuation tag in each block - expected {:else}
@@ -581,9 +581,9 @@ impl Parser<'_> {
         // Handle closing {/each}
         if self.match_str("{/") {
             self.advance_by(2);
-            self.eat("each");
+            self.eat_optional("each");
             self.skip_whitespace();
-            self.eat("}");
+            self.eat_optional("}");
         }
 
         // Pop from stack
@@ -721,7 +721,7 @@ impl Parser<'_> {
             }
         }
 
-        self.eat("}"); // consume closing '}'
+        self.eat_optional("}"); // consume closing '}'
 
         // Push block to stack
         self.stack.push(StackEntry::AwaitBlock {
@@ -752,7 +752,7 @@ impl Parser<'_> {
             self.advance_by(2);
             self.skip_whitespace();
 
-            if self.eat("then") {
+            if self.eat_optional("then") {
                 self.skip_whitespace();
 
                 // Check if there's a value identifier
@@ -771,10 +771,10 @@ impl Parser<'_> {
                         ));
                     }
                 }
-                self.eat("}");
+                self.eat_optional("}");
 
                 then_fragment = Some(self.parse_fragment()?);
-            } else if self.eat("catch") {
+            } else if self.eat_optional("catch") {
                 self.skip_whitespace();
 
                 // Check if there's an error identifier
@@ -793,7 +793,7 @@ impl Parser<'_> {
                         ));
                     }
                 }
-                self.eat("}");
+                self.eat_optional("}");
 
                 catch_fragment = Some(self.parse_fragment()?);
             } else {
@@ -851,9 +851,9 @@ impl Parser<'_> {
         // Handle closing {/key} if present (but NOT other closing tags like {/if})
         if self.match_str("{/key") {
             self.advance_by(2); // consume '{/'
-            self.eat("key");
+            self.eat_optional("key");
             self.skip_whitespace();
-            self.eat("}");
+            self.eat_optional("}");
         }
 
         // Pop from stack
@@ -889,7 +889,7 @@ impl Parser<'_> {
 
         // Parse optional type parameters (between < and >)
         let mut type_params = None;
-        if self.eat("<") {
+        if self.eat_optional("<") {
             let type_params_start = self.index;
             let mut depth = 1;
             while !self.is_eof() && depth > 0 {
@@ -922,14 +922,14 @@ impl Parser<'_> {
             if !type_params_content.trim().is_empty() {
                 type_params = Some(CompactString::from(type_params_content.trim()));
             }
-            self.eat(">"); // consume closing >
+            self.eat_optional(">"); // consume closing >
         }
 
         // Parse parameters (inside parentheses)
         self.skip_whitespace();
         let mut parameters = Vec::new();
 
-        if self.eat("(") {
+        if self.eat_optional("(") {
             let params_start = self.index;
 
             // Find matching closing paren, accounting for nested parens and strings
@@ -1002,12 +1002,12 @@ impl Parser<'_> {
                 );
             }
 
-            self.eat(")"); // consume closing paren
+            self.eat_optional(")"); // consume closing paren
         }
 
         self.skip_whitespace();
         // Check for closing brace
-        if !self.eat("}") {
+        if !self.eat_optional("}") {
             // No closing brace found - report error
             return Err(crate::error::ParseError::svelte(
                 "expected_token",
@@ -1027,9 +1027,9 @@ impl Parser<'_> {
         // Handle closing {/snippet}
         if self.match_str("{/") {
             self.advance_by(2);
-            self.eat("snippet");
+            self.eat_optional("snippet");
             self.skip_whitespace();
-            self.eat("}");
+            self.eat_optional("}");
         }
 
         // Pop from stack

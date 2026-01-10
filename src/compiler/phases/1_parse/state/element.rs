@@ -122,8 +122,8 @@ impl Parser<'_> {
         self.skip_whitespace();
 
         // Check for self-closing or void element
-        let self_closing = self.eat("/");
-        let has_closing_bracket = self.eat(">"); // consume '>'
+        let self_closing = self.eat_optional("/");
+        let has_closing_bracket = self.eat_optional(">"); // consume '>'
 
         // For unclosed elements at EOF, report unexpected_eof error (unless in loose mode)
         if !has_closing_bracket && self.is_eof() && !self.options.loose {
@@ -206,7 +206,7 @@ impl Parser<'_> {
                             self.advance();
                         }
                     }
-                    self.eat(">"); // consume '>'
+                    self.eat_optional(">"); // consume '>'
                 } else {
                     // Mismatched close tag - in loose mode, auto-close current element
                     // and don't consume the close tag (let parent handle it)
@@ -728,12 +728,12 @@ impl Parser<'_> {
             self.skip_whitespace();
 
             // Check for @attach
-            if self.eat("@attach") {
+            if self.eat_optional("@attach") {
                 return self.parse_attach_attribute(start);
             }
 
             // Check for spread attribute {...expr}
-            if self.eat("...") {
+            if self.eat_optional("...") {
                 let expr_start = self.index;
                 let mut depth = 1;
                 while !self.is_eof() && depth > 0 {
@@ -871,7 +871,7 @@ impl Parser<'_> {
         }
 
         // Check for value
-        let (value, attr_end) = if self.eat("=") {
+        let (value, attr_end) = if self.eat_optional("=") {
             self.skip_whitespace();
             (self.parse_attribute_value()?, self.index)
         } else {
@@ -912,16 +912,16 @@ impl Parser<'_> {
         let name_loc = self.create_name_loc(name_start, name_end);
 
         // Parse the value (expression)
-        let (expression, end_pos) = if self.eat("=") {
+        let (expression, end_pos) = if self.eat_optional("=") {
             self.skip_whitespace();
             // Handle quoted value: ="{expression}"
-            if self.eat("\"") || self.eat("'") {
+            if self.eat_optional("\"") || self.eat_optional("'") {
                 let quote = if self.source.chars().nth(self.index - 1) == Some('"') {
                     '"'
                 } else {
                     '\''
                 };
-                if self.eat("{") {
+                if self.eat_optional("{") {
                     let expr_start = self.index;
                     let mut depth = 1;
                     while !self.is_eof() && depth > 0 {
@@ -954,7 +954,7 @@ impl Parser<'_> {
                     }
                     (None, self.index)
                 }
-            } else if self.eat("{") {
+            } else if self.eat_optional("{") {
                 // Expression in braces
                 let expr_start = self.index;
                 let mut depth = 1;
@@ -1018,16 +1018,16 @@ impl Parser<'_> {
         let name_loc = self.create_name_loc(name_start, name_end);
 
         // Parse the value (expression)
-        let (expression, end_pos) = if self.eat("=") {
+        let (expression, end_pos) = if self.eat_optional("=") {
             self.skip_whitespace();
             // Handle quoted value: ="{expression}"
-            if self.eat("\"") || self.eat("'") {
+            if self.eat_optional("\"") || self.eat_optional("'") {
                 let quote = if self.source.chars().nth(self.index - 1) == Some('"') {
                     '"'
                 } else {
                     '\''
                 };
-                if self.eat("{") {
+                if self.eat_optional("{") {
                     let expr_start = self.index;
                     let mut depth = 1;
                     while !self.is_eof() && depth > 0 {
@@ -1068,7 +1068,7 @@ impl Parser<'_> {
                         self.index,
                     )
                 }
-            } else if self.eat("{") {
+            } else if self.eat_optional("{") {
                 // Expression in braces
                 let expr_start = self.index;
                 let mut depth = 1;
@@ -1137,17 +1137,17 @@ impl Parser<'_> {
         let action_name = &full_name[4..]; // Skip "use:"
         let name_loc = self.create_name_loc(name_start, name_end);
 
-        let (expression, end_pos) = if self.eat("=") {
+        let (expression, end_pos) = if self.eat_optional("=") {
             self.skip_whitespace();
             // Handle quoted value: ="{expression}" or ="value"
-            if self.eat("\"") || self.eat("'") {
+            if self.eat_optional("\"") || self.eat_optional("'") {
                 let quote = if self.source.chars().nth(self.index - 1) == Some('"') {
                     '"'
                 } else {
                     '\''
                 };
                 // Look for expression inside quotes: "{expr}"
-                if self.eat("{") {
+                if self.eat_optional("{") {
                     let expr_start = self.index;
                     let mut depth = 1;
                     while !self.is_eof() && depth > 0 {
@@ -1182,7 +1182,7 @@ impl Parser<'_> {
                     }
                     (None, self.index)
                 }
-            } else if self.eat("{") {
+            } else if self.eat_optional("{") {
                 // Unquoted expression: ={expression}
                 let expr_start = self.index;
                 let mut depth = 1;
@@ -1234,9 +1234,9 @@ impl Parser<'_> {
         let class_name = &full_name[6..]; // Skip "class:"
         let name_loc = self.create_name_loc(name_start, name_end);
 
-        let expression = if self.eat("=") {
+        let expression = if self.eat_optional("=") {
             self.skip_whitespace();
-            if self.eat("{") {
+            if self.eat_optional("{") {
                 let expr_start = self.index;
                 let mut depth = 1;
                 while !self.is_eof() && depth > 0 {
@@ -1307,9 +1307,9 @@ impl Parser<'_> {
 
         let name_loc = self.create_name_loc(name_start, name_end);
 
-        let value = if self.eat("=") {
+        let value = if self.eat_optional("=") {
             self.skip_whitespace();
-            if self.eat("{") {
+            if self.eat_optional("{") {
                 let expr_start = self.index;
                 let mut depth = 1;
                 while !self.is_eof() && depth > 0 {
@@ -1331,7 +1331,7 @@ impl Parser<'_> {
                     end: self.index as u32,
                     expression: self.parse_js_expression(expr_content, expr_start),
                 })
-            } else if self.eat("\"") || self.eat("'") {
+            } else if self.eat_optional("\"") || self.eat_optional("'") {
                 // Quoted string value with potential expressions: "red{variable}"
                 let quote = if self.source.chars().nth(self.index - 1) == Some('"') {
                     '"'
@@ -1507,16 +1507,16 @@ impl Parser<'_> {
 
         let name_loc = self.create_name_loc(name_start, name_end);
 
-        let (expression, end_pos) = if self.eat("=") {
+        let (expression, end_pos) = if self.eat_optional("=") {
             self.skip_whitespace();
             // Handle quoted value: ="{expression}"
-            if self.eat("\"") || self.eat("'") {
+            if self.eat_optional("\"") || self.eat_optional("'") {
                 let quote = if self.source.chars().nth(self.index - 1) == Some('"') {
                     '"'
                 } else {
                     '\''
                 };
-                if self.eat("{") {
+                if self.eat_optional("{") {
                     let expr_start = self.index;
                     let mut depth = 1;
                     while !self.is_eof() && depth > 0 {
@@ -1549,7 +1549,7 @@ impl Parser<'_> {
                     }
                     (None, self.index)
                 }
-            } else if self.eat("{") {
+            } else if self.eat_optional("{") {
                 let expr_start = self.index;
                 let mut depth = 1;
                 while !self.is_eof() && depth > 0 {
@@ -1615,9 +1615,9 @@ impl Parser<'_> {
         let animate_name = &full_name[8..]; // Skip "animate:"
         let name_loc = self.create_name_loc(name_start, name_end);
 
-        let expression = if self.eat("=") {
+        let expression = if self.eat_optional("=") {
             self.skip_whitespace();
-            if self.eat("{") {
+            if self.eat_optional("{") {
                 let expr_start = self.index;
                 let mut depth = 1;
                 while !self.is_eof() && depth > 0 {
@@ -1665,9 +1665,9 @@ impl Parser<'_> {
         let let_name = &full_name[4..]; // Skip "let:"
         let name_loc = self.create_name_loc(name_start, name_end);
 
-        let expression = if self.eat("=") {
+        let expression = if self.eat_optional("=") {
             self.skip_whitespace();
-            if self.eat("{") {
+            if self.eat_optional("{") {
                 let expr_start = self.index;
                 let mut depth = 1;
                 while !self.is_eof() && depth > 0 {
@@ -1751,9 +1751,9 @@ impl Parser<'_> {
             ));
         }
 
-        let quote = if self.eat("\"") {
+        let quote = if self.eat_optional("\"") {
             Some('"')
-        } else if self.eat("'") {
+        } else if self.eat_optional("'") {
             Some('\'')
         } else {
             None

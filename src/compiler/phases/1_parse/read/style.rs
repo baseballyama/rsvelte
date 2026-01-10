@@ -78,7 +78,7 @@ impl Parser<'_> {
             while !self.is_eof() && self.current_char() != '>' {
                 self.advance();
             }
-            self.eat(">"); // consume '>'
+            self.eat_optional(">"); // consume '>'
         } else if self.is_eof() {
             // Style tag was not closed - check if there was invalid '<' in content
             if let Some(lt_pos) = first_invalid_lt {
@@ -240,7 +240,7 @@ impl<'a> CssParser<'a> {
             }
 
             // Consume closing brace
-            self.eat("}");
+            self.eat_optional("}");
             let block_end = self.offset + self.index;
 
             let mut block_obj = Map::new();
@@ -253,7 +253,7 @@ impl<'a> CssParser<'a> {
             block_obj.insert("children".to_string(), Value::Array(children));
             Value::Object(block_obj)
         } else {
-            self.eat(";");
+            self.eat_optional(";");
             Value::Null
         };
 
@@ -277,16 +277,20 @@ impl<'a> CssParser<'a> {
         let selector_start = self.index;
         self.skip_until_block_start();
         let selector_end = self.index;
-        let selector_text = self.source[selector_start..selector_end].trim();
+        let selector_text = &self.source[selector_start..selector_end];
 
-        if selector_text.is_empty() {
+        if selector_text.trim().is_empty() {
             return None;
         }
 
-        let prelude = self.parse_selector_list(selector_text, self.offset + selector_start);
+        // Calculate the actual start position (skipping leading whitespace)
+        let leading_ws = selector_text.len() - selector_text.trim_start().len();
+        let adjusted_start = self.offset + selector_start + leading_ws;
+
+        let prelude = self.parse_selector_list(selector_text, adjusted_start);
 
         // Parse block
-        if !self.eat("{") {
+        if !self.eat_optional("{") {
             return None;
         }
 
@@ -466,9 +470,11 @@ impl<'a> CssParser<'a> {
 
         // Add the last selector
         if current_start < text.len() {
-            let selector_text = text[current_start..].trim();
-            if !selector_text.is_empty() {
-                let selector_offset = base_offset + current_start;
+            let selector_text = &text[current_start..];
+            if !selector_text.trim().is_empty() {
+                // Calculate offset skipping leading whitespace
+                let leading_ws = selector_text.len() - selector_text.trim_start().len();
+                let selector_offset = base_offset + current_start + leading_ws;
                 let rel_selector =
                     self.create_relative_selector(selector_text, selector_offset, last_combinator);
                 result.push(rel_selector);
@@ -477,7 +483,10 @@ impl<'a> CssParser<'a> {
 
         // If no selectors were found, create one for the whole text
         if result.is_empty() && !text.trim().is_empty() {
-            let rel_selector = self.create_relative_selector(text.trim(), base_offset, None);
+            // Calculate offset skipping leading whitespace
+            let leading_ws = text.len() - text.trim_start().len();
+            let adjusted_offset = base_offset + leading_ws;
+            let rel_selector = self.create_relative_selector(text, adjusted_offset, None);
             result.push(rel_selector);
         }
 
@@ -528,13 +537,14 @@ impl<'a> CssParser<'a> {
 
     fn parse_simple_selectors(&self, text: &str, offset: usize) -> Vec<Value> {
         let mut selectors = Vec::new();
-        let trimmed = text.trim();
 
-        if trimmed.is_empty() {
+        // Don't trim the text - we need to preserve Unicode escape sequence terminators
+        // which may be whitespace characters
+        if text.trim().is_empty() {
             return selectors;
         }
 
-        let mut parser = SelectorParser::new(trimmed, offset);
+        let mut parser = SelectorParser::new(text, offset);
         parser.parse_selectors(&mut selectors);
         selectors
     }
@@ -612,7 +622,7 @@ impl<'a> CssParser<'a> {
                     self.advance();
                 }
                 let at_end = self.offset + self.index;
-                self.eat(";");
+                self.eat_optional(";");
 
                 // Create an Atrule node for the nested at-rule
                 let at_text = &self.source[at_start - self.offset..at_end - self.offset];
@@ -657,12 +667,12 @@ impl<'a> CssParser<'a> {
                 while !self.is_eof() && self.current_char() != ';' && self.current_char() != '}' {
                     self.advance();
                 }
-                self.eat(";");
+                self.eat_optional(";");
             }
             self.skip_whitespace();
         }
 
-        self.eat("}");
+        self.eat_optional("}");
         let end = self.offset + self.index;
 
         let mut obj = Map::new();
@@ -758,7 +768,7 @@ impl<'a> CssParser<'a> {
 
         // End position is before the semicolon
         let end = self.offset + self.index;
-        self.eat(";");
+        self.eat_optional(";");
 
         let mut obj = Map::new();
         obj.insert("type".to_string(), Value::String("Declaration".to_string()));
@@ -1499,9 +1509,11 @@ impl<'a> SelectorParser<'a> {
 
         // Add the last selector
         if current_start < text.len() {
-            let selector_text = text[current_start..].trim();
-            if !selector_text.is_empty() {
-                let selector_offset = base_offset + current_start;
+            let selector_text = &text[current_start..];
+            if !selector_text.trim().is_empty() {
+                // Calculate offset skipping leading whitespace
+                let leading_ws = selector_text.len() - selector_text.trim_start().len();
+                let selector_offset = base_offset + current_start + leading_ws;
                 let rel_selector =
                     self.create_relative_selector(selector_text, selector_offset, last_combinator);
                 result.push(rel_selector);
@@ -1510,7 +1522,10 @@ impl<'a> SelectorParser<'a> {
 
         // If no selectors were found, create one for the whole text
         if result.is_empty() && !text.trim().is_empty() {
-            let rel_selector = self.create_relative_selector(text.trim(), base_offset, None);
+            // Calculate offset skipping leading whitespace
+            let leading_ws = text.len() - text.trim_start().len();
+            let adjusted_offset = base_offset + leading_ws;
+            let rel_selector = self.create_relative_selector(text, adjusted_offset, None);
             result.push(rel_selector);
         }
 
@@ -1586,6 +1601,17 @@ impl<'a> SelectorParser<'a> {
 
         let name = self.read_identifier();
         let end = self.offset + self.index;
+
+        // Debug output for Unicode escape sequences
+        if name.contains('\\') {
+            eprintln!(
+                "[DEBUG parse_id_selector] start={}, end={}, name={:?}, name.len()={}",
+                start,
+                end,
+                name,
+                name.len()
+            );
+        }
 
         let mut obj = Map::new();
         obj.insert("type".to_string(), Value::String("IdSelector".to_string()));
@@ -1716,6 +1742,10 @@ impl<'a> SelectorParser<'a> {
                 let next = self.current_char();
 
                 if next.is_ascii_hexdigit() {
+                    eprintln!(
+                        "[DEBUG read_identifier] entering hex block at index={}",
+                        self.index
+                    );
                     // Read 1-6 hex digits
                     let mut hex_count = 0;
                     while !self.is_eof() && hex_count < 6 {
@@ -1726,12 +1756,31 @@ impl<'a> SelectorParser<'a> {
                         self.advance();
                         hex_count += 1;
                     }
+                    eprintln!(
+                        "[DEBUG read_identifier] after hex loop: index={}, hex_count={}",
+                        self.index, hex_count
+                    );
+                    eprintln!(
+                        "[DEBUG read_identifier] is_eof={}, source.len={}",
+                        self.is_eof(),
+                        self.source.len()
+                    );
                     // After hex digits, optionally consume one whitespace character
                     // but this whitespace is part of the escape and should be preserved
                     if !self.is_eof() {
                         let after = self.current_char();
-                        if after == ' ' || after == '\t' || after == '\n' || after == '\r' {
+                        let will_advance =
+                            after == ' ' || after == '\t' || after == '\n' || after == '\r';
+                        eprintln!(
+                            "[DEBUG read_identifier hex] index={}, after={:?}, will_advance={}",
+                            self.index, after, will_advance
+                        );
+                        if will_advance {
                             self.advance();
+                            eprintln!(
+                                "[DEBUG read_identifier hex] advanced to index={}",
+                                self.index
+                            );
                         }
                     }
                 } else {

@@ -41,9 +41,12 @@
 pub mod constants;
 pub mod legacy;
 pub mod phases;
+pub mod preprocess;
+pub mod print;
 pub mod utils;
 
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 // Re-export phase types
 pub use phases::phase2_analyze::{AnalysisError, ComponentAnalysis};
@@ -58,23 +61,253 @@ pub enum GenerateMode {
     Client,
     /// Generate server-side code for SSR.
     Server,
+    /// Don't generate code (useful for tooling that only needs warnings).
+    #[serde(rename = "false")]
+    None,
+}
+
+/// Namespace for elements.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Namespace {
+    /// HTML namespace (default).
+    #[default]
+    Html,
+    /// SVG namespace.
+    Svg,
+    /// MathML namespace.
+    Mathml,
+}
+
+/// Fragment cloning strategy.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum FragmentMode {
+    /// Use innerHTML and clone (faster, but requires trusted types).
+    #[default]
+    Html,
+    /// Create elements one by one and clone (slower, but works everywhere).
+    Tree,
+}
+
+/// Component API compatibility mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum ComponentApi {
+    /// Svelte 4 compatible API.
+    #[serde(rename = "4")]
+    V4,
+    /// Svelte 5 API (default).
+    #[default]
+    #[serde(rename = "5")]
+    V5,
+}
+
+/// Compatibility options for backward compatibility.
+#[derive(Debug, Clone, Default)]
+pub struct CompatibilityConfig {
+    /// Component API version (4 or 5).
+    pub component_api: ComponentApi,
+}
+
+/// Custom element configuration.
+#[derive(Debug, Clone)]
+pub struct CustomElementConfig {
+    /// Tag name for the custom element.
+    pub tag: Option<String>,
+    /// Shadow DOM mode ('open' or 'none').
+    pub shadow: Option<ShadowMode>,
+    /// Props configuration for custom elements.
+    pub props: Option<std::collections::HashMap<String, CustomElementPropConfig>>,
+    /// Extension function for the custom element class.
+    /// Note: In TypeScript this is `(ceClass: new () => HTMLElement) => new () => HTMLElement`
+    /// but in Rust we'll store the AST node when needed.
+    pub extend: Option<()>, // Will be implemented later with proper AST types
+}
+
+/// Shadow DOM mode for custom elements.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ShadowMode {
+    /// Open shadow root.
+    Open,
+    /// No shadow root.
+    None,
+}
+
+/// Custom element property configuration.
+#[derive(Debug, Clone)]
+pub struct CustomElementPropConfig {
+    /// Attribute name mapping.
+    pub attribute: Option<String>,
+    /// Whether to reflect the property to an attribute.
+    pub reflect: bool,
+    /// Type of the property.
+    pub prop_type: Option<CustomElementPropType>,
+}
+
+/// Type of custom element property.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CustomElementPropType {
+    Array,
+    Boolean,
+    Number,
+    Object,
+    String,
+}
+
+/// CSS hash function type.
+pub type CssHashFn = Arc<dyn Fn(&CssHashInput) -> String + Send + Sync>;
+
+/// Input for CSS hash function.
+pub struct CssHashInput {
+    /// Component name.
+    pub name: String,
+    /// Filename.
+    pub filename: String,
+    /// CSS code.
+    pub css: String,
+    /// Hash function.
+    pub hash: Arc<dyn Fn(&str) -> String + Send + Sync>,
+}
+
+/// Warning filter function type.
+pub type WarningFilterFn = Arc<dyn Fn(&Warning) -> bool + Send + Sync>;
+
+/// Experimental options.
+#[derive(Debug, Clone, Default)]
+pub struct ExperimentalOptions {
+    /// Allow `await` keyword in deriveds, template expressions, and top level of components.
+    pub r#async: bool,
 }
 
 /// Options for the Svelte compiler.
-#[derive(Debug, Clone, Default)]
 pub struct CompileOptions {
-    /// The target generation mode (client or server).
-    pub generate: GenerateMode,
-    /// The name of the component (derived from filename if not provided).
-    pub name: Option<String>,
-    /// The filename of the component being compiled.
-    pub filename: Option<String>,
+    // === ModuleCompileOptions fields ===
     /// Enable development mode (additional runtime checks).
     pub dev: bool,
-    /// Enable HMR (Hot Module Replacement) support.
-    pub hmr: bool,
+    /// The target generation mode (client or server).
+    pub generate: GenerateMode,
+    /// The filename of the component being compiled.
+    pub filename: Option<String>,
+    /// Root directory for relative path resolution.
+    pub root_dir: Option<String>,
+    /// Warning filter function.
+    #[allow(clippy::type_complexity)]
+    pub warning_filter: Option<WarningFilterFn>,
+    /// Experimental options.
+    pub experimental: ExperimentalOptions,
+
+    // === Component-specific options ===
+    /// The name of the component (derived from filename if not provided).
+    pub name: Option<String>,
+    /// Enable custom element mode.
+    pub custom_element: bool,
+    /// Custom element configuration (when custom_element is true or from svelte:options).
+    pub custom_element_options: Option<CustomElementConfig>,
+    /// Enable accessors for component props.
+    /// @deprecated This will have no effect in runes mode.
+    pub accessors: bool,
+    /// The namespace of the element.
+    pub namespace: Namespace,
+    /// Enable immutable mode.
+    /// @deprecated This will have no effect in runes mode.
+    pub immutable: bool,
     /// CSS handling mode.
     pub css: CssMode,
+    /// CSS hash function.
+    pub css_hash: Option<CssHashFn>,
+    /// Preserve HTML comments in output.
+    pub preserve_comments: bool,
+    /// Preserve whitespace as typed.
+    pub preserve_whitespace: bool,
+    /// Fragment cloning strategy.
+    pub fragments: FragmentMode,
+    /// Force runes mode on/off (undefined = auto-detect).
+    pub runes: Option<bool>,
+    /// Expose Svelte version in browser.
+    pub disclose_version: bool,
+    /// Compatibility options.
+    pub compatibility: CompatibilityConfig,
+    /// Initial sourcemap (usually from preprocessor).
+    pub sourcemap: Option<String>,
+    /// Output filename for JavaScript sourcemap.
+    pub output_filename: Option<String>,
+    /// Output filename for CSS sourcemap.
+    pub css_output_filename: Option<String>,
+    /// Enable HMR (Hot Module Replacement) support.
+    pub hmr: bool,
+    /// Return modern AST format.
+    pub modern_ast: bool,
+}
+
+impl Default for CompileOptions {
+    fn default() -> Self {
+        Self {
+            // ModuleCompileOptions defaults
+            dev: false,
+            generate: GenerateMode::Client,
+            filename: None,
+            root_dir: None,
+            warning_filter: None,
+            experimental: ExperimentalOptions::default(),
+
+            // Component options defaults
+            name: None,
+            custom_element: false,
+            custom_element_options: None,
+            accessors: false,
+            namespace: Namespace::Html,
+            immutable: false,
+            css: CssMode::External,
+            css_hash: None,
+            preserve_comments: false,
+            preserve_whitespace: false,
+            fragments: FragmentMode::Html,
+            runes: None,
+            disclose_version: true,
+            compatibility: CompatibilityConfig::default(),
+            sourcemap: None,
+            output_filename: None,
+            css_output_filename: None,
+            hmr: false,
+            modern_ast: false,
+        }
+    }
+}
+
+impl std::fmt::Debug for CompileOptions {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CompileOptions")
+            .field("dev", &self.dev)
+            .field("generate", &self.generate)
+            .field("filename", &self.filename)
+            .field("root_dir", &self.root_dir)
+            .field(
+                "warning_filter",
+                &self.warning_filter.as_ref().map(|_| "<function>"),
+            )
+            .field("experimental", &self.experimental)
+            .field("name", &self.name)
+            .field("custom_element", &self.custom_element)
+            .field("custom_element_options", &self.custom_element_options)
+            .field("accessors", &self.accessors)
+            .field("namespace", &self.namespace)
+            .field("immutable", &self.immutable)
+            .field("css", &self.css)
+            .field("css_hash", &self.css_hash.as_ref().map(|_| "<function>"))
+            .field("preserve_comments", &self.preserve_comments)
+            .field("preserve_whitespace", &self.preserve_whitespace)
+            .field("fragments", &self.fragments)
+            .field("runes", &self.runes)
+            .field("disclose_version", &self.disclose_version)
+            .field("compatibility", &self.compatibility)
+            .field("sourcemap", &self.sourcemap)
+            .field("output_filename", &self.output_filename)
+            .field("css_output_filename", &self.css_output_filename)
+            .field("hmr", &self.hmr)
+            .field("modern_ast", &self.modern_ast)
+            .finish()
+    }
 }
 
 /// CSS handling mode for the compiler.
@@ -82,12 +315,10 @@ pub struct CompileOptions {
 #[serde(rename_all = "lowercase")]
 pub enum CssMode {
     /// Inject CSS into the component.
-    #[default]
     Injected,
     /// Extract CSS to a separate file.
+    #[default]
     External,
-    /// Don't process CSS at all.
-    None,
 }
 
 /// Result of compiling a Svelte component.
@@ -96,9 +327,31 @@ pub struct CompileResult {
     /// The generated JavaScript code.
     pub js: CompileOutput,
     /// The generated CSS (if any).
-    pub css: Option<CompileOutput>,
+    pub css: Option<CssOutput>,
     /// Compiler warnings.
     pub warnings: Vec<Warning>,
+    /// Metadata about the compiled component.
+    pub metadata: CompileMetadata,
+    /// The AST (if requested).
+    pub ast: Option<String>, // Will be properly typed later
+}
+
+/// Metadata about the compiled component.
+#[derive(Debug, Clone)]
+pub struct CompileMetadata {
+    /// Whether the file was compiled in runes mode.
+    pub runes: bool,
+}
+
+/// CSS output with additional metadata.
+#[derive(Debug, Clone)]
+pub struct CssOutput {
+    /// The generated CSS code.
+    pub code: String,
+    /// Optional source map.
+    pub map: Option<String>,
+    /// Whether the CSS includes global rules.
+    pub has_global: bool,
 }
 
 /// Output code with optional source map.
@@ -163,6 +416,12 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
     // Phase 2: Analyze
     let analysis = phases::phase2_analyze::analyze_component(&mut ast, source, &options)?;
 
+    // Determine if runes mode was used
+    let runes_mode = options.runes.unwrap_or_else(|| {
+        // Auto-detect runes mode from analysis
+        analysis.runes
+    });
+
     // Phase 3: Transform (pass AST to avoid re-parsing)
     let transform_result =
         phases::phase3_transform::transform_component(&analysis, &ast, source, &options)?;
@@ -173,9 +432,10 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
             code: transform_result.js,
             map: transform_result.js_map,
         },
-        css: transform_result.css.map(|c| CompileOutput {
+        css: transform_result.css.map(|c| CssOutput {
             code: c.code,
             map: c.map,
+            has_global: false, // TODO: Track global CSS usage
         }),
         warnings: transform_result
             .warnings
@@ -187,6 +447,8 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
                 end: None,
             })
             .collect(),
+        metadata: CompileMetadata { runes: runes_mode },
+        ast: None, // TODO: Return AST if options.modern_ast is true
     })
 }
 

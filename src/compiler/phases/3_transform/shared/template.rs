@@ -65,6 +65,64 @@ pub fn normalize_whitespace(s: &str) -> String {
     result
 }
 
+/// Sanitize a template string by escaping special characters.
+pub fn sanitize_template_string(s: &str) -> String {
+    s.replace('\\', "\\\\")
+        .replace('`', "\\`")
+        .replace("${", "\\${")
+}
+
+/// Check if an attribute is a boolean attribute.
+pub fn is_boolean_attribute(name: &str) -> bool {
+    matches!(
+        name,
+        "allowfullscreen"
+            | "async"
+            | "autofocus"
+            | "autoplay"
+            | "checked"
+            | "controls"
+            | "default"
+            | "defer"
+            | "disabled"
+            | "formnovalidate"
+            | "hidden"
+            | "inert"
+            | "ismap"
+            | "itemscope"
+            | "loop"
+            | "multiple"
+            | "muted"
+            | "nomodule"
+            | "novalidate"
+            | "open"
+            | "playsinline"
+            | "readonly"
+            | "required"
+            | "reversed"
+            | "selected"
+    )
+}
+
+/// Check if a name is a custom element (has hyphen or is attribute).
+pub fn is_custom_element_node(name: &str) -> bool {
+    name.contains('-')
+}
+
+/// Check if a node is an element node (for template processing).
+pub fn is_element_node(node: &crate::ast::template::TemplateNode) -> bool {
+    use crate::ast::template::TemplateNode;
+    matches!(
+        node,
+        TemplateNode::Element(_)
+            | TemplateNode::Component(_)
+            | TemplateNode::SvelteElement(_)
+            | TemplateNode::SlotElement(_)
+            | TemplateNode::TitleElement(_)
+            | TemplateNode::SvelteFragment(_)
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -130,6 +130,20 @@ pub struct Binding {
     pub mutations: Vec<Mutation>,
     /// Prop alias (for exported props with different names)
     pub prop_alias: Option<String>,
+    /// Instance-level declarations may follow (or contain) a top-level `await`. In these cases,
+    /// any reads that occur in the template must wait for the corresponding promise to resolve
+    /// otherwise the initial value will not have been assigned.
+    /// It is a member expression of the form `$$promises[n]`.
+    /// Corresponds to `blocker` field in Svelte's Binding class (scope.js).
+    pub blocker: Option<BlockerExpression>,
+}
+
+/// A blocker expression representing `$$promises[n]`.
+/// Used to track async dependencies in instance-level declarations.
+#[derive(Debug, Clone)]
+pub struct BlockerExpression {
+    /// The index in the $$promises array
+    pub index: usize,
 }
 
 /// A reference to a binding from within the code
@@ -155,6 +169,7 @@ impl Binding {
             references: Vec::new(),
             mutations: Vec::new(),
             prop_alias: None,
+            blocker: None,
         }
     }
 

@@ -16,6 +16,7 @@
 //! Corresponds to Svelte's `2-analyze/` directory.
 
 pub mod binding_properties;
+pub mod blockers;
 pub mod control_flow;
 pub mod css;
 pub mod errors;
@@ -27,10 +28,14 @@ pub mod visitors;
 pub mod warnings;
 
 pub use scope::{
-    Binding, BindingKind, BindingReference, DeclarationKind, Mutation, MutationKind, Scope,
-    ScopeRoot,
+    Binding, BindingKind, BindingReference, BlockerExpression, DeclarationKind, Mutation,
+    MutationKind, Scope, ScopeRoot,
 };
-pub use types::{ComponentAnalysis, CssAnalysis, JsAnalysis, ScriptContent, TemplateAnalysis};
+pub use types::{
+    AsyncStatement, AwaitedDeclaration, ComponentAnalysis, CssAnalysis, InstanceBody, JsAnalysis,
+    ReactiveStatement, ScriptContent, TemplateAnalysis,
+};
+pub use visitors::AstType;
 
 use crate::ast::template::Root;
 use crate::compiler::CompileOptions;
@@ -203,5 +208,343 @@ pub fn get_component_name(filename: &str) -> String {
     match chars.next() {
         None => "Component".to_string(),
         Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+    }
+}
+
+/// Order reactive statements ($: statements) based on their dependencies.
+///
+/// This performs a topological sort of reactive statements to ensure they execute
+/// in the correct order. It also detects circular dependencies.
+///
+/// Corresponds to `order_reactive_statements()` in Svelte's `2-analyze/index.js`.
+///
+/// # Arguments
+///
+/// * `unsorted_reactive_declarations` - Unordered map of reactive statements
+///
+/// # Returns
+///
+/// Returns an ordered vector of (statement_key, ReactiveStatement) tuples sorted by dependencies.
+/// The order is preserved using insertion order.
+///
+/// # Errors
+///
+/// Returns an error if a circular dependency is detected.
+pub fn order_reactive_statements(
+    unsorted_reactive_declarations: std::collections::HashMap<String, ReactiveStatement>,
+) -> Result<Vec<(String, ReactiveStatement)>, AnalysisError> {
+    use std::collections::{HashMap, HashSet};
+
+    // Build a lookup map: binding_index -> list of (statement_key, ReactiveStatement)
+    let mut lookup: HashMap<usize, Vec<(String, ReactiveStatement)>> = HashMap::new();
+
+    for (key, declaration) in &unsorted_reactive_declarations {
+        for &assignment_idx in &declaration.assignments {
+            lookup
+                .entry(assignment_idx)
+                .or_insert_with(Vec::new)
+                .push((key.clone(), declaration.clone()));
+        }
+    }
+
+    // Build dependency edges for cycle detection
+    // Edge: (assignment_binding_index, dependency_binding_index)
+    let mut edges: Vec<(usize, usize)> = Vec::new();
+
+    for (_, declaration) in &unsorted_reactive_declarations {
+        for &assignment in &declaration.assignments {
+            for &dependency in &declaration.dependencies {
+                // Only add edge if dependency is not also an assignment
+                // (self-assignments are allowed)
+                if !declaration.assignments.contains(&dependency) {
+                    edges.push((assignment, dependency));
+                }
+            }
+        }
+    }
+
+    // Check for cycles using depth-first search
+    if let Some(cycle) = check_graph_for_cycles(&edges) {
+        // The cycle contains binding indices, we need to report it
+        // For now, just return an error with the cycle information
+        return Err(AnalysisError::Validation(format!(
+            "Cyclical dependency detected in reactive statements involving bindings: {:?}",
+            cycle
+        )));
+    }
+
+    // Build the ordered list using dependency ordering
+    let mut reactive_declarations: Vec<(String, ReactiveStatement)> = Vec::new();
+    let mut added_declarations: HashSet<String> = HashSet::new();
+
+    // Recursive function to add a declaration and its dependencies
+    fn add_declaration(
+        key: &str,
+        declaration: &ReactiveStatement,
+        reactive_declarations: &mut Vec<(String, ReactiveStatement)>,
+        added_declarations: &mut HashSet<String>,
+        lookup: &HashMap<usize, Vec<(String, ReactiveStatement)>>,
+    ) {
+        // If already added, skip
+        if added_declarations.contains(key) {
+            return;
+        }
+
+        // First, add all dependencies (that are not also assignments in this declaration)
+        for &dependency_idx in &declaration.dependencies {
+            if declaration.assignments.contains(&dependency_idx) {
+                continue;
+            }
+
+            // Find all statements that assign to this dependency and add them first
+            if let Some(earlier_statements) = lookup.get(&dependency_idx) {
+                for (earlier_key, earlier_decl) in earlier_statements {
+                    add_declaration(
+                        earlier_key,
+                        earlier_decl,
+                        reactive_declarations,
+                        added_declarations,
+                        lookup,
+                    );
+                }
+            }
+        }
+
+        // Now add this declaration
+        reactive_declarations.push((key.to_string(), declaration.clone()));
+        added_declarations.insert(key.to_string());
+    }
+
+    // Add all declarations in dependency order
+    for (key, declaration) in &unsorted_reactive_declarations {
+        add_declaration(
+            key,
+            declaration,
+            &mut reactive_declarations,
+            &mut added_declarations,
+            &lookup,
+        );
+    }
+
+    Ok(reactive_declarations)
+}
+
+/// Check a graph for cycles using depth-first search.
+///
+/// Corresponds to `check_graph_for_cycles()` in Svelte's
+/// `2-analyze/utils/check_graph_for_cycles.js`.
+///
+/// # Arguments
+///
+/// * `edges` - List of directed edges (from, to)
+///
+/// # Returns
+///
+/// Returns the first cycle found, or None if no cycles exist.
+fn check_graph_for_cycles(edges: &[(usize, usize)]) -> Option<Vec<usize>> {
+    use std::collections::{HashMap, HashSet};
+
+    // Build adjacency list
+    let mut graph: HashMap<usize, Vec<usize>> = HashMap::new();
+    for &(u, v) in edges {
+        graph.entry(u).or_insert_with(Vec::new);
+        graph.entry(v).or_insert_with(Vec::new);
+        graph.get_mut(&u).unwrap().push(v);
+    }
+
+    let mut visited: HashSet<usize> = HashSet::new();
+    let mut on_stack: HashSet<usize> = HashSet::new();
+    let mut stack_vec: Vec<usize> = Vec::new();
+    let mut cycles: Vec<Vec<usize>> = Vec::new();
+
+    fn visit(
+        v: usize,
+        graph: &HashMap<usize, Vec<usize>>,
+        visited: &mut HashSet<usize>,
+        on_stack: &mut HashSet<usize>,
+        stack_vec: &mut Vec<usize>,
+        cycles: &mut Vec<Vec<usize>>,
+    ) {
+        visited.insert(v);
+        on_stack.insert(v);
+        stack_vec.push(v);
+
+        if let Some(neighbors) = graph.get(&v) {
+            for &w in neighbors {
+                if !visited.contains(&w) {
+                    visit(w, graph, visited, on_stack, stack_vec, cycles);
+                } else if on_stack.contains(&w) {
+                    // Found a cycle
+                    let mut cycle = stack_vec.clone();
+                    cycle.push(w);
+                    cycles.push(cycle);
+                }
+            }
+        }
+
+        on_stack.remove(&v);
+        stack_vec.pop();
+    }
+
+    // Visit all nodes
+    for &v in graph.keys() {
+        if !visited.contains(&v) {
+            visit(
+                v,
+                &graph,
+                &mut visited,
+                &mut on_stack,
+                &mut stack_vec,
+                &mut cycles,
+            );
+        }
+    }
+
+    cycles.first().cloned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::{HashMap, HashSet};
+
+    #[test]
+    fn test_order_reactive_statements_simple() {
+        // Test case: $: b = a + 1; $: a = 1;
+        // Expected order: a first, then b
+        let mut statements = HashMap::new();
+
+        // Statement 1: assigns to binding 1 (b), depends on binding 0 (a)
+        statements.insert(
+            "stmt_1".to_string(),
+            ReactiveStatement {
+                assignments: HashSet::from([1]),
+                dependencies: vec![0],
+            },
+        );
+
+        // Statement 2: assigns to binding 0 (a), no dependencies
+        statements.insert(
+            "stmt_2".to_string(),
+            ReactiveStatement {
+                assignments: HashSet::from([0]),
+                dependencies: vec![],
+            },
+        );
+
+        let ordered = order_reactive_statements(statements).unwrap();
+        assert_eq!(ordered.len(), 2);
+
+        // stmt_2 (a) should come before stmt_1 (b)
+        assert_eq!(ordered[0].0, "stmt_2");
+        assert_eq!(ordered[1].0, "stmt_1");
+    }
+
+    #[test]
+    fn test_order_reactive_statements_chain() {
+        // Test case: $: c = b + 1; $: b = a + 1; $: a = 1;
+        // Expected order: a, b, c
+        let mut statements = HashMap::new();
+
+        statements.insert(
+            "stmt_c".to_string(),
+            ReactiveStatement {
+                assignments: HashSet::from([2]),
+                dependencies: vec![1],
+            },
+        );
+
+        statements.insert(
+            "stmt_b".to_string(),
+            ReactiveStatement {
+                assignments: HashSet::from([1]),
+                dependencies: vec![0],
+            },
+        );
+
+        statements.insert(
+            "stmt_a".to_string(),
+            ReactiveStatement {
+                assignments: HashSet::from([0]),
+                dependencies: vec![],
+            },
+        );
+
+        let ordered = order_reactive_statements(statements).unwrap();
+        assert_eq!(ordered.len(), 3);
+
+        assert_eq!(ordered[0].0, "stmt_a");
+        assert_eq!(ordered[1].0, "stmt_b");
+        assert_eq!(ordered[2].0, "stmt_c");
+    }
+
+    #[test]
+    fn test_order_reactive_statements_cycle() {
+        // Test case: $: a = b + 1; $: b = a + 1;
+        // This creates a circular dependency
+        let mut statements = HashMap::new();
+
+        statements.insert(
+            "stmt_a".to_string(),
+            ReactiveStatement {
+                assignments: HashSet::from([0]),
+                dependencies: vec![1],
+            },
+        );
+
+        statements.insert(
+            "stmt_b".to_string(),
+            ReactiveStatement {
+                assignments: HashSet::from([1]),
+                dependencies: vec![0],
+            },
+        );
+
+        let result = order_reactive_statements(statements);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_order_reactive_statements_self_assignment() {
+        // Test case: $: a = a + 1;
+        // Self-assignment should not create a cycle
+        let mut statements = HashMap::new();
+
+        statements.insert(
+            "stmt_a".to_string(),
+            ReactiveStatement {
+                assignments: HashSet::from([0]),
+                dependencies: vec![0],
+            },
+        );
+
+        let ordered = order_reactive_statements(statements).unwrap();
+        assert_eq!(ordered.len(), 1);
+        assert_eq!(ordered[0].0, "stmt_a");
+    }
+
+    #[test]
+    fn test_check_graph_for_cycles_no_cycle() {
+        let edges = vec![(0, 1), (1, 2), (2, 3)];
+        let result = check_graph_for_cycles(&edges);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_check_graph_for_cycles_simple_cycle() {
+        let edges = vec![(0, 1), (1, 2), (2, 0)];
+        let result = check_graph_for_cycles(&edges);
+        assert!(result.is_some());
+        let cycle = result.unwrap();
+        assert!(cycle.contains(&0));
+        assert!(cycle.contains(&1));
+        assert!(cycle.contains(&2));
+    }
+
+    #[test]
+    fn test_check_graph_for_cycles_self_loop() {
+        let edges = vec![(0, 0)];
+        let result = check_graph_for_cycles(&edges);
+        assert!(result.is_some());
     }
 }

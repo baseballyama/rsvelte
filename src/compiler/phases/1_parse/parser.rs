@@ -297,26 +297,63 @@ impl<'a> Parser<'a> {
     }
 
     /// Consume a string if it matches.
-    pub fn eat(&mut self, s: &str) -> bool {
+    ///
+    /// Corresponds to `eat(str, required = false, required_in_loose = true)` in JavaScript Parser.
+    ///
+    /// # Parameters
+    ///
+    /// - `s`: The string to match
+    /// - `required`: If true, throws an error if the string doesn't match
+    /// - `required_in_loose`: If true, the error is thrown even in loose mode (default: true)
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(true)` if the string matches and was consumed
+    /// - `Ok(false)` if the string doesn't match and `required` is false
+    /// - `Err(ParseError)` if the string doesn't match and `required` is true (and loose mode conditions are met)
+    pub fn eat(&mut self, s: &str, required: bool, required_in_loose: bool) -> ParseResult<bool> {
         if self.match_str(s) {
             self.advance_by(s.len());
-            true
-        } else {
-            false
+            return Ok(true);
         }
+
+        if required && (!self.options.loose || required_in_loose) {
+            return Err(ParseError::expected_token(s, self.index));
+        }
+
+        Ok(false)
+    }
+
+    /// Consume a string optionally (equivalent to `eat(s, false, true)` in JavaScript).
+    ///
+    /// This is the most common use case - try to consume a string, but don't error if it's not there.
+    #[inline]
+    pub fn eat_optional(&mut self, s: &str) -> bool {
+        self.eat(s, false, true).unwrap_or(false)
+    }
+
+    /// Consume a string, requiring it to be present (equivalent to `eat(s, true, true)` in JavaScript).
+    ///
+    /// This will error in both strict and loose modes if the string is not found.
+    #[inline]
+    pub fn eat_required(&mut self, s: &str) -> ParseResult<()> {
+        self.eat(s, true, true)?;
+        Ok(())
+    }
+
+    /// Consume a string, requiring it only in strict mode (equivalent to `eat(s, true, false)` in JavaScript).
+    ///
+    /// This will error in strict mode but not in loose mode if the string is not found.
+    #[inline]
+    pub fn eat_required_strict(&mut self, s: &str) -> ParseResult<bool> {
+        self.eat(s, true, false)
     }
 
     /// Consume a string, returning an error if it doesn't match.
+    ///
+    /// This is equivalent to `eat_required()`.
     pub fn expect(&mut self, s: &str) -> ParseResult<()> {
-        if self.eat(s) {
-            Ok(())
-        } else {
-            Err(ParseError::UnexpectedToken {
-                expected: s.to_string(),
-                found: self.peek_chars(s.len()),
-                span: (self.index, self.index + 1),
-            })
-        }
+        self.eat_required(s)
     }
 
     /// Skip whitespace.

@@ -4,7 +4,7 @@
 //!
 //! Corresponds to Svelte's `2-analyze/utils/check_graph_for_cycles.js`.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::hash::Hash;
 
 /// Check a directed graph for cycles.
@@ -19,6 +19,13 @@ use std::hash::Hash;
 /// # Returns
 ///
 /// The first cycle found as a vector of nodes, or `None` if acyclic.
+///
+/// # Implementation Note
+///
+/// This matches the JavaScript implementation which uses a Set for `on_stack`.
+/// JavaScript Sets maintain insertion order, so `[...on_stack, w]` creates an array
+/// with all nodes currently on the DFS path (in traversal order) plus the back-edge target.
+/// We replicate this by using a Vec for `on_stack` to maintain insertion order.
 pub fn check_graph_for_cycles<T>(edges: &[(T, T)]) -> Option<Vec<T>>
 where
     T: Clone + Eq + Hash,
@@ -31,50 +38,39 @@ where
         graph.entry(v.clone()).or_default();
     }
 
-    let mut visited: HashSet<T> = HashSet::new();
-    let mut on_stack: HashSet<T> = HashSet::new();
-    let mut stack: Vec<T> = Vec::new();
+    let mut visited: HashMap<T, bool> = HashMap::new();
+    let mut on_stack: Vec<T> = Vec::new();
     let mut cycles: Vec<Vec<T>> = Vec::new();
 
     fn visit<T: Clone + Eq + Hash>(
         v: T,
         graph: &HashMap<T, Vec<T>>,
-        visited: &mut HashSet<T>,
-        on_stack: &mut HashSet<T>,
-        stack: &mut Vec<T>,
+        visited: &mut HashMap<T, bool>,
+        on_stack: &mut Vec<T>,
         cycles: &mut Vec<Vec<T>>,
     ) {
-        visited.insert(v.clone());
-        on_stack.insert(v.clone());
-        stack.push(v.clone());
+        visited.insert(v.clone(), true);
+        on_stack.push(v.clone());
 
         if let Some(neighbors) = graph.get(&v) {
             for w in neighbors {
-                if !visited.contains(w) {
-                    visit(w.clone(), graph, visited, on_stack, stack, cycles);
+                if !visited.contains_key(w) {
+                    visit(w.clone(), graph, visited, on_stack, cycles);
                 } else if on_stack.contains(w) {
-                    // Found a cycle - collect nodes from w to current position
-                    let mut cycle = stack.clone();
+                    // Found a cycle - equivalent to [...on_stack, w]
+                    let mut cycle = on_stack.clone();
                     cycle.push(w.clone());
                     cycles.push(cycle);
                 }
             }
         }
 
-        on_stack.remove(&v);
-        stack.pop();
+        on_stack.pop();
     }
 
     for v in graph.keys() {
-        if !visited.contains(v) {
-            visit(
-                v.clone(),
-                &graph,
-                &mut visited,
-                &mut on_stack,
-                &mut stack,
-                &mut cycles,
-            );
+        if !visited.contains_key(v) {
+            visit(v.clone(), &graph, &mut visited, &mut on_stack, &mut cycles);
         }
     }
 
