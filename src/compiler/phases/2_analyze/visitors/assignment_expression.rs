@@ -23,8 +23,11 @@ pub fn visit(
     if let Some(left) = node.get("left") {
         if let Some(name) = left.get("name").and_then(|n| n.as_str()) {
             eprintln!("DEBUG assignment_expression: left = {}", name);
-            eprintln!("DEBUG scope.declarations.contains_key({}) = {}",
-                name, context.analysis.root.scope.declarations.contains_key(name));
+            eprintln!(
+                "DEBUG scope.declarations.contains_key({}) = {}",
+                name,
+                context.analysis.root.scope.declarations.contains_key(name)
+            );
         }
     }
 

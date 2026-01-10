@@ -3,10 +3,8 @@
 //! Corresponds to fragment.js in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/fragment.js`.
 
-use crate::ast::template::{Attribute, TemplateNode, Text};
-use crate::compiler::phases::phase2_analyze::visitors::shared::attribute::is_event_attribute;
+use crate::ast::template::TemplateNode;
 use crate::compiler::phases::phase3_transform::client::types::*;
-use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 
 /// Processes an array of template nodes, joining sibling text/expression nodes
