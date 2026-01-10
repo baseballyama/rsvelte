@@ -536,3 +536,50 @@ pub fn animation_duplicate() -> AnalysisError {
         "An element can only have one animate directive",
     )
 }
+
+// CSS-related errors
+
+/// `:global(...)` must contain exactly one selector
+pub fn css_global_invalid_selector() -> AnalysisError {
+    error(
+        "css_global_invalid_selector",
+        "`:global(...)` must contain exactly one selector",
+    )
+}
+
+/// `:global(...)` must not contain type or universal selectors when used in a compound selector
+pub fn css_global_invalid_selector_list() -> AnalysisError {
+    error(
+        "css_global_invalid_selector_list",
+        "`:global(...)` must not contain type or universal selectors when used in a compound selector",
+    )
+}
+
+/// `:global(...)` can be at the start or end of a selector sequence, but not in the middle
+pub fn css_global_invalid_placement() -> AnalysisError {
+    error(
+        "css_global_invalid_placement",
+        "`:global(...)` can be at the start or end of a selector sequence, but not in the middle",
+    )
+}
+
+/// Invalid selector
+pub fn css_selector_invalid() -> AnalysisError {
+    error("css_selector_invalid", "Invalid selector")
+}
+
+/// `:global` is invalid inside a pseudo-class like :has
+pub fn css_global_block_invalid_placement() -> AnalysisError {
+    error(
+        "css_global_block_invalid_placement",
+        "`:global` is invalid inside a pseudo-class like :has",
+    )
+}
+
+/// Type selector cannot appear after `:global(...)`
+pub fn css_type_selector_invalid_placement() -> AnalysisError {
+    error(
+        "css_type_selector_invalid_placement",
+        "Type selector cannot appear after `:global(...)`",
+    )
+}

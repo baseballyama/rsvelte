@@ -87,8 +87,8 @@ pub fn analyze_component(
     if let Some(ref stylesheet) = ast.css {
         analysis.analyze_css(stylesheet, options)?;
 
-        // Run CSS analysis
-        css::analyze_css(stylesheet, &mut analysis);
+        // Run CSS analysis and validation
+        css::analyze_css(stylesheet, &mut analysis)?;
 
         // Prune unused selectors
         css::prune_css(stylesheet, &analysis);
