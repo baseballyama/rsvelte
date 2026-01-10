@@ -61,3 +61,54 @@ pub fn reactive_declaration_module_script_dependency() -> AnalysisWarning {
         "Reactive declarations in instance script should not reference variables from module script that are reassigned. This can lead to unexpected behavior.",
     )
 }
+
+/// Reactive declaration is invalid placement (not at the top level of an instance script)
+pub fn reactive_declaration_invalid_placement() -> AnalysisWarning {
+    warning(
+        "reactive_declaration_invalid_placement",
+        "Reactive declarations are only valid at the top level of the instance script",
+    )
+}
+
+// Performance warnings
+
+/// Avoid 'new class' — instead, declare the class at the top level scope
+pub fn perf_avoid_inline_class() -> AnalysisWarning {
+    warning(
+        "perf_avoid_inline_class",
+        "Avoid 'new class' — instead, declare the class at the top level scope\nhttps://svelte.dev/e/perf_avoid_inline_class",
+    )
+}
+
+/// Avoid declaring classes below the top level scope
+pub fn perf_avoid_nested_class() -> AnalysisWarning {
+    warning(
+        "perf_avoid_nested_class",
+        "Avoid declaring classes below the top level scope\nhttps://svelte.dev/e/perf_avoid_nested_class",
+    )
+}
+
+// Security warnings
+
+/// Bidirectional control character detected in code.
+///
+/// These Unicode characters can alter the visual direction of code
+/// and could have unintended security consequences.
+///
+/// Corresponds to Svelte's `bidirectional_control_characters` warning.
+pub fn bidirectional_control_characters() -> AnalysisWarning {
+    warning(
+        "bidirectional_control_characters",
+        "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters",
+    )
+}
+
+// Slot element warnings
+
+/// Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead
+pub fn slot_element_deprecated() -> AnalysisWarning {
+    warning(
+        "slot_element_deprecated",
+        "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead",
+    )
+}

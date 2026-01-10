@@ -18,6 +18,15 @@ pub struct ScriptContent {
     pub uses_runes: bool,
 }
 
+/// A reactive statement ($: statement) in legacy mode (Svelte 4).
+#[derive(Debug, Clone)]
+pub struct ReactiveStatement {
+    /// Bindings that are assigned to in this reactive statement
+    pub assignments: HashSet<usize>,
+    /// Bindings that this reactive statement depends on
+    pub dependencies: Vec<usize>,
+}
+
 impl ScriptContent {
     /// Extract script content from an AST Script node and source.
     pub fn from_script(script: &Script, source: &str) -> Self {
@@ -88,6 +97,9 @@ pub struct ComponentAnalysis {
     /// Whether the component uses event attributes (on:event={handler})
     pub uses_event_attributes: bool,
 
+    /// The first on: directive node encountered (for error reporting about mixed syntax)
+    pub event_directive_node: Option<EventDirectiveInfo>,
+
     /// Whether the component needs context
     pub needs_context: bool,
 
@@ -126,6 +138,10 @@ pub struct ComponentAnalysis {
     /// Class bodies with their state fields (for class body analysis)
     /// Maps from class body node (JSON) to state fields by name
     pub classes: HashMap<String, HashMap<String, StateField>>,
+
+    /// Reactive statements ($: statements) in legacy mode
+    /// Maps from the labeled statement node (JSON string) to its analysis
+    pub reactive_statements: HashMap<String, ReactiveStatement>,
 }
 
 impl ComponentAnalysis {
@@ -152,6 +168,7 @@ impl ComponentAnalysis {
             uses_render_tags: false,
             uses_component_bindings: false,
             uses_event_attributes: false,
+            event_directive_node: None,
             needs_context: false,
             needs_props: false,
             exports: Vec::new(),
@@ -164,6 +181,7 @@ impl ComponentAnalysis {
             props_id: None,
             tracing: false,
             classes: HashMap::new(),
+            reactive_statements: HashMap::new(),
         }
     }
 
@@ -345,6 +363,17 @@ pub struct ComponentInfo {
     pub end: usize,
     /// Whether this component has bindings
     pub has_bindings: bool,
+}
+
+/// Information about an event directive (for error reporting).
+#[derive(Debug, Clone)]
+pub struct EventDirectiveInfo {
+    /// The event name
+    pub name: String,
+    /// Start position in source
+    pub start: u32,
+    /// End position in source
+    pub end: u32,
 }
 
 /// A state field in a class (using $state, $state.raw, $derived, $derived.by).

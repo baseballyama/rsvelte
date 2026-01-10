@@ -665,9 +665,7 @@ pub fn is_reference(node: &Value, parent: Option<&Value>) -> bool {
             .get("computed")
             .and_then(|c| c.as_bool())
             .unwrap_or(false);
-        if !computed
-            && let Some(object) = node.get("object")
-        {
+        if !computed && let Some(object) = node.get("object") {
             return is_reference(object, Some(node));
         }
         return false;

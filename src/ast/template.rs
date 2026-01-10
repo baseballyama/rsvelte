@@ -207,12 +207,30 @@ pub struct DebugTag {
     pub metadata: TagMetadata,
 }
 
+/// Metadata for RenderTag nodes.
+#[derive(Debug, Clone, Default)]
+pub struct RenderTagMetadata {
+    /// Path from root to this node (for error reporting)
+    pub path: Vec<String>,
+    /// Whether this render tag is dynamic (callee is not a simple identifier or resolved snippet)
+    pub dynamic: bool,
+    /// Snippets that this render tag might call (indices into snippet blocks)
+    pub snippets: HashSet<usize>,
+    /// Expression metadata for the callee
+    pub expression: ExpressionMetadata,
+    /// Expression metadata for each argument
+    pub arguments: Vec<ExpressionMetadata>,
+}
+
 /// A render tag: `{@render snippet(...)}`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RenderTag {
     pub start: u32,
     pub end: u32,
     pub expression: Expression,
+    /// Metadata (not serialized)
+    #[serde(skip)]
+    pub metadata: RenderTagMetadata,
 }
 
 /// An attach tag: `{@attach expression}`.
@@ -297,6 +315,13 @@ pub struct AwaitBlock {
     pub catch: Option<Fragment>,
 }
 
+/// Metadata for KeyBlock nodes, populated during Phase 2 analysis.
+#[derive(Debug, Clone, Default)]
+pub struct KeyBlockMetadata {
+    /// Expression metadata
+    pub expression: ExpressionMetadata,
+}
+
 /// A key block: `{#key expression}...{/key}`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeyBlock {
@@ -304,6 +329,9 @@ pub struct KeyBlock {
     pub end: u32,
     pub expression: Expression,
     pub fragment: Fragment,
+    /// Metadata (not serialized)
+    #[serde(skip)]
+    pub metadata: KeyBlockMetadata,
 }
 
 /// A snippet block: `{#snippet name(params)}...{/snippet}`.

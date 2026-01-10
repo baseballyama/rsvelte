@@ -81,6 +81,12 @@ pub fn walk_js_node(node: &Value, context: &mut VisitorContext) -> Result<(), An
         Some("Identifier") => {
             super::identifier::visit(node, context)?;
         }
+        Some("Literal") => {
+            super::literal::visit(node, context)?;
+        }
+        Some("TemplateElement") => {
+            super::template_element::visit(node, context)?;
+        }
         Some("MemberExpression") => {
             super::member_expression::visit(node, context)?;
         }

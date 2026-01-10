@@ -864,6 +864,7 @@ impl Parser<'_> {
             end: self.index as u32,
             expression,
             fragment,
+            metadata: Default::default(),
         })))
     }
 

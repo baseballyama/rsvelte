@@ -49,6 +49,14 @@ pub fn props_duplicate(rune: &str) -> AnalysisError {
     )
 }
 
+/// Declaring or accessing a prop starting with `$$` is illegal (they are reserved for Svelte internals)
+pub fn props_illegal_name() -> AnalysisError {
+    error(
+        "props_illegal_name",
+        "Declaring or accessing a prop starting with `$$` is illegal (they are reserved for Svelte internals)",
+    )
+}
+
 /// `$props.id()` can only be used as a variable declaration initializer at the top level of the `<script>` tag
 pub fn props_id_invalid_placement() -> AnalysisError {
     error(
@@ -279,6 +287,32 @@ pub fn slot_duplicate(name: &str, component: &str) -> AnalysisError {
     )
 }
 
+// Render tag errors
+
+/// `{@render ...}` tags can only contain call expressions
+pub fn render_tag_invalid_expression() -> AnalysisError {
+    error(
+        "render_tag_invalid_expression",
+        "`{@render ...}` tags can only contain call expressions",
+    )
+}
+
+/// Cannot use spread arguments in `{@render ...}` tags
+pub fn render_tag_invalid_spread_argument() -> AnalysisError {
+    error(
+        "render_tag_invalid_spread_argument",
+        "cannot use spread arguments in `{@render ...}` tags",
+    )
+}
+
+/// Calling a snippet function using apply, bind or call is not allowed
+pub fn render_tag_invalid_call_expression() -> AnalysisError {
+    error(
+        "render_tag_invalid_call_expression",
+        "Calling a snippet function using apply, bind or call is not allowed",
+    )
+}
+
 // General errors
 
 /// `%feature%` is not yet implemented
@@ -437,5 +471,31 @@ pub fn const_tag_invalid_reference(name: &str) -> AnalysisError {
             "{{@const}} tag cannot reference `{}` in this context - it can only be used with declarations from an implicit children snippet",
             name
         ),
+    )
+}
+
+// Slot element errors
+
+/// `<slot>` can only receive attributes and (optionally) let directives
+pub fn slot_element_invalid_attribute() -> AnalysisError {
+    error(
+        "slot_element_invalid_attribute",
+        "`<slot>` can only receive attributes and (optionally) let directives",
+    )
+}
+
+/// slot attribute must be a static value
+pub fn slot_element_invalid_name() -> AnalysisError {
+    error(
+        "slot_element_invalid_name",
+        "slot attribute must be a static value",
+    )
+}
+
+/// `default` is a reserved word — it cannot be used as a slot name
+pub fn slot_element_invalid_name_default() -> AnalysisError {
+    error(
+        "slot_element_invalid_name_default",
+        "`default` is a reserved word — it cannot be used as a slot name",
     )
 }

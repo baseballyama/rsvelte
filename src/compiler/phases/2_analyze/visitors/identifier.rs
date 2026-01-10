@@ -65,9 +65,7 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     }
 
     // Handle runes in runes mode
-    if context.analysis.runes
-        && is_rune(name)
-    {
+    if context.analysis.runes && is_rune(name) {
         // Check if this is actually a rune (not a store subscription)
         let is_store_sub =
             if let Some(binding_idx) = context.analysis.root.scope.declarations.get(name) {
