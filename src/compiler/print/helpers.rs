@@ -941,10 +941,7 @@ fn format_statement_from_json(stmt: &serde_json::Value) -> String {
 }
 
 fn format_variable_declaration(stmt: &serde_json::Value) -> String {
-    let kind = stmt
-        .get("kind")
-        .and_then(|k| k.as_str())
-        .unwrap_or("const");
+    let kind = stmt.get("kind").and_then(|k| k.as_str()).unwrap_or("const");
     let mut result = format!("{kind} ");
 
     if let Some(declarations) = stmt.get("declarations").and_then(|d| d.as_array()) {

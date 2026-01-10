@@ -8,7 +8,8 @@
 
 use super::Context;
 use super::helpers::{
-    LINE_BREAK_THRESHOLD, expression_to_string, is_shorthand_identifier, is_void_element,
+    LINE_BREAK_THRESHOLD, expression_to_string, format_program, is_shorthand_identifier,
+    is_void_element,
 };
 use crate::ast::css::StyleSheet;
 use crate::ast::{
@@ -25,17 +26,33 @@ pub fn visit_root(context: &mut Context, root: &Root) {
     // Visit module script if present
     if let Some(ref module) = root.module {
         context.write("<script");
+
+        // Add context="module" if it's a module script
         if matches!(module.context, crate::ast::ScriptContext::Module) {
             context.write(" context=\"module\"");
         }
-        // TODO: Add lang attribute from attributes
-        context.write(">");
-        context.newline();
 
-        // Write script content
-        // TODO: Format using oxc_codegen
-        context.write("/* module script content */");
-        context.newline();
+        // Add other attributes (lang, etc.)
+        for attr in &module.attributes {
+            context.write(" ");
+            visit_attribute_node(context, attr);
+        }
+
+        context.write(">");
+
+        // Format and write script content
+        let crate::ast::js::Expression::Value(program) = &module.content;
+        let content = format_program(program);
+
+        if !content.is_empty() {
+            context.newline();
+            context.indent();
+            for line in content.lines() {
+                context.write(line);
+                context.newline();
+            }
+            context.dedent();
+        }
 
         context.write("</script>");
         context.newline();
@@ -43,16 +60,30 @@ pub fn visit_root(context: &mut Context, root: &Root) {
     }
 
     // Visit instance script if present
-    if let Some(ref _instance) = root.instance {
+    if let Some(ref instance) = root.instance {
         context.write("<script");
-        // TODO: Add lang attribute from attributes
-        context.write(">");
-        context.newline();
 
-        // Write script content
-        // TODO: Format using oxc_codegen
-        context.write("/* instance script content */");
-        context.newline();
+        // Add attributes (lang, etc.)
+        for attr in &instance.attributes {
+            context.write(" ");
+            visit_attribute_node(context, attr);
+        }
+
+        context.write(">");
+
+        // Format and write script content
+        let crate::ast::js::Expression::Value(program) = &instance.content;
+        let content = format_program(program);
+
+        if !content.is_empty() {
+            context.newline();
+            context.indent();
+            for line in content.lines() {
+                context.write(line);
+                context.newline();
+            }
+            context.dedent();
+        }
 
         context.write("</script>");
         context.newline();
@@ -66,7 +97,13 @@ pub fn visit_root(context: &mut Context, root: &Root) {
     if let Some(ref css) = root.css {
         context.newline();
         context.write("<style");
-        // TODO: Add lang attribute if needed
+
+        // Add attributes (lang, scoped, etc.)
+        for attr in &css.attributes {
+            context.write(" ");
+            visit_json_attribute(context, attr);
+        }
+
         context.write(">");
         context.newline();
 
@@ -104,10 +141,9 @@ pub fn visit_template_node(context: &mut Context, node: &TemplateNode) {
             context.write(&comment.data);
             context.write("-->");
         }
-        TemplateNode::ExpressionTag(_expr) => {
+        TemplateNode::ExpressionTag(expr) => {
             context.write("{");
-            // TODO: Format expression using oxc_codegen
-            context.write("/* expression */");
+            context.write(&expression_to_string(&expr.expression));
             context.write("}");
         }
         TemplateNode::RegularElement(element) => {
@@ -131,9 +167,85 @@ pub fn visit_template_node(context: &mut Context, node: &TemplateNode) {
         TemplateNode::SnippetBlock(snippet) => {
             visit_snippet_block(context, snippet);
         }
-        // TODO: Implement other node types
-        _ => {
-            context.write("<!-- TODO: Implement visitor -->");
+        TemplateNode::HtmlTag(tag) => {
+            context.write("{@html ");
+            context.write(&expression_to_string(&tag.expression));
+            context.write("}");
+        }
+        TemplateNode::ConstTag(tag) => {
+            context.write("{@const ");
+            context.write(&expression_to_string(&tag.declaration));
+            context.write("}");
+        }
+        TemplateNode::DebugTag(tag) => {
+            context.write("{@debug");
+            for (i, ident) in tag.identifiers.iter().enumerate() {
+                if i == 0 {
+                    context.write(" ");
+                } else {
+                    context.write(", ");
+                }
+                context.write(&expression_to_string(ident));
+            }
+            context.write("}");
+        }
+        TemplateNode::RenderTag(tag) => {
+            context.write("{@render ");
+            context.write(&expression_to_string(&tag.expression));
+            context.write("}");
+        }
+        TemplateNode::SvelteComponent(comp) => {
+            visit_svelte_component(context, comp);
+        }
+        TemplateNode::SvelteElement(elem) => {
+            visit_svelte_dynamic_element(context, elem);
+        }
+        TemplateNode::SvelteBody(elem)
+        | TemplateNode::SvelteDocument(elem)
+        | TemplateNode::SvelteFragment(elem)
+        | TemplateNode::SvelteBoundary(elem)
+        | TemplateNode::SvelteHead(elem)
+        | TemplateNode::SvelteOptions(elem)
+        | TemplateNode::SvelteSelf(elem)
+        | TemplateNode::SvelteWindow(elem) => {
+            visit_svelte_element(context, elem);
+        }
+        TemplateNode::TitleElement(elem) => {
+            context.write("<svelte:title");
+            let multiline_attributes = visit_attributes(context, &elem.attributes);
+            if elem.fragment.nodes.is_empty() {
+                if multiline_attributes {
+                    context.write("/>");
+                } else {
+                    context.write(" />");
+                }
+            } else {
+                context.write(">");
+                visit_fragment(context, &elem.fragment);
+                context.write("</svelte:title>");
+            }
+            context.newline();
+        }
+        TemplateNode::SlotElement(elem) => {
+            context.write("<slot");
+            let multiline_attributes = visit_attributes(context, &elem.attributes);
+            if elem.fragment.nodes.is_empty() {
+                if multiline_attributes {
+                    context.write("/>");
+                } else {
+                    context.write(" />");
+                }
+            } else {
+                context.write(">");
+                visit_fragment(context, &elem.fragment);
+                context.write("</slot>");
+            }
+            context.newline();
+        }
+        TemplateNode::AttachTag(tag) => {
+            context.write("{@attach ");
+            context.write(&expression_to_string(&tag.expression));
+            context.write("}");
         }
     }
 }
@@ -246,6 +358,66 @@ fn visit_attributes(context: &mut Context, attributes: &[Attribute]) -> bool {
     multiline
 }
 
+/// Visit an AttributeNode (for script tags).
+///
+/// # Arguments
+///
+/// * `context` - The context to write to
+/// * `attr` - The attribute node to visit
+fn visit_attribute_node(context: &mut Context, attr: &crate::ast::AttributeNode) {
+    context.write(attr.name.as_str());
+    match &attr.value {
+        AttributeValue::True(_) => {
+            // Boolean attribute, no value needed
+        }
+        AttributeValue::Expression(expr) => {
+            context.write("={");
+            context.write(&expression_to_string(&expr.expression));
+            context.write("}");
+        }
+        AttributeValue::Sequence(parts) => {
+            context.write("=\"");
+            for part in parts {
+                match part {
+                    AttributeValuePart::Text(text) => {
+                        context.write(&text.raw);
+                    }
+                    AttributeValuePart::ExpressionTag(expr) => {
+                        context.write("{");
+                        context.write(&expression_to_string(&expr.expression));
+                        context.write("}");
+                    }
+                }
+            }
+            context.write("\"");
+        }
+    }
+}
+
+/// Visit a JSON attribute (for style tags).
+///
+/// # Arguments
+///
+/// * `context` - The context to write to
+/// * `attr` - The attribute as JSON value
+fn visit_json_attribute(context: &mut Context, attr: &serde_json::Value) {
+    // Extract name and value from JSON
+    if let Some(name) = attr.get("name").and_then(|n| n.as_str()) {
+        context.write(name);
+
+        // Check if it has a value
+        if let Some(value) = attr.get("value") {
+            if !value.is_null() && value.as_bool() != Some(true) {
+                if let Some(val_str) = value.as_str() {
+                    context.write("=\"");
+                    context.write(val_str);
+                    context.write("\"");
+                }
+            }
+        }
+    }
+}
+
 /// Visit a single attribute.
 ///
 /// # Arguments
@@ -255,29 +427,7 @@ fn visit_attributes(context: &mut Context, attributes: &[Attribute]) -> bool {
 fn visit_attribute(context: &mut Context, attribute: &Attribute) {
     match attribute {
         Attribute::Attribute(attr) => {
-            context.write(attr.name.as_str());
-            match &attr.value {
-                AttributeValue::True(_) => {
-                    // Boolean attribute, no value needed
-                }
-                AttributeValue::Expression(_expr) => {
-                    context.write("={/* expr */}");
-                }
-                AttributeValue::Sequence(parts) => {
-                    context.write("=\"");
-                    for part in parts {
-                        match part {
-                            AttributeValuePart::Text(text) => {
-                                context.write(&text.raw);
-                            }
-                            AttributeValuePart::ExpressionTag(_) => {
-                                context.write("{/* expr */}");
-                            }
-                        }
-                    }
-                    context.write("\"");
-                }
-            }
+            visit_attribute_node(context, attr);
         }
         Attribute::SpreadAttribute(_spread) => {
             context.write("{.../* spread */}");
@@ -421,8 +571,10 @@ fn visit_attribute(context: &mut Context, attribute: &Attribute) {
                 context.write("}");
             }
         }
-        Attribute::AttachTag(_attach) => {
-            context.write("<!-- TODO: AttachTag -->");
+        Attribute::AttachTag(attach) => {
+            context.write("{@attach ");
+            context.write(&expression_to_string(&attach.expression));
+            context.write("}");
         }
     }
 }
@@ -517,6 +669,76 @@ fn visit_snippet_block(context: &mut Context, snippet: &crate::ast::SnippetBlock
     context.newline();
     visit_fragment(context, &snippet.body);
     context.write("{/snippet}");
+    context.newline();
+}
+
+/// Visit a svelte:component element.
+fn visit_svelte_component(context: &mut Context, comp: &crate::ast::SvelteComponentElement) {
+    context.write("<svelte:component this={");
+    context.write(&expression_to_string(&comp.expression));
+    context.write("}");
+
+    let multiline_attributes = visit_attributes(context, &comp.attributes);
+
+    if comp.fragment.nodes.is_empty() {
+        if multiline_attributes {
+            context.write("/>");
+        } else {
+            context.write(" />");
+        }
+    } else {
+        context.write(">");
+        visit_fragment(context, &comp.fragment);
+        context.write("</svelte:component>");
+    }
+
+    context.newline();
+}
+
+/// Visit a svelte:element (dynamic element).
+fn visit_svelte_dynamic_element(context: &mut Context, elem: &crate::ast::SvelteDynamicElement) {
+    context.write("<svelte:element this={");
+    context.write(&expression_to_string(&elem.tag));
+    context.write("}");
+
+    let multiline_attributes = visit_attributes(context, &elem.attributes);
+
+    if elem.fragment.nodes.is_empty() {
+        if multiline_attributes {
+            context.write("/>");
+        } else {
+            context.write(" />");
+        }
+    } else {
+        context.write(">");
+        visit_fragment(context, &elem.fragment);
+        context.write("</svelte:element>");
+    }
+
+    context.newline();
+}
+
+/// Visit a svelte: special element (body, document, head, window, fragment, boundary, self).
+fn visit_svelte_element(context: &mut Context, elem: &crate::ast::SvelteElement) {
+    context.write("<");
+    context.write(elem.name.as_str());
+
+    let multiline_attributes = visit_attributes(context, &elem.attributes);
+
+    if elem.fragment.nodes.is_empty() {
+        if multiline_attributes {
+            context.write("/>");
+        } else {
+            context.write(" />");
+        }
+    } else {
+        context.write(">");
+        visit_fragment(context, &elem.fragment);
+        context.write("</");
+        context.write(elem.name.as_str());
+        context.write(">");
+    }
+
     context.newline();
 }
 
