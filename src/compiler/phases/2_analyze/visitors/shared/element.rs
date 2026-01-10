@@ -103,10 +103,7 @@ pub fn validate_element(
 
                 // Check for illegal characters in attribute name
                 if REGEX_ILLEGAL_ATTRIBUTE_CHARACTER.is_match(&attr.name) {
-                    return Err(AnalysisError::Validation(format!(
-                        "Attribute name '{}' contains illegal characters",
-                        attr.name
-                    )));
+                    return Err(errors::attribute_invalid_name(&attr.name));
                 }
 
                 // Check for event handlers

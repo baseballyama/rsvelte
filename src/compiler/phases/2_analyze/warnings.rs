@@ -131,3 +131,13 @@ pub fn svelte_component_deprecated() -> AnalysisWarning {
         "`<svelte:component>` is deprecated in runes mode — components are dynamic by default",
     )
 }
+
+// Attribute warnings
+
+/// Attributes should not contain ':' characters to prevent ambiguity with Svelte directives
+pub fn attribute_illegal_colon() -> AnalysisWarning {
+    warning(
+        "attribute_illegal_colon",
+        "Attributes should not contain ':' characters to prevent ambiguity with Svelte directives",
+    )
+}

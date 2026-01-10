@@ -583,3 +583,29 @@ pub fn css_type_selector_invalid_placement() -> AnalysisError {
         "Type selector cannot appear after `:global(...)`",
     )
 }
+
+// Attribute-related errors
+
+/// '%name%' is not a valid attribute name
+pub fn attribute_invalid_name(name: &str) -> AnalysisError {
+    error(
+        "attribute_invalid_name",
+        format!("'{}' is not a valid attribute name", name),
+    )
+}
+
+/// 'contenteditable' attribute cannot be dynamic if element uses two-way binding
+pub fn attribute_contenteditable_dynamic() -> AnalysisError {
+    error(
+        "attribute_contenteditable_dynamic",
+        "'contenteditable' attribute cannot be dynamic if element uses two-way binding",
+    )
+}
+
+/// 'contenteditable' attribute is required for textContent, innerHTML and innerText two-way bindings
+pub fn attribute_contenteditable_missing() -> AnalysisError {
+    error(
+        "attribute_contenteditable_missing",
+        "'contenteditable' attribute is required for textContent, innerHTML and innerText two-way bindings",
+    )
+}
