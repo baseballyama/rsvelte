@@ -2,23 +2,22 @@
 
 This file provides guidelines for AI agents working on this project.
 
-## Implementation Guides
+## Current Focus
 
 ### Phase 2 Analyze - Visitor Implementation
 
-Phase 2 Analyze の visitor 実装で残された TODO を解決するためのガイド：
-
-- **[TODO_QUICKSTART.md](./TODO_QUICKSTART.md)** - 🚀 すぐに始める実践ガイド（推奨）
-- **[TODO_CHECKLIST.md](./TODO_CHECKLIST.md)** - 📋 簡潔なタスクリストと優先順位
-- **[TODO_IMPLEMENTATION_GUIDE.md](./TODO_IMPLEMENTATION_GUIDE.md)** - 📚 完全な実装ガイド（詳細版）
+Phase 2 analysis visitor implementation is largely complete. The scope builder successfully parses and analyzes template AST nodes to create the scope tree with bindings.
 
 ### Phase 3 Transform - Client Visitor Implementation
 
-**⚠️ 最優先**: Phase 3 の client-side コード生成がほぼ未実装（runtime-runes テスト: 1.4% 通過）
+**⚠️ Priority**: Phase 3 client-side code generation is mostly unimplemented (runtime-runes tests: 1.4% passing).
 
-- **[PHASE3_CLIENT_GUIDE.md](./PHASE3_CLIENT_GUIDE.md)** - 🎯 Phase 3 Client Visitor 実装ガイド（最優先）
+Implementing client-side visitors (`regular_element.rs`, `if_block.rs`, `each_block.rs`, etc.) will significantly improve test pass rates. The server-side generation is more complete, but client-side reactive code generation requires:
 
-クライアントサイドの visitor（`regular_element.rs`, `if_block.rs`, `each_block.rs` など）を実装することで、テスト合格率を大幅に向上できます。
+- Template to imperative code transformation
+- Reactive dependency tracking
+- Effect and derived state generation
+- Event handler binding
 
 ## Project Goals
 
@@ -295,7 +294,7 @@ npm run compatibility-report
 | Parser Legacy | 82 | 82 | ✅ 100% |
 | Compiler Snapshot | 16 | 17 | ✅ 94.1% |
 | CSS | 110 | 177 | ⚠️ 62.1% |
-| Validator | 65 | 312 | ⚠️ 20.8% |
+| Validator | 82 | 312 | ⚠️ 26.3% |
 | Compiler Errors | 0 | 118 | ❌ 0% |
 | Runtime Runes | 10 | 724 | ❌ 1.4% |
 | Runtime Legacy | 13 | 1198 | ❌ 1.1% |
@@ -306,7 +305,7 @@ npm run compatibility-report
 | Print | 0 | 39 | ⏸️ Not implemented |
 | Migrate | 0 | 76 | ⏸️ Not implemented |
 
-**Overall: 326/2830 tests passed (11.5%)**
+**Overall: 343/2830 tests passed (12.1%)**
 
 **Test output must match JavaScript compiler exactly** (formatting differences are normalized).
 
@@ -315,8 +314,6 @@ npm run compatibility-report
 - `loose-unclosed-tag` - Unclosed tags at EOF
 - `loose-unclosed-open-tag` - Unclosed opening tags at EOF
 - `comment-before-script` - Comment positioning/ordering
-
-See [NEXT_STEPS.md](./NEXT_STEPS.md) for detailed instructions on fixing these issues.
 
 ## Next Steps (Priority Order)
 
