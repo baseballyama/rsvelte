@@ -3,8 +3,7 @@
 //! This module corresponds to:
 //! - `svelte/packages/svelte/src/compiler/phases/3-transform/client/transform-template/index.js`
 
-use super::template::Template;
-use super::types::{Element, Node};
+use super::types::Node;
 use crate::compiler::phases::phase3_transform::client::types::{
     ComponentClientTransformState, FragmentsMode,
 };
