@@ -5,7 +5,7 @@
 //! Corresponds to Svelte's `2-analyze/visitors/AssignmentExpression.js`.
 
 use super::VisitorContext;
-use super::shared::utils::validate_assignment;
+use super::shared::utils::{validate_assignment, extract_identifiers, object};
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use serde_json::Value;
 
@@ -20,37 +20,40 @@ pub fn visit(
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     // Validate that we can assign to the left-hand side
-    // In JS: validate_assignment(node, node.left, context);
     if let Some(left) = node.get("left") {
         validate_assignment(left, context, false)?;
     }
 
-    // TODO: Track assignments in reactive statements
-    // In JS: if (context.state.reactive_statement) {
-    //   const id = node.left.type === 'MemberExpression' ? object(node.left) : node.left;
-    //   if (id !== null) {
-    //     for (const id of extract_identifiers(node.left)) {
-    //       const binding = context.state.scope.get(id.name);
-    //       if (binding) {
-    //         context.state.reactive_statement.assignments.add(binding);
-    //       }
-    //     }
-    //   }
-    // }
-    // This requires:
-    // 1. VisitorContext to track reactive_statement state
-    // 2. extract_identifiers utility function
-    // 3. Scope lookup by name
+    // Track assignments in reactive statements (legacy mode)
+    if let Some(reactive_stmt_ptr) = context.reactive_statement {
+        if let Some(left) = node.get("left") {
+            // Get the identifier: if left is a MemberExpression, get the object, otherwise use left itself
+            let id = if left.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
+                object(left)
+            } else {
+                Some(left.clone())
+            };
 
-    // TODO: Mark expression as having assignment
-    // In JS: if (context.state.expression) {
-    //   context.state.expression.has_assignment = true;
-    // }
-    // This requires VisitorContext to track expression state
+            if id.is_some() {
+                // Extract all identifier names from the left-hand side
+                let identifier_names = extract_identifiers(left);
 
-    // TODO: Visit children
-    // In JS: context.next();
-    // This requires JavaScript AST traversal
+                let reactive_stmt = unsafe { &mut *reactive_stmt_ptr };
+
+                for name in identifier_names {
+                    // Look up the binding in the current scope
+                    if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(&name) {
+                        reactive_stmt.assignments.insert(binding_idx);
+                    }
+                }
+            }
+        }
+    }
+
+    // Mark expression as having assignment
+    if let Some(expression) = context.current_expression() {
+        expression.has_assignment = true;
+    }
 
     Ok(())
 }

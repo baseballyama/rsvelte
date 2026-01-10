@@ -474,7 +474,7 @@ pub fn ensure_no_module_import_conflict(
 }
 
 /// Extract all identifier names from a pattern.
-fn extract_identifiers(pattern: &Value) -> Vec<String> {
+pub fn extract_identifiers(pattern: &Value) -> Vec<String> {
     let mut names = Vec::new();
 
     match pattern.get("type").and_then(|t| t.as_str()) {
@@ -1243,3 +1243,38 @@ pub fn walk_js_expression(
 
     Ok(())
 }
+
+/// Extract the object from a member expression chain.
+///
+/// For `a.b.c`, returns the identifier `a`.
+/// For non-member expressions, returns the node itself if it's an Identifier.
+///
+/// Corresponds to `object` in ast.js.
+///
+/// # Arguments
+///
+/// * `expression` - The expression node
+///
+/// # Returns
+///
+/// The outermost identifier, or None if not found
+pub fn object(expression: &Value) -> Option<Value> {
+    let mut current = expression.clone();
+
+    // Walk up the member expression chain
+    while current.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
+        if let Some(obj) = current.get("object") {
+            current = obj.clone();
+        } else {
+            break;
+        }
+    }
+
+    // Return the identifier if found
+    if current.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
+        Some(current)
+    } else {
+        None
+    }
+}
+
