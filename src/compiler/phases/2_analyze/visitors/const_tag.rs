@@ -68,12 +68,12 @@ pub fn visit(tag: &mut ConstTag, context: &mut VisitorContext) -> Result<(), Ana
     // Visit the declaration expression
     let crate::ast::js::Expression::Value(value) = &tag.declaration;
     // For VariableDeclaration, we need to visit the init expression
-    if let Some(declarations) = value.get("declarations").and_then(|d| d.as_array()) {
-        if let Some(declaration) = declarations.first() {
-            // Visit the init expression if present
-            if let Some(init) = declaration.get("init") {
-                walk_js_expression(init, context, &mut tag.metadata.expression)?;
-            }
+    if let Some(declarations) = value.get("declarations").and_then(|d| d.as_array())
+        && let Some(declaration) = declarations.first()
+    {
+        // Visit the init expression if present
+        if let Some(init) = declaration.get("init") {
+            walk_js_expression(init, context, &mut tag.metadata.expression)?;
         }
     }
 

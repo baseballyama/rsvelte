@@ -62,7 +62,7 @@ pub mod expression_converter;
 
 // Additional visitor modules will be added here as they are extracted.
 // Example:
-// pub mod text;
+pub mod text;
 // pub mod expression_tag;
 pub mod regular_element;
 // pub mod component;

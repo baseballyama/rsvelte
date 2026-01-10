@@ -364,12 +364,12 @@ pub fn visit(
     if element.name == "textarea" && !element.fragment.nodes.is_empty() {
         // Check that there's no existing value attribute
         for attr in &element.attributes {
-            if let Attribute::Attribute(attr_node) = attr {
-                if attr_node.name == "value" {
-                    return Err(AnalysisError::Validation(
+            if let Attribute::Attribute(attr_node) = attr
+                && attr_node.name == "value"
+            {
+                return Err(AnalysisError::Validation(
                         "<textarea> cannot have both a value attribute and content. For binding use `bind:value`, for unidirectional data flow, use an `on*` event handler".to_string()
                     ));
-                }
             }
         }
 
@@ -449,13 +449,13 @@ pub fn visit(
         let mut i = context.path.len();
         while i > 0 {
             i -= 1;
-            if let Some(ancestor) = context.path.get(i) {
-                if let TemplateNode::RegularElement(ancestor_el) = ancestor {
-                    // Note: This would check ancestor_el.metadata.svg in JS
-                    // For now, we check if it's an SVG element directly
-                    if is_svg(&ancestor_el.name) {
-                        return Ok(());
-                    }
+            if let Some(ancestor) = context.path.get(i)
+                && let TemplateNode::RegularElement(ancestor_el) = ancestor
+            {
+                // Note: This would check ancestor_el.metadata.svg in JS
+                // For now, we check if it's an SVG element directly
+                if is_svg(&ancestor_el.name) {
+                    return Ok(());
                 }
             }
         }
@@ -492,19 +492,19 @@ pub fn visit(
                 }
 
                 if !past_parent {
-                    if let TemplateNode::RegularElement(ancestor_el) = ancestor {
-                        if &ancestor_el.name == parent_element {
-                            if let Some(message) =
-                                is_tag_valid_with_parent(&element.name, parent_element)
-                            {
-                                if only_warn {
-                                    // Would generate warning: w.node_invalid_placement_ssr(node, message)
-                                } else {
-                                    return Err(AnalysisError::Validation(message));
-                                }
+                    if let TemplateNode::RegularElement(ancestor_el) = ancestor
+                        && ancestor_el.name == parent_element
+                    {
+                        if let Some(message) =
+                            is_tag_valid_with_parent(&element.name, parent_element)
+                        {
+                            if only_warn {
+                                // Would generate warning: w.node_invalid_placement_ssr(node, message)
+                            } else {
+                                return Err(AnalysisError::Validation(message));
                             }
-                            past_parent = true;
                         }
+                        past_parent = true;
                     }
                 } else if let TemplateNode::RegularElement(ancestor_el) = ancestor {
                     ancestors.push(ancestor_el.name.to_string());
@@ -531,7 +531,7 @@ pub fn visit(
     }
 
     // Strip off any namespace from the beginning of the node name
-    let node_name = element.name.split(':').last().unwrap_or(&element.name);
+    let node_name = element.name.split(':').next_back().unwrap_or(&element.name);
 
     // Check for invalid self-closing tag
     if element.end >= 2 {

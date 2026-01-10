@@ -55,10 +55,10 @@ fn build_locations(nodes: &[Node], locator: &Locator) -> JsExpr {
             let mut expression_elements = vec![line, column];
 
             let children = build_locations(&element.children, locator);
-            if let JsExpr::Array(ref arr) = children {
-                if !arr.elements.is_empty() {
-                    expression_elements.push(children);
-                }
+            if let JsExpr::Array(ref arr) = children
+                && !arr.elements.is_empty()
+            {
+                expression_elements.push(children);
             }
 
             array_elements.push(b::array(expression_elements));
@@ -103,7 +103,7 @@ pub fn transform_template<'a>(
     let function_name = if tree {
         b::member(b::id("$"), "from_tree")
     } else {
-        b::member(b::id("$"), &format!("from_{}", namespace.as_str()))
+        b::member(b::id("$"), format!("from_{}", namespace.as_str()))
     };
 
     let mut call = if current_flags != 0 {
@@ -119,21 +119,21 @@ pub fn transform_template<'a>(
         call = b::call(b::member(b::id("$"), "with_script"), vec![call]);
     }
 
-    if state.options.dev {
-        if let Some(loc) = locator {
-            let locations = build_locations(&state.template.nodes, loc);
-            call = b::call(
-                b::member(b::id("$"), "add_locations"),
-                vec![
-                    call,
-                    b::member_computed(
-                        b::id(&state.analysis.name),
-                        b::member(b::id("$"), "FILENAME"),
-                    ),
-                    locations,
-                ],
-            );
-        }
+    if state.options.dev
+        && let Some(loc) = locator
+    {
+        let locations = build_locations(&state.template.nodes, loc);
+        call = b::call(
+            b::member(b::id("$"), "add_locations"),
+            vec![
+                call,
+                b::member_computed(
+                    b::id(&state.analysis.name),
+                    b::member(b::id("$"), "FILENAME"),
+                ),
+                locations,
+            ],
+        );
     }
 
     call

@@ -140,12 +140,7 @@ impl Template {
             );
         }
 
-        let elements: Vec<JsExpr> = self
-            .nodes
-            .iter()
-            .map(objectify)
-            .filter_map(|opt| opt)
-            .collect();
+        let elements: Vec<JsExpr> = self.nodes.iter().filter_map(objectify).collect();
 
         b::array(elements)
     }
@@ -207,13 +202,10 @@ fn objectify(item: &Node) -> Option<JsExpr> {
                 .join("");
             Some(b::string(data))
         }
-        Node::Comment(comment) => {
-            if let Some(data) = &comment.data {
-                Some(b::array(vec![b::string(format!("// {}", data))]))
-            } else {
-                None
-            }
-        }
+        Node::Comment(comment) => comment
+            .data
+            .as_ref()
+            .map(|data| b::array(vec![b::string(format!("// {}", data))])),
         Node::Element(element) => {
             let mut element_array = vec![b::string(element.name.clone())];
 
@@ -243,10 +235,10 @@ fn objectify(item: &Node) -> Option<JsExpr> {
                 let children: Vec<JsExpr> = element.children.iter().filter_map(objectify).collect();
 
                 // Special case — strip leading newline from `<pre>` and `<textarea>`
-                if (element.name == "pre" || element.name == "textarea") && !children.is_empty() {
-                    if let Some(first) = children.first() {
-                        if let JsExpr::Literal(lit) = first {
-                            if let crate::compiler::phases::phase3_transform::js_ast::nodes::JsLiteral::String(s) = lit {
+                if (element.name == "pre" || element.name == "textarea") && !children.is_empty()
+                    && let Some(first) = children.first()
+                        && let JsExpr::Literal(lit) = first
+                            && let crate::compiler::phases::phase3_transform::js_ast::nodes::JsLiteral::String(s) = lit {
                                 let regex = Regex::new(r"^\r?\n").unwrap();
                                 let new_value = regex.replace(s, "").to_string();
                                 let mut modified_children = children.clone();
@@ -254,9 +246,6 @@ fn objectify(item: &Node) -> Option<JsExpr> {
                                 element_array.extend(modified_children);
                                 return Some(b::array(element_array));
                             }
-                        }
-                    }
-                }
 
                 element_array.extend(children);
             }

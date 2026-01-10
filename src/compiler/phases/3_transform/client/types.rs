@@ -154,9 +154,9 @@ impl<'a> ComponentContext<'a> {
         visit_regular_element(elem, self)
     }
 
-    fn visit_text(&mut self, _text: &crate::ast::template::Text) -> TransformResult {
-        // TODO: Implement text node transformation
-        TransformResult::None
+    fn visit_text(&mut self, text: &crate::ast::template::Text) -> TransformResult {
+        use crate::compiler::phases::phase3_transform::client::visitors::text::visit_text;
+        visit_text(text, self)
     }
 
     fn visit_if_block(&mut self, if_block: &crate::ast::template::IfBlock) -> TransformResult {

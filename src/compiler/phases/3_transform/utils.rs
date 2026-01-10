@@ -47,6 +47,7 @@ pub struct CleanedNodes {
 /// # Returns
 ///
 /// Returns a `CleanedNodes` struct containing hoisted and trimmed nodes.
+#[allow(clippy::too_many_arguments)]
 pub fn clean_nodes(
     parent: Option<&TemplateNode>,
     nodes: &[TemplateNode],

@@ -29,7 +29,7 @@ pub fn visit(tag: &mut RenderTag, context: &mut VisitorContext) -> Result<(), An
     // Get the callee from the call expression
     let callee = expression
         .get("callee")
-        .ok_or_else(|| errors::render_tag_invalid_expression())?;
+        .ok_or_else(errors::render_tag_invalid_expression)?;
 
     // Check if the callee is an Identifier and look up its binding
     let binding = if callee.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
@@ -50,7 +50,7 @@ pub fn visit(tag: &mut RenderTag, context: &mut VisitorContext) -> Result<(), An
 
     // Determine if this render tag is dynamic
     // It's dynamic if the binding is not a normal variable (e.g., it's a prop, parameter, etc.)
-    tag.metadata.dynamic = binding.map_or(false, |b| b.kind != BindingKind::Normal);
+    tag.metadata.dynamic = binding.is_some_and(|b| b.kind != BindingKind::Normal);
 
     // Determine if we can unambiguously resolve this to a specific snippet declaration
     // It's resolved if:
@@ -82,16 +82,13 @@ pub fn visit(tag: &mut RenderTag, context: &mut VisitorContext) -> Result<(), An
     }
 
     // Check for invalid .bind(), .apply(), .call() usage
-    if callee.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
-        if let Some(property) = callee.get("property") {
-            if property.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
-                if let Some(name) = property.get("name").and_then(|n| n.as_str()) {
-                    if matches!(name, "bind" | "apply" | "call") {
-                        return Err(errors::render_tag_invalid_call_expression());
-                    }
-                }
-            }
-        }
+    if callee.get("type").and_then(|t| t.as_str()) == Some("MemberExpression")
+        && let Some(property) = callee.get("property")
+        && property.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+        && let Some(name) = property.get("name").and_then(|n| n.as_str())
+        && matches!(name, "bind" | "apply" | "call")
+    {
+        return Err(errors::render_tag_invalid_call_expression());
     }
 
     // Mark the subtree as dynamic (render tags inject dynamic content)

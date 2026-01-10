@@ -5,7 +5,6 @@
 //! Corresponds to Svelte's `2-analyze/visitors/FunctionDeclaration.js`.
 
 use super::VisitorContext;
-use super::shared::function::visit_function;
 use super::shared::utils::validate_identifier_name;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use serde_json::Value;
