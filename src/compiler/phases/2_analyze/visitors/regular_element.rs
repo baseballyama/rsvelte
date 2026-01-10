@@ -364,6 +364,51 @@ pub fn visit(
     // and pushes to context.state.analysis.elements
     // We'll track this in context.analysis directly for now
 
+    // Track element name for CSS unused selector detection
+    context
+        .analysis
+        .css
+        .used_elements
+        .insert(element.name.to_string());
+
+    // Track class names and IDs from attributes
+    for attr in &element.attributes {
+        if let Attribute::Attribute(attr_node) = attr {
+            match attr_node.name.as_str() {
+                "class" => {
+                    // Extract class names from attribute value
+                    if let AttributeValue::Sequence(parts) = &attr_node.value {
+                        for part in parts {
+                            if let AttributeValuePart::Text(text) = part {
+                                for class_name in text.data.split_whitespace() {
+                                    context
+                                        .analysis
+                                        .css
+                                        .used_classes
+                                        .insert(class_name.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+                "id" => {
+                    // Extract ID from attribute value
+                    if let AttributeValue::Sequence(parts) = &attr_node.value {
+                        for part in parts {
+                            if let AttributeValuePart::Text(text) = part {
+                                let id = text.data.trim();
+                                if !id.is_empty() {
+                                    context.analysis.css.used_ids.insert(id.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
     // Special case: Move the children of <textarea> into a value attribute if they are dynamic
     if element.name == "textarea" && !element.fragment.nodes.is_empty() {
         // Check that there's no existing value attribute
