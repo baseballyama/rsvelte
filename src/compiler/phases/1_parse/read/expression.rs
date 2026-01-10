@@ -3138,7 +3138,7 @@ fn convert_expression_for_program(
             let end = offset + assign.span.end as usize;
 
             // Convert left (target)
-            let left = convert_assignment_target(&assign.left, offset, line_offsets);
+            let left = convert_assignment_target_for_program(&assign.left, offset, line_offsets);
 
             // Convert right (value)
             let right = convert_expression_for_program(&assign.right, offset, line_offsets);

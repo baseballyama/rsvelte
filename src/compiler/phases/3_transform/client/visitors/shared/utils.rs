@@ -461,6 +461,181 @@ fn is_ignored<T>(_node: &T, _check: &str) -> bool {
     false
 }
 
+/// Result of building a template chunk.
+pub struct TemplateChunkResult {
+    /// The generated expression (template literal or string)
+    pub value: JsExpr,
+    /// Whether the chunk contains reactive state
+    pub has_state: bool,
+}
+
+/// Build a template chunk from text/expression nodes.
+///
+/// Corresponds to `build_template_chunk` in
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/utils.js`.
+///
+/// # Arguments
+///
+/// * `values` - Array of Text or ExpressionTag nodes
+/// * `context` - Component transformation context
+///
+/// # Returns
+///
+/// Returns a TemplateChunkResult with the generated expression and state flag.
+pub fn build_template_chunk(
+    values: &[crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::TextOrExpr],
+    _context: &mut ComponentContext,
+) -> TemplateChunkResult {
+    use crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::TextOrExpr;
+
+    let mut expressions: Vec<JsExpr> = Vec::new();
+    let mut quasi = b::quasi("", false);
+    let mut quasis = vec![quasi.clone()];
+
+    let mut has_state = false;
+
+    for (i, node) in values.iter().enumerate() {
+        match node {
+            TextOrExpr::Text(text) => {
+                // Add text data to current quasi
+                let last_quasi = quasis.last_mut().unwrap();
+                last_quasi.raw.push_str(&text.data);
+                last_quasi.cooked.push_str(&text.data);
+            }
+            TextOrExpr::Expr(expr_tag) => {
+                // Check if it's a literal
+                if let Some(lit_value) = get_literal_value(&expr_tag.expression) {
+                    if let Some(val) = lit_value {
+                        let last_quasi = quasis.last_mut().unwrap();
+                        last_quasi.raw.push_str(&val);
+                        last_quasi.cooked.push_str(&val);
+                    }
+                } else {
+                    // Convert Expression to JsExpr
+                    let value = convert_expression_to_js_expr(&expr_tag.expression);
+
+                    // Assume has_state for non-literal expressions (conservative)
+                    has_state = true;
+
+                    // For single expression, return directly
+                    if values.len() == 1 {
+                        return TemplateChunkResult { value, has_state };
+                    }
+
+                    // Add ?? '' where necessary
+                    let value_with_fallback = b::logical_str("??", value, b::string(""));
+
+                    expressions.push(value_with_fallback);
+
+                    // Start new quasi
+                    let tail = i + 1 == values.len();
+                    quasi = b::quasi("", tail);
+                    quasis.push(quasi.clone());
+                }
+            }
+        }
+    }
+
+    // Sanitize template strings
+    for q in &mut quasis {
+        q.raw = sanitize_template_string(&q.cooked);
+    }
+
+    // Build final expression
+    let value = if !expressions.is_empty() {
+        b::template(quasis, expressions)
+    } else {
+        let last_quasi = quasis.last().unwrap();
+        b::string(&last_quasi.cooked)
+    };
+
+    TemplateChunkResult { value, has_state }
+}
+
+/// Get literal value from an expression if it's a simple literal.
+fn get_literal_value(expr: &crate::ast::js::Expression) -> Option<Option<String>> {
+    use crate::ast::js::Expression;
+
+    match expr {
+        Expression::Value(json_value) => {
+            if let Some(obj) = json_value.as_object()
+                && let Some(expr_type) = obj.get("type").and_then(|v| v.as_str())
+            {
+                if expr_type == "Literal"
+                    && let Some(value) = obj.get("value")
+                {
+                    if let Some(s) = value.as_str() {
+                        return Some(Some(s.to_string()));
+                    } else if let Some(n) = value.as_f64() {
+                        return Some(Some(n.to_string()));
+                    } else if let Some(b_val) = value.as_bool() {
+                        return Some(Some(b_val.to_string()));
+                    } else if value.is_null() {
+                        return Some(None);
+                    }
+                } else if expr_type == "Identifier"
+                    && let Some(name) = obj.get("name").and_then(|v| v.as_str())
+                    && name == "undefined"
+                {
+                    // Check if undefined is shadowed in scope
+                    // For now, assume it's the global undefined
+                    return Some(None);
+                }
+            }
+            None
+        }
+    }
+}
+
+/// Convert an Expression (JSON AST) to a JsExpr.
+///
+/// This is a simplified conversion that handles common cases.
+/// TODO: Implement full conversion for all expression types.
+fn convert_expression_to_js_expr(expr: &crate::ast::js::Expression) -> JsExpr {
+    use crate::ast::js::Expression;
+
+    match expr {
+        Expression::Value(json_value) => {
+            // Parse the JSON AST and convert to JsExpr
+            if let Some(obj) = json_value.as_object()
+                && let Some(expr_type) = obj.get("type").and_then(|v| v.as_str())
+            {
+                match expr_type {
+                    "Identifier" => {
+                        if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+                            return b::id(name);
+                        }
+                    }
+                    "Literal" => {
+                        if let Some(value) = obj.get("value") {
+                            if let Some(s) = value.as_str() {
+                                return b::string(s);
+                            } else if let Some(n) = value.as_f64() {
+                                return b::number(n);
+                            } else if let Some(b_val) = value.as_bool() {
+                                return b::boolean(b_val);
+                            } else if value.is_null() {
+                                return b::null();
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            // Fallback: create a placeholder
+            b::id("expr")
+        }
+    }
+}
+
+/// Sanitize a template string by escaping special characters.
+fn sanitize_template_string(s: &str) -> String {
+    s.replace('\\', "\\\\")
+        .replace('`', "\\`")
+        .replace("${", "\\${")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
