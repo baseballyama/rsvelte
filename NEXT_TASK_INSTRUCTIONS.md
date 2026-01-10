@@ -35,34 +35,44 @@
 - namespace parsing ヘルパー追加
 - コミット: `2637e39` - "feat(phase3): Implement process_children and fragment processing helpers"
 
-### 📊 テスト結果（2026-01-10 13:10 測定）
+#### Phase 3 - is_delegated_event_name 関数修正（2026-01-10）
+- コンパイルエラー修正: `is_delegated_event_name` 関数が見つからない問題を解決
+- Svelteの公式delegatable eventsリストに基づいた実装を追加
+- 14種類のイベントタイプをサポート（beforeinput, click, change, dblclick, contextmenu, focusin, focusout, input, keydown, keyup, mousedown, mousemove, mouseout, mouseover, mouseup, pointerdown, pointermove, pointerout, pointerover, pointerup, touchend, touchmove, touchstart）
+- テスト結果が改善: コンパイラスナップショット 12/19 → 15/19 (+3件)
 
-#### Fragment visitor 有効化後の結果
+### 📊 テスト結果（2026-01-10 14:10 測定）
+
+#### is_delegated_event_name 修正後の結果
 
 | テストスイート | 合格数 | 合格率 | 前回比 | 状態 |
 |--------------|--------|--------|--------|------|
-| コンパイラスナップショット | 12/19 | 63.2% | -3件 (15→12) | 🔴 |
-| Validator | 81/312 | 26.0% | N/A | 🟡 |
+| コンパイラスナップショット | 15/19 | 78.9% | +3件 (12→15) | ✅ |
+| Validator | 82/312 | 26.3% | +1件 (81→82) | 🟡 |
+| Runtime-runes | 測定中 | - | - | ⏳ |
 
-**重要**: Fragment visitor有効化により、コンパイラスナップショットテストが**後退**しました（15/19 → 12/19）。
+**改善**: `is_delegated_event_name`関数を再実装したことで、コンパイラスナップショットテストが**回復・改善**しました（12/19 → 15/19）。
 
 #### 失敗の詳細
 
-**コンパイラスナップショット（7件失敗）**:
-1. `nullish-coallescence-omittance` - Client JS mismatch
-2. `svelte-element` - `$props()` placement error (client & server)
-3. `await-block-scope` - Client JS mismatch
-4. `bind-component-snippet` - Client JS mismatch
-5. `state-proxy-literal` - Client JS mismatch
-6. `skip-static-subtree` - `$props()` placement error (client & server)
-7. `props-identifier` - `$props()` placement error (client & server)
+**コンパイラスナップショット（4件失敗）**:
+1. `svelte-element` - `$props()` placement error (client & server)
+2. `bind-component-snippet` - Client JS mismatch
+3. `skip-static-subtree` - `$props()` placement error (client & server)
+4. `props-identifier` - `$props()` placement error (client & server)
+
+**新たに通過したテスト（+3件）**:
+1. `nullish-coallescence-omittance` - Client
+2. `await-block-scope` - Client
+3. `state-proxy-literal` - Client
 
 ### ⚠️ 残っている課題
 
-1. **Fragment visitor 有効化による後退** - **最重要課題**
-   - コンパイラスナップショットが 15/19 → 12/19 に後退（3件減少）
-   - 原因不明 - Fragment visitor実装に問題がある可能性
-   - 調査と修正が最優先
+1. **$props() 識別子パターン対応** - **最重要課題**
+   - 3つのテストが同じエラーで失敗: `props_invalid_placement: $props() can only be used with an object destructuring pattern`
+   - 現状: `let { foo } = $props()` のみサポート
+   - 必要: `let props = $props()` のような識別子パターンもサポート
+   - 影響: 実装すれば 15/19 → 18/19 (94.7%) に到達可能
 
 2. **each_block.rs のコンパイルエラー**
    - 既存の `each_block.rs` ファイルにコンパイルエラーが存在
@@ -83,21 +93,21 @@
 
 ## 🎯 次にやるべきこと（優先順位順）
 
-### 📋 タスク優先順位サマリー（2026-01-10 13:10 更新）
+### 📋 タスク優先順位サマリー（2026-01-10 14:10 更新）
 
-| 優先度 | タスク | 所要時間 | 理由 |
-|--------|--------|----------|------|
-| ⭐⭐⭐⭐⭐ | タスク0: テスト後退の原因調査 | 30分-1時間 | **緊急** - Fragment visitor有効化でテストが後退 |
-| ⭐⭐⭐⭐ | タスク1: each_block.rs修正 | 30分-1時間 | コンパイルエラーを解消し、visitor を有効化 |
-| ⭐⭐⭐ | タスク2: Clippy warnings修正 | 1-2時間 | Pre-commit hookを通すために必要 |
-| ⭐⭐ | タスク3: 他のVisitor実装 | 各1-3時間 | 段階的にテスト合格率を向上 |
-| ⭐ | タスク4: テスト調査と修正 | 2-4時間 | 個別の失敗ケースを分析 |
+| 優先度 | タスク | 所要時間 | 理由 | 影響 |
+|--------|--------|----------|------|------|
+| ⭐⭐⭐⭐⭐ | タスク0: $props()識別子パターン対応 | 1-2時間 | **最重要** - 3テストがこれで通る可能性 | 15/19 → 18/19 |
+| ⭐⭐⭐⭐ | タスク1: bind-component-snippet修正 | 1-2時間 | snippet bindingの生成ロジック不完全 | 18/19 → 19/19 |
+| ⭐⭐⭐ | タスク2: each_block.rs修正 | 30分-1時間 | コンパイルエラーを解消し、visitor を有効化 | runtime-runes改善 |
+| ⭐⭐ | タスク3: Clippy warnings修正 | 1-2時間 | Pre-commit hookを通すために必要 | コード品質 |
+| ⭐ | タスク4: Runtime-runes完全測定 | 2-4時間 | 724テスト全体の効果を測定 | 進捗把握 |
 
 ### 推奨実行順序
 
-1. **タスク0（最優先・即実行）**: テスト後退の原因調査 → Fragment visitor の問題を特定・修正
-2. **タスク1（今日中）**: each_block.rs 修正 → コンパイルエラー解消
-3. **タスク2（今日中）**: Clippy warnings修正 → 正常なコミットフローを確保
+1. **タスク0（最優先・即実行）**: $props()識別子パターン対応 → 15/19 → 18/19 に到達
+2. **タスク1（今日中）**: bind-component-snippet修正 → 18/19 → 19/19 (100%達成)
+3. **タスク2（今日中）**: each_block.rs 修正 → コンパイルエラー解消
 4. **タスク3（明日以降）**: Visitor実装 → 段階的にテスト合格率向上
 
 ---
