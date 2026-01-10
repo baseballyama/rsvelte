@@ -158,10 +158,8 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
         None
     };
 
-    // Check if the expression is async
-    // Note: In the full implementation, we would get metadata from phase 2 analysis
-    // For now, we assume expressions are not async unless we implement metadata tracking
-    let is_async = false;
+    // Check if the expression is async (from Phase 2 analysis metadata)
+    let is_async = node.metadata.expression.is_async();
 
     // Convert the test expression
     let expression = convert_expression(&node.test, context);
@@ -205,11 +203,13 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
 
     // If async, wrap in $.async()
     if is_async {
-        // Get blockers from metadata (would be from phase 2 analysis)
+        // Get blockers from metadata (Phase 2 analysis)
+        // TODO: Implement blockers collection in Phase 2
+        // For now, use empty array
         let blockers = b::array(vec![]);
 
-        // Wrap expression in thunk
-        let has_await = false;
+        // Get has_await from metadata
+        let has_await = node.metadata.expression.has_await;
         let expression_array = if has_await {
             // For async expressions with await, mark the thunk as async
             b::array(vec![b::async_thunk(expression.clone())])

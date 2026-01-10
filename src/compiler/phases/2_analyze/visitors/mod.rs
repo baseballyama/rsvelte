@@ -114,6 +114,9 @@ pub struct VisitorContext<'a> {
     /// JavaScript AST node path (for expressions in scripts).
     /// This is a stack of serde_json::Value representing JS AST nodes.
     pub js_path: Vec<serde_json::Value>,
+    /// Information about the current expression/directive/block value being analyzed.
+    /// Set to Some(metadata) when visiting an expression, directive value, or block condition.
+    pub expression: Option<*mut crate::ast::template::ExpressionMetadata>,
     /// Parent element name (for validation).
     pub parent_element: Option<String>,
     /// Current function depth.
@@ -150,6 +153,7 @@ impl<'a> VisitorContext<'a> {
             analysis,
             path: Vec::new(),
             js_path: Vec::new(),
+            expression: None,
             parent_element: None,
             function_depth: 0,
             has_props_rune: false,
