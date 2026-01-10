@@ -35,24 +35,47 @@
 - namespace parsing ヘルパー追加
 - コミット: `2637e39` - "feat(phase3): Implement process_children and fragment processing helpers"
 
-### 📊 テスト結果（前回測定時）
+### 📊 テスト結果（2026-01-10 13:10 測定）
 
-| テストスイート | 合格数 | 合格率 | 状態 |
-|--------------|--------|--------|------|
-| パーサー | 22/22 | 100% | ✅ |
-| ユニットテスト | 127/129 | 98% | ✅ |
-| コンパイラスナップショット | 15/19 | 79% | 🟡 |
-| SSR | 8/80 | 10% | 🔴 |
-| Runtime-runes | 7/724 | 1.0% | 🔴 |
+#### Fragment visitor 有効化後の結果
+
+| テストスイート | 合格数 | 合格率 | 前回比 | 状態 |
+|--------------|--------|--------|--------|------|
+| コンパイラスナップショット | 12/19 | 63.2% | -3件 (15→12) | 🔴 |
+| Validator | 81/312 | 26.0% | N/A | 🟡 |
+
+**重要**: Fragment visitor有効化により、コンパイラスナップショットテストが**後退**しました（15/19 → 12/19）。
+
+#### 失敗の詳細
+
+**コンパイラスナップショット（7件失敗）**:
+1. `nullish-coallescence-omittance` - Client JS mismatch
+2. `svelte-element` - `$props()` placement error (client & server)
+3. `await-block-scope` - Client JS mismatch
+4. `bind-component-snippet` - Client JS mismatch
+5. `state-proxy-literal` - Client JS mismatch
+6. `skip-static-subtree` - `$props()` placement error (client & server)
+7. `props-identifier` - `$props()` placement error (client & server)
 
 ### ⚠️ 残っている課題
 
-1. **Clippy warnings** - 多数の既存コードに警告が存在（pre-commit hook で失敗の原因）
+1. **Fragment visitor 有効化による後退** - **最重要課題**
+   - コンパイラスナップショットが 15/19 → 12/19 に後退（3件減少）
+   - 原因不明 - Fragment visitor実装に問題がある可能性
+   - 調査と修正が最優先
+
+2. **each_block.rs のコンパイルエラー**
+   - 既存の `each_block.rs` ファイルにコンパイルエラーが存在
+   - 一時的に `.disabled` にリネームして無効化
+   - mod.rs でもコメントアウト
+   - types.rs の `visit_each_block()` も TODO に変更
+
+3. **Clippy warnings** - 多数の既存コードに警告が存在（pre-commit hook で失敗の原因）
    - `collapsible_if`, `collapsible_match` など約26個のwarnings
    - 主に `2_analyze/visitors/regular_element.rs` と `3_transform/client/` に集中
    - これらは既存コードの問題であり、今回の実装とは無関係
 
-2. **runtime-runes テスト** - Fragment/process_children の効果測定が未完了
+4. **runtime-runes テスト** - Fragment/process_children の効果測定が未完了
    - テスト実行に時間がかかるため、結果確認が保留中
    - より小規模なテストセットでの検証が必要
 
@@ -60,25 +83,88 @@
 
 ## 🎯 次にやるべきこと（優先順位順）
 
-### 📋 タスク優先順位サマリー
+### 📋 タスク優先順位サマリー（2026-01-10 13:10 更新）
 
 | 優先度 | タスク | 所要時間 | 理由 |
 |--------|--------|----------|------|
-| ⭐⭐⭐⭐⭐ | タスク1: テスト結果確認 | 10-20分 | 今回の実装効果を測定し、次の方針を決定 |
-| ⭐⭐⭐⭐ | タスク2: Clippy warnings修正 | 1-2時間 | Pre-commit hookを通すために必要 |
-| ⭐⭐⭐ | タスク3: 他のVisitor実装 | 各1-3時間 | 段階的にテスト合格率を向上 |
-| ⭐⭐ | タスク4: テスト調査と修正 | 2-4時間 | 個別の失敗ケースを分析 |
-| ⭐ | タスク5: SSR改善 | 後回し | クライアント実装完了後に着手 |
+| ⭐⭐⭐⭐⭐ | タスク0: テスト後退の原因調査 | 30分-1時間 | **緊急** - Fragment visitor有効化でテストが後退 |
+| ⭐⭐⭐⭐ | タスク1: each_block.rs修正 | 30分-1時間 | コンパイルエラーを解消し、visitor を有効化 |
+| ⭐⭐⭐ | タスク2: Clippy warnings修正 | 1-2時間 | Pre-commit hookを通すために必要 |
+| ⭐⭐ | タスク3: 他のVisitor実装 | 各1-3時間 | 段階的にテスト合格率を向上 |
+| ⭐ | タスク4: テスト調査と修正 | 2-4時間 | 個別の失敗ケースを分析 |
 
 ### 推奨実行順序
 
-1. **タスク1（即実行）**: テスト結果確認 → 現状把握
-2. **タスク2（今日中）**: Clippy warnings修正 → 正常なコミットフローを確保
-3. **タスク3（明日以降）**: Visitor実装 → 段階的にテスト合格率向上
+1. **タスク0（最優先・即実行）**: テスト後退の原因調査 → Fragment visitor の問題を特定・修正
+2. **タスク1（今日中）**: each_block.rs 修正 → コンパイルエラー解消
+3. **タスク2（今日中）**: Clippy warnings修正 → 正常なコミットフローを確保
+4. **タスク3（明日以降）**: Visitor実装 → 段階的にテスト合格率向上
 
 ---
 
-## タスク1: テスト結果確認と効果測定【最優先・即実行】
+## タスク0: テスト後退の原因調査【緊急・最優先】
+
+### 概要
+Fragment visitor を有効化したことで、コンパイラスナップショットテストが 15/19 → 12/19 に後退しました。原因を特定して修正する必要があります。
+
+### 発生した問題
+- **前回**: 15/19 通過（79%）
+- **今回**: 12/19 通過（63%）
+- **差分**: -3件（後退）
+
+### 調査手順
+
+#### 1. どのテストが新たに失敗したか特定
+前回（Fragment visitor 無効時）と今回（Fragment visitor 有効時）の差分を確認します。
+
+```bash
+# 前回のコミットをチェックアウトしてテスト実行
+git log --oneline | head -5  # コミット履歴確認
+git diff HEAD~2 HEAD -- src/compiler/phases/3_transform/client/visitors/fragment.rs
+
+# または、Fragment visitor を一時的に無効化してテスト
+# → mod.rs で fragment をコメントアウト
+# → types.rs の visit_fragment() を TODO に変更
+```
+
+#### 2. 失敗テストの詳細確認
+```bash
+# 失敗しているテストケースのソースを確認
+cat fixtures/*/snapshot/nullish-coallescence-omittance/input.svelte
+cat fixtures/*/snapshot/nullish-coallescence-omittance/_expected/client.js
+
+# 実際の出力を確認（テスト実行時の差分を見る）
+cargo test --test compiler_fixtures test_compiler_snapshot_fixtures -- --nocapture 2>&1 | grep -A 10 "nullish-coallescence"
+```
+
+#### 3. Fragment visitor の実装を見直す
+```bash
+# Fragment visitor 実装を確認
+cat src/compiler/phases/3_transform/client/visitors/fragment.rs
+
+# 公式実装と比較
+cat svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/Fragment.js
+```
+
+#### 4. 原因の仮説
+- Fragment visitor の `process_children()` が正しく動作していない可能性
+- テンプレートの生成ロジックに問題がある可能性
+- ステートメントの順序が違う可能性
+
+### 修正方法
+
+原因が特定できたら、以下のいずれかを実施：
+
+1. **Fragment visitor を修正** - 実装ミスを修正
+2. **Fragment visitor を一時的に無効化** - 他のvisitorを先に実装
+3. **テスト期待値を確認** - テストケース自体に問題がないか確認
+
+### 所要時間
+30分-1時間
+
+---
+
+## タスク1: テスト結果確認と効果測定【完了】
 
 ### 概要
 Fragment visitor と process_children() 実装の効果を確認する。
@@ -593,7 +679,7 @@ cat fixtures/*/snapshot/[test-name]/_expected/client.js
 
 ## ✅ 完了チェックリスト
 
-### 今回のセッション（2026-01-10）
+### 今回のセッション（2026-01-10 13:10）
 - [x] Fragment visitor の型互換性問題を解決
 - [x] `process_children()` 関数実装（`fragment.rs` 内）
 - [x] `is_static_element()` 等のヘルパー関数実装
@@ -601,9 +687,20 @@ cat fixtures/*/snapshot/[test-name]/_expected/client.js
 - [x] コミット＆プッシュ（2件）
   - `07c6b6e` - Fragment visitor 有効化
   - `2637e39` - process_children 実装
+- [x] テスト結果確認
+  - コンパイラスナップショット: 12/19（前回 15/19 から後退）
+  - Validator: 81/312
+- [x] 問題発見: Fragment visitor 有効化でテストが後退
+- [x] 応急処置: each_block.rs を無効化（コンパイルエラー回避）
+- [x] NEXT_TASK_INSTRUCTIONS.md を更新
 
-### 次のセッション
-- [ ] タスク1: テスト結果確認と効果測定
+### 次のセッション（緊急対応）
+- [ ] タスク0: **テスト後退の原因調査** ← **最優先**
+  - Fragment visitor 実装の問題を特定
+  - 修正または一時的に無効化を検討
+- [ ] タスク1: each_block.rs 修正
+  - コンパイルエラーを解消
+  - visitor を有効化
 - [ ] タスク2: Clippy warnings 修正
 - [ ] タスク3: 他のVisitor実装
   - [ ] `text.rs` 実装完了
@@ -679,9 +776,10 @@ eprintln!("DEBUG: Generated expression: {:?}", expr);
 ---
 
 **作成日**: 2026-01-09
-**最終更新**: 2026-01-10
-**次回更新**: タスク1（テスト結果確認）完了後
+**最終更新**: 2026-01-10 13:10
+**次回更新**: タスク0（テスト後退の原因調査）完了後
 **推奨作業時間**:
-- タスク1: 10-20分（テスト実行）
+- タスク0: 30分-1時間（緊急・原因調査）
+- タスク1: 30分-1時間（each_block.rs修正）
 - タスク2: 1-2時間（Clippy warnings修正）
 - タスク3以降: 各1-3時間（Visitor実装）

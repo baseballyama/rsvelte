@@ -4,48 +4,19 @@
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/RegularElement.js`.
 //!
 //! This visitor handles regular HTML elements like `<div>`, `<span>`, etc.
-//!
-//! # Implementation Status
-//!
-//! This is a skeleton implementation. The full implementation requires:
-//!
-//! 1. Proper handling of all attribute types (regular attributes, directives, spread)
-//! 2. Class and style directive merging
-//! 3. Special handling for input/textarea/select elements
-//! 4. Child node processing with whitespace trimming
-//! 5. Template optimization (static vs dynamic attributes)
-//! 6. Event handler attachment
-//! 7. Binding directive processing
-//! 8. Custom element support
-//!
-//! See the JavaScript implementation at:
-//! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/RegularElement.js`
 
-use crate::ast::template::{AttributeNode, AttributeValue, RegularElement as RegularElementNode};
+use crate::ast::template::{
+    Attribute, AttributeNode, AttributeValue, RegularElement as RegularElementNode,
+};
 use crate::compiler::phases::phase3_transform::client::types::*;
+use crate::compiler::phases::phase3_transform::client::visitors::shared::element::build_attribute_value;
+use crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::process_children;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 
 /// Visit a regular element node.
 ///
 /// Corresponds to `RegularElement()` function in RegularElement.js.
-///
-/// # Current Implementation
-///
-/// This is a minimal skeleton that:
-/// - Pushes the element tag to the template
-/// - Handles the <noscript> special case
-/// - Pops the element from the template
-///
-/// # TODO
-///
-/// - Categorize and process attributes (regular, class:, style:, bind:, on:, use:, etc.)
-/// - Handle spread attributes
-/// - Optimize static vs dynamic attributes
-/// - Process child nodes
-/// - Handle special cases (input defaults, textarea content, select synchronization)
-/// - Generate element attribute update calls
-/// - Handle custom elements
 pub fn visit_regular_element(
     node: &RegularElementNode,
     context: &mut ComponentContext,
@@ -62,62 +33,182 @@ pub fn visit_regular_element(
         return TransformResult::None;
     }
 
-    // TODO: Track needs_import_node for custom elements and video
-    // context.state.template.needs_import_node ||= node.name == "video" || is_custom_element;
+    let is_custom_element = is_custom_element_node(node);
 
-    // TODO: Track script tags
-    // context.state.template.contains_script_tag ||= node.name == "script";
+    // Track needs_import_node for custom elements and video
+    if node.name == "video" || is_custom_element {
+        context.state.template.needs_import_node = true;
+    }
 
-    // TODO: Categorize attributes into different groups:
-    // - Regular attributes
-    // - Class directives
-    // - Style directives
-    // - Bind directives
-    // - On directives
-    // - Spread attributes
-    // - Let directives
-    // - Use directives
-    // - Transition/Animate directives
+    // Track script tags
+    if node.name == "script" {
+        context.state.template.contains_script_tag = true;
+    }
 
-    // TODO: Process let directives first
+    // Categorize attributes
+    let mut attributes = Vec::new();
+    let mut class_directives = Vec::new();
+    let mut style_directives = Vec::new();
+    let has_spread = node
+        .attributes
+        .iter()
+        .any(|attr| matches!(attr, Attribute::SpreadAttribute(_)));
 
-    // TODO: Handle special cases for input/textarea/select elements
+    for attribute in &node.attributes {
+        match attribute {
+            Attribute::Attribute(_attr) => {
+                attributes.push(attribute.clone());
+            }
+            Attribute::ClassDirective(dir) => {
+                class_directives.push(dir.clone());
+            }
+            Attribute::StyleDirective(dir) => {
+                style_directives.push(dir.clone());
+            }
+            Attribute::SpreadAttribute(_) => {
+                attributes.push(attribute.clone());
+            }
+            _ => {}
+        }
+    }
 
-    // TODO: Build attributes (static in template, dynamic with effects)
+    // Process attributes (excluding directives)
+    if !has_spread {
+        for attribute in &attributes {
+            if let Attribute::Attribute(attr) = attribute {
+                // Skip event attributes
+                if is_event_attribute(attr) {
+                    continue;
+                }
 
-    // TODO: Process child nodes
+                let name = get_attribute_name(node, attr);
 
-    // TODO: Handle special value attributes for option/select elements
+                // Static text attributes can go in the template
+                let is_true_value = matches!(&attr.value, AttributeValue::True(true));
+                if !is_custom_element
+                    && !cannot_be_set_statically(&attr.name)
+                    && (is_true_value || is_text_attribute(attr))
+                    && (name != "class" || class_directives.is_empty())
+                    && (name != "style" || style_directives.is_empty())
+                {
+                    let mut value = if is_text_attribute(attr) {
+                        if let AttributeValue::Sequence(parts) = &attr.value {
+                            if let crate::ast::template::AttributeValuePart::Text(text) = &parts[0]
+                            {
+                                text.data.to_string()
+                            } else {
+                                String::new()
+                            }
+                        } else {
+                            String::new()
+                        }
+                    } else {
+                        String::new()
+                    };
+
+                    // Add scoped class if needed
+                    if name == "class"
+                        && context.state.analysis.css.has_css
+                        && !context.state.analysis.css.hash.is_empty()
+                    {
+                        let hash = &context.state.analysis.css.hash;
+                        if value.is_empty() {
+                            value = hash.clone();
+                        } else {
+                            value.push(' ');
+                            value.push_str(hash);
+                        }
+                    }
+
+                    if name != "class" || !value.is_empty() {
+                        let prop_value = if is_boolean_attribute(&name) && is_true_value {
+                            None
+                        } else if is_true_value {
+                            Some(String::new())
+                        } else {
+                            Some(value)
+                        };
+
+                        context
+                            .state
+                            .template
+                            .set_prop(attr.name.to_string(), prop_value);
+                    }
+                } else {
+                    // Dynamic attribute - needs runtime handling
+                    let result =
+                        build_attribute_value(&attr.value, context, |expr, _metadata| expr);
+
+                    let update = build_element_attribute_update(
+                        node,
+                        &extract_node_id(&context.state.node),
+                        &name,
+                        result.value,
+                        &attributes,
+                    );
+
+                    if result.has_state {
+                        context.state.update.push(b::stmt(update));
+                    } else {
+                        context.state.init.push(b::stmt(update));
+                    }
+                }
+            }
+        }
+    }
+
+    // Process child nodes
+    let current_node = context.state.node.clone();
+    process_children(
+        &node.fragment.nodes,
+        |is_text| {
+            b::call(
+                b::member_path("$.child"),
+                vec![
+                    current_node.clone(),
+                    if is_text {
+                        b::boolean(true)
+                    } else {
+                        b::boolean(false)
+                    },
+                ],
+            )
+        },
+        true, // is_element
+        context,
+    );
+
+    // Reset after processing children if needed
+    if !node.fragment.nodes.is_empty()
+        && node
+            .fragment
+            .nodes
+            .iter()
+            .any(|n| !matches!(n, crate::ast::template::TemplateNode::Text(_)))
+    {
+        context.state.init.push(b::stmt(b::call(
+            b::member_path("$.reset"),
+            vec![context.state.node.clone()],
+        )));
+    }
 
     context.state.template.pop_element();
     TransformResult::None
 }
 
 /// Check if a node is a custom element.
-///
-/// Custom elements have hyphenated names or are configured via compiler options.
-#[allow(dead_code)]
-fn is_custom_element_node(_node: &RegularElementNode) -> bool {
-    // TODO: Implement custom element detection
-    // This would check:
-    // 1. If the tag name contains a hyphen
-    // 2. If it's in the customElements registry
-    // 3. If customElement compiler option is set
-    false
-}
-
-/// Check if an element is a load/error event target.
-///
-/// These elements need special handling to replay events during hydration.
-#[allow(dead_code)]
-fn is_load_error_element(name: &str) -> bool {
-    matches!(name, "img" | "iframe" | "link" | "script")
+fn is_custom_element_node(node: &RegularElementNode) -> bool {
+    node.name.contains('-')
+        || node.attributes.iter().any(|attr| {
+            if let Attribute::Attribute(a) = attr {
+                a.name == "is"
+            } else {
+                false
+            }
+        })
 }
 
 /// Check if an attribute is a text attribute (static string).
-///
-/// Text attributes can be set directly in the template HTML.
-#[allow(dead_code)]
 fn is_text_attribute(attr: &AttributeNode) -> bool {
     use crate::ast::template::AttributeValuePart;
 
@@ -130,54 +221,29 @@ fn is_text_attribute(attr: &AttributeNode) -> bool {
     }
 }
 
-/// Extract text value from a text attribute.
-#[allow(dead_code)]
-fn extract_text_value(attr: &AttributeNode) -> String {
-    use crate::ast::template::AttributeValuePart;
-
-    match &attr.value {
-        AttributeValue::True(_) => "true".to_string(),
-        AttributeValue::Sequence(parts) => parts
-            .iter()
-            .filter_map(|p| match p {
-                AttributeValuePart::Text(t) => Some(t.data.as_str()),
-                _ => None,
-            })
-            .collect::<Vec<_>>()
-            .join(""),
-        _ => String::new(),
-    }
-}
-
 /// Get the attribute name (normalized).
-///
-/// For most attributes, this is just the attribute name.
-/// For some attributes (like xlink:href), normalization may be needed.
-#[allow(dead_code)]
 fn get_attribute_name(_node: &RegularElementNode, attr: &AttributeNode) -> String {
-    // TODO: Implement proper attribute name normalization
-    // - Handle xlink:* attributes
-    // - Handle xmlns attributes
-    // - Lowercase for HTML mode
     attr.name.to_string()
 }
 
 /// Check if an attribute cannot be set statically in the template.
-///
-/// These attributes must be set via JavaScript because they have
-/// special behavior or side effects.
-#[allow(dead_code)]
 fn cannot_be_set_statically(name: &str) -> bool {
     matches!(
         name,
-        "value" | "checked" | "selected" | "innerHTML" | "innerText" | "textContent"
+        "value"
+            | "checked"
+            | "selected"
+            | "innerHTML"
+            | "innerText"
+            | "textContent"
+            | "autofocus"
+            | "muted"
+            | "defaultValue"
+            | "defaultChecked"
     )
 }
 
 /// Check if an attribute is a boolean attribute.
-///
-/// Boolean attributes are set by presence/absence rather than value.
-#[allow(dead_code)]
 fn is_boolean_attribute(name: &str) -> bool {
     matches!(
         name,
@@ -209,10 +275,6 @@ fn is_boolean_attribute(name: &str) -> bool {
 }
 
 /// Check if a name is a DOM property (vs attribute).
-///
-/// DOM properties are set via element.property = value
-/// rather than element.setAttribute(name, value).
-#[allow(dead_code)]
 fn is_dom_property(name: &str) -> bool {
     matches!(
         name,
@@ -231,40 +293,25 @@ fn is_dom_property(name: &str) -> bool {
 }
 
 /// Check if an attribute is an event attribute (onclick, etc.).
-#[allow(dead_code)]
 fn is_event_attribute(attr: &AttributeNode) -> bool {
     attr.name.starts_with("on")
 }
 
-/// Determine namespace for child elements.
-///
-/// SVG and foreignObject elements change the namespace.
-#[allow(dead_code)]
-fn determine_namespace_for_children(node: &RegularElementNode, parent_namespace: &str) -> String {
-    match node.name.as_str() {
-        "svg" => "svg".to_string(),
-        "foreignObject" => "html".to_string(),
-        _ => parent_namespace.to_string(),
+/// Extract node ID from a JsExpr (identifier name or "node" as fallback).
+fn extract_node_id(expr: &JsExpr) -> String {
+    match expr {
+        JsExpr::Identifier(name) => name.clone(),
+        _ => "node".to_string(),
     }
 }
 
-// ============================================================================
-// Helper functions for building JavaScript AST nodes
-// ============================================================================
-
 /// Build element attribute update expression.
-///
-/// This generates the appropriate call to set an attribute:
-/// - Special handling for muted, value, checked, selected
-/// - Special handling for defaultValue, defaultChecked
-/// - DOM property assignment for known properties
-/// - $.set_attribute() or $.set_xlink_attribute() for others
-#[allow(dead_code)]
 fn build_element_attribute_update(
-    _element: &RegularElementNode,
+    element: &RegularElementNode,
     node_id: &str,
     name: &str,
     value: JsExpr,
+    attributes: &[Attribute],
 ) -> JsExpr {
     // Special case: muted (Firefox needs property assignment)
     if name == "muted" {
@@ -289,7 +336,41 @@ fn build_element_attribute_update(
         );
     }
 
-    // TODO: Handle defaultValue and defaultChecked
+    // Special case: defaultValue
+    if name == "defaultValue" {
+        let has_value_attr = attributes.iter().any(|attr| {
+            if let Attribute::Attribute(a) = attr {
+                a.name == "value" && is_text_attribute(a)
+            } else {
+                false
+            }
+        });
+
+        if has_value_attr || (element.name == "textarea" && !element.fragment.nodes.is_empty()) {
+            return b::call(
+                b::member_path("$.set_default_value"),
+                vec![b::id(node_id), value],
+            );
+        }
+    }
+
+    // Special case: defaultChecked
+    if name == "defaultChecked" {
+        let has_checked_attr = attributes.iter().any(|attr| {
+            if let Attribute::Attribute(a) = attr {
+                matches!(&a.value, AttributeValue::True(true)) && a.name == "checked"
+            } else {
+                false
+            }
+        });
+
+        if has_checked_attr {
+            return b::call(
+                b::member_path("$.set_default_checked"),
+                vec![b::id(node_id), value],
+            );
+        }
+    }
 
     // DOM property
     if is_dom_property(name) {
@@ -307,15 +388,6 @@ fn build_element_attribute_update(
         b::member_path(set_fn),
         vec![b::id(node_id), b::string(name), value],
     )
-}
-
-/// Extract node name from an identifier expression.
-#[allow(dead_code)]
-fn extract_node_name(expr: &JsExpr) -> String {
-    match expr {
-        JsExpr::Identifier(name) => name.clone(),
-        _ => "node".to_string(),
-    }
 }
 
 #[cfg(test)]
@@ -338,14 +410,5 @@ mod tests {
         assert!(is_dom_property("innerHTML"));
         assert!(!is_dom_property("class"));
         assert!(!is_dom_property("id"));
-    }
-
-    #[test]
-    fn test_is_load_error_element() {
-        assert!(is_load_error_element("img"));
-        assert!(is_load_error_element("iframe"));
-        assert!(is_load_error_element("script"));
-        assert!(!is_load_error_element("div"));
-        assert!(!is_load_error_element("span"));
     }
 }

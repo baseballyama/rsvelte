@@ -73,7 +73,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
 
     // Add comment placeholder for uncontrolled blocks
     if !each_node_meta.is_controlled {
-        context.state.template.push_comment();
+        context.state.template.push_comment(None);
     }
 
     // Calculate flags
@@ -344,7 +344,11 @@ fn generate_index_identifier(
 ) -> JsExpr {
     if metadata.contains_group_binding || node.index.is_none() {
         // Use the metadata index
-        b::id(&metadata.index)
+        if let Some(ref index) = metadata.index {
+            b::id(index)
+        } else {
+            b::id("$$index")
+        }
     } else {
         // Use the node's index
         b::id(node.index.as_ref().unwrap().as_str())

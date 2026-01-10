@@ -124,7 +124,7 @@ pub enum TemplateNode {
 // =============================================================================
 
 /// Static text node.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Text {
     pub start: u32,
     pub end: u32,
@@ -148,7 +148,7 @@ pub struct Comment {
 // =============================================================================
 
 /// A reactive template expression: `{expression}`.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct ExpressionTag {
     pub start: u32,
     pub end: u32,
@@ -502,7 +502,7 @@ impl serde::Serialize for AttributeNode {
 }
 
 /// The value of an attribute.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AttributeValue {
     /// Boolean attribute (no value).
@@ -514,7 +514,7 @@ pub enum AttributeValue {
 }
 
 /// A part of an attribute value (text or expression).
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum AttributeValuePart {
     Text(Text),

@@ -38,6 +38,7 @@
 //! println!("{}", result.js.code);
 //! ```
 
+pub mod constants;
 pub mod legacy;
 pub mod phases;
 pub mod utils;
