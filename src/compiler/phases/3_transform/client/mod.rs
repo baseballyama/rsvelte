@@ -3398,9 +3398,36 @@ export default function {component_name}({fn_params}) {{
                             })
                             .collect();
 
+                        // Check if any expression uses state variables (reactive)
+                        let is_reactive = combined.iter().any(|expr| {
+                            self.state_vars.iter().any(|sv| expr.contains(sv))
+                                || self.proxy_state_vars.iter().any(|sv| expr.contains(sv))
+                        });
+
                         match combined.len() {
                             1 => {
-                                statements.push(stmt(set_text_content(id(var), id(&combined[0]))));
+                                let expr = &combined[0];
+                                if is_reactive {
+                                    // Reactive: use $.child + $.reset + $.template_effect
+                                    let text_var = "text";
+                                    statements.push(var_decl(
+                                        text_var,
+                                        Some(svelte_child(id(var), Some(true))),
+                                    ));
+                                    statements.push(stmt(svelte_reset(id(var))));
+                                    // Wrap in arrow function and array
+                                    let callback = arrow(
+                                        vec![id_pattern("$0")],
+                                        svelte_set_text(id(text_var), id("$0")),
+                                    );
+                                    let values = array(vec![arrow(vec![], id(expr))]);
+                                    statements.push(stmt(svelte_template_effect_with_values(
+                                        callback, values,
+                                    )));
+                                } else {
+                                    // Static: use textContent assignment
+                                    statements.push(stmt(set_text_content(id(var), id(expr))));
+                                }
                             }
                             n if n > 1 => {
                                 let all_literals = combined.iter().all(|s| {
@@ -3424,7 +3451,25 @@ export default function {component_name}({fn_params}) {{
                                         string(&combined_str),
                                     )));
                                 } else if let Some(last) = combined.last() {
-                                    statements.push(stmt(set_text_content(id(var), id(last))));
+                                    if is_reactive {
+                                        // Reactive: use $.child + $.reset + $.template_effect
+                                        let text_var = "text";
+                                        statements.push(var_decl(
+                                            text_var,
+                                            Some(svelte_child(id(var), Some(true))),
+                                        ));
+                                        statements.push(stmt(svelte_reset(id(var))));
+                                        let callback = arrow(
+                                            vec![id_pattern("$0")],
+                                            svelte_set_text(id(text_var), id("$0")),
+                                        );
+                                        let values = array(vec![arrow(vec![], id(last))]);
+                                        statements.push(stmt(svelte_template_effect_with_values(
+                                            callback, values,
+                                        )));
+                                    } else {
+                                        statements.push(stmt(set_text_content(id(var), id(last))));
+                                    }
                                 }
                             }
                             _ => {}

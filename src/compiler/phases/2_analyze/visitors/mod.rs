@@ -88,7 +88,7 @@ mod variable_declarator;
 
 // Re-exports
 pub use await_block::visit_await_block;
-pub use component::visit_component;
+pub use component::visit as visit_component;
 pub use each_block::visit_each_block;
 pub use expression_tag::visit_expression_tag;
 pub use fragment::visit_fragment;

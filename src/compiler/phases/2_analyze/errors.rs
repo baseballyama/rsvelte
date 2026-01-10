@@ -307,36 +307,19 @@ pub fn snippet_parameter_assignment() -> AnalysisError {
     )
 }
 
-/// Cannot assign to %thing% before initialization
-pub fn state_field_invalid_assignment() -> AnalysisError {
-    error(
-        "state_field_invalid_assignment",
-        "Cannot assign to state field before initialization in constructor",
-    )
-}
-
-// Block-related errors
-
-/// %block% must start with {%expected%
-pub fn block_unexpected_character(expected: &str) -> AnalysisError {
-    error(
-        "block_unexpected_character",
-        format!("Block must start with {{{}", expected),
-    )
-}
-
-// Identifier-related errors
-
-/// `$` is an invalid variable name
+/// Cannot use `$` as a variable name
 pub fn dollar_binding_invalid() -> AnalysisError {
-    error("dollar_binding_invalid", "`$` is an invalid variable name")
+    error(
+        "dollar_binding_invalid",
+        "Cannot use `$` as a variable name",
+    )
 }
 
-/// Variable name cannot start with `$` (this is reserved for Svelte internals)
+/// Variable name cannot start with `$`
 pub fn dollar_prefix_invalid() -> AnalysisError {
     error(
         "dollar_prefix_invalid",
-        "Variable name cannot start with `$` (this is reserved for Svelte internals)",
+        "Variable name cannot start with `$` except for special Svelte stores",
     )
 }
 
@@ -344,7 +327,44 @@ pub fn dollar_prefix_invalid() -> AnalysisError {
 pub fn state_invalid_export() -> AnalysisError {
     error(
         "state_invalid_export",
-        "Cannot export reassigned state from a module. To expose the current state value, export a function returning its value",
+        "Cannot export reassigned state. To expose the current state value, export a function returning its value",
+    )
+}
+
+// Block-related errors
+
+/// {@const} tag can only be used in certain contexts
+pub fn const_tag_invalid_placement() -> AnalysisError {
+    error(
+        "const_tag_invalid_placement",
+        "{@const} tag can only be used as a direct child of {#if}, {#each}, {#await}, {#key}, {#snippet}, or a component/element with a slot attribute",
+    )
+}
+
+/// Block must start with expected character
+pub fn block_unexpected_character(expected: &str) -> AnalysisError {
+    error(
+        "block_unexpected_character",
+        format!(
+            "Block must start with '{{{{{}' (no whitespace after '{{{{')",
+            expected
+        ),
+    )
+}
+
+/// `{#each}` block with a key requires an `as` binding
+pub fn each_key_without_as() -> AnalysisError {
+    error(
+        "each_key_without_as",
+        "`{#each}` block with a key requires an `as` binding",
+    )
+}
+
+/// Cannot assign to %thing% before initialization
+pub fn state_field_invalid_assignment() -> AnalysisError {
+    error(
+        "state_field_invalid_assignment",
+        "Cannot assign to state field before initialization in constructor",
     )
 }
 
