@@ -36,7 +36,10 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     visit_function(context, |ctx| {
         // Visit function body
         if let Some(body) = node.get("body") {
+            eprintln!("DEBUG function_declaration: body = {:?}", body);
             let _ = super::script::walk_js_node(body, ctx);
+        } else {
+            eprintln!("DEBUG function_declaration: NO body found");
         }
     });
 

@@ -11,6 +11,7 @@ use crate::compiler::phases::phase3_transform::client::transform_template::{
     Namespace, Template, transform_template,
 };
 use crate::compiler::phases::phase3_transform::client::types::*;
+use crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::process_children;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_render_statement;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
@@ -209,8 +210,8 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
             let text_id_name = state.memoizer.generate_id("text");
             let text_id = b::id(&text_id_name);
 
-            // TODO: Implement process_children
-            // process_children(&cleaned.trimmed, || text_id.clone(), false, context, &mut state);
+            let text_id_clone = text_id.clone();
+            process_children(&cleaned.trimmed, move |_is_text| text_id_clone.clone(), false, context);
 
             state.init.insert(
                 0,
@@ -223,19 +224,25 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
             )));
         } else if cleaned.is_standalone {
             // No need to create a template, we can just use the existing block's anchor
-            // TODO: Implement process_children
-            // process_children(&cleaned.trimmed, || b::id("$$anchor"), false, context, &mut state);
+            process_children(&cleaned.trimmed, |_is_text| b::id("$$anchor"), false, context);
         } else {
             // Standard case with template
-            // TODO: Implement process_children
-            // let expression = |is_text: bool| {
-            //     if is_text {
-            //         b::call(b::member_path("$.first_child"), vec![id.clone(), b::bool(true)])
-            //     } else {
-            //         b::call(b::member_path("$.first_child"), vec![id.clone()])
-            //     }
-            // };
-            // process_children(&cleaned.trimmed, expression, false, context, &mut state);
+            let id_for_closure = id.clone();
+            process_children(
+                &cleaned.trimmed,
+                move |is_text: bool| {
+                    if is_text {
+                        b::call(
+                            b::member_path("$.first_child"),
+                            vec![id_for_closure.clone(), b::literal(JsLiteral::Boolean(true))],
+                        )
+                    } else {
+                        b::call(b::member_path("$.first_child"), vec![id_for_closure.clone()])
+                    }
+                },
+                false,
+                context,
+            );
 
             let mut flags = TEMPLATE_FRAGMENT;
             if state.template.needs_import_node {

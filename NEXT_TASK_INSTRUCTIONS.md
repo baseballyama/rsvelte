@@ -1,445 +1,652 @@
-# 次回作業指示書 - Phase 2 警告・エラー実装
+# 次のタスク指示書 - Phase 3 Client Visitor 実装
 
-## 📊 現在の状態 (2026-01-10)
+## 📊 現在の状態（2026-01-10）
 
-### テスト結果
-- **Validator**: 80/312 (25.6%)
-- **全体**: 326/2830 (11.5%)
+### ✅ 完了した作業
 
-### 最新コミット
-```
-a381bd4 fix(phase2): Visit initializer expression in VariableDeclarator
-942f40b fix: Remove unused imports from transform_template/index.rs
-6106bf3 fix(phase2): Fix error module imports and Phase 3 template issues
-```
+- `fragment.rs` を公式Svelte実装に合わせて完全に書き直し
+- `Template` と `TemplateBuilder` を統一
+- `ComponentClientTransformState` に必要なフィールドを全て追加
+- ビルドエラーを全て修正
 
-### 実装済み機能
-✅ **警告システムの基盤**
-✅ **以下の警告が動作**:
-  - `bidirectional_control_characters` (literal.rs, template_element.rs, text.rs)
-  - `slot_element_deprecated` (slot_element.rs)
-  - `svelte_component_deprecated` (svelte_component.rs)
-  - `svelte_self_deprecated` (svelte_self.rs)
-  - `perf_avoid_inline_class` (new_expression.rs)
+### 📊 テスト結果
 
-✅ **以下のエラーコードが実装済み**:
-  - `transition_duplicate`, `transition_conflict`, `animation_duplicate` (errors.rs)
-  - `constant_assignment` (utils.rs - validate_no_const_assignment)
+| テストスイート | 合格数 | 合格率 | 状態 |
+|--------------|--------|--------|------|
+| パーサー | 22/22 | 100% | ✅ |
+| ユニットテスト | 127/129 | 98% | ✅ |
+| コンパイラスナップショット | 15/19 | 79% | 🟡 |
+| SSR | 8/80 | 10% | 🔴 |
+| Runtime-runes | 0/724 | 0% | 🔴 |
 
 ---
 
-## 🎯 次回の優先タスク
+## 🎯 次にやるべきこと（優先順位順）
 
-### タスク 1: スコープ解析の検証とデバッグ (最優先)
+---
 
-**目的**: `constant_assignment` エラーが正しく動作するか確認
+## タスク1: `process_children()` 関数の実装【最優先】
 
-**問題の可能性**: スコープビルダーが const 宣言のバインディングを正しく作成していない
+### 概要
+`fragment.rs` 内の3箇所（214, 228, 232行目）にある `process_children()` のTODOを実装する。
 
-**手順**:
+### 参照すべき公式実装
+- `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/process.js`
+- 特に `process_children()` 関数
 
-#### 1-1. テストケースの確認
+### 実装手順
+
+#### 1. 公式実装を読む
 ```bash
-cat svelte/packages/svelte/tests/validator/samples/assignment-to-const/input.svelte
-cat svelte/packages/svelte/tests/validator/samples/assignment-to-const/errors.json
+cat svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/process.js
 ```
 
-#### 1-2. デバッグ用テストプログラム作成
-```rust
-// /tmp/test_const_assignment.rs
-fn main() {
-    let source = r#"<script>
-    const immutable = false;
-    function shouldError() {
-        immutable = true;
-    }
-</script>
-<button on:click={shouldError}>click</button>"#;
+#### 2. 新しいファイルを作成
+```bash
+# 新規作成
+touch src/compiler/phases/3_transform/client/visitors/shared/process.rs
+```
 
-    let options = svelte_compiler_rust::CompileOptions {
-        generate: svelte_compiler_rust::GenerateMode::Client,
-        filename: Some("test.svelte".to_string()),
-        ..Default::default()
+または既存の `utils.rs` に追加してもOK:
+```bash
+src/compiler/phases/3_transform/client/visitors/shared/utils.rs
+```
+
+#### 3. 実装する関数
+
+以下の関数を実装する必要があります：
+
+```rust
+// src/compiler/phases/3_transform/client/visitors/shared/process.rs
+
+use crate::ast::template::TemplateNode;
+use crate::compiler::phases::phase3_transform::client::types::*;
+use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
+/// Process children nodes and generate code.
+///
+/// # Arguments
+///
+/// * `nodes` - The child nodes to process
+/// * `expression` - Function to generate anchor expression (引数: is_text)
+/// * `is_element` - Whether parent is an element
+/// * `context` - Component context
+/// * `state` - Transform state
+pub fn process_children<F>(
+    nodes: &[TemplateNode],
+    expression: F,
+    is_element: bool,
+    context: &mut ComponentContext,
+    state: &mut ComponentClientTransformState,
+) where
+    F: Fn(bool) -> JsExpr,
+{
+    // 公式実装の process_children をここに移植
+    // JavaScript の実装を 1行ずつ Rust に翻訳する
+
+    // TODO: 実装する
+}
+```
+
+#### 4. `mod.rs` を更新
+```rust
+// src/compiler/phases/3_transform/client/visitors/shared/mod.rs
+
+pub mod component;
+pub mod element;
+pub mod utils;
+pub mod process;  // 追加
+
+pub use process::process_children;  // 追加
+```
+
+#### 5. `fragment.rs` のTODOを置き換え
+
+```rust
+// fragment.rs 214行目付近
+if use_space_template {
+    let text_id_name = state.memoizer.generate_id("text");
+    let text_id = b::id(&text_id_name);
+
+    // TODO: Implement process_children
+    // ↓ これに置き換える
+    process_children(&cleaned.trimmed, || text_id.clone(), false, context, &mut state);
+
+    state.init.insert(
+        0,
+        b::var_decl(&text_id_name, Some(b::call(b::member_path("$.text"), vec![]))),
+    );
+    // ... 以下省略
+}
+```
+
+```rust
+// fragment.rs 228行目付近
+} else if cleaned.is_standalone {
+    // No need to create a template, we can just use the existing block's anchor
+    // TODO: Implement process_children
+    // ↓ これに置き換える
+    process_children(&cleaned.trimmed, || b::id("$$anchor"), false, context, &mut state);
+} else {
+    // ... 以下省略
+}
+```
+
+```rust
+// fragment.rs 232-240行目付近
+} else {
+    // Standard case with template
+    // TODO: Implement process_children
+    // ↓ これに置き換える
+    let expression = |is_text: bool| {
+        if is_text {
+            b::call(b::member_path("$.first_child"), vec![id.clone(), b::bool(true)])
+        } else {
+            b::call(b::member_path("$.first_child"), vec![id.clone()])
+        }
     };
+    process_children(&cleaned.trimmed, expression, false, context, &mut state);
 
-    match svelte_compiler_rust::compile(source, options) {
-        Ok(_) => println!("❌ Should have failed with constant_assignment error"),
-        Err(e) => println!("✅ Error: {:?}", e),
-    }
+    // ... 以下省略
 }
 ```
 
-#### 1-3. 実行して確認
+### 期待される効果
+- コンパイラスナップショットテストの合格率が向上（79% → 85%+）
+- SSRテストの合格率が向上（10% → 30%+）
+- Runtime-runesテストが動作し始める（0% → 5%+）
+
+### 確認方法
 ```bash
 cargo build
-rustc --edition 2021 -L target/debug/deps /tmp/test_const_assignment.rs \
-  --extern svelte_compiler_rust=target/debug/libsvelte_compiler_rust.rlib \
-  -o /tmp/test_const_assignment && /tmp/test_const_assignment
+cargo test --test compiler_fixtures -- --nocapture
+cargo test --test ssr -- --nocapture | head -50
 ```
-
-**期待結果**: `constant_assignment` エラーが発生すること
-
-**エラーが出ない場合の対処**:
-
-1. スコープビルダーを確認:
-```bash
-# DeclarationKind::Const が正しく設定されているか
-rg "DeclarationKind::Const" src/compiler/phases/2_analyze/
-```
-
-2. `src/compiler/phases/2_analyze/scope_builder.rs` を確認:
-   - `VariableDeclaration` の `kind` が "const" の場合に `DeclarationKind::Const` を設定しているか
-   - バインディングが正しく `root.bindings` に追加されているか
-
-3. assignment_expression.rs が walk_js_node を呼んでいるか確認
 
 ---
 
-### タスク 2: AssignmentExpression visitor の完成
+## タスク2: 他の重要なVisitorの実装
 
-**現状**: assignment_expression.rs は validate_assignment を呼んでいるが、子ノードを訪問していない
+### 優先順位
 
-**ファイル**: `src/compiler/phases/2_analyze/visitors/assignment_expression.rs`
+#### 2-1. `text.rs` - テキストノードの処理【高優先度】
+
+**参照**: `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/Text.js`
+
+**実装場所**: `src/compiler/phases/3_transform/client/visitors/text.rs`
 
 **実装内容**:
 ```rust
-pub fn visit(
-    node: &Value,
-    context: &mut VisitorContext,
-) -> Result<(), AnalysisError> {
-    // Validate assignment target
-    if let Some(left) = node.get("left") {
-        validate_assignment(left, context, false)?;
-    }
+use crate::ast::template::Text;
+use crate::compiler::phases::phase3_transform::client::types::*;
+use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 
-    // Visit children (left and right)
-    if let Some(left) = node.get("left") {
-        super::script::walk_js_node(left, context)?;
-    }
-    if let Some(right) = node.get("right") {
-        super::script::walk_js_node(right, context)?;
-    }
+/// Visit a Text node and generate client-side code.
+pub fn text(node: &Text, context: &mut ComponentContext) -> JsBlockStatement {
+    // 公式実装を参照して実装
+    // テキストノードを $.text() で生成するコードを作る
 
-    Ok(())
+    let id_name = context.state.memoizer.generate_id("text");
+    let id = b::id(&id_name);
+
+    // テキストデータを取得
+    let data = &node.data;
+
+    // $.text(data) を生成
+    context.state.init.push(
+        b::var_decl(&id_name, Some(b::call(b::member_path("$.text"), vec![b::string(data)])))
+    );
+
+    // $.append($$anchor, text) を生成
+    let append_stmt = b::stmt(b::call(
+        b::member_path("$.append"),
+        vec![b::id("$$anchor"), id],
+    ));
+
+    JsBlockStatement {
+        body: vec![append_stmt],
+    }
 }
 ```
 
-**テスト方法**:
+**テスト**:
 ```bash
-# bidirectional_control_characters が代入式の右辺でも検出されるか確認
-# /tmp/test_assignment_bidirectional.rs を作成して実行
+cargo build && cargo test --test compiler_fixtures -- --nocapture
 ```
 
----
+#### 2-2. `if_block.rs` - if/else ブロックの処理【高優先度】
 
-### タスク 3: `bind_invalid_name` エラーの実装
+**参照**: `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/IfBlock.js`
 
-**テストケース**: `window-binding-invalid-dimensions`
+**実装場所**: `src/compiler/phases/3_transform/client/visitors/if_block.rs`
 
-**確認**:
-```bash
-cat svelte/packages/svelte/tests/validator/samples/window-binding-invalid-dimensions/input.svelte
-cat svelte/packages/svelte/tests/validator/samples/window-binding-invalid-dimensions/errors.json
-```
+**注意点**:
+- `{#if}`, `{:else if}`, `{:else}` の処理
+- `$.if()` ランタイム関数を使用
+- consequent と alternate の処理
 
-**実装箇所**: `src/compiler/phases/2_analyze/visitors/bind_directive.rs`
+#### 2-3. `each_block.rs` - each ブロックの処理【高優先度】
 
-**JavaScript 版参考**: `svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/BindDirective.js`
+**参照**: `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/EachBlock.js`
 
-**実装内容**:
+**実装場所**: `src/compiler/phases/3_transform/client/visitors/each_block.rs`
 
-1. errors.rs に関数を追加（既に存在）:
-```rust
-/// `%name%` binding is invalid for this element. %message%
-pub fn bind_invalid_name(name: &str, message: &str) -> AnalysisError {
-    error(
-        "bind_invalid_name",
-        format!("\`{}\` binding is invalid for this element. {}", name, message),
-    )
-}
-```
+**注意点**:
+- `{#each}` ブロックの処理
+- `$.each()` ランタイム関数を使用
+- key による最適化
+- fallback (`:else`) の処理
 
-2. bind_directive.rs で検証を追加:
-```rust
-pub fn visit(
-    directive: &mut BindDirective,
-    context: &mut VisitorContext,
-) -> Result<(), AnalysisError> {
-    // 親要素の名前を取得
-    let parent_element_name = context.parent_element.as_deref();
+#### 2-4. `regular_element.rs` - 通常のHTML要素の処理【中優先度】
 
-    // window, document, body への無効なバインディングをチェック
-    if let Some(parent) = parent_element_name {
-        match parent {
-            "svelte:window" => {
-                // innerWidth, innerHeight, outerWidth, outerHeight, scrollX, scrollY, online のみ許可
-                if !matches!(
-                    directive.name.as_str(),
-                    "innerWidth" | "innerHeight" | "outerWidth" | "outerHeight"
-                    | "scrollX" | "scrollY" | "online"
-                ) {
-                    return Err(errors::bind_invalid_name(
-                        &directive.name,
-                        "Only innerWidth, innerHeight, outerWidth, outerHeight, scrollX, scrollY, and online can be bound to window"
-                    ));
-                }
-            }
-            // document, body も同様にチェック
-            _ => {}
-        }
-    }
+**参照**: `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/RegularElement.js`
 
-    Ok(())
-}
-```
+**実装場所**: `src/compiler/phases/3_transform/client/visitors/regular_element.rs`
 
----
+**注意点**:
+- 通常のHTML要素 (`<div>`, `<span>` など)
+- 属性の処理
+- イベントハンドラーの処理
+- ディレクティブの処理
 
-### タスク 4: `svelte_element_missing_this` エラーの実装
+#### 2-5. `component.rs` - コンポーネントの処理【中優先度】
 
-**テストケース**: `dynamic-element-missing-tag`
+**参照**: `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/Component.js`
 
-**実装箇所**: `src/compiler/phases/2_analyze/visitors/svelte_element.rs`
+**実装場所**: `src/compiler/phases/3_transform/client/visitors/component.rs`
 
-**実装内容**:
-```rust
-pub fn visit(
-    element: &mut SvelteElement,
-    _context: &mut VisitorContext,
-) -> Result<(), AnalysisError> {
-    // Check if 'this' attribute exists
-    if element.tag.is_none() {
-        return Err(errors::svelte_element_missing_this());
-    }
+**注意点**:
+- Svelte コンポーネントの処理
+- props の受け渡し
+- slots の処理
+- bindings の処理
 
-    Ok(())
-}
-```
+### 実装手順（各Visitorごと）
 
-**テスト**: dynamic-element-missing-tag が通るか確認
+1. **公式実装を読む**
+   ```bash
+   cat svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/[VisitorName].js
+   ```
 
----
+2. **対応するRustファイルを確認・作成**
+   ```bash
+   ls src/compiler/phases/3_transform/client/visitors/
+   # 存在しない場合は作成
+   touch src/compiler/phases/3_transform/client/visitors/[visitor_name].rs
+   ```
 
-### タスク 5: `component_name_lowercase` 警告の実装
+3. **visitor関数を実装**
+   ```rust
+   pub fn visitor_name(
+       node: &NodeType,
+       context: &mut ComponentContext
+   ) -> JsBlockStatement {
+       // 実装
+   }
+   ```
 
-**テストケース**: `component-name-lowercase`
+4. **`mod.rs` に追加**
+   ```rust
+   // src/compiler/phases/3_transform/client/visitors/mod.rs
+   pub mod visitor_name;
+   ```
 
-**warnings.rs に追加**:
-```rust
-pub fn component_name_lowercase(name: &str) -> AnalysisWarning {
-    warning(
-        "component_name_lowercase",
-        format!(
-            "Component name '{}' should be capitalized\nhttps://svelte.dev/e/component_name_lowercase",
-            name
-        ),
-    )
-}
-```
+5. **visitor dispatch を更新**
+   - `src/compiler/phases/3_transform/client/visitor.rs` を確認
+   - `visit_node()` 関数でノードタイプに応じて適切なvisitorを呼び出す
 
-**実装箇所**: `src/compiler/phases/2_analyze/visitors/component.rs`
-
-**実装内容**:
-```rust
-pub fn visit(
-    component: &mut Component,
-    context: &mut VisitorContext,
-) -> Result<(), AnalysisError> {
-    // runes モードでのみチェック
-    if context.analysis.runes {
-        // コンポーネント名が小文字で始まる場合に警告
-        if let Some(first_char) = component.name.chars().next() {
-            if first_char.is_lowercase() {
-                context.emit_warning(warnings::component_name_lowercase(&component.name));
-            }
-        }
-    }
-
-    // 既存の処理...
-    Ok(())
-}
-```
-
----
-
-### タスク 6: UpdateExpression visitor の完成
-
-**ファイル**: `src/compiler/phases/2_analyze/visitors/update_expression.rs`
-
-**実装内容**:
-```rust
-pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    // Validate that we can update the argument
-    if let Some(argument) = node.get("argument") {
-        validate_assignment(argument, context, false)?;
-    }
-
-    // Visit the argument
-    if let Some(argument) = node.get("argument") {
-        super::script::walk_js_node(argument, context)?;
-    }
-
-    Ok(())
-}
-```
-
----
-
-## 🧪 テスト方法
-
-### 全体テスト
-```bash
-cargo test --test validator -- --nocapture 2>&1 | grep "=== Validator Tests ==="
-```
-
-### 特定のテストケース確認
-```bash
-# テスト名で grep
-cargo test --test validator 2>&1 | grep -A 3 "assignment-to-const\b"
-cargo test --test validator 2>&1 | grep -A 3 "component-name-lowercase"
-cargo test --test validator 2>&1 | grep -A 3 "window-binding-invalid"
-```
-
-### デバッグ用の個別実行
-```bash
-# 1. テストプログラムを /tmp/test_xxx.rs に作成
-# 2. ビルド
-cargo build
-# 3. コンパイル＆実行
-rustc --edition 2021 -L target/debug/deps /tmp/test_xxx.rs \
-  --extern svelte_compiler_rust=target/debug/libsvelte_compiler_rust.rlib \
-  -o /tmp/test_xxx && /tmp/test_xxx
-```
-
----
-
-## 📁 重要なファイル
-
-### エラー・警告定義
-- `src/compiler/phases/2_analyze/errors.rs` - エラー関数
-- `src/compiler/phases/2_analyze/warnings.rs` - 警告関数
-
-### Visitor 実装
-- `src/compiler/phases/2_analyze/visitors/assignment_expression.rs`
-- `src/compiler/phases/2_analyze/visitors/update_expression.rs`
-- `src/compiler/phases/2_analyze/visitors/bind_directive.rs`
-- `src/compiler/phases/2_analyze/visitors/component.rs`
-- `src/compiler/phases/2_analyze/visitors/svelte_element.rs`
-- `src/compiler/phases/2_analyze/visitors/shared/utils.rs` - validate_assignment など
-
-### スコープ解析
-- `src/compiler/phases/2_analyze/scope_builder.rs` - バインディング作成
-
-### テストケース (参照用)
-- `svelte/packages/svelte/tests/validator/samples/` - 全テストケース
-
----
-
-## 🔄 作業フロー
-
-### 1. テストケース確認
-```bash
-# input.svelte を確認
-cat svelte/packages/svelte/tests/validator/samples/{test-name}/input.svelte
-
-# 期待されるエラー/警告を確認
-cat svelte/packages/svelte/tests/validator/samples/{test-name}/errors.json
-# または
-cat svelte/packages/svelte/tests/validator/samples/{test-name}/warnings.json
-```
-
-### 2. 実装
-- errors.rs または warnings.rs に関数追加（必要に応じて）
-- 対応する visitor ファイルを編集
-
-### 3. ビルド
+### 確認方法
 ```bash
 cargo build
+cargo test --test compiler_fixtures -- --nocapture
+cargo test --test runtime -- --nocapture | head -100
 ```
 
-### 4. 動作確認 (デバッグ用テスト)
+---
+
+## タスク3: 失敗しているテストの調査と修正
+
+### コンパイラスナップショットテストの失敗（4件）
+
+**失敗しているテスト**:
+1. `nullish-coallescence-omittance` - Client JS mismatch
+2. `await-block-scope` - Client JS mismatch
+3. `bind-component-snippet` - Client JS mismatch
+4. `state-proxy-literal` - Client JS mismatch
+
+### 調査手順
+
+#### 1. テストケースの場所を確認
 ```bash
-# /tmp/test_xxx.rs を作成
-rustc --edition 2021 -L target/debug/deps /tmp/test_xxx.rs \
-  --extern svelte_compiler_rust=target/debug/libsvelte_compiler_rust.rlib \
-  -o /tmp/test_xxx && /tmp/test_xxx
+find fixtures -type d -name "nullish-coallescence-omittance"
+ls fixtures/*/snapshot/nullish-coallescence-omittance/
 ```
 
-### 5. コミット
+#### 2. ソースと期待される出力を確認
 ```bash
-git add -A
-git commit --no-verify -m "feat(phase2): Implement XXX validation
+# 入力ファイル
+cat fixtures/*/snapshot/nullish-coallescence-omittance/input.svelte
+
+# 期待されるクライアントコード
+cat fixtures/*/snapshot/nullish-coallescence-omittance/_expected/client.js
+```
+
+#### 3. 実際の出力を生成して比較
+```bash
+# テストを実行すると、実際の出力が一時ファイルに保存される
+cargo test --test compiler_fixtures test_compiler_snapshot_fixtures -- --nocapture
+
+# または、手動でコンパイルしてみる
+# (テストフレームワークが自動比較してくれる)
+```
+
+#### 4. 差分の原因を特定
+
+よくある原因：
+- `process_children` が未実装
+- visitor が未実装（`if_block`, `each_block` など）
+- ランタイム関数の呼び出し方が間違っている
+- ステートメントの順序が違う
+
+#### 5. 修正を実装
+
+---
+
+## タスク4: SSRテストの改善（現在 8/80）
+
+### 優先度の高い失敗テスト
+
+最初の10件：
+1. `bindings-zero`
+2. `textarea-value`
+3. `select-value-implicit-value-complex`
+4. `attribute-boolean`
+5. `hydratable-clobbering`
+6. `bindings-readonly`
+7. `head-title`
+8. `css-empty`
+9. `bindings-empty-string`
+10. `option-scoped-class`
+
+### SSR実装の確認
+
+SSRはサーバーサイドコード生成（HTML文字列を生成するJSコード）なので、クライアントとは異なるアプローチが必要です。
+
+```bash
+# SSR実装の確認
+ls src/compiler/phases/3_transform/server/
+cat src/compiler/phases/3_transform/server/mod.rs
+```
+
+### 調査手順
+
+```bash
+# テストケースを確認
+cat fixtures/*/ssr/bindings-zero/input.svelte
+cat fixtures/*/ssr/bindings-zero/_expected/server.js
+```
+
+### 注意点
+
+- SSRはクライアント実装が完成してから取り組むのが効率的
+- まずはクライアントvisitorを完成させることを優先
+
+---
+
+## 📝 実装時の重要ガイドライン
+
+### 1. 必ず公式実装を参照する
+```bash
+# 対応するJavaScriptファイルを必ず読む
+cat svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/[FileName].js
+```
+
+**重要**: 公式実装を1行ずつRustに翻訳する気持ちで。独自の解釈や改良は後回し。
+
+### 2. 型システムを正しく使う
+
+```rust
+// ComponentContext を使ってステート管理
+context.state.init.push(stmt);
+context.state.update.push(stmt);
+context.state.hoisted.push(stmt);
+
+// ComponentClientTransformState のフィールド
+state.template.push_element(...);
+state.memoizer.generate_id("base");
+```
+
+### 3. ビルダー関数を活用
+
+```rust
+use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
+// 変数宣言
+let stmt = b::var_decl("myVar", Some(b::string("value")));
+
+// 関数呼び出し
+let expr = b::call(b::member_path("$.text"), vec![b::string("Hello")]);
+
+// ステートメント
+let stmt = b::stmt(expr);
+```
+
+### 4. テスト駆動開発
+
+```bash
+# 変更のたびにビルドとテストを実行
+cargo build
+cargo test --test compiler_fixtures -- --nocapture
+
+# 1つのテストが通るごとにコミット
+git add .
+git commit -m "feat(phase3): Implement text visitor"
+git push
+```
+
+### 5. 小さくコミット
+
+```bash
+# 機能ごと、ファイルごとにコミット
+cargo fmt
+cargo clippy --all-targets --all-features -- -D warnings
+git add .
+git commit -m "feat(phase3): Implement process_children function
 
 Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+git push
 ```
 
-### 6. 全体テスト
+---
+
+## 🎯 目標（マイルストーン）
+
+### マイルストーン1: `process_children()` 実装完了 ⭐最優先⭐
+- [ ] `process.rs` または `utils.rs` に実装
+- [ ] `fragment.rs` のTODOを全て置き換え
+- [ ] ビルドが成功
+- [ ] コンパイラスナップショット: 15/19 → 17/19 以上 (89%+)
+
+### マイルストーン2: 主要Visitor実装完了
+- [ ] `text.rs` 実装
+- [ ] `if_block.rs` 実装
+- [ ] `each_block.rs` 実装
+- [ ] `regular_element.rs` 実装
+- [ ] コンパイラスナップショット: 19/19 (100%)
+
+### マイルストーン3: Runtime-runesテスト改善
+- [ ] Runtime-runesテスト: 0/724 → 50/724 以上 (7%+)
+- [ ] SSRテスト: 8/80 → 30/80 以上 (38%+)
+
+---
+
+## 📚 参考資料
+
+### ディレクトリ構造
+```
+src/compiler/phases/3_transform/
+├── client/
+│   ├── mod.rs                     # クライアント変換のエントリーポイント
+│   ├── types.rs                   # ComponentClientTransformState など
+│   ├── transform_template/
+│   │   ├── mod.rs
+│   │   ├── index.rs               # transform_template()
+│   │   ├── template.rs            # Template struct
+│   │   └── types.rs               # Element, Node など
+│   └── visitors/
+│       ├── mod.rs                 # visitorのエクスポート
+│       ├── fragment.rs            # ✅ 実装済み
+│       ├── text.rs                # ⚠️ 要実装
+│       ├── if_block.rs            # ⚠️ 要実装
+│       ├── each_block.rs          # ⚠️ 要実装
+│       ├── regular_element.rs     # ⚠️ 要実装
+│       ├── component.rs           # ⚠️ 要実装
+│       ├── attribute.rs           # 既存
+│       ├── program.rs             # 既存
+│       └── shared/
+│           ├── mod.rs
+│           ├── utils.rs           # ヘルパー関数
+│           ├── component.rs       # 既存
+│           ├── element.rs         # 既存
+│           └── process.rs         # ⚠️ 新規作成が必要
+└── server/
+    └── mod.rs                     # サーバー変換（SSR）
+```
+
+### 公式実装の対応
+```
+svelte/packages/svelte/src/compiler/phases/3-transform/client/
+└── visitors/
+    ├── Fragment.js            → fragment.rs ✅ 実装済み
+    ├── Text.js                → text.rs ⚠️ 要実装
+    ├── IfBlock.js             → if_block.rs ⚠️ 要実装
+    ├── EachBlock.js           → each_block.rs ⚠️ 要実装
+    ├── RegularElement.js      → regular_element.rs ⚠️ 要実装
+    ├── Component.js           → component.rs ⚠️ 要実装
+    └── shared/
+        └── process.js         → process.rs ⚠️ 要実装
+```
+
+### 有用なコマンド
+
 ```bash
-cargo test --test validator -- --nocapture 2>&1 | grep "=== Validator Tests ==="
+# ビルド確認
+cargo build
+
+# 全テスト実行
+cargo test --lib
+
+# 特定のテストスイート
+cargo test --test compiler_fixtures -- --nocapture
+cargo test --test ssr -- --nocapture
+cargo test --test runtime -- --nocapture | head -100
+
+# フォーマットとリント
+cargo fmt
+cargo clippy --all-targets --all-features -- -D warnings
+
+# 公式実装の確認
+cat svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/[FileName].js
+
+# テストケースの確認
+cat fixtures/*/snapshot/[test-name]/input.svelte
+cat fixtures/*/snapshot/[test-name]/_expected/client.js
 ```
 
 ---
 
-## 📝 注意事項
+## ✅ 完了チェックリスト
 
-- **コミットは頻繁に**: 各エラー・警告の実装が完了したら即座にコミット
-- **--no-verify フラグ**: pre-commit フックをスキップするため必須
-- **テスト前にビルド**: `cargo build` でビルドしてから rustc でテスト実行
-- **参考実装**: JavaScript 版 `svelte/packages/svelte/src/compiler/phases/2-analyze/` を確認
+### タスク1: process_children()
+- [ ] 公式実装 `process.js` を読んで理解
+- [ ] `process.rs` ファイル作成
+- [ ] `process_children()` 関数実装
+- [ ] `fragment.rs` のTODO（3箇所）を置き換え
+- [ ] ビルド成功
+- [ ] テスト実行して改善確認
+- [ ] コミット＆プッシュ
+
+### タスク2: Visitor実装
+- [ ] `text.rs` 実装完了
+- [ ] `if_block.rs` 実装完了
+- [ ] `each_block.rs` 実装完了
+- [ ] `regular_element.rs` 実装完了
+- [ ] `component.rs` 実装完了
+- [ ] 各実装後にコミット＆プッシュ
+
+### タスク3: テスト修正
+- [ ] 失敗している4つのスナップショットテストを調査
+- [ ] 原因特定
+- [ ] 修正実装
+- [ ] 全テスト合格確認
 
 ---
 
-## 🎯 目標
+## 💡 Tips
 
-次回セッション終了時の目標:
-- **Validator テスト**: 90/312 (28%) 以上
-- **実装済みエラーコード**: 10個以上
-- **実装済み警告**: 10個以上
+### 1. 一度に1つのタスクに集中する
+まずは `process_children()` を完全に実装してから次のvisitorに進む。
 
----
+### 2. 公式実装を完全にコピーする気持ちで
+独自の解釈や改良は後回し。まずは100%互換性を目指す。
 
-## 🐛 既知の問題と対処法
+### 3. テストを頻繁に実行
+変更のたびにビルドとテストを実行。後退に早く気づく。
 
-### 問題 1: constant_assignment が動作しない
+### 4. 小さくコミット
+機能ごと、ファイルごとにコミット。いつでも戻れるように。
 
-**原因の可能性**:
-- スコープビルダーが `DeclarationKind::Const` を設定していない
-- assignment_expression.rs が walk_js_node を呼んでいない
-- validate_assignment の呼び出し順序が間違っている
+### 5. 詰まったら公式実装を再読
+JavaScriptのロジックを1行ずつRustに翻訳。わからない部分は周辺コードも読む。
 
-**デバッグ方法**:
-```bash
-# スコープビルダーの実装を確認
-rg "VariableDeclaration" src/compiler/phases/2_analyze/scope_builder.rs -A 10
-
-# DeclarationKind の設定を確認
-rg "DeclarationKind::" src/compiler/phases/2_analyze/ -A 2 -B 2
-```
-
-### 問題 2: 警告が発生しない
-
-**原因の可能性**:
-- visitor が呼ばれていない
-- 条件チェックが間違っている
-- context.emit_warning が呼ばれていない
-
-**デバッグ方法**:
+### 6. デバッグ出力を活用
 ```rust
-// visitor の先頭でデバッグ出力
-eprintln!("DEBUG: visit() called for {:?}", node_name);
+eprintln!("DEBUG: process_children called with {} nodes", nodes.len());
+eprintln!("DEBUG: Generated expression: {:?}", expr);
 ```
 
 ---
 
-## 📚 参考リンク
+## 🔍 デバッグ方法
 
-- [PHASE2_FIXES.md](./PHASE2_FIXES.md) - Phase 2 の詳細な実装状況
-- [TODO_IMPLEMENTATION_GUIDE.md](./TODO_IMPLEMENTATION_GUIDE.md) - 実装ガイド
-- [CLAUDE.md](./CLAUDE.md) - プロジェクト全体のガイド
-- JavaScript 原本: `svelte/packages/svelte/src/compiler/phases/2-analyze/`
+### テストが失敗した場合
+
+1. **期待される出力を確認**
+   ```bash
+   cat fixtures/*/snapshot/[test-name]/_expected/client.js
+   ```
+
+2. **実際の出力を確認**
+   - テスト実行時に一時ファイルに保存される
+   - または `eprintln!` でデバッグ出力
+
+3. **差分を比較**
+   - 何が違うのか（関数呼び出し、順序、変数名など）
+   - なぜ違うのか（未実装の機能、ロジックの違いなど）
+
+4. **公式実装を再確認**
+   - 該当箇所のJavaScriptコードを読む
+   - ロジックをRustに正確に翻訳
+
+### ビルドエラーが出た場合
+
+1. **エラーメッセージを注意深く読む**
+   ```bash
+   cargo build 2>&1 | head -50
+   ```
+
+2. **型が合わない場合**
+   - `types.rs` で型定義を確認
+   - builders を確認（`js_ast/builders.rs`）
+
+3. **インポートエラーの場合**
+   - `mod.rs` でモジュール宣言を確認
+   - `use` 文のパスを確認
 
 ---
 
 **作成日**: 2026-01-10
-**想定作業時間**: 2-3時間
-**難易度**: 中（スコープ解析のデバッグが必要な可能性あり）
+**次回更新**: タスク1完了後
+**推奨作業時間**: 3-4時間（`process_children` 実装に2時間、visitor実装に2時間）

@@ -84,6 +84,7 @@ impl<'a> ScopeBuilder<'a> {
             declaration_kind,
             self.current_scope,
         );
+        eprintln!("DEBUG declare_binding: name='{}', kind={:?}, decl_kind={:?}", name, kind, declaration_kind);
         self.bindings.push(binding);
         self.scopes[self.current_scope].declare(name, idx);
         idx
