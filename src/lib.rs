@@ -28,4 +28,5 @@ pub use compiler::legacy::convert_to_legacy;
 pub use compiler::phases::phase1_parse::{ParseOptions, parse};
 #[cfg(feature = "native")]
 pub use compiler::phases::phase1_parse::{ParseOptions, parse, parse_parallel};
+pub use compiler::print::{PrintError, PrintOptions, PrintResult, print};
 pub use compiler::{CompileError, CompileOptions, CompileResult, GenerateMode, compile};
