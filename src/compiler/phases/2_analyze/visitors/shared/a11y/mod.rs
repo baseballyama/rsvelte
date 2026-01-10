@@ -106,7 +106,7 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
                 }
 
                 if name == "aria-hidden" && REGEX_HEADING_TAGS.is_match(&node.name) {
-                    // TODO: w.a11y_hidden(attribute, node.name);
+                    warnings.push(w::a11y_hidden(&node.name));
                 }
 
                 // aria-activedescendant-has-tabindex
@@ -116,14 +116,14 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
                     && !attribute_map.contains_key("tabindex")
                     && !has_spread
                 {
-                    // TODO: w.a11y_aria_activedescendant_has_tabindex(attribute);
+                    warnings.push(w::a11y_aria_activedescendant_has_tabindex());
                 }
             }
 
             // Check role attribute
             if name == "role" {
                 if INVISIBLE_ELEMENTS.contains(&node.name.as_str()) {
-                    // TODO: w.a11y_misplaced_role(attribute, node.name);
+                    warnings.push(w::a11y_misplaced_role(&node.name));
                 }
 
                 if let Some(value) = get_static_value(attribute) {
@@ -133,9 +133,12 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
                         }
 
                         if is_abstract_role(current_role) {
-                            // TODO: w.a11y_no_abstract_role(attribute, current_role);
+                            warnings.push(w::a11y_no_abstract_role(current_role));
                         } else if !ARIA_ROLES.contains(current_role) {
-                            // TODO: w.a11y_unknown_role(attribute, current_role, match);
+                            let aria_roles_vec: Vec<&str> = ARIA_ROLES.iter().copied().collect();
+                            let suggestion = fuzzymatch(current_role, &aria_roles_vec);
+                            warnings
+                                .push(w::a11y_unknown_role(current_role, suggestion.as_deref()));
                         }
 
                         // no-redundant-roles
@@ -144,7 +147,7 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
                             && !["ul", "ol", "li"].contains(&node.name.as_str())
                             && (node.name != "a" || attribute_map.contains_key("href"))
                         {
-                            // TODO: w.a11y_no_redundant_roles(attribute, current_role);
+                            warnings.push(w::a11y_no_redundant_roles(current_role));
                         }
 
                         // Footers and headers special case
@@ -154,7 +157,7 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
                                 A11Y_NESTED_IMPLICIT_SEMANTICS.get(node.name.as_str())
                             && current_role == *nested_role
                         {
-                            // TODO: w.a11y_no_redundant_roles(attribute, current_role);
+                            warnings.push(w::a11y_no_redundant_roles(current_role));
                         }
 
                         // interactive-supports-focus
@@ -170,7 +173,7 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
                                 .iter()
                                 .any(|h| A11Y_INTERACTIVE_HANDLERS.contains(&h.as_str()));
                             if has_interactive_handlers {
-                                // TODO: w.a11y_interactive_supports_focus(node, current_role);
+                                warnings.push(w::a11y_interactive_supports_focus(current_role));
                             }
                         }
 
@@ -180,7 +183,10 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
                             && (is_non_interactive_roles(current_role)
                                 || is_presentation_role(current_role))
                         {
-                            // TODO: w.a11y_no_interactive_element_to_noninteractive_role
+                            warnings.push(w::a11y_no_interactive_element_to_noninteractive_role(
+                                current_role,
+                                &node.name,
+                            ));
                         }
 
                         // no-noninteractive-element-to-interactive-role
@@ -193,10 +199,20 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
                                     .get(node.name.as_str())
                             {
                                 if !exceptions.contains(&current_role) {
-                                    // TODO: w.a11y_no_noninteractive_element_to_interactive_role
+                                    warnings.push(
+                                        w::a11y_no_noninteractive_element_to_interactive_role(
+                                            current_role,
+                                            &node.name,
+                                        ),
+                                    );
                                 }
                             } else {
-                                // TODO: w.a11y_no_noninteractive_element_to_interactive_role
+                                warnings.push(
+                                    w::a11y_no_noninteractive_element_to_interactive_role(
+                                        current_role,
+                                        &node.name,
+                                    ),
+                                );
                             }
                         }
                     }
@@ -247,7 +263,7 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
                 || handlers.contains("keyup")
                 || handlers.contains("keypress");
             if !has_key_event {
-                // TODO: w.a11y_click_events_have_key_events(node);
+                warnings.push(w::a11y_click_events_have_key_events());
             }
         }
     }
@@ -261,7 +277,7 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
         && let Ok(num) = tab_index_value.parse::<i32>()
         && num >= 0
     {
-        // TODO: w.a11y_no_noninteractive_tabindex(node);
+        warnings.push(w::a11y_no_noninteractive_tabindex());
     }
 
     // no-noninteractive-element-interactions
@@ -283,7 +299,7 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
                 .iter()
                 .any(|h| A11Y_RECOMMENDED_INTERACTIVE_HANDLERS.contains(&h.as_str()));
             if has_interactive_handlers {
-                // TODO: w.a11y_no_noninteractive_element_interactions(node, node.name);
+                warnings.push(w::a11y_no_noninteractive_element_interactions(&node.name));
             }
         }
     }
@@ -318,11 +334,11 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
 
     // mouse-events-have-key-events
     if !has_spread && handlers.contains("mouseover") && !handlers.contains("focus") {
-        // TODO: w.a11y_mouse_events_have_key_events(node, "mouseover", "focus");
+        warnings.push(w::a11y_mouse_events_have_key_events("mouseover", "focus"));
     }
 
     if !has_spread && handlers.contains("mouseout") && !handlers.contains("blur") {
-        // TODO: w.a11y_mouse_events_have_key_events(node, "mouseout", "blur");
+        warnings.push(w::a11y_mouse_events_have_key_events("mouseout", "blur"));
     }
 
     // Element-specific checks
@@ -339,7 +355,7 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
                 || attribute_map.contains_key("inert");
 
             if !has_spread && !is_hidden && !is_labelled && !has_content(node) {
-                // TODO: w.a11y_consider_explicit_label(node);
+                warnings.push(w::a11y_consider_explicit_label());
             }
 
             if node.name == "a" {
@@ -352,7 +368,7 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
                             || href_value == "#"
                             || REGEX_JS_PREFIX.is_match(href_value))
                     {
-                        // TODO: w.a11y_invalid_attribute(href, href_value, href.name);
+                        warnings.push(w::a11y_invalid_attribute(href_value, "href"));
                     }
                 } else if !has_spread {
                     let id_attribute = attribute_map.get("id").and_then(|a| get_static_value(a));
