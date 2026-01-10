@@ -62,6 +62,19 @@ pub fn analyze_component(
     // Create scopes for the component
     analysis.create_scopes(ast)?;
 
+    // Analyze scripts (JavaScript AST)
+    if let Some(ref instance) = ast.instance {
+        let script_ast = instance.content.as_json();
+        let mut context = visitors::VisitorContext::new(&mut analysis);
+        visitors::visit_script(script_ast, &mut context)?;
+    }
+
+    if let Some(ref module) = ast.module {
+        let script_ast = module.content.as_json();
+        let mut context = visitors::VisitorContext::new(&mut analysis);
+        visitors::visit_script(script_ast, &mut context)?;
+    }
+
     // Analyze the template using visitors
     visitors::analyze_template(ast, &mut analysis)?;
 

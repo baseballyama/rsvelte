@@ -921,6 +921,11 @@ pub fn svelte_set_sync(source: JsExpr, value: JsExpr) -> JsExpr {
     svelte_call("set", vec![source, value, true_literal()])
 }
 
+/// Create $.event(event_name, element, handler).
+pub fn svelte_event(event_name: impl Into<String>, element: JsExpr, handler: JsExpr) -> JsExpr {
+    svelte_call("event", vec![string(event_name), element, handler])
+}
+
 /// Create $.state(value).
 pub fn svelte_state(value: JsExpr) -> JsExpr {
     svelte_call("state", vec![value])

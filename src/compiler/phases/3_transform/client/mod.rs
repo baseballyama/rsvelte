@@ -3317,12 +3317,15 @@ export default function {component_name}({fn_params}) {{
                         statements.push(stmt(svelte_remove_input_defaults(id(var))));
                     }
 
-                    // Event handlers
+                    // Event handlers - use $.event(event_name, element, handler)
                     for (event_name, handler) in &node.event_handlers {
                         let transformed = transform_state_assignments(handler, &self.state_vars);
-                        let prop_name = format!("__{}", event_name);
-                        statements
-                            .push(stmt(assign(member(id(var), &prop_name), id(&transformed))));
+                        // $.event('click', button, handler)
+                        statements.push(stmt(super::js_ast::builders::svelte_event(
+                            event_name.as_str(),
+                            id(var),
+                            id(&transformed),
+                        )));
                     }
 
                     // Content template handling
@@ -4365,6 +4368,16 @@ fn extract_imports(script: &str) -> (Vec<String>, String) {
 fn transform_client_runes_with_skip(line: &str, skip_state_vars: &[String]) -> String {
     let mut result = line.to_string();
 
+    // Transform $state.raw(x) to $.state(x)
+    if result.contains("$state.raw(") {
+        result = result.replace("$state.raw(", "$.state(");
+    }
+
+    // Transform $state.frozen(x) to $.state(x)
+    if result.contains("$state.frozen(") {
+        result = result.replace("$state.frozen(", "$.state(");
+    }
+
     // Transform $state(x) to $.state(x) for primitives or $.proxy(x) for objects
     if let Some(pos) = result.find("$state(") {
         // Check if this is a declaration
@@ -4768,8 +4781,11 @@ fn collect_state_variables(script: &str) -> Vec<String> {
 
     for line in script.lines() {
         let trimmed = line.trim();
-        // Match patterns like: let varname = $state(...) or const varname = $state(...)
-        if trimmed.contains("$state(") {
+        // Match patterns like: let varname = $state(...), $state.raw(...), $state.frozen(...), etc.
+        if trimmed.contains("$state(")
+            || trimmed.contains("$state.raw(")
+            || trimmed.contains("$state.frozen(")
+        {
             // Extract variable name between let/const and =
             if let Some(eq_pos) = trimmed.find('=') {
                 let before_eq = trimmed[..eq_pos].trim();
@@ -4777,11 +4793,25 @@ fn collect_state_variables(script: &str) -> Vec<String> {
                 if let Some(var_name) = before_eq.split_whitespace().last() {
                     // Check if this is an object or array state (uses $.proxy(), not $.state())
                     // Skip these as they don't need $.get() wrapping
-                    if let Some(state_pos) = trimmed.find("$state(") {
-                        let after_state = &trimmed[state_pos + 7..]; // after "$state("
+                    // Note: $state.raw() and $state.frozen() are always treated as needing $.get() wrapping
+                    let state_pos = if let Some(pos) = trimmed.find("$state.raw(") {
+                        Some((pos, 11)) // "$state.raw(" is 11 characters
+                    } else if let Some(pos) = trimmed.find("$state.frozen(") {
+                        Some((pos, 14)) // "$state.frozen(" is 14 characters
+                    } else {
+                        trimmed.find("$state(").map(|pos| (pos, 7)) // "$state(" is 7 characters
+                    };
+
+                    if let Some((pos, offset)) = state_pos {
+                        let after_state = &trimmed[pos + offset..];
                         let content_start = after_state.trim_start();
                         // Object literals start with { or [ - these become $.proxy()
-                        if content_start.starts_with('{') || content_start.starts_with('[') {
+                        // But $state.raw() and $state.frozen() are always primitives even if they hold arrays/objects
+                        let is_raw_or_frozen =
+                            trimmed.contains("$state.raw(") || trimmed.contains("$state.frozen(");
+                        if !is_raw_or_frozen
+                            && (content_start.starts_with('{') || content_start.starts_with('['))
+                        {
                             continue;
                         }
                     }

@@ -9,6 +9,10 @@
 
 pub mod shared;
 
+// Script visitor
+mod script;
+pub use script::{visit_script, walk_js_node};
+
 // Template visitors
 mod component;
 mod fragment;
@@ -105,8 +109,11 @@ pub struct VisitorContext<'a> {
     pub scope: usize,
     /// The analysis being built.
     pub analysis: &'a mut ComponentAnalysis,
-    /// The path of nodes from root to current.
+    /// The path of nodes from root to current (Svelte template nodes).
     pub path: Vec<&'a TemplateNode>,
+    /// JavaScript AST node path (for expressions in scripts).
+    /// This is a stack of serde_json::Value representing JS AST nodes.
+    pub js_path: Vec<serde_json::Value>,
     /// Parent element name (for validation).
     pub parent_element: Option<String>,
     /// Current function depth.
@@ -142,6 +149,7 @@ impl<'a> VisitorContext<'a> {
             scope: 0,
             analysis,
             path: Vec::new(),
+            js_path: Vec::new(),
             parent_element: None,
             function_depth: 0,
             has_props_rune: false,

@@ -191,6 +191,24 @@ pub fn declaration_duplicate(name: &str) -> AnalysisError {
     )
 }
 
+// Class-related errors
+
+/// `%name%` has already been declared
+pub fn duplicate_class_field(name: &str) -> AnalysisError {
+    error(
+        "duplicate_class_field",
+        format!("`{}` has already been declared", name),
+    )
+}
+
+/// `%name%` has already been declared on this class
+pub fn state_field_duplicate(name: &str) -> AnalysisError {
+    error(
+        "state_field_duplicate",
+        format!("`{}` has already been declared on this class", name),
+    )
+}
+
 /// Cannot declare a variable with the same name as an import inside `<script module>`
 pub fn declaration_duplicate_module_import() -> AnalysisError {
     error(

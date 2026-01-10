@@ -6,9 +6,10 @@
 
 use super::VisitorContext;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
+use serde_json::Value;
 
 /// Visit an export default declaration.
-pub fn visit(_context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit(_node: &Value, _context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Export default is not allowed in Svelte components
     Err(AnalysisError::Validation(
         "Export default is not allowed in Svelte components".to_string(),

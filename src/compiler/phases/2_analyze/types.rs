@@ -122,6 +122,10 @@ pub struct ComponentAnalysis {
 
     /// Whether the component uses $inspect.trace()
     pub tracing: bool,
+
+    /// Class bodies with their state fields (for class body analysis)
+    /// Maps from class body node (JSON) to state fields by name
+    pub classes: HashMap<String, HashMap<String, StateField>>,
 }
 
 impl ComponentAnalysis {
@@ -159,6 +163,7 @@ impl ComponentAnalysis {
             async_deriveds: HashSet::new(),
             props_id: None,
             tracing: false,
+            classes: HashMap::new(),
         }
     }
 
@@ -340,6 +345,19 @@ pub struct ComponentInfo {
     pub end: usize,
     /// Whether this component has bindings
     pub has_bindings: bool,
+}
+
+/// A state field in a class (using $state, $state.raw, $derived, $derived.by).
+#[derive(Debug, Clone)]
+pub struct StateField {
+    /// The type of rune used ($state, $state.raw, $derived, $derived.by)
+    pub rune_type: String,
+    /// The field node (PropertyDefinition or AssignmentExpression in JS)
+    pub node: serde_json::Value,
+    /// The private identifier key
+    pub key: serde_json::Value,
+    /// The call expression value ($state(...), etc.)
+    pub value: serde_json::Value,
 }
 
 /// CSS analysis result.
