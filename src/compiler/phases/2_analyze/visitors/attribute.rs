@@ -7,8 +7,10 @@
 use super::VisitorContext;
 use super::shared::attribute::{AttributeChunk, get_attribute_chunks, is_event_attribute};
 use super::shared::fragment::mark_subtree_dynamic;
+use super::shared::utils::{is_invalid_attribute_name, validate_attribute_name};
 use crate::ast::template::{AttributeNode, TemplateNode};
 use crate::compiler::phases::phase2_analyze::AnalysisError;
+use crate::compiler::phases::phase2_analyze::errors;
 use crate::compiler::utils::{can_delegate_event, cannot_be_set_statically};
 
 /// Visit an attribute.
@@ -20,6 +22,16 @@ pub fn visit(attribute: &AttributeNode, context: &mut VisitorContext) -> Result<
     // TODO: Visit children (expressions in attribute value)
     // In JS: context.next();
     // This requires traversing expression nodes in the attribute value
+
+    // Validate attribute name for invalid characters
+    if is_invalid_attribute_name(&attribute.name) {
+        return Err(errors::attribute_invalid_name(&attribute.name));
+    }
+
+    // Validate attribute name for illegal colons
+    if let Err(warning) = validate_attribute_name(&attribute.name) {
+        context.emit_warning(warning);
+    }
 
     // Get the parent node to determine context
     let parent = context.path.last();

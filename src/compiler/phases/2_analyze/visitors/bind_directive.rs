@@ -412,20 +412,14 @@ fn validate_contenteditable_binding(
     });
 
     if contenteditable.is_none() {
-        return Err(AnalysisError::ValidationWithCode {
-            code: "attribute_contenteditable_missing".to_string(),
-            message: "contenteditable attribute is required for this binding".to_string(),
-        });
+        return Err(errors::attribute_contenteditable_missing());
     }
 
     if let Some(attr) = contenteditable
         && !is_text_attribute(attr)
         && !matches!(attr.value, AttributeValue::True(_))
     {
-        return Err(AnalysisError::ValidationWithCode {
-            code: "attribute_contenteditable_dynamic".to_string(),
-            message: "contenteditable attribute cannot be dynamic".to_string(),
-        });
+        return Err(errors::attribute_contenteditable_dynamic());
     }
 
     Ok(())

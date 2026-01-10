@@ -5,7 +5,21 @@
 use super::super::super::{Binding, BindingKind, DeclarationKind, errors};
 use super::super::{AnalysisError, VisitorContext};
 use crate::ast::template::{Fragment, TemplateNode};
+use lazy_static::lazy_static;
+use regex::Regex;
 use serde_json::Value;
+
+lazy_static! {
+    /// Regular expression for illegal attribute characters.
+    ///
+    /// Pattern: /^[0-9-.]|[\^$@%&#?!|()[\]{}^*+~;]/
+    /// - Matches if name starts with digit, hyphen, or dot
+    /// - Or contains any of: ^$@%&#?!|()[]{}*+~;
+    ///
+    /// Corresponds to `regex_illegal_attribute_character` in patterns.js.
+    pub static ref REGEX_ILLEGAL_ATTRIBUTE_CHARACTER: Regex =
+        Regex::new(r"(^[0-9\-.])|([\^$@%&#?!|()\[\]{}*+~;])").unwrap();
+}
 
 /// Validate an assignment or update expression.
 ///
@@ -782,6 +796,55 @@ fn nodes_equal(a: &Value, b: &Value) -> bool {
     // For other nodes, we can't reliably compare equality
     // In the JavaScript version, this uses object reference equality
     false
+}
+
+/// Validate an attribute name.
+///
+/// Checks for:
+/// - Invalid characters (numbers/hyphen/dot at start, special chars)
+/// - Illegal colons (except XML namespaces and Svelte directives)
+///
+/// Corresponds to `validate_attribute_name` in shared/attribute.js.
+///
+/// # Arguments
+///
+/// * `name` - The attribute name to validate
+///
+/// # Returns
+///
+/// Ok if valid, Err with appropriate warning/error otherwise
+pub fn validate_attribute_name(
+    name: &str,
+) -> Result<(), crate::compiler::phases::phase2_analyze::warnings::AnalysisWarning> {
+    use crate::compiler::phases::phase2_analyze::warnings;
+
+    // Check for illegal colon (excluding XML namespaces)
+    // Svelte directives (on:, bind:, etc.) are not regular attributes,
+    // so they won't be validated here
+    if name.contains(':')
+        && !name.starts_with("xmlns:")
+        && !name.starts_with("xlink:")
+        && !name.starts_with("xml:")
+    {
+        return Err(warnings::attribute_illegal_colon());
+    }
+
+    Ok(())
+}
+
+/// Check if an attribute name contains invalid characters.
+///
+/// Returns true if the name:
+/// - Starts with a digit, hyphen, or dot
+/// - Contains special characters: ^$@%&#?!|()[]{}*+~;
+///
+/// Corresponds to checking `regex_illegal_attribute_character` in element.js.
+///
+/// # Arguments
+///
+/// * `name` - The attribute name to check
+pub fn is_invalid_attribute_name(name: &str) -> bool {
+    REGEX_ILLEGAL_ATTRIBUTE_CHARACTER.is_match(name)
 }
 
 /// Visit a JavaScript expression and track identifier references.

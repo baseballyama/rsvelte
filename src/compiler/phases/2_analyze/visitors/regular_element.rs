@@ -6,6 +6,7 @@
 
 use super::super::AnalysisError;
 use super::VisitorContext;
+use super::attribute;
 use super::shared::a11y::check_element as a11y_check;
 use super::shared::element::validate_element;
 use super::shared::fragment::{analyze, mark_subtree_dynamic};
@@ -546,6 +547,13 @@ pub fn visit(
             {
                 // Would generate warning: w.element_invalid_self_closing_tag(node, node.name)
             }
+        }
+    }
+
+    // Visit attributes
+    for attr in &element.attributes {
+        if let Attribute::Attribute(attr_node) = attr {
+            attribute::visit(attr_node, context)?;
         }
     }
 
