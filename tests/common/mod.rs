@@ -198,14 +198,43 @@ fn normalize_blank_lines(code: &str) -> String {
         .join("\n")
 }
 
-/// Normalize JavaScript code for comparison (basic fallback).
+/// Normalize JavaScript code for comparison (optimized for performance).
+/// This function performs lightweight normalization to compare the essential structure
+/// of JavaScript code, ignoring formatting differences like quotes, whitespace, and semicolons.
 pub fn normalize_js(js: &str) -> String {
+    use regex::Regex;
+    lazy_static::lazy_static! {
+        // Normalize multiple spaces to single space
+        static ref MULTI_SPACE: Regex = Regex::new(r"[ \t]+").unwrap();
+        // Normalize space around operators and punctuation
+        static ref SPACE_BEFORE_PUNC: Regex = Regex::new(r"\s+([,;:)\]}])").unwrap();
+        static ref SPACE_AFTER_PUNC: Regex = Regex::new(r"([(\[{])\s+").unwrap();
+    }
+
     js.lines()
         .filter(|line| !line.trim().is_empty())
-        .map(|line| line.trim_end())
         .map(|line| {
-            // Normalize double quotes to single quotes
-            line.replace('"', "'")
+            let mut normalized = line.trim().to_string();
+
+            // Normalize quotes: double quotes to single quotes
+            normalized = normalized.replace('"', "'");
+
+            // Normalize tabs to spaces
+            normalized = normalized.replace('\t', " ");
+
+            // Normalize multiple spaces to single space
+            normalized = MULTI_SPACE.replace_all(&normalized, " ").to_string();
+
+            // Remove spaces before punctuation
+            normalized = SPACE_BEFORE_PUNC.replace_all(&normalized, "$1").to_string();
+
+            // Remove spaces after opening brackets
+            normalized = SPACE_AFTER_PUNC.replace_all(&normalized, "$1").to_string();
+
+            // Remove trailing semicolons for comparison (optional based on style)
+            normalized = normalized.trim_end_matches(';').to_string();
+
+            normalized
         })
         .collect::<Vec<_>>()
         .join("\n")

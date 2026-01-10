@@ -141,6 +141,17 @@ scripts/
 
 ## Development Guidelines
 
+### Implementation Principles
+
+**⚠️ CRITICAL**: このプロジェクトは公式Svelteコンパイラの完全な移植を目的としています。全ての実装において、以下の原則を厳守してください：
+
+1. **参照実装に従う**: 新機能や修正を実装する際は、必ず公式Svelteコンパイラ（`svelte/packages/svelte/src/compiler/`）の実装を確認し、そのロジックとアプローチを参考にすること
+2. **構造の一貫性**: ディレクトリ構造、モジュール分割、関数名などは、可能な限り公式実装に合わせること
+3. **動作の完全一致**: 出力結果は公式コンパイラと完全に一致する必要があり、独自の最適化や拡張は行わないこと
+4. **テストベースの検証**: 全ての変更はSvelteの公式テストスイートで検証し、100%の互換性を維持すること
+
+実装の際は、`svelte/packages/svelte/src/compiler/`内の対応するファイルを必ず参照し、同じアルゴリズムとロジックを使用してください。
+
 ### Setup
 
 After cloning, configure git hooks:
@@ -195,6 +206,7 @@ The compatibility report system provides comprehensive tracking of test results 
 **Output location:** `fixtures/{svelte-commit}/compatibility-report.json`
 
 **JSON schema:**
+
 ```json
 {
   "svelte_commit": "...",
@@ -229,11 +241,13 @@ npm run test-and-update
 ```
 
 This command:
+
 1. Generates `fixtures/{commit}/compatibility-report.json`
 2. Updates the compatibility table in `README.md`
 3. Updates `playground/static/test-results.json` for the progress dashboard
 
 Individual commands:
+
 ```bash
 npm run compatibility-report  # Generate report only
 npm run update-docs           # Update docs from existing report
@@ -254,6 +268,40 @@ npm run update-docs           # Update docs from existing report
    - `utils/html.rs` - HTML utility functions
 3. Run fixture tests to verify compatibility
 4. Use `scripts/compare-parsers.mjs` for debugging differences
+
+### Working with Subagents (CRITICAL REQUIREMENT)
+
+**⚠️ MANDATORY RULE**: When performing actual implementation work, **ALWAYS** use the Task tool to spawn specialized subagents. This is a strict requirement that must be followed without exception.
+
+**Why this matters:**
+
+- Keeps the main conversation context clean and focused
+- Prevents context pollution when working on complex multi-step tasks
+- Ensures better separation of concerns
+- Maintains conversation clarity for planning and coordination
+
+**When to use subagents:**
+
+- Implementing new features or bug fixes
+- Running tests and analyzing results
+- Exploring the codebase to understand implementation details
+- Making code changes across multiple files
+- Any task involving reading, writing, or editing code
+
+**Available subagent types:**
+
+- `Bash` - Command execution (git, cargo, npm, etc.)
+- `Explore` - Codebase exploration and analysis
+- `general-purpose` - Multi-step implementation tasks
+
+**Example:**
+
+```
+User: "Implement CSS scoping for :global() selectors"
+Agent: [Uses Task tool with general-purpose agent to implement the feature]
+```
+
+**This rule applies to ALL implementation work. Do not perform direct file edits or extensive code exploration in the main conversation unless it's a trivial single-file change (e.g., fixing a typo).**
 
 ### Commit Guidelines
 
@@ -308,6 +356,7 @@ npm run compatibility-report
 **Overall: 346/2830 tests passed (12.2%)**
 
 **Recent improvements (2026-01-10)**:
+
 - Compiler Snapshot: 12/19 → 15/19 (+3 tests, +15.7%)
 - Implemented delegated events pattern for event handlers
 - Enhanced RegularElement visitor with CSS scoping
@@ -316,6 +365,7 @@ npm run compatibility-report
 **Test output must match JavaScript compiler exactly** (formatting differences are normalized).
 
 **Compiler Snapshot remaining failures (4/19):**
+
 - `svelte-element` - $props() validation error
 - `skip-static-subtree` - $props() validation error
 - `props-identifier` - $props() validation error

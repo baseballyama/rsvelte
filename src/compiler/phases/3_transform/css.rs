@@ -298,29 +298,85 @@ fn has_nested_rules(block: &Value) -> bool {
     }
 }
 
+/// Result of checking if a selector is unused
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UnusedStatus {
+    /// Selector is used (matches elements)
+    Used,
+    /// Selector is unused (doesn't match any elements)
+    Unused,
+    /// Selector absolutely cannot match (e.g., sibling combinator with impossible relationship)
+    NoMatch,
+}
+
 /// Check if a selector is unused (cannot match any element in the template)
-/// This is a conservative check - only marks simple single-class selectors as unused
-fn is_selector_unused(prelude: &Value, ctx: &CssContext) -> bool {
+/// Returns UnusedStatus to distinguish between unused and no-match cases
+fn check_selector_unused(prelude: &Value, ctx: &CssContext) -> UnusedStatus {
     // If there are dynamic elements or classes, we can't safely prune anything
     // because we don't know what classes/elements might be generated
     if ctx.has_dynamic_elements || ctx.has_dynamic_classes {
-        return false;
+        return UnusedStatus::Used;
     }
 
     // Check each complex selector in the selector list
     if let Some(children) = prelude.get("children").and_then(|c| c.as_array()) {
-        // All selectors must be unused for the rule to be unused
-        children
-            .iter()
-            .all(|complex| is_complex_selector_unused(complex, ctx))
+        let mut has_no_match = false;
+        let mut all_unused = true;
+
+        for complex in children {
+            match check_complex_selector_unused(complex, ctx) {
+                UnusedStatus::Used => {
+                    all_unused = false;
+                }
+                UnusedStatus::NoMatch => {
+                    has_no_match = true;
+                }
+                UnusedStatus::Unused => {
+                    // Keep checking
+                }
+            }
+        }
+
+        // If all selectors are either unused or no-match, and at least one is no-match
+        if all_unused && has_no_match {
+            UnusedStatus::NoMatch
+        } else if all_unused {
+            UnusedStatus::Unused
+        } else {
+            UnusedStatus::Used
+        }
     } else {
-        false
+        UnusedStatus::Used
+    }
+}
+
+/// Check if a complex selector is unused
+/// Returns UnusedStatus to distinguish between unused and no-match cases
+fn check_complex_selector_unused(complex: &Value, ctx: &CssContext) -> UnusedStatus {
+    let unused = is_complex_selector_unused_impl(complex, ctx);
+    eprintln!("check_complex_selector_unused: unused={}", unused);
+    if unused {
+        // Check if it's a no-match case (sibling combinator that absolutely cannot match)
+        let no_match = is_sibling_combinator_no_match(complex, ctx);
+        eprintln!("  is_sibling_combinator_no_match: {}", no_match);
+        if no_match {
+            UnusedStatus::NoMatch
+        } else {
+            UnusedStatus::Unused
+        }
+    } else {
+        UnusedStatus::Used
     }
 }
 
 /// Check if a complex selector is unused
 /// A complex selector is unused if it doesn't match any element in the template.
 fn is_complex_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
+    is_complex_selector_unused_impl(complex, ctx)
+}
+
+/// Implementation of complex selector unused check
+fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
     // Get the relative selectors (like "div > span" has multiple relative selectors)
     if let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array()) {
         // Check for :host > element pattern
@@ -447,6 +503,112 @@ fn is_host_child_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
                 }
             }
         }
+    }
+
+    false
+}
+
+/// Check if a sibling combinator selector has no possible match
+/// This is stricter than "unused" - it means the selector absolutely cannot match
+/// due to mutually exclusive control flow branches
+fn is_sibling_combinator_no_match(complex: &Value, ctx: &CssContext) -> bool {
+    if let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array()) {
+        is_sibling_combinator_no_match_impl(rel_selectors, ctx)
+    } else {
+        false
+    }
+}
+
+/// Implementation of no-match check for sibling combinators
+fn is_sibling_combinator_no_match_impl(rel_selectors: &[Value], ctx: &CssContext) -> bool {
+    if rel_selectors.len() < 2 || ctx.dom_structure.elements.is_empty() {
+        return false;
+    }
+
+    // Check if this uses sibling combinators
+    let mut sibling_combinator_found = false;
+    for rel in rel_selectors.iter().skip(1) {
+        let combinator = rel
+            .get("combinator")
+            .and_then(|c| c.get("name"))
+            .and_then(|n| n.as_str())
+            .unwrap_or(" ");
+
+        if combinator == "+" || combinator == "~" {
+            sibling_combinator_found = true;
+            break;
+        }
+    }
+
+    if !sibling_combinator_found {
+        return false;
+    }
+
+    // For simple sibling patterns like .a + .b, check if elements are in mutually exclusive branches
+    if rel_selectors.len() == 2 {
+        let before = &rel_selectors[0];
+        let after = &rel_selectors[1];
+
+        let combinator = after
+            .get("combinator")
+            .and_then(|c| c.get("name"))
+            .and_then(|n| n.as_str())
+            .unwrap_or(" ");
+
+        if combinator != "+" && combinator != "~" {
+            return false;
+        }
+
+        let before_info = extract_selector_info(before);
+        let after_info = extract_selector_info(after);
+
+        // Find all elements matching 'before' and check their possible siblings
+        let mut found_before_element = false;
+        let mut found_any_match = false;
+
+        eprintln!(
+            "Checking sibling combinator: before={:?}, after={:?}, combinator={}",
+            before_info
+                .tag_name
+                .as_ref()
+                .or(before_info.classes.first()),
+            after_info.tag_name.as_ref().or(after_info.classes.first()),
+            combinator
+        );
+        eprintln!(
+            "DOM structure has {} elements",
+            ctx.dom_structure.elements.len()
+        );
+
+        for el in ctx.dom_structure.elements.iter() {
+            if selector_matches_element(&before_info, el) {
+                found_before_element = true;
+
+                // Check if any possible sibling matches 'after'
+                let possible_siblings = if combinator == "+" {
+                    &el.possible_next_adjacent
+                } else {
+                    &el.possible_next_general
+                };
+
+                for (sibling_idx, _certainty) in possible_siblings {
+                    if let Some(sibling) = ctx.dom_structure.elements.get(*sibling_idx)
+                        && selector_matches_element(&after_info, sibling)
+                    {
+                        // Found a possible match
+                        found_any_match = true;
+                        break;
+                    }
+                }
+
+                if found_any_match {
+                    break;
+                }
+            }
+        }
+
+        // Return true (no match) only if we found elements matching 'before' but none of their siblings match 'after'
+        return found_before_element && !found_any_match;
     }
 
     false
@@ -1100,25 +1262,44 @@ fn transform_rule_preserving(
     }
 
     // Check if the rule is unused (selector doesn't match any template elements)
-    if let Some(prelude) = node.get("prelude")
-        && is_selector_unused(prelude, ctx)
-    {
-        // Comment out unused rules
-        output.push_str("/* (unused) ");
+    if let Some(prelude) = node.get("prelude") {
+        let unused_status = check_selector_unused(prelude, ctx);
+        if unused_status != UnusedStatus::Used {
+            // Determine comment format based on status
+            let (comment_start, comment_end) = match unused_status {
+                UnusedStatus::NoMatch => ("/* no match */\n", ""),
+                UnusedStatus::Unused => ("/* (unused) ", "*/"),
+                UnusedStatus::Used => unreachable!(),
+            };
 
-        // Get the original rule text
-        let rule_start = node_start.saturating_sub(css_start);
-        let rule_end = node_end.saturating_sub(css_start);
-        if rule_end <= css_source.len() && rule_start < rule_end {
-            let original = &css_source[rule_start..rule_end];
-            // Escape any */ in the content
-            let escaped = original.replace("*/", "*\\/");
-            output.push_str(&escaped);
+            output.push_str(comment_start);
+
+            // For "no match", we still include the original rule in a comment
+            if unused_status == UnusedStatus::NoMatch || unused_status == UnusedStatus::Unused {
+                if unused_status == UnusedStatus::NoMatch {
+                    // Add another comment block for the actual rule
+                    output.push_str("/* (unused) ");
+                }
+
+                // Get the original rule text
+                let rule_start = node_start.saturating_sub(css_start);
+                let rule_end = node_end.saturating_sub(css_start);
+                if rule_end <= css_source.len() && rule_start < rule_end {
+                    let original = &css_source[rule_start..rule_end];
+                    // Escape any */ in the content
+                    let escaped = original.replace("*/", "*\\/");
+                    output.push_str(&escaped);
+                }
+
+                output.push_str(comment_end);
+                if unused_status == UnusedStatus::NoMatch {
+                    output.push_str("*/");
+                }
+            }
+
+            *last_end = node_end;
+            return;
         }
-
-        output.push_str("*/");
-        *last_end = node_end;
-        return;
     }
 
     // Get the prelude (selector list)
