@@ -282,7 +282,7 @@ pub struct IfBlock {
 }
 
 /// Metadata for EachBlock nodes.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct EachBlockMetadata {
     /// Whether this is a keyed each block
     pub keyed: bool,
@@ -290,6 +290,15 @@ pub struct EachBlockMetadata {
     pub expression: ExpressionMetadata,
     /// Transitive dependencies (for legacy reactivity)
     pub transitive_deps: HashSet<usize>,
+    /// Whether the each block is controlled (has explicit key tracking)
+    #[serde(default)]
+    pub is_controlled: bool,
+    /// Whether the each block contains group bindings
+    #[serde(default)]
+    pub contains_group_binding: bool,
+    /// Generated unique index identifier name
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub index: Option<String>,
 }
 
 /// An each block: `{#each items as item (key)}...{:else}...{/each}`.
@@ -947,7 +956,7 @@ pub enum ShadowMode {
 // =============================================================================
 
 /// Metadata for JavaScript expressions, tracking dependencies and state.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ExpressionMetadata {
     /// Whether the expression contains state ($state, $derived, etc.)
     pub has_state: bool,

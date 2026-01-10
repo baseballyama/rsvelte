@@ -12,7 +12,7 @@ use super::span::SourceLocation;
 ///
 /// We use serde_json::Value for flexibility to match Svelte's estree output exactly.
 /// This allows us to handle all JavaScript AST node types without defining each one.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Expression {
     /// A parsed JavaScript expression as a JSON value.
