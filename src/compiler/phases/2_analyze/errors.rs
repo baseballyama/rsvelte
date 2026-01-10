@@ -499,3 +499,32 @@ pub fn slot_element_invalid_name_default() -> AnalysisError {
         "`default` is a reserved word — it cannot be used as a slot name",
     )
 }
+
+// Transition/animation directive errors
+
+/// An element can only have one '%name%' directive
+pub fn transition_duplicate(directive_name: &str) -> AnalysisError {
+    error(
+        "transition_duplicate",
+        format!(
+            "An element can only have one '{}' directive",
+            directive_name
+        ),
+    )
+}
+
+/// An element cannot have both '%a%' and '%b%' directives
+pub fn transition_conflict(a: &str, b: &str) -> AnalysisError {
+    error(
+        "transition_conflict",
+        format!("An element cannot have both '{}' and '{}' directives", a, b),
+    )
+}
+
+/// An element can only have one animate directive
+pub fn animation_duplicate() -> AnalysisError {
+    error(
+        "animation_duplicate",
+        "An element can only have one animate directive",
+    )
+}

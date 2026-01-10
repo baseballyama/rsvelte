@@ -1,6 +1,6 @@
 //! Fragment visitor for client-side transformation.
 //!
-//! Corresponds to `Fragment` in
+//! Corresponds to `Fragment.js` in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/Fragment.js`.
 //!
 //! The Fragment visitor handles the transformation of Fragment nodes into client-side
@@ -8,10 +8,12 @@
 
 use crate::ast::template::{Fragment, TemplateNode};
 use crate::compiler::phases::phase3_transform::client::transform_template::{
-    Node, Template, transform_template,
+    Namespace, Template, transform_template,
 };
 use crate::compiler::phases::phase3_transform::client::types::*;
-use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_render_statement;
+use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
+    build_render_statement, Memoizer,
+};
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use crate::compiler::phases::phase3_transform::utils::{clean_nodes, infer_namespace};
@@ -44,72 +46,6 @@ const TEMPLATE_USE_IMPORT_NODE: u32 = 2;
 /// # Returns
 ///
 /// Returns a block statement containing the transformed code.
-///
-/// # Implementation
-///
-/// The JavaScript implementation:
-/// ```javascript
-/// export function Fragment(node, context) {
-///     const parent = context.path.at(-1) ?? node;
-///     const namespace = infer_namespace(context.state.metadata.namespace, parent, node.nodes);
-///     const { hoisted, trimmed, is_standalone, is_text_first } = clean_nodes(
-///         parent, node.nodes, context.path, namespace, context.state,
-///         context.state.preserve_whitespace, context.state.options.preserveComments
-///     );
-///
-///     if (hoisted.length === 0 && trimmed.length === 0) {
-///         return b.block([]);
-///     }
-///
-///     const is_single_element = trimmed.length === 1 && trimmed[0].type === 'RegularElement';
-///     const is_single_child_not_needing_template =
-///         trimmed.length === 1 &&
-///         (trimmed[0].type === 'SvelteFragment' || trimmed[0].type === 'TitleElement');
-///     const template_name = context.state.scope.root.unique('root');
-///
-///     let body = [];
-///     let close = undefined;
-///
-///     const state = {
-///         ...context.state,
-///         init: [], consts: [], let_directives: [], update: [], after_update: [],
-///         memoizer: new Memoizer(), template: new Template(),
-///         transform: { ...context.state.transform },
-///         metadata: { namespace, bound_contenteditable: context.state.metadata.bound_contenteditable },
-///         async_consts: undefined
-///     };
-///
-///     for (const node of hoisted) {
-///         context.visit(node, state);
-///     }
-///
-///     // ... handle different cases (single element, single child, text, multiple nodes) ...
-///
-///     body.push(...state.let_directives, ...state.consts);
-///
-///     if (state.async_consts && state.async_consts.thunks.length > 0) {
-///         body.push(b.var(state.async_consts.id, b.call('$.run', b.array(state.async_consts.thunks))));
-///     }
-///
-///     if (is_text_first) {
-///         body.push(b.stmt(b.call('$.next')));
-///     }
-///
-///     body.push(...state.init);
-///
-///     if (state.update.length > 0) {
-///         body.push(build_render_statement(state));
-///     }
-///
-///     body.push(...state.after_update);
-///
-///     if (close !== undefined) {
-///         body.push(close);
-///     }
-///
-///     return b.block(body);
-/// }
-/// ```
 pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockStatement {
     // Get parent node from path or use the fragment itself
     let parent = context.path.last().copied();
@@ -130,8 +66,8 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
         &namespace,
         context.state.scope,
         context.state.analysis,
-        false, // preserve_whitespace - TODO: get from state
-        false, // preserve_comments - TODO: get from options
+        context.state.preserve_whitespace,
+        context.state.options.preserve_comments,
     );
 
     // Early return if no nodes
@@ -150,8 +86,8 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
         );
 
     // Generate unique template name
-    // TODO: Use scope.generate() when available
-    let template_name = "root".to_string();
+    // TODO: Use scope.root.unique() when available - for now use memoizer
+    let template_name = format!("root_{}", context.state.memoizer.generate_id(""));
 
     // Initialize result containers
     let mut body: Vec<JsStatement> = Vec::new();
@@ -163,14 +99,18 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
         scopes: HashMap::new(),
         analysis: context.state.analysis,
         scope_root: context.state.scope_root,
-        template: TemplateBuilder::new(),
+        options: context.state.options.clone(),
+        hoisted: Vec::new(),
+        template: Template::new(),
         init: Vec::new(),
         update: Vec::new(),
         after_update: Vec::new(),
+        consts: Vec::new(),
+        async_consts: None,
+        let_directives: Vec::new(),
         node: context.state.node.clone(),
         memoizer: Memoizer::new(),
         transform: context.state.transform.clone(),
-        let_directives: Vec::new(),
         events: context.state.events.clone(),
         metadata: ComponentMetadata {
             namespace: namespace.clone(),
@@ -178,10 +118,11 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
         },
         in_constructor: false,
         in_derived: false,
-        dev: context.state.dev,
+        dev: context.state.options.dev,
         state_fields: context.state.state_fields.clone(),
         is_instance: context.state.is_instance,
         legacy_reactive_imports: context.state.legacy_reactive_imports.clone(),
+        preserve_whitespace: context.state.preserve_whitespace,
     };
 
     // Process hoisted nodes
@@ -190,9 +131,6 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
     }
 
     // Handle different cases based on trimmed nodes
-    // TODO: Phase 3 client-side code generation is incomplete
-    // The following code needs refactoring to match current ComponentClientTransformState API
-    /*
     if is_single_element {
         // Single element case
         if let TemplateNode::RegularElement(element) = &cleaned.trimmed[0] {
@@ -201,21 +139,20 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
             let id = b::id(&id_name);
 
             // Visit the element with the id as the node
-            state.node = id.clone();
-            context.visit_node(&cleaned.trimmed[0], Some(&state));
+            let mut element_state = state.clone();
+            element_state.node = id.clone();
+            context.visit_node(&cleaned.trimmed[0], Some(&element_state));
 
             // Determine flags
-            let flags = 0u32; // TODO: Determine appropriate flags
+            let flags = if element_state.template.needs_import_node {
+                Some(TEMPLATE_USE_IMPORT_NODE)
+            } else {
+                None
+            };
 
             // Transform template
-            // TODO: Need mutable reference to state
-            // let template_expr = transform_template(&mut state, namespace.clone(), Some(flags), None);
-
-            // Hoist template variable
-            context
-                .state
-                .init
-                .push(b::var_decl(&template_name, template_expr));
+            let template_expr = transform_template(&mut element_state, namespace, flags, None);
+            state.hoisted.push(b::var_decl(&template_name, Some(template_expr)));
 
             // Initialize element
             state.init.insert(
@@ -228,29 +165,24 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
                 b::member_path("$.append"),
                 vec![b::id("$$anchor"), id],
             )));
+
+            // Merge state back
+            state = element_state;
         }
-    } else */ if is_single_child_not_needing_template {
+    } else if is_single_child_not_needing_template {
         // Single child not needing template (SvelteFragment or TitleElement)
         context.visit_node(&cleaned.trimmed[0], Some(&state));
-    }
-
-    // TODO: Phase 3 client-side code generation is incomplete
-    // The following code needs major refactoring to work with current API
-    /*
-    else if cleaned.trimmed.len() == 1 {
+    } else if cleaned.trimmed.len() == 1 {
         // Check if it's a single Text node
         if let TemplateNode::Text(text) = &cleaned.trimmed[0] {
-            let id_name = context
-                .state
-                .scope_root
-                .generate_unique_name("text".to_string());
+            let id_name = state.memoizer.generate_id("text");
             let id = b::id(&id_name);
 
             state.init.insert(
                 0,
                 b::var_decl(
                     &id_name,
-                    b::call(b::member_path("$.text"), vec![b::string(&text.data)]),
+                    Some(b::call(b::member_path("$.text"), vec![b::string(&text.data)])),
                 ),
             );
 
@@ -261,10 +193,7 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
         }
     } else if !cleaned.trimmed.is_empty() {
         // Multiple nodes case
-        let id_name = context
-            .state
-            .scope_root
-            .generate_unique_name("fragment".to_string());
+        let id_name = state.memoizer.generate_id("fragment");
         let id = b::id(&id_name);
 
         // Check for special case: text and expression tags only
@@ -279,19 +208,15 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
 
         if use_space_template {
             // Special case — we can use `$.text` instead of creating a unique template
-            let text_id_name = context
-                .state
-                .scope_root
-                .generate_unique_name("text".to_string());
+            let text_id_name = state.memoizer.generate_id("text");
             let text_id = b::id(&text_id_name);
 
-            // Process children
             // TODO: Implement process_children
             // process_children(&cleaned.trimmed, || text_id.clone(), false, context, &mut state);
 
             state.init.insert(
                 0,
-                b::var_decl(&text_id_name, b::call(b::member_path("$.text"), vec![])),
+                b::var_decl(&text_id_name, Some(b::call(b::member_path("$.text"), vec![]))),
             );
 
             close = Some(b::stmt(b::call(
@@ -321,33 +246,21 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
 
             // Check for special case: single comment
             if state.template.nodes.len() == 1 {
-                if let Some(Node::Comment(_)) = state.template.nodes.first() {
-                    state.init.insert(
-                        0,
-                        b::var_decl(&id_name, Some(b::call(b::member_path("$.comment"), vec![]))),
-                    );
-                } else {
-                    // Standard template case
-                    let template_expr = transform_template(&state, &namespace, flags);
-                    context
-                        .state
-                        .init
-                        .push(b::var_decl(&template_name, template_expr));
-                    state.init.insert(
-                        0,
-                        b::var_decl(&id_name, b::call(b::id(&template_name), vec![])),
-                    );
-                }
-            } else {
-                // Standard template case
-                let template_expr = transform_template(&state, &namespace, flags);
-                context
-                    .state
-                    .init
-                    .push(b::var_decl(&template_name, template_expr));
+                // TODO: Check if node is a comment
+                // For now, use standard template case
+                let template_expr = transform_template(&mut state, namespace, Some(flags), None);
+                state.hoisted.push(b::var_decl(&template_name, Some(template_expr)));
                 state.init.insert(
                     0,
-                    b::var_decl(&id_name, b::call(b::id(&template_name), vec![])),
+                    b::var_decl(&id_name, Some(b::call(b::id(&template_name), vec![]))),
+                );
+            } else {
+                // Standard template case
+                let template_expr = transform_template(&mut state, namespace, Some(flags), None);
+                state.hoisted.push(b::var_decl(&template_name, Some(template_expr)));
+                state.init.insert(
+                    0,
+                    b::var_decl(&id_name, Some(b::call(b::id(&template_name), vec![]))),
                 );
             }
 
@@ -357,33 +270,34 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
             )));
         }
     }
-    */
 
-    // Build the body
-    body.extend(state.let_directives.into_iter().map(JsStatement::Expression));
-    // body.extend(state.consts); // TODO: Add consts when implemented
+    // Build the final body
+    body.extend(state.let_directives);
+    body.extend(state.consts);
 
     // Handle async_consts
-    // TODO: Implement async_consts handling
-    // if let Some(ref async_consts) = state.async_consts {
-    //     if !async_consts.thunks.is_empty() {
-    //         body.push(b::var_decl(
-    //             &async_consts.id,
-    //             b::call(b::member_path("$.run"), vec![b::array(async_consts.thunks.clone())]),
-    //         ));
-    //     }
-    // }
+    if let Some(async_consts) = state.async_consts {
+        if !async_consts.thunks.is_empty() {
+            body.push(b::var_decl(
+                "__async_consts",
+                Some(b::call(
+                    b::member_path("$.run"),
+                    vec![b::array(async_consts.thunks)],
+                )),
+            ));
+        }
+    }
 
-    // Skip over inserted comment if text is first
+    // Skip over inserted comment if text_first
     if cleaned.is_text_first {
         body.push(b::stmt(b::call(b::member_path("$.next"), vec![])));
     }
 
     body.extend(state.init);
 
-    // Add render statement if there are updates
+    // Add render effect if there are updates
     if !state.update.is_empty() {
-        body.push(build_render_statement(state.update));
+        body.push(build_render_statement(&state));
     }
 
     body.extend(state.after_update);
@@ -392,6 +306,9 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
     if let Some(close_stmt) = close {
         body.push(close_stmt);
     }
+
+    // Update context state with hoisted statements
+    context.state.hoisted.extend(state.hoisted);
 
     JsBlockStatement { body }
 }

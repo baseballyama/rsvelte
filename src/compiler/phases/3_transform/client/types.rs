@@ -9,6 +9,7 @@
 use crate::ast::template::TemplateNode;
 use crate::compiler::phases::phase2_analyze::scope::{Binding, Scope, ScopeRoot};
 use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
+use crate::compiler::phases::phase3_transform::client::transform_template::Template;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use std::collections::{HashMap, HashSet};
 
@@ -280,7 +281,7 @@ pub struct ComponentClientTransformState<'a> {
     pub hoisted: Vec<JsStatement>,
 
     /// Template building state
-    pub template: TemplateBuilder,
+    pub template: Template,
 
     /// Initialization statements (run once)
     pub init: Vec<JsStatement>,
@@ -352,7 +353,7 @@ impl<'a> ComponentClientTransformState<'a> {
             scope_root,
             options: TransformOptions::default(),
             hoisted: Vec::new(),
-            template: TemplateBuilder::new(),
+            template: Template::new(),
             init: Vec::new(),
             update: Vec::new(),
             after_update: Vec::new(),

@@ -6,6 +6,7 @@
 
 use super::super::super::AnalysisError;
 use super::super::VisitorContext;
+use crate::compiler::phases::phase2_analyze::errors;
 use super::attribute::{
     get_attribute_expression, is_expression_attribute, validate_attribute, validate_attribute_name,
     validate_slot_attribute,
@@ -204,9 +205,7 @@ pub fn validate_element(
                 }
 
                 if has_animate_directive {
-                    return Err(AnalysisError::Validation(
-                        "An element can only have one animate directive".to_string(),
-                    ));
+                    return Err(errors::animation_duplicate());
                 } else {
                     has_animate_directive = true;
                 }
@@ -243,15 +242,9 @@ pub fn validate_element(
                         };
 
                         if a == b {
-                            return Err(AnalysisError::Validation(format!(
-                                "An element can only have one '{}' directive",
-                                a
-                            )));
+                            return Err(errors::transition_duplicate(a));
                         } else {
-                            return Err(AnalysisError::Validation(format!(
-                                "An element cannot have both '{}' and '{}' directives",
-                                a, b
-                            )));
+                            return Err(errors::transition_conflict(a, b));
                         }
                     }
                 }

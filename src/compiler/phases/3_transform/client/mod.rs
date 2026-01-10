@@ -3,6 +3,7 @@
 //! Generates JavaScript code for browser execution.
 
 mod state;
+pub mod transform_template;
 pub mod types;
 pub mod utils;
 mod visitor;

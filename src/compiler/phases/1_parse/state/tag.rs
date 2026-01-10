@@ -154,6 +154,7 @@ impl Parser<'_> {
             test,
             consequent,
             alternate,
+            metadata: Default::default(),
         })))
     }
 
@@ -217,6 +218,7 @@ impl Parser<'_> {
                     test: alt_test,
                     consequent: alt_consequent,
                     alternate: alt_alternate,
+                    metadata: Default::default(),
                 })],
                 ..Default::default()
             }))

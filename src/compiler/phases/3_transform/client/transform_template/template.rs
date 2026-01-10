@@ -6,13 +6,14 @@
 use super::fix_attribute_casing::fix_attribute_casing;
 use super::types::{Comment, Element, Node, TextNode};
 use crate::ast::template::Text;
-use crate::compiler::phases::3_transform::js_ast::builders as b;
-use crate::compiler::phases::3_transform::js_ast::nodes::JsExpr;
-use crate::compiler::phases::3_transform::shared::template::{escape_attr, is_void_element};
+use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
+use crate::compiler::phases::phase3_transform::shared::template::{escape_attr, is_void_element};
 use regex::Regex;
 
 /// `true` if HTML template contains a `<script>` tag. In this case we need to invoke a special
 /// template instantiation function
+#[derive(Debug, Clone)]
 pub struct Template {
     /// `true` if HTML template contains a `<script>` tag
     pub contains_script_tag: bool,
@@ -70,7 +71,7 @@ impl Template {
         self.element = Some(element);
 
         // Update fragment to point to the element's children
-        if let Some(Node::Element(ref mut elem)) = unsafe { (*self.fragment).last_mut() } {
+        if let Some(Node::Element(elem)) = unsafe { (*self.fragment).last_mut() } {
             self.fragment = &mut elem.children as *mut Vec<Node>;
             self.stack.push(self.fragment);
         }
@@ -168,7 +169,7 @@ fn stringify(item: &Node) -> String {
             for (key, value) in &element.attributes {
                 str.push(' ');
                 str.push_str(key);
-                if let Some(ref val) = value {
+                if let Some(val) = value {
                     str.push_str(&format!("=\"{}\"", escape_attr(val)));
                 }
             }
@@ -202,7 +203,7 @@ fn objectify(item: &Node) -> Option<JsExpr> {
             Some(b::string(data))
         }
         Node::Comment(comment) => {
-            if let Some(ref data) = comment.data {
+            if let Some(data) = &comment.data {
                 Some(b::array(vec![b::string(format!("// {}", data))]))
             } else {
                 None
@@ -222,10 +223,11 @@ fn objectify(item: &Node) -> Option<JsExpr> {
                 attributes_props.push(b::prop(fixed_key, prop_value));
             }
 
+            let has_attributes = !attributes_props.is_empty();
             let attributes = b::object(attributes_props);
 
-            if !attributes_props.is_empty() || !element.children.is_empty() {
-                element_array.push(if !attributes_props.is_empty() {
+            if has_attributes || !element.children.is_empty() {
+                element_array.push(if has_attributes {
                     attributes
                 } else {
                     b::null()
@@ -242,8 +244,8 @@ fn objectify(item: &Node) -> Option<JsExpr> {
                 // Special case — strip leading newline from `<pre>` and `<textarea>`
                 if (element.name == "pre" || element.name == "textarea") && !children.is_empty() {
                     if let Some(first) = children.first() {
-                        if let JsExpr::Literal(ref lit) = first {
-                            if let crate::compiler::phases::3_transform::js_ast::nodes::JsLiteral::String(ref s) = lit {
+                        if let JsExpr::Literal(lit) = first {
+                            if let crate::compiler::phases::phase3_transform::js_ast::nodes::JsLiteral::String(s) = lit {
                                 let regex = Regex::new(r"^\r?\n").unwrap();
                                 let new_value = regex.replace(s, "").to_string();
                                 let mut modified_children = children.clone();

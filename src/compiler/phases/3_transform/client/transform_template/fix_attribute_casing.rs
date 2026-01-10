@@ -1,5 +1,5 @@
-use once_cell::sync::Lazy;
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 static SVG_ATTRIBUTES: &[&str] = &[
     "accent-height",
@@ -274,7 +274,7 @@ static SVG_ATTRIBUTES: &[&str] = &[
     "zoomAndPan",
 ];
 
-static SVG_ATTRIBUTE_LOOKUP: Lazy<HashMap<String, &'static str>> = Lazy::new(|| {
+static SVG_ATTRIBUTE_LOOKUP: LazyLock<HashMap<String, &'static str>> = LazyLock::new(|| {
     let mut map = HashMap::new();
     for &name in SVG_ATTRIBUTES {
         map.insert(name.to_lowercase(), name);

@@ -260,6 +260,13 @@ impl serde::Serialize for AttachTag {
 // Block Nodes
 // =============================================================================
 
+/// Metadata for IfBlock nodes.
+#[derive(Debug, Clone, Default)]
+pub struct IfBlockMetadata {
+    /// Expression metadata for the test expression
+    pub expression: ExpressionMetadata,
+}
+
 /// An if block: `{#if condition}...{:else if}...{:else}...{/if}`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IfBlock {
@@ -269,6 +276,9 @@ pub struct IfBlock {
     pub test: Expression,
     pub consequent: Fragment,
     pub alternate: Option<Fragment>,
+    /// Metadata (not serialized)
+    #[serde(skip)]
+    pub metadata: IfBlockMetadata,
 }
 
 /// Metadata for EachBlock nodes.
@@ -941,10 +951,34 @@ pub enum ShadowMode {
 pub struct ExpressionMetadata {
     /// Whether the expression contains state ($state, $derived, etc.)
     pub has_state: bool,
+    /// Whether the expression involves a call expression
+    pub has_call: bool,
+    /// Whether the expression contains `await`
+    pub has_await: bool,
+    /// Whether the expression includes a member expression
+    pub has_member_expression: bool,
+    /// Whether the expression includes an assignment or an update
+    pub has_assignment: bool,
     /// Bindings that this expression depends on (indices into analysis bindings)
     pub dependencies: HashSet<usize>,
     /// Bindings that this expression references (indices into analysis bindings)
     pub references: HashSet<usize>,
+}
+
+impl ExpressionMetadata {
+    /// Returns true if the expression is async (contains await or has blockers).
+    pub fn is_async(&self) -> bool {
+        self.has_await
+        // TODO: also check for blockers when binding blocker support is added
+        // For now, just check has_await
+    }
+
+    /// Returns true if the expression has blocker dependencies.
+    pub fn has_blockers(&self) -> bool {
+        // TODO: check if any dependencies have blockers
+        // For now, return false
+        false
+    }
 }
 
 /// Metadata for Component nodes, populated during Phase 2 analysis.
