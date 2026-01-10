@@ -142,6 +142,9 @@ pub struct ComponentAnalysis {
     /// Reactive statements ($: statements) in legacy mode
     /// Maps from the labeled statement node (JSON string) to its analysis
     pub reactive_statements: HashMap<String, ReactiveStatement>,
+
+    /// Warnings generated during analysis
+    pub warnings: Vec<super::warnings::AnalysisWarning>,
 }
 
 impl ComponentAnalysis {
@@ -182,6 +185,7 @@ impl ComponentAnalysis {
             tracing: false,
             classes: HashMap::new(),
             reactive_statements: HashMap::new(),
+            warnings: Vec::new(),
         }
     }
 

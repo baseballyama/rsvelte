@@ -4,11 +4,11 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/RenderTag.js`.
 
+use super::VisitorContext;
 use super::shared::fragment::mark_subtree_dynamic;
 use super::shared::utils::validate_opening_tag;
-use super::VisitorContext;
 use crate::ast::template::{ExpressionMetadata, RenderTag, TemplateNode};
-use crate::compiler::phases::phase2_analyze::{errors, AnalysisError, BindingKind};
+use crate::compiler::phases::phase2_analyze::{AnalysisError, BindingKind, errors};
 use serde_json::Value;
 
 /// Visit a render tag.

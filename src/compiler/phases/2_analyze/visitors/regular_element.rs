@@ -9,13 +9,16 @@ use super::VisitorContext;
 use super::shared::a11y::check_element as a11y_check;
 use super::shared::element::validate_element;
 use super::shared::fragment::{analyze, mark_subtree_dynamic};
-use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, RegularElement, TemplateNode};
+use crate::ast::template::{
+    Attribute, AttributeValue, AttributeValuePart, RegularElement, TemplateNode,
+};
 use regex::Regex;
 use std::sync::LazyLock;
 
 /// Regex for matching a leading newline character.
 /// Corresponds to `regex_starts_with_newline` in patterns.js.
-static REGEX_STARTS_WITH_NEWLINE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\r?\n").unwrap());
+static REGEX_STARTS_WITH_NEWLINE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\r?\n").unwrap());
 
 /// Check if an element name is an SVG element.
 pub fn is_svg(name: &str) -> bool {
@@ -151,9 +154,10 @@ pub fn is_mathml(name: &str) -> bool {
 /// Custom elements have a hyphen in their name or an `is` attribute.
 pub fn is_custom_element_node(element: &RegularElement) -> bool {
     element.name.contains('-')
-        || element.attributes.iter().any(|attr| {
-            matches!(attr, Attribute::Attribute(a) if a.name == "is")
-        })
+        || element
+            .attributes
+            .iter()
+            .any(|attr| matches!(attr, Attribute::Attribute(a) if a.name == "is"))
 }
 
 /// Check if an element is void (self-closing).
@@ -221,7 +225,10 @@ fn is_tag_valid_with_parent(child_tag: &str, parent_tag: &str) -> Option<String>
             "`<{}>` cannot be a child of `<{}>`. `<{}>` only allows these children: `<col>`, `<template>`",
             child_tag, parent_tag, parent_tag
         )),
-        ("table", "caption" | "colgroup" | "tbody" | "thead" | "tfoot" | "style" | "script" | "template") => None,
+        (
+            "table",
+            "caption" | "colgroup" | "tbody" | "thead" | "tfoot" | "style" | "script" | "template",
+        ) => None,
         ("table", _) => Some(format!(
             "`<{}>` cannot be a child of `<{}>`. `<{}>` only allows these children: `<caption>`, `<colgroup>`, `<tbody>`, `<thead>`, `<tfoot>`, `<style>`, `<script>`, `<template>`",
             child_tag, parent_tag, parent_tag
@@ -234,9 +241,11 @@ fn is_tag_valid_with_parent(child_tag: &str, parent_tag: &str) -> Option<String>
         _ => {
             // Check special child tags that require specific parents
             match child_tag {
-                "body" | "caption" | "col" | "colgroup" | "frameset" | "frame" | "head" | "html" => {
-                    Some(format!("`<{}>` cannot be a child of `<{}>", child_tag, parent_tag))
-                }
+                "body" | "caption" | "col" | "colgroup" | "frameset" | "frame" | "head"
+                | "html" => Some(format!(
+                    "`<{}>` cannot be a child of `<{}>",
+                    child_tag, parent_tag
+                )),
                 "thead" | "tbody" | "tfoot" => Some(format!(
                     "`<{}>` must be the child of a `<table>`, not a `<{}>",
                     child_tag, parent_tag
@@ -297,17 +306,23 @@ fn is_tag_valid_with_ancestor(child_tag: &str, ancestors: &[String]) -> Option<S
 /// Corresponds to `create_attribute` in nodes.js.
 fn create_textarea_value_attribute(nodes: Vec<TemplateNode>) -> Attribute {
     // Get start/end from first and last node
-    let start = nodes.first().map(|n| match n {
-        TemplateNode::Text(t) => t.start,
-        TemplateNode::ExpressionTag(e) => e.start,
-        _ => 0,
-    }).unwrap_or(0);
+    let start = nodes
+        .first()
+        .map(|n| match n {
+            TemplateNode::Text(t) => t.start,
+            TemplateNode::ExpressionTag(e) => e.start,
+            _ => 0,
+        })
+        .unwrap_or(0);
 
-    let end = nodes.last().map(|n| match n {
-        TemplateNode::Text(t) => t.end,
-        TemplateNode::ExpressionTag(e) => e.end,
-        _ => 0,
-    }).unwrap_or(0);
+    let end = nodes
+        .last()
+        .map(|n| match n {
+            TemplateNode::Text(t) => t.end,
+            TemplateNode::ExpressionTag(e) => e.end,
+            _ => 0,
+        })
+        .unwrap_or(0);
 
     // Convert nodes to AttributeValuePart
     let parts: Vec<AttributeValuePart> = nodes
@@ -392,9 +407,10 @@ pub fn visit(
     if element.name == "option"
         && element.fragment.nodes.len() == 1
         && matches!(element.fragment.nodes[0], TemplateNode::ExpressionTag(_))
-        && !element.attributes.iter().any(|attr| {
-            matches!(attr, Attribute::Attribute(a) if a.name == "value")
-        })
+        && !element
+            .attributes
+            .iter()
+            .any(|attr| matches!(attr, Attribute::Attribute(a) if a.name == "value"))
     {
         // Note: In JS, this sets node.metadata.synthetic_value_node = child
         // We would need to add this to the RegularElement metadata structure
@@ -515,21 +531,13 @@ pub fn visit(
     }
 
     // Strip off any namespace from the beginning of the node name
-    let node_name = element
-        .name
-        .split(':')
-        .last()
-        .unwrap_or(&element.name);
+    let node_name = element.name.split(':').last().unwrap_or(&element.name);
 
     // Check for invalid self-closing tag
     if element.end >= 2 {
         let end_idx = element.end as usize;
         if end_idx <= context.analysis.source.len() {
-            let char_at_end_minus_2 = context
-                .analysis
-                .source
-                .chars()
-                .nth(end_idx - 2);
+            let char_at_end_minus_2 = context.analysis.source.chars().nth(end_idx - 2);
 
             if char_at_end_minus_2 == Some('/')
                 && !is_void(node_name)
