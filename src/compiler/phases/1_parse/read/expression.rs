@@ -3133,6 +3133,33 @@ fn convert_expression_for_program(
 
             Expression::Value(Value::Object(obj))
         }
+        OxcExpression::AssignmentExpression(assign) => {
+            let start = offset + assign.span.start as usize;
+            let end = offset + assign.span.end as usize;
+
+            // Convert left (target)
+            let left = convert_assignment_target(&assign.left, offset, line_offsets);
+
+            // Convert right (value)
+            let right = convert_expression_for_program(&assign.right, offset, line_offsets);
+
+            // Get operator string
+            let operator = assignment_operator_to_string(&assign.operator);
+
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("AssignmentExpression".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            obj.insert("operator".to_string(), Value::String(operator));
+            obj.insert("left".to_string(), left);
+            obj.insert("right".to_string(), right.as_json().clone());
+
+            Expression::Value(Value::Object(obj))
+        }
         _ => {
             // Fallback: use convert_expression with offset (which internally does -1, so we need to compensate)
             // For simplicity, just create an identifier placeholder

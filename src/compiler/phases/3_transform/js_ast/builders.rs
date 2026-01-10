@@ -435,6 +435,17 @@ pub fn nullish(left: JsExpr, right: JsExpr) -> JsExpr {
     logical(JsLogicalOp::NullishCoalescing, left, right)
 }
 
+/// Create a logical expression from an operator string.
+pub fn logical_str(op: &str, left: JsExpr, right: JsExpr) -> JsExpr {
+    let operator = match op {
+        "&&" => JsLogicalOp::And,
+        "||" => JsLogicalOp::Or,
+        "??" => JsLogicalOp::NullishCoalescing,
+        _ => panic!("Invalid logical operator: {}", op),
+    };
+    logical(operator, left, right)
+}
+
 /// Create a unary expression.
 pub fn unary(op: JsUnaryOp, argument: JsExpr) -> JsExpr {
     JsExpr::Unary(JsUnaryExpression {

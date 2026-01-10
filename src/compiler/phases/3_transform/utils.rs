@@ -173,9 +173,9 @@ mod tests {
 
     #[test]
     fn test_clean_nodes_empty() {
+        use crate::compiler::CompileOptions;
         use crate::compiler::phases::phase2_analyze::scope::Scope;
         use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
-        use crate::compiler::CompileOptions;
 
         let options = CompileOptions::default();
         let scope = Scope::new(None);
@@ -191,8 +191,8 @@ mod tests {
 
     #[test]
     fn test_infer_namespace_default() {
-        use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
         use crate::compiler::CompileOptions;
+        use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
 
         let options = CompileOptions::default();
         let analysis = ComponentAnalysis::new("", &options);
