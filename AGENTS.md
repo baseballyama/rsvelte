@@ -110,6 +110,7 @@ Pre-commit hooks run `cargo fmt` and `cargo clippy` automatically.
 Runtime tests: 1.4% passing. Implementing client-side visitors will significantly improve pass rates.
 
 Required:
+
 - Template → imperative code transformation
 - Reactive dependency tracking
 - Effect and derived state generation
@@ -125,11 +126,13 @@ Required:
 ### Completed
 
 **Parser** (100%)
+
 - All Svelte 5 syntax: elements, blocks, directives, expressions
 - Script/style parsing with CSS support
 - Legacy AST conversion (Svelte 4 compatibility)
 
 **Compiler** (Phase 1/2/3 architecture)
+
 - Client/server code generation
 - Runes: `$state`, `$derived`, `$props`
 - Blocks: `{#each}`, `{#await}`, `{#snippet}`
@@ -137,6 +140,7 @@ Required:
 - CSS scoping with hash-based class names
 
 **CSS** (62%)
+
 - Selector scoping with `.svelte-hash`
 - Combinators and pseudo-classes (`:is()`, `:not()`, `:has()`)
 - `:global()` modifier support
@@ -146,20 +150,24 @@ Required:
 ### Not Implemented
 
 **CSS** (69 tests)
+
 - Complex unused selector detection (combinators, nesting, siblings)
 - CSS escape sequences
 - `@layer`, `@page`, `@supports` edge cases
 
 **Validator** (244 tests)
+
 - Warning generation system
 - A11y checks
 - Comprehensive unused CSS detection
 
 **Compiler Errors** (118 tests)
+
 - Error detection for invalid patterns
 - Rune validation
 
 **Runtime** (2600+ tests)
+
 - `{#if}` block client-side generation
 - Most client-side reactive code generation
 - `experimental.async`, `hmr`, `fragments` options

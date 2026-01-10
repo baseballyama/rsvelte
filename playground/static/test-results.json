@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-01-09T11:53:32.663745+00:00",
+  "generated_at": "2026-01-10T08:51:01.560383+00:00",
   "commit_sha": "0ac5af488da4",
   "summary": {
     "total": 3027,
-    "passed": 403,
-    "failed": 2427,
+    "passed": 424,
+    "failed": 2406,
     "skipped": 197,
-    "percentage": 14.240282685512367
+    "percentage": 14.982332155477032
   },
   "categories": [
     {
@@ -458,10 +458,10 @@
       "id": "snapshot",
       "name": "Compiler Snapshot",
       "total": 25,
-      "passed": 16,
-      "failed": 1,
+      "passed": 0,
+      "failed": 17,
       "skipped": 8,
-      "percentage": 94.11764705882352,
+      "percentage": 0,
       "tests": [
         {
           "name": "async-each-hoisting",
@@ -480,15 +480,18 @@
         },
         {
           "name": "nullish-coallescence-omittance",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "class-state-field-constructor-assignment",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "svelte-element",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "async-in-derived",
@@ -502,11 +505,13 @@
         },
         {
           "name": "function-prop-no-getter",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "imports-in-modules",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "hmr",
@@ -515,11 +520,13 @@
         },
         {
           "name": "await-block-scope",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "hello-world",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "bind-component-snippet",
@@ -528,7 +535,8 @@
         },
         {
           "name": "purity",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "functional-templating",
@@ -537,7 +545,8 @@
         },
         {
           "name": "bind-this",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "async-if-alternate-hoisting",
@@ -546,31 +555,38 @@
         },
         {
           "name": "text-nodes-deriveds",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "each-string-template",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "state-proxy-literal",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "delegated-locally-declared-shadowed",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "skip-static-subtree",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "props-identifier",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "each-index-non-null",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         }
       ]
     },
@@ -578,10 +594,10 @@
       "id": "css",
       "name": "CSS",
       "total": 177,
-      "passed": 116,
-      "failed": 61,
+      "passed": 104,
+      "failed": 68,
       "skipped": 0,
-      "percentage": 65.5367231638418,
+      "percentage": 58.75706214689266,
       "tests": [
         {
           "name": "omit-scoping-attribute-class-static",
@@ -589,12 +605,12 @@
         },
         {
           "name": "siblings-combinator-star",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-await-not-exhaustive",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "snippets",
@@ -640,7 +656,8 @@
         },
         {
           "name": "unused-selector-ternary-bailed",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "universal-selector",
@@ -673,7 +690,8 @@
         },
         {
           "name": "siblings-combinator-if",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "supports-charset",
@@ -689,7 +707,8 @@
         },
         {
           "name": "host",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "unicode-identifier",
@@ -706,12 +725,12 @@
         },
         {
           "name": "general-siblings-combinator-nested-slots",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "general-siblings-combinator-if",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "css-vars",
@@ -723,8 +742,7 @@
         },
         {
           "name": "general-siblings-combinator-each-nested",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "general-siblings-combinator-slot-global",
@@ -737,12 +755,12 @@
         },
         {
           "name": "general-siblings-combinator-slots-between",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "siblings-combinator-key",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "at-layer",
@@ -762,8 +780,7 @@
         },
         {
           "name": "siblings-combinator-nested-slots-flattened",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "siblings-combinator-if-not-exhaustive-with-each",
@@ -785,7 +802,8 @@
         },
         {
           "name": "clsx-cannot-prune-2",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "dynamic-element-tag",
@@ -793,8 +811,7 @@
         },
         {
           "name": "siblings-combinator-nested-slots",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "omit-scoping-attribute-descendant-global-outer-multiple",
@@ -814,7 +831,8 @@
         },
         {
           "name": "clsx-cannot-prune-3",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "unused-selector-empty-attribute",
@@ -832,7 +850,8 @@
         },
         {
           "name": "siblings-combinator-if-not-exhaustive",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "unused-selector",
@@ -840,7 +859,8 @@
         },
         {
           "name": "general-siblings-combinator-each-else",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "is",
@@ -863,11 +883,13 @@
         },
         {
           "name": "siblings-combinator-global",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "general-siblings-combinator-if-not-exhaustive",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "custom-css-hash",
@@ -895,7 +917,8 @@
         },
         {
           "name": "nested-css-combinator",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Compilation error: Analysis(ValidationWithCode { code: \"css_selector_invalid\", message: \"Invalid selector\" })"
         },
         {
           "name": "omit-scoping-attribute-whitespace",
@@ -903,11 +926,13 @@
         },
         {
           "name": "siblings-combinator",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "spread",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "global-with-child-combinator-2",
@@ -929,8 +954,7 @@
         },
         {
           "name": "siblings-combinator-former-element-in-slot",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "general-siblings-combinator-each",
@@ -938,8 +962,7 @@
         },
         {
           "name": "render-tag-loop",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "local-inside-global",
@@ -955,11 +978,13 @@
         },
         {
           "name": "class-directive",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "general-siblings-combinator",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "unused-selector-multiple",
@@ -980,7 +1005,8 @@
         },
         {
           "name": "directive-special-character",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "combinator-child",
@@ -992,8 +1018,7 @@
         },
         {
           "name": "general-siblings-combinator-render-tag",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "global-with-root",
@@ -1003,7 +1028,7 @@
         {
           "name": "nested-css",
           "status": "fail",
-          "error_message": "CSS mismatch"
+          "error_message": "Compilation error: Analysis(ValidationWithCode { code: \"css_selector_invalid\", message: \"Invalid selector\" })"
         },
         {
           "name": "global-with-child-combinator",
@@ -1012,7 +1037,7 @@
         {
           "name": "special-characters",
           "status": "fail",
-          "error_message": "CSS mismatch"
+          "error_message": "Compilation error: Analysis(ValidationWithCode { code: \"css_selector_invalid\", message: \"Invalid selector\" })"
         },
         {
           "name": "omit-scoping-attribute-descendant",
@@ -1042,8 +1067,7 @@
         },
         {
           "name": "siblings-combinator-render-tag",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "siblings-combinator-component-named-snippet",
@@ -1056,16 +1080,17 @@
         },
         {
           "name": "siblings-combinator-selects-slot-fallback",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-await",
           "status": "fail",
           "error_message": "CSS mismatch"
         },
         {
-          "name": "siblings-combinator-await",
-          "status": "pass"
-        },
-        {
           "name": "general-siblings-combinator-star",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "unused-ts-as-expression",
@@ -1082,8 +1107,7 @@
         },
         {
           "name": "general-siblings-combinator-nested-slots-flattened",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "comment-html",
@@ -1119,7 +1143,8 @@
         },
         {
           "name": "general-siblings-combinator-await",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "supports-nested-page",
@@ -1138,7 +1163,7 @@
         {
           "name": "has",
           "status": "fail",
-          "error_message": "CSS mismatch"
+          "error_message": "Compilation error: Analysis(ValidationWithCode { code: \"css_global_invalid_placement\", message: \"`:global(...)` can be at the start or end of a selector sequence, but not in the middle\" })"
         },
         {
           "name": "global-local",
@@ -1164,11 +1189,13 @@
         },
         {
           "name": "omit-scoping-attribute-multiple-descendants",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "clsx-cannot-prune-1",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-each-nested",
@@ -1208,7 +1235,7 @@
         {
           "name": "nesting-selectors",
           "status": "fail",
-          "error_message": "CSS mismatch"
+          "error_message": "Compilation error: Analysis(ValidationWithCode { code: \"css_selector_invalid\", message: \"Invalid selector\" })"
         },
         {
           "name": "omit-scoping-attribute",
@@ -1250,11 +1277,13 @@
         },
         {
           "name": "omit-scoping-attribute-class-dynamic",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "general-siblings-combinator-if-not-exhaustive-with-each",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "general-siblings-combinator-slot",
@@ -1294,8 +1323,7 @@
         },
         {
           "name": "general-siblings-combinator-selects-slot-fallback",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "container-query",
@@ -1336,21 +1364,21 @@
         },
         {
           "name": "general-siblings-combinator-former-element-in-slot",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "general-siblings-combinator-each-2",
+          "status": "pass"
+        },
+        {
+          "name": "siblings-combinator-each-else",
           "status": "fail",
           "error_message": "CSS mismatch"
         },
         {
-          "name": "siblings-combinator-each-else",
-          "status": "pass"
-        },
-        {
           "name": "global-with-unused-descendant",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         }
       ]
     },
@@ -1358,19 +1386,19 @@
       "id": "validator",
       "name": "Validator",
       "total": 323,
-      "passed": 72,
-      "failed": 236,
+      "passed": 121,
+      "failed": 186,
       "skipped": 11,
-      "percentage": 23.076923076923077,
+      "percentage": 38.782051282051285,
       "tests": [
         {
           "name": "css-invalid-global-selector-2",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "ignore-warning-dash-backwards-compat",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected 0 warnings, got 4"
         },
         {
           "name": "const-tag-readonly-1",
@@ -1383,13 +1411,11 @@
         },
         {
           "name": "css-invalid-global-selector-5",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "a11y-img-redundant-alt",
-          "status": "fail",
-          "error_message": "Expected 3 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "each-block-invalid-context-destructured",
@@ -1423,8 +1449,7 @@
         },
         {
           "name": "a11y-aria-props",
-          "status": "fail",
-          "error_message": "Expected 2 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "class-state-constructor-7",
@@ -1433,8 +1458,7 @@
         },
         {
           "name": "transition-duplicate-in",
-          "status": "fail",
-          "error_message": "Expected error 'transition_duplicate', got: Analysis(Validation(\"An element can only have one 'in' directive\"))"
+          "status": "pass"
         },
         {
           "name": "action-on-component",
@@ -1449,7 +1473,7 @@
         {
           "name": "ignore-warnings",
           "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "error_message": "Expected 1 warnings, got 3"
         },
         {
           "name": "namespace-non-literal",
@@ -1462,13 +1486,11 @@
         },
         {
           "name": "css-invalid-global-selector-3",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "a11y-no-distracting-elements",
-          "status": "fail",
-          "error_message": "Expected 2 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "dynamic-element-missing-tag",
@@ -1502,11 +1524,12 @@
         {
           "name": "a11y-no-static-element-interactions",
           "status": "fail",
-          "error_message": "Expected 2 warnings, got 0"
+          "error_message": "Expected 2 warnings, got 5"
         },
         {
           "name": "a11y-figcaption-right-place",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected 0 warnings, got 1"
         },
         {
           "name": "class-state-constructor-6",
@@ -1515,8 +1538,7 @@
         },
         {
           "name": "css-invalid-global-placement",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "rest-eachblock-binding-nested-rest",
@@ -1540,13 +1562,11 @@
         },
         {
           "name": "a11y-interactive-supports-focus",
-          "status": "fail",
-          "error_message": "Expected 23 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "css-invalid-combinator-selector-2",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "binding-select-multiple-dynamic",
@@ -1564,8 +1584,7 @@
         },
         {
           "name": "css-invalid-global-placement-5",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "silence-warnings",
@@ -1578,13 +1597,11 @@
         },
         {
           "name": "css-invalid-global-placement-2",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "a11y-anchor-has-content",
-          "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "runes-legacy-syntax-warnings-2",
@@ -1621,8 +1638,7 @@
         },
         {
           "name": "transition-duplicate-transition-in",
-          "status": "fail",
-          "error_message": "Expected error 'transition_conflict', got: Analysis(Validation(\"An element cannot have both 'transition' and 'in' directives\"))"
+          "status": "pass"
         },
         {
           "name": "svg-child-component-declared-namespace",
@@ -1637,7 +1653,7 @@
         {
           "name": "a11y-no-noninteractive-element-interactions",
           "status": "fail",
-          "error_message": "Expected 5 warnings, got 0"
+          "error_message": "Expected 5 warnings, got 3"
         },
         {
           "name": "invalid-node-placement-2",
@@ -1651,13 +1667,11 @@
         },
         {
           "name": "transition-duplicate-transition-out",
-          "status": "fail",
-          "error_message": "Expected error 'transition_conflict', got: Analysis(Validation(\"An element cannot have both 'transition' and 'out' directives\"))"
+          "status": "pass"
         },
         {
           "name": "css-invalid-global-placement-3",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "await-no-catch",
@@ -1665,8 +1679,7 @@
         },
         {
           "name": "css-invalid-global-placement-4",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "a11y-aria-proptypes-boolean",
@@ -1694,8 +1707,7 @@
         },
         {
           "name": "css-invalid-combinator-selector-3",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "binding-await-then-2",
@@ -1705,12 +1717,11 @@
         {
           "name": "ignore-warnings-stacked",
           "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "error_message": "Expected 1 warnings, got 3"
         },
         {
           "name": "transition-duplicate-out-transition",
-          "status": "fail",
-          "error_message": "Expected error 'transition_conflict', got: Analysis(Validation(\"An element cannot have both 'out' and 'transition' directives\"))"
+          "status": "pass"
         },
         {
           "name": "invalid-node-placement-3",
@@ -1718,8 +1729,7 @@
         },
         {
           "name": "a11y-scope",
-          "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "invalid-node-placement-4",
@@ -1749,8 +1759,7 @@
         },
         {
           "name": "a11y-no-abstract-roles",
-          "status": "fail",
-          "error_message": "Expected 12 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "binding-dimensions-svg",
@@ -1778,7 +1787,7 @@
         {
           "name": "store-runes-conflict",
           "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "error_message": "Unexpected compilation error: Analysis(ValidationWithCode { code: \"state_invalid_placement\", message: \"`$state` can only be used at the top level of a component or inside a function\" })"
         },
         {
           "name": "multiple-var-same-name",
@@ -1792,7 +1801,7 @@
         {
           "name": "unknown-code",
           "status": "fail",
-          "error_message": "Expected 6 warnings, got 0"
+          "error_message": "Expected 6 warnings, got 5"
         },
         {
           "name": "binding-input-checked",
@@ -1858,8 +1867,7 @@
         },
         {
           "name": "a11y-aria-unsupported-element",
-          "status": "fail",
-          "error_message": "Expected 2 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "a11y-missing-attribute-href-aria-disabled",
@@ -1887,7 +1895,7 @@
         {
           "name": "bidirectional-control-characters",
           "status": "fail",
-          "error_message": "Expected 4 warnings, got 0"
+          "error_message": "Expected 4 warnings, got 7"
         },
         {
           "name": "use-the-platform",
@@ -1906,8 +1914,7 @@
         },
         {
           "name": "css-invalid-global-selector",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "unreferenced-variables-each",
@@ -1921,7 +1928,7 @@
         {
           "name": "ignore-warning-compiler-option",
           "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "error_message": "Expected 1 warnings, got 4"
         },
         {
           "name": "style-directive-valid-reference",
@@ -1929,8 +1936,7 @@
         },
         {
           "name": "a11y-iframe-has-title",
-          "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "a11y-aria-proptypes-string",
@@ -1976,8 +1982,7 @@
         },
         {
           "name": "a11y-media-has-caption",
-          "status": "fail",
-          "error_message": "Expected 3 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "snippet-shadowing-prop",
@@ -1986,8 +1991,7 @@
         },
         {
           "name": "assignment-to-const",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "ts-unsupported-enum",
@@ -2025,18 +2029,16 @@
         },
         {
           "name": "a11y-heading-has-content",
-          "status": "fail",
-          "error_message": "Expected 2 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "a11y-anchor-is-valid",
           "status": "fail",
-          "error_message": "Expected 6 warnings, got 0"
+          "error_message": "Expected 6 warnings, got 4"
         },
         {
           "name": "a11y-html-has-lang",
-          "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "a11y-autocomplete-valid",
@@ -2051,7 +2053,7 @@
         {
           "name": "a11y-mouse-events-have-key-events",
           "status": "fail",
-          "error_message": "Expected 2 warnings, got 0"
+          "error_message": "Expected 2 warnings, got 6"
         },
         {
           "name": "binding-import-element",
@@ -2070,12 +2072,11 @@
         {
           "name": "ignore-warnings-newline",
           "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "error_message": "Expected 1 warnings, got 3"
         },
         {
           "name": "a11y-no-interactive-element-to-noninteractive-role",
-          "status": "fail",
-          "error_message": "Expected 59 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "class-state-constructor-3",
@@ -2103,8 +2104,7 @@
         },
         {
           "name": "a11y-aria-role",
-          "status": "fail",
-          "error_message": "Expected 2 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "class-state-constructor-4",
@@ -2118,13 +2118,11 @@
         },
         {
           "name": "a11y-tabindex-no-positive",
-          "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "css-invalid-global-selector-6",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "const-tag-readonly-2",
@@ -2134,7 +2132,7 @@
         {
           "name": "a11y-no-autofocus",
           "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "error_message": "Expected 1 warnings, got 2"
         },
         {
           "name": "title-no-children",
@@ -2188,8 +2186,7 @@
         },
         {
           "name": "transition-duplicate-transition",
-          "status": "fail",
-          "error_message": "Expected error 'transition_duplicate', got: Analysis(Validation(\"An element can only have one 'transition' directive\"))"
+          "status": "pass"
         },
         {
           "name": "a11y-anchor-aria-label-has-no-content",
@@ -2208,7 +2205,7 @@
         {
           "name": "ignore-warning",
           "status": "fail",
-          "error_message": "Expected 2 warnings, got 0"
+          "error_message": "Expected 2 warnings, got 4"
         },
         {
           "name": "valid-reactive-vars",
@@ -2226,7 +2223,7 @@
         {
           "name": "a11y-no-redundant-roles",
           "status": "fail",
-          "error_message": "Expected 39 warnings, got 0"
+          "error_message": "Expected 39 warnings, got 40"
         },
         {
           "name": "dynamic-element-this",
@@ -2254,8 +2251,7 @@
         },
         {
           "name": "transition-duplicate-in-transition",
-          "status": "fail",
-          "error_message": "Expected error 'transition_conflict', got: Analysis(Validation(\"An element cannot have both 'in' and 'transition' directives\"))"
+          "status": "pass"
         },
         {
           "name": "attribute-unique-allowed",
@@ -2283,8 +2279,7 @@
         },
         {
           "name": "css-invalid-combinator-selector-1",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "attribute-quoted",
@@ -2312,7 +2307,7 @@
         {
           "name": "a11y-figcaption-wrong-place",
           "status": "fail",
-          "error_message": "Expected 2 warnings, got 0"
+          "error_message": "Expected 2 warnings, got 3"
         },
         {
           "name": "slot-attribute-component",
@@ -2335,8 +2330,7 @@
         },
         {
           "name": "css-invalid-global-placement-6",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "invalid-node-placement-7",
@@ -2345,7 +2339,8 @@
         },
         {
           "name": "a11y-figcaption-in-non-element-block",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected 0 warnings, got 1"
         },
         {
           "name": "default-export-module",
@@ -2359,7 +2354,7 @@
         {
           "name": "illegal-attribute-character",
           "status": "fail",
-          "error_message": "Expected 2 warnings, got 0"
+          "error_message": "Expected 2 warnings, got 1"
         },
         {
           "name": "debug-invalid-args",
@@ -2369,7 +2364,7 @@
         {
           "name": "textarea-value-children",
           "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "error_message": "Expected error 'textarea_invalid_content', got: Analysis(Validation(\"<textarea> cannot have both a value attribute and content. For binding use `bind:value`, for unidirectional data flow, use an `on*` event handler\"))"
         },
         {
           "name": "binding-radio-input-checked",
@@ -2378,8 +2373,7 @@
         },
         {
           "name": "transition-duplicate-out",
-          "status": "fail",
-          "error_message": "Expected error 'transition_duplicate', got: Analysis(Validation(\"An element can only have one 'out' directive\"))"
+          "status": "pass"
         },
         {
           "name": "event-modifiers-invalid-nonpassive",
@@ -2401,18 +2395,16 @@
         },
         {
           "name": "a11y-no-access-key",
-          "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "a11y-click-events-have-key-events",
           "status": "fail",
-          "error_message": "Expected 8 warnings, got 0"
+          "error_message": "Expected 8 warnings, got 22"
         },
         {
           "name": "a11y-aria-activedescendant",
-          "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "animation-each-with-const",
@@ -2498,13 +2490,11 @@
         },
         {
           "name": "a11y-alt-text",
-          "status": "fail",
-          "error_message": "Expected 4 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "animation-duplicate",
-          "status": "fail",
-          "error_message": "Expected error 'animation_duplicate', got: Analysis(Validation(\"An element can only have one animate directive\"))"
+          "status": "pass"
         },
         {
           "name": "animation-not-in-each",
@@ -2513,8 +2503,7 @@
         },
         {
           "name": "attribute-invalid-name-5",
-          "status": "fail",
-          "error_message": "Expected error 'attribute_invalid_name', got: Analysis(Validation(\"Attribute name 'a;' contains illegal characters\"))"
+          "status": "pass"
         },
         {
           "name": "invalid-node-placement",
@@ -2523,13 +2512,11 @@
         },
         {
           "name": "a11y-consider-explicit-label",
-          "status": "fail",
-          "error_message": "Expected 2 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "attribute-invalid-name-2",
-          "status": "fail",
-          "error_message": "Expected error 'attribute_invalid_name', got: Analysis(Validation(\"Attribute name '3aa' contains illegal characters\"))"
+          "status": "pass"
         },
         {
           "name": "animation-each-with-whitespace",
@@ -2577,7 +2564,7 @@
         {
           "name": "a11y-no-noninteractive-element-to-interactive-role",
           "status": "fail",
-          "error_message": "Expected 49 warnings, got 0"
+          "error_message": "Expected 49 warnings, got 50"
         },
         {
           "name": "reactive-module-variable",
@@ -2586,8 +2573,7 @@
         },
         {
           "name": "a11y-label-has-associated-control",
-          "status": "fail",
-          "error_message": "Expected 2 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "illegal-variable-declaration",
@@ -2605,13 +2591,11 @@
         },
         {
           "name": "css-invalid-type-selector-placement",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "attribute-invalid-name-3",
-          "status": "fail",
-          "error_message": "Expected error 'attribute_invalid_name', got: Analysis(Validation(\"Attribute name 'a*a' contains illegal characters\"))"
+          "status": "pass"
         },
         {
           "name": "component-slot-default-reserved",
@@ -2625,8 +2609,7 @@
         },
         {
           "name": "attribute-invalid-name-4",
-          "status": "fail",
-          "error_message": "Expected error 'attribute_invalid_name', got: Analysis(Validation(\"Attribute name '-a' contains illegal characters\"))"
+          "status": "pass"
         },
         {
           "name": "non-empty-block-dev",
@@ -2684,8 +2667,7 @@
         },
         {
           "name": "css-invalid-global-selector-list",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "animation-on-component",
@@ -2719,8 +2701,7 @@
         },
         {
           "name": "a11y-anchor-in-svg-is-valid",
-          "status": "fail",
-          "error_message": "Expected 3 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "inline-new-class-2",
@@ -2771,7 +2752,7 @@
         {
           "name": "a11y-no-noninteractive-tabindex",
           "status": "fail",
-          "error_message": "Expected 4 warnings, got 0"
+          "error_message": "Expected 4 warnings, got 3"
         },
         {
           "name": "js-scope-catch-clause",
@@ -2812,8 +2793,7 @@
         },
         {
           "name": "attribute-invalid-name",
-          "status": "fail",
-          "error_message": "Expected error 'attribute_invalid_name', got: Analysis(Validation(\"Attribute name '}' contains illegal characters\"))"
+          "status": "pass"
         },
         {
           "name": "inline-new-class-3",
@@ -2822,7 +2802,7 @@
         {
           "name": "ignore-warnings-cumulative",
           "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "error_message": "Expected 1 warnings, got 6"
         },
         {
           "name": "const-tag-placement-1",
@@ -2850,7 +2830,7 @@
         {
           "name": "runes-legacy-syntax-warnings",
           "status": "fail",
-          "error_message": "Expected 3 warnings, got 0"
+          "error_message": "Expected 3 warnings, got 2"
         },
         {
           "name": "script-context-module-runes-deprecated",
@@ -2898,8 +2878,7 @@
         },
         {
           "name": "assignment-to-const-3",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "if-block-whitespace-runes",
@@ -2923,8 +2902,7 @@
         },
         {
           "name": "runes-wrong-props-placement-instance",
-          "status": "fail",
-          "error_message": "Expected error 'props_invalid_placement' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "css-global-block-declaration",
@@ -2997,8 +2975,7 @@
         },
         {
           "name": "legacy-no-const-assignment",
-          "status": "fail",
-          "error_message": "Expected error 'constant_assignment' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "class-state-field-static",
@@ -3049,8 +3026,7 @@
         },
         {
           "name": "runes-no-rune-each",
-          "status": "fail",
-          "error_message": "Expected error 'state_invalid_placement' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "invalid-snippet-binding",
@@ -3149,7 +3125,8 @@
         },
         {
           "name": "component-slot-duplicate-error-6",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'slot_attribute_duplicate' but compilation succeeded"
         },
         {
           "name": "runes-bindable-not-called",
@@ -3284,8 +3261,7 @@
         },
         {
           "name": "runes-wrong-derived-placement",
-          "status": "fail",
-          "error_message": "Expected error 'state_invalid_placement' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "snippet-children-conflict",
@@ -3302,8 +3278,7 @@
         },
         {
           "name": "invalid-arguments-usage",
-          "status": "fail",
-          "error_message": "Expected error 'invalid_arguments_usage' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "empty-attribute-shorthand",
@@ -3312,7 +3287,8 @@
         },
         {
           "name": "component-slot-duplicate-error",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'slot_attribute_duplicate' but compilation succeeded"
         },
         {
           "name": "self-reference",
@@ -3329,8 +3305,7 @@
         },
         {
           "name": "runes-no-const-assignment",
-          "status": "fail",
-          "error_message": "Expected error 'constant_assignment' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "const-tag-snippet-invalid-reference-2",
@@ -3401,7 +3376,8 @@
         },
         {
           "name": "component-slot-duplicate-error-4",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'slot_default_duplicate' but compilation succeeded"
         },
         {
           "name": "slot-conflicting-with-render-tag",
@@ -3410,7 +3386,8 @@
         },
         {
           "name": "component-slot-duplicate-error-3",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'slot_attribute_duplicate' but compilation succeeded"
         },
         {
           "name": "export-derived-state-indirect",
@@ -3460,11 +3437,13 @@
         },
         {
           "name": "component-slot-duplicate-error-2",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'slot_attribute_duplicate' but compilation succeeded"
         },
         {
           "name": "component-slot-duplicate-error-5",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'slot_attribute_duplicate' but compilation succeeded"
         },
         {
           "name": "unclosed-attribute-self-close-tag",
@@ -3582,15 +3561,15 @@
       "id": "runtime-runes",
       "name": "Runtime Runes",
       "total": 740,
-      "passed": 10,
-      "failed": 714,
+      "passed": 8,
+      "failed": 716,
       "skipped": 16,
-      "percentage": 1.3812154696132597,
+      "percentage": 1.1049723756906076,
       "tests": [
         {
           "name": "directives",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "effect-cleanup",
@@ -3699,7 +3678,8 @@
         },
         {
           "name": "array-lastindexof",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "event-used-in-component-and-element",
@@ -4346,7 +4326,7 @@
         {
           "name": "proxy-coercive-assignment-warning",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: render_tag_invalid_expression: `{@render ...}` tags can only contain call expressions"
         },
         {
           "name": "class-private-state-proxy",
@@ -5275,7 +5255,7 @@
         {
           "name": "snippet-typescript",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: render_tag_invalid_expression: `{@render ...}` tags can only contain call expressions"
         },
         {
           "name": "non-local-mutation-with-binding-6",
@@ -5385,7 +5365,7 @@
         {
           "name": "snippet-argument-destructured",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: render_tag_invalid_expression: `{@render ...}` tags can only contain call expressions"
         },
         {
           "name": "deferred-events-consistency-2",
@@ -5430,7 +5410,7 @@
         {
           "name": "snippet-argument-destructured-multiple",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: render_tag_invalid_expression: `{@render ...}` tags can only contain call expressions"
         },
         {
           "name": "each-updates-raw",
@@ -5658,7 +5638,8 @@
         },
         {
           "name": "array-delete-item",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "effect-loop-2",
@@ -6027,7 +6008,7 @@
         {
           "name": "snippet-reactive-args",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: render_tag_invalid_expression: `{@render ...}` tags can only contain call expressions"
         },
         {
           "name": "derived-unowned-6",
@@ -10639,7 +10620,7 @@
         {
           "name": "action",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: constant_assignment: Cannot assign to constant"
         },
         {
           "name": "single-static-element",
@@ -10788,7 +10769,7 @@
         {
           "name": "self-reference-component",
           "status": "fail",
-          "error_message": "Client compilation error: Analysis error: svelte_self_invalid_placement: `<svelte:self>` components can only exist inside {#if}, {#each}, {#snippet} blocks or component `children` snippets"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "component-slot-names-sanitized",
@@ -12839,7 +12820,7 @@
         {
           "name": "action-body",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: constant_assignment: Cannot assign to constant"
         },
         {
           "name": "component-binding-each-object",
@@ -12914,7 +12895,7 @@
         {
           "name": "action-function",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: constant_assignment: Cannot assign to constant"
         },
         {
           "name": "if-block-static-with-else-and-outros",
@@ -13053,7 +13034,7 @@
         {
           "name": "action-document",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: constant_assignment: Cannot assign to constant"
         },
         {
           "name": "component-data-static",
@@ -13228,7 +13209,7 @@
         {
           "name": "action-update",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: constant_assignment: Cannot assign to constant"
         },
         {
           "name": "component-slot-let-named-2",
@@ -13793,10 +13774,10 @@
       "id": "server-side-rendering",
       "name": "SSR",
       "total": 80,
-      "passed": 8,
-      "failed": 72,
+      "passed": 10,
+      "failed": 70,
       "skipped": 0,
-      "percentage": 10,
+      "percentage": 12.5,
       "tests": [
         {
           "name": "bindings-zero",
@@ -13909,8 +13890,7 @@
         },
         {
           "name": "comment",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "select-value-bind-store",
@@ -14167,8 +14147,7 @@
         },
         {
           "name": "comment-preserve",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "triple",

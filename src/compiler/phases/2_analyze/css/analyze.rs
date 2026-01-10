@@ -42,26 +42,56 @@ fn analyze_atrule(
     node: &serde_json::Value,
     analysis: &mut ComponentAnalysis,
 ) -> Result<(), AnalysisError> {
-    if let Some(name) = node.get("name").and_then(|n| n.as_str())
-        && (name == "keyframes" || name == "-webkit-keyframes")
+    let is_keyframes = if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
+        matches!(
+            name,
+            "keyframes" | "-webkit-keyframes" | "-moz-keyframes" | "-o-keyframes"
+        )
+    } else {
+        false
+    };
+
+    if is_keyframes
         && let Some(prelude) = node.get("prelude").and_then(|p| p.as_str())
         && !prelude.starts_with("-global-")
     {
         analysis.css.keyframes.push(prelude.to_string());
-    } else if let Some(name) = node.get("name").and_then(|n| n.as_str())
-        && (name == "keyframes" || name == "-webkit-keyframes")
+    } else if is_keyframes
         && let Some(prelude) = node.get("prelude").and_then(|p| p.as_str())
         && prelude.starts_with("-global-")
     {
         analysis.css.has_global = true;
     }
 
-    // Analyze children
+    // Analyze children (skip validation for keyframes rules)
     if let Some(block) = node.get("block")
         && let Some(children) = block.get("children").and_then(|c| c.as_array())
     {
         for child in children {
-            analyze_css_node(child, analysis)?;
+            // Don't validate rules inside @keyframes blocks
+            if is_keyframes {
+                // Just check for global in nested rules but don't validate selectors
+                if child.get("type").and_then(|t| t.as_str()) == Some("Rule") {
+                    if let Some(prelude) = child.get("prelude")
+                        && has_global_selector(prelude)
+                    {
+                        analysis.css.has_global = true;
+                    }
+                    // Recursively process nested rules within keyframe rules
+                    if let Some(block) = child.get("block")
+                        && let Some(nested_children) =
+                            block.get("children").and_then(|c| c.as_array())
+                    {
+                        for nested_child in nested_children {
+                            analyze_css_node(nested_child, analysis)?;
+                        }
+                    }
+                } else {
+                    analyze_css_node(child, analysis)?;
+                }
+            } else {
+                analyze_css_node(child, analysis)?;
+            }
         }
     }
     Ok(())

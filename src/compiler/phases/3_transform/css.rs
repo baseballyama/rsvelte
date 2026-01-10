@@ -312,11 +312,10 @@ enum UnusedStatus {
 /// Check if a selector is unused (cannot match any element in the template)
 /// Returns UnusedStatus to distinguish between unused and no-match cases
 fn check_selector_unused(prelude: &Value, ctx: &CssContext) -> UnusedStatus {
-    // If there are dynamic elements or classes, we can't safely prune anything
-    // because we don't know what classes/elements might be generated
-    if ctx.has_dynamic_elements || ctx.has_dynamic_classes {
-        return UnusedStatus::Used;
-    }
+    // Note: We no longer bail out early for has_dynamic_classes/has_dynamic_elements.
+    // Instead, we check each selector individually. This allows us to prune selectors
+    // that reference classes/elements that never appear in the template (static or dynamic),
+    // while keeping selectors for classes that appear in dynamic expressions.
 
     // Check each complex selector in the selector list
     if let Some(children) = prelude.get("children").and_then(|c| c.as_array()) {
@@ -379,6 +378,26 @@ fn is_complex_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
 fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
     // Get the relative selectors (like "div > span" has multiple relative selectors)
     if let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array()) {
+        // If ANY relative selector contains :global() or :host, the entire complex selector is considered used
+        // This matches Svelte's behavior: node.metadata.used ||= node.metadata.is_global || node.metadata.is_global_like
+        let has_global_or_host = rel_selectors.iter().any(|rel| {
+            if let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) {
+                selectors.iter().any(|s| {
+                    s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                        && matches!(
+                            s.get("name").and_then(|n| n.as_str()),
+                            Some("global") | Some("host")
+                        )
+                })
+            } else {
+                false
+            }
+        });
+
+        if has_global_or_host {
+            return false; // Selector is used
+        }
+
         // Check for :host > element pattern
         if is_host_child_selector_unused(rel_selectors, ctx) {
             return true;
@@ -400,31 +419,22 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
         for rel in rel_selectors {
             // Check each simple selector in this relative selector
             if let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) {
-                // Skip :global() and :host pseudo-classes
-                let starts_with_global_or_host = selectors.first().is_some_and(|s| {
+                // Skip :host pseudo-classes (they're global-like)
+                let starts_with_host = selectors.first().is_some_and(|s| {
                     let sel_type = s.get("type").and_then(|t| t.as_str());
                     if sel_type == Some("PseudoClassSelector") {
                         let name = s.get("name").and_then(|n| n.as_str());
-                        name == Some("global") || name == Some("host")
+                        name == Some("host")
                     } else {
                         false
                     }
                 });
 
-                if starts_with_global_or_host {
+                if starts_with_host {
                     continue;
                 }
 
                 for sel in selectors {
-                    // Skip :global() selectors and their contents
-                    let sel_type = sel.get("type").and_then(|t| t.as_str());
-                    if sel_type == Some("PseudoClassSelector") {
-                        let name = sel.get("name").and_then(|n| n.as_str());
-                        if name == Some("global") {
-                            continue;
-                        }
-                    }
-
                     if is_simple_selector_unused(sel, ctx) {
                         return true;
                     }
@@ -1114,11 +1124,11 @@ fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
         }
         Some("ClassSelector") => {
             if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
-                // Don't prune if there are dynamic classes
-                if ctx.has_dynamic_classes {
-                    return false;
-                }
-                // Decode CSS escape sequences for comparison
+                // Check if this class appears in used_classes
+                // If it does, it's potentially used (from static or dynamic expressions)
+                // If it doesn't, it's unused (never referenced anywhere)
+                // We no longer bail out for has_dynamic_classes because we now extract
+                // classes from ternaries and other expressions that we can analyze
                 let decoded = decode_css_escape(name);
                 return !ctx.used_classes.contains(&decoded);
             }

@@ -110,6 +110,11 @@ fn compare_js(actual: &str, expected: &str) -> bool {
     normalized_actual == normalized_expected
 }
 
+/// Check if actual output writing is enabled via environment variable.
+fn should_write_actual_output() -> bool {
+    std::env::var("WRITE_ACTUAL_OUTPUT").is_ok()
+}
+
 /// Run a single runtime fixture test.
 fn run_runtime_fixture_test(category: &str, fixture: &RuntimeFixture) -> TestResult {
     let mut result = TestResult {
@@ -126,6 +131,8 @@ fn run_runtime_fixture_test(category: &str, fixture: &RuntimeFixture) -> TestRes
         return result;
     }
 
+    let write_output = should_write_actual_output();
+
     // Test client-side compilation
     if let Some(expected_client) = &fixture.expected_client_js {
         let client_options = CompileOptions {
@@ -137,14 +144,18 @@ fn run_runtime_fixture_test(category: &str, fixture: &RuntimeFixture) -> TestRes
 
         match compile(&fixture.input, client_options) {
             Ok(compile_result) => {
-                write_actual_output(
-                    category,
-                    &fixture.name,
-                    "client.js",
-                    &compile_result.js.code,
-                );
+                let passed = compare_js(&compile_result.js.code, expected_client);
 
-                if compare_js(&compile_result.js.code, expected_client) {
+                if write_output {
+                    write_actual_output(
+                        category,
+                        &fixture.name,
+                        "client.js",
+                        &compile_result.js.code,
+                    );
+                }
+
+                if passed {
                     result.client_passed = Some(true);
                 } else {
                     result.client_passed = Some(false);
@@ -154,12 +165,15 @@ fn run_runtime_fixture_test(category: &str, fixture: &RuntimeFixture) -> TestRes
             Err(e) => {
                 result.client_passed = Some(false);
                 result.client_error = Some(format!("Client compilation error: {}", e));
-                write_actual_output(
-                    category,
-                    &fixture.name,
-                    "client_error.txt",
-                    &format!("{:?}", e),
-                );
+
+                if write_output {
+                    write_actual_output(
+                        category,
+                        &fixture.name,
+                        "client_error.txt",
+                        &format!("{:?}", e),
+                    );
+                }
             }
         }
     }
@@ -175,14 +189,18 @@ fn run_runtime_fixture_test(category: &str, fixture: &RuntimeFixture) -> TestRes
 
         match compile(&fixture.input, server_options) {
             Ok(compile_result) => {
-                write_actual_output(
-                    category,
-                    &fixture.name,
-                    "server.js",
-                    &compile_result.js.code,
-                );
+                let passed = compare_js(&compile_result.js.code, expected_server);
 
-                if compare_js(&compile_result.js.code, expected_server) {
+                if write_output {
+                    write_actual_output(
+                        category,
+                        &fixture.name,
+                        "server.js",
+                        &compile_result.js.code,
+                    );
+                }
+
+                if passed {
                     result.server_passed = Some(true);
                 } else {
                     result.server_passed = Some(false);
@@ -192,12 +210,15 @@ fn run_runtime_fixture_test(category: &str, fixture: &RuntimeFixture) -> TestRes
             Err(e) => {
                 result.server_passed = Some(false);
                 result.server_error = Some(format!("Server compilation error: {}", e));
-                write_actual_output(
-                    category,
-                    &fixture.name,
-                    "server_error.txt",
-                    &format!("{:?}", e),
-                );
+
+                if write_output {
+                    write_actual_output(
+                        category,
+                        &fixture.name,
+                        "server_error.txt",
+                        &format!("{:?}", e),
+                    );
+                }
             }
         }
     }
@@ -219,7 +240,7 @@ fn run_runtime_tests(category: &str) {
     }
 
     let fixtures: Vec<RuntimeFixture> = samples
-        .iter()
+        .par_iter()
         .filter_map(|sample_dir| load_runtime_fixture(category, sample_dir.as_path()))
         .collect();
 

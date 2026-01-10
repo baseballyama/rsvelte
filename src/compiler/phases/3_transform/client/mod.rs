@@ -1952,6 +1952,10 @@ impl ClientCodeGenerator {
             // Legacy mode: transform export let to $.prop() calls
             let transformed = self.transform_legacy_script_content(&script_rest);
             format!("\t$.push($$props, false);\n\n{}", transformed)
+        } else if self.uses_runes {
+            // Runes mode: wrap with $.push/$.pop
+            let transformed = self.transform_script_content(&script_rest);
+            format!("\t$.push($$props, true);\n\n{}", transformed)
         } else {
             self.transform_script_content(&script_rest)
         };
@@ -1979,12 +1983,13 @@ impl ClientCodeGenerator {
             format!("\n\n$.delegate([{}]);", events_str)
         };
 
-        // Determine function signature based on $props usage, class state fields, or legacy export let
-        let fn_params = if uses_props || has_class_state_fields || has_legacy_export_let {
-            "$$anchor, $$props"
-        } else {
-            "$$anchor"
-        };
+        // Determine function signature based on $props usage, class state fields, legacy export let, or runes
+        let fn_params =
+            if uses_props || has_class_state_fields || has_legacy_export_let || self.uses_runes {
+                "$$anchor, $$props"
+            } else {
+                "$$anchor"
+            };
 
         // Check if there's any HTML content
         let has_html = !html.is_empty();
@@ -2172,7 +2177,7 @@ export default function {component_name}({fn_params}) {{
             )
         } else if !has_html && runtime_code.is_empty() && !has_each_blocks {
             // No HTML template - just script code
-            let pop_code = if uses_props_identifier || has_class_state_fields {
+            let pop_code = if uses_props_identifier || has_class_state_fields || self.uses_runes {
                 "\n\t$.pop();\n"
             } else {
                 ""
@@ -2209,12 +2214,15 @@ export default function {component_name}({fn_params}) {{
             // - TEMPLATE_FRAGMENT = 1 (always for fragments)
             // - TEMPLATE_USE_IMPORT_NODE = 2 (for custom elements/video)
             let template_flags = if self.has_custom_elements { 3 } else { 1 };
-            let pop_code =
-                if has_legacy_export_let || uses_props_identifier || has_class_state_fields {
-                    "\t$.pop();\n"
-                } else {
-                    ""
-                };
+            let pop_code = if has_legacy_export_let
+                || uses_props_identifier
+                || has_class_state_fields
+                || self.uses_runes
+            {
+                "\t$.pop();\n"
+            } else {
+                ""
+            };
             // Add $.next(count) for static fragments (no runtime_code)
             // This skips over the root elements that don't need runtime handling
             let next_code = if runtime_code.trim().is_empty() && self.root_element_count > 0 {
@@ -2246,12 +2254,15 @@ export default function {component_name}({fn_params}) {{
         } else {
             // Single root element
             let root_var = determine_root_var(&html);
-            let pop_code =
-                if has_legacy_export_let || uses_props_identifier || has_class_state_fields {
-                    "\t$.pop();\n"
-                } else {
-                    ""
-                };
+            let pop_code = if has_legacy_export_let
+                || uses_props_identifier
+                || has_class_state_fields
+                || self.uses_runes
+            {
+                "\t$.pop();\n"
+            } else {
+                ""
+            };
             format!(
                 r#"{system_imports}
 {hoisted_imports}{snippets_code}var root = $.from_html(`{html}`);
@@ -4555,9 +4566,9 @@ fn transform_client_runes_with_skip(line: &str, skip_state_vars: &[String]) -> S
         }
     }
 
-    // Transform $effect(x) to $.effect(x)
+    // Transform $effect(x) to $.user_effect(x)
     if result.contains("$effect(") {
-        result = result.replace("$effect(", "$.effect(");
+        result = result.replace("$effect(", "$.user_effect(");
     }
 
     // Transform $props() destructuring to $.prop() calls

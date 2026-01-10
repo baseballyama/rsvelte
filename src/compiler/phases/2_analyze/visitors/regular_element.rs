@@ -379,13 +379,45 @@ pub fn visit(
                     // Extract class names from attribute value
                     if let AttributeValue::Sequence(parts) = &attr_node.value {
                         for part in parts {
-                            if let AttributeValuePart::Text(text) = part {
-                                for class_name in text.data.split_whitespace() {
-                                    context
-                                        .analysis
-                                        .css
-                                        .used_classes
-                                        .insert(class_name.to_string());
+                            match part {
+                                AttributeValuePart::Text(text) => {
+                                    // Static text classes
+                                    for class_name in text.data.split_whitespace() {
+                                        context
+                                            .analysis
+                                            .css
+                                            .used_classes
+                                            .insert(class_name.to_string());
+                                    }
+                                }
+                                AttributeValuePart::ExpressionTag(expr_tag) => {
+                                    // Dynamic expression classes
+                                    // Serialize the expression to JSON to analyze it
+                                    if let Ok(expr_json) =
+                                        serde_json::to_value(&expr_tag.expression)
+                                    {
+                                        use super::super::css::get_possible_values;
+                                        if let Some(possible_values) =
+                                            get_possible_values(&expr_json, true)
+                                        {
+                                            // We can statically determine the classes
+                                            for value in &possible_values {
+                                                for class_name in value.split_whitespace() {
+                                                    context
+                                                        .analysis
+                                                        .css
+                                                        .used_classes
+                                                        .insert(class_name.to_string());
+                                                }
+                                            }
+                                        } else {
+                                            // Unknown expression - mark as dynamic
+                                            context.analysis.css.has_dynamic_classes = true;
+                                        }
+                                    } else {
+                                        // Failed to serialize - mark as dynamic
+                                        context.analysis.css.has_dynamic_classes = true;
+                                    }
                                 }
                             }
                         }
