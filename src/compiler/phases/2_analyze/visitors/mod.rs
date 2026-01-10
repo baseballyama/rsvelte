@@ -195,10 +195,7 @@ pub fn analyze_template(
 }
 
 /// Visit a template node and dispatch to the appropriate visitor.
-pub fn visit_node(
-    node: &mut TemplateNode,
-    context: &mut VisitorContext,
-) -> Result<(), AnalysisError> {
+pub fn visit_node(node: &TemplateNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     match node {
         TemplateNode::Text(text) => text::visit(text, context),
         TemplateNode::RegularElement(element) => regular_element::visit(element, context),

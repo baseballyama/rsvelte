@@ -785,3 +785,139 @@ fn nodes_equal(a: &Value, b: &Value) -> bool {
     // In the JavaScript version, this uses object reference equality
     false
 }
+
+/// Visit a JavaScript expression and track identifier references.
+///
+/// Corresponds to walking expressions in Svelte's utils.js.
+///
+/// # Arguments
+///
+/// * `expression` - The JavaScript expression to visit
+/// * `context` - The visitor context
+/// * `metadata` - Expression metadata to populate
+pub fn walk_js_expression(
+    expression: &Value,
+    context: &VisitorContext,
+    metadata: &mut crate::ast::template::ExpressionMetadata,
+) -> Result<(), AnalysisError> {
+    let expr_type = expression.get("type").and_then(|t| t.as_str());
+
+    match expr_type {
+        Some("Identifier") => {
+            if let Some(name) = expression.get("name").and_then(|n| n.as_str()) {
+                // Look up binding
+                if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name) {
+                    let binding = &context.analysis.root.bindings[binding_idx];
+
+                    // Add to references
+                    metadata.references.insert(binding_idx);
+
+                    // Check if it's state
+                    if matches!(
+                        binding.kind,
+                        BindingKind::State | BindingKind::RawState | BindingKind::Derived
+                    ) {
+                        metadata.has_state = true;
+                    }
+
+                    // Add to dependencies
+                    metadata.dependencies.insert(binding_idx);
+                }
+            }
+        }
+        Some("MemberExpression") => {
+            // Recursively visit object and property
+            if let Some(object) = expression.get("object") {
+                walk_js_expression(object, context, metadata)?;
+            }
+            if let Some(property) = expression.get("property") {
+                if expression
+                    .get("computed")
+                    .and_then(|c| c.as_bool())
+                    .unwrap_or(false)
+                {
+                    walk_js_expression(property, context, metadata)?;
+                }
+            }
+        }
+        Some("CallExpression") => {
+            // Visit callee and arguments
+            if let Some(callee) = expression.get("callee") {
+                walk_js_expression(callee, context, metadata)?;
+            }
+            if let Some(arguments) = expression.get("arguments").and_then(|a| a.as_array()) {
+                for arg in arguments {
+                    walk_js_expression(arg, context, metadata)?;
+                }
+            }
+        }
+        Some("BinaryExpression") | Some("LogicalExpression") => {
+            // Visit left and right
+            if let Some(left) = expression.get("left") {
+                walk_js_expression(left, context, metadata)?;
+            }
+            if let Some(right) = expression.get("right") {
+                walk_js_expression(right, context, metadata)?;
+            }
+        }
+        Some("UnaryExpression") | Some("UpdateExpression") => {
+            // Visit argument
+            if let Some(argument) = expression.get("argument") {
+                walk_js_expression(argument, context, metadata)?;
+            }
+        }
+        Some("ConditionalExpression") => {
+            // Visit test, consequent, and alternate
+            if let Some(test) = expression.get("test") {
+                walk_js_expression(test, context, metadata)?;
+            }
+            if let Some(consequent) = expression.get("consequent") {
+                walk_js_expression(consequent, context, metadata)?;
+            }
+            if let Some(alternate) = expression.get("alternate") {
+                walk_js_expression(alternate, context, metadata)?;
+            }
+        }
+        Some("ArrayExpression") => {
+            // Visit elements
+            if let Some(elements) = expression.get("elements").and_then(|e| e.as_array()) {
+                for element in elements {
+                    if !element.is_null() {
+                        walk_js_expression(element, context, metadata)?;
+                    }
+                }
+            }
+        }
+        Some("ObjectExpression") => {
+            // Visit properties
+            if let Some(properties) = expression.get("properties").and_then(|p| p.as_array()) {
+                for property in properties {
+                    if let Some(value) = property.get("value") {
+                        walk_js_expression(value, context, metadata)?;
+                    }
+                    if let Some(key) = property.get("key") {
+                        if property
+                            .get("computed")
+                            .and_then(|c| c.as_bool())
+                            .unwrap_or(false)
+                        {
+                            walk_js_expression(key, context, metadata)?;
+                        }
+                    }
+                }
+            }
+        }
+        Some("SequenceExpression") => {
+            // Visit expressions
+            if let Some(expressions) = expression.get("expressions").and_then(|e| e.as_array()) {
+                for expr in expressions {
+                    walk_js_expression(expr, context, metadata)?;
+                }
+            }
+        }
+        // Literals and other leaf nodes - no recursion needed
+        _ => {}
+    }
+
+    Ok(())
+}

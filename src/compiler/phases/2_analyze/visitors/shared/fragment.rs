@@ -9,8 +9,8 @@ use super::super::VisitorContext;
 use crate::ast::template::{Fragment, TemplateNode};
 
 /// Analyze a fragment.
-pub fn analyze(fragment: &mut Fragment, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    for node in &mut fragment.nodes {
+pub fn analyze(fragment: &Fragment, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    for node in &fragment.nodes {
         super::super::visit_node(node, context)?;
     }
     Ok(())

@@ -6,7 +6,7 @@
 
 use super::super::AnalysisError;
 use super::VisitorContext;
-use super::shared::utils::validate_opening_tag;
+use super::shared::utils::{validate_opening_tag, walk_js_expression};
 use crate::ast::template::{ConstTag, TemplateNode};
 
 /// Visit a const tag.
@@ -15,7 +15,7 @@ use crate::ast::template::{ConstTag, TemplateNode};
 /// It can only be used in specific contexts (as a direct child of certain blocks).
 ///
 /// Corresponds to `ConstTag(node, context)` in ConstTag.js.
-pub fn visit(tag: &ConstTag, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit(tag: &mut ConstTag, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // In runes mode, validate that the tag starts with '{@' (no whitespace)
     if context.analysis.runes {
         validate_opening_tag(tag.start as usize, &context.analysis.source, '@')?;
@@ -65,23 +65,18 @@ pub fn visit(tag: &ConstTag, context: &mut VisitorContext) -> Result<(), Analysi
         }
     }
 
-    // TODO: Extract and visit the declaration
-    // The JavaScript code does:
-    //   const declaration = node.declaration.declarations[0];
-    //   context.visit(declaration.id);
-    //   context.visit(declaration.init, {
-    //       ...context.state,
-    //       expression: node.metadata.expression,
-    //       function_depth: context.state.function_depth + 1,
-    //       derived_function_depth: context.state.function_depth + 1
-    //   });
-    //
-    // This requires:
-    // 1. Parsing the declaration expression to extract id and init
-    // 2. Implementing context.visit() for JavaScript AST nodes
-    // 3. Adding metadata.expression to ConstTag nodes
-    //
-    // For now, we acknowledge that the const tag is valid but don't visit its contents
+    // Visit the declaration expression
+    if let crate::ast::js::Expression::Value(ref value) = tag.declaration {
+        // For VariableDeclaration, we need to visit the init expression
+        if let Some(declarations) = value.get("declarations").and_then(|d| d.as_array()) {
+            if let Some(declaration) = declarations.first() {
+                // Visit the init expression if present
+                if let Some(init) = declaration.get("init") {
+                    walk_js_expression(init, context, &mut tag.metadata.expression)?;
+                }
+            }
+        }
+    }
 
     Ok(())
 }

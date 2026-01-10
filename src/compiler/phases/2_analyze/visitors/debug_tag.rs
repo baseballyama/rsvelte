@@ -6,7 +6,7 @@
 
 use super::super::AnalysisError;
 use super::VisitorContext;
-use super::shared::utils::validate_opening_tag;
+use super::shared::utils::{validate_opening_tag, walk_js_expression};
 use crate::ast::template::DebugTag;
 
 /// Visit a debug tag.
@@ -15,22 +15,18 @@ use crate::ast::template::DebugTag;
 /// In runes mode, it must start with '{@' (no whitespace).
 ///
 /// Corresponds to `DebugTag(node, context)` in DebugTag.js.
-pub fn visit(tag: &DebugTag, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit(tag: &mut DebugTag, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // In runes mode, validate that the tag starts with '{@' (no whitespace)
     if context.analysis.runes {
         validate_opening_tag(tag.start as usize, &context.analysis.source, '@')?;
     }
 
-    // The JavaScript implementation calls context.next(), which continues
-    // the traversal to child nodes. For {@debug}, we need to visit the
-    // identifiers to track their references.
-    //
-    // TODO: Visit the identifiers in tag.identifiers
-    // This requires:
-    // 1. Implementing visitor for Expression nodes
-    // 2. Tracking identifier references in the analysis
-    //
-    // For now, we just validate the tag structure
+    // Visit the identifiers to track their references
+    for identifier in &tag.identifiers {
+        if let crate::ast::js::Expression::Value(ref value) = identifier {
+            walk_js_expression(value, context, &mut tag.metadata.expression)?;
+        }
+    }
 
     Ok(())
 }
