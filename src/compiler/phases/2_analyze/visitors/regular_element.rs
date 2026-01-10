@@ -354,7 +354,10 @@ pub fn visit(
 
     // Check accessibility
     let path_refs = context.path.to_vec();
-    a11y_check(element, &path_refs);
+    let a11y_warnings = a11y_check(element, &path_refs);
+    for warning in a11y_warnings {
+        context.emit_warning(warning);
+    }
 
     // Track element in analysis
     // Note: In the JS version, this sets node.metadata.path = [...context.path]

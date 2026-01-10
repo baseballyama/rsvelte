@@ -29,17 +29,19 @@ static REGEX_STARTS_WITH_VOWEL: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^[aeiou]").unwrap());
 static REGEX_WHITESPACES: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s+").unwrap());
 
+use crate::compiler::phases::phase2_analyze::warnings as w;
+
 /// Check element for a11y issues.
 /// This is the main entry point for accessibility checking.
 ///
 /// # Arguments
 /// * `node` - The element to check (RegularElement or SvelteElement)
-/// * `context` - The visitor context (not used yet, but matches Svelte API)
+/// * `path` - The path from root to this element (for parent checks)
 ///
-/// # Note
-/// Warning generation is handled via TODO comments for now.
-/// The actual warning system needs to be integrated with the compiler's error reporting.
-pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) {
+/// # Returns
+/// A vector of warnings detected for this element.
+pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::AnalysisWarning> {
+    let mut warnings = Vec::new();
     let mut attribute_map: HashMap<String, &AttributeNode> = HashMap::new();
     let mut handlers: HashSet<String> = HashSet::new();
     let mut attributes: Vec<&AttributeNode> = Vec::new();
@@ -199,17 +201,17 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) {
 
             // no-access-key
             if name == "accesskey" {
-                // TODO: w.a11y_accesskey(attribute);
+                warnings.push(w::a11y_accesskey());
             }
 
             // no-autofocus
             if name == "autofocus" && node.name != "dialog" && !is_parent(path, &["dialog"]) {
-                // TODO: w.a11y_autofocus(attribute);
+                warnings.push(w::a11y_autofocus());
             }
 
             // scope
             if name == "scope" && !is_dynamic_element && node.name != "th" {
-                // TODO: w.a11y_misplaced_scope(attribute);
+                warnings.push(w::a11y_misplaced_scope());
             }
 
             // tabindex-no-positive
@@ -218,7 +220,7 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) {
                 && let Ok(num) = value.parse::<i32>()
                 && num > 0
             {
-                // TODO: w.a11y_positive_tabindex(attribute);
+                warnings.push(w::a11y_positive_tabindex());
             }
         }
     }
@@ -351,7 +353,7 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) {
                         && name_attribute.is_none()
                         && aria_disabled != Some("true")
                     {
-                        // TODO: warn_missing_attribute(node, ["href"]);
+                        warn_missing_attribute(&mut warnings, &node.name, &["href"], None);
                     }
                 }
             }
@@ -367,7 +369,12 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) {
                     .iter()
                     .any(|name| attribute_map.contains_key(*name));
                 if !has_attribute {
-                    // TODO: warn_missing_attribute(node, required_attributes, "input type=\"image\"");
+                    warn_missing_attribute(
+                        &mut warnings,
+                        &node.name,
+                        &required_attributes,
+                        Some("input type=\"image\""),
+                    );
                 }
             }
         }
@@ -380,13 +387,13 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) {
                     && !has_spread
                     && REGEX_REDUNDANT_IMG_ALT.is_match(alt_value)
                 {
-                    // TODO: w.a11y_img_redundant_alt(node);
+                    warnings.push(w::a11y_img_redundant_alt());
                 }
             }
         }
         "label" => {
             if !has_spread && !attribute_map.contains_key("for") && !has_input_child(node) {
-                // TODO: w.a11y_label_has_associated_control(node);
+                warnings.push(w::a11y_label_has_associated_control());
             }
         }
         "video" => {
@@ -396,42 +403,40 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) {
                 == Some("true");
 
             if attribute_map.contains_key("muted") || aria_hidden_exist || has_spread {
-                return;
-            }
-
-            if !attribute_map.contains_key("src") {
-                return;
-            }
-
-            let has_caption = node
-                .fragment
-                .nodes
-                .iter()
-                .filter_map(|n| {
-                    if let TemplateNode::RegularElement(el) = n {
-                        if el.name == "track" {
-                            Some(el)
+                // Skip video caption check if muted, aria-hidden, or has spread
+            } else if !attribute_map.contains_key("src") {
+                // Skip video caption check if no src attribute
+            } else {
+                let has_caption = node
+                    .fragment
+                    .nodes
+                    .iter()
+                    .filter_map(|n| {
+                        if let TemplateNode::RegularElement(el) = n {
+                            if el.name == "track" {
+                                Some(el)
+                            } else {
+                                None
+                            }
                         } else {
                             None
                         }
-                    } else {
-                        None
-                    }
-                })
-                .any(|track| {
-                    track.attributes.iter().any(|a| {
-                        matches!(a, AttributeNode::SpreadAttribute(_))
-                            || matches!(a, AttributeNode::Attribute(attr) if attr.name == "kind" && get_static_value(a) == Some("captions"))
                     })
-                });
+                    .any(|track| {
+                        track.attributes.iter().any(|a| {
+                            matches!(a, AttributeNode::SpreadAttribute(_))
+                                || matches!(a, AttributeNode::Attribute(attr) if attr.name == "kind" && get_static_value(a) == Some("captions"))
+                        })
+                    });
 
-            if !has_caption {
-                // TODO: w.a11y_media_has_caption(node);
+                if !has_caption {
+                    warnings.push(w::a11y_media_has_caption());
+                }
             }
         }
         "figcaption" => {
             if !is_parent(path, &["figure"]) {
-                // TODO: w.a11y_figcaption_parent(node);
+                warnings.push(w::a11y_figcaption_parent());
             }
         }
         "figure" => {
@@ -452,7 +457,7 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) {
                 && idx != 0
                 && idx != children.len() - 1
             {
-                // TODO: w.a11y_figcaption_index(children[idx]);
+                warnings.push(w::a11y_figcaption_index());
             }
         }
         _ => {}
@@ -467,13 +472,13 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) {
             .iter()
             .any(|name| attribute_map.contains_key(*name));
         if !has_attribute {
-            // TODO: warn_missing_attribute(node, required_attributes);
+            warn_missing_attribute(&mut warnings, &node.name, required_attributes, None);
         }
     }
 
     // no-distracting-elements
     if A11Y_DISTRACTING_ELEMENTS.contains(&node.name.as_str()) {
-        // TODO: w.a11y_distracting_elements(node, node.name);
+        warnings.push(w::a11y_distracting_elements(&node.name));
     }
 
     // Check content
@@ -483,8 +488,10 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) {
         && A11Y_REQUIRED_CONTENT.contains(&node.name.as_str())
         && !has_content(node)
     {
-        // TODO: w.a11y_missing_content(node, node.name);
+        warnings.push(w::a11y_missing_content(&node.name));
     }
+
+    warnings
 }
 
 // Helper functions
@@ -772,4 +779,35 @@ fn has_input_child(element: &RegularElement) -> bool {
     }
 
     walk_fragment(&element.fragment)
+}
+
+/// Helper to generate missing attribute warning with proper article and sequence.
+fn warn_missing_attribute(
+    warnings: &mut Vec<w::AnalysisWarning>,
+    element_name: &str,
+    attributes: &[&str],
+    context: Option<&str>,
+) {
+    let name = context.unwrap_or(element_name);
+    let article = if attributes.len() == 1 {
+        if REGEX_STARTS_WITH_VOWEL.is_match(attributes[0]) {
+            "an"
+        } else {
+            "a"
+        }
+    } else {
+        ""
+    };
+
+    let sequence = if attributes.len() == 1 {
+        attributes[0].to_string()
+    } else if attributes.len() == 2 {
+        format!("{} or {}", attributes[0], attributes[1])
+    } else {
+        let last = attributes.last().unwrap();
+        let rest = &attributes[..attributes.len() - 1];
+        format!("{}, or {}", rest.join(", "), last)
+    };
+
+    warnings.push(w::a11y_missing_attribute(name, article, &sequence));
 }
