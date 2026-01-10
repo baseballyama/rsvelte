@@ -23,9 +23,8 @@ pub fn visit(tag: &mut DebugTag, context: &mut VisitorContext) -> Result<(), Ana
 
     // Visit the identifiers to track their references
     for identifier in &tag.identifiers {
-        if let crate::ast::js::Expression::Value(ref value) = identifier {
-            walk_js_expression(value, context, &mut tag.metadata.expression)?;
-        }
+        let crate::ast::js::Expression::Value(value) = identifier;
+        walk_js_expression(value, context, &mut tag.metadata.expression)?;
     }
 
     Ok(())

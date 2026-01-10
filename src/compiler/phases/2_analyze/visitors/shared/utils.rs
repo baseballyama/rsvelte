@@ -665,10 +665,10 @@ pub fn is_reference(node: &Value, parent: Option<&Value>) -> bool {
             .get("computed")
             .and_then(|c| c.as_bool())
             .unwrap_or(false);
-        if !computed {
-            if let Some(object) = node.get("object") {
-                return is_reference(object, Some(node));
-            }
+        if !computed
+            && let Some(object) = node.get("object")
+        {
+            return is_reference(object, Some(node));
         }
         return false;
     }
@@ -830,14 +830,13 @@ pub fn walk_js_expression(
             if let Some(object) = expression.get("object") {
                 walk_js_expression(object, context, metadata)?;
             }
-            if let Some(property) = expression.get("property") {
-                if expression
+            if let Some(property) = expression.get("property")
+                && expression
                     .get("computed")
                     .and_then(|c| c.as_bool())
                     .unwrap_or(false)
-                {
-                    walk_js_expression(property, context, metadata)?;
-                }
+            {
+                walk_js_expression(property, context, metadata)?;
             }
         }
         Some("CallExpression") => {
@@ -895,14 +894,13 @@ pub fn walk_js_expression(
                     if let Some(value) = property.get("value") {
                         walk_js_expression(value, context, metadata)?;
                     }
-                    if let Some(key) = property.get("key") {
-                        if property
+                    if let Some(key) = property.get("key")
+                        && property
                             .get("computed")
                             .and_then(|c| c.as_bool())
                             .unwrap_or(false)
-                        {
-                            walk_js_expression(key, context, metadata)?;
-                        }
+                    {
+                        walk_js_expression(key, context, metadata)?;
                     }
                 }
             }

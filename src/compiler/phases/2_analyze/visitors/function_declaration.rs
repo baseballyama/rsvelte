@@ -20,17 +20,15 @@ use serde_json::Value;
 /// * `context` - The visitor context
 pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // In runes mode, validate the function name
-    if context.analysis.runes {
-        if let Some(id) = node.get("id") {
-            if !id.is_null() {
-                if let Some(name) = id.get("name").and_then(|n| n.as_str()) {
-                    // Look up the binding for this function name
-                    if let Some(binding_idx) = context.analysis.root.scope.declarations.get(name) {
-                        let binding = &context.analysis.root.bindings[*binding_idx];
-                        validate_identifier_name(binding, Some(context.function_depth))?;
-                    }
-                }
-            }
+    if context.analysis.runes
+        && let Some(id) = node.get("id")
+        && !id.is_null()
+        && let Some(name) = id.get("name").and_then(|n| n.as_str())
+    {
+        // Look up the binding for this function name
+        if let Some(binding_idx) = context.analysis.root.scope.declarations.get(name) {
+            let binding = &context.analysis.root.bindings[*binding_idx];
+            validate_identifier_name(binding, Some(context.function_depth))?;
         }
     }
 

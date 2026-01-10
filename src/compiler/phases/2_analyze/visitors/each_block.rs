@@ -9,7 +9,7 @@ use std::collections::HashSet;
 use super::super::{AnalysisError, Binding, BindingKind, errors};
 use super::VisitorContext;
 use super::shared::fragment;
-use super::shared::utils::{validate_block_not_empty, validate_opening_tag};
+use super::shared::utils::{validate_block_not_empty, validate_opening_tag, walk_js_expression};
 use crate::ast::template::EachBlock;
 
 /// Visit an each block.
@@ -63,9 +63,8 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
 
     // Visit the expression in parent scope
     // Extract the JavaScript expression value
-    if let crate::ast::js::Expression::Value(value) = &block.expression {
-        let _ = super::script::walk_js_node(value, context);
-    }
+    let crate::ast::js::Expression::Value(value) = &block.expression;
+    walk_js_expression(value, context, &mut block.metadata.expression)?;
 
     // Mark that we have control flow affecting sibling relationships
     context.analysis.css.has_control_flow = true;
@@ -74,16 +73,15 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
     context.block_depth += 1;
 
     // Visit the body and fallback
-    fragment::analyze(&block.body, context)?;
-    if let Some(fallback) = &block.fallback {
+    fragment::analyze(&mut block.body, context)?;
+    if let Some(ref mut fallback) = block.fallback {
         fragment::analyze(fallback, context)?;
     }
 
     // Visit the key expression if present
     if let Some(key) = &block.key {
-        if let crate::ast::js::Expression::Value(value) = key {
-            let _ = super::script::walk_js_node(value, context);
-        }
+        let crate::ast::js::Expression::Value(value) = key;
+        walk_js_expression(value, context, &mut block.metadata.expression)?;
     }
 
     // Decrement block depth

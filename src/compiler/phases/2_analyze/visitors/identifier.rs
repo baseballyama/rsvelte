@@ -65,37 +65,36 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     }
 
     // Handle runes in runes mode
-    if context.analysis.runes {
-        if is_rune(name) {
-            // Check if this is actually a rune (not a store subscription)
-            let is_store_sub =
-                if let Some(binding_idx) = context.analysis.root.scope.declarations.get(name) {
-                    let binding = &context.analysis.root.bindings[*binding_idx];
-                    binding.kind == BindingKind::StoreSub
-                } else {
-                    false
-                };
-
-            // Also check for store without $ prefix
-            let has_store_binding = if name.starts_with('$') {
-                let store_name = &name[1..];
-                context
-                    .analysis
-                    .root
-                    .scope
-                    .declarations
-                    .contains_key(store_name)
+    if context.analysis.runes
+        && is_rune(name)
+    {
+        // Check if this is actually a rune (not a store subscription)
+        let is_store_sub =
+            if let Some(binding_idx) = context.analysis.root.scope.declarations.get(name) {
+                let binding = &context.analysis.root.bindings[*binding_idx];
+                binding.kind == BindingKind::StoreSub
             } else {
                 false
             };
 
-            if context.analysis.root.scope.declarations.get(name).is_none()
-                && !is_store_sub
-                && !has_store_binding
-            {
-                // This is a rune - validate it
-                return validate_rune_usage(node, name, &context.js_path);
-            }
+        // Also check for store without $ prefix
+        let has_store_binding = if let Some(store_name) = name.strip_prefix('$') {
+            context
+                .analysis
+                .root
+                .scope
+                .declarations
+                .contains_key(store_name)
+        } else {
+            false
+        };
+
+        if !context.analysis.root.scope.declarations.contains_key(name)
+            && !is_store_sub
+            && !has_store_binding
+        {
+            // This is a rune - validate it
+            return validate_rune_usage(node, name, &context.js_path);
         }
     }
 
