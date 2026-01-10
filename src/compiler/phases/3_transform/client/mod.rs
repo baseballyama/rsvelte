@@ -4214,16 +4214,33 @@ fn has_nested_dynamic_content(fragment: &Fragment) -> bool {
                     }
                 }
                 TemplateNode::RegularElement(elem) => {
-                    // Check if element has event handlers and has child elements
+                    // Check if element has special attributes that need runtime handling
                     let has_event_handlers = elem.attributes.iter().any(
                         |attr| matches!(attr, Attribute::Attribute(a) if a.name.starts_with("on")),
                     );
+
+                    let has_class_directive = elem
+                        .attributes
+                        .iter()
+                        .any(|attr| matches!(attr, Attribute::ClassDirective(_)));
+
+                    let has_style_directive = elem
+                        .attributes
+                        .iter()
+                        .any(|attr| matches!(attr, Attribute::StyleDirective(_)));
 
                     let has_child_elements = elem
                         .fragment
                         .nodes
                         .iter()
                         .any(|child| matches!(child, TemplateNode::RegularElement(_)));
+
+                    // If element has special attributes at depth > 0, use hierarchical nav
+                    if depth > 0
+                        && (has_event_handlers || has_class_directive || has_style_directive)
+                    {
+                        return true;
+                    }
 
                     // If element has event handlers and child elements, use hierarchical nav
                     if has_event_handlers && has_child_elements {
