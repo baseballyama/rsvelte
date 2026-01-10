@@ -14,7 +14,6 @@ pub mod css;
 pub mod js_ast;
 pub mod server;
 pub mod shared;
-pub mod types;
 pub mod utils;
 
 // Re-export commonly used types

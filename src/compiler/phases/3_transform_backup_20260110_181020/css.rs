@@ -1259,20 +1259,37 @@ fn transform_rule_preserving(
     if let Some(prelude) = node.get("prelude") {
         let unused_status = check_selector_unused(prelude, ctx);
         if unused_status != UnusedStatus::Used {
-            // Both Unused and NoMatch use the same comment format: /* (unused) ... */
-            output.push_str("/* (unused) ");
+            // Determine comment format based on status
+            let (comment_start, comment_end) = match unused_status {
+                UnusedStatus::NoMatch => ("/* no match */\n", ""),
+                UnusedStatus::Unused => ("/* (unused) ", "*/"),
+                UnusedStatus::Used => unreachable!(),
+            };
 
-            // Get the original rule text
-            let rule_start = node_start.saturating_sub(css_start);
-            let rule_end = node_end.saturating_sub(css_start);
-            if rule_end <= css_source.len() && rule_start < rule_end {
-                let original = &css_source[rule_start..rule_end];
-                // Escape any */ in the content
-                let escaped = original.replace("*/", "*\\/");
-                output.push_str(&escaped);
+            output.push_str(comment_start);
+
+            // For "no match", we still include the original rule in a comment
+            if unused_status == UnusedStatus::NoMatch || unused_status == UnusedStatus::Unused {
+                if unused_status == UnusedStatus::NoMatch {
+                    // Add another comment block for the actual rule
+                    output.push_str("/* (unused) ");
+                }
+
+                // Get the original rule text
+                let rule_start = node_start.saturating_sub(css_start);
+                let rule_end = node_end.saturating_sub(css_start);
+                if rule_end <= css_source.len() && rule_start < rule_end {
+                    let original = &css_source[rule_start..rule_end];
+                    // Escape any */ in the content
+                    let escaped = original.replace("*/", "*\\/");
+                    output.push_str(&escaped);
+                }
+
+                output.push_str(comment_end);
+                if unused_status == UnusedStatus::NoMatch {
+                    output.push_str("*/");
+                }
             }
-
-            output.push_str("*/");
 
             *last_end = node_end;
             return;
@@ -1836,8 +1853,6 @@ fn transform_complex_selector(
                 } else {
                     result.push_str(&format!(" {} ", name));
                 }
-                // After any combinator, subsequent selectors should use :where() for specificity preservation
-                local_specificity_bumped = true;
             }
 
             // Get selectors
