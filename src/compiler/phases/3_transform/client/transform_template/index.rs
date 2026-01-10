@@ -107,7 +107,10 @@ pub fn transform_template<'a>(
     };
 
     let mut call = if current_flags != 0 {
-        b::call(function_name, vec![expression, b::number(current_flags as f64)])
+        b::call(
+            function_name,
+            vec![expression, b::number(current_flags as f64)],
+        )
     } else {
         b::call(function_name, vec![expression])
     };

@@ -118,7 +118,12 @@ impl Template {
 
     /// Convert template to HTML string expression.
     pub fn as_html(&self) -> JsExpr {
-        let html = self.nodes.iter().map(stringify).collect::<Vec<_>>().join("");
+        let html = self
+            .nodes
+            .iter()
+            .map(stringify)
+            .collect::<Vec<_>>()
+            .join("");
         b::template(vec![b::quasi(html, true)], vec![])
     }
 
@@ -235,11 +240,7 @@ fn objectify(item: &Node) -> Option<JsExpr> {
             }
 
             if !element.children.is_empty() {
-                let children: Vec<JsExpr> = element
-                    .children
-                    .iter()
-                    .filter_map(objectify)
-                    .collect();
+                let children: Vec<JsExpr> = element.children.iter().filter_map(objectify).collect();
 
                 // Special case — strip leading newline from `<pre>` and `<textarea>`
                 if (element.name == "pre" || element.name == "textarea") && !children.is_empty() {

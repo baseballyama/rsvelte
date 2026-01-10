@@ -6,12 +6,12 @@
 
 use super::super::super::AnalysisError;
 use super::super::VisitorContext;
-use crate::compiler::phases::phase2_analyze::errors;
 use super::attribute::{
     get_attribute_expression, is_expression_attribute, validate_attribute, validate_attribute_name,
     validate_slot_attribute,
 };
 use crate::ast::template::{Attribute, RegularElement, SvelteElement};
+use crate::compiler::phases::phase2_analyze::errors;
 use regex::Regex;
 use std::sync::LazyLock;
 
