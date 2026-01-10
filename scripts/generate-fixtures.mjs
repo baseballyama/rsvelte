@@ -197,6 +197,9 @@ async function generateSnapshotFixture(sampleDir, outputDir, config) {
   }
   const source = fs.readFileSync(inputPath, 'utf-8');
 
+  // Extract sample name from directory path for correct component naming
+  const sampleName = path.basename(sampleDir);
+
   const compileOptions = {
     dev: config.compileOptions?.dev ?? false,
     css: config.compileOptions?.css ?? 'external',
@@ -210,7 +213,9 @@ async function generateSnapshotFixture(sampleDir, outputDir, config) {
     const clientResult = compile(source, {
       ...compileOptions,
       generate: 'client',
-      filename: 'index.svelte',
+      // Use sample_name/index.svelte to match official Svelte test expectations
+      // This ensures correct component naming (e.g., "Bind_component_snippet" instead of "Index")
+      filename: `${sampleName}/index.svelte`,
     });
     results.client = {
       js: clientResult.js.code,
@@ -226,7 +231,8 @@ async function generateSnapshotFixture(sampleDir, outputDir, config) {
     const serverResult = compile(source, {
       ...compileOptions,
       generate: 'server',
-      filename: 'index.svelte',
+      // Use sample_name/index.svelte to match official Svelte test expectations
+      filename: `${sampleName}/index.svelte`,
     });
     results.server = {
       js: serverResult.js.code,

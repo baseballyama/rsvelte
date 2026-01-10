@@ -160,6 +160,8 @@ struct ClientCodeGenerator {
     /// Elements that need $.reset() after processing children
     #[allow(dead_code)]
     elements_needing_reset: Vec<String>,
+    /// Text content before root-level expressions (for template_effect generation)
+    root_text_before_expression: String,
 }
 
 impl ClientCodeGenerator {
@@ -212,6 +214,7 @@ impl ClientCodeGenerator {
             nav_stmts: Vec::new(),
             template_effects: Vec::new(),
             elements_needing_reset: Vec::new(),
+            root_text_before_expression: String::new(),
         }
     }
 
@@ -237,6 +240,41 @@ impl ClientCodeGenerator {
                 continue;
             }
             break;
+        }
+
+        // Capture text content before root-level expressions for template_effect generation
+        // Look for pattern: Component/Element + Text + ExpressionTag
+        for i in start_idx..nodes.len() {
+            if let TemplateNode::Text(text) = nodes[i] {
+                // Check if next node is an expression tag
+                if i + 1 < nodes.len() && matches!(nodes[i + 1], TemplateNode::ExpressionTag(_)) {
+                    // Found text before expression - normalize whitespace
+                    // Convert newlines to spaces and collapse multiple whitespace
+                    let normalized = text
+                        .data
+                        .chars()
+                        .map(|c| if c.is_whitespace() { ' ' } else { c })
+                        .collect::<String>();
+
+                    // Collapse multiple spaces to single space
+                    let mut result = String::new();
+                    let mut prev_was_space = false;
+                    for c in normalized.chars() {
+                        if c == ' ' {
+                            if !prev_was_space {
+                                result.push(' ');
+                                prev_was_space = true;
+                            }
+                        } else {
+                            result.push(c);
+                            prev_was_space = false;
+                        }
+                    }
+
+                    self.root_text_before_expression = result.trim_end().to_string();
+                    break;
+                }
+            }
         }
 
         // Generate from first non-whitespace node
@@ -2007,13 +2045,9 @@ impl ClientCodeGenerator {
                     .cloned()
                     .unwrap_or_default();
 
-                // Extract any text before the expression from html (but remove the component placeholder)
-                // The text includes whitespace normalization
-                let text_before = html
-                    .replace("<!>", "")
-                    .replace('\n', " ")
-                    .trim_end()
-                    .to_string();
+                // Use the captured text content before the expression
+                // (captured during generate_component with proper whitespace normalization)
+                let text_before = &self.root_text_before_expression;
 
                 // Wrap expression in $.get() if it's a state variable
                 let wrapped_expr = if self.state_vars.contains(&expr) {

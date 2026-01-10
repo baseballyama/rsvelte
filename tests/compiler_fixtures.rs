@@ -121,10 +121,11 @@ fn run_snapshot_fixture_test(fixture: &SnapshotFixture) -> TestResult {
 
     // Test client-side compilation
     if let Some(expected_client) = &fixture.expected_client_js {
-        // Use "index.svelte" to match the filename used by Svelte fixture generator
+        // Use "{sample_name}/index.svelte" to match the filename used by Svelte fixture generator
+        // This is required for correct component naming (e.g., "Bind_component_snippet" instead of "Index")
         let client_options = CompileOptions {
             generate: GenerateMode::Client,
-            filename: Some("index.svelte".to_string()),
+            filename: Some(format!("{}/index.svelte", fixture.name)),
             ..Default::default()
         };
 
@@ -160,10 +161,11 @@ fn run_snapshot_fixture_test(fixture: &SnapshotFixture) -> TestResult {
 
     // Test server-side compilation
     if let Some(expected_server) = &fixture.expected_server_js {
-        // Use "index.svelte" to match the filename used by Svelte fixture generator
+        // Use "{sample_name}/index.svelte" to match the filename used by Svelte fixture generator
+        // This is required for correct component naming (e.g., "Bind_component_snippet" instead of "Index")
         let server_options = CompileOptions {
             generate: GenerateMode::Server,
-            filename: Some("index.svelte".to_string()),
+            filename: Some(format!("{}/index.svelte", fixture.name)),
             ..Default::default()
         };
 
