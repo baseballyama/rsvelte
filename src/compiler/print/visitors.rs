@@ -304,12 +304,12 @@ fn visit_attribute(context: &mut Context, attribute: &Attribute) {
             }
 
             // Shorthand detection
-            if let Some(ref expr) = dir.expression {
-                if !is_shorthand_identifier(expr, dir.name.as_str()) {
-                    context.write("={");
-                    context.write(&expression_to_string(expr));
-                    context.write("}");
-                }
+            if let Some(ref expr) = dir.expression
+                && !is_shorthand_identifier(expr, dir.name.as_str())
+            {
+                context.write("={");
+                context.write(&expression_to_string(expr));
+                context.write("}");
             }
         }
         Attribute::ClassDirective(dir) => {
@@ -377,48 +377,48 @@ fn visit_attribute(context: &mut Context, attribute: &Attribute) {
                 context.write(modifier.as_str());
             }
 
-            if let Some(ref expr) = dir.expression {
-                if !is_shorthand_identifier(expr, dir.name.as_str()) {
-                    context.write("={");
-                    context.write(&expression_to_string(expr));
-                    context.write("}");
-                }
+            if let Some(ref expr) = dir.expression
+                && !is_shorthand_identifier(expr, dir.name.as_str())
+            {
+                context.write("={");
+                context.write(&expression_to_string(expr));
+                context.write("}");
             }
         }
         Attribute::AnimateDirective(dir) => {
             context.write("animate:");
             context.write(dir.name.as_str());
 
-            if let Some(ref expr) = dir.expression {
-                if !is_shorthand_identifier(expr, dir.name.as_str()) {
-                    context.write("={");
-                    context.write(&expression_to_string(expr));
-                    context.write("}");
-                }
+            if let Some(ref expr) = dir.expression
+                && !is_shorthand_identifier(expr, dir.name.as_str())
+            {
+                context.write("={");
+                context.write(&expression_to_string(expr));
+                context.write("}");
             }
         }
         Attribute::UseDirective(dir) => {
             context.write("use:");
             context.write(dir.name.as_str());
 
-            if let Some(ref expr) = dir.expression {
-                if !is_shorthand_identifier(expr, dir.name.as_str()) {
-                    context.write("={");
-                    context.write(&expression_to_string(expr));
-                    context.write("}");
-                }
+            if let Some(ref expr) = dir.expression
+                && !is_shorthand_identifier(expr, dir.name.as_str())
+            {
+                context.write("={");
+                context.write(&expression_to_string(expr));
+                context.write("}");
             }
         }
         Attribute::LetDirective(dir) => {
             context.write("let:");
             context.write(dir.name.as_str());
 
-            if let Some(ref expr) = dir.expression {
-                if !is_shorthand_identifier(expr, dir.name.as_str()) {
-                    context.write("={");
-                    context.write(&expression_to_string(expr));
-                    context.write("}");
-                }
+            if let Some(ref expr) = dir.expression
+                && !is_shorthand_identifier(expr, dir.name.as_str())
+            {
+                context.write("={");
+                context.write(&expression_to_string(expr));
+                context.write("}");
             }
         }
         Attribute::AttachTag(_attach) => {
