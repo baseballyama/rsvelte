@@ -5,7 +5,7 @@
 //! Corresponds to Svelte's `2-analyze/visitors/MemberExpression.js`.
 
 use super::VisitorContext;
-use super::shared::utils::is_safe_identifier;
+use super::shared::utils::{is_safe_identifier, is_pure};
 use crate::compiler::phases::phase2_analyze::{AnalysisError, BindingKind, errors};
 use serde_json::Value;
 
@@ -56,13 +56,18 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         }
     }
 
-    // TODO: Track expression metadata when expression context is implemented
-    // In the JavaScript version, this updates context.state.expression:
-    // - has_member_expression = true
-    // - has_state ||= !is_pure(node, context)
-    //
-    // This requires implementing an expression context stack in VisitorContext
-    // For now, we skip this tracking as the infrastructure is not yet in place
+    // Track expression metadata in the current expression context
+    // Check purity first to avoid borrowing issues
+    let is_not_pure = !is_pure(node, context);
+
+    if let Some(expression) = context.current_expression() {
+        expression.has_member_expression = true;
+
+        // If the member expression is not pure, mark the expression as having state
+        if is_not_pure {
+            expression.has_state = true;
+        }
+    }
 
     // Check if this identifier is "safe" (doesn't require component context)
     // If it's not safe, we need to track that this component needs context

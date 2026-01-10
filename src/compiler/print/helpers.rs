@@ -842,6 +842,313 @@ pub fn expression_to_string(expr: &crate::ast::js::Expression) -> String {
     estree_to_string(value)
 }
 
+/// Format a Program node (script content) to JavaScript source code.
+///
+/// # Arguments
+///
+/// * `program` - The ESTree Program node
+///
+/// # Returns
+///
+/// Returns the formatted JavaScript code as a string.
+pub fn format_program(program: &serde_json::Value) -> String {
+    // For a Program node, we need to handle the body array
+    if let Some(body) = program.get("body").and_then(|v| v.as_array()) {
+        if body.is_empty() {
+            return String::new();
+        }
+
+        let mut result = String::new();
+        for (i, stmt) in body.iter().enumerate() {
+            if i > 0 {
+                result.push('\n');
+            }
+            result.push_str(&format_statement_from_json(stmt));
+        }
+        result
+    } else {
+        // Fallback: treat as expression
+        estree_to_string(program)
+    }
+}
+
+/// Format a statement to JavaScript source code.
+///
+/// # Arguments
+///
+/// * `stmt` - The ESTree statement node
+///
+/// # Returns
+///
+/// Returns the formatted JavaScript code as a string.
+fn format_statement_from_json(stmt: &serde_json::Value) -> String {
+    let stmt_type = stmt.get("type").and_then(|t| t.as_str());
+
+    match stmt_type {
+        Some("VariableDeclaration") => format_variable_declaration(stmt),
+        Some("ExpressionStatement") => {
+            if let Some(expr) = stmt.get("expression") {
+                format!("{};", estree_to_string(expr))
+            } else {
+                ";".to_string()
+            }
+        }
+        Some("FunctionDeclaration") => format_function_declaration(stmt),
+        Some("ClassDeclaration") => format_class_declaration(stmt),
+        Some("ImportDeclaration") => format_import_declaration(stmt),
+        Some("ExportNamedDeclaration") | Some("ExportDefaultDeclaration") => {
+            format_export_declaration(stmt)
+        }
+        Some("ReturnStatement") => {
+            if let Some(arg) = stmt.get("argument") {
+                if arg.is_null() {
+                    "return;".to_string()
+                } else {
+                    format!("return {};", estree_to_string(arg))
+                }
+            } else {
+                "return;".to_string()
+            }
+        }
+        Some("IfStatement") => {
+            let mut result = String::from("if (");
+            if let Some(test) = stmt.get("test") {
+                result.push_str(&estree_to_string(test));
+            }
+            result.push_str(") { /* ... */ }");
+            result
+        }
+        Some("ForStatement")
+        | Some("WhileStatement")
+        | Some("DoWhileStatement")
+        | Some("ForInStatement")
+        | Some("ForOfStatement") => "/* loop */".to_string(),
+        Some("BlockStatement") => "{ /* block */ }".to_string(),
+        Some("ThrowStatement") => {
+            if let Some(arg) = stmt.get("argument") {
+                format!("throw {};", estree_to_string(arg))
+            } else {
+                "throw;".to_string()
+            }
+        }
+        Some("TryStatement") => "try { /* ... */ } catch { /* ... */ }".to_string(),
+        Some("EmptyStatement") => ";".to_string(),
+        _ => {
+            // For unknown statement types, try to generate as expression
+            estree_to_string(stmt)
+        }
+    }
+}
+
+fn format_variable_declaration(stmt: &serde_json::Value) -> String {
+    let kind = stmt
+        .get("kind")
+        .and_then(|k| k.as_str())
+        .unwrap_or("const");
+    let mut result = format!("{kind} ");
+
+    if let Some(declarations) = stmt.get("declarations").and_then(|d| d.as_array()) {
+        for (i, decl) in declarations.iter().enumerate() {
+            if i > 0 {
+                result.push_str(", ");
+            }
+            if let Some(id) = decl.get("id") {
+                result.push_str(&estree_to_string(id));
+            }
+            if let Some(init) = decl.get("init") {
+                if !init.is_null() {
+                    result.push_str(" = ");
+                    result.push_str(&estree_to_string(init));
+                }
+            }
+        }
+    }
+
+    result.push(';');
+    result
+}
+
+fn format_function_declaration(stmt: &serde_json::Value) -> String {
+    let is_async = stmt.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
+    let is_generator = stmt
+        .get("generator")
+        .and_then(|g| g.as_bool())
+        .unwrap_or(false);
+
+    let mut result = String::new();
+    if is_async {
+        result.push_str("async ");
+    }
+    result.push_str("function");
+    if is_generator {
+        result.push('*');
+    }
+
+    if let Some(id) = stmt.get("id") {
+        if !id.is_null() {
+            result.push(' ');
+            result.push_str(&estree_to_string(id));
+        }
+    }
+
+    result.push('(');
+    if let Some(params) = stmt.get("params").and_then(|p| p.as_array()) {
+        for (i, param) in params.iter().enumerate() {
+            if i > 0 {
+                result.push_str(", ");
+            }
+            result.push_str(&estree_to_string(param));
+        }
+    }
+    result.push_str(") { /* ... */ }");
+
+    result
+}
+
+fn format_class_declaration(stmt: &serde_json::Value) -> String {
+    let mut result = String::from("class ");
+
+    if let Some(id) = stmt.get("id") {
+        if !id.is_null() {
+            result.push_str(&estree_to_string(id));
+        }
+    }
+
+    if let Some(superclass) = stmt.get("superClass") {
+        if !superclass.is_null() {
+            result.push_str(" extends ");
+            result.push_str(&estree_to_string(superclass));
+        }
+    }
+
+    result.push_str(" { /* ... */ }");
+    result
+}
+
+fn format_import_declaration(stmt: &serde_json::Value) -> String {
+    let mut result = String::from("import ");
+
+    if let Some(specifiers) = stmt.get("specifiers").and_then(|s| s.as_array()) {
+        let mut has_default = false;
+        let mut named_imports = Vec::new();
+        let mut namespace_import = None;
+
+        for spec in specifiers {
+            let spec_type = spec.get("type").and_then(|t| t.as_str());
+            match spec_type {
+                Some("ImportDefaultSpecifier") => {
+                    if let Some(local) = spec.get("local") {
+                        result.push_str(&estree_to_string(local));
+                        has_default = true;
+                    }
+                }
+                Some("ImportNamespaceSpecifier") => {
+                    if let Some(local) = spec.get("local") {
+                        namespace_import = Some(format!("* as {}", estree_to_string(local)));
+                    }
+                }
+                Some("ImportSpecifier") => {
+                    let imported = spec
+                        .get("imported")
+                        .map(|i| estree_to_string(i))
+                        .unwrap_or_default();
+                    let local = spec
+                        .get("local")
+                        .map(|l| estree_to_string(l))
+                        .unwrap_or_default();
+                    if imported == local {
+                        named_imports.push(imported);
+                    } else {
+                        named_imports.push(format!("{imported} as {local}"));
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if has_default && namespace_import.is_some() {
+            result.push_str(", ");
+        }
+
+        if let Some(ns) = namespace_import {
+            result.push_str(&ns);
+        } else if !named_imports.is_empty() {
+            if has_default {
+                result.push_str(", ");
+            }
+            result.push_str("{ ");
+            result.push_str(&named_imports.join(", "));
+            result.push_str(" }");
+        }
+
+        result.push_str(" from ");
+    }
+
+    if let Some(source) = stmt.get("source") {
+        result.push_str(&estree_to_string(source));
+    }
+
+    result.push(';');
+    result
+}
+
+fn format_export_declaration(stmt: &serde_json::Value) -> String {
+    let stmt_type = stmt.get("type").and_then(|t| t.as_str());
+
+    if stmt_type == Some("ExportDefaultDeclaration") {
+        let mut result = String::from("export default ");
+        if let Some(declaration) = stmt.get("declaration") {
+            result.push_str(&estree_to_string(declaration));
+        }
+        result.push(';');
+        return result;
+    }
+
+    let mut result = String::from("export ");
+
+    if let Some(declaration) = stmt.get("declaration") {
+        if !declaration.is_null() {
+            result.push_str(&format_statement_from_json(declaration));
+            return result;
+        }
+    }
+
+    if let Some(specifiers) = stmt.get("specifiers").and_then(|s| s.as_array()) {
+        if !specifiers.is_empty() {
+            result.push_str("{ ");
+            for (i, spec) in specifiers.iter().enumerate() {
+                if i > 0 {
+                    result.push_str(", ");
+                }
+                let exported = spec
+                    .get("exported")
+                    .map(|e| estree_to_string(e))
+                    .unwrap_or_default();
+                let local = spec
+                    .get("local")
+                    .map(|l| estree_to_string(l))
+                    .unwrap_or_default();
+                if exported == local {
+                    result.push_str(&exported);
+                } else {
+                    result.push_str(&format!("{local} as {exported}"));
+                }
+            }
+            result.push_str(" }");
+        }
+
+        if let Some(source) = stmt.get("source") {
+            if !source.is_null() {
+                result.push_str(" from ");
+                result.push_str(&estree_to_string(source));
+            }
+        }
+    }
+
+    result.push(';');
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
