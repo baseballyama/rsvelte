@@ -2,7 +2,12 @@
 //!
 //! This module contains utility functions specific to client-side
 //! code generation.
+//!
+//! Corresponds to `svelte/packages/svelte/src/compiler/phases/3-transform/client/utils.js`.
 
+use crate::compiler::phases::phase2_analyze::scope::Binding;
+use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
 use std::collections::HashSet;
 
 /// Collect all variable names that are initialized with $state().
@@ -66,6 +71,30 @@ pub fn transform_state_read(var_name: &str) -> String {
 /// e.g., "count = 5" -> "$.set(count, 5)"
 pub fn transform_state_write(var_name: &str, value: &str) -> String {
     format!("$.set({}, {})", var_name, value)
+}
+
+/// Check if a binding is a state source that needs reactive tracking.
+///
+/// A binding is a state source if it's a `$state` or `$state.raw` binding,
+/// and either:
+/// - The component is not in runes mode, OR
+/// - The binding has been reassigned
+///
+/// Note: The reference implementation also checks `analysis.immutable` and
+/// `analysis.accessors`, but these fields are not yet implemented in
+/// ComponentAnalysis.
+///
+/// # Arguments
+///
+/// * `binding` - The binding to check
+/// * `analysis` - The component analysis
+///
+/// # Returns
+///
+/// `true` if the binding needs reactive tracking as a state source
+pub fn is_state_source(binding: &Binding, analysis: &ComponentAnalysis) -> bool {
+    matches!(binding.kind, BindingKind::State | BindingKind::RawState)
+        && (!analysis.runes || binding.reassigned)
 }
 
 #[cfg(test)]

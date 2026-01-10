@@ -8,13 +8,13 @@
 //!
 //! - `assignment_helpers.rs` - Assignment expression helper functions
 //! - `component.rs` - Component instantiation utilities
+//! - `declarations.rs` - Declaration transformations for reactive state
 //! - `element.rs` - Element attribute/property handling
 //! - `events.rs` - Event handler utilities
-//! - `utils.rs` - General utilities (build_render_statement, etc.)
-//!
-//! # Planned Submodules
-//!
 //! - `fragment.rs` - Fragment processing utilities
+//! - `function.rs` - Function utilities
+//! - `special_element.rs` - Special element utilities
+//! - `utils.rs` - General utilities (build_render_statement, etc.)
 //!
 //! # Usage
 //!
@@ -25,6 +25,7 @@
 
 pub mod assignment_helpers;
 pub mod component;
+pub mod declarations;
 pub mod element;
 pub mod events;
 pub mod fragment;
