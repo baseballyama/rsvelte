@@ -490,16 +490,41 @@ jobs:
     - テンプレート空白正規化
     - テキストノード空白圧縮
     - bind:value 実装（$.bind_value, $.remove_input_defaults）
+
+### 2026-01-23
+
+- [ ] **Phase C 継続**: Runtime Runes 改善
+  - [x] C-009: モジュールスクリプト保存
+    - `<script module>` ブロックの出力を保持
+    - customElements.define 等のモジュールレベルコード対応
+  - [x] C-010: コンテキスト注入
+    - $.push($$props, true) / $.pop() の生成
+    - $$props パラメータの関数シグネチャ追加
+    - $effect() 等の needs_context 検出
+  - [x] C-011: $.derived() ラップ
+    - 式を () => expression 形式にラップ
+    - 状態変数参照を $.get() でラップ
+  - [x] C-012: イベントデリゲーション改善
+    - delegatable イベントのフィルタリング（click, input 等）
+  - [x] C-013: class:/style: ディレクティブ（クライアント）
+    - $.set_class() / $.set_style() 生成
+  - [x] C-014: class:/style: ディレクティブ（サーバー）
+    - $.attr_class() / $.attr_style() 生成
+    - !important 修飾子対応
+  - [x] C-015: {#if} ブロック基盤
+    - IfBlockInfo/IfBlockPart 型追加
+    - $.if() 呼び出し生成
+    - consequent/alternate ブランチ生成
 - [ ] **Phase D 未着手**: 互換性テスト整備
 - [ ] **Phase E 未着手**: docs サイト完成
 
-**現在のテスト状況（2026-01-22 更新）:**
+**現在のテスト状況（2026-01-23 更新）:**
 
-- Runtime Runes: 9/724 (client: 12, server: 102) - 改善中
+- Runtime Runes: 11/724 (client: 15, server: 103) - 改善中
 - **Compiler Snapshot: 19/19 (100%)** ✅
 - Clippy: 0 件（全て修正済み）
 
-**次のステップ**: Runtime Runes テスト改善継続（M2: 50% 目標）
+**次のステップ**: Runtime Runes テスト改善継続（C-016〜）
 
 ---
 
