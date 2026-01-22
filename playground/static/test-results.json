@@ -1,22 +1,22 @@
 {
-  "generated_at": "2026-01-10T08:51:01.560383+00:00",
+  "generated_at": "2026-01-22T09:51:33.934619+00:00",
   "commit_sha": "0ac5af488da4",
   "summary": {
     "total": 3027,
-    "passed": 424,
-    "failed": 2406,
+    "passed": 306,
+    "failed": 2524,
     "skipped": 197,
-    "percentage": 14.982332155477032
+    "percentage": 10.812720848056538
   },
   "categories": [
     {
       "id": "parser-modern",
       "name": "Parser Modern",
       "total": 22,
-      "passed": 22,
-      "failed": 0,
+      "passed": 18,
+      "failed": 4,
       "skipped": 0,
-      "percentage": 100,
+      "percentage": 81.81818181818183,
       "tests": [
         {
           "name": "snippets",
@@ -28,7 +28,8 @@
         },
         {
           "name": "css-pseudo-classes",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "AST mismatch"
         },
         {
           "name": "loose-valid-each-as",
@@ -44,7 +45,8 @@
         },
         {
           "name": "css-nth-syntax",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "AST mismatch"
         },
         {
           "name": "generic-snippets",
@@ -68,7 +70,8 @@
         },
         {
           "name": "semicolon-inside-quotes",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "AST mismatch"
         },
         {
           "name": "loose-unclosed-tag",
@@ -88,7 +91,8 @@
         },
         {
           "name": "script-style-no-markup",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "AST mismatch"
         },
         {
           "name": "loose-unclosed-open-tag",
@@ -112,10 +116,10 @@
       "id": "parser-legacy",
       "name": "Parser Legacy",
       "total": 83,
-      "passed": 80,
-      "failed": 0,
+      "passed": 78,
+      "failed": 2,
       "skipped": 1,
-      "percentage": 97.5609756097561,
+      "percentage": 95.1219512195122,
       "tests": [
         {
           "name": "action-duplicate",
@@ -192,7 +196,8 @@
         },
         {
           "name": "css",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "AST mismatch"
         },
         {
           "name": "comment",
@@ -438,7 +443,8 @@
         },
         {
           "name": "whitespace-after-style-tag",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "AST mismatch"
         },
         {
           "name": "each-block-keyed",
@@ -594,14 +600,15 @@
       "id": "css",
       "name": "CSS",
       "total": 177,
-      "passed": 104,
-      "failed": 68,
+      "passed": 10,
+      "failed": 162,
       "skipped": 0,
-      "percentage": 58.75706214689266,
+      "percentage": 5.649717514124294,
       "tests": [
         {
           "name": "omit-scoping-attribute-class-static",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-star",
@@ -610,7 +617,8 @@
         },
         {
           "name": "siblings-combinator-await-not-exhaustive",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "snippets",
@@ -619,11 +627,13 @@
         },
         {
           "name": "child-combinator",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "at-rule-nested-class",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "unused-selector-ternary-concat",
@@ -632,11 +642,13 @@
         },
         {
           "name": "global-with-data-attribute",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "omit-scoping-attribute-descendant-global-outer",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "supports-font-face",
@@ -644,15 +656,18 @@
         },
         {
           "name": "omit-scoping-attribute-descendant-global-inner-class",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "omit-scoping-attribute-attribute-selector-equals-dynamic",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "omit-scoping-attribute-attribute-selector",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "unused-selector-ternary-bailed",
@@ -661,7 +676,8 @@
         },
         {
           "name": "universal-selector",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "empty-rule",
@@ -674,19 +690,23 @@
         },
         {
           "name": "media-query",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "omit-scoping-attribute-attribute-selector-suffix",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "omit-scoping-attribute-global-children",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "omit-scoping-attribute-attribute-selector-prefix",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-if",
@@ -699,11 +719,13 @@
         },
         {
           "name": "pseudo-element",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "unused-selector-in-between",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "host",
@@ -717,7 +739,8 @@
         },
         {
           "name": "omit-scoping-attribute-attribute-selector-equals-case-insensitive",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "supports-page",
@@ -725,7 +748,8 @@
         },
         {
           "name": "general-siblings-combinator-nested-slots",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "general-siblings-combinator-if",
@@ -734,15 +758,18 @@
         },
         {
           "name": "css-vars",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "unknown-at-rule-with-following-rules",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "general-siblings-combinator-each-nested",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "general-siblings-combinator-slot-global",
@@ -751,11 +778,13 @@
         },
         {
           "name": "attribute-selector-bind",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "general-siblings-combinator-slots-between",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-key",
@@ -764,23 +793,28 @@
         },
         {
           "name": "at-layer",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "omit-scoping-attribute-attribute-selector-word-equals",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "omit-scoping-attribute-id",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "attribute-selector-details-open",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-nested-slots-flattened",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-if-not-exhaustive-with-each",
@@ -794,11 +828,13 @@
         },
         {
           "name": "keyframes-autoprefixed",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "omit-scoping-attribute-whitespace-multiple",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "clsx-cannot-prune-2",
@@ -807,27 +843,33 @@
         },
         {
           "name": "dynamic-element-tag",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-nested-slots",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "omit-scoping-attribute-descendant-global-outer-multiple",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "supports-namespace",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "omit-scoping-attribute-global",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "omit-scoping-attribute-global-descendants",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "clsx-cannot-prune-3",
@@ -855,7 +897,8 @@
         },
         {
           "name": "unused-selector",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "general-siblings-combinator-each-else",
@@ -874,7 +917,8 @@
         },
         {
           "name": "general-siblings-combinator-key",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "view-transition",
@@ -893,27 +937,33 @@
         },
         {
           "name": "custom-css-hash",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-missing-fallback",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "basic",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "keyframes-from-to",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "selector-list",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "comment-repeated",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "nested-css-combinator",
@@ -922,7 +972,8 @@
         },
         {
           "name": "omit-scoping-attribute-whitespace",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator",
@@ -936,11 +987,13 @@
         },
         {
           "name": "global-with-child-combinator-2",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "attribute-selector-dialog-open",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "general-siblings-combinator-rendertag-global",
@@ -954,27 +1007,33 @@
         },
         {
           "name": "siblings-combinator-former-element-in-slot",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "general-siblings-combinator-each",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "render-tag-loop",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "local-inside-global",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "omit-scoping-attribute-descendant-global-inner-multiple",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "global-with-class",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "class-directive",
@@ -988,15 +1047,18 @@
         },
         {
           "name": "unused-selector-multiple",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "omit-scoping-attribute-descendant-global-inner",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-slots-between",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-each-2",
@@ -1010,15 +1072,18 @@
         },
         {
           "name": "combinator-child",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "general-siblings-combinator-await-not-exhaustive",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "general-siblings-combinator-render-tag",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "global-with-root",
@@ -1032,7 +1097,8 @@
         },
         {
           "name": "global-with-child-combinator",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "special-characters",
@@ -1046,11 +1112,13 @@
         },
         {
           "name": "attribute-selector-only-name",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "double-hyphen",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "unused-selector-ternary",
@@ -1059,15 +1127,18 @@
         },
         {
           "name": "keyframes",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "quote-mark-inside-string",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-render-tag",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-component-named-snippet",
@@ -1080,7 +1151,8 @@
         },
         {
           "name": "siblings-combinator-selects-slot-fallback",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-await",
@@ -1103,11 +1175,13 @@
         },
         {
           "name": "unused-selector-child-combinator",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "general-siblings-combinator-nested-slots-flattened",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "comment-html",
@@ -1121,15 +1195,18 @@
         },
         {
           "name": "media-query-word",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "unknown-at-rule",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "omit-scoping-attribute-attribute-selector-contains",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-component",
@@ -1167,7 +1244,8 @@
         },
         {
           "name": "global-local",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-each-else-nested",
@@ -1176,7 +1254,8 @@
         },
         {
           "name": "omit-scoping-attribute-attribute-selector-pipe-equals",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "unused-selector-ternary-nested",
@@ -1185,7 +1264,8 @@
         },
         {
           "name": "undefined-with-scope",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "omit-scoping-attribute-multiple-descendants",
@@ -1209,19 +1289,23 @@
         },
         {
           "name": "unused-selector-trailing",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-with-spread",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "nested",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-each",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "clsx-can-prune",
@@ -1230,7 +1314,8 @@
         },
         {
           "name": "snippets-elements",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "nesting-selectors",
@@ -1239,7 +1324,8 @@
         },
         {
           "name": "omit-scoping-attribute",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "global-keyframes-with-no-elements",
@@ -1247,23 +1333,28 @@
         },
         {
           "name": "preserve-specificity",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "attribute-selector-word-arbitrary-whitespace",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "attribute-selector-unquoted",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "global-keyframes",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "weird-selectors",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "general-siblings-combinator-svelteelement",
@@ -1292,7 +1383,8 @@
         },
         {
           "name": "omit-scoping-attribute-attribute-selector-equals",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "comments-after-last-selector",
@@ -1301,11 +1393,13 @@
         },
         {
           "name": "global",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "descendant-selector-non-top-level-outer",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "global-with-nesting",
@@ -1323,11 +1417,13 @@
         },
         {
           "name": "general-siblings-combinator-selects-slot-fallback",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "container-query",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "animations",
@@ -1336,7 +1432,8 @@
         },
         {
           "name": "supports-query",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "unused-selector-leading",
@@ -1350,7 +1447,8 @@
         },
         {
           "name": "attribute-selector-matches-derictive",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "general-siblings-combinator-each-else-nested",
@@ -1364,11 +1462,13 @@
         },
         {
           "name": "general-siblings-combinator-former-element-in-slot",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "general-siblings-combinator-each-2",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "siblings-combinator-each-else",
@@ -1386,10 +1486,10 @@
       "id": "validator",
       "name": "Validator",
       "total": 323,
-      "passed": 121,
-      "failed": 186,
+      "passed": 119,
+      "failed": 189,
       "skipped": 11,
-      "percentage": 38.782051282051285,
+      "percentage": 38.141025641025635,
       "tests": [
         {
           "name": "css-invalid-global-selector-2",
@@ -1787,7 +1887,7 @@
         {
           "name": "store-runes-conflict",
           "status": "fail",
-          "error_message": "Unexpected compilation error: Analysis(ValidationWithCode { code: \"state_invalid_placement\", message: \"`$state` can only be used at the top level of a component or inside a function\" })"
+          "error_message": "Expected 1 warnings, got 0"
         },
         {
           "name": "multiple-var-same-name",
@@ -1991,7 +2091,8 @@
         },
         {
           "name": "assignment-to-const",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error but compilation succeeded"
         },
         {
           "name": "ts-unsupported-enum",
@@ -2878,7 +2979,8 @@
         },
         {
           "name": "assignment-to-const-3",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error but compilation succeeded"
         },
         {
           "name": "if-block-whitespace-runes",
@@ -2891,14 +2993,15 @@
       "id": "compiler-errors",
       "name": "Compiler Errors",
       "total": 144,
-      "passed": 61,
-      "failed": 57,
+      "passed": 44,
+      "failed": 74,
       "skipped": 26,
-      "percentage": 51.69491525423729,
+      "percentage": 37.28813559322034,
       "tests": [
         {
           "name": "dollar-binding-import",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'dollar_binding_invalid' but compilation succeeded"
         },
         {
           "name": "runes-wrong-props-placement-instance",
@@ -2916,11 +3019,13 @@
         },
         {
           "name": "store-prevent-user-declarations",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'dollar_prefix_invalid' but compilation succeeded"
         },
         {
           "name": "dollar-binding-declaration-runes-2",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'dollar_binding_invalid' but compilation succeeded"
         },
         {
           "name": "runes-wrong-state-placement",
@@ -2962,11 +3067,13 @@
         },
         {
           "name": "runes-export-let",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'legacy_export_invalid' but compilation succeeded"
         },
         {
           "name": "dollar-binding-declaration-legacy",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'dollar_binding_invalid' but compilation succeeded"
         },
         {
           "name": "runes-wrong-props-placement-module",
@@ -2975,7 +3082,8 @@
         },
         {
           "name": "legacy-no-const-assignment",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'constant_assignment' but compilation succeeded"
         },
         {
           "name": "class-state-field-static",
@@ -3022,7 +3130,8 @@
         },
         {
           "name": "runes-wrong-state-snapshot-args",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'rune_invalid_arguments_length' but compilation succeeded"
         },
         {
           "name": "runes-no-rune-each",
@@ -3044,7 +3153,8 @@
         },
         {
           "name": "runes-wrong-host-placement",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'host_invalid_placement' but compilation succeeded"
         },
         {
           "name": "unbalanced-curly-element",
@@ -3121,7 +3231,8 @@
         },
         {
           "name": "runes-wrong-bindable-args",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'rune_invalid_arguments_length' but compilation succeeded"
         },
         {
           "name": "component-slot-duplicate-error-6",
@@ -3130,7 +3241,8 @@
         },
         {
           "name": "runes-bindable-not-called",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'rune_missing_parentheses' but compilation succeeded"
         },
         {
           "name": "else-before-closing-2",
@@ -3215,7 +3327,8 @@
         },
         {
           "name": "runes-wrong-effect-args",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'rune_invalid_arguments_length' but compilation succeeded"
         },
         {
           "name": "component-slot-nested-error-2",
@@ -3248,7 +3361,8 @@
         },
         {
           "name": "runes-before-after-update",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'runes_mode_invalid_import' but compilation succeeded"
         },
         {
           "name": "each-key-without-as",
@@ -3261,7 +3375,8 @@
         },
         {
           "name": "runes-wrong-derived-placement",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'state_invalid_placement' but compilation succeeded"
         },
         {
           "name": "snippet-children-conflict",
@@ -3278,7 +3393,8 @@
         },
         {
           "name": "invalid-arguments-usage",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'invalid_arguments_usage' but compilation succeeded"
         },
         {
           "name": "empty-attribute-shorthand",
@@ -3305,7 +3421,8 @@
         },
         {
           "name": "runes-no-const-assignment",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'constant_assignment' but compilation succeeded"
         },
         {
           "name": "const-tag-snippet-invalid-reference-2",
@@ -3354,12 +3471,12 @@
         },
         {
           "name": "runes-props-illegal-name-1",
-          "status": "fail",
-          "error_message": "Expected error 'props_illegal_name', got: Parse(SvelteError { code: \"dollar_binding_invalid\", message: \"The $ name is reserved, and cannot be used for variables and imports\", span: (16, 16) })"
+          "status": "pass"
         },
         {
           "name": "dollar-binding-declaration-runes",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'dollar_binding_invalid' but compilation succeeded"
         },
         {
           "name": "runes-export-named-state",
@@ -3464,7 +3581,8 @@
         },
         {
           "name": "runes-wrong-bindable-placement",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'bindable_invalid_location' but compilation succeeded"
         },
         {
           "name": "const-tag-sequence",
@@ -3500,7 +3618,8 @@
         },
         {
           "name": "runes-wrong-effect-placement",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error 'effect_invalid_placement' but compilation succeeded"
         },
         {
           "name": "invalid-rune-name-shadowed",
@@ -3561,10 +3680,10 @@
       "id": "runtime-runes",
       "name": "Runtime Runes",
       "total": 740,
-      "passed": 8,
-      "failed": 716,
+      "passed": 9,
+      "failed": 715,
       "skipped": 16,
-      "percentage": 1.1049723756906076,
+      "percentage": 1.2430939226519337,
       "tests": [
         {
           "name": "directives",
@@ -4112,7 +4231,7 @@
         {
           "name": "runes-in-module-context",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: rune_invalid_usage: Cannot use `$state` rune in non-runes mode\nhttps://svelte.dev/e/rune_invalid_usage"
         },
         {
           "name": "transition-each",
@@ -4735,8 +4854,7 @@
         },
         {
           "name": "action-sequence",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "async-derived-invalidation-during-init",
@@ -10620,7 +10738,7 @@
         {
           "name": "action",
           "status": "fail",
-          "error_message": "Client compilation error: Analysis error: constant_assignment: Cannot assign to constant"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "single-static-element",
@@ -10789,7 +10907,7 @@
         {
           "name": "class-boolean",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "binding-store-each",
@@ -11631,7 +11749,7 @@
         {
           "name": "inline-style-directive-string",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "component-binding-onMount",
@@ -12820,7 +12938,7 @@
         {
           "name": "action-body",
           "status": "fail",
-          "error_message": "Client compilation error: Analysis error: constant_assignment: Cannot assign to constant"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "component-binding-each-object",
@@ -12895,7 +13013,7 @@
         {
           "name": "action-function",
           "status": "fail",
-          "error_message": "Client compilation error: Analysis error: constant_assignment: Cannot assign to constant"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "if-block-static-with-else-and-outros",
@@ -12964,7 +13082,7 @@
         {
           "name": "store-shadow-scope-declaration",
           "status": "fail",
-          "error_message": "Client compilation error: Parse error: SvelteError { code: \"dollar_prefix_invalid\", message: \"The $ prefix is reserved, and cannot be used for variables and imports\", span: (354, 354) }"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "transition-css-in-out-in-with-param",
@@ -13034,7 +13152,7 @@
         {
           "name": "action-document",
           "status": "fail",
-          "error_message": "Client compilation error: Analysis error: constant_assignment: Cannot assign to constant"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "component-data-static",
@@ -13209,7 +13327,7 @@
         {
           "name": "action-update",
           "status": "fail",
-          "error_message": "Client compilation error: Analysis error: constant_assignment: Cannot assign to constant"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "component-slot-let-named-2",

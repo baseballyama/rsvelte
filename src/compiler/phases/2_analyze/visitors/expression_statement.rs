@@ -15,7 +15,14 @@ use serde_json::Value;
 /// This visitor detects legacy component creation patterns:
 /// `new Component({ target: ... })` where Component is imported from a .svelte file.
 /// This pattern is deprecated in favor of `mount(Component, { target: ... })`.
+///
+/// It also traverses into the child expression to handle rune calls like `$effect()`.
 pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    // Traverse into the child expression first (to handle rune calls like $effect)
+    if let Some(expression) = node.get("expression") {
+        super::script::walk_js_node(expression, context)?;
+    }
+
     // Warn on `new Component({ target: ... })` if imported from a `.svelte` file
     if let Some(expression) = node.get("expression") {
         // Check if this is a NewExpression

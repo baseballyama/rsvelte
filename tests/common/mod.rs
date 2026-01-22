@@ -209,6 +209,8 @@ pub fn normalize_js(js: &str) -> String {
         // Normalize space around operators and punctuation
         static ref SPACE_BEFORE_PUNC: Regex = Regex::new(r"\s+([,;:)\]}])").unwrap();
         static ref SPACE_AFTER_PUNC: Regex = Regex::new(r"([(\[{])\s+").unwrap();
+        // Normalize "function ()" vs "function()" - remove space before opening paren after "function"
+        static ref FUNCTION_SPACE_PAREN: Regex = Regex::new(r"function\s+\(").unwrap();
     }
 
     js.lines()
@@ -230,6 +232,11 @@ pub fn normalize_js(js: &str) -> String {
 
             // Remove spaces after opening brackets
             normalized = SPACE_AFTER_PUNC.replace_all(&normalized, "$1").to_string();
+
+            // Normalize "function ()" to "function()"
+            normalized = FUNCTION_SPACE_PAREN
+                .replace_all(&normalized, "function(")
+                .to_string();
 
             // Remove trailing semicolons for comparison (optional based on style)
             normalized = normalized.trim_end_matches(';').to_string();

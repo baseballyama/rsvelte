@@ -67,6 +67,12 @@ pub fn transform_client(
         (String::new(), false)
     };
 
+    // Extract module script content (for <script module> blocks)
+    let module_script_content = analysis
+        .module_script_content
+        .as_ref()
+        .map(|c| c.raw.clone());
+
     // Get CSS hash for scoping (if CSS exists)
     let css_hash = if analysis.css.has_css && !analysis.css.hash.is_empty() {
         Some(analysis.css.hash.clone())
@@ -93,6 +99,7 @@ pub fn transform_client(
         uses_runes,
         css_hash,
         analysis_flags,
+        module_script_content,
     );
 
     // Use the AST fragment directly (no re-parsing needed)
@@ -201,6 +208,9 @@ struct ClientCodeGenerator {
     analysis_has_reactive_statements: bool,
     /// Number of exports (for component_returned_object)
     analysis_exports_count: usize,
+    /// Module script content (from <script module> blocks)
+    /// This is emitted at the module level, before the component function
+    module_script_content: Option<String>,
 }
 
 /// Analysis flags from Phase 2 for code generation decisions
@@ -224,6 +234,7 @@ impl ClientCodeGenerator {
         uses_runes: bool,
         css_hash: Option<String>,
         analysis_flags: AnalysisFlags,
+        module_script_content: Option<String>,
     ) -> Self {
         // Collect state variables from script content (primitive types only)
         let state_vars = collect_state_variables(&script_content);
@@ -280,6 +291,7 @@ impl ClientCodeGenerator {
             analysis_has_slot_names: analysis_flags.has_slot_names,
             analysis_has_reactive_statements: analysis_flags.has_reactive_statements,
             analysis_exports_count: analysis_flags.exports_count,
+            module_script_content,
         }
     }
 
@@ -2110,25 +2122,44 @@ impl ClientCodeGenerator {
             format!("{}\n", script_imports.join("\n"))
         };
 
+        // Build module script section (for <script module> blocks)
+        // This code is emitted at the module level, after imports but before the component
+        let module_script = self.build_module_script_section();
+
         // Transform remaining script content for client-side
-        // Only add $.push/$.pop when should_inject_context is true
-        let script_code = if uses_props_identifier && should_inject_context {
-            // Wrap with $.push/$.pop for props identifier pattern
+        // First, transform the script based on patterns
+        let transformed_script = if uses_props_identifier {
+            // Transform with props identifier pattern
             let props_name = props_identifier_name.as_ref().unwrap();
-            let transformed =
-                self.transform_script_content_with_props_identifier(&script_rest, props_name);
-            format!("\t$.push($$props, true);\n\n{}", transformed)
-        } else if has_class_state_fields && should_inject_context {
-            // Wrap with $.push/$.pop for class with state fields
-            let transformed = self.transform_script_content(&script_rest);
-            format!("\t$.push($$props, true);\n\n{}", transformed)
-        } else if has_legacy_export_let && should_inject_context {
+            self.transform_script_content_with_props_identifier(&script_rest, props_name)
+        } else if has_legacy_export_let {
             // Legacy mode: transform export let to $.prop() calls
-            let transformed = self.transform_legacy_script_content(&script_rest);
-            format!("\t$.push($$props, false);\n\n{}", transformed)
+            self.transform_legacy_script_content(&script_rest)
         } else {
-            // No context injection needed - just transform the script
+            // Normal transformation
             self.transform_script_content(&script_rest)
+        };
+
+        // Then, prepend $.push() if should_inject_context is true
+        // Reference: transform-client.js line 434: component_block.body.unshift(b.stmt(b.call('$.push', ...push_args)))
+        let script_code = if should_inject_context {
+            let runes_arg = if has_legacy_export_let {
+                "false"
+            } else if self.uses_runes {
+                "true"
+            } else {
+                "false"
+            };
+            if transformed_script.trim().is_empty() {
+                format!("\t$.push($$props, {});\n", runes_arg)
+            } else {
+                format!(
+                    "\t$.push($$props, {});\n\n{}",
+                    runes_arg, transformed_script
+                )
+            }
+        } else {
+            transformed_script
         };
 
         // Determine root variable name
@@ -2242,7 +2273,7 @@ impl ClientCodeGenerator {
 
             format!(
                 r#"{system_imports}
-{hoisted_imports}{snippets_code}var root = $.from_html(`<!> `, 1);
+{hoisted_imports}{module_script}{snippets_code}var root = $.from_html(`<!> `, 1);
 
 export default function {component_name}({fn_params}) {{
 {script_code}	var fragment = root();
@@ -2250,6 +2281,7 @@ export default function {component_name}({fn_params}) {{
 }}"#,
                 system_imports = system_imports,
                 hoisted_imports = hoisted_imports,
+                module_script = module_script,
                 snippets_code = snippets_code,
                 component_name = self.component_name,
                 fn_params = fn_params,
@@ -2274,7 +2306,7 @@ export default function {component_name}({fn_params}) {{
             };
             format!(
                 r#"{system_imports}
-{hoisted_imports}
+{hoisted_imports}{module_script}
 export default function {component_name}({fn_params}) {{
 {script_code}	{comp_name}($$anchor, {{
 		{props_with_children}
@@ -2282,6 +2314,7 @@ export default function {component_name}({fn_params}) {{
 }}"#,
                 system_imports = system_imports,
                 hoisted_imports = hoisted_imports,
+                module_script = module_script,
                 component_name = self.component_name,
                 fn_params = fn_params,
                 script_code = script_code,
@@ -2312,7 +2345,7 @@ export default function {component_name}($$anchor) {{
             // Only svelte:element, no other HTML
             format!(
                 r#"{system_imports}
-{hoisted_imports}
+{hoisted_imports}{module_script}
 export default function {component_name}({fn_params}) {{
 {script_code}	var fragment = $.comment();
 	var node = $.first_child(fragment);
@@ -2320,6 +2353,7 @@ export default function {component_name}({fn_params}) {{
 }}{delegation_code}"#,
                 system_imports = system_imports,
                 hoisted_imports = hoisted_imports,
+                module_script = module_script,
                 component_name = self.component_name,
                 fn_params = fn_params,
                 script_code = script_code,
@@ -2330,7 +2364,7 @@ export default function {component_name}({fn_params}) {{
             // Only each blocks, no other HTML
             format!(
                 r#"{system_imports}
-{hoisted_imports}
+{hoisted_imports}{module_script}
 {each_templates}export default function {component_name}({fn_params}) {{
 {script_code}	var fragment = $.comment();
 	var node = $.first_child(fragment);
@@ -2339,6 +2373,7 @@ export default function {component_name}({fn_params}) {{
 }}{delegation_code}"#,
                 system_imports = system_imports,
                 hoisted_imports = hoisted_imports,
+                module_script = module_script,
                 each_templates = each_templates,
                 component_name = self.component_name,
                 fn_params = fn_params,
@@ -2356,10 +2391,11 @@ export default function {component_name}({fn_params}) {{
             if script_code.is_empty() {
                 format!(
                     r#"{system_imports}
-{hoisted_imports}
+{hoisted_imports}{module_script}
 export default function {component_name}({fn_params}) {{}}{delegation_code}"#,
                     system_imports = system_imports,
                     hoisted_imports = hoisted_imports,
+                    module_script = module_script,
                     component_name = self.component_name,
                     fn_params = fn_params,
                     delegation_code = delegation_code
@@ -2367,11 +2403,12 @@ export default function {component_name}({fn_params}) {{}}{delegation_code}"#,
             } else {
                 format!(
                     r#"{system_imports}
-{hoisted_imports}
+{hoisted_imports}{module_script}
 export default function {component_name}({fn_params}) {{
 {script_code}{pop_code}}}{delegation_code}"#,
                     system_imports = system_imports,
                     hoisted_imports = hoisted_imports,
+                    module_script = module_script,
                     component_name = self.component_name,
                     fn_params = fn_params,
                     script_code = script_code,
@@ -2399,7 +2436,7 @@ export default function {component_name}({fn_params}) {{
             };
             format!(
                 r#"{system_imports}
-{hoisted_imports}{snippets_code}var root = $.from_html(`{html}`, {template_flags});
+{hoisted_imports}{module_script}{snippets_code}var root = $.from_html(`{html}`, {template_flags});
 
 export default function {component_name}({fn_params}) {{
 {script_code}	var fragment = root();
@@ -2407,6 +2444,7 @@ export default function {component_name}({fn_params}) {{
 {pop_code}}}{delegation_code}"#,
                 system_imports = system_imports,
                 hoisted_imports = hoisted_imports,
+                module_script = module_script,
                 snippets_code = snippets_code,
                 html = html,
                 template_flags = template_flags,
@@ -2428,7 +2466,7 @@ export default function {component_name}({fn_params}) {{
             };
             format!(
                 r#"{system_imports}
-{hoisted_imports}{snippets_code}var root = $.from_html(`{html}`);
+{hoisted_imports}{module_script}{snippets_code}var root = $.from_html(`{html}`);
 
 export default function {component_name}({fn_params}) {{
 {script_code}	var {root_var} = root();
@@ -2436,6 +2474,7 @@ export default function {component_name}({fn_params}) {{
 {pop_code}}}{delegation_code}"#,
                 system_imports = system_imports,
                 hoisted_imports = hoisted_imports,
+                module_script = module_script,
                 snippets_code = snippets_code,
                 html = html,
                 component_name = self.component_name,
@@ -2467,7 +2506,27 @@ export default function {component_name}({fn_params}) {{
         let (script_imports, script_rest) = extract_imports(&self.script_content);
 
         // Check if script uses $props()
-        let uses_props = self.script_content.contains("$props()");
+        let script_uses_props = self.script_content.contains("$props()");
+
+        // Check if script uses legacy mode with export let
+        let has_legacy_export_let = script_rest.lines().any(|line| {
+            let trimmed = line.trim();
+            trimmed.starts_with("export let ") || trimmed.starts_with("export let\t")
+        });
+
+        // Calculate should_inject_context and should_inject_props (same as build())
+        let should_inject_context = self.analysis_needs_context
+            || self.analysis_has_reactive_statements
+            || self.analysis_exports_count > 0
+            || has_legacy_export_let;
+
+        let should_inject_props = should_inject_context
+            || self.analysis_needs_props
+            || self.analysis_uses_props
+            || self.analysis_uses_rest_props
+            || self.analysis_uses_slots
+            || self.analysis_has_slot_names
+            || script_uses_props;
 
         // Generate system imports based on runes mode
         let system_imports = if self.uses_runes {
@@ -2483,8 +2542,36 @@ export default function {component_name}({fn_params}) {{
             format!("{}\n", script_imports.join("\n"))
         };
 
+        // Build module script section (for <script module> blocks)
+        let module_script = self.build_module_script_section();
+
         // Transform remaining script content for client-side
-        let script_code = self.transform_script_content(&script_rest);
+        let transformed_script = if has_legacy_export_let {
+            self.transform_legacy_script_content(&script_rest)
+        } else {
+            self.transform_script_content(&script_rest)
+        };
+
+        // Prepend $.push() if should_inject_context is true
+        let script_code = if should_inject_context {
+            let runes_arg = if has_legacy_export_let {
+                "false"
+            } else if self.uses_runes {
+                "true"
+            } else {
+                "false"
+            };
+            if transformed_script.trim().is_empty() {
+                format!("\t$.push($$props, {});\n", runes_arg)
+            } else {
+                format!(
+                    "\t$.push($$props, {});\n\n{}",
+                    runes_arg, transformed_script
+                )
+            }
+        } else {
+            transformed_script
+        };
 
         // Determine root variable name
         let root_var = if is_fragment {
@@ -2496,8 +2583,8 @@ export default function {component_name}({fn_params}) {{
         // Generate runtime code using cursor-based navigation
         let runtime_code = self.generate_cursor_based_runtime_code(fragment, &root_var);
 
-        // Determine function signature based on $props usage
-        let fn_params = if uses_props {
+        // Determine function signature based on should_inject_props
+        let fn_params = if should_inject_props {
             "$$anchor, $$props"
         } else {
             "$$anchor"
@@ -2535,17 +2622,25 @@ export default function {component_name}({fn_params}) {{
             ""
         };
 
+        // Add $.pop() if should_inject_context is true
+        let pop_code = if should_inject_context {
+            "\t$.pop();\n"
+        } else {
+            ""
+        };
+
         let raw_output = if has_html {
             format!(
                 r#"{system_imports}
-{hoisted_imports}var root = $.from_html(`{html}`{template_flags});
+{hoisted_imports}{module_script}var root = $.from_html(`{html}`{template_flags});
 
 export default function {component_name}({fn_params}) {{
 {script_code}	var {root_var} = root();
 {runtime_code}	$.append($$anchor, {root_var});
-}}{delegation_code}"#,
+{pop_code}}}{delegation_code}"#,
                 system_imports = system_imports,
                 hoisted_imports = hoisted_imports,
+                module_script = module_script,
                 html = html,
                 template_flags = template_flags,
                 component_name = self.component_name,
@@ -2553,20 +2648,23 @@ export default function {component_name}({fn_params}) {{
                 script_code = script_code,
                 root_var = root_var,
                 runtime_code = runtime_code,
+                pop_code = pop_code,
                 delegation_code = delegation_code,
             )
         } else {
             // No HTML - just export the function
             format!(
                 r#"{system_imports}
-{hoisted_imports}
+{hoisted_imports}{module_script}
 export default function {component_name}({fn_params}) {{
-{script_code}}}"#,
+{script_code}{pop_code}}}"#,
                 system_imports = system_imports,
                 hoisted_imports = hoisted_imports,
+                module_script = module_script,
                 component_name = self.component_name,
                 fn_params = fn_params,
                 script_code = script_code,
+                pop_code = pop_code,
             )
         };
 
@@ -2851,6 +2949,54 @@ export default function {component_name}({fn_params}) {{
         code
     }
 
+    /// Build the module script section for output.
+    ///
+    /// Module script content (from `<script module>` blocks) is emitted at the module level,
+    /// after imports but before the component function.
+    ///
+    /// This follows the JS implementation in transform-client.js lines 504-512:
+    /// - Module body is walked and transformed
+    /// - Imports are hoisted to the top
+    /// - Module-level code appears before the component function
+    fn build_module_script_section(&self) -> String {
+        if let Some(ref content) = self.module_script_content {
+            if content.trim().is_empty() {
+                return String::new();
+            }
+
+            // Process the module script content
+            let mut result = String::new();
+
+            for line in content.lines() {
+                let trimmed = line.trim();
+
+                // Skip empty lines at the start
+                if trimmed.is_empty() && result.is_empty() {
+                    continue;
+                }
+
+                // Skip import statements (they're already hoisted separately)
+                if trimmed.starts_with("import ") {
+                    continue;
+                }
+
+                // Add the line with proper indentation preserved
+                result.push_str(line);
+                result.push('\n');
+            }
+
+            // Trim trailing whitespace and add final newline if we have content
+            let result = result.trim_end();
+            if result.is_empty() {
+                String::new()
+            } else {
+                format!("{}\n\n", result)
+            }
+        } else {
+            String::new()
+        }
+    }
+
     /// Transform script content for client-side usage.
     /// Converts runes like `$state(x)` to `$.state(x)`.
     fn transform_script_content(&self, script: &str) -> String {
@@ -2887,14 +3033,20 @@ export default function {component_name}({fn_params}) {{
             }
 
             // Transform runes (with skipping for FUNC_ARRAY pattern)
-            let mut transformed = transform_client_runes_with_skip(trimmed, &skip_state_vars);
+            // Pass state_vars to wrap state variable reads with $.get() inside $derived()
+            let mut transformed = transform_client_runes_with_skip_and_state(
+                trimmed,
+                &skip_state_vars,
+                &self.state_vars,
+            );
 
             // Transform state variable assignments to $.set()
             transformed = transform_state_assignments(&transformed, &self.state_vars);
 
-            // Transform state/derived variable reads to $.get() inside reactive functions
-            // TODO: Implement wrap_reactive_reads_with_get
-            // transformed = wrap_reactive_reads_with_get(&transformed, &self.state_vars, &self.derived_vars);
+            // Transform derived variable reads to $.get()
+            // Derived variables always need $.get() when accessed (outside their declaration)
+            transformed =
+                wrap_derived_var_reads(&transformed, &self.derived_vars, &self.state_vars);
 
             result.push('\t');
             result.push_str(&transformed);
@@ -3292,8 +3444,13 @@ export default function {component_name}({fn_params}) {{
             return false;
         }
 
-        // Must have no script content
+        // Must have no script content (instance or module)
         if !self.script_content.is_empty() {
+            return false;
+        }
+
+        // Must have no module script content
+        if self.module_script_content.is_some() {
             return false;
         }
 
@@ -4715,7 +4872,12 @@ fn extract_imports(script: &str) -> (Vec<String>, String) {
 /// Transform runes for client-side usage.
 /// Converts `$state(x)` to `$.state(x)` or `$.proxy(x)`, `$derived(x)` to `$.derived(() => x)`, etc.
 /// If `skip_state_vars` contains variable names, those $state() calls will be transformed to just the value.
-fn transform_client_runes_with_skip(line: &str, skip_state_vars: &[String]) -> String {
+/// `state_vars` are used to wrap state variable references inside $derived() with $.get().
+fn transform_client_runes_with_skip_and_state(
+    line: &str,
+    skip_state_vars: &[String],
+    state_vars: &[String],
+) -> String {
     let mut result = line.to_string();
 
     // Transform $state.raw(x) to $.state(x)
@@ -4775,6 +4937,7 @@ fn transform_client_runes_with_skip(line: &str, skip_state_vars: &[String]) -> S
     }
 
     // Transform $derived(x) to $.derived(() => x)
+    // Also wrap state variables inside the expression with $.get()
     if let Some(pos) = result.find("$derived(")
         && (result[..pos].contains("let ") || result[..pos].contains("const "))
     {
@@ -4785,7 +4948,9 @@ fn transform_client_runes_with_skip(line: &str, skip_state_vars: &[String]) -> S
             // Wrap in arrow function if not already a function
             let trimmed = content.trim();
             if !trimmed.starts_with("()") && !trimmed.starts_with("function") {
-                let new_derived = format!("$.derived(() => {})", content);
+                // Wrap state variables inside the derived expression with $.get()
+                let wrapped_content = wrap_state_vars_in_expr(content, state_vars);
+                let new_derived = format!("$.derived(() => {})", wrapped_content);
                 result = format!(
                     "{}{}{}",
                     &result[..pos],
@@ -4816,10 +4981,16 @@ fn transform_client_runes_with_skip(line: &str, skip_state_vars: &[String]) -> S
     result
 }
 
+/// Backwards compatible wrapper for transform_client_runes_with_skip_and_state without state vars
+#[allow(dead_code)]
+fn transform_client_runes_with_skip(line: &str, skip_state_vars: &[String]) -> String {
+    transform_client_runes_with_skip_and_state(line, skip_state_vars, &[])
+}
+
 /// Transform runes for client-side usage.
 /// Converts `$state(x)` to `$.state(x)` or `$.proxy(x)`, `$derived(x)` to `$.derived(() => x)`, etc.
 fn transform_client_runes(line: &str) -> String {
-    transform_client_runes_with_skip(line, &[])
+    transform_client_runes_with_skip_and_state(line, &[], &[])
 }
 
 /// Transform `export let x = value` to `let x = $.prop($$props, 'x', 12, value)`.
@@ -5680,6 +5851,67 @@ fn is_identifier_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_' || c == '$'
 }
 
+/// Wrap state variable references with $.get() in an expression.
+/// This is used for wrapping state vars inside $derived() arrow functions.
+/// e.g., `count * 2` becomes `$.get(count) * 2`
+fn wrap_state_vars_in_expr(expr: &str, state_vars: &[String]) -> String {
+    transform_state_in_expr(expr, state_vars)
+}
+
+/// Wrap derived variable reads with $.get() when used (not in declaration).
+///
+/// This transforms code like:
+/// - `console.log('init ' + double)` -> `console.log('init ' + $.get(double))`
+///
+/// Also wraps state variable reads in contexts like user_effect callbacks.
+fn wrap_derived_var_reads(line: &str, derived_vars: &[String], state_vars: &[String]) -> String {
+    let mut result = line.to_string();
+
+    // Don't process lines that are state or derived variable declarations
+    // (let varname = $.state(...) or let varname = $.derived(...) should not wrap the varname)
+    // Check for state variable declarations
+    for var in state_vars {
+        let declaration_patterns = [
+            format!("let {} =", var),
+            format!("const {} =", var),
+            format!("var {} =", var),
+        ];
+
+        if declaration_patterns.iter().any(|p| result.contains(p)) {
+            // This is a state declaration line, don't wrap ANY state vars on this line
+            return result;
+        }
+    }
+
+    // Don't process lines that are derived variable declarations
+    // (let varname = $.derived(...) should not wrap the varname on the left side)
+    for var in derived_vars {
+        // Check if this is a declaration of this derived variable
+        let declaration_patterns = [
+            format!("let {} =", var),
+            format!("const {} =", var),
+            format!("var {} =", var),
+        ];
+
+        let is_declaration = declaration_patterns.iter().any(|p| result.contains(p));
+
+        if is_declaration {
+            // For declaration lines, only wrap state vars inside the $.derived() expression
+            // (This is already handled by transform_client_runes_with_skip_and_state)
+            continue;
+        }
+
+        // Wrap this derived variable with $.get()
+        result = transform_state_in_expr(&result, std::slice::from_ref(var));
+    }
+
+    // Also wrap state variable reads that weren't already wrapped
+    // This handles cases inside $.user_effect callbacks
+    result = transform_state_in_expr(&result, state_vars);
+
+    result
+}
+
 fn transform_state_assignments(line: &str, state_vars: &[String]) -> String {
     let mut result = line.to_string();
 
@@ -6223,5 +6455,57 @@ mod tests {
         assert_eq!(try_constant_fold("Math.min(5, 10)"), "'5'");
         assert_eq!(try_constant_fold("Math.max(5, 10)"), "'10'");
         assert_eq!(try_constant_fold("location.href"), "location.href");
+    }
+
+    #[test]
+    fn test_collect_derived_variables() {
+        let script = r#"
+let count = $state(0);
+
+$effect(() => {
+    let double = $derived(count * 2)
+
+    console.log('init ' + double);
+
+    return function() {
+        console.log('cleanup ' + double);
+    };
+})
+"#;
+        let vars = collect_derived_variables(script);
+        assert_eq!(vars, vec!["double"]);
+    }
+
+    #[test]
+    fn test_collect_state_variables() {
+        let script = r#"
+let count = $state(0);
+
+$effect(() => {
+    let double = $derived(count * 2)
+    console.log(count);
+})
+"#;
+        let vars = collect_state_variables(script);
+        assert_eq!(vars, vec!["count"]);
+    }
+
+    #[test]
+    fn test_transform_derived_with_state_wrapping() {
+        // Test that $derived wraps state vars with $.get()
+        let line = "let double = $derived(count * 2)";
+        let state_vars = vec!["count".to_string()];
+        let result = transform_client_runes_with_skip_and_state(line, &[], &state_vars);
+        assert_eq!(result, "let double = $.derived(() => $.get(count) * 2)");
+    }
+
+    #[test]
+    fn test_wrap_derived_var_reads() {
+        // Test that derived var reads are wrapped with $.get()
+        let line = "console.log('init ' + double);";
+        let derived_vars = vec!["double".to_string()];
+        let state_vars: Vec<String> = vec![];
+        let result = wrap_derived_var_reads(line, &derived_vars, &state_vars);
+        assert_eq!(result, "console.log('init ' + $.get(double));");
     }
 }
