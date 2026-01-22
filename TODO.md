@@ -461,19 +461,33 @@ jobs:
     - JsStatement::ImportDeclaration → JsStatement::Import
     - JsImportSpecifier 形式修正
     - source_type フィールド削除
-  - [ ] C-001: IfBlock visitor 完全実装（調査完了、実装待ち）
-    - 問題点特定: blockers 収集が Phase 2 で未実装
-    - thunk 形式は現行で問題なし
-  - [ ] C-002: EachBlock visitor 完全実装
-  - [ ] C-003: Component visitor 完全実装
+  - [x] C-001: IfBlock visitor 完全実装
+    - async handling、elseif support、var declarations
+    - blockers 収集は Phase 2 で未実装（known issue）
+  - [x] C-002: EachBlock visitor 完全実装
+    - keyed/non-keyed、fallback、animations
+  - [x] C-003: Component visitor 完全実装
+    - props、slots、bind、events、dynamic components
+  - [x] C-004: AwaitBlock visitor 実装
+    - pending/then/catch block handling
+    - Pattern destructuring for value/error params
+  - [x] C-005: SnippetBlock visitor 実装
+    - Function arguments with $.noop defaults
+    - Module/instance level snippet placement
+  - [x] C-006: BindDirective visitor 実装
+    - All bind types (value, checked, group, this, etc.)
+    - Window/document/media bindings
+  - [x] Clippy 警告 80 件修正
 - [ ] **Phase D 未着手**: 互換性テスト整備
 - [ ] **Phase E 未着手**: docs サイト完成
 
-**現在のテスト状況（2026-01-22）:**
+**現在のテスト状況（2026-01-22 更新）:**
 
-- Parser Modern: 18/22 (81.8%)
-- Parser Legacy: 未確認
-- 既存の Clippy エラー: 67 件（既存コードに起因）
+- Runtime Runes: 7/724 (client: 8, server: 102)
+- Compiler Snapshot: 10/19 (要調査: 9 テスト失敗)
+- Clippy: 0 件（全て修正済み）
+
+**注記**: visitor 実装は完了したが、Phase 2 Analyze でのメタデータ設定が不足しているため、テスト通過率は低い状態。次のステップは Phase 2 補完が必要。
 
 ---
 
