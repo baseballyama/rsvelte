@@ -2581,26 +2581,8 @@ impl ClientCodeGenerator {
         let each_code = self.generate_each_block_code_via_ast();
 
         // Generate if block templates (for branches with elements)
-        let if_templates: String = self
-            .if_blocks
-            .iter()
-            .flat_map(|if_block| {
-                let mut templates = Vec::new();
-                if let (Some(var), Some(html)) = (
-                    &if_block.consequent_template_var,
-                    &if_block.consequent_template_html,
-                ) {
-                    templates.push(format!("var {} = $.from_html(`{}`);\n\n", var, html));
-                }
-                if let (Some(var), Some(html)) = (
-                    &if_block.alternate_template_var,
-                    &if_block.alternate_template_html,
-                ) {
-                    templates.push(format!("var {} = $.from_html(`{}`);\n\n", var, html));
-                }
-                templates
-            })
-            .collect();
+        // Use recursive collection to include nested if block templates
+        let if_templates: String = self.collect_all_if_block_templates();
 
         // Generate if block code (using AST-based generation)
         let if_code = self.generate_if_block_code_via_ast();
@@ -5457,6 +5439,54 @@ export default function {component_name}({fn_params}) {{
         let statements = self.generate_if_block_code_ast();
         self.statements_to_string(&statements)
     }
+
+    /// Collect all templates from if blocks recursively, including nested if blocks.
+    fn collect_all_if_block_templates(&self) -> String {
+        let mut templates = Vec::new();
+        for if_block in &self.if_blocks {
+            self.collect_templates_from_if_block(if_block, &mut templates);
+        }
+        templates.join("")
+    }
+
+    /// Recursively collect templates from a single IfBlockInfo.
+    fn collect_templates_from_if_block(&self, if_block: &IfBlockInfo, templates: &mut Vec<String>) {
+        // Collect templates from the current if block
+        if let (Some(var), Some(html)) = (
+            &if_block.consequent_template_var,
+            &if_block.consequent_template_html,
+        ) {
+            templates.push(format!("var {} = $.from_html(`{}`);\n\n", var, html));
+        }
+        if let (Some(var), Some(html)) = (
+            &if_block.alternate_template_var,
+            &if_block.alternate_template_html,
+        ) {
+            templates.push(format!("var {} = $.from_html(`{}`);\n\n", var, html));
+        }
+
+        // Recursively collect templates from nested if blocks in consequent_parts
+        self.collect_templates_from_parts(&if_block.consequent_parts, templates);
+
+        // Recursively collect templates from nested if blocks in alternate_parts
+        self.collect_templates_from_parts(&if_block.alternate_parts, templates);
+    }
+
+    /// Recursively collect templates from IfBlockParts (looking for nested if blocks).
+    fn collect_templates_from_parts(&self, parts: &[IfBlockPart], templates: &mut Vec<String>) {
+        for part in parts {
+            match part {
+                IfBlockPart::NestedIfBlock(nested) => {
+                    self.collect_templates_from_if_block(nested, templates);
+                }
+                IfBlockPart::Element { children, .. } => {
+                    // Also check children of elements for nested if blocks
+                    self.collect_templates_from_parts(children, templates);
+                }
+                _ => {}
+            }
+        }
+    }
 }
 
 /// Helper function to check if nodes contain dynamic descendants.
@@ -7451,5 +7481,55 @@ $effect(() => {
         assert!(!is_delegated_event_name("load"));
         assert!(!is_delegated_event_name("resize"));
         assert!(!is_delegated_event_name("submit"));
+    }
+
+    #[test]
+    fn test_nested_if_block_template_collection() {
+        use crate::CompileOptions;
+        use crate::compile;
+
+        let source = r#"<script>
+	import { slide } from 'svelte/transition';
+	let showText = $state(false);
+	let show = $state(true);
+</script>
+
+<button onclick={() => showText = !showText}>
+	Toggle
+</button>
+
+{#if showText}
+	{#if show}
+		<div transition:slide>
+			Should not transition out
+		</div>
+	{/if}
+{/if}"#;
+
+        let options = CompileOptions {
+            generate: crate::GenerateMode::Client,
+            ..Default::default()
+        };
+
+        let result = compile(source, options).unwrap();
+        let js = result.js.code;
+
+        // Check that nested template is defined (root_1 or root_2)
+        assert!(
+            js.contains("var root_1 = $.from_html(") || js.contains("var root_2 = $.from_html("),
+            "Should have nested if block template. Generated JS:\n{}",
+            js
+        );
+        // Check that the nested template is defined before being used
+        let root_1_def = js.find("var root_1");
+        let root_1_use = js.find("root_1()");
+        if let (Some(def), Some(usage)) = (root_1_def, root_1_use) {
+            assert!(
+                def < usage,
+                "root_1 should be defined before being used. Def at {}, use at {}",
+                def,
+                usage
+            );
+        }
     }
 }
