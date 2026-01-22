@@ -5,7 +5,7 @@
 //! Corresponds to Svelte's `2-analyze/visitors/MemberExpression.js`.
 
 use super::VisitorContext;
-use super::shared::utils::{is_safe_identifier, is_pure};
+use super::shared::utils::{is_pure, is_safe_identifier};
 use crate::compiler::phases::phase2_analyze::{AnalysisError, BindingKind, errors};
 use serde_json::Value;
 

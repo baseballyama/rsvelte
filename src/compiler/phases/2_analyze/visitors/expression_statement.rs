@@ -5,7 +5,9 @@
 //! Corresponds to Svelte's `2-analyze/visitors/ExpressionStatement.js`.
 
 use super::VisitorContext;
-use crate::compiler::phases::phase2_analyze::{AnalysisError, BindingKind, DeclarationKind, warnings};
+use crate::compiler::phases::phase2_analyze::{
+    AnalysisError, BindingKind, DeclarationKind, warnings,
+};
 use serde_json::Value;
 
 /// Visit an expression statement.
@@ -52,9 +54,7 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
 
                         if has_target_property {
                             // Get the callee name and look up its binding
-                            if let Some(callee_name) =
-                                callee.get("name").and_then(|n| n.as_str())
-                            {
+                            if let Some(callee_name) = callee.get("name").and_then(|n| n.as_str()) {
                                 if let Some(&binding_idx) =
                                     context.analysis.root.scope.declarations.get(callee_name)
                                 {
@@ -87,7 +87,9 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
                                                             specs.iter().any(|spec| {
                                                                 spec.get("type")
                                                                     .and_then(|t| t.as_str())
-                                                                    == Some("ImportDefaultSpecifier")
+                                                                    == Some(
+                                                                        "ImportDefaultSpecifier",
+                                                                    )
                                                                     && spec
                                                                         .get("local")
                                                                         .and_then(|l| l.get("name"))
@@ -99,10 +101,9 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
 
                                                     if is_default_import {
                                                         // Emit the warning
-                                                        context
-                                                            .analysis
-                                                            .warnings
-                                                            .push(warnings::legacy_component_creation());
+                                                        context.analysis.warnings.push(
+                                                            warnings::legacy_component_creation(),
+                                                        );
                                                     }
                                                 }
                                             }

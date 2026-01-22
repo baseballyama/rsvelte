@@ -5,7 +5,7 @@
 //! Corresponds to Svelte's `2-analyze/visitors/AssignmentExpression.js`.
 
 use super::VisitorContext;
-use super::shared::utils::{validate_assignment, extract_identifiers, object};
+use super::shared::utils::{extract_identifiers, object, validate_assignment};
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use serde_json::Value;
 
@@ -42,7 +42,8 @@ pub fn visit(
 
                 for name in identifier_names {
                     // Look up the binding in the current scope
-                    if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(&name) {
+                    if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(&name)
+                    {
                         reactive_stmt.assignments.insert(binding_idx);
                     }
                 }

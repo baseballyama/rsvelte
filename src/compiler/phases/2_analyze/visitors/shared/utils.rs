@@ -1277,4 +1277,3 @@ pub fn object(expression: &Value) -> Option<Value> {
         None
     }
 }
-
