@@ -177,6 +177,8 @@ struct ClientCodeGenerator {
     nav_stmts: Vec<JsStatement>,
     /// Template effect expressions: (text_var, expression)
     template_effects: Vec<(String, String)>,
+    /// Binding statements to be added at the end (after navigation and event handlers)
+    binding_statements: Vec<JsStatement>,
     /// Elements that need $.reset() after processing children
     #[allow(dead_code)]
     elements_needing_reset: Vec<String>,
@@ -267,6 +269,7 @@ impl ClientCodeGenerator {
             css_hash,
             nav_stmts: Vec::new(),
             template_effects: Vec::new(),
+            binding_statements: Vec::new(),
             elements_needing_reset: Vec::new(),
             root_text_before_expression: String::new(),
             analysis_needs_context: analysis_flags.needs_context,
@@ -1050,23 +1053,29 @@ impl ClientCodeGenerator {
 
     /// Generate statements for special attributes of an element.
     fn generate_special_attr_stmts(
-        &self,
+        &mut self,
         var_name: &str,
         elem: &RegularElement,
         stmts: &mut Vec<JsStatement>,
     ) {
         let is_custom = elem.name.contains('-');
+        let is_input_element =
+            elem.name == "input" || elem.name == "textarea" || elem.name == "select";
 
-        // Collect class:, style:, use: directives, and event handlers
+        // Collect class:, style:, use:, bind: directives, and event handlers
         let mut class_directives: Vec<&ClassDirective> = Vec::new();
         let mut style_directives: Vec<&StyleDirective> = Vec::new();
         let mut use_directives: Vec<&UseDirective> = Vec::new();
+        let mut bind_directives: Vec<&crate::ast::template::BindDirective> = Vec::new();
         let mut event_handlers: Vec<(String, String)> = Vec::new();
 
         for attr in &elem.attributes {
             match attr {
                 Attribute::UseDirective(dir) => {
                     use_directives.push(dir);
+                }
+                Attribute::BindDirective(dir) => {
+                    bind_directives.push(dir);
                 }
                 Attribute::Attribute(node) => {
                     let attr_name = node.name.as_str();
@@ -1264,6 +1273,34 @@ impl ClientCodeGenerator {
                 member(id(var_name), &prop_name),
                 id(&transformed),
             )));
+        }
+
+        // Generate $.bind_value() for bind: directives
+        // Note: $.remove_input_defaults() is added separately in the main loop right after navigation
+        if !bind_directives.is_empty() && is_input_element {
+            // Collect bind statements to be added at the end
+            for bind_dir in bind_directives {
+                let bind_name = bind_dir.name.as_str();
+                let expr_start = bind_dir.expression.start().unwrap_or(0) as usize;
+                let expr_end = bind_dir.expression.end().unwrap_or(0) as usize;
+
+                if expr_end > expr_start && expr_end <= self.source.len() {
+                    let bind_var = self.source[expr_start..expr_end].trim().to_string();
+
+                    if bind_name == "value" {
+                        // Generate: $.bind_value(element, () => $.get(var), ($$value) => $.set(var, $$value))
+                        let bind_stmt = stmt(svelte_bind_value(
+                            id(var_name),
+                            thunk(svelte_get(id(&bind_var))),
+                            arrow(
+                                vec![id_pattern("$$value")],
+                                svelte_set(id(&bind_var), id("$$value")),
+                            ),
+                        ));
+                        self.binding_statements.push(bind_stmt);
+                    }
+                }
+            }
         }
     }
 
@@ -3927,6 +3964,19 @@ export default function {component_name}({fn_params}) {{
                 // Process this node
                 match node {
                     TemplateNode::RegularElement(elem) => {
+                        // Check if this is an input element with bind directives
+                        let is_input_element =
+                            matches!(elem.name.as_str(), "input" | "textarea" | "select");
+                        let has_bind_directive = elem
+                            .attributes
+                            .iter()
+                            .any(|attr| matches!(attr, Attribute::BindDirective(_)));
+
+                        // Add $.remove_input_defaults() right after the navigation statement
+                        if is_input_element && has_bind_directive {
+                            stmts.push(stmt(svelte_remove_input_defaults(id(&var_name))));
+                        }
+
                         // Process children with cursor navigation
                         let (child_stmts, has_dynamic_children, trailing) =
                             self.process_children_cursor(&var_name, &elem.fragment.nodes);
@@ -4115,6 +4165,9 @@ export default function {component_name}({fn_params}) {{
                 stmts.push(stmt(svelte_next(Some(skipped))));
             }
         }
+
+        // Add binding statements (e.g., $.bind_value) collected during traversal
+        stmts.extend(std::mem::take(&mut self.binding_statements));
 
         // Generate $.template_effect for collected expressions
         if !self.template_effects.is_empty() {
