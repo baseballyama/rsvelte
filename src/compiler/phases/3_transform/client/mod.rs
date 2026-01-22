@@ -20,14 +20,15 @@ use super::TransformError;
 use super::js_ast::{
     builders::{
         array, arrow, arrow_block, assign, boolean, call, const_decl, export_default_function,
-        getter, id, id_pattern, import_namespace, import_side_effect, member, object, program,
-        prop, quasi, return_value, set_text_content, setter, stmt, string, svelte_append,
-        svelte_autofocus, svelte_await, svelte_bind_value, svelte_child, svelte_each,
-        svelte_element, svelte_first_child, svelte_from_html, svelte_get, svelte_html,
-        svelte_index, svelte_next, svelte_remove_input_defaults, svelte_reset, svelte_set,
-        svelte_set_attribute, svelte_set_class, svelte_set_custom_element_data, svelte_set_style,
-        svelte_set_sync, svelte_set_text, svelte_sibling, svelte_template_effect,
-        svelte_template_effect_with_values, svelte_text, template, thunk, var_decl,
+        getter, id, id_pattern, import_namespace, import_side_effect, member, object,
+        optional_call, program, prop, quasi, return_value, set_text_content, setter, stmt, string,
+        svelte_action, svelte_append, svelte_autofocus, svelte_await, svelte_bind_value,
+        svelte_child, svelte_each, svelte_element, svelte_first_child, svelte_from_html,
+        svelte_get, svelte_html, svelte_index, svelte_next, svelte_remove_input_defaults,
+        svelte_reset, svelte_set, svelte_set_attribute, svelte_set_class,
+        svelte_set_custom_element_data, svelte_set_style, svelte_set_sync, svelte_set_text,
+        svelte_sibling, svelte_template_effect, svelte_template_effect_with_values, svelte_text,
+        template, thunk, var_decl,
     },
     generate,
     nodes::{JsExpr, JsObjectMember, JsPattern, JsStatement},
@@ -38,6 +39,7 @@ use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, ClassDirective,
     Component, EachBlock, ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, RegularElement,
     RenderTag, Root, SnippetBlock, StyleDirective, SvelteDynamicElement, TemplateNode, Text,
+    UseDirective,
 };
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
@@ -832,6 +834,10 @@ impl ClientCodeGenerator {
                     matches!(attr, Attribute::BindDirective(_))
                         || matches!(attr, Attribute::ClassDirective(_))
                         || matches!(attr, Attribute::StyleDirective(_))
+                        || matches!(attr, Attribute::UseDirective(_))
+                        || matches!(attr, Attribute::TransitionDirective(_))
+                        || matches!(attr, Attribute::AnimateDirective(_))
+                        || matches!(attr, Attribute::OnDirective(_))
                         || matches!(attr, Attribute::Attribute(a) if
                             a.name == "autofocus"
                             || a.name.starts_with("on")  // Event handlers (onclick, onmousedown, etc.)
@@ -1043,13 +1049,17 @@ impl ClientCodeGenerator {
     ) {
         let is_custom = elem.name.contains('-');
 
-        // Collect class: and style: directives, and event handlers
+        // Collect class:, style:, use: directives, and event handlers
         let mut class_directives: Vec<&ClassDirective> = Vec::new();
         let mut style_directives: Vec<&StyleDirective> = Vec::new();
+        let mut use_directives: Vec<&UseDirective> = Vec::new();
         let mut event_handlers: Vec<(String, String)> = Vec::new();
 
         for attr in &elem.attributes {
             match attr {
+                Attribute::UseDirective(dir) => {
+                    use_directives.push(dir);
+                }
                 Attribute::Attribute(node) => {
                     let attr_name = node.name.as_str();
 
@@ -1194,6 +1204,48 @@ impl ClientCodeGenerator {
                 object(vec![]),      // style_binding
                 object(style_props), // style_directives
             )));
+        }
+
+        // Generate $.action() for use: directives
+        for use_dir in use_directives {
+            let action_name = use_dir.name.to_string();
+
+            // Build the callback: ($$node) => action?.($$node)
+            // or ($$node, $$action_arg) => action?.($$node, $$action_arg) if there's an expression
+            let has_arg = use_dir.expression.is_some();
+            let params = if has_arg {
+                vec![id_pattern("$$node"), id_pattern("$$action_arg")]
+            } else {
+                vec![id_pattern("$$node")]
+            };
+
+            // Build the call: action?.($$node) or action?.($$node, $$action_arg)
+            let call_args = if has_arg {
+                vec![id("$$node"), id("$$action_arg")]
+            } else {
+                vec![id("$$node")]
+            };
+
+            // Create the optional call expression: action?.(...)
+            let callback_body = optional_call(id(&action_name), call_args);
+
+            let callback = arrow(params, callback_body);
+
+            // Build the argument getter if there's an expression
+            let arg_getter = if let Some(ref expr) = use_dir.expression {
+                let expr_start = expr.start().unwrap_or(0) as usize;
+                let expr_end = expr.end().unwrap_or(0) as usize;
+                if expr_end > expr_start && expr_end <= self.source.len() {
+                    let expr_str = self.source[expr_start..expr_end].trim();
+                    Some(thunk(id(expr_str)))
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            stmts.push(stmt(svelte_action(id(var_name), callback, arg_getter)));
         }
 
         // Generate event handlers
@@ -4294,11 +4346,18 @@ fn has_dynamic_descendants_helper(nodes: &[TemplateNode]) -> bool {
             | TemplateNode::Component(_)
             | TemplateNode::RenderTag(_) => return true,
             TemplateNode::RegularElement(elem) => {
-                // Check for special attributes
+                // Check for special attributes that need runtime handling
                 let has_special = elem.attributes.iter().any(|attr| {
                     matches!(attr, Attribute::BindDirective(_))
+                        || matches!(attr, Attribute::ClassDirective(_))
+                        || matches!(attr, Attribute::StyleDirective(_))
+                        || matches!(attr, Attribute::UseDirective(_))
+                        || matches!(attr, Attribute::TransitionDirective(_))
+                        || matches!(attr, Attribute::AnimateDirective(_))
+                        || matches!(attr, Attribute::OnDirective(_))
                         || matches!(attr, Attribute::Attribute(a) if
                             a.name == "autofocus"
+                            || a.name.starts_with("on")
                             || (a.name == "muted" && (elem.name == "source" || elem.name == "video"))
                             || (a.name == "value" && elem.name == "option")
                         )
@@ -4326,7 +4385,7 @@ fn has_nested_dynamic_content(fragment: &Fragment) -> bool {
     // 1. HtmlTag ({@html ...}) inside an element at any depth
     // 2. Custom elements with attributes inside containers
     // 3. Multiple nested levels of elements with dynamic content
-    // 4. Elements with event handlers that have child elements
+    // 4. Elements with special directives (use:, class:, style:, bind:, etc.)
 
     fn check_needs_hierarchical(nodes: &[TemplateNode], depth: usize) -> bool {
         for node in nodes {
@@ -4343,15 +4402,18 @@ fn has_nested_dynamic_content(fragment: &Fragment) -> bool {
                         |attr| matches!(attr, Attribute::Attribute(a) if a.name.starts_with("on")),
                     );
 
-                    let has_class_directive = elem
-                        .attributes
-                        .iter()
-                        .any(|attr| matches!(attr, Attribute::ClassDirective(_)));
-
-                    let has_style_directive = elem
-                        .attributes
-                        .iter()
-                        .any(|attr| matches!(attr, Attribute::StyleDirective(_)));
+                    let has_special_directives = elem.attributes.iter().any(|attr| {
+                        matches!(
+                            attr,
+                            Attribute::ClassDirective(_)
+                                | Attribute::StyleDirective(_)
+                                | Attribute::UseDirective(_)
+                                | Attribute::TransitionDirective(_)
+                                | Attribute::AnimateDirective(_)
+                                | Attribute::OnDirective(_)
+                                | Attribute::BindDirective(_)
+                        )
+                    });
 
                     let has_child_elements = elem
                         .fragment
@@ -4359,10 +4421,14 @@ fn has_nested_dynamic_content(fragment: &Fragment) -> bool {
                         .iter()
                         .any(|child| matches!(child, TemplateNode::RegularElement(_)));
 
-                    // If element has special attributes at depth > 0, use hierarchical nav
-                    if depth > 0
-                        && (has_event_handlers || has_class_directive || has_style_directive)
-                    {
+                    // If element has special attributes/directives at depth > 0, use hierarchical nav
+                    if depth > 0 && (has_event_handlers || has_special_directives) {
+                        return true;
+                    }
+
+                    // If element has special directives at any depth, use hierarchical nav
+                    // (actions, transitions, animations need element references)
+                    if has_special_directives {
                         return true;
                     }
 

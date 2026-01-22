@@ -1165,6 +1165,17 @@ pub fn svelte_set_style(
     )
 }
 
+/// Create $.action(element, callback) or $.action(element, callback, argument_getter).
+/// The callback is typically: ($$node) => action?.($$node)
+/// If there's an argument, the argument_getter is a thunk: () => arg
+pub fn svelte_action(element: JsExpr, callback: JsExpr, arg_getter: Option<JsExpr>) -> JsExpr {
+    let mut args = vec![element, callback];
+    if let Some(arg) = arg_getter {
+        args.push(arg);
+    }
+    svelte_call("action", args)
+}
+
 // ============================================================================
 // DOM Manipulation Helpers
 // ============================================================================
