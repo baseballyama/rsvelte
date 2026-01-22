@@ -777,6 +777,96 @@ impl ClientCodeGenerator {
         self.template_effects.clear();
     }
 
+    /// Collect children parts from a list of template nodes, handling nested components.
+    fn collect_children_parts(&self, nodes: &[TemplateNode]) -> Vec<ChildPart> {
+        let mut parts = Vec::new();
+
+        for node in nodes {
+            match node {
+                TemplateNode::Text(text) => {
+                    let data = text.data.as_str();
+                    // Skip whitespace-only text nodes between components
+                    if !data.trim().is_empty() {
+                        parts.push(ChildPart::Text(data.to_string()));
+                    }
+                }
+                TemplateNode::ExpressionTag(tag) => {
+                    let expr_start = tag.start as usize;
+                    let expr_end = tag.end as usize;
+                    if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                        let expr = self.source[expr_start + 1..expr_end - 1].trim().to_string();
+                        parts.push(ChildPart::Expression(expr));
+                    }
+                }
+                TemplateNode::Component(comp) => {
+                    // Extract component name
+                    let comp_name = comp.name.to_string();
+
+                    // Extract props
+                    let mut props = Vec::new();
+                    for attr in &comp.attributes {
+                        match attr {
+                            Attribute::Attribute(node) => {
+                                let name = node.name.as_str();
+                                if let AttributeValue::Expression(expr_tag) = &node.value {
+                                    let expr_start =
+                                        expr_tag.expression.start().unwrap_or(0) as usize;
+                                    let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                                    if expr_end > expr_start && expr_end <= self.source.len() {
+                                        let expr_source =
+                                            self.source[expr_start..expr_end].trim().to_string();
+                                        if expr_source == name {
+                                            props.push(name.to_string());
+                                        } else {
+                                            let transformed_expr = transform_arrow_function_expr(
+                                                &expr_source,
+                                                &self.state_vars,
+                                            );
+                                            props.push(format!("{}: {}", name, transformed_expr));
+                                        }
+                                    }
+                                }
+                            }
+                            Attribute::OnDirective(on_dir) => {
+                                // Handle on:click etc.
+                                let event_name = on_dir.name.as_str();
+                                if let Some(expr) = &on_dir.expression {
+                                    let expr_start = expr.start().unwrap_or(0) as usize;
+                                    let expr_end = expr.end().unwrap_or(0) as usize;
+                                    if expr_end > expr_start && expr_end <= self.source.len() {
+                                        let expr_source =
+                                            self.source[expr_start..expr_end].trim().to_string();
+                                        // on:event becomes $$events.event
+                                        props.push(format!(
+                                            "$$events: {{ {}: {} }}",
+                                            event_name, expr_source
+                                        ));
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    // Recursively collect children
+                    let nested_children = self.collect_children_parts(&comp.fragment.nodes);
+
+                    parts.push(ChildPart::Component(
+                        comp_name,
+                        props.join(", "),
+                        nested_children,
+                    ));
+                }
+                _ => {
+                    // Other node types (if blocks, each blocks, etc.) - skip for now
+                    // TODO: Add support for other block types
+                }
+            }
+        }
+
+        parts
+    }
+
     /// Check if an expression is reactive (contains props/state variables).
     /// Reactive expressions need $.template_effect for updates.
     /// Pure expressions can use direct textContent assignment.
@@ -1597,27 +1687,8 @@ impl ClientCodeGenerator {
             .any(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()));
 
         if has_children {
-            // Collect children content
-            let mut children_parts = Vec::new();
-            for node in &component.fragment.nodes {
-                match node {
-                    TemplateNode::Text(text) => {
-                        let data = text.data.as_str();
-                        if !data.is_empty() {
-                            children_parts.push(ChildPart::Text(data.to_string()));
-                        }
-                    }
-                    TemplateNode::ExpressionTag(tag) => {
-                        let expr_start = tag.start as usize;
-                        let expr_end = tag.end as usize;
-                        if expr_start + 1 < expr_end && expr_end <= self.source.len() {
-                            let expr = self.source[expr_start + 1..expr_end - 1].trim().to_string();
-                            children_parts.push(ChildPart::Expression(expr));
-                        }
-                    }
-                    _ => {}
-                }
-            }
+            // Collect children content recursively (handles nested components)
+            let children_parts = self.collect_children_parts(&component.fragment.nodes);
 
             if !children_parts.is_empty() {
                 // Store component with children for special code generation
@@ -2993,38 +3064,66 @@ export default function {component_name}({fn_params}) {{
     }
 
     /// Generate children callback for component with children.
-    /// Creates: ($$anchor, $$slotProps) => { $.next(); var text = $.text(); ... }
+    /// Creates: ($$anchor, $$slotProps) => { ... }
     fn generate_children_callback(&self, children_parts: &[ChildPart]) -> String {
-        // Build the content template from children parts
-        let mut content_parts = Vec::new();
-        let mut has_expressions = false;
+        // Check if children is a single component (standalone case)
+        let has_only_components = children_parts
+            .iter()
+            .all(|p| matches!(p, ChildPart::Component(..)));
 
-        for part in children_parts {
-            match part {
-                ChildPart::Text(text) => {
-                    // Normalize whitespace in text - collapse multiple whitespace to single space
-                    let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
-                    if !normalized.is_empty() {
-                        // Add trailing space if this is followed by an expression
-                        content_parts.push(format!("{} ", normalized));
-                    }
-                }
-                ChildPart::Expression(expr) => {
-                    has_expressions = true;
-                    // Wrap state variable access in $.get()
-                    let transformed = transform_state_in_expr(expr, &self.state_vars);
-                    content_parts.push(format!("${{{} ?? ''}}", transformed));
+        if has_only_components && !children_parts.is_empty() {
+            // Standalone component(s) - no template needed
+            let mut body = String::new();
+            for part in children_parts {
+                if let ChildPart::Component(name, props, nested) = part {
+                    body.push_str(&self.generate_component_call(name, props, nested, 3));
                 }
             }
-        }
-
-        // Remove trailing space if present
-        let content_template = content_parts.join("").trim_end().to_string();
-
-        if has_expressions {
-            // Generate callback with template_effect
             format!(
-                r#"($$anchor, $$slotProps) => {{
+                "($$anchor, $$slotProps) => {{\n{}\t\t}}",
+                body.trim_end_matches('\n')
+            )
+        } else {
+            // Mixed content or text/expressions only
+            let mut content_parts = Vec::new();
+            let mut has_expressions = false;
+            let mut has_components = false;
+
+            for part in children_parts {
+                match part {
+                    ChildPart::Text(text) => {
+                        let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
+                        if !normalized.is_empty() {
+                            content_parts.push(normalized);
+                        }
+                    }
+                    ChildPart::Expression(expr) => {
+                        has_expressions = true;
+                        let transformed = transform_state_in_expr(expr, &self.state_vars);
+                        content_parts.push(format!("${{{} ?? ''}}", transformed));
+                    }
+                    ChildPart::Component(..) => {
+                        has_components = true;
+                    }
+                }
+            }
+
+            if has_components {
+                // Has mixed content with components - generate component calls
+                let mut body = String::new();
+                for part in children_parts {
+                    if let ChildPart::Component(name, props, nested) = part {
+                        body.push_str(&self.generate_component_call(name, props, nested, 3));
+                    }
+                }
+                format!(
+                    "($$anchor, $$slotProps) => {{\n{}\t\t}}",
+                    body.trim_end_matches('\n')
+                )
+            } else if has_expressions {
+                let content_template = content_parts.join("").trim_end().to_string();
+                format!(
+                    r#"($$anchor, $$slotProps) => {{
 			$.next();
 
 			var text = $.text();
@@ -3032,20 +3131,54 @@ export default function {component_name}({fn_params}) {{
 			$.template_effect(() => $.set_text(text, `{}`));
 			$.append($$anchor, text);
 		}}"#,
-                content_template
-            )
-        } else {
-            // Static content only
-            format!(
-                r#"($$anchor, $$slotProps) => {{
+                    content_template
+                )
+            } else {
+                format!(
+                    r#"($$anchor, $$slotProps) => {{
 			$.next();
 
 			var text = $.text('{}');
 
 			$.append($$anchor, text);
 		}}"#,
-                content_parts.join("")
-            )
+                    content_parts.join("")
+                )
+            }
+        }
+    }
+
+    /// Generate a component call string for nested components.
+    fn generate_component_call(
+        &self,
+        name: &str,
+        props: &str,
+        nested_children: &[ChildPart],
+        indent: usize,
+    ) -> String {
+        let indent_str = "\t".repeat(indent);
+
+        if nested_children.is_empty() {
+            // Component without children
+            if props.is_empty() {
+                format!("{}{name}($$anchor);\n", indent_str)
+            } else {
+                format!("{}{name}($$anchor, {{ {props} }});\n", indent_str)
+            }
+        } else {
+            // Component with children - recursively generate children callback
+            let children_cb = self.generate_children_callback(nested_children);
+            if props.is_empty() {
+                format!(
+                    "{}{name}($$anchor, {{\n{}\tchildren: {},\n{}\t$$slots: {{ default: true }}\n{}}});\n",
+                    indent_str, indent_str, children_cb, indent_str, indent_str
+                )
+            } else {
+                format!(
+                    "{}{name}($$anchor, {{\n{}\t{props},\n{}\tchildren: {},\n{}\t$$slots: {{ default: true }}\n{}}});\n",
+                    indent_str, indent_str, indent_str, children_cb, indent_str, indent_str
+                )
+            }
         }
     }
 

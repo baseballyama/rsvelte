@@ -396,6 +396,8 @@ pub struct BindThisComponent {
 pub enum ChildPart {
     Text(String),
     Expression(String),
+    /// Nested component: (component_name, props_string, nested_children)
+    Component(String, String, Vec<ChildPart>),
 }
 
 /// Information about a component with children.

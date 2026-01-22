@@ -661,35 +661,167 @@ fn process_snippet_block(
 }
 
 /// Build a slot function for children.
+///
+/// Corresponds to the slot serialization logic in
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/component.js`
+/// (lines 354-383).
 fn build_slot_function(
     children: &[&TemplateNode],
     slot_name: &str,
-    _slot_scope_applies_to_itself: bool,
+    slot_scope_applies_to_itself: bool,
     lets: &[JsExpressionStatement],
-    _context: &mut ComponentContext,
+    context: &mut ComponentContext,
 ) -> Option<JsExpr> {
     if children.is_empty() {
+        return None;
+    }
+
+    // Visit the children and collect generated statements
+    // This pattern mirrors visit_fragment in snippet_block.rs
+    let child_statements = visit_slot_children(children, context);
+
+    // If no statements were generated, return None
+    if child_statements.is_empty() {
         return None;
     }
 
     // Build the slot function body
     let mut body: Vec<JsStatement> = Vec::new();
 
-    // Add let directives for default slot
-    if slot_name == "default" {
+    // Add let directives for default slot (only if slot scope doesn't apply to component itself)
+    if slot_name == "default" && !slot_scope_applies_to_itself {
         for let_stmt in lets {
             body.push(JsStatement::Expression(let_stmt.clone()));
         }
     }
 
-    // TODO: Visit children and add to body
-    // For now, just create an empty function
-    // In full implementation, we'd visit each child node
+    // Add the visited children statements
+    body.extend(child_statements);
 
     Some(b::arrow_block(
         vec![b::id_pattern("$$anchor"), b::id_pattern("$$slotProps")],
         body,
     ))
+}
+
+/// Visit slot children and collect generated statements.
+///
+/// This function visits each child node in the slot and collects the generated
+/// statements for the slot function body. It mirrors the behavior of
+/// `context.visit(fragment, state)` in the JavaScript implementation.
+///
+/// The key insight is that visiting slot children is essentially visiting a Fragment
+/// with a modified set of nodes. We need to:
+/// 1. Clean the nodes (trim whitespace, handle hoisted nodes)
+/// 2. For standalone components, just visit them directly with $$anchor
+/// 3. For other cases, use the process_children pattern
+fn visit_slot_children(
+    children: &[&TemplateNode],
+    context: &mut ComponentContext,
+) -> Vec<JsStatement> {
+    use crate::compiler::phases::phase3_transform::utils::clean_nodes;
+
+    // Convert &[&TemplateNode] to Vec<TemplateNode> for clean_nodes
+    let nodes: Vec<TemplateNode> = children.iter().map(|n| (*n).clone()).collect();
+
+    // Clean the nodes (trim whitespace, etc.)
+    let cleaned = clean_nodes(
+        None, // No parent in slot context
+        &nodes,
+        &context.path,
+        &context.state.metadata.namespace,
+        context.state.scope,
+        context.state.analysis,
+        context.state.preserve_whitespace,
+        context.state.options.preserve_comments,
+    );
+
+    // If no trimmed nodes, return empty
+    if cleaned.trimmed.is_empty() {
+        return Vec::new();
+    }
+
+    // Save the current state
+    let saved_init = std::mem::take(&mut context.state.init);
+    let saved_update = std::mem::take(&mut context.state.update);
+    let saved_template = context.state.template.clone();
+    let saved_node = context.state.node.clone();
+
+    // Reset template for slot content
+    context.state.template =
+        crate::compiler::phases::phase3_transform::client::transform_template::Template::new();
+
+    // Set the node to $$anchor - this is the anchor passed to the slot function
+    // The slot function signature is ($$anchor, $$slotProps) => { ... }
+    context.state.node = b::id("$$anchor");
+
+    // Handle standalone case: single component/render tag doesn't need template processing
+    if cleaned.is_standalone {
+        // For standalone components, just visit them directly
+        for node in &cleaned.trimmed {
+            let result = context.visit_node(node, None);
+            match result {
+                crate::compiler::phases::phase3_transform::client::types::TransformResult::Statement(
+                    stmt,
+                ) => {
+                    context.state.init.push(stmt);
+                }
+                crate::compiler::phases::phase3_transform::client::types::TransformResult::Block(
+                    block,
+                ) => {
+                    context
+                        .state
+                        .init
+                        .push(crate::compiler::phases::phase3_transform::js_ast::JsStatement::Block(
+                            block,
+                        ));
+                }
+                _ => {}
+            }
+        }
+    } else {
+        // For non-standalone cases, visit each child node
+        for node in &cleaned.trimmed {
+            let result = context.visit_node(node, None);
+            match result {
+                crate::compiler::phases::phase3_transform::client::types::TransformResult::Statement(
+                    stmt,
+                ) => {
+                    context.state.init.push(stmt);
+                }
+                crate::compiler::phases::phase3_transform::client::types::TransformResult::Block(
+                    block,
+                ) => {
+                    context
+                        .state
+                        .init
+                        .push(crate::compiler::phases::phase3_transform::js_ast::JsStatement::Block(
+                            block,
+                        ));
+                }
+                _ => {}
+            }
+        }
+    }
+
+    // Collect the generated init statements
+    let mut result = std::mem::replace(&mut context.state.init, saved_init);
+
+    // If there are update statements, wrap them in an effect
+    let update_stmts = std::mem::replace(&mut context.state.update, saved_update);
+    if !update_stmts.is_empty() {
+        // Wrap update statements in $.template_effect or similar
+        result.push(b::stmt(b::call(
+            b::member_path("$.template_effect"),
+            vec![b::arrow_block(vec![], update_stmts)],
+        )));
+    }
+
+    // Restore the template and node
+    context.state.template = saved_template;
+    context.state.node = saved_node;
+
+    result
 }
 
 /// Build the component expression for dynamic components.

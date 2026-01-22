@@ -515,6 +515,23 @@ jobs:
     - IfBlockInfo/IfBlockPart 型追加
     - $.if() 呼び出し生成
     - consequent/alternate ブランチ生成
+  - [ ] C-016: ネストされたコンポーネント/ブロックの再帰的処理
+    - スロットの children 内でコンポーネント/ブロックを正しく生成
+    - 多層ネストでも再帰的に訪問者を呼び出す
+    - 参照: `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/component.js`
+  - [ ] C-017: Snippet パラメータ処理
+    - `{#snippet foo(n)}` のパラメータ `n` を関数引数として生成
+    - デフォルト値 `$.noop` の適用
+    - Snippet 内のテキスト/テンプレート処理
+  - [ ] C-018: スタティック値判定の修正（Phase 2）
+    - `let show = true;` がリアクティブに変換されないように修正
+    - スコープ分析での reactive 判定ロジックを正確に
+  - [ ] C-019: Template effect 生成の完全実装
+    - Snippet 内の `$.template_effect()` 生成
+    - Expression コンテキストでの適切なエフェクト生成
+  - [ ] C-020: 複数テンプレート参照の生成
+    - ネストされた if/each 内の HTML テンプレートも `from_html()` で定義
+    - 全必要なテンプレートを `root_N` 変数として出力
 - [ ] **Phase D 未着手**: 互換性テスト整備
 - [ ] **Phase E 未着手**: docs サイト完成
 
@@ -524,7 +541,17 @@ jobs:
 - **Compiler Snapshot: 19/19 (100%)** ✅
 - Clippy: 0 件（全て修正済み）
 
-**次のステップ**: Runtime Runes テスト改善継続（C-016〜）
+**失敗パターン分析（2026-01-23）:**
+
+| 問題カテゴリ | 根本原因 | 影響テスト例 |
+|-------------|--------|------------|
+| ネストされたコンポーネント/ブロック処理 | 再帰的訪問者の実装が不完全 | event-attribute-delegation-5, transition-if-nested-static |
+| Snippet パラメータ処理 | `{#snippet}` ディレクティブの引数処理が未実装 | snippet-prop-explicit |
+| スタティック値判定 | Phase 2 Analyze の reactive 判定ロジックが誤っている | transition-if-nested-static |
+| Template effect 生成 | Expression コンテキストでの effect 生成が実装されていない | snippet-prop-explicit |
+| 複数テンプレート参照 | 複数の `from_html()` テンプレートが必要な場合に全部生成されていない | transition-if-nested-static |
+
+**次のステップ**: C-016 ネストされたコンポーネント/ブロック処理から着手
 
 ---
 

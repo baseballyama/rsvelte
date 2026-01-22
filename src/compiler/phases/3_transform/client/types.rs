@@ -66,15 +66,23 @@ impl<'a> ComponentContext<'a> {
     /// Visit a template node and transform it.
     ///
     /// This is the main entry point for visiting nodes during transformation.
+    /// When `state_override` is provided, it temporarily replaces the context's
+    /// state for the duration of the visit, allowing child visitors to use
+    /// the overridden state (e.g., with a different `node` anchor).
     pub fn visit_node(
         &mut self,
         node: &TemplateNode,
         state_override: Option<&ComponentClientTransformState<'a>>,
     ) -> TransformResult {
-        // Use the provided state or the context's state
-        let _state = state_override.unwrap_or(&self.state);
+        // If a state override is provided, temporarily swap it in
+        let saved_state = if let Some(override_state) = state_override {
+            let saved = std::mem::replace(&mut self.state, override_state.clone());
+            Some(saved)
+        } else {
+            None
+        };
 
-        match node {
+        let result = match node {
             TemplateNode::Component(comp) => self.visit_component(comp),
 
             TemplateNode::SvelteComponent(comp) => self.visit_svelte_component(comp),
@@ -103,7 +111,14 @@ impl<'a> ComponentContext<'a> {
 
             // Other node types - TODO: implement
             _ => TransformResult::None,
+        };
+
+        // Restore the original state if we swapped it
+        if let Some(saved) = saved_state {
+            self.state = saved;
         }
+
+        result
     }
 
     // =========================================================================
