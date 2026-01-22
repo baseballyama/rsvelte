@@ -359,5 +359,15 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
     // Update context state with hoisted statements
     context.state.hoisted.extend(state.hoisted);
 
+    // Merge snippet declarations
+    context
+        .state
+        .module_level_snippets
+        .extend(state.module_level_snippets);
+    context
+        .state
+        .instance_level_snippets
+        .extend(state.instance_level_snippets);
+
     JsBlockStatement { body }
 }
