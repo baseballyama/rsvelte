@@ -391,4 +391,45 @@ mod tests {
             panic!("Expected Text node");
         }
     }
+
+    #[test]
+    fn test_clean_nodes_normalize_text_with_newlines_and_indentation() {
+        use crate::ast::template::Text;
+        use crate::compiler::CompileOptions;
+        use crate::compiler::phases::phase2_analyze::scope::Scope;
+        use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
+        use compact_str::CompactString;
+
+        let options = CompileOptions::default();
+        let scope = Scope::new(None);
+        let analysis = ComponentAnalysis::new("", &options);
+
+        // Create a text node like "\n\t\tButton\n\t" (typical in formatted HTML)
+        let nodes = vec![TemplateNode::Text(Text {
+            start: 0,
+            end: 12,
+            raw: CompactString::new("\n\t\tButton\n\t"),
+            data: CompactString::new("\n\t\tButton\n\t"),
+        })];
+
+        let cleaned = clean_nodes(None, &nodes, &[], "html", &scope, &analysis, false, false);
+
+        assert_eq!(cleaned.trimmed.len(), 1);
+        if let TemplateNode::Text(t) = &cleaned.trimmed[0] {
+            assert_eq!(
+                t.data.as_str(),
+                "Button",
+                "Whitespace around text should be trimmed: got {:?}",
+                t.data.as_str()
+            );
+            assert_eq!(
+                t.raw.as_str(),
+                "Button",
+                "Raw whitespace should also be trimmed: got {:?}",
+                t.raw.as_str()
+            );
+        } else {
+            panic!("Expected Text node");
+        }
+    }
 }

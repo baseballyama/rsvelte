@@ -378,7 +378,7 @@ impl ClientCodeGenerator {
         }
     }
 
-    fn generate_text(&mut self, text: &Text, is_root_level: bool) -> Result<(), TransformError> {
+    fn generate_text(&mut self, text: &Text, _is_root_level: bool) -> Result<(), TransformError> {
         let data = &text.data;
 
         if data.trim().is_empty() {
@@ -387,12 +387,13 @@ impl ClientCodeGenerator {
             if !data.is_empty() {
                 self.html_parts.push(" ".to_string());
             }
-        } else if is_root_level {
-            // At root level, include the text as-is
-            self.html_parts.push(escape_html(data));
         } else {
-            // Inside elements, include the text
-            self.html_parts.push(escape_html(data));
+            // Text has non-whitespace content
+            // Normalize whitespace: collapse leading/trailing whitespace to nothing,
+            // and normalize internal whitespace to single spaces
+            // This matches the official Svelte compiler's behavior
+            let normalized = normalize_text_whitespace(data);
+            self.html_parts.push(escape_html(&normalized));
         }
         Ok(())
     }
@@ -4601,6 +4602,43 @@ fn parse_numeric_expr(s: &str) -> Option<i64> {
     }
 
     None
+}
+
+/// Normalize whitespace in text content.
+///
+/// This function normalizes text following the Svelte compiler's whitespace handling:
+/// - Trim leading and trailing whitespace
+/// - Collapse internal whitespace sequences (newlines, tabs, multiple spaces) into single spaces
+///
+/// # Arguments
+///
+/// * `text` - The text content to normalize
+///
+/// # Returns
+///
+/// The normalized text with whitespace handled according to Svelte's rules.
+fn normalize_text_whitespace(text: &str) -> String {
+    // First, trim leading and trailing whitespace
+    let trimmed = text.trim();
+
+    // Then collapse internal whitespace sequences to single spaces
+    let mut result = String::with_capacity(trimmed.len());
+    let mut prev_was_whitespace = false;
+
+    for c in trimmed.chars() {
+        if c.is_whitespace() {
+            if !prev_was_whitespace {
+                result.push(' ');
+                prev_was_whitespace = true;
+            }
+            // Skip additional consecutive whitespace
+        } else {
+            result.push(c);
+            prev_was_whitespace = false;
+        }
+    }
+
+    result
 }
 
 /// Extract imports from script content.
