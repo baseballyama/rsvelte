@@ -255,10 +255,10 @@ impl EstreeGenerator {
                 self.generate_node(property);
             }
             self.output.push(']');
-        } else if let Some(property) = node.get("property") {
-            if let Some(name) = property.get("name").and_then(|n| n.as_str()) {
-                self.output.push_str(name);
-            }
+        } else if let Some(property) = node.get("property")
+            && let Some(name) = property.get("name").and_then(|n| n.as_str())
+        {
+            self.output.push_str(name);
         }
     }
 
@@ -473,11 +473,11 @@ impl EstreeGenerator {
             self.output.push('*');
         }
 
-        if let Some(id) = node.get("id") {
-            if !id.is_null() {
-                self.output.push(' ');
-                self.generate_node(id);
-            }
+        if let Some(id) = node.get("id")
+            && !id.is_null()
+        {
+            self.output.push(' ');
+            self.generate_node(id);
         }
 
         self.output.push('(');
@@ -491,7 +491,7 @@ impl EstreeGenerator {
         }
         self.output.push(')');
 
-        self.output.push_str(" ");
+        self.output.push(' ');
         if let Some(body) = node.get("body") {
             self.generate_block_statement(body);
         }
@@ -567,12 +567,12 @@ impl EstreeGenerator {
                     self.output.push_str(raw);
                 }
 
-                if let Some(exprs) = expressions {
-                    if i < exprs.len() {
-                        self.output.push_str("${");
-                        self.generate_node(&exprs[i]);
-                        self.output.push('}');
-                    }
+                if let Some(exprs) = expressions
+                    && i < exprs.len()
+                {
+                    self.output.push_str("${");
+                    self.generate_node(&exprs[i]);
+                    self.output.push('}');
                 }
             }
         }
@@ -952,11 +952,11 @@ fn format_variable_declaration(stmt: &serde_json::Value) -> String {
             if let Some(id) = decl.get("id") {
                 result.push_str(&estree_to_string(id));
             }
-            if let Some(init) = decl.get("init") {
-                if !init.is_null() {
-                    result.push_str(" = ");
-                    result.push_str(&estree_to_string(init));
-                }
+            if let Some(init) = decl.get("init")
+                && !init.is_null()
+            {
+                result.push_str(" = ");
+                result.push_str(&estree_to_string(init));
             }
         }
     }
@@ -981,11 +981,11 @@ fn format_function_declaration(stmt: &serde_json::Value) -> String {
         result.push('*');
     }
 
-    if let Some(id) = stmt.get("id") {
-        if !id.is_null() {
-            result.push(' ');
-            result.push_str(&estree_to_string(id));
-        }
+    if let Some(id) = stmt.get("id")
+        && !id.is_null()
+    {
+        result.push(' ');
+        result.push_str(&estree_to_string(id));
     }
 
     result.push('(');
@@ -1005,17 +1005,17 @@ fn format_function_declaration(stmt: &serde_json::Value) -> String {
 fn format_class_declaration(stmt: &serde_json::Value) -> String {
     let mut result = String::from("class ");
 
-    if let Some(id) = stmt.get("id") {
-        if !id.is_null() {
-            result.push_str(&estree_to_string(id));
-        }
+    if let Some(id) = stmt.get("id")
+        && !id.is_null()
+    {
+        result.push_str(&estree_to_string(id));
     }
 
-    if let Some(superclass) = stmt.get("superClass") {
-        if !superclass.is_null() {
-            result.push_str(" extends ");
-            result.push_str(&estree_to_string(superclass));
-        }
+    if let Some(superclass) = stmt.get("superClass")
+        && !superclass.is_null()
+    {
+        result.push_str(" extends ");
+        result.push_str(&estree_to_string(superclass));
     }
 
     result.push_str(" { /* ... */ }");
@@ -1047,12 +1047,9 @@ fn format_import_declaration(stmt: &serde_json::Value) -> String {
                 Some("ImportSpecifier") => {
                     let imported = spec
                         .get("imported")
-                        .map(|i| estree_to_string(i))
+                        .map(estree_to_string)
                         .unwrap_or_default();
-                    let local = spec
-                        .get("local")
-                        .map(|l| estree_to_string(l))
-                        .unwrap_or_default();
+                    let local = spec.get("local").map(estree_to_string).unwrap_or_default();
                     if imported == local {
                         named_imports.push(imported);
                     } else {
@@ -1103,11 +1100,11 @@ fn format_export_declaration(stmt: &serde_json::Value) -> String {
 
     let mut result = String::from("export ");
 
-    if let Some(declaration) = stmt.get("declaration") {
-        if !declaration.is_null() {
-            result.push_str(&format_statement_from_json(declaration));
-            return result;
-        }
+    if let Some(declaration) = stmt.get("declaration")
+        && !declaration.is_null()
+    {
+        result.push_str(&format_statement_from_json(declaration));
+        return result;
     }
 
     if let Some(specifiers) = stmt.get("specifiers").and_then(|s| s.as_array()) {
@@ -1119,12 +1116,9 @@ fn format_export_declaration(stmt: &serde_json::Value) -> String {
                 }
                 let exported = spec
                     .get("exported")
-                    .map(|e| estree_to_string(e))
+                    .map(estree_to_string)
                     .unwrap_or_default();
-                let local = spec
-                    .get("local")
-                    .map(|l| estree_to_string(l))
-                    .unwrap_or_default();
+                let local = spec.get("local").map(estree_to_string).unwrap_or_default();
                 if exported == local {
                     result.push_str(&exported);
                 } else {
@@ -1134,11 +1128,11 @@ fn format_export_declaration(stmt: &serde_json::Value) -> String {
             result.push_str(" }");
         }
 
-        if let Some(source) = stmt.get("source") {
-            if !source.is_null() {
-                result.push_str(" from ");
-                result.push_str(&estree_to_string(source));
-            }
+        if let Some(source) = stmt.get("source")
+            && !source.is_null()
+        {
+            result.push_str(" from ");
+            result.push_str(&estree_to_string(source));
         }
     }
 

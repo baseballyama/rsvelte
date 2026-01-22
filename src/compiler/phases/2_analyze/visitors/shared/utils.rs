@@ -36,19 +36,13 @@ fn get_name(node: &Value) -> Option<String> {
     match node.get("type").and_then(|t| t.as_str()) {
         Some("Literal") => {
             // Return the literal value as a string
-            if let Some(value) = node.get("value") {
-                Some(value.to_string())
-            } else {
-                None
-            }
+            node.get("value").map(|value| value.to_string())
         }
         Some("PrivateIdentifier") => {
             // Return '#' + name
-            if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
-                Some(format!("#{}", name))
-            } else {
-                None
-            }
+            node.get("name")
+                .and_then(|n| n.as_str())
+                .map(|name| format!("#{}", name))
         }
         Some("Identifier") => {
             // Return the identifier name
@@ -70,7 +64,7 @@ fn get_name(node: &Value) -> Option<String> {
 /// # Returns
 ///
 /// The parent node at the given index, skipping TypeScript wrapper nodes
-fn get_parent<'a>(path: &'a [Value], at: isize) -> Option<&'a Value> {
+fn get_parent(path: &[Value], at: isize) -> Option<&Value> {
     let len = path.len() as isize;
     let index = if at < 0 { len + at } else { at };
 
@@ -236,13 +230,11 @@ pub fn validate_assignment(
             let binding = &context.analysis.root.bindings[*binding_idx];
 
             // Check for $props.id() assignment
-            if context.analysis.runes {
-                // Check if this binding is the props_id identifier
-                if let Some(ref props_id) = context.analysis.props_id {
-                    if &binding.name == props_id {
-                        return Err(errors::constant_assignment("$props.id()"));
-                    }
-                }
+            if context.analysis.runes
+                && let Some(ref props_id) = context.analysis.props_id
+                && &binding.name == props_id
+            {
+                return Err(errors::constant_assignment("$props.id()"));
             }
 
             // Check for each block item assignment
@@ -278,54 +270,46 @@ pub fn validate_assignment(
         {
             None
         } else {
-            argument.get("property").and_then(|p| get_name(p))
+            argument.get("property").and_then(get_name)
         };
 
         // Check if this is a state field
-        if let Some(ref field_name) = name {
-            if let Some(field) = context.state_fields.get(field_name) {
-                // Check we're not assigning to a state field before its declaration in the constructor
-                if field.node.get("type").and_then(|t| t.as_str()) == Some("AssignmentExpression") {
-                    // Walk up the path to find if we're in a constructor
-                    let mut i = context.js_path.len();
-                    while i > 0 {
-                        i -= 1;
-                        let parent = &context.js_path[i];
-                        let parent_type = parent.get("type").and_then(|t| t.as_str());
+        if let Some(ref field_name) = name
+            && let Some(field) = context.state_fields.get(field_name)
+            && field.node.get("type").and_then(|t| t.as_str()) == Some("AssignmentExpression")
+        {
+            // Check we're not assigning to a state field before its declaration in the constructor
+            // Walk up the path to find if we're in a constructor
+            let mut i = context.js_path.len();
+            while i > 0 {
+                i -= 1;
+                let parent = &context.js_path[i];
+                let parent_type = parent.get("type").and_then(|t| t.as_str());
 
-                        if matches!(
-                            parent_type,
-                            Some("FunctionDeclaration")
-                                | Some("FunctionExpression")
-                                | Some("ArrowFunctionExpression")
-                        ) {
-                            // Get the grandparent
-                            if let Some(grandparent) =
-                                get_parent(&context.js_path, (i as isize) - 1)
-                            {
-                                if grandparent.get("type").and_then(|t| t.as_str())
-                                    == Some("MethodDefinition")
-                                    && grandparent.get("kind").and_then(|k| k.as_str())
-                                        == Some("constructor")
-                                {
-                                    // We're in a constructor - check if assignment is before field declaration
-                                    let node_start = argument.get("start").and_then(|s| s.as_u64());
-                                    let field_start =
-                                        field.node.get("start").and_then(|s| s.as_u64());
+                if matches!(
+                    parent_type,
+                    Some("FunctionDeclaration")
+                        | Some("FunctionExpression")
+                        | Some("ArrowFunctionExpression")
+                ) {
+                    // Get the grandparent
+                    if let Some(grandparent) = get_parent(&context.js_path, (i as isize) - 1)
+                        && grandparent.get("type").and_then(|t| t.as_str())
+                            == Some("MethodDefinition")
+                        && grandparent.get("kind").and_then(|k| k.as_str()) == Some("constructor")
+                    {
+                        // We're in a constructor - check if assignment is before field declaration
+                        let node_start = argument.get("start").and_then(|s| s.as_u64());
+                        let field_start = field.node.get("start").and_then(|s| s.as_u64());
 
-                                    if let (Some(node_start), Some(field_start)) =
-                                        (node_start, field_start)
-                                    {
-                                        if node_start < field_start {
-                                            return Err(errors::state_field_invalid_assignment());
-                                        }
-                                    }
-                                }
-                            }
-
-                            break;
+                        if let (Some(node_start), Some(field_start)) = (node_start, field_start)
+                            && node_start < field_start
+                        {
+                            return Err(errors::state_field_invalid_assignment());
                         }
                     }
+
+                    break;
                 }
             }
         }
@@ -644,10 +628,10 @@ pub fn is_pure(node: &Value, context: &VisitorContext) -> bool {
         "callee": node
     });
 
-    if let Some(rune) = get_rune_from_json(&call_node, &context.analysis.root.scope) {
-        if rune == "$effect.tracking" {
-            return false;
-        }
+    if let Some(rune) = get_rune_from_json(&call_node, &context.analysis.root.scope)
+        && rune == "$effect.tracking"
+    {
+        return false;
     }
 
     // Navigate to the leftmost node

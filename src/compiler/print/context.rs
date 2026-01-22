@@ -190,11 +190,18 @@ impl<'a> Context<'a> {
             .push((current_line, current_column, line, column));
     }
 
-    /// Convert the context to a string.
+    /// Get the buffer content as a string.
     ///
     /// Returns the complete output buffer.
-    pub fn to_string(&self) -> String {
-        self.buffer.clone()
+    pub fn finish(self) -> String {
+        self.buffer
+    }
+
+    /// Get a reference to the buffer content.
+    ///
+    /// Returns the complete output buffer as a string slice.
+    pub fn as_str(&self) -> &str {
+        &self.buffer
     }
 
     /// Get the source map as a JSON string.

@@ -160,10 +160,7 @@ pub fn build_inline_component<F>(
                     // TODO: Extract slot name from attributes
                 }
 
-                children
-                    .entry(slot_name)
-                    .or_insert_with(Vec::new)
-                    .push(child);
+                children.entry(slot_name).or_default().push(child);
             }
         }
     }

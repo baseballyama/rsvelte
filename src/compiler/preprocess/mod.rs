@@ -90,13 +90,13 @@ impl PreprocessResult {
     }
 
     /// Convert to final Processed result.
-    fn to_processed(self) -> Processed {
+    fn into_processed(self) -> Processed {
         // Combine all the source maps for each preprocessor function into one
         let map = if self.sourcemap_list.is_empty() {
             None
         } else {
             combine_sourcemaps(&self.file_basename, &self.sourcemap_list)
-                .map(|m| SourceMapInput::Decoded(m))
+                .map(SourceMapInput::Decoded)
         };
 
         // Deduplicate dependencies
@@ -134,10 +134,10 @@ fn processed_content_to_code(
     let mut decoded_map = decode_map(processed);
 
     // Offset segments pointing at original component source
-    if let Some(ref mut map) = decoded_map {
-        if let Some(source_index) = map.sources.iter().position(|s| s == file_basename) {
-            sourcemap_add_offset(map, location, source_index);
-        }
+    if let Some(ref mut map) = decoded_map
+        && let Some(source_index) = map.sources.iter().position(|s| s == file_basename)
+    {
+        sourcemap_add_offset(map, location, source_index);
     }
 
     MappedCode::from_processed(processed.code.clone(), decoded_map)
@@ -313,7 +313,7 @@ async fn process_tag(
         let dependencies = dependencies_for_closure.clone();
 
         async move {
-            let tag_with_content = match_groups.get(0).map(|s| s.as_str()).unwrap_or("");
+            let tag_with_content = match_groups.first().map(|s| s.as_str()).unwrap_or("");
             let attributes = match_groups.get(1).map(|s| s.as_str()).unwrap_or("");
             let content = match_groups.get(2).map(|s| s.as_str()).unwrap_or("");
 
@@ -336,10 +336,10 @@ async fn process_tag(
             let processed_opt = preprocessor(options).await?;
 
             if let Some(processed) = processed_opt {
-                if !processed.dependencies.is_empty() {
-                    if let Ok(mut deps) = dependencies.lock() {
-                        deps.extend_from_slice(&processed.dependencies);
-                    }
+                if !processed.dependencies.is_empty()
+                    && let Ok(mut deps) = dependencies.lock()
+                {
+                    deps.extend_from_slice(&processed.dependencies);
                 }
 
                 // Check if anything changed
@@ -462,7 +462,7 @@ pub async fn preprocess(
         }
     }
 
-    Ok(result.to_processed())
+    Ok(result.into_processed())
 }
 
 /// Add offset to source map mappings.
@@ -475,7 +475,7 @@ fn sourcemap_add_offset(map: &mut SimpleDecodedMap, offset: Location, source_ind
         return;
     }
 
-    for (_line_idx, line) in map.mappings.iter_mut().enumerate() {
+    for line in map.mappings.iter_mut() {
         for segment in line {
             if segment.len() >= 2 && segment[1] == source_index as i64 {
                 // Shift column if it points at the first line

@@ -242,7 +242,7 @@ pub fn order_reactive_statements(
         for &assignment_idx in &declaration.assignments {
             lookup
                 .entry(assignment_idx)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push((key.clone(), declaration.clone()));
         }
     }
@@ -251,7 +251,7 @@ pub fn order_reactive_statements(
     // Edge: (assignment_binding_index, dependency_binding_index)
     let mut edges: Vec<(usize, usize)> = Vec::new();
 
-    for (_, declaration) in &unsorted_reactive_declarations {
+    for declaration in unsorted_reactive_declarations.values() {
         for &assignment in &declaration.assignments {
             for &dependency in &declaration.dependencies {
                 // Only add edge if dependency is not also an assignment

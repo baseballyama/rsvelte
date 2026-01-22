@@ -165,8 +165,9 @@ impl<'a> ComponentContext<'a> {
         TransformResult::None
     }
 
-    fn visit_each_block(&mut self, _each: &crate::ast::template::EachBlock) -> TransformResult {
-        // TODO: Implement {#each} transformation
+    fn visit_each_block(&mut self, each: &crate::ast::template::EachBlock) -> TransformResult {
+        use crate::compiler::phases::phase3_transform::client::visitors::each_block::each_block as visit_each_block_impl;
+        visit_each_block_impl(each, self);
         TransformResult::None
     }
 

@@ -139,8 +139,8 @@ pub fn is_content_editable_binding(name: &str) -> bool {
 /// Corresponds to `get_basename` in mapped_code.js.
 pub fn get_basename(filename: &str) -> String {
     filename
-        .split(|c| c == '/' || c == '\\')
-        .last()
+        .split(['/', '\\'])
+        .next_back()
         .unwrap_or("")
         .to_string()
 }

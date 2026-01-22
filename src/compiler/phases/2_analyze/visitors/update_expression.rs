@@ -27,23 +27,22 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     }
 
     // Track assignments in reactive statements (legacy mode)
-    if let Some(reactive_stmt_ptr) = context.reactive_statement {
-        if let Some(argument) = node.get("argument") {
-            let reactive_stmt = unsafe { &mut *reactive_stmt_ptr };
+    if let Some(reactive_stmt_ptr) = context.reactive_statement
+        && let Some(argument) = node.get("argument")
+    {
+        let reactive_stmt = unsafe { &mut *reactive_stmt_ptr };
 
-            let id = if argument.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
-                get_object_identifier(argument)
-            } else {
-                Some(argument.clone())
-            };
+        let id = if argument.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
+            get_object_identifier(argument)
+        } else {
+            Some(argument.clone())
+        };
 
-            if let Some(identifier) = id {
-                if let Some(name) = identifier.get("name").and_then(|n| n.as_str()) {
-                    if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name) {
-                        reactive_stmt.assignments.insert(binding_idx);
-                    }
-                }
-            }
+        if let Some(identifier) = id
+            && let Some(name) = identifier.get("name").and_then(|n| n.as_str())
+            && let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name)
+        {
+            reactive_stmt.assignments.insert(binding_idx);
         }
     }
 

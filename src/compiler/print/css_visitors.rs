@@ -56,11 +56,11 @@ fn visit_atrule(context: &mut Context, node: &Value) {
         context.write("@");
         context.write(name);
 
-        if let Some(prelude) = node.get("prelude").and_then(|p| p.as_str()) {
-            if !prelude.is_empty() {
-                context.write(" ");
-                context.write(prelude);
-            }
+        if let Some(prelude) = node.get("prelude").and_then(|p| p.as_str())
+            && !prelude.is_empty()
+        {
+            context.write(" ");
+            context.write(prelude);
         }
 
         if let Some(block) = node.get("block") {
@@ -124,26 +124,26 @@ fn visit_attribute_selector(context: &mut Context, node: &Value) {
 fn visit_block(context: &mut Context, node: &Value) {
     context.write("{");
 
-    if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
-        if !children.is_empty() {
-            context.indent();
-            context.newline();
+    if let Some(children) = node.get("children").and_then(|c| c.as_array())
+        && !children.is_empty()
+    {
+        context.indent();
+        context.newline();
 
-            let mut started = false;
+        let mut started = false;
 
-            for child in children {
-                if started {
-                    context.newline();
-                }
-
-                visit_css_node(context, child);
-
-                started = true;
+        for child in children {
+            if started {
+                context.newline();
             }
 
-            context.dedent();
-            context.newline();
+            visit_css_node(context, child);
+
+            started = true;
         }
+
+        context.dedent();
+        context.newline();
     }
 
     context.write("}");
@@ -189,13 +189,13 @@ fn visit_complex_selector(context: &mut Context, node: &Value) {
 /// * `context` - The context to write to
 /// * `node` - The Declaration node
 fn visit_declaration(context: &mut Context, node: &Value) {
-    if let Some(property) = node.get("property").and_then(|p| p.as_str()) {
-        if let Some(value) = node.get("value").and_then(|v| v.as_str()) {
-            context.write(property);
-            context.write(": ");
-            context.write(value);
-            context.write(";");
-        }
+    if let Some(property) = node.get("property").and_then(|p| p.as_str())
+        && let Some(value) = node.get("value").and_then(|v| v.as_str())
+    {
+        context.write(property);
+        context.write(": ");
+        context.write(value);
+        context.write(";");
     }
 }
 
@@ -268,26 +268,26 @@ fn visit_pseudo_class_selector(context: &mut Context, node: &Value) {
         context.write(":");
         context.write(name);
 
-        if let Some(args) = node.get("args") {
-            if !args.is_null() {
-                context.write("(");
+        if let Some(args) = node.get("args")
+            && !args.is_null()
+        {
+            context.write("(");
 
-                if let Some(children) = args.get("children").and_then(|c| c.as_array()) {
-                    let mut started = false;
+            if let Some(children) = args.get("children").and_then(|c| c.as_array()) {
+                let mut started = false;
 
-                    for arg in children {
-                        if started {
-                            context.write(", ");
-                        }
-
-                        visit_css_node(context, arg);
-
-                        started = true;
+                for arg in children {
+                    if started {
+                        context.write(", ");
                     }
-                }
 
-                context.write(")");
+                    visit_css_node(context, arg);
+
+                    started = true;
+                }
             }
+
+            context.write(")");
         }
     }
 }
@@ -316,17 +316,16 @@ fn visit_pseudo_element_selector(context: &mut Context, node: &Value) {
 /// * `context` - The context to write to
 /// * `node` - The RelativeSelector node
 fn visit_relative_selector(context: &mut Context, node: &Value) {
-    if let Some(combinator) = node.get("combinator") {
-        if !combinator.is_null() {
-            if let Some(name) = combinator.get("name").and_then(|n| n.as_str()) {
-                if name == " " {
-                    context.write(" ");
-                } else {
-                    context.write(" ");
-                    context.write(name);
-                    context.write(" ");
-                }
-            }
+    if let Some(combinator) = node.get("combinator")
+        && !combinator.is_null()
+        && let Some(name) = combinator.get("name").and_then(|n| n.as_str())
+    {
+        if name == " " {
+            context.write(" ");
+        } else {
+            context.write(" ");
+            context.write(name);
+            context.write(" ");
         }
     }
 
@@ -352,19 +351,19 @@ fn visit_relative_selector(context: &mut Context, node: &Value) {
 /// * `context` - The context to write to
 /// * `node` - The Rule node
 fn visit_rule(context: &mut Context, node: &Value) {
-    if let Some(prelude) = node.get("prelude") {
-        if let Some(children) = prelude.get("children").and_then(|c| c.as_array()) {
-            let mut started = false;
+    if let Some(prelude) = node.get("prelude")
+        && let Some(children) = prelude.get("children").and_then(|c| c.as_array())
+    {
+        let mut started = false;
 
-            for selector in children {
-                if started {
-                    context.write(",");
-                    context.newline();
-                }
-
-                visit_css_node(context, selector);
-                started = true;
+        for selector in children {
+            if started {
+                context.write(",");
+                context.newline();
             }
+
+            visit_css_node(context, selector);
+            started = true;
         }
     }
 

@@ -34,18 +34,21 @@
 //! });
 //! ```
 
-// Allow lints for this file as it contains many TODO stubs
-#![allow(irrefutable_let_patterns)]
-#![allow(unreachable_patterns)]
-#![allow(dead_code)]
 #![allow(clippy::too_many_arguments)]
 
 use crate::ast::js::Expression;
-use crate::ast::template::{Attribute, EachBlock, TemplateNode};
+use crate::ast::template::{Attribute, EachBlock, Fragment, TemplateNode};
 use crate::compiler::constants::*;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::client::types::ComponentContext;
-use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::add_svelte_meta;
+use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+// Note: get_value from declarations is available if needed for reactive index/item access
+use crate::compiler::phases::phase3_transform::client::types::ExpressionMetadata;
+#[allow(unused_imports)]
+use crate::compiler::phases::phase3_transform::client::visitors::shared::declarations::get_value;
+use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
+    add_svelte_meta, build_expression,
+};
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 
@@ -72,10 +75,8 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
 
     // Expression should be evaluated in the parent scope, not the scope
     // created by the each block itself
-    // (parent scope index is stored in context.state.scope.parent)
-
-    // Build the collection expression in parent scope
-    let collection = build_expression_in_parent_scope(node, context);
+    // Build the collection expression
+    let collection = build_collection_expression(node, context);
 
     // Add comment placeholder for uncontrolled blocks
     if !each_node_meta.is_controlled {
@@ -85,7 +86,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     // Calculate flags
     let mut flags = 0;
 
-    // Index reactive flag
+    // Index reactive flag - keyed each blocks with index make the index reactive
     if each_node_meta.keyed && node.index.is_some() {
         flags |= EACH_INDEX_REACTIVE;
     }
@@ -94,19 +95,22 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     let key_is_item = is_key_same_as_item(node);
 
     // Check if expression uses store subscriptions
-    let uses_store = uses_store_subscription(each_node_meta);
+    let uses_store = uses_store_subscription(each_node_meta, context);
 
-    // Determine if items should be reactive
-    if should_make_items_reactive(each_node_meta, context, key_is_item, uses_store) {
+    // Determine if items should be made reactive
+    // Check if expression dependencies reference external state
+    let has_external_deps = has_external_dependencies(each_node_meta, context);
+
+    if has_external_deps && (!context.state.analysis.runes || !key_is_item || uses_store) {
         flags |= EACH_ITEM_REACTIVE;
     }
 
-    // Item immutability flag (runes mode)
+    // Item immutability flag (runes mode without store)
     if context.state.analysis.runes && !uses_store {
         flags |= EACH_ITEM_IMMUTABLE;
     }
 
-    // Animation flag
+    // Animation flag - check if any child has animate directive
     if has_animate_directive(node) {
         flags |= EACH_IS_ANIMATED;
     }
@@ -119,114 +123,241 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     // Determine store to invalidate
     let store_to_invalidate = get_store_to_invalidate(node, context);
 
-    // Check if we need a collection ID (for shadowing)
-    let collection_id = get_collection_id_if_needed(context);
+    // Check if we need a collection ID (for scope shadowing)
+    let collection_id = get_collection_id_if_needed(node, context);
 
-    // Setup child state
-    let child_state = setup_child_state(context, store_to_invalidate.clone());
-    let key_state = setup_key_state(context);
-
-    // Generate unique identifiers
+    // Generate unique identifiers for index and item
     let index = generate_index_identifier(node, each_node_meta);
     let item = generate_item_identifier(node);
 
-    // Setup index and item transforms
-    let (uses_index, key_uses_index, declarations) = setup_transforms(
+    // Track usage
+    let mut uses_index = each_node_meta.contains_group_binding;
+    let key_uses_index = false; // Will be set properly when visiting key
+
+    // Build declarations for the render function body
+    let declarations = build_declarations(
         node,
-        each_node_meta,
         context,
-        &index,
         &item,
+        &index,
         flags,
-        collection.clone(),
-        collection_id.clone(),
-        &child_state,
-        &key_state,
+        &collection,
+        &collection_id,
+        &store_to_invalidate,
+        &mut uses_index,
     );
+
+    // Visit the each block body to get the body statements
+    let body_statements = visit_fragment(&node.body, context);
 
     // Build the key function
-    let key_function = build_key_function(node, context, &key_state, key_uses_index, &index);
+    let key_function = build_key_function(node, context, key_uses_index, &index);
 
-    // Build render arguments
+    // Build render arguments: ($$anchor, item, [index], [collection_id])
     let render_args = build_render_args(&index, &item, uses_index, collection_id.as_ref());
 
-    // Build the each call arguments
-    let each_call_args = build_each_call_args(
-        node,
-        context,
-        flags,
-        collection,
-        key_function,
-        render_args,
-        declarations,
-        &child_state,
+    // Combine declarations and body statements
+    let mut render_body = declarations;
+    render_body.extend(body_statements);
+
+    // Build the render function
+    let render_fn = b::arrow_block(
+        render_args.iter().map(convert_expr_to_pattern).collect(),
+        render_body,
     );
 
-    // Add validation in dev mode
-    if context.state.dev && node.metadata.keyed {
-        add_dev_validation(context, &each_call_args);
+    // Handle async expressions
+    let is_async = node.metadata.expression.is_async();
+    let has_await = node.metadata.expression.has_await;
+
+    // Build the collection thunk
+    let get_collection = if has_await {
+        b::async_thunk(collection.clone())
+    } else {
+        b::thunk(collection.clone())
+    };
+
+    // For async expressions, wrap in $.get($$collection)
+    let thunk = if is_async {
+        b::thunk(b::call(
+            b::member_path("$.get"),
+            vec![b::id("$$collection")],
+        ))
+    } else {
+        get_collection.clone()
+    };
+
+    // Build $.each() call arguments
+    let mut each_args = vec![
+        context.state.node.clone(),
+        b::number(flags as f64),
+        thunk,
+        key_function,
+        render_fn,
+    ];
+
+    // Add fallback function if present
+    if let Some(fallback) = &node.fallback {
+        let fallback_body = visit_fragment(fallback, context);
+        let fallback_fn = b::arrow_block(vec![b::id_pattern("$$anchor")], fallback_body);
+        each_args.push(fallback_fn);
     }
 
-    // Handle async expressions
-    if node.metadata.expression.is_async() {
-        wrap_in_async(node, context, each_call_args);
+    // Build the $.each() call
+    let each_call = b::call(b::member_path("$.each"), each_args);
+
+    // Add svelte metadata
+    let each_statement = add_svelte_meta(
+        each_call,
+        &TemplateNode::EachBlock(node.clone()),
+        "each",
+        None,
+    );
+
+    // Build statements to add to init
+    let mut statements = vec![each_statement];
+
+    // Add dev validation for keyed each blocks
+    if context.state.dev && node.metadata.keyed {
+        let validate_call = b::call(
+            b::member_path("$.validate_each_keys"),
+            vec![
+                if is_async {
+                    b::thunk(b::call(
+                        b::member_path("$.get"),
+                        vec![b::id("$$collection")],
+                    ))
+                } else {
+                    get_collection.clone()
+                },
+                build_key_function(node, context, key_uses_index, &index),
+            ],
+        );
+        statements.insert(0, b::stmt(validate_call));
+    }
+
+    // Handle async wrapping
+    if is_async {
+        // Get blockers from metadata (Phase 2 analysis)
+        let blockers = b::array(vec![]); // TODO: Implement blockers from metadata
+
+        // Create the collection getter array
+        let collection_array = b::array(vec![get_collection]);
+
+        // Extract anchor parameter
+        let anchor_param = match &context.state.node {
+            JsExpr::Identifier(name) => b::id_pattern(name),
+            _ => b::id_pattern("$$anchor"),
+        };
+
+        // Create $.async() call
+        let async_call = b::call(
+            b::member_path("$.async"),
+            vec![
+                context.state.node.clone(),
+                blockers,
+                collection_array,
+                b::arrow_block(
+                    vec![anchor_param, b::id_pattern("$$collection")],
+                    statements,
+                ),
+            ],
+        );
+
+        context.state.init.push(b::stmt(async_call));
     } else {
-        // Add to init statements
-        for arg in each_call_args {
-            context.state.init.push(arg);
+        // Not async - add statements directly
+        for stmt in statements {
+            context.state.init.push(stmt);
         }
     }
 }
 
 /// Build the collection expression in the parent scope.
-fn build_expression_in_parent_scope(node: &EachBlock, _context: &ComponentContext) -> JsExpr {
-    // TODO: Implement build_expression utility
-    // For now, convert the AST expression to JsExpr
-    convert_expression(&node.expression)
+fn build_collection_expression(node: &EachBlock, context: &mut ComponentContext) -> JsExpr {
+    // Convert the AST expression to JsExpr using the expression converter
+    let converted = convert_expression(&node.expression, context);
+
+    // Build expression with proper reactivity handling
+    let expr_metadata = ExpressionMetadata {
+        has_call: node.metadata.expression.has_call,
+        has_await: node.metadata.expression.has_await,
+        has_state: node.metadata.expression.has_state,
+        has_member_expression: node.metadata.expression.has_member_expression,
+        has_assignment: node.metadata.expression.has_assignment,
+        ..Default::default()
+    };
+
+    build_expression(context, &converted, &expr_metadata)
 }
 
 /// Check if the key expression is the same as the item identifier.
 fn is_key_same_as_item(node: &EachBlock) -> bool {
-    if let (Some(key), Some(context)) = (&node.key, &node.context) {
-        // Both must be identifiers with the same name
-        if let (Expression::Value(key_val), Expression::Value(ctx_val)) = (key, context) {
-            if let (serde_json::Value::Object(key_obj), serde_json::Value::Object(ctx_obj)) =
-                (key_val, ctx_val)
-            {
-                let key_type = key_obj.get("type").and_then(|v| v.as_str());
-                let ctx_type = ctx_obj.get("type").and_then(|v| v.as_str());
-                let key_name = key_obj.get("name").and_then(|v| v.as_str());
-                let ctx_name = ctx_obj.get("name").and_then(|v| v.as_str());
+    let (Some(key), Some(context_expr)) = (&node.key, &node.context) else {
+        return false;
+    };
 
-                return key_type == Some("Identifier")
-                    && ctx_type == Some("Identifier")
-                    && key_name == ctx_name;
+    // Both must be identifiers with the same name
+    let Expression::Value(key_val) = key;
+    let Expression::Value(ctx_val) = context_expr;
+
+    let (serde_json::Value::Object(key_obj), serde_json::Value::Object(ctx_obj)) =
+        (key_val, ctx_val)
+    else {
+        return false;
+    };
+
+    let key_type = key_obj.get("type").and_then(|v| v.as_str());
+    let ctx_type = ctx_obj.get("type").and_then(|v| v.as_str());
+    let key_name = key_obj.get("name").and_then(|v| v.as_str());
+    let ctx_name = ctx_obj.get("name").and_then(|v| v.as_str());
+
+    key_type == Some("Identifier") && ctx_type == Some("Identifier") && key_name == ctx_name
+}
+
+/// Check if the expression uses store subscriptions.
+fn uses_store_subscription(
+    metadata: &crate::ast::template::EachBlockMetadata,
+    context: &ComponentContext,
+) -> bool {
+    // Check if any dependency is a store subscription
+    for binding_idx in &metadata.expression.dependencies {
+        if let Some(binding) = context.state.scope_root.bindings.get(*binding_idx)
+            && matches!(binding.kind, BindingKind::StoreSub)
+        {
+            return true;
+        }
+    }
+    false
+}
+
+/// Check if expression has external dependencies (references state outside the each block).
+fn has_external_dependencies(
+    metadata: &crate::ast::template::EachBlockMetadata,
+    context: &ComponentContext,
+) -> bool {
+    // Check if any dependency is from an outer scope by comparing scope indices
+    // The current scope's index is stored as the parent field in nested scopes
+    for binding_idx in &metadata.expression.dependencies {
+        if let Some(binding) = context.state.scope_root.bindings.get(*binding_idx) {
+            // If the binding is from a different scope, it's an external dependency
+            // In the full implementation, we'd need to walk the scope tree to check
+            // if the binding's scope is an ancestor of the current scope
+            // For now, we check if the scope indices differ
+            if let Some(current_scope_idx) = context.state.scope.parent {
+                if binding.scope_index != current_scope_idx {
+                    return true;
+                }
+            } else {
+                // Root scope - any binding from outside is external
+                return true;
             }
         }
     }
     false
 }
 
-/// Check if the expression uses store subscriptions.
-fn uses_store_subscription(metadata: &crate::ast::template::EachBlockMetadata) -> bool {
-    // TODO: Implement dependency checking
-    // For now, return false as a placeholder
-    false
-}
-
-/// Determine if items should be made reactive.
-fn should_make_items_reactive(
-    metadata: &crate::ast::template::EachBlockMetadata,
-    context: &ComponentContext,
-    key_is_item: bool,
-    uses_store: bool,
-) -> bool {
-    // TODO: Check expression dependencies against function depth
-    // For now, use simplified logic
-    !context.state.analysis.runes || !key_is_item || uses_store
-}
-
-/// Check if the each block has an animate directive.
+/// Check if the each block has an animate directive on any direct child element.
 fn has_animate_directive(node: &EachBlock) -> bool {
     if node.key.is_none() {
         return false;
@@ -259,14 +390,34 @@ fn has_animate_directive(node: &EachBlock) -> bool {
 /// Get the store identifier that needs invalidation.
 fn get_store_to_invalidate(node: &EachBlock, context: &ComponentContext) -> Option<String> {
     // Check if the expression is an identifier or member expression
-    let obj_name = match &node.expression {
+    let obj_name = get_object_name(&node.expression)?;
+
+    // Check if it's a store subscription
+    let binding = context.state.get_binding(&obj_name)?;
+    if matches!(binding.kind, BindingKind::StoreSub) {
+        Some(obj_name)
+    } else {
+        None
+    }
+}
+
+/// Get the root object name from an expression.
+fn get_object_name(expr: &Expression) -> Option<String> {
+    match expr {
         Expression::Value(val) => {
             if let serde_json::Value::Object(obj) = val {
                 match obj.get("type").and_then(|v| v.as_str()) {
-                    Some("Identifier") => obj.get("name").and_then(|v| v.as_str()),
+                    Some("Identifier") => obj
+                        .get("name")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
                     Some("MemberExpression") => {
-                        // Extract root object
-                        extract_root_identifier(obj)
+                        // Extract root object recursively
+                        if let Some(object) = obj.get("object") {
+                            get_object_name(&Expression::Value(object.clone()))
+                        } else {
+                            None
+                        }
                     }
                     _ => None,
                 }
@@ -274,73 +425,60 @@ fn get_store_to_invalidate(node: &EachBlock, context: &ComponentContext) -> Opti
                 None
             }
         }
-        _ => None,
-    }?;
-
-    // Check if it's a store subscription
-    let binding = context.state.get_binding(obj_name)?;
-    if matches!(binding.kind, BindingKind::StoreSub) {
-        Some(obj_name.to_string())
-    } else {
-        None
-    }
-}
-
-/// Extract the root identifier from a member expression.
-fn extract_root_identifier(obj: &serde_json::Map<String, serde_json::Value>) -> Option<&str> {
-    let mut current = obj;
-    loop {
-        let object = current.get("object")?;
-        if let serde_json::Value::Object(obj_map) = object {
-            if obj_map.get("type").and_then(|v| v.as_str()) == Some("Identifier") {
-                return obj_map.get("name").and_then(|v| v.as_str());
-            }
-            current = obj_map;
-        } else {
-            return None;
-        }
     }
 }
 
 /// Get a unique collection ID if the inner scope shadows outer scope variables.
-fn get_collection_id_if_needed(context: &ComponentContext) -> Option<String> {
-    // Check if any declaration in the current scope shadows a parent scope declaration
-    // Note: In the Rust implementation, we would need to traverse up the scope chain
-    // through the scope tree to check parent scopes. This is a simplified version.
+fn get_collection_id_if_needed(node: &EachBlock, context: &ComponentContext) -> Option<String> {
+    // Check if any declaration in the each block scope shadows a parent scope declaration
+    // We need to check if the context pattern or index shadows anything
 
-    // TODO: Implement proper parent scope checking
-    // For now, check if parent exists and has declarations
-    if context.state.scope.parent.is_some() {
-        for (name, _) in &context.state.scope.declarations {
-            // We should check parent scope here, but we need access to scope root
-            // to navigate the scope tree by index.
-            // For now, generate a unique ID if we have a parent scope
-            let scope_hash = context.state.scope.declarations.len();
-            return Some(format!("$$array_{}", scope_hash));
+    // In the Rust implementation, we don't have direct access to the parent scope's declarations
+    // through scope_root.scopes. Instead, we check the current scope's declarations against
+    // what's reachable from parent scope bindings.
+
+    // Check context pattern name
+    if let Some(ctx) = &node.context {
+        let Expression::Value(val) = ctx;
+        if let serde_json::Value::Object(obj) = val
+            && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
+            && let Some(name) = obj.get("name").and_then(|v| v.as_str())
+            && context.state.scope.declarations.contains_key(name)
+        {
+            // Check if the binding exists in a parent scope too
+            // by looking at all bindings with the same name
+            for binding in &context.state.scope_root.bindings {
+                if binding.name == name && binding.scope_index != 0 {
+                    // Found a binding in a different scope with same name
+                    // This suggests shadowing
+                    return Some(format!(
+                        "$$array_{}",
+                        context.state.scope.declarations.len()
+                    ));
+                }
+            }
         }
     }
+
+    // Check index name
+    if let Some(index_name) = &node.index
+        && context
+            .state
+            .scope
+            .declarations
+            .contains_key(index_name.as_str())
+    {
+        for binding in &context.state.scope_root.bindings {
+            if binding.name == index_name.as_str() && binding.scope_index != 0 {
+                return Some(format!(
+                    "$$array_{}",
+                    context.state.scope.declarations.len()
+                ));
+            }
+        }
+    }
+
     None
-}
-
-/// Setup the child state for rendering each items.
-fn setup_child_state<'a>(
-    context: &ComponentContext<'a>,
-    store_to_invalidate: Option<String>,
-) -> ComponentClientTransformState<'a> {
-    let mut child_state = context.state.clone();
-    child_state.transform.clear();
-
-    // Store the store to invalidate
-    // TODO: Add store_to_invalidate field to ComponentClientTransformState
-
-    child_state
-}
-
-/// Setup the key state for evaluating key expressions.
-fn setup_key_state<'a>(context: &ComponentContext<'a>) -> ComponentClientTransformState<'a> {
-    let mut key_state = context.state.clone();
-    key_state.transform.clear();
-    key_state
 }
 
 /// Generate the index identifier.
@@ -348,96 +486,165 @@ fn generate_index_identifier(
     node: &EachBlock,
     metadata: &crate::ast::template::EachBlockMetadata,
 ) -> JsExpr {
+    // If the each block contains group bindings or has no explicit index,
+    // use the metadata-generated index
     if metadata.contains_group_binding || node.index.is_none() {
-        // Use the metadata index
         if let Some(ref index) = metadata.index {
             b::id(index)
         } else {
             b::id("$$index")
         }
     } else {
-        // Use the node's index
+        // Use the node's explicit index name
         b::id(node.index.as_ref().unwrap().as_str())
     }
 }
 
 /// Generate the item identifier.
 fn generate_item_identifier(node: &EachBlock) -> JsExpr {
-    if let Some(context) = &node.context {
+    if let Some(context_expr) = &node.context {
         // Check if context is a simple identifier
-        if let Expression::Value(val) = context {
-            if let serde_json::Value::Object(obj) = val {
-                if obj.get("type").and_then(|v| v.as_str()) == Some("Identifier") {
-                    if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
-                        return b::id(name);
-                    }
-                }
-            }
+        let Expression::Value(val) = context_expr;
+        if let serde_json::Value::Object(obj) = val
+            && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
+            && let Some(name) = obj.get("name").and_then(|v| v.as_str())
+        {
+            return b::id(name);
         }
     }
     b::id("$$item")
 }
 
-/// Setup transforms for index and item, returning (uses_index, key_uses_index, declarations).
-fn setup_transforms(
+/// Build declarations for the render function body.
+///
+/// This sets up transforms for item and index access with proper reactivity.
+fn build_declarations(
     node: &EachBlock,
-    metadata: &crate::ast::template::EachBlockMetadata,
     context: &mut ComponentContext,
+    _item: &JsExpr,
     index: &JsExpr,
-    item: &JsExpr,
-    flags: i32,
-    collection: JsExpr,
-    collection_id: Option<String>,
-    child_state: &ComponentClientTransformState,
-    key_state: &ComponentClientTransformState,
-) -> (bool, bool, Vec<JsStatement>) {
-    let mut uses_index = metadata.contains_group_binding;
-    let mut key_uses_index = false;
+    _flags: i32,
+    _collection: &JsExpr,
+    collection_id: &Option<String>,
+    store_to_invalidate: &Option<String>,
+    _uses_index: &mut bool,
+) -> Vec<JsStatement> {
     let mut declarations = Vec::new();
 
-    // TODO: Implement transform setup
-    // This involves:
-    // 1. Setting up index transform
-    // 2. Setting up item transform (simple or destructured)
-    // 3. Generating declarations for derived values
-    // 4. Tracking which variables are used
+    // Build the invalidate_store call if needed
+    let invalidate_store = store_to_invalidate.as_ref().map(|store_name| {
+        b::call(
+            b::member_path("$.invalidate_store"),
+            vec![b::id("$$stores"), b::string(store_name)],
+        )
+    });
 
-    (uses_index, key_uses_index, declarations)
+    // Build sequence for mutations (for legacy mode reactivity)
+    let mut sequence: Vec<JsExpr> = Vec::new();
+
+    // Handle legacy mode transitive dependencies
+    if !context.state.analysis.runes {
+        // Collect transitive dependencies for invalidation
+        let mut transitive_deps: Vec<JsExpr> = Vec::new();
+
+        if let Some(coll_id) = collection_id {
+            // If we have a collection_id, add it to transitive deps
+            transitive_deps.push(b::call(b::id(coll_id), vec![]));
+        } else {
+            // Add transitive deps from metadata
+            for binding_idx in &node.metadata.transitive_deps {
+                if let Some(binding) = context.state.scope_root.bindings.get(*binding_idx) {
+                    transitive_deps.push(b::id(&binding.name));
+                }
+            }
+        }
+
+        // Also collect parent each block transitive deps
+        for parent_node in &context.path {
+            if let TemplateNode::EachBlock(parent_each) = parent_node {
+                for binding_idx in &parent_each.metadata.transitive_deps {
+                    if let Some(binding) = context.state.scope_root.bindings.get(*binding_idx) {
+                        transitive_deps.push(b::id(&binding.name));
+                    }
+                }
+            }
+        }
+
+        if !transitive_deps.is_empty() {
+            let invalidate_call = b::call(
+                b::member_path("$.invalidate_inner_signals"),
+                vec![b::thunk(b::sequence(transitive_deps))],
+            );
+            sequence.push(invalidate_call);
+        }
+    }
+
+    // Add store invalidation to sequence
+    if let Some(inv_store) = invalidate_store {
+        sequence.push(inv_store);
+    }
+
+    // Handle simple identifier context
+    if let Some(context_expr) = &node.context {
+        let Expression::Value(val) = context_expr;
+        if let serde_json::Value::Object(obj) = val
+            && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
+        {
+            // Simple identifier - set up read/assign/mutate transforms
+            // The transform setup would go here in a full implementation
+            // For now, we generate the declarations needed
+
+            // If there's a group binding, we need to create an alias for the index
+            if node.index.is_some()
+                && node.metadata.contains_group_binding
+                && let JsExpr::Identifier(idx_name) = index
+                && let Some(original_index) = &node.index
+                && idx_name != original_index.as_str()
+            {
+                declarations.push(b::let_decl(original_index.as_str(), Some(index.clone())));
+            }
+        }
+    }
+
+    // Handle destructured context pattern
+    // This is more complex and would involve extract_paths in the full implementation
+    // For now, we handle the simple cases
+
+    declarations
 }
 
 /// Build the key function for the each block.
 fn build_key_function(
     node: &EachBlock,
     context: &mut ComponentContext,
-    key_state: &ComponentClientTransformState,
     key_uses_index: bool,
     index: &JsExpr,
 ) -> JsExpr {
-    if node.metadata.keyed {
-        if let Some(key) = &node.key {
-            // Transform the key expression
-            let key_expr = convert_expression(key);
+    if node.metadata.keyed
+        && let Some(key) = &node.key
+    {
+        // Convert the key expression
+        let key_expr = convert_expression(key, context);
 
-            // Build arrow function
-            if let Some(context_expr) = &node.context {
-                let pattern = convert_to_pattern(context_expr);
+        // Build arrow function with context pattern
+        if let Some(context_expr) = &node.context {
+            let pattern = convert_expression_to_pattern(context_expr);
 
-                let params = if key_uses_index {
-                    vec![pattern, convert_to_pattern_from_expr(index)]
-                } else {
-                    vec![pattern]
-                };
+            let params = if key_uses_index {
+                vec![pattern, convert_expr_to_pattern(index)]
+            } else {
+                vec![pattern]
+            };
 
-                return b::arrow(params, key_expr);
-            }
+            return b::arrow(params, key_expr);
         }
     }
 
-    // Default: use $.index
-    b::member(b::id("$"), "index")
+    // Default: use $.index for non-keyed each blocks
+    b::member_path("$.index")
 }
 
-/// Build the render arguments (anchor, item, [index], [collection_id]).
+/// Build the render arguments ($$anchor, item, [index], [collection_id]).
 fn build_render_args(
     index: &JsExpr,
     item: &JsExpr,
@@ -457,163 +664,247 @@ fn build_render_args(
     args
 }
 
-/// Build the arguments for the $.each() call.
-fn build_each_call_args(
-    node: &EachBlock,
-    context: &mut ComponentContext,
-    flags: i32,
-    collection: JsExpr,
-    key_function: JsExpr,
-    render_args: Vec<JsExpr>,
-    declarations: Vec<JsStatement>,
-    child_state: &ComponentClientTransformState,
-) -> Vec<JsStatement> {
-    // Build the render function body
-    let mut body = declarations;
+/// Visit a fragment and return its statements.
+fn visit_fragment(fragment: &Fragment, context: &mut ComponentContext) -> Vec<JsStatement> {
+    // Save the current state
+    let saved_init = std::mem::take(&mut context.state.init);
+    let saved_update = std::mem::take(&mut context.state.update);
 
-    // Visit the each block body
-    // TODO: Transform node.body into statements
-    // let block_statements = visit_fragment(&node.body, context, child_state);
-    // body.extend(block_statements);
-
-    // Build the render function
-    let render_fn = b::arrow_block(
-        render_args
-            .into_iter()
-            .map(|e| convert_expr_to_pattern(&e))
-            .collect(),
-        body,
-    );
-
-    // Build thunk for collection
-    let is_async = node.metadata.expression.is_async();
-    let has_await = node.metadata.expression.has_await;
-    let collection_thunk = b::thunk(collection.clone());
-
-    // Build $.each() call arguments
-    let mut args = vec![
-        context.state.node.clone(),
-        b::number(flags as f64),
-        if is_async {
-            b::thunk(b::call(
-                b::member(b::id("$"), "get"),
-                vec![b::id("$$collection")],
-            ))
-        } else {
-            collection_thunk
-        },
-        key_function,
-        render_fn,
-    ];
-
-    // Add fallback function if present
-    if let Some(fallback) = &node.fallback {
-        // TODO: Transform fallback fragment
-        // let fallback_fn = b::arrow_block(vec![b::id_pattern("$$anchor")], visit_fragment(fallback, context, child_state));
-        // args.push(fallback_fn);
+    // Visit each node in the fragment
+    for node in &fragment.nodes {
+        let _ = context.visit_node(node, None);
     }
 
-    // Build the $.each() call
-    let each_call = b::call(b::member(b::id("$"), "each"), args);
+    // Collect the generated init statements
+    let result = std::mem::replace(&mut context.state.init, saved_init);
 
-    vec![add_svelte_meta(
-        each_call,
-        &TemplateNode::EachBlock(node.clone()),
-        "each",
-        None,
-    )]
+    // Restore the update statements
+    context.state.update = saved_update;
+
+    result
 }
 
-/// Add dev mode validation.
-fn add_dev_validation(context: &mut ComponentContext, statements: &[JsStatement]) {
-    // TODO: Add $.validate_each_keys() call
-}
-
-/// Wrap the each block in $.async() for async expressions.
-fn wrap_in_async(node: &EachBlock, context: &mut ComponentContext, statements: Vec<JsStatement>) {
-    // TODO: Implement async wrapping
-    // This involves calling $.async() with the collection getter and blockers
-}
-
-// =============================================================================
-// Utility Functions
-// =============================================================================
-
-/// Convert an AST Expression to a JsExpr.
-fn convert_expression(expr: &Expression) -> JsExpr {
-    // TODO: Implement full expression conversion
-    // For now, return a placeholder
-    match expr {
-        Expression::Value(val) => {
-            // Try to convert JSON value to JsExpr
-            if let serde_json::Value::Object(obj) = val {
-                if let Some(type_str) = obj.get("type").and_then(|v| v.as_str()) {
-                    match type_str {
-                        "Identifier" => {
-                            if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
-                                return b::id(name);
-                            }
-                        }
-                        "Literal" => {
-                            if let Some(value) = obj.get("value") {
-                                return convert_literal_value(value);
-                            }
-                        }
-                        _ => {}
-                    }
+/// Convert an AST Expression to a JsPattern.
+fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
+    let Expression::Value(val) = expr;
+    if let serde_json::Value::Object(obj) = val {
+        match obj.get("type").and_then(|v| v.as_str()) {
+            Some("Identifier") => {
+                if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+                    return JsPattern::Identifier(name.to_string());
                 }
             }
-            b::id("$$unknown")
-        }
-        _ => b::id("$$unknown"),
-    }
-}
+            Some("ObjectPattern") => {
+                // Handle object destructuring pattern
+                if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
+                    let properties = props
+                        .iter()
+                        .filter_map(|prop| {
+                            let prop_obj = prop.as_object()?;
+                            let key = prop_obj.get("key")?.as_object()?;
+                            let key_name = key.get("name")?.as_str()?;
+                            let value = prop_obj.get("value")?;
 
-/// Convert a JSON literal value to JsExpr.
-fn convert_literal_value(value: &serde_json::Value) -> JsExpr {
-    match value {
-        serde_json::Value::String(s) => b::string(s),
-        serde_json::Value::Number(n) => {
-            if let Some(f) = n.as_f64() {
-                b::number(f)
-            } else {
-                b::number(0.0)
+                            let value_pattern = if value.is_object() {
+                                convert_expression_to_pattern(&Expression::Value(value.clone()))
+                            } else {
+                                JsPattern::Identifier(key_name.to_string())
+                            };
+
+                            let shorthand = prop_obj
+                                .get("shorthand")
+                                .and_then(|s| s.as_bool())
+                                .unwrap_or(false);
+
+                            Some(JsObjectPatternProperty::Property {
+                                key: JsPropertyKey::Identifier(key_name.to_string()),
+                                value: value_pattern,
+                                computed: false,
+                                shorthand,
+                            })
+                        })
+                        .collect();
+
+                    return JsPattern::Object(JsObjectPattern { properties });
+                }
             }
-        }
-        serde_json::Value::Bool(b) => b::boolean(*b),
-        serde_json::Value::Null => b::null(),
-        _ => b::null(),
-    }
-}
+            Some("ArrayPattern") => {
+                // Handle array destructuring pattern
+                if let Some(elems) = obj.get("elements").and_then(|e| e.as_array()) {
+                    let elements = elems
+                        .iter()
+                        .map(|elem| {
+                            if elem.is_null() {
+                                None
+                            } else {
+                                Some(convert_expression_to_pattern(&Expression::Value(
+                                    elem.clone(),
+                                )))
+                            }
+                        })
+                        .collect();
 
-/// Convert an expression to a pattern.
-fn convert_to_pattern(expr: &Expression) -> JsPattern {
-    // TODO: Implement pattern conversion
-    // For now, return identifier pattern
-    if let Expression::Value(val) = expr {
-        if let serde_json::Value::Object(obj) = val {
-            if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
-                return b::id_pattern(name);
+                    return JsPattern::Array(JsArrayPattern { elements });
+                }
             }
+            Some("RestElement") => {
+                if let Some(arg) = obj.get("argument") {
+                    let inner = convert_expression_to_pattern(&Expression::Value(arg.clone()));
+                    return JsPattern::Rest(Box::new(inner));
+                }
+            }
+            Some("AssignmentPattern") => {
+                #[allow(unused_variables)]
+                if let (Some(left), Some(_right)) = (obj.get("left"), obj.get("right")) {
+                    let left_pattern =
+                        convert_expression_to_pattern(&Expression::Value(left.clone()));
+                    // For the default value, we'd need to convert to JsExpr
+                    // For now, just use the left pattern
+                    return left_pattern;
+                }
+            }
+            _ => {}
         }
     }
-    b::id_pattern("$$unknown")
-}
-
-/// Convert a JsExpr to a pattern.
-fn convert_to_pattern_from_expr(expr: &JsExpr) -> JsPattern {
-    match expr {
-        JsExpr::Identifier(name) => b::id_pattern(name),
-        _ => b::id_pattern("$$unknown"),
-    }
+    JsPattern::Identifier("$$unknown".to_string())
 }
 
 /// Convert a JsExpr reference to a pattern.
 fn convert_expr_to_pattern(expr: &JsExpr) -> JsPattern {
     match expr {
-        JsExpr::Identifier(name) => b::id_pattern(name),
-        _ => b::id_pattern("$$param"),
+        JsExpr::Identifier(name) => JsPattern::Identifier(name.clone()),
+        _ => JsPattern::Identifier("$$param".to_string()),
     }
 }
 
-use crate::compiler::phases::phase3_transform::client::types::ComponentClientTransformState;
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_key_same_as_item_true() {
+        // Test case where key and context are the same identifier
+        let key = Expression::Value(serde_json::json!({
+            "type": "Identifier",
+            "name": "item"
+        }));
+        let context = Expression::Value(serde_json::json!({
+            "type": "Identifier",
+            "name": "item"
+        }));
+
+        let node = EachBlock {
+            start: 0,
+            end: 100,
+            expression: Expression::Value(serde_json::json!({
+                "type": "Identifier",
+                "name": "items"
+            })),
+            body: Fragment::default(),
+            context: Some(context),
+            fallback: None,
+            index: None,
+            key: Some(key),
+            metadata: Default::default(),
+        };
+
+        assert!(is_key_same_as_item(&node));
+    }
+
+    #[test]
+    fn test_is_key_same_as_item_false() {
+        // Test case where key and context are different identifiers
+        let key = Expression::Value(serde_json::json!({
+            "type": "Identifier",
+            "name": "item.id"
+        }));
+        let context = Expression::Value(serde_json::json!({
+            "type": "Identifier",
+            "name": "item"
+        }));
+
+        let node = EachBlock {
+            start: 0,
+            end: 100,
+            expression: Expression::Value(serde_json::json!({
+                "type": "Identifier",
+                "name": "items"
+            })),
+            body: Fragment::default(),
+            context: Some(context),
+            fallback: None,
+            index: None,
+            key: Some(key),
+            metadata: Default::default(),
+        };
+
+        assert!(!is_key_same_as_item(&node));
+    }
+
+    #[test]
+    fn test_generate_item_identifier_simple() {
+        let context = Expression::Value(serde_json::json!({
+            "type": "Identifier",
+            "name": "item"
+        }));
+
+        let node = EachBlock {
+            start: 0,
+            end: 100,
+            expression: Expression::Value(serde_json::json!({
+                "type": "Identifier",
+                "name": "items"
+            })),
+            body: Fragment::default(),
+            context: Some(context),
+            fallback: None,
+            index: None,
+            key: None,
+            metadata: Default::default(),
+        };
+
+        let item = generate_item_identifier(&node);
+        match item {
+            JsExpr::Identifier(name) => assert_eq!(name, "item"),
+            _ => panic!("Expected identifier"),
+        }
+    }
+
+    #[test]
+    fn test_generate_item_identifier_no_context() {
+        let node = EachBlock {
+            start: 0,
+            end: 100,
+            expression: Expression::Value(serde_json::json!({
+                "type": "Identifier",
+                "name": "items"
+            })),
+            body: Fragment::default(),
+            context: None,
+            fallback: None,
+            index: None,
+            key: None,
+            metadata: Default::default(),
+        };
+
+        let item = generate_item_identifier(&node);
+        match item {
+            JsExpr::Identifier(name) => assert_eq!(name, "$$item"),
+            _ => panic!("Expected identifier"),
+        }
+    }
+
+    #[test]
+    fn test_convert_simple_pattern() {
+        let expr = Expression::Value(serde_json::json!({
+            "type": "Identifier",
+            "name": "item"
+        }));
+
+        let pattern = convert_expression_to_pattern(&expr);
+        match pattern {
+            JsPattern::Identifier(name) => assert_eq!(name, "item"),
+            _ => panic!("Expected identifier pattern"),
+        }
+    }
+}

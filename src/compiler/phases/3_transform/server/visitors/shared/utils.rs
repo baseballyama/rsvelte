@@ -267,10 +267,10 @@ pub fn build_template(template: &[TemplateItem]) -> Vec<JsStatement> {
                     }
                     JsExpr::TemplateLiteral(tpl) => {
                         // Merge template literal into current strings/expressions
-                        if let Some(last) = strings.last_mut() {
-                            if let Some(first_quasi) = tpl.quasis.first() {
-                                last.push_str(&first_quasi.cooked);
-                            }
+                        if let Some(last) = strings.last_mut()
+                            && let Some(first_quasi) = tpl.quasis.first()
+                        {
+                            last.push_str(&first_quasi.cooked);
                         }
                         for quasi in tpl.quasis.iter().skip(1) {
                             strings.push(quasi.cooked.clone());

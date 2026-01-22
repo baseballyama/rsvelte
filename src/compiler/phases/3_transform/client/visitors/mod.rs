@@ -66,7 +66,7 @@ pub mod text;
 // pub mod expression_tag;
 pub mod regular_element;
 // pub mod component;
-// pub mod each_block;
+pub mod each_block;
 pub mod if_block;
 // pub mod await_block;
 // pub mod key_block;

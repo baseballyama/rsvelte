@@ -79,9 +79,9 @@ pub fn calculate_blockers(
 /// Corresponds to the `touch` inner function in `calculate_blockers`.
 fn touch_bindings(
     expression: &JsonValue,
-    scope: &Scope,
+    _scope: &Scope,
     touched: &mut HashSet<String>,
-    root_scope: &Scope,
+    _root_scope: &Scope,
     seen: &mut HashSet<String>,
 ) {
     // Recursively walk the expression and find all identifier references
@@ -104,25 +104,24 @@ fn touch_bindings(
             }
             "MemberExpression" => {
                 if let Some(object) = expression.get("object") {
-                    touch_bindings(object, scope, touched, root_scope, seen);
+                    touch_bindings(object, _scope, touched, _root_scope, seen);
                 }
-                if let Some(property) = expression.get("property") {
-                    if expression
+                if let Some(property) = expression.get("property")
+                    && expression
                         .get("computed")
                         .and_then(|c| c.as_bool())
                         .unwrap_or(false)
-                    {
-                        touch_bindings(property, scope, touched, root_scope, seen);
-                    }
+                {
+                    touch_bindings(property, _scope, touched, _root_scope, seen);
                 }
             }
             "CallExpression" => {
                 if let Some(callee) = expression.get("callee") {
-                    touch_bindings(callee, scope, touched, root_scope, seen);
+                    touch_bindings(callee, _scope, touched, _root_scope, seen);
                 }
                 if let Some(arguments) = expression.get("arguments").and_then(|a| a.as_array()) {
                     for arg in arguments {
-                        touch_bindings(arg, scope, touched, root_scope, seen);
+                        touch_bindings(arg, _scope, touched, _root_scope, seen);
                     }
                 }
             }
@@ -132,10 +131,10 @@ fn touch_bindings(
                 if let Some(obj) = expression.as_object() {
                     for (_, value) in obj {
                         if value.is_object() {
-                            touch_bindings(value, scope, touched, root_scope, seen);
+                            touch_bindings(value, _scope, touched, _root_scope, seen);
                         } else if let Some(arr) = value.as_array() {
                             for item in arr {
-                                touch_bindings(item, scope, touched, root_scope, seen);
+                                touch_bindings(item, _scope, touched, _root_scope, seen);
                             }
                         }
                     }
@@ -152,7 +151,7 @@ fn trace_bindings(
     reads: &mut HashSet<String>,
     writes: &mut HashSet<String>,
     instance_scope: &Scope,
-    scopes: &HashMap<usize, Scope>,
+    _scopes: &HashMap<usize, Scope>,
     seen: &mut HashSet<String>,
 ) {
     let node_id = format!("{:?}", node); // Simple deduplication
@@ -210,7 +209,7 @@ fn trace_bindings(
                 if let Some(obj) = node.as_object() {
                     for (_, value) in obj {
                         if value.is_object() {
-                            trace_bindings(value, reads, writes, instance_scope, scopes, seen);
+                            trace_bindings(value, reads, writes, instance_scope, _scopes, seen);
                         } else if let Some(arr) = value.as_array() {
                             for item in arr {
                                 if item.is_object() {
@@ -219,7 +218,7 @@ fn trace_bindings(
                                         reads,
                                         writes,
                                         instance_scope,
-                                        scopes,
+                                        _scopes,
                                         seen,
                                     );
                                 }

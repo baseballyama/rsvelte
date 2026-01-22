@@ -417,10 +417,7 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
     let analysis = phases::phase2_analyze::analyze_component(&mut ast, source, &options)?;
 
     // Determine if runes mode was used
-    let runes_mode = options.runes.unwrap_or_else(|| {
-        // Auto-detect runes mode from analysis
-        analysis.runes
-    });
+    let runes_mode = options.runes.unwrap_or(analysis.runes);
 
     // Phase 3: Transform (pass AST to avoid re-parsing)
     let transform_result =

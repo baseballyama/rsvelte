@@ -406,14 +406,14 @@ fn visit_json_attribute(context: &mut Context, attr: &serde_json::Value) {
         context.write(name);
 
         // Check if it has a value
-        if let Some(value) = attr.get("value") {
-            if !value.is_null() && value.as_bool() != Some(true) {
-                if let Some(val_str) = value.as_str() {
-                    context.write("=\"");
-                    context.write(val_str);
-                    context.write("\"");
-                }
-            }
+        if let Some(value) = attr.get("value")
+            && !value.is_null()
+            && value.as_bool() != Some(true)
+            && let Some(val_str) = value.as_str()
+        {
+            context.write("=\"");
+            context.write(val_str);
+            context.write("\"");
         }
     }
 }

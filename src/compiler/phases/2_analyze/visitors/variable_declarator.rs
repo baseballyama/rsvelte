@@ -73,11 +73,11 @@ fn visit_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<(), An
 
     // Validate identifier names
     for path in &paths {
-        if let Some(name) = path.get("name").and_then(|n| n.as_str()) {
-            if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name) {
-                let binding = &context.analysis.root.bindings[binding_idx];
-                utils::validate_identifier_name(binding, Some(context.function_depth))?;
-            }
+        if let Some(name) = path.get("name").and_then(|n| n.as_str())
+            && let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name)
+        {
+            let binding = &context.analysis.root.bindings[binding_idx];
+            utils::validate_identifier_name(binding, Some(context.function_depth))?;
         }
     }
 
@@ -107,72 +107,68 @@ fn update_binding_kinds(
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     for path in paths {
-        if let Some(name) = path.get("name").and_then(|n| n.as_str()) {
-            if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name) {
-                let binding = &mut context.analysis.root.bindings[binding_idx];
+        if let Some(name) = path.get("name").and_then(|n| n.as_str())
+            && let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name)
+        {
+            let binding = &mut context.analysis.root.bindings[binding_idx];
 
-                // Determine the binding kind based on rune and whether it's a rest element
-                let is_rest = path
-                    .get("is_rest")
-                    .and_then(|r| r.as_bool())
-                    .unwrap_or(false);
+            // Determine the binding kind based on rune and whether it's a rest element
+            let is_rest = path
+                .get("is_rest")
+                .and_then(|r| r.as_bool())
+                .unwrap_or(false);
 
-                binding.kind = match rune {
-                    "$state" => BindingKind::State,
-                    "$state.raw" => BindingKind::RawState,
-                    "$derived" | "$derived.by" => BindingKind::Derived,
-                    "$props" => {
-                        if is_rest {
-                            BindingKind::RestProp
-                        } else {
-                            BindingKind::Prop
-                        }
-                    }
-                    _ => binding.kind,
-                };
-
-                // For rest props in ObjectPattern, track excluded properties
-                if rune == "$props" && is_rest {
-                    if let Some(id) = node.get("id")
-                        && id.get("type").and_then(|t| t.as_str()) == Some("ObjectPattern")
-                        && let Some(properties) = id.get("properties").and_then(|p| p.as_array())
-                    {
-                        let mut exclude_props = Vec::new();
-
-                        for property in properties {
-                            if property.get("type").and_then(|t| t.as_str()) == Some("RestElement")
-                            {
-                                continue;
-                            }
-
-                            if let Some(key) = property.get("key") {
-                                let key_name = match key.get("type").and_then(|t| t.as_str()) {
-                                    Some("Identifier") => {
-                                        key.get("name").and_then(|n| n.as_str()).map(String::from)
-                                    }
-                                    Some("Literal") => key.get("value").and_then(|v| {
-                                        if let Some(s) = v.as_str() {
-                                            Some(s.to_string())
-                                        } else if let Some(n) = v.as_i64() {
-                                            Some(n.to_string())
-                                        } else {
-                                            None
-                                        }
-                                    }),
-                                    _ => None,
-                                };
-
-                                if let Some(name) = key_name {
-                                    exclude_props.push(name);
-                                }
-                            }
-                        }
-
-                        // Store exclude_props in binding metadata
-                        // TODO: Add metadata field to Binding struct
-                        // binding.metadata = Some(BindingMetadata { exclude_props });
+            binding.kind = match rune {
+                "$state" => BindingKind::State,
+                "$state.raw" => BindingKind::RawState,
+                "$derived" | "$derived.by" => BindingKind::Derived,
+                "$props" => {
+                    if is_rest {
+                        BindingKind::RestProp
+                    } else {
+                        BindingKind::Prop
                     }
                 }
+                _ => binding.kind,
+            };
+
+            // For rest props in ObjectPattern, track excluded properties
+            if rune == "$props"
+                && is_rest
+                && let Some(id) = node.get("id")
+                && id.get("type").and_then(|t| t.as_str()) == Some("ObjectPattern")
+                && let Some(properties) = id.get("properties").and_then(|p| p.as_array())
+            {
+                let mut exclude_props = Vec::new();
+
+                for property in properties {
+                    if property.get("type").and_then(|t| t.as_str()) == Some("RestElement") {
+                        continue;
+                    }
+
+                    if let Some(key) = property.get("key") {
+                        let key_name = match key.get("type").and_then(|t| t.as_str()) {
+                            Some("Identifier") => {
+                                key.get("name").and_then(|n| n.as_str()).map(String::from)
+                            }
+                            Some("Literal") => key.get("value").and_then(|v| {
+                                v.as_str()
+                                    .map(|s| s.to_string())
+                                    .or_else(|| v.as_i64().map(|n| n.to_string()))
+                            }),
+                            _ => None,
+                        };
+
+                        if let Some(name) = key_name {
+                            exclude_props.push(name);
+                        }
+                    }
+                }
+
+                // Store exclude_props in binding metadata
+                // TODO: Add metadata field to Binding struct
+                // binding.metadata = Some(BindingMetadata { exclude_props });
+                let _ = exclude_props; // suppress unused warning for now
             }
         }
     }
@@ -291,7 +287,7 @@ fn process_props_object_pattern(
                         Some(v)
                     }
                 })
-                .ok_or_else(|| errors::props_invalid_pattern())?;
+                .ok_or_else(errors::props_invalid_pattern)?;
 
             // Value must be an Identifier
             if value.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
@@ -301,7 +297,7 @@ fn process_props_object_pattern(
             let value_name = value
                 .get("name")
                 .and_then(|n| n.as_str())
-                .ok_or_else(|| errors::props_invalid_pattern())?;
+                .ok_or_else(errors::props_invalid_pattern)?;
 
             // Get the alias (property key name)
             let alias = if let Some(key) = property.get("key") {
@@ -310,20 +306,16 @@ fn process_props_object_pattern(
                         key.get("name").and_then(|n| n.as_str()).map(String::from)
                     }
                     Some("Literal") => key.get("value").and_then(|v| {
-                        if let Some(s) = v.as_str() {
-                            Some(s.to_string())
-                        } else if let Some(n) = v.as_i64() {
-                            Some(n.to_string())
-                        } else {
-                            None
-                        }
+                        v.as_str()
+                            .map(|s| s.to_string())
+                            .or_else(|| v.as_i64().map(|n| n.to_string()))
                     }),
                     _ => None,
                 }
             } else {
                 None
             }
-            .ok_or_else(|| errors::props_invalid_pattern())?;
+            .ok_or_else(errors::props_invalid_pattern)?;
 
             // Get initial value (default value from AssignmentPattern)
             let initial = property.get("value").and_then(|v| {
@@ -353,10 +345,10 @@ fn process_props_object_pattern(
                             .and_then(|args| args.first())
                             .cloned();
 
-                        binding.initial = bindable_arg.and_then(|arg| {
+                        binding.initial = bindable_arg.map(|arg| {
                             // Convert to string representation
                             // TODO: Properly serialize expression
-                            Some(format!("{:?}", arg))
+                            format!("{:?}", arg)
                         });
                         binding.kind = BindingKind::BindableProp;
                     } else {

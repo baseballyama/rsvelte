@@ -25,27 +25,26 @@ pub fn visit(
     }
 
     // Track assignments in reactive statements (legacy mode)
-    if let Some(reactive_stmt_ptr) = context.reactive_statement {
-        if let Some(left) = node.get("left") {
-            // Get the identifier: if left is a MemberExpression, get the object, otherwise use left itself
-            let id = if left.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
-                object(left)
-            } else {
-                Some(left.clone())
-            };
+    if let Some(reactive_stmt_ptr) = context.reactive_statement
+        && let Some(left) = node.get("left")
+    {
+        // Get the identifier: if left is a MemberExpression, get the object, otherwise use left itself
+        let id = if left.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
+            object(left)
+        } else {
+            Some(left.clone())
+        };
 
-            if id.is_some() {
-                // Extract all identifier names from the left-hand side
-                let identifier_names = extract_identifiers(left);
+        if id.is_some() {
+            // Extract all identifier names from the left-hand side
+            let identifier_names = extract_identifiers(left);
 
-                let reactive_stmt = unsafe { &mut *reactive_stmt_ptr };
+            let reactive_stmt = unsafe { &mut *reactive_stmt_ptr };
 
-                for name in identifier_names {
-                    // Look up the binding in the current scope
-                    if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(&name)
-                    {
-                        reactive_stmt.assignments.insert(binding_idx);
-                    }
+            for name in identifier_names {
+                // Look up the binding in the current scope
+                if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(&name) {
+                    reactive_stmt.assignments.insert(binding_idx);
                 }
             }
         }

@@ -6,13 +6,11 @@
 use crate::ast::template::{IfBlock, TemplateNode};
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
-use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::add_svelte_meta;
+use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
+    add_svelte_meta, build_expression,
+};
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
-use std::sync::atomic::{AtomicUsize, Ordering};
-
-// Global counter for generating unique identifiers
-static ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 /// Visit an if block.
 ///
@@ -117,12 +115,6 @@ static ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
 ///     }
 /// }
 /// ```
-/// Generate a unique identifier name.
-fn generate_id(base: &str) -> String {
-    let count = ID_COUNTER.fetch_add(1, Ordering::Relaxed);
-    format!("{}_{}", base, count)
-}
-
 pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
     // Push a comment placeholder into the template
     context.state.template.push_comment(None);
@@ -132,25 +124,26 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
 
     // Visit the consequent fragment and wrap it in an arrow function
     let consequent = visit_fragment(&node.consequent, context);
-    let consequent_id_name = generate_id("consequent");
+    let consequent_id_name = context.state.memoizer.generate_id("consequent");
     let consequent_id = b::id(&consequent_id_name);
 
-    // Create: const consequent = ($$anchor) => { ... }
-    statements.push(b::const_decl(
+    // Create: var consequent = ($$anchor) => { ... }
+    // Note: JS uses b.var, we use var_decl for var declarations
+    statements.push(b::var_decl(
         &consequent_id_name,
-        b::arrow_block(vec![b::id_pattern("$$anchor")], consequent),
+        Some(b::arrow_block(vec![b::id_pattern("$$anchor")], consequent)),
     ));
 
     // Handle the alternate branch if present
     let alternate_id = if let Some(ref alternate_fragment) = node.alternate {
         let alternate = visit_fragment(alternate_fragment, context);
-        let alternate_id_name = generate_id("alternate");
+        let alternate_id_name = context.state.memoizer.generate_id("alternate");
         let alt_id = b::id(&alternate_id_name);
 
-        // Create: const alternate = ($$anchor) => { ... }
-        statements.push(b::const_decl(
+        // Create: var alternate = ($$anchor) => { ... }
+        statements.push(b::var_decl(
             &alternate_id_name,
-            b::arrow_block(vec![b::id_pattern("$$anchor")], alternate),
+            Some(b::arrow_block(vec![b::id_pattern("$$anchor")], alternate)),
         ));
 
         Some(alt_id)
@@ -161,8 +154,20 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
     // Check if the expression is async (from Phase 2 analysis metadata)
     let is_async = node.metadata.expression.is_async();
 
-    // Convert the test expression
-    let expression = convert_expression(&node.test, context);
+    // Convert the test expression first
+    let converted_expr = convert_expression(&node.test, context);
+
+    // Build the expression with proper reactivity handling
+    // This corresponds to: const expression = build_expression(context, node.test, node.metadata.expression);
+    let expr_metadata = ExpressionMetadata {
+        has_call: node.metadata.expression.has_call,
+        has_await: node.metadata.expression.has_await,
+        has_state: node.metadata.expression.has_state,
+        has_member_expression: node.metadata.expression.has_member_expression,
+        has_assignment: node.metadata.expression.has_assignment,
+        ..Default::default()
+    };
+    let expression = build_expression(context, &converted_expr, &expr_metadata);
 
     // If async, wrap in $.get($$condition), otherwise use the expression directly
     let test = if is_async {
@@ -190,6 +195,12 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
 
     // Handle elseif: add true as third argument
     // This affects transition behavior
+    // We treat:
+    //   {#if x}...{:else}{#if y}...{/if}{/if}
+    // differently from:
+    //   {#if x}...{:else if y}...{/if}
+    // In the first case, the transition will only play when `y` changes,
+    // but in the second it should play when `x` or `y` change — both are considered 'local'
     if node.elseif {
         args.push(b::boolean(true));
     }
@@ -204,11 +215,12 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
     // If async, wrap in $.async()
     if is_async {
         // Get blockers from metadata (Phase 2 analysis)
-        // TODO: Implement blockers collection in Phase 2
-        // For now, use empty array
+        // In the JS implementation: node.metadata.expression.blockers()
+        // For now, use empty array as blockers collection is not yet implemented in Phase 2
         let blockers = b::array(vec![]);
 
-        // Get has_await from metadata
+        // Create the thunk array
+        // In JS: b.array([b.thunk(expression, node.metadata.expression.has_await)])
         let has_await = node.metadata.expression.has_await;
         let expression_array = if has_await {
             // For async expressions with await, mark the thunk as async

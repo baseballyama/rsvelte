@@ -185,10 +185,10 @@ where
                 };
 
                 // Add CSS hash to class
-                if name == "class" {
-                    if let Some(hash) = css_hash {
-                        literal_value = format!("{} {}", literal_value, hash).trim().to_string();
-                    }
+                if name == "class"
+                    && let Some(hash) = css_hash
+                {
+                    literal_value = format!("{} {}", literal_value, hash).trim().to_string();
                 }
 
                 if name != "class" || !literal_value.is_empty() {
@@ -218,28 +218,26 @@ where
             );
 
             // Pre-escape and inline literal attributes
-            if can_use_literal {
-                if let JsExpr::Literal(lit) = &value {
-                    let lit_value = match lit {
-                        JsLiteral::String(s) => s.clone(),
-                        JsLiteral::Boolean(b) => b.to_string(),
-                        JsLiteral::Number(n) => n.to_string(),
-                        _ => String::new(),
-                    };
-                    let mut escaped = escape_attr(&lit_value);
-                    if name == "class" {
-                        if let Some(hash) = css_hash {
-                            escaped = format!("{} {}", escaped, hash).trim().to_string();
-                        }
-                    }
-                    let attr_str = format!(" {}=\"{}\"", name, escaped);
-                    state
-                        .template
-                        .push(TemplateItem::Expression(JsExpr::Literal(
-                            JsLiteral::String(attr_str.clone()),
-                        )));
-                    continue;
+            if can_use_literal && let JsExpr::Literal(lit) = &value {
+                let lit_value = match lit {
+                    JsLiteral::String(s) => s.clone(),
+                    JsLiteral::Boolean(b) => b.to_string(),
+                    JsLiteral::Number(n) => n.to_string(),
+                    _ => String::new(),
+                };
+                let mut escaped = escape_attr(&lit_value);
+                if name == "class"
+                    && let Some(hash) = css_hash
+                {
+                    escaped = format!("{} {}", escaped, hash).trim().to_string();
                 }
+                let attr_str = format!(" {}=\"{}\"", name, escaped);
+                state
+                    .template
+                    .push(TemplateItem::Expression(JsExpr::Literal(
+                        JsLiteral::String(attr_str.clone()),
+                    )));
+                continue;
             }
 
             if name == "class" {
