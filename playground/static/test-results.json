@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-01-22T09:51:33.934619+00:00",
+  "generated_at": "2026-01-22T15:18:27.607221+00:00",
   "commit_sha": "0ac5af488da4",
   "summary": {
     "total": 3027,
-    "passed": 306,
-    "failed": 2524,
+    "passed": 317,
+    "failed": 2513,
     "skipped": 197,
-    "percentage": 10.812720848056538
+    "percentage": 11.201413427561837
   },
   "categories": [
     {
@@ -1486,10 +1486,10 @@
       "id": "validator",
       "name": "Validator",
       "total": 323,
-      "passed": 119,
-      "failed": 189,
+      "passed": 121,
+      "failed": 186,
       "skipped": 11,
-      "percentage": 38.141025641025635,
+      "percentage": 38.782051282051285,
       "tests": [
         {
           "name": "css-invalid-global-selector-2",
@@ -1887,7 +1887,7 @@
         {
           "name": "store-runes-conflict",
           "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "error_message": "Unexpected compilation error: Analysis(ValidationWithCode { code: \"state_invalid_placement\", message: \"`$state` can only be used at the top level of a component or inside a function\" })"
         },
         {
           "name": "multiple-var-same-name",
@@ -2091,8 +2091,7 @@
         },
         {
           "name": "assignment-to-const",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "ts-unsupported-enum",
@@ -2979,8 +2978,7 @@
         },
         {
           "name": "assignment-to-const-3",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "if-block-whitespace-runes",
@@ -2993,10 +2991,10 @@
       "id": "compiler-errors",
       "name": "Compiler Errors",
       "total": 144,
-      "passed": 44,
-      "failed": 74,
+      "passed": 51,
+      "failed": 67,
       "skipped": 26,
-      "percentage": 37.28813559322034,
+      "percentage": 43.22033898305085,
       "tests": [
         {
           "name": "dollar-binding-import",
@@ -3082,8 +3080,7 @@
         },
         {
           "name": "legacy-no-const-assignment",
-          "status": "fail",
-          "error_message": "Expected error 'constant_assignment' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "class-state-field-static",
@@ -3115,8 +3112,7 @@
         },
         {
           "name": "runes-props-illegal-name-2",
-          "status": "fail",
-          "error_message": "Expected error 'props_illegal_name' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "css-nesting-selector-root",
@@ -3153,8 +3149,7 @@
         },
         {
           "name": "runes-wrong-host-placement",
-          "status": "fail",
-          "error_message": "Expected error 'host_invalid_placement' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "unbalanced-curly-element",
@@ -3327,8 +3322,7 @@
         },
         {
           "name": "runes-wrong-effect-args",
-          "status": "fail",
-          "error_message": "Expected error 'rune_invalid_arguments_length' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "component-slot-nested-error-2",
@@ -3375,8 +3369,7 @@
         },
         {
           "name": "runes-wrong-derived-placement",
-          "status": "fail",
-          "error_message": "Expected error 'state_invalid_placement' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "snippet-children-conflict",
@@ -3393,8 +3386,7 @@
         },
         {
           "name": "invalid-arguments-usage",
-          "status": "fail",
-          "error_message": "Expected error 'invalid_arguments_usage' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "empty-attribute-shorthand",
@@ -3421,8 +3413,7 @@
         },
         {
           "name": "runes-no-const-assignment",
-          "status": "fail",
-          "error_message": "Expected error 'constant_assignment' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "const-tag-snippet-invalid-reference-2",
@@ -3680,10 +3671,10 @@
       "id": "runtime-runes",
       "name": "Runtime Runes",
       "total": 740,
-      "passed": 9,
-      "failed": 715,
+      "passed": 10,
+      "failed": 714,
       "skipped": 16,
-      "percentage": 1.2430939226519337,
+      "percentage": 1.3812154696132597,
       "tests": [
         {
           "name": "directives",
@@ -3693,7 +3684,7 @@
         {
           "name": "effect-cleanup",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "custom-element-attributes",
@@ -3733,7 +3724,7 @@
         {
           "name": "event-attribute-delegation-2",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "await-render-error-restore-reaction",
@@ -4824,8 +4815,7 @@
         },
         {
           "name": "undefined-event-handler",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "effect-dependencies",
@@ -5832,7 +5822,7 @@
         {
           "name": "event-attribute-delegation-8",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "event-media-element-cleanup",
@@ -6315,7 +6305,7 @@
         {
           "name": "event-prop-current-target",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "onmount-prop-access",
@@ -10738,7 +10728,7 @@
         {
           "name": "action",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: constant_assignment: Cannot assign to constant"
         },
         {
           "name": "single-static-element",
@@ -12314,7 +12304,7 @@
         {
           "name": "innerhtml-with-comments",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "component-binding-each-reassigned",
@@ -12598,7 +12588,7 @@
         {
           "name": "preload",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "binding-this-member-expression-update",
@@ -12623,7 +12613,7 @@
         {
           "name": "html-entities-inside-elements",
           "status": "fail",
-          "error_message": "Server JS mismatch"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "dynamic-component-slot",
@@ -12938,7 +12928,7 @@
         {
           "name": "action-body",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: constant_assignment: Cannot assign to constant"
         },
         {
           "name": "component-binding-each-object",
@@ -13013,7 +13003,7 @@
         {
           "name": "action-function",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: constant_assignment: Cannot assign to constant"
         },
         {
           "name": "if-block-static-with-else-and-outros",
@@ -13152,7 +13142,7 @@
         {
           "name": "action-document",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: constant_assignment: Cannot assign to constant"
         },
         {
           "name": "component-data-static",
@@ -13327,7 +13317,7 @@
         {
           "name": "action-update",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: constant_assignment: Cannot assign to constant"
         },
         {
           "name": "component-slot-let-named-2",
@@ -13370,10 +13360,10 @@
       "id": "runtime-browser",
       "name": "Runtime Browser",
       "total": 30,
-      "passed": 0,
-      "failed": 30,
+      "passed": 1,
+      "failed": 29,
       "skipped": 0,
-      "percentage": 0,
+      "percentage": 3.3333333333333335,
       "tests": [
         {
           "name": "binding-width-height-initialize",
@@ -13442,8 +13432,7 @@
         },
         {
           "name": "browser-events-ending-with-capture",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "svelte-component-css-custom-properties2",

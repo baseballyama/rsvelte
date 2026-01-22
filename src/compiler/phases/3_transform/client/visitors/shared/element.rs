@@ -3,7 +3,10 @@
 //! Corresponds to utilities in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/element.js`.
 
-use crate::ast::template::{AttributeValue, AttributeValuePart, ExpressionTag};
+use crate::ast::template::{
+    AttributeValue, AttributeValuePart, ClassDirective, ExpressionTag,
+    RegularElement as RegularElementNode, StyleDirective,
+};
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
@@ -214,24 +217,204 @@ pub fn build_set_attribute(element: JsExpr, name: &str, value: JsExpr) -> JsStat
     ))
 }
 
-/// Build class setter.
+/// Build an object from class directives.
 ///
-/// Creates a call to set a class on an element.
-pub fn build_set_class(element: JsExpr, name: &str, value: JsExpr) -> JsStatement {
-    b::stmt(b::call(
-        b::member_path("$.set_class"),
-        vec![element, b::string(name), value],
-    ))
+/// Corresponds to `build_class_directives_object` in RegularElement.js.
+/// Creates an object like `{ foo: condition, bar: otherCondition }`.
+pub fn build_class_directives_object(
+    class_directives: &[ClassDirective],
+    _context: &mut ComponentContext,
+) -> JsExpr {
+    let mut properties = Vec::new();
+
+    for directive in class_directives {
+        // Extract expression from directive
+        let expression = extract_expression_from_directive(&directive.expression);
+        properties.push(b::prop(directive.name.to_string(), expression));
+    }
+
+    b::object(properties)
 }
 
-/// Build style setter.
+/// Build an object from style directives.
 ///
-/// Creates a call to set a style property on an element.
-pub fn build_set_style(element: JsExpr, name: &str, value: JsExpr) -> JsStatement {
-    b::stmt(b::call(
+/// Corresponds to `build_style_directives_object` in RegularElement.js.
+/// Creates either:
+/// - A simple object `{ color: value }` for normal styles
+/// - An array `[normal, important]` if there are !important modifiers
+pub fn build_style_directives_object(
+    style_directives: &[StyleDirective],
+    context: &mut ComponentContext,
+) -> JsExpr {
+    let mut normal_properties = Vec::new();
+    let mut important_properties = Vec::new();
+
+    for directive in style_directives {
+        // Build the expression for this directive
+        let expression = if matches!(&directive.value, AttributeValue::True(true)) {
+            // style:color shorthand - use the name as an identifier
+            b::id(directive.name.as_str())
+        } else {
+            // style:color={value} or style:color="value"
+            let result = build_attribute_value(&directive.value, context, |expr, _| expr);
+            result.value
+        };
+
+        // Check if this has the !important modifier
+        let is_important = directive
+            .modifiers
+            .iter()
+            .any(|m| m.as_str() == "important");
+
+        if is_important {
+            important_properties.push(b::prop(directive.name.to_string(), expression));
+        } else {
+            normal_properties.push(b::prop(directive.name.to_string(), expression));
+        }
+    }
+
+    let normal_obj = b::object(normal_properties);
+
+    if important_properties.is_empty() {
+        normal_obj
+    } else {
+        // Return [normal, important] array
+        b::array(vec![normal_obj, b::object(important_properties)])
+    }
+}
+
+/// Build a $.set_class() call for an element with class directives.
+///
+/// Corresponds to `build_set_class` in shared/element.js.
+///
+/// Generates: `$.set_class(element, flags, class_attr, css_hash, prev, next)`
+/// Where:
+/// - flags: 1 for HTML elements, 0 for SVG
+/// - class_attr: The static class attribute value (or "")
+/// - css_hash: The CSS scoping hash (or null)
+/// - prev: Previous class directives state (or {})
+/// - next: Current class directives object
+#[allow(clippy::too_many_arguments)]
+pub fn build_set_class_call(
+    _element: &RegularElementNode,
+    node_expr: JsExpr,
+    class_directives: &[ClassDirective],
+    context: &mut ComponentContext,
+    is_html: bool,
+    css_hash: &str,
+) -> JsExpr {
+    // Build class directives object: { foo: condition, bar: otherCondition }
+    let class_obj = build_class_directives_object(class_directives, context);
+
+    // Flags: 1 for HTML, 0 for SVG
+    let flags = if is_html {
+        b::number(1.0)
+    } else {
+        b::number(0.0)
+    };
+
+    // Class attribute value (empty string if no class attribute)
+    let class_attr = b::string("");
+
+    // CSS hash for scoping (null if no hash)
+    let css_binding = if css_hash.is_empty() {
+        b::null()
+    } else {
+        b::string(css_hash)
+    };
+
+    // Previous state (empty object for initial render)
+    let prev = b::empty_object();
+
+    // $.set_class(element, flags, class_attr, css_hash, prev, next)
+    b::call(
+        b::member_path("$.set_class"),
+        vec![node_expr, flags, class_attr, css_binding, prev, class_obj],
+    )
+}
+
+/// Build a $.set_style() call for an element with style directives.
+///
+/// Corresponds to `build_set_style` in shared/element.js.
+///
+/// Generates: `$.set_style(element, style_attr, prev, next)`
+/// Where:
+/// - style_attr: The static style attribute value (or "")
+/// - prev: Previous style directives state (or {})
+/// - next: Current style directives object
+pub fn build_set_style_call(
+    node_expr: JsExpr,
+    style_directives: &[StyleDirective],
+    context: &mut ComponentContext,
+) -> JsExpr {
+    // Build style directives object
+    let style_obj = build_style_directives_object(style_directives, context);
+
+    // Style attribute value (empty string if no style attribute)
+    let style_attr = b::string("");
+
+    // Previous state (empty object for initial render)
+    let prev = b::empty_object();
+
+    // $.set_style(element, style_attr, prev, next)
+    b::call(
         b::member_path("$.set_style"),
-        vec![element, b::string(name), value],
-    ))
+        vec![node_expr, style_attr, prev, style_obj],
+    )
+}
+
+/// Extract a JavaScript expression from a directive's expression.
+fn extract_expression_from_directive(expression: &crate::ast::js::Expression) -> JsExpr {
+    use crate::ast::js::Expression;
+
+    match expression {
+        Expression::Value(val) => match val {
+            serde_json::Value::Object(obj) => {
+                // Check if it's a Literal with a value field
+                if let Some(serde_json::Value::String(type_str)) = obj.get("type") {
+                    if type_str == "Literal" {
+                        if let Some(value) = obj.get("value") {
+                            return match value {
+                                serde_json::Value::Bool(b) => b::boolean(*b),
+                                serde_json::Value::Number(n) => {
+                                    if let Some(f) = n.as_f64() {
+                                        b::number(f)
+                                    } else {
+                                        b::number(0.0)
+                                    }
+                                }
+                                serde_json::Value::String(s) => b::string(s),
+                                serde_json::Value::Null => b::null(),
+                                _ => b::boolean(true),
+                            };
+                        }
+                    } else if type_str == "Identifier" {
+                        // It's an identifier
+                        if let Some(serde_json::Value::String(name)) = obj.get("name") {
+                            return b::id(name);
+                        }
+                    }
+                }
+                // Try to extract the identifier name
+                if let Some(serde_json::Value::String(name)) = obj.get("name") {
+                    b::id(name)
+                } else {
+                    b::boolean(true)
+                }
+            }
+            serde_json::Value::Bool(b) => b::boolean(*b),
+            serde_json::Value::String(s) => b::id(s),
+            serde_json::Value::Number(n) => {
+                if let Some(f) = n.as_f64() {
+                    b::number(f)
+                } else {
+                    b::number(0.0)
+                }
+            }
+            serde_json::Value::Null => b::null(),
+            _ => b::boolean(true),
+        },
+    }
 }
 
 #[cfg(test)]

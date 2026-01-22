@@ -3273,18 +3273,18 @@ export default function {component_name}({fn_params}) {{
     /// Collect all event types that need delegation
     fn collect_delegated_events(&self) -> Vec<String> {
         let mut events: Vec<String> = Vec::new();
-        // Collect from regular nodes
+        // Collect from regular nodes - only include delegatable events
         for node in &self.nodes {
             for (event_name, _) in &node.event_handlers {
-                if !events.contains(event_name) {
+                if is_delegated_event_name(event_name) && !events.contains(event_name) {
                     events.push(event_name.clone());
                 }
             }
         }
-        // Collect from each blocks
+        // Collect from each blocks - only include delegatable events
         for each in &self.each_blocks {
             for handler in &each.event_handlers {
-                if !events.contains(&handler.event) {
+                if is_delegated_event_name(&handler.event) && !events.contains(&handler.event) {
                     events.push(handler.event.clone());
                 }
             }
@@ -3300,15 +3300,17 @@ export default function {component_name}({fn_params}) {{
     }
 
     /// Recursively collect event names from nodes
+    /// Only collects events that are delegatable (click, input, change, etc.)
     fn collect_events_from_nodes(nodes: &[TemplateNode], events: &mut Vec<String>) {
         for node in nodes {
             match node {
                 TemplateNode::RegularElement(elem) => {
-                    // Collect events from this element's attributes
+                    // Collect events from this element's attributes - only delegatable events
                     for attr in &elem.attributes {
                         if let Attribute::Attribute(node) = attr {
                             let attr_name = node.name.as_str();
                             if let Some(event_name) = attr_name.strip_prefix("on")
+                                && is_delegated_event_name(event_name)
                                 && !events.contains(&event_name.to_string())
                             {
                                 events.push(event_name.to_string());
@@ -6507,5 +6509,41 @@ $effect(() => {
         let state_vars: Vec<String> = vec![];
         let result = wrap_derived_var_reads(line, &derived_vars, &state_vars);
         assert_eq!(result, "console.log('init ' + $.get(double));");
+    }
+
+    #[test]
+    fn test_is_delegated_event_name() {
+        // Delegatable events
+        assert!(is_delegated_event_name("click"));
+        assert!(is_delegated_event_name("input"));
+        assert!(is_delegated_event_name("change"));
+        assert!(is_delegated_event_name("keydown"));
+        assert!(is_delegated_event_name("keyup"));
+        assert!(is_delegated_event_name("mousedown"));
+        assert!(is_delegated_event_name("mouseup"));
+        assert!(is_delegated_event_name("mousemove"));
+        assert!(is_delegated_event_name("mouseover"));
+        assert!(is_delegated_event_name("mouseout"));
+        assert!(is_delegated_event_name("dblclick"));
+        assert!(is_delegated_event_name("contextmenu"));
+        assert!(is_delegated_event_name("focusin"));
+        assert!(is_delegated_event_name("focusout"));
+        assert!(is_delegated_event_name("pointerdown"));
+        assert!(is_delegated_event_name("pointerup"));
+        assert!(is_delegated_event_name("pointermove"));
+        assert!(is_delegated_event_name("pointerover"));
+        assert!(is_delegated_event_name("pointerout"));
+        assert!(is_delegated_event_name("touchstart"));
+        assert!(is_delegated_event_name("touchmove"));
+        assert!(is_delegated_event_name("touchend"));
+        assert!(is_delegated_event_name("beforeinput"));
+
+        // Non-delegatable events
+        assert!(!is_delegated_event_name("scroll"));
+        assert!(!is_delegated_event_name("focus"));
+        assert!(!is_delegated_event_name("blur"));
+        assert!(!is_delegated_event_name("load"));
+        assert!(!is_delegated_event_name("resize"));
+        assert!(!is_delegated_event_name("submit"));
     }
 }

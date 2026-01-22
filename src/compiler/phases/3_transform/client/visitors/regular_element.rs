@@ -12,7 +12,9 @@ use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, RegularElement as RegularElementNode, TemplateNode,
 };
 use crate::compiler::phases::phase3_transform::client::types::*;
-use crate::compiler::phases::phase3_transform::client::visitors::shared::element::build_attribute_value;
+use crate::compiler::phases::phase3_transform::client::visitors::shared::element::{
+    build_attribute_value, build_set_class_call, build_set_style_call,
+};
 use crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::process_children;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
@@ -162,6 +164,32 @@ pub fn visit_regular_element(
                     }
                 }
             }
+        }
+
+        // Handle class directives
+        if !class_directives.is_empty() {
+            let node_id = extract_node_id(&context.state.node);
+            let node_expr = b::id(&node_id);
+            let is_html = context.state.metadata.namespace != "svg";
+
+            let set_class = build_set_class_call(
+                node,
+                node_expr,
+                &class_directives,
+                context,
+                is_html,
+                &context.state.analysis.css.hash.clone(),
+            );
+            context.state.init.push(b::stmt(set_class));
+        }
+
+        // Handle style directives
+        if !style_directives.is_empty() {
+            let node_id = extract_node_id(&context.state.node);
+            let node_expr = b::id(&node_id);
+
+            let set_style = build_set_style_call(node_expr, &style_directives, context);
+            context.state.init.push(b::stmt(set_style));
         }
     }
 
