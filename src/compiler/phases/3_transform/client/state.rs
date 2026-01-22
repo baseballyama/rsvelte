@@ -481,6 +481,8 @@ pub enum IfBlockPart {
         event_handlers: Vec<EventHandler>,
         children: Vec<IfBlockPart>,
     },
+    /// Nested if block
+    NestedIfBlock(Box<IfBlockInfo>),
 }
 
 /// Special attribute that needs runtime handling.

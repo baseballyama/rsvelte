@@ -269,8 +269,6 @@ pub fn process_children<F>(
                     sequence = Vec::new();
                 }
 
-                let mut child_state = context.state.clone();
-
                 if is_static_element(node, &context.state) {
                     skipped += 1;
                 } else if let TemplateNode::EachBlock(each) = node {
@@ -278,10 +276,15 @@ pub fn process_children<F>(
                     if nodes.len() == 1 && is_element && !each.metadata.expression.is_async() {
                         // Mark as controlled (would need to modify node, skipping for now)
                         // each.metadata.is_controlled = true;
+                        // Visit without changing node
+                        context.visit_node(node, None);
                     } else {
                         let name = "node";
                         let id = flush_node(false, name, None, &mut prev, &mut skipped, context);
-                        child_state.node = id;
+                        // Save original node and temporarily replace it
+                        let saved_node = std::mem::replace(&mut context.state.node, id);
+                        context.visit_node(node, None);
+                        context.state.node = saved_node;
                     }
                 } else {
                     // Get node name for identifier
@@ -292,12 +295,11 @@ pub fn process_children<F>(
                     };
 
                     let id = flush_node(false, name, None, &mut prev, &mut skipped, context);
-                    child_state.node = id;
+                    // Save original node and temporarily replace it
+                    let saved_node = std::mem::replace(&mut context.state.node, id);
+                    context.visit_node(node, None);
+                    context.state.node = saved_node;
                 }
-
-                // Visit the node
-                let visit_fn = context.visit;
-                visit_fn(context, node, Some(&child_state));
             }
         }
     }

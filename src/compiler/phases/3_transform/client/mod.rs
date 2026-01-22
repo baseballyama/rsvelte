@@ -23,8 +23,8 @@ use super::js_ast::{
         getter, id, id_pattern, if_stmt, import_namespace, import_side_effect, member, member_path,
         nullish, object, optional_call, program, prop, quasi, raw, return_value, set_text_content,
         setter, stmt, string, svelte_action, svelte_append, svelte_autofocus, svelte_await,
-        svelte_bind_value, svelte_child, svelte_each, svelte_element, svelte_first_child,
-        svelte_from_html, svelte_get, svelte_html, svelte_index, svelte_next,
+        svelte_bind_value, svelte_child, svelte_comment, svelte_each, svelte_element,
+        svelte_first_child, svelte_from_html, svelte_get, svelte_html, svelte_index, svelte_next,
         svelte_remove_input_defaults, svelte_reset, svelte_set, svelte_set_attribute,
         svelte_set_class, svelte_set_custom_element_data, svelte_set_style, svelte_set_sync,
         svelte_set_text, svelte_sibling, svelte_template_effect,
@@ -1850,13 +1850,20 @@ impl ClientCodeGenerator {
                             parts.push(IfBlockPart::Expression(expr));
                         }
                     }
+                    TemplateNode::IfBlock(nested_block) => {
+                        // Add comment placeholder for nested if block
+                        template_html.push_str("<!>");
+                        // Process the nested if block recursively
+                        let nested_info = self.process_nested_if_block(nested_block)?;
+                        parts.push(IfBlockPart::NestedIfBlock(Box::new(nested_info)));
+                    }
                     _ => {}
                 }
             }
 
             Ok((parts, Some(template_var), Some(template_html), false))
         } else {
-            // Text-only content
+            // Text-only content (or content with nested blocks but no elements)
             for node in &nodes[start_idx..end_idx] {
                 match node {
                     TemplateNode::Text(text) => {
@@ -1873,12 +1880,62 @@ impl ClientCodeGenerator {
                             parts.push(IfBlockPart::Expression(expr));
                         }
                     }
+                    TemplateNode::IfBlock(nested_block) => {
+                        // Process the nested if block recursively
+                        let nested_info = self.process_nested_if_block(nested_block)?;
+                        parts.push(IfBlockPart::NestedIfBlock(Box::new(nested_info)));
+                    }
                     _ => {}
                 }
             }
 
-            Ok((parts, None, None, true))
+            // Check if we have any nested if blocks - if so, it's not text-only
+            let has_nested_blocks = parts
+                .iter()
+                .any(|p| matches!(p, IfBlockPart::NestedIfBlock(_)));
+            Ok((parts, None, None, !has_nested_blocks))
         }
+    }
+
+    /// Process a nested if block and return its IfBlockInfo.
+    fn process_nested_if_block(&mut self, block: &IfBlock) -> Result<IfBlockInfo, TransformError> {
+        // Extract the condition expression
+        let test_start = block.test.start().unwrap_or(0) as usize;
+        let test_end = block.test.end().unwrap_or(0) as usize;
+        let condition = if test_end > test_start && test_end <= self.source.len() {
+            self.source[test_start..test_end].trim().to_string()
+        } else {
+            "true".to_string()
+        };
+
+        // Process consequent (the "then" branch)
+        let (
+            consequent_parts,
+            consequent_template_var,
+            consequent_template_html,
+            consequent_text_only,
+        ) = self.process_if_block_branch(&block.consequent)?;
+
+        // Process alternate (the "else" branch) if present
+        let (alternate_parts, alternate_template_var, alternate_template_html, alternate_text_only) =
+            if let Some(ref alternate) = block.alternate {
+                self.process_if_block_branch(alternate)?
+            } else {
+                (Vec::new(), None, None, true)
+            };
+
+        Ok(IfBlockInfo {
+            condition,
+            is_elseif: block.elseif,
+            consequent_template_var,
+            consequent_template_html,
+            consequent_parts,
+            alternate_template_var,
+            alternate_template_html,
+            alternate_parts,
+            consequent_text_only,
+            alternate_text_only,
+        })
     }
 
     /// Build the HTML template string for an element.
@@ -5157,9 +5214,15 @@ export default function {component_name}({fn_params}) {{
                                 IfBlockPart::Text(_) => {
                                     text_idx += 1;
                                 }
-                                _ => {}
+                                IfBlockPart::Element { .. } | IfBlockPart::NestedIfBlock(_) => {
+                                    // Nested elements or if blocks don't affect text indexing
+                                }
                             }
                         }
+                    }
+                    IfBlockPart::NestedIfBlock(_) => {
+                        // Nested if blocks are handled separately
+                        // They use their own template/comment placeholder
                     }
                 }
             }
@@ -5263,9 +5326,97 @@ export default function {component_name}({fn_params}) {{
         } else if parts.is_empty() {
             // Empty branch - just append a comment or do nothing
             body.push(stmt(svelte_next(None)));
+        } else {
+            // Branch with only nested blocks (no template var, not text-only)
+            // This happens when the branch contains only nested if blocks
+
+            // Check if we have nested if blocks
+            let has_nested_blocks = parts
+                .iter()
+                .any(|p| matches!(p, IfBlockPart::NestedIfBlock(_)));
+
+            if has_nested_blocks {
+                // Create a comment fragment to anchor the nested blocks
+                body.push(var_decl("fragment_1", Some(svelte_comment())));
+                body.push(var_decl(
+                    "node_1",
+                    Some(svelte_first_child(id("fragment_1"))),
+                ));
+
+                // Generate code for each nested if block
+                for part in parts {
+                    if let IfBlockPart::NestedIfBlock(nested_info) = part {
+                        let nested_stmts = self.generate_nested_if_block_code(nested_info);
+                        body.extend(nested_stmts);
+                    }
+                }
+
+                body.push(stmt(svelte_append(id("$$anchor"), id("fragment_1"))));
+            } else {
+                // No nested blocks, just output $.next()
+                body.push(stmt(svelte_next(None)));
+            }
         }
 
         body
+    }
+
+    /// Generate code for a nested if block.
+    fn generate_nested_if_block_code(&self, nested_info: &IfBlockInfo) -> Vec<JsStatement> {
+        let mut block_stmts: Vec<JsStatement> = Vec::new();
+
+        // Generate consequent function for nested block
+        let consequent_id = "consequent";
+        let consequent_body = self.generate_if_branch_body(nested_info, true);
+        block_stmts.push(var_decl(
+            consequent_id,
+            Some(arrow_block(vec![id_pattern("$$anchor")], consequent_body)),
+        ));
+
+        // Generate alternate function if present
+        let alternate_id = if !nested_info.alternate_parts.is_empty()
+            || nested_info.alternate_template_var.is_some()
+        {
+            let alt_id = "alternate";
+            let alternate_body = self.generate_if_branch_body(nested_info, false);
+            block_stmts.push(var_decl(
+                alt_id,
+                Some(arrow_block(vec![id_pattern("$$anchor")], alternate_body)),
+            ));
+            Some(alt_id.to_string())
+        } else {
+            None
+        };
+
+        // Transform the condition expression (wrap state vars in $.get())
+        let transformed_condition = self.transform_if_condition(&nested_info.condition);
+
+        // Build the render callback
+        let render_call_consequent = stmt(call(id("$$render"), vec![id(consequent_id)]));
+        let render_call_alternate = alternate_id
+            .as_ref()
+            .map(|alt_id| stmt(call(id("$$render"), vec![id(alt_id), boolean(false)])));
+
+        let if_statement = if_stmt(
+            raw(&transformed_condition),
+            render_call_consequent,
+            render_call_alternate,
+        );
+
+        let render_callback = arrow_block(vec![id_pattern("$$render")], vec![if_statement]);
+
+        // Build $.if() call with node_1 as anchor
+        let mut if_args = vec![id("node_1"), render_callback];
+
+        // Add true for elseif (affects transition behavior)
+        if nested_info.is_elseif {
+            if_args.push(boolean(true));
+        }
+
+        block_stmts.push(stmt(call(member_path("$.if"), if_args)));
+
+        // Wrap in a block statement
+        vec![JsStatement::Block(JsBlockStatement { body: block_stmts })]
     }
 
     /// Transform condition expression, wrapping state variables in $.get().
