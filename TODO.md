@@ -484,16 +484,22 @@ jobs:
     - AnalysisFlags 構造体で Phase 2 → Phase 3 のデータ受け渡し
     - 配列フォーマッティング修正（単一行出力）
     - シングルクオート出力対応
+  - [x] C-008: Runtime Runes 基盤改善
+    - 要素ナビゲーション実装（$.first_child, $.child, $.sibling, $.reset）
+    - use: ディレクティブ実装（$.action）
+    - テンプレート空白正規化
+    - テキストノード空白圧縮
+    - bind:value 実装（$.bind_value, $.remove_input_defaults）
 - [ ] **Phase D 未着手**: 互換性テスト整備
 - [ ] **Phase E 未着手**: docs サイト完成
 
 **現在のテスト状況（2026-01-22 更新）:**
 
-- Runtime Runes: 7/724 (client: 8, server: 102)
+- Runtime Runes: 9/724 (client: 12, server: 102) - 改善中
 - **Compiler Snapshot: 19/19 (100%)** ✅
 - Clippy: 0 件（全て修正済み）
 
-**次のステップ**: Runtime Runes テスト改善のため、引き続き Phase 2/3 の補完が必要。
+**次のステップ**: Runtime Runes テスト改善継続（M2: 50% 目標）
 
 ---
 
