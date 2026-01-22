@@ -28,7 +28,7 @@ pub fn generate_raw(program: &JsProgram) -> String {
 /// This is also aliased as `parse_and_generate` for backwards compatibility.
 pub fn normalize_js(source: &str) -> Result<String, String> {
     use oxc_allocator::Allocator;
-    use oxc_codegen::Codegen;
+    use oxc_codegen::{Codegen, CodegenOptions};
     use oxc_parser::Parser;
     use oxc_span::SourceType;
 
@@ -41,7 +41,53 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
         return Err(format!("Parse errors: {:?}", result.errors));
     }
 
-    Ok(Codegen::new().build(&result.program).code)
+    let options = CodegenOptions {
+        single_quote: true,
+        ..Default::default()
+    };
+    let code = Codegen::new()
+        .with_options(options)
+        .build(&result.program)
+        .code;
+    Ok(collapse_short_arrays(code))
+}
+
+/// Collapse short arrays from multi-line to single-line format.
+///
+/// oxc's codegen always formats arrays with multiple elements on separate lines.
+/// This function collapses arrays that contain only simple literals (strings, numbers, etc.)
+/// to a single line format to match Svelte's esrap output.
+///
+/// Example:
+/// ```js
+/// // Input:
+/// ['foo',
+///     'bar',
+///     'baz'
+/// ]
+/// // Output:
+/// ['foo', 'bar', 'baz']
+/// ```
+fn collapse_short_arrays(code: String) -> String {
+    use regex::Regex;
+
+    // Match arrays that span multiple lines with only simple literals
+    // Pattern: [ followed by newline+indent+items, ending with newline+indent+]
+    let re = Regex::new(r"(?s)\[(\s*\n\t*'[^']*'(?:,\s*\n\t*'[^']*')*)\s*\n\t*\]").unwrap();
+
+    let result = re.replace_all(&code, |caps: &regex::Captures| {
+        // Extract the content between [ and ]
+        let content = &caps[1];
+        // Split by comma and newline, trim each element
+        let elements: Vec<&str> = content
+            .split(',')
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .collect();
+        format!("[{}]", elements.join(", "))
+    });
+
+    result.into_owned()
 }
 
 /// JavaScript code generator.

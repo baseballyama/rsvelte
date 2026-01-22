@@ -72,12 +72,25 @@ pub fn transform_client(
         None
     };
 
+    // Extract analysis flags for code generation decisions
+    let analysis_flags = AnalysisFlags {
+        needs_context: analysis.needs_context,
+        needs_props: analysis.needs_props,
+        uses_props: analysis.uses_props,
+        uses_rest_props: analysis.uses_rest_props,
+        uses_slots: analysis.uses_slots,
+        has_slot_names: !analysis.slot_names.is_empty(),
+        has_reactive_statements: !analysis.reactive_statements.is_empty(),
+        exports_count: analysis.exports.len(),
+    };
+
     let mut generator = ClientCodeGenerator::new(
         component_name.clone(),
         analysis.source.clone(),
         script_content,
         uses_runes,
         css_hash,
+        analysis_flags,
     );
 
     // Use the AST fragment directly (no re-parsing needed)
@@ -167,6 +180,36 @@ struct ClientCodeGenerator {
     elements_needing_reset: Vec<String>,
     /// Text content before root-level expressions (for template_effect generation)
     root_text_before_expression: String,
+    // === Analysis flags from Phase 2 ===
+    /// Whether the component needs context ($.push/$.pop)
+    analysis_needs_context: bool,
+    /// Whether the component needs props
+    analysis_needs_props: bool,
+    /// Whether the component uses $$props
+    analysis_uses_props: bool,
+    /// Whether the component uses $$restProps
+    analysis_uses_rest_props: bool,
+    /// Whether the component uses $$slots
+    analysis_uses_slots: bool,
+    /// Whether the component has slot_names
+    analysis_has_slot_names: bool,
+    /// Whether the component has reactive_statements
+    analysis_has_reactive_statements: bool,
+    /// Number of exports (for component_returned_object)
+    analysis_exports_count: usize,
+}
+
+/// Analysis flags from Phase 2 for code generation decisions
+#[derive(Debug, Clone, Default)]
+struct AnalysisFlags {
+    needs_context: bool,
+    needs_props: bool,
+    uses_props: bool,
+    uses_rest_props: bool,
+    uses_slots: bool,
+    has_slot_names: bool,
+    has_reactive_statements: bool,
+    exports_count: usize,
 }
 
 impl ClientCodeGenerator {
@@ -176,6 +219,7 @@ impl ClientCodeGenerator {
         script_content: String,
         uses_runes: bool,
         css_hash: Option<String>,
+        analysis_flags: AnalysisFlags,
     ) -> Self {
         // Collect state variables from script content (primitive types only)
         let state_vars = collect_state_variables(&script_content);
@@ -223,6 +267,14 @@ impl ClientCodeGenerator {
             template_effects: Vec::new(),
             elements_needing_reset: Vec::new(),
             root_text_before_expression: String::new(),
+            analysis_needs_context: analysis_flags.needs_context,
+            analysis_needs_props: analysis_flags.needs_props,
+            analysis_uses_props: analysis_flags.uses_props,
+            analysis_uses_rest_props: analysis_flags.uses_rest_props,
+            analysis_uses_slots: analysis_flags.uses_slots,
+            analysis_has_slot_names: analysis_flags.has_slot_names,
+            analysis_has_reactive_statements: analysis_flags.has_reactive_statements,
+            analysis_exports_count: analysis_flags.exports_count,
         }
     }
 
@@ -1892,18 +1944,12 @@ impl ClientCodeGenerator {
         let (script_imports, script_rest) = extract_imports(&self.script_content);
 
         // Check if script uses $props()
-        let uses_props = self.script_content.contains("$props()");
+        let script_uses_props = self.script_content.contains("$props()");
 
         // Check if script uses legacy mode with export let (requires $$props and $.push/$.pop)
         let has_legacy_export_let = script_rest.lines().any(|line| {
             let trimmed = line.trim();
             trimmed.starts_with("export let ") || trimmed.starts_with("export let\t")
-        });
-
-        // Check if script has $: reactive statements (legacy mode)
-        let _has_reactive_statements = script_rest.lines().any(|line| {
-            let trimmed = line.trim();
-            trimmed.starts_with("$:") || trimmed.starts_with("$: ")
         });
 
         // Check if class fields use $state or $derived runes
@@ -1931,6 +1977,28 @@ impl ClientCodeGenerator {
         });
         let uses_props_identifier = props_identifier_name.is_some();
 
+        // Calculate should_inject_context and should_inject_props based on analysis flags
+        // Reference: transform-client.js lines 365-369 and 393-399
+        //
+        // should_inject_context = dev || needs_context || reactive_statements.size > 0 || component_returned_object.length > 0
+        // should_inject_props = should_inject_context || needs_props || uses_props || uses_rest_props || uses_slots || slot_names.size > 0
+        //
+        // For specific patterns (props_identifier, class_state_fields, legacy_export_let), we need context
+        let should_inject_context = self.analysis_needs_context
+            || self.analysis_has_reactive_statements
+            || self.analysis_exports_count > 0
+            || uses_props_identifier
+            || has_class_state_fields
+            || has_legacy_export_let;
+
+        let should_inject_props = should_inject_context
+            || self.analysis_needs_props
+            || self.analysis_uses_props
+            || self.analysis_uses_rest_props
+            || self.analysis_uses_slots
+            || self.analysis_has_slot_names
+            || script_uses_props;
+
         // Generate system imports based on runes mode
         let system_imports = if self.uses_runes {
             "import 'svelte/internal/disclose-version';\nimport * as $ from 'svelte/internal/client';"
@@ -1946,25 +2014,23 @@ impl ClientCodeGenerator {
         };
 
         // Transform remaining script content for client-side
-        let script_code = if uses_props_identifier {
+        // Only add $.push/$.pop when should_inject_context is true
+        let script_code = if uses_props_identifier && should_inject_context {
             // Wrap with $.push/$.pop for props identifier pattern
             let props_name = props_identifier_name.as_ref().unwrap();
             let transformed =
                 self.transform_script_content_with_props_identifier(&script_rest, props_name);
             format!("\t$.push($$props, true);\n\n{}", transformed)
-        } else if has_class_state_fields {
+        } else if has_class_state_fields && should_inject_context {
             // Wrap with $.push/$.pop for class with state fields
             let transformed = self.transform_script_content(&script_rest);
             format!("\t$.push($$props, true);\n\n{}", transformed)
-        } else if has_legacy_export_let {
+        } else if has_legacy_export_let && should_inject_context {
             // Legacy mode: transform export let to $.prop() calls
             let transformed = self.transform_legacy_script_content(&script_rest);
             format!("\t$.push($$props, false);\n\n{}", transformed)
-        } else if self.uses_runes {
-            // Runes mode: wrap with $.push/$.pop
-            let transformed = self.transform_script_content(&script_rest);
-            format!("\t$.push($$props, true);\n\n{}", transformed)
         } else {
+            // No context injection needed - just transform the script
             self.transform_script_content(&script_rest)
         };
 
@@ -1991,13 +2057,13 @@ impl ClientCodeGenerator {
             format!("\n\n$.delegate([{}]);", events_str)
         };
 
-        // Determine function signature based on $props usage, class state fields, legacy export let, or runes
-        let fn_params =
-            if uses_props || has_class_state_fields || has_legacy_export_let || self.uses_runes {
-                "$$anchor, $$props"
-            } else {
-                "$$anchor"
-            };
+        // Determine function signature based on should_inject_props
+        // Reference: transform-client.js line 516
+        let fn_params = if should_inject_props {
+            "$$anchor, $$props"
+        } else {
+            "$$anchor"
+        };
 
         // Check if there's any HTML content
         let has_html = !html.is_empty();
@@ -2185,7 +2251,7 @@ export default function {component_name}({fn_params}) {{
             )
         } else if !has_html && runtime_code.is_empty() && !has_each_blocks {
             // No HTML template - just script code
-            let pop_code = if uses_props_identifier || has_class_state_fields || self.uses_runes {
+            let pop_code = if should_inject_context {
                 "\n\t$.pop();\n"
             } else {
                 ""
@@ -2222,11 +2288,7 @@ export default function {component_name}({fn_params}) {{
             // - TEMPLATE_FRAGMENT = 1 (always for fragments)
             // - TEMPLATE_USE_IMPORT_NODE = 2 (for custom elements/video)
             let template_flags = if self.has_custom_elements { 3 } else { 1 };
-            let pop_code = if has_legacy_export_let
-                || uses_props_identifier
-                || has_class_state_fields
-                || self.uses_runes
-            {
+            let pop_code = if should_inject_context {
                 "\t$.pop();\n"
             } else {
                 ""
@@ -2262,11 +2324,7 @@ export default function {component_name}({fn_params}) {{
         } else {
             // Single root element
             let root_var = determine_root_var(&html);
-            let pop_code = if has_legacy_export_let
-                || uses_props_identifier
-                || has_class_state_fields
-                || self.uses_runes
-            {
+            let pop_code = if should_inject_context {
                 "\t$.pop();\n"
             } else {
                 ""

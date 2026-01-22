@@ -83,14 +83,83 @@ pub fn client_component(
     analysis: &ComponentAnalysis,
     options: &CompileOptions,
 ) -> Result<JsProgram, TransformError> {
+    // Determine if we need to inject context ($.push/$.pop)
+    // Reference: transform-client.js lines 365-369
+    // In production, we check: needs_context || reactive_statements.size > 0 || component_returned_object.length > 0
+    // In dev mode, always inject context. Since we don't have dev mode flag yet, use conservative approach.
+    let component_returned_object_length = analysis.exports.len();
+    let should_inject_context = analysis.needs_context
+        || !analysis.reactive_statements.is_empty()
+        || component_returned_object_length > 0;
+
+    // Determine if we need $$props parameter
+    // Reference: transform-client.js lines 393-399
+    let should_inject_props = should_inject_context
+        || analysis.needs_props
+        || analysis.uses_props
+        || analysis.uses_rest_props
+        || analysis.uses_slots
+        || !analysis.slot_names.is_empty();
+
+    // Build component function body
+    let mut component_body = vec![];
+
+    // Add $.push at the start if injecting context
+    if should_inject_context {
+        // $.push($$props, runes)
+        // Reference: transform-client.js lines 434
+        component_body.push(JsStatement::Expression(JsExpressionStatement {
+            expression: Box::new(JsExpr::Call(JsCallExpression {
+                callee: Box::new(JsExpr::Member(JsMemberExpression {
+                    object: Box::new(JsExpr::Identifier("$".to_string())),
+                    property: JsMemberProperty::Identifier("push".to_string()),
+                    computed: false,
+                    optional: false,
+                })),
+                arguments: vec![
+                    JsExpr::Identifier("$$props".to_string()),
+                    JsExpr::Literal(JsLiteral::Boolean(analysis.runes)),
+                ],
+                optional: false,
+            })),
+        }));
+    }
+
+    // Add $.pop at the end if injecting context
+    if should_inject_context {
+        // $.pop()
+        // Reference: transform-client.js lines 441-445
+        component_body.push(JsStatement::Expression(JsExpressionStatement {
+            expression: Box::new(JsExpr::Call(JsCallExpression {
+                callee: Box::new(JsExpr::Member(JsMemberExpression {
+                    object: Box::new(JsExpr::Identifier("$".to_string())),
+                    property: JsMemberProperty::Identifier("pop".to_string()),
+                    computed: false,
+                    optional: false,
+                })),
+                arguments: vec![],
+                optional: false,
+            })),
+        }));
+    }
+
+    // Build component function parameters
+    let params = if should_inject_props {
+        vec![
+            JsPattern::Identifier("$$anchor".to_string()),
+            JsPattern::Identifier("$$props".to_string()),
+        ]
+    } else {
+        vec![JsPattern::Identifier("$$anchor".to_string())]
+    };
+
     // Create component function
     let component_fn = JsFunctionDeclaration {
         id: Some(analysis.name.clone()),
-        params: vec![
-            JsPattern::Identifier("$$anchor".to_string()),
-            JsPattern::Identifier("$$props".to_string()),
-        ],
-        body: JsBlockStatement { body: vec![] },
+        params,
+        body: JsBlockStatement {
+            body: component_body,
+        },
         is_async: false,
         is_generator: false,
     };
