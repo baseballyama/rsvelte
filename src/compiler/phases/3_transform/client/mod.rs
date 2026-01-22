@@ -669,40 +669,47 @@ impl ClientCodeGenerator {
                 let first_content = children.iter().position(|c| is_real_content(c));
                 let last_content = children.iter().rposition(|c| is_real_content(c));
 
-                for (i, child) in children.iter().enumerate() {
-                    // Skip comments entirely (they don't appear in HTML output)
-                    if matches!(child, TemplateNode::Comment(_)) {
-                        self.current_child_index += 1;
-                        continue;
-                    }
-                    // Skip leading whitespace
-                    if let Some(first) = first_content
-                        && i < first
-                    {
-                        self.current_child_index += 1;
-                        continue;
-                    }
-                    // Skip trailing whitespace
-                    if let Some(last) = last_content
-                        && i > last
-                    {
-                        self.current_child_index += 1;
-                        continue;
-                    }
-                    // Skip whitespace-only text between comment and real content
-                    if let TemplateNode::Text(t) = child
-                        && t.data.trim().is_empty()
-                    {
-                        // Check if there's only one real content child
-                        let real_content_count =
-                            children.iter().filter(|c| is_real_content(c)).count();
-                        if real_content_count == 1 {
+                // If there's no real content (only whitespace/comments), skip all children
+                // This handles the case of empty elements like <div>\n</div>
+                if first_content.is_none() {
+                    // No real content - don't add any children
+                    // (element will be rendered as <div></div>)
+                } else {
+                    for (i, child) in children.iter().enumerate() {
+                        // Skip comments entirely (they don't appear in HTML output)
+                        if matches!(child, TemplateNode::Comment(_)) {
                             self.current_child_index += 1;
                             continue;
                         }
+                        // Skip leading whitespace
+                        if let Some(first) = first_content
+                            && i < first
+                        {
+                            self.current_child_index += 1;
+                            continue;
+                        }
+                        // Skip trailing whitespace
+                        if let Some(last) = last_content
+                            && i > last
+                        {
+                            self.current_child_index += 1;
+                            continue;
+                        }
+                        // Skip whitespace-only text between comment and real content
+                        if let TemplateNode::Text(t) = child
+                            && t.data.trim().is_empty()
+                        {
+                            // Check if there's only one real content child
+                            let real_content_count =
+                                children.iter().filter(|c| is_real_content(c)).count();
+                            if real_content_count == 1 {
+                                self.current_child_index += 1;
+                                continue;
+                            }
+                        }
+                        self.generate_node(child, false)?;
+                        self.current_child_index += 1;
                     }
-                    self.generate_node(child, false)?;
-                    self.current_child_index += 1;
                 }
             }
 

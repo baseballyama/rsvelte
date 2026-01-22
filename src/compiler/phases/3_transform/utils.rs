@@ -6,6 +6,20 @@
 use crate::ast::template::TemplateNode;
 use crate::compiler::phases::phase2_analyze::scope::Scope;
 use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
+use compact_str::CompactString;
+use regex::Regex;
+use std::sync::LazyLock;
+
+/// Regex for text that is only whitespace
+static REGEX_NOT_WHITESPACE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\S").unwrap());
+
+/// Regex for leading whitespace
+static REGEX_STARTS_WITH_WHITESPACES: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\s+").unwrap());
+
+/// Regex for trailing whitespace
+static REGEX_ENDS_WITH_WHITESPACES: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\s+$").unwrap());
 
 /// Result of cleaning nodes.
 #[derive(Debug, Clone)]
@@ -52,10 +66,10 @@ pub fn clean_nodes(
     parent: Option<&TemplateNode>,
     nodes: &[TemplateNode],
     _path: &[&TemplateNode],
-    _namespace: &str,
+    namespace: &str,
     _scope: &Scope,
     _analysis: &ComponentAnalysis,
-    _preserve_whitespace: bool,
+    preserve_whitespace: bool,
     preserve_comments: bool,
 ) -> CleanedNodes {
     let mut hoisted = Vec::new();
@@ -85,9 +99,12 @@ pub fn clean_nodes(
         }
     }
 
-    // For now, simple implementation without whitespace trimming
-    // TODO: Implement full whitespace trimming logic
-    let trimmed = regular;
+    // Whitespace trimming (unless preserve_whitespace is set)
+    let trimmed = if preserve_whitespace {
+        regular
+    } else {
+        trim_whitespace(parent, &regular, namespace)
+    };
 
     // Determine is_standalone
     let is_standalone = trimmed.len() == 1
@@ -122,6 +139,115 @@ pub fn clean_nodes(
         is_standalone,
         is_text_first,
     }
+}
+
+/// Trim whitespace from template nodes.
+///
+/// Implements the whitespace trimming logic from the official Svelte compiler:
+/// - Remove leading and trailing whitespace-only text nodes
+/// - Trim leading whitespace from first text node
+/// - Trim trailing whitespace from last text node
+/// - Collapse internal whitespace-only text nodes to a single space
+///   (or remove entirely for certain elements like select, table, etc.)
+fn trim_whitespace(
+    parent: Option<&TemplateNode>,
+    nodes: &[TemplateNode],
+    namespace: &str,
+) -> Vec<TemplateNode> {
+    let mut regular: Vec<TemplateNode> = nodes.to_vec();
+
+    // Remove leading whitespace-only text nodes
+    while !regular.is_empty() {
+        if let TemplateNode::Text(text) = &regular[0]
+            && !REGEX_NOT_WHITESPACE.is_match(&text.data)
+        {
+            regular.remove(0);
+            continue;
+        }
+        break;
+    }
+
+    // Trim leading whitespace from first text node
+    if let Some(TemplateNode::Text(first)) = regular.first_mut() {
+        let new_raw = REGEX_STARTS_WITH_WHITESPACES.replace(&first.raw, "");
+        let new_data = REGEX_STARTS_WITH_WHITESPACES.replace(&first.data, "");
+        first.raw = CompactString::new(&new_raw);
+        first.data = CompactString::new(&new_data);
+    }
+
+    // Remove trailing whitespace-only text nodes
+    while !regular.is_empty() {
+        if let TemplateNode::Text(text) = regular.last().unwrap()
+            && !REGEX_NOT_WHITESPACE.is_match(&text.data)
+        {
+            regular.pop();
+            continue;
+        }
+        break;
+    }
+
+    // Trim trailing whitespace from last text node
+    if let Some(TemplateNode::Text(last)) = regular.last_mut() {
+        let new_raw = REGEX_ENDS_WITH_WHITESPACES.replace(&last.raw, "");
+        let new_data = REGEX_ENDS_WITH_WHITESPACES.replace(&last.data, "");
+        last.raw = CompactString::new(&new_raw);
+        last.data = CompactString::new(&new_data);
+    }
+
+    // Determine if whitespace-only text nodes can be removed entirely
+    // This applies to svg (except text elements) and certain HTML elements
+    let can_remove_entirely = (namespace == "svg"
+        && !matches!(parent, Some(TemplateNode::RegularElement(elem)) if elem.name == "text"))
+        || matches!(parent, Some(TemplateNode::RegularElement(elem)) if matches!(
+            elem.name.as_str(),
+            "select" | "tr" | "table" | "tbody" | "thead" | "tfoot" | "colgroup" | "datalist"
+        ));
+
+    // Process internal text nodes - collapse whitespace
+    let mut trimmed = Vec::new();
+    for (i, node) in regular.iter().enumerate() {
+        if let TemplateNode::Text(text) = node {
+            let mut new_text = text.clone();
+            let prev = if i > 0 { regular.get(i - 1) } else { None };
+            let next = regular.get(i + 1);
+
+            // Collapse leading whitespace unless previous node is an ExpressionTag
+            if !matches!(prev, Some(TemplateNode::ExpressionTag(_))) {
+                let prev_is_text_ending_with_whitespace = matches!(
+                    prev,
+                    Some(TemplateNode::Text(t)) if REGEX_ENDS_WITH_WHITESPACES.is_match(&t.data)
+                );
+                let replacement = if prev_is_text_ending_with_whitespace {
+                    ""
+                } else {
+                    " "
+                };
+                new_text.data = CompactString::new(
+                    REGEX_STARTS_WITH_WHITESPACES.replace(&new_text.data, replacement),
+                );
+                new_text.raw = CompactString::new(
+                    REGEX_STARTS_WITH_WHITESPACES.replace(&new_text.raw, replacement),
+                );
+            }
+
+            // Collapse trailing whitespace unless next node is an ExpressionTag
+            if !matches!(next, Some(TemplateNode::ExpressionTag(_))) {
+                new_text.data =
+                    CompactString::new(REGEX_ENDS_WITH_WHITESPACES.replace(&new_text.data, " "));
+                new_text.raw =
+                    CompactString::new(REGEX_ENDS_WITH_WHITESPACES.replace(&new_text.raw, " "));
+            }
+
+            // Only add if there's content or it's a meaningful space
+            if !new_text.data.is_empty() && (new_text.data != " " || !can_remove_entirely) {
+                trimmed.push(TemplateNode::Text(new_text));
+            }
+        } else {
+            trimmed.push(node.clone());
+        }
+    }
+
+    trimmed
 }
 
 /// Infer the namespace for the children of a node.
@@ -200,5 +326,69 @@ mod tests {
         let namespace = infer_namespace("html", None, &[], &analysis);
 
         assert_eq!(namespace, "html");
+    }
+
+    #[test]
+    fn test_clean_nodes_whitespace_only() {
+        use crate::ast::template::Text;
+        use crate::compiler::CompileOptions;
+        use crate::compiler::phases::phase2_analyze::scope::Scope;
+        use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
+        use compact_str::CompactString;
+
+        let options = CompileOptions::default();
+        let scope = Scope::new(None);
+        let analysis = ComponentAnalysis::new("", &options);
+
+        // Create a whitespace-only text node
+        let nodes = vec![TemplateNode::Text(Text {
+            start: 0,
+            end: 5,
+            raw: CompactString::new("  \n  "),
+            data: CompactString::new("  \n  "),
+        })];
+
+        let cleaned = clean_nodes(None, &nodes, &[], "html", &scope, &analysis, false, false);
+
+        // Whitespace-only text node should be removed
+        assert!(
+            cleaned.trimmed.is_empty(),
+            "Whitespace-only text should be trimmed: {:?}",
+            cleaned.trimmed
+        );
+    }
+
+    #[test]
+    fn test_clean_nodes_trim_leading_whitespace() {
+        use crate::ast::template::Text;
+        use crate::compiler::CompileOptions;
+        use crate::compiler::phases::phase2_analyze::scope::Scope;
+        use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
+        use compact_str::CompactString;
+
+        let options = CompileOptions::default();
+        let scope = Scope::new(None);
+        let analysis = ComponentAnalysis::new("", &options);
+
+        // Create a text node with leading whitespace
+        let nodes = vec![TemplateNode::Text(Text {
+            start: 0,
+            end: 10,
+            raw: CompactString::new("  hello"),
+            data: CompactString::new("  hello"),
+        })];
+
+        let cleaned = clean_nodes(None, &nodes, &[], "html", &scope, &analysis, false, false);
+
+        assert_eq!(cleaned.trimmed.len(), 1);
+        if let TemplateNode::Text(t) = &cleaned.trimmed[0] {
+            assert_eq!(
+                t.data.as_str(),
+                "hello",
+                "Leading whitespace should be trimmed"
+            );
+        } else {
+            panic!("Expected Text node");
+        }
     }
 }

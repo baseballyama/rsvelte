@@ -9,13 +9,14 @@
 #![allow(dead_code)]
 
 use crate::ast::template::{
-    Attribute, AttributeNode, AttributeValue, RegularElement as RegularElementNode,
+    Attribute, AttributeNode, AttributeValue, RegularElement as RegularElementNode, TemplateNode,
 };
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::element::build_attribute_value;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::process_children;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
+use crate::compiler::phases::phase3_transform::utils::clean_nodes;
 
 /// Visit a regular element node.
 ///
@@ -164,10 +165,26 @@ pub fn visit_regular_element(
         }
     }
 
-    // Process child nodes
+    // Clean child nodes - trim whitespace
+    let preserve_whitespace =
+        context.state.preserve_whitespace || node.name == "pre" || node.name == "textarea";
+
+    let parent_node = TemplateNode::RegularElement(node.clone());
+    let cleaned = clean_nodes(
+        Some(&parent_node),
+        &node.fragment.nodes,
+        &[], // path - not needed for our implementation
+        &context.state.metadata.namespace,
+        context.state.scope,
+        context.state.analysis,
+        preserve_whitespace || node.name == "script",
+        context.state.options.preserve_comments,
+    );
+
+    // Process trimmed child nodes
     let current_node = context.state.node.clone();
     process_children(
-        &node.fragment.nodes,
+        &cleaned.trimmed,
         |is_text| {
             b::call(
                 b::member_path("$.child"),
@@ -186,13 +203,12 @@ pub fn visit_regular_element(
     );
 
     // Reset after processing children if needed
-    if !node.fragment.nodes.is_empty()
-        && node
-            .fragment
-            .nodes
-            .iter()
-            .any(|n| !matches!(n, crate::ast::template::TemplateNode::Text(_)))
-    {
+    let needs_reset = cleaned
+        .trimmed
+        .iter()
+        .any(|n| !matches!(n, TemplateNode::Text(_)));
+
+    if needs_reset {
         context.state.init.push(b::stmt(b::call(
             b::member_path("$.reset"),
             vec![context.state.node.clone()],
