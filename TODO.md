@@ -4,7 +4,7 @@
 すべての作業はここに記載され、進捗・発見・判断が逐次更新されます。
 
 **最終更新**: 2026-01-22
-**現在のフェーズ**: Phase B - 計画策定
+**現在のフェーズ**: Phase C - Rust 実装
 
 ---
 
@@ -71,7 +71,7 @@ svelte/packages/svelte/src/compiler/
 
 | スイート | 通過/総数 | 通過率 | 優先度 |
 |---------|----------|--------|--------|
-| Parser Modern | 22/22 | 100% | - |
+| Parser Modern | 18/22 | 81.8% | - |
 | Parser Legacy | 82/82 | 100% | - |
 | Compiler Snapshot | 15/19 | 78.9% | 高 |
 | CSS | 110/177 | 62.1% | 中 |
@@ -194,8 +194,13 @@ svelte/packages/svelte/src/compiler/
 
 ### 6.1 Phase C: Rust 実装タスク
 
+#### 6.1.0 基盤修正
+- [x] **C-000**: ビルドエラー修正（transform_client.rs）
+  - 完了: 2026-01-22
+  - JsIdentifier → String、JsStatement API修正
+
 #### 6.1.1 Phase 3 Client Visitors（最優先）
-- [ ] **C-001**: IfBlock visitor 完全実装
+- [ ] **C-001**: IfBlock visitor 完全実装（調査完了）
   - 依存: なし
   - 完了条件: runtime-runes の if 関連テスト通過
   - 参照: `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/IfBlock.js`
@@ -409,14 +414,14 @@ jobs:
 ## 11. 進捗ログ
 
 ### 2026-01-22
-- [x] Phase A 完了: 現状調査
-  - JS 実装構造の完全な把握
-  - Rust 実装状態の評価（75-80% 完了）
-  - テスト環境の詳細調査
-  - playground 現状確認
-- [x] Phase B 完了: TODO.md 作成
-  - 判断: 既存 Rust 実装を流用
-- [x] Phase C 進行中: Rust 実装
+- [x] **Phase A 完了**: 現状調査
+  - [x] JS 実装構造の完全な把握
+  - [x] Rust 実装状態の評価（75-80% 完了）
+  - [x] テスト環境の詳細調査
+  - [x] playground 現状確認
+- [x] **Phase B 完了**: TODO.md 作成
+  - [x] 判断: 既存 Rust 実装を流用
+- [ ] **Phase C 進行中**: Rust 実装
   - [x] C-000: ビルドエラー修正（transform_client.rs）
     - JsIdentifier → String
     - JsStatement::ImportDeclaration → JsStatement::Import
@@ -425,6 +430,10 @@ jobs:
   - [ ] C-001: IfBlock visitor 完全実装（調査完了、実装待ち）
     - 問題点特定: blockers 収集が Phase 2 で未実装
     - thunk 形式は現行で問題なし
+  - [ ] C-002: EachBlock visitor 完全実装
+  - [ ] C-003: Component visitor 完全実装
+- [ ] **Phase D 未着手**: 互換性テスト整備
+- [ ] **Phase E 未着手**: docs サイト完成
 
 **現在のテスト状況（2026-01-22）:**
 - Parser Modern: 18/22 (81.8%)
