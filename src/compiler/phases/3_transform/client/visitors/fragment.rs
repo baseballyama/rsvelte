@@ -131,6 +131,8 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
         is_instance: context.state.is_instance,
         legacy_reactive_imports: context.state.legacy_reactive_imports.clone(),
         preserve_whitespace: context.state.preserve_whitespace,
+        instance_level_snippets: Vec::new(),
+        module_level_snippets: Vec::new(),
     };
 
     // Process hoisted nodes

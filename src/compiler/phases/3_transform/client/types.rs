@@ -173,9 +173,10 @@ impl<'a> ComponentContext<'a> {
 
     fn visit_await_block(
         &mut self,
-        _await_block: &crate::ast::template::AwaitBlock,
+        await_block: &crate::ast::template::AwaitBlock,
     ) -> TransformResult {
-        // TODO: Implement {#await} transformation
+        use crate::compiler::phases::phase3_transform::client::visitors::await_block::await_block as visit_await_block_impl;
+        visit_await_block_impl(await_block, self);
         TransformResult::None
     }
 
@@ -186,9 +187,10 @@ impl<'a> ComponentContext<'a> {
 
     fn visit_snippet_block(
         &mut self,
-        _snippet: &crate::ast::template::SnippetBlock,
+        snippet: &crate::ast::template::SnippetBlock,
     ) -> TransformResult {
-        // TODO: Implement {#snippet} transformation
+        use crate::compiler::phases::phase3_transform::client::visitors::snippet_block::snippet_block as visit_snippet_block_impl;
+        visit_snippet_block_impl(snippet, self);
         TransformResult::None
     }
 
@@ -209,6 +211,18 @@ impl<'a> ComponentContext<'a> {
         use crate::compiler::phases::phase3_transform::client::visitors::on_directive::on_directive as visit_on_directive_impl;
         let expr = visit_on_directive_impl(on_directive, self);
         TransformResult::Expression(expr)
+    }
+
+    /// Visit a BindDirective node.
+    ///
+    /// This handles bind: directives like bind:value, bind:checked, bind:this, etc.
+    pub fn visit_bind_directive(
+        &mut self,
+        bind_directive: &crate::ast::template::BindDirective,
+        parent: Option<&TemplateNode>,
+    ) -> TransformResult {
+        use crate::compiler::phases::phase3_transform::client::visitors::bind_directive::bind_directive as visit_bind_directive_impl;
+        visit_bind_directive_impl(bind_directive, self, parent)
     }
 }
 
@@ -347,6 +361,14 @@ pub struct ComponentClientTransformState<'a> {
 
     /// Whether to preserve whitespace (deprecated, use options.preserve_whitespace)
     pub preserve_whitespace: bool,
+
+    /// Snippets hoisted to the instance level (within the component function).
+    /// These are snippets that reference instance-level state and can't be hoisted to module level.
+    pub instance_level_snippets: Vec<JsStatement>,
+
+    /// Snippets hoisted to the module level (outside the component function).
+    /// These are snippets that don't reference instance-level state and can be safely hoisted.
+    pub module_level_snippets: Vec<JsStatement>,
 }
 
 impl<'a> ComponentClientTransformState<'a> {
@@ -383,6 +405,8 @@ impl<'a> ComponentClientTransformState<'a> {
             is_instance: false,
             legacy_reactive_imports: Vec::new(),
             preserve_whitespace: false,
+            instance_level_snippets: Vec::new(),
+            module_level_snippets: Vec::new(),
         }
     }
 

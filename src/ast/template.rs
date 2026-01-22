@@ -321,6 +321,13 @@ pub struct EachBlock {
     pub metadata: EachBlockMetadata,
 }
 
+/// Metadata for AwaitBlock nodes, populated during Phase 2 analysis.
+#[derive(Debug, Clone, Default)]
+pub struct AwaitBlockMetadata {
+    /// Expression metadata for the promise expression
+    pub expression: ExpressionMetadata,
+}
+
 /// An await block: `{#await promise}...{:then value}...{:catch error}...{/await}`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AwaitBlock {
@@ -332,6 +339,9 @@ pub struct AwaitBlock {
     pub pending: Option<Fragment>,
     pub then: Option<Fragment>,
     pub catch: Option<Fragment>,
+    /// Metadata (not serialized)
+    #[serde(skip)]
+    pub metadata: AwaitBlockMetadata,
 }
 
 /// Metadata for KeyBlock nodes, populated during Phase 2 analysis.
@@ -353,6 +363,17 @@ pub struct KeyBlock {
     pub metadata: KeyBlockMetadata,
 }
 
+/// Metadata for SnippetBlock nodes, populated during Phase 2 analysis.
+#[derive(Debug, Clone, Default)]
+pub struct SnippetBlockMetadata {
+    /// Whether this snippet can be hoisted to module level.
+    /// A snippet can be hoisted if it doesn't reference any instance-level state.
+    pub can_hoist: bool,
+    /// The set of components/render tags that could render this snippet,
+    /// used for CSS pruning (stored as indices into component/render tag arrays).
+    pub sites: HashSet<usize>,
+}
+
 /// A snippet block: `{#snippet name(params)}...{/snippet}`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SnippetBlock {
@@ -363,6 +384,9 @@ pub struct SnippetBlock {
     pub type_params: Option<CompactString>,
     pub parameters: Vec<Expression>,
     pub body: Fragment,
+    /// Metadata (not serialized)
+    #[serde(skip)]
+    pub metadata: SnippetBlockMetadata,
 }
 
 // =============================================================================

@@ -823,6 +823,7 @@ impl Parser<'_> {
             pending: pending_fragment,
             then: then_fragment,
             catch: catch_fragment,
+            metadata: Default::default(),
         })))
     }
 
@@ -1044,6 +1045,7 @@ impl Parser<'_> {
             type_params,
             parameters,
             body,
+            metadata: Default::default(),
         })))
     }
 
