@@ -54,10 +54,10 @@
 //! 7. Complete HMR support
 //! 8. Complete custom element support
 
-use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
-use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
-use crate::compiler::phases::phase3_transform::TransformError;
 use crate::compiler::CompileOptions;
+use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
+use crate::compiler::phases::phase3_transform::TransformError;
+use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 
 /// Transform a component analysis into a client-side ESTree program.
 ///
@@ -85,18 +85,14 @@ pub fn client_component(
 ) -> Result<JsProgram, TransformError> {
     // Create component function
     let component_fn = JsFunctionDeclaration {
-        id: Some(JsIdentifier {
-            name: analysis.name.clone(),
-        }),
+        id: Some(analysis.name.clone()),
         params: vec![
-            JsPattern::Identifier(JsIdentifier {
-                name: "$$anchor".to_string(),
-            }),
-            JsPattern::Identifier(JsIdentifier {
-                name: "$$props".to_string(),
-            }),
+            JsPattern::Identifier("$$anchor".to_string()),
+            JsPattern::Identifier("$$props".to_string()),
         ],
         body: JsBlockStatement { body: vec![] },
+        is_async: false,
+        is_generator: false,
     };
 
     // Build program body
@@ -104,42 +100,31 @@ pub fn client_component(
 
     // Add feature flags
     if !analysis.runes {
-        body.push(JsStatement::ImportDeclaration(JsImportDeclaration {
+        body.push(JsStatement::Import(JsImportDeclaration {
             specifiers: vec![],
-            source: JsLiteral::String("svelte/internal/flags/legacy".to_string()),
+            source: "svelte/internal/flags/legacy".to_string(),
         }));
     }
 
     if options.experimental.r#async {
-        body.push(JsStatement::ImportDeclaration(JsImportDeclaration {
+        body.push(JsStatement::Import(JsImportDeclaration {
             specifiers: vec![],
-            source: JsLiteral::String("svelte/internal/flags/async".to_string()),
+            source: "svelte/internal/flags/async".to_string(),
         }));
     }
 
     // Add svelte/internal/client import
-    body.push(JsStatement::ImportDeclaration(JsImportDeclaration {
-        specifiers: vec![JsImportSpecifier::ImportNamespaceSpecifier(
-            JsImportNamespaceSpecifier {
-                local: JsIdentifier {
-                    name: "$".to_string(),
-                },
-            },
-        )],
-        source: JsLiteral::String("svelte/internal/client".to_string()),
+    body.push(JsStatement::Import(JsImportDeclaration {
+        specifiers: vec![JsImportSpecifier::Namespace("$".to_string())],
+        source: "svelte/internal/client".to_string(),
     }));
 
     // Export default component function
-    body.push(JsStatement::ExportDefaultDeclaration(
-        JsExportDefaultDeclaration {
-            declaration: JsExportDefaultDeclarationKind::FunctionDeclaration(component_fn),
-        },
-    ));
+    body.push(JsStatement::ExportDefault(JsExportDefault {
+        declaration: JsExportDefaultDeclaration::Function(component_fn),
+    }));
 
-    Ok(JsProgram {
-        source_type: "module".to_string(),
-        body,
-    })
+    Ok(JsProgram { body })
 }
 
 /// Transform a module (no template, just script) for client-side execution.
@@ -167,32 +152,24 @@ pub fn client_module(
     let mut body = vec![];
 
     // Add svelte/internal/client import
-    body.push(JsStatement::ImportDeclaration(JsImportDeclaration {
-        specifiers: vec![JsImportSpecifier::ImportNamespaceSpecifier(
-            JsImportNamespaceSpecifier {
-                local: JsIdentifier {
-                    name: "$".to_string(),
-                },
-            },
-        )],
-        source: JsLiteral::String("svelte/internal/client".to_string()),
+    body.push(JsStatement::Import(JsImportDeclaration {
+        specifiers: vec![JsImportSpecifier::Namespace("$".to_string())],
+        source: "svelte/internal/client".to_string(),
     }));
 
     if analysis.tracing {
-        body.push(JsStatement::ImportDeclaration(JsImportDeclaration {
+        body.push(JsStatement::Import(JsImportDeclaration {
             specifiers: vec![],
-            source: JsLiteral::String("svelte/internal/flags/tracing".to_string()),
+            source: "svelte/internal/flags/tracing".to_string(),
         }));
     }
 
-    Ok(JsProgram {
-        source_type: "module".to_string(),
-        body,
-    })
+    Ok(JsProgram { body })
 }
 
 #[cfg(test)]
 mod tests {
+    #[allow(unused_imports)]
     use super::*;
 
     #[test]
