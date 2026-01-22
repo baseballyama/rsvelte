@@ -438,6 +438,49 @@ pub struct AwaitBlockInfo {
     pub then_value: Option<String>,
 }
 
+/// Information about an if block for client-side code generation.
+#[derive(Debug, Clone)]
+pub struct IfBlockInfo {
+    /// The condition expression (e.g., "first || derivedSecond")
+    pub condition: String,
+    /// Whether this is an elseif (part of a chain)
+    pub is_elseif: bool,
+    /// Template variable for consequent branch (e.g., "root_1")
+    pub consequent_template_var: Option<String>,
+    /// HTML for consequent template
+    pub consequent_template_html: Option<String>,
+    /// Content parts in consequent (for text-based rendering)
+    pub consequent_parts: Vec<IfBlockPart>,
+    /// Alternate template variable (if there's an else branch)
+    pub alternate_template_var: Option<String>,
+    /// HTML for alternate template
+    pub alternate_template_html: Option<String>,
+    /// Content parts in alternate (for text-based rendering)
+    pub alternate_parts: Vec<IfBlockPart>,
+    /// Whether the consequent is text-only (no elements)
+    pub consequent_text_only: bool,
+    /// Whether the alternate is text-only (no elements)
+    pub alternate_text_only: bool,
+}
+
+/// A part of if block content.
+#[derive(Debug, Clone)]
+pub enum IfBlockPart {
+    /// Static text
+    Text(String),
+    /// Expression to evaluate
+    Expression(String),
+    /// Element template
+    Element {
+        tag: String,
+        template_var: String,
+        template_html: String,
+        dynamic_attrs: Vec<DynamicAttribute>,
+        event_handlers: Vec<EventHandler>,
+        children: Vec<IfBlockPart>,
+    },
+}
+
 /// Special attribute that needs runtime handling.
 #[derive(Debug, Clone)]
 pub enum SpecialAttribute {

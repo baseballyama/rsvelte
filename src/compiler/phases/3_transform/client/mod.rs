@@ -12,26 +12,26 @@ pub mod visitors;
 
 use state::{
     AwaitBlockInfo, BindThisComponent, ChildPart, ComponentWithBinding, ComponentWithChildren,
-    DynamicAttribute, EachBlockInfo, EventHandler, HtmlTagInfo, NodeInfo, NodeType, SnippetInfo,
-    SpecialAttribute, SvelteElementInfo,
+    DynamicAttribute, EachBlockInfo, EventHandler, HtmlTagInfo, IfBlockInfo, IfBlockPart, NodeInfo,
+    NodeType, SnippetInfo, SpecialAttribute, SvelteElementInfo,
 };
 
 use super::TransformError;
 use super::js_ast::{
     builders::{
         array, arrow, arrow_block, assign, boolean, call, const_decl, export_default_function,
-        getter, id, id_pattern, import_namespace, import_side_effect, member, object,
-        optional_call, program, prop, quasi, return_value, set_text_content, setter, stmt, string,
-        svelte_action, svelte_append, svelte_autofocus, svelte_await, svelte_bind_value,
-        svelte_child, svelte_each, svelte_element, svelte_first_child, svelte_from_html,
-        svelte_get, svelte_html, svelte_index, svelte_next, svelte_remove_input_defaults,
-        svelte_reset, svelte_set, svelte_set_attribute, svelte_set_class,
-        svelte_set_custom_element_data, svelte_set_style, svelte_set_sync, svelte_set_text,
-        svelte_sibling, svelte_template_effect, svelte_template_effect_with_values, svelte_text,
-        template, thunk, var_decl,
+        getter, id, id_pattern, if_stmt, import_namespace, import_side_effect, member, member_path,
+        nullish, object, optional_call, program, prop, quasi, raw, return_value, set_text_content,
+        setter, stmt, string, svelte_action, svelte_append, svelte_autofocus, svelte_await,
+        svelte_bind_value, svelte_child, svelte_each, svelte_element, svelte_first_child,
+        svelte_from_html, svelte_get, svelte_html, svelte_index, svelte_next,
+        svelte_remove_input_defaults, svelte_reset, svelte_set, svelte_set_attribute,
+        svelte_set_class, svelte_set_custom_element_data, svelte_set_style, svelte_set_sync,
+        svelte_set_text, svelte_sibling, svelte_template_effect,
+        svelte_template_effect_with_values, svelte_text, template, thunk, var_decl,
     },
     generate,
-    nodes::{JsExpr, JsObjectMember, JsPattern, JsStatement},
+    nodes::{JsBlockStatement, JsExpr, JsObjectMember, JsPattern, JsStatement},
     normalize_js,
 };
 use super::shared::{escape_attr, escape_html, is_void_element};
@@ -168,6 +168,10 @@ struct ClientCodeGenerator {
     components_with_bindings: Vec<ComponentWithBinding>,
     /// Await blocks for runtime code generation
     await_blocks: Vec<AwaitBlockInfo>,
+    /// If blocks for runtime code generation
+    if_blocks: Vec<IfBlockInfo>,
+    /// Counter for if block template variable names
+    if_block_counter: usize,
     /// Whether template contains custom elements (elements with hyphens) or video elements
     has_custom_elements: bool,
     /// Read-only destructured props (accessed via $$props.propName, not $.prop())
@@ -273,6 +277,8 @@ impl ClientCodeGenerator {
             snippets: Vec::new(),
             components_with_bindings: Vec::new(),
             await_blocks: Vec::new(),
+            if_blocks: Vec::new(),
+            if_block_counter: 0,
             has_custom_elements: false,
             read_only_props,
             special_attrs: Vec::new(),
@@ -1650,10 +1656,244 @@ impl ClientCodeGenerator {
         Ok(())
     }
 
-    fn generate_if_block(&mut self, _block: &IfBlock) -> Result<(), TransformError> {
+    fn generate_if_block(&mut self, block: &IfBlock) -> Result<(), TransformError> {
         // Control blocks need anchor comments
         self.html_parts.push("<!>".to_string());
+
+        // Extract the condition expression
+        let test_start = block.test.start().unwrap_or(0) as usize;
+        let test_end = block.test.end().unwrap_or(0) as usize;
+        let condition = if test_end > test_start && test_end <= self.source.len() {
+            self.source[test_start..test_end].trim().to_string()
+        } else {
+            "true".to_string()
+        };
+
+        // Process consequent (the "then" branch)
+        let (
+            consequent_parts,
+            consequent_template_var,
+            consequent_template_html,
+            consequent_text_only,
+        ) = self.process_if_block_branch(&block.consequent)?;
+
+        // Process alternate (the "else" branch) if present
+        let (alternate_parts, alternate_template_var, alternate_template_html, alternate_text_only) =
+            if let Some(ref alternate) = block.alternate {
+                self.process_if_block_branch(alternate)?
+            } else {
+                (Vec::new(), None, None, true)
+            };
+
+        // Store the if block info for code generation
+        self.if_blocks.push(IfBlockInfo {
+            condition: condition.clone(),
+            is_elseif: block.elseif,
+            consequent_template_var,
+            consequent_template_html,
+            consequent_parts,
+            alternate_template_var,
+            alternate_template_html,
+            alternate_parts,
+            consequent_text_only,
+            alternate_text_only,
+        });
+
         Ok(())
+    }
+
+    /// Process a branch of an if block (consequent or alternate) and return its parts.
+    #[allow(clippy::type_complexity)]
+    fn process_if_block_branch(
+        &mut self,
+        fragment: &Fragment,
+    ) -> Result<(Vec<IfBlockPart>, Option<String>, Option<String>, bool), TransformError> {
+        let mut parts = Vec::new();
+        let nodes = &fragment.nodes;
+
+        // Skip leading and trailing whitespace
+        let mut start_idx = 0;
+        let mut end_idx = nodes.len();
+
+        while start_idx < end_idx {
+            if let TemplateNode::Text(text) = &nodes[start_idx]
+                && text.data.trim().is_empty()
+            {
+                start_idx += 1;
+                continue;
+            }
+            break;
+        }
+
+        while end_idx > start_idx {
+            if let TemplateNode::Text(text) = &nodes[end_idx - 1]
+                && text.data.trim().is_empty()
+            {
+                end_idx -= 1;
+                continue;
+            }
+            break;
+        }
+
+        // Check if the branch contains elements
+        let has_elements = nodes[start_idx..end_idx]
+            .iter()
+            .any(|node| matches!(node, TemplateNode::RegularElement(_)));
+
+        if has_elements {
+            // Generate a template for element-based content
+            self.if_block_counter += 1;
+            let template_var = format!("root_{}", self.if_block_counter);
+
+            // Build template HTML and parts
+            let mut template_html = String::new();
+
+            for node in &nodes[start_idx..end_idx] {
+                match node {
+                    TemplateNode::RegularElement(elem) => {
+                        let elem_html = self.build_element_template_html(elem);
+                        template_html.push_str(&elem_html);
+                        parts.push(IfBlockPart::Element {
+                            tag: elem.name.to_string(),
+                            template_var: template_var.clone(),
+                            template_html: elem_html,
+                            dynamic_attrs: Vec::new(),
+                            event_handlers: Vec::new(),
+                            children: self.collect_element_children_parts(elem),
+                        });
+                    }
+                    TemplateNode::Text(text) => {
+                        let trimmed = text.data.trim();
+                        if !trimmed.is_empty() {
+                            template_html.push_str(trimmed);
+                            parts.push(IfBlockPart::Text(trimmed.to_string()));
+                        }
+                    }
+                    TemplateNode::ExpressionTag(tag) => {
+                        // Add placeholder for expressions
+                        template_html.push(' ');
+                        let expr_start = tag.start as usize;
+                        let expr_end = tag.end as usize;
+                        if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                            let expr = self.source[expr_start + 1..expr_end - 1].trim().to_string();
+                            parts.push(IfBlockPart::Expression(expr));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            Ok((parts, Some(template_var), Some(template_html), false))
+        } else {
+            // Text-only content
+            for node in &nodes[start_idx..end_idx] {
+                match node {
+                    TemplateNode::Text(text) => {
+                        let trimmed = text.data.trim();
+                        if !trimmed.is_empty() {
+                            parts.push(IfBlockPart::Text(trimmed.to_string()));
+                        }
+                    }
+                    TemplateNode::ExpressionTag(tag) => {
+                        let expr_start = tag.start as usize;
+                        let expr_end = tag.end as usize;
+                        if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                            let expr = self.source[expr_start + 1..expr_end - 1].trim().to_string();
+                            parts.push(IfBlockPart::Expression(expr));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            Ok((parts, None, None, true))
+        }
+    }
+
+    /// Build the HTML template string for an element.
+    fn build_element_template_html(&self, elem: &RegularElement) -> String {
+        let elem_name = &elem.name;
+        let mut html = format!("<{}", elem_name);
+
+        // Add CSS scoping class if present
+        if let Some(ref hash) = self.css_hash {
+            html.push_str(&format!(" class=\"{}\"", hash));
+        }
+
+        // Add static attributes
+        for attr in &elem.attributes {
+            if let Attribute::Attribute(attr_node) = attr {
+                match &attr_node.value {
+                    AttributeValue::Sequence(parts)
+                        if parts
+                            .iter()
+                            .all(|p| matches!(p, AttributeValuePart::Text(_))) =>
+                    {
+                        let value: String = parts
+                            .iter()
+                            .filter_map(|p| {
+                                if let AttributeValuePart::Text(t) = p {
+                                    Some(t.data.as_str())
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
+                        html.push_str(&format!(r#" {}="{}""#, attr_node.name, value));
+                    }
+                    AttributeValue::True(_) => {
+                        html.push_str(&format!(" {}", attr_node.name));
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        html.push('>');
+
+        // Add static text content from children
+        for child in &elem.fragment.nodes {
+            if let TemplateNode::Text(text) = child {
+                let trimmed = text.data.trim();
+                if !trimmed.is_empty() {
+                    html.push_str(trimmed);
+                }
+            }
+        }
+
+        // Close tag (unless void element)
+        if !is_void_element(elem_name) {
+            html.push_str(&format!("</{}>", elem_name));
+        }
+
+        html
+    }
+
+    /// Collect children parts from an element for if block processing.
+    fn collect_element_children_parts(&self, elem: &RegularElement) -> Vec<IfBlockPart> {
+        let mut parts = Vec::new();
+
+        for child in &elem.fragment.nodes {
+            match child {
+                TemplateNode::Text(text) => {
+                    let trimmed = text.data.trim();
+                    if !trimmed.is_empty() {
+                        parts.push(IfBlockPart::Text(trimmed.to_string()));
+                    }
+                }
+                TemplateNode::ExpressionTag(tag) => {
+                    let expr_start = tag.start as usize;
+                    let expr_end = tag.end as usize;
+                    if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                        let expr = self.source[expr_start + 1..expr_end - 1].trim().to_string();
+                        parts.push(IfBlockPart::Expression(expr));
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        parts
     }
 
     fn generate_each_block(&mut self, block: &EachBlock) -> Result<(), TransformError> {
@@ -2212,6 +2452,32 @@ impl ClientCodeGenerator {
         // Generate each block code (using AST-based generation)
         let each_code = self.generate_each_block_code_via_ast();
 
+        // Generate if block templates (for branches with elements)
+        let if_templates: String = self
+            .if_blocks
+            .iter()
+            .flat_map(|if_block| {
+                let mut templates = Vec::new();
+                if let (Some(var), Some(html)) = (
+                    &if_block.consequent_template_var,
+                    &if_block.consequent_template_html,
+                ) {
+                    templates.push(format!("var {} = $.from_html(`{}`);\n\n", var, html));
+                }
+                if let (Some(var), Some(html)) = (
+                    &if_block.alternate_template_var,
+                    &if_block.alternate_template_html,
+                ) {
+                    templates.push(format!("var {} = $.from_html(`{}`);\n\n", var, html));
+                }
+                templates
+            })
+            .collect();
+
+        // Generate if block code (using AST-based generation)
+        let if_code = self.generate_if_block_code_via_ast();
+        let has_if_blocks = !self.if_blocks.is_empty();
+
         // Generate svelte:element code (using AST-based generation)
         let has_svelte_elements = !self.svelte_elements.is_empty();
         let svelte_element_code = self.generate_svelte_element_code_via_ast();
@@ -2381,7 +2647,28 @@ export default function {component_name}({fn_params}) {{
                 each_code = each_code,
                 delegation_code = delegation_code
             )
-        } else if !has_html && runtime_code.is_empty() && !has_each_blocks {
+        } else if has_if_blocks && !has_html {
+            // Only if blocks, no HTML content
+            format!(
+                r#"{system_imports}
+{hoisted_imports}{module_script}
+{if_templates}export default function {component_name}({fn_params}) {{
+{script_code}	var fragment = $.comment();
+	var node = $.first_child(fragment);
+{if_code}
+	$.append($$anchor, fragment);
+}}{delegation_code}"#,
+                system_imports = system_imports,
+                hoisted_imports = hoisted_imports,
+                module_script = module_script,
+                if_templates = if_templates,
+                component_name = self.component_name,
+                fn_params = fn_params,
+                script_code = script_code,
+                if_code = if_code,
+                delegation_code = delegation_code
+            )
+        } else if !has_html && runtime_code.is_empty() && !has_each_blocks && !has_if_blocks {
             // No HTML template - just script code
             let pop_code = if should_inject_context {
                 "\n\t$.pop();\n"
@@ -2429,29 +2716,49 @@ export default function {component_name}({fn_params}) {{
             };
             // Add $.next(count) for static fragments (no runtime_code)
             // This skips over the root elements that don't need runtime handling
-            let next_code = if runtime_code.trim().is_empty() && self.root_element_count > 0 {
+            let next_code = if runtime_code.trim().is_empty()
+                && self.root_element_count > 0
+                && !has_if_blocks
+            {
                 format!("\t$.next({});\n", self.root_element_count)
             } else {
                 String::new()
             };
+
+            // Handle fragments with if blocks (need node navigation)
+            let if_node_code = if has_if_blocks {
+                // Find the position of the if block in the fragment
+                // Count non-whitespace nodes before the if block
+                let skip_count = self.root_element_count; // Simplified: skip all previous elements
+                format!(
+                    "\tvar node = $.sibling($.first_child(fragment), {});\n\n",
+                    skip_count
+                )
+            } else {
+                String::new()
+            };
+
             format!(
                 r#"{system_imports}
-{hoisted_imports}{module_script}{snippets_code}var root = $.from_html(`{html}`, {template_flags});
+{hoisted_imports}{module_script}{snippets_code}{if_templates}var root = $.from_html(`{html}`, {template_flags});
 
 export default function {component_name}({fn_params}) {{
 {script_code}	var fragment = root();
-{runtime_code}{next_code}	$.append($$anchor, fragment);
+{runtime_code}{if_node_code}{if_code}{next_code}	$.append($$anchor, fragment);
 {pop_code}}}{delegation_code}"#,
                 system_imports = system_imports,
                 hoisted_imports = hoisted_imports,
                 module_script = module_script,
                 snippets_code = snippets_code,
+                if_templates = if_templates,
                 html = html,
                 template_flags = template_flags,
                 component_name = self.component_name,
                 fn_params = fn_params,
                 script_code = script_code,
                 runtime_code = runtime_code,
+                if_node_code = if_node_code,
+                if_code = if_code,
                 next_code = next_code,
                 pop_code = pop_code,
                 delegation_code = delegation_code
@@ -2464,24 +2771,35 @@ export default function {component_name}({fn_params}) {{
             } else {
                 ""
             };
+
+            // Handle single element with if blocks
+            let if_node_code = if has_if_blocks {
+                format!("\tvar node = $.sibling({}, 2);\n\n", root_var)
+            } else {
+                String::new()
+            };
+
             format!(
                 r#"{system_imports}
-{hoisted_imports}{module_script}{snippets_code}var root = $.from_html(`{html}`);
+{hoisted_imports}{module_script}{snippets_code}{if_templates}var root = $.from_html(`{html}`);
 
 export default function {component_name}({fn_params}) {{
 {script_code}	var {root_var} = root();
-{runtime_code}	$.append($$anchor, {root_var});
+{runtime_code}{if_node_code}{if_code}	$.append($$anchor, {root_var});
 {pop_code}}}{delegation_code}"#,
                 system_imports = system_imports,
                 hoisted_imports = hoisted_imports,
                 module_script = module_script,
                 snippets_code = snippets_code,
+                if_templates = if_templates,
                 html = html,
                 component_name = self.component_name,
                 fn_params = fn_params,
                 script_code = script_code,
                 root_var = root_var,
                 runtime_code = runtime_code,
+                if_node_code = if_node_code,
+                if_code = if_code,
                 pop_code = pop_code,
                 delegation_code = delegation_code
             )
@@ -3442,6 +3760,7 @@ export default function {component_name}({fn_params}) {{
             || !self.snippets.is_empty()
             || !self.components_with_bindings.is_empty()
             || !self.await_blocks.is_empty()
+            || !self.if_blocks.is_empty()
         {
             return false;
         }
@@ -4549,6 +4868,309 @@ export default function {component_name}({fn_params}) {{
     /// Generate component binding code using AST builders and return as string.
     fn generate_component_binding_code_via_ast(&self) -> String {
         let statements = self.generate_component_binding_code_ast();
+        self.statements_to_string(&statements)
+    }
+
+    /// Generate if block code as AST statements.
+    ///
+    /// Generates code like:
+    /// ```javascript
+    /// {
+    ///     var consequent = ($$anchor) => {
+    ///         var fragment = root_1();
+    ///         // ... content processing
+    ///         $.append($$anchor, fragment);
+    ///     };
+    ///
+    ///     $.if(node, ($$render) => {
+    ///         if (condition) $$render(consequent);
+    ///     });
+    /// }
+    /// ```
+    fn generate_if_block_code_ast(&self) -> Vec<JsStatement> {
+        self.if_blocks
+            .iter()
+            .enumerate()
+            .flat_map(|(idx, if_block)| {
+                let mut block_stmts: Vec<JsStatement> = Vec::new();
+
+                // Generate consequent function
+                let consequent_id = format!(
+                    "consequent{}",
+                    if idx == 0 {
+                        "".to_string()
+                    } else {
+                        format!("_{}", idx)
+                    }
+                );
+                let consequent_body = self.generate_if_branch_body(if_block, true);
+                block_stmts.push(var_decl(
+                    &consequent_id,
+                    Some(arrow_block(vec![id_pattern("$$anchor")], consequent_body)),
+                ));
+
+                // Generate alternate function if present
+                let alternate_id = if !if_block.alternate_parts.is_empty()
+                    || if_block.alternate_template_var.is_some()
+                {
+                    let alt_id = format!(
+                        "alternate{}",
+                        if idx == 0 {
+                            "".to_string()
+                        } else {
+                            format!("_{}", idx)
+                        }
+                    );
+                    let alternate_body = self.generate_if_branch_body(if_block, false);
+                    block_stmts.push(var_decl(
+                        &alt_id,
+                        Some(arrow_block(vec![id_pattern("$$anchor")], alternate_body)),
+                    ));
+                    Some(alt_id)
+                } else {
+                    None
+                };
+
+                // Transform the condition expression (wrap state vars in $.get())
+                let transformed_condition = self.transform_if_condition(&if_block.condition);
+
+                // Build the render callback: ($$render) => { if (condition) $$render(consequent); [else $$render(alternate, false)] }
+                let render_call_consequent = stmt(call(id("$$render"), vec![id(&consequent_id)]));
+                let render_call_alternate = alternate_id
+                    .as_ref()
+                    .map(|alt_id| stmt(call(id("$$render"), vec![id(alt_id), boolean(false)])));
+
+                let if_statement = if_stmt(
+                    raw(&transformed_condition),
+                    render_call_consequent,
+                    render_call_alternate,
+                );
+
+                let render_callback = arrow_block(vec![id_pattern("$$render")], vec![if_statement]);
+
+                // Build $.if() call
+                let mut if_args = vec![id("node"), render_callback];
+
+                // Add true for elseif (affects transition behavior)
+                if if_block.is_elseif {
+                    if_args.push(boolean(true));
+                }
+
+                block_stmts.push(stmt(call(member_path("$.if"), if_args)));
+
+                // Wrap in a block statement
+                vec![JsStatement::Block(JsBlockStatement { body: block_stmts })]
+            })
+            .collect()
+    }
+
+    /// Generate the body statements for an if block branch (consequent or alternate).
+    fn generate_if_branch_body(
+        &self,
+        if_block: &IfBlockInfo,
+        is_consequent: bool,
+    ) -> Vec<JsStatement> {
+        let parts = if is_consequent {
+            &if_block.consequent_parts
+        } else {
+            &if_block.alternate_parts
+        };
+        let template_var = if is_consequent {
+            &if_block.consequent_template_var
+        } else {
+            &if_block.alternate_template_var
+        };
+        let is_text_only = if is_consequent {
+            if_block.consequent_text_only
+        } else {
+            if_block.alternate_text_only
+        };
+
+        let mut body: Vec<JsStatement> = Vec::new();
+
+        if let Some(tpl_var) = template_var {
+            // Element-based branch
+            body.push(var_decl("fragment_1", Some(call(id(tpl_var), vec![]))));
+
+            // Process parts for text updates
+            let mut text_idx = 0;
+            let mut has_expressions = false;
+            let mut template_effect_parts: Vec<(String, String)> = Vec::new();
+
+            for part in parts {
+                match part {
+                    IfBlockPart::Text(_) => {
+                        text_idx += 1;
+                    }
+                    IfBlockPart::Expression(expr) => {
+                        has_expressions = true;
+                        let text_var = format!("text_{}", text_idx + 1);
+                        let transformed_expr = self.transform_expression_for_template(expr);
+                        template_effect_parts.push((text_var, transformed_expr));
+                        text_idx += 1;
+                    }
+                    IfBlockPart::Element { children, .. } => {
+                        // Process element children
+                        for child in children {
+                            match child {
+                                IfBlockPart::Expression(expr) => {
+                                    has_expressions = true;
+                                    let text_var = format!("text_{}", text_idx + 1);
+                                    let transformed_expr =
+                                        self.transform_expression_for_template(expr);
+                                    template_effect_parts.push((text_var, transformed_expr));
+                                    text_idx += 1;
+                                }
+                                IfBlockPart::Text(_) => {
+                                    text_idx += 1;
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Generate text variable declarations for navigating to text nodes
+            if has_expressions && !template_effect_parts.is_empty() {
+                // Add navigation: var text_1 = $.first_child(fragment_1)
+                let first_text_var = &template_effect_parts[0].0;
+                body.push(var_decl(
+                    first_text_var,
+                    Some(svelte_first_child(id("fragment_1"))),
+                ));
+
+                // Add sibling navigation for additional text nodes
+                let mut prev_var = first_text_var.clone();
+                for (text_var, _) in template_effect_parts.iter().skip(1) {
+                    body.push(var_decl(
+                        text_var,
+                        Some(svelte_sibling(id(&prev_var), Some(2))),
+                    ));
+                    prev_var = text_var.clone();
+                }
+
+                // Generate $.template_effect for updating text
+                let effect_body: Vec<JsStatement> = template_effect_parts
+                    .iter()
+                    .map(|(text_var, expr)| {
+                        stmt(svelte_set_text(
+                            id(text_var),
+                            template(
+                                vec![quasi("", false), quasi("", true)],
+                                vec![nullish(raw(expr), string(""))],
+                            ),
+                        ))
+                    })
+                    .collect();
+
+                body.push(stmt(svelte_template_effect(arrow_block(
+                    vec![],
+                    effect_body,
+                ))));
+            }
+
+            body.push(stmt(svelte_append(id("$$anchor"), id("fragment_1"))));
+        } else if is_text_only && !parts.is_empty() {
+            // Text-only branch
+            body.push(var_decl("text", Some(svelte_text(None))));
+
+            // Build template expression from parts
+            let mut quasis: Vec<super::js_ast::nodes::JsTemplateElement> = Vec::new();
+            let mut expressions: Vec<JsExpr> = Vec::new();
+
+            for (i, part) in parts.iter().enumerate() {
+                match part {
+                    IfBlockPart::Text(text) => {
+                        let is_last = i == parts.len() - 1;
+                        quasis.push(quasi(text, is_last && expressions.is_empty()));
+                    }
+                    IfBlockPart::Expression(expr) => {
+                        // Add empty quasi before expression if this is the first part
+                        if quasis.is_empty() {
+                            quasis.push(quasi("", false));
+                        }
+                        let transformed = self.transform_expression_for_template(expr);
+                        expressions.push(nullish(raw(&transformed), string("")));
+                        // Add quasi after expression
+                        let is_last = i == parts.len() - 1;
+                        quasis.push(quasi("", is_last));
+                    }
+                    _ => {}
+                }
+            }
+
+            // If we only have text (no expressions), create a simple set
+            if expressions.is_empty() {
+                let text_content: String = parts
+                    .iter()
+                    .filter_map(|p| {
+                        if let IfBlockPart::Text(t) = p {
+                            Some(t.as_str())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                body.push(stmt(assign(
+                    member(id("text"), "nodeValue"),
+                    string(&text_content),
+                )));
+            } else {
+                // Use template effect for reactive updates
+                let template_expr = template(quasis, expressions);
+                body.push(stmt(svelte_template_effect(arrow(
+                    vec![],
+                    svelte_set_text(id("text"), template_expr),
+                ))));
+            }
+
+            body.push(stmt(svelte_append(id("$$anchor"), id("text"))));
+        } else if parts.is_empty() {
+            // Empty branch - just append a comment or do nothing
+            body.push(stmt(svelte_next(None)));
+        }
+
+        body
+    }
+
+    /// Transform condition expression, wrapping state variables in $.get().
+    fn transform_if_condition(&self, condition: &str) -> String {
+        let mut result = condition.to_string();
+
+        // Wrap state variables in $.get()
+        for var in &self.state_vars {
+            // Use word boundary matching to avoid partial replacements
+            let pattern = format!(r"\b{}\b", regex::escape(var));
+            if let Ok(re) = regex::Regex::new(&pattern) {
+                result = re
+                    .replace_all(&result, format!("$.get({})", var))
+                    .to_string();
+            }
+        }
+
+        // Wrap derived variables in $.get()
+        for var in &self.derived_vars {
+            let pattern = format!(r"\b{}\b", regex::escape(var));
+            if let Ok(re) = regex::Regex::new(&pattern) {
+                result = re
+                    .replace_all(&result, format!("$.get({})", var))
+                    .to_string();
+            }
+        }
+
+        result
+    }
+
+    /// Transform expression for use in template, wrapping state vars in $.get().
+    fn transform_expression_for_template(&self, expr: &str) -> String {
+        self.transform_if_condition(expr)
+    }
+
+    /// Generate if block code using AST builders and return as string.
+    fn generate_if_block_code_via_ast(&self) -> String {
+        let statements = self.generate_if_block_code_ast();
         self.statements_to_string(&statements)
     }
 }

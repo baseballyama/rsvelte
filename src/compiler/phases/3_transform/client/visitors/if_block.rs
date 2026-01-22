@@ -3,9 +3,10 @@
 //! Corresponds to `IfBlock` in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/IfBlock.js`.
 
-use crate::ast::template::{IfBlock, TemplateNode};
+use crate::ast::template::{Fragment, IfBlock, TemplateNode};
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment as visit_fragment_impl;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
     add_svelte_meta, build_expression,
 };
@@ -25,125 +26,62 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 /// # Behavior
 ///
 /// - Creates arrow functions for the consequent and alternate branches
-/// - Visits the consequent and alternate fragments
-/// - Generates a call to `$.if(anchor, () => condition, consequent_fn, alternate_fn)`
+/// - Visits the consequent and alternate fragments using the Fragment visitor
+/// - Generates a call to `$.if(anchor, ($$render) => { if (test) $$render(consequent) ... })`
 /// - If the condition is async, wraps the entire block in `$.async()`
 /// - Handles elseif chains specially for transition behavior
 ///
-/// # Implementation
+/// # Generated Code
 ///
-/// The JavaScript implementation:
+/// For a simple if block like `{#if condition}content{/if}`, this generates:
+///
 /// ```javascript
-/// export function IfBlock(node, context) {
-///     context.state.template.push_comment();
-///     const statements = [];
+/// {
+///     var consequent = ($$anchor) => {
+///         // Fragment body for the consequent
+///     };
 ///
-///     const consequent = /** @type {BlockStatement} */ (context.visit(node.consequent));
-///     const consequent_id = b.id(context.state.scope.generate('consequent'));
-///
-///     statements.push(b.var(consequent_id, b.arrow([b.id('$$anchor')], consequent)));
-///
-///     let alternate_id;
-///
-///     if (node.alternate) {
-///         const alternate = /** @type {BlockStatement} */ (context.visit(node.alternate));
-///         alternate_id = b.id(context.state.scope.generate('alternate'));
-///         statements.push(b.var(alternate_id, b.arrow([b.id('$$anchor')], alternate)));
-///     }
-///
-///     const is_async = node.metadata.expression.is_async();
-///
-///     const expression = build_expression(context, node.test, node.metadata.expression);
-///     const test = is_async ? b.call('$.get', b.id('$$condition')) : expression;
-///
-///     /** @type {Expression[]} */
-///     const args = [
-///         context.state.node,
-///         b.arrow(
-///             [b.id('$$render')],
-///             b.block([
-///                 b.if(
-///                     test,
-///                     b.stmt(b.call('$$render', consequent_id)),
-///                     alternate_id && b.stmt(b.call('$$render', alternate_id, b.literal(false)))
-///                 )
-///             ])
-///         )
-///     ];
-///
-///     if (node.elseif) {
-///         // We treat this...
-///         //
-///         //   {#if x}
-///         //     ...
-///         //   {:else}
-///         //     {#if y}
-///         //       <div transition:foo>...</div>
-///         //     {/if}
-///         //   {/if}
-///         //
-///         // ...slightly differently to this...
-///         //
-///         //   {#if x}
-///         //     ...
-///         //   {:else if y}
-///         //     <div transition:foo>...</div>
-///         //   {/if}
-///         //
-///         // ...even though they're logically equivalent. In the first case, the
-///         // transition will only play when `y` changes, but in the second it
-///         // should play when `x` or `y` change — both are considered 'local'
-///         args.push(b.true);
-///     }
-///
-///     statements.push(add_svelte_meta(b.call('$.if', ...args), node, 'if'));
-///
-///     if (is_async) {
-///         context.state.init.push(
-///             b.stmt(
-///                 b.call(
-///                     '$.async',
-///                     context.state.node,
-///                     node.metadata.expression.blockers(),
-///                     b.array([b.thunk(expression, node.metadata.expression.has_await)]),
-///                     b.arrow([context.state.node, b.id('$$condition')], b.block(statements))
-///                 )
-///             )
-///         );
-///     } else {
-///         context.state.init.push(b.block(statements));
-///     }
+///     $.if(node, ($$render) => {
+///         if (condition) $$render(consequent);
+///     });
 /// }
 /// ```
 pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
     // Push a comment placeholder into the template
+    // This is where the if block content will be dynamically inserted
     context.state.template.push_comment(None);
 
     // Collect statements to build the if block
     let mut statements = Vec::new();
 
-    // Visit the consequent fragment and wrap it in an arrow function
-    let consequent = visit_fragment(&node.consequent, context);
+    // Visit the consequent fragment using the Fragment visitor
+    // The Fragment visitor handles template creation and hoisting
+    let consequent_block = visit_fragment(&node.consequent, context);
     let consequent_id_name = context.state.memoizer.generate_id("consequent");
     let consequent_id = b::id(&consequent_id_name);
 
     // Create: var consequent = ($$anchor) => { ... }
-    // Note: JS uses b.var, we use var_decl for var declarations
     statements.push(b::var_decl(
         &consequent_id_name,
-        Some(b::arrow_block(vec![b::id_pattern("$$anchor")], consequent)),
+        Some(b::arrow_block(
+            vec![b::id_pattern("$$anchor")],
+            consequent_block.body,
+        )),
     ));
 
     // Handle the alternate branch if present
     let alternate_id = if let Some(ref alternate_fragment) = node.alternate {
-        let alternate = visit_fragment(alternate_fragment, context);
+        let alternate_block = visit_fragment(alternate_fragment, context);
         let alternate_id_name = context.state.memoizer.generate_id("alternate");
         let alt_id = b::id(&alternate_id_name);
 
         // Create: var alternate = ($$anchor) => { ... }
         statements.push(b::var_decl(
             &alternate_id_name,
-            Some(b::arrow_block(vec![b::id_pattern("$$anchor")], alternate)),
+            Some(b::arrow_block(
+                vec![b::id_pattern("$$anchor")],
+                alternate_block.body,
+            )),
         ));
 
         Some(alt_id)
@@ -254,28 +192,17 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
     }
 }
 
-/// Visit a fragment and return its statements.
+/// Visit a fragment and return its block statement.
 ///
-/// This is a helper function that visits a fragment and collects
-/// the generated statements.
-fn visit_fragment(
-    fragment: &crate::ast::template::Fragment,
-    context: &mut ComponentContext<'_>,
-) -> Vec<JsStatement> {
-    // Save the current state
-    let saved_init = std::mem::take(&mut context.state.init);
-    let saved_update = std::mem::take(&mut context.state.update);
-
-    // Visit each node in the fragment
-    for node in &fragment.nodes {
-        let _ = context.visit_node(node, None);
-    }
-
-    // Collect the generated init statements
-    let result = std::mem::replace(&mut context.state.init, saved_init);
-
-    // Restore the update statements
-    context.state.update = saved_update;
-
-    result
+/// This is a helper function that uses the Fragment visitor to process
+/// a fragment and returns the generated block statement with template
+/// creation, hoisting, and content rendering.
+fn visit_fragment(fragment: &Fragment, context: &mut ComponentContext<'_>) -> JsBlockStatement {
+    // Use the Fragment visitor which handles:
+    // - Template creation (root_x = $.from_html(...))
+    // - Hoisting template declarations to context.state.hoisted
+    // - Creating fragment instance (var fragment = root_x())
+    // - Processing child nodes
+    // - Appending to anchor ($.append($$anchor, fragment))
+    visit_fragment_impl(fragment, context)
 }
