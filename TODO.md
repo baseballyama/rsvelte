@@ -528,9 +528,12 @@ jobs:
   - [ ] C-019: Template effect 生成の完全実装
     - Snippet 内の `$.template_effect()` 生成
     - Expression コンテキストでの適切なエフェクト生成
-  - [ ] C-020: 複数テンプレート参照の生成
-    - ネストされた if/each 内の HTML テンプレートも `from_html()` で定義
-    - 全必要なテンプレートを `root_N` 変数として出力
+  - [x] C-020: 複数テンプレート参照の生成
+    - collect_all_if_block_templates() で再帰的にテンプレート収集
+    - ネストされた IfBlockPart::NestedIfBlock からもテンプレート抽出
+  - [x] C-021: ネストされた if ブロックの内容生成
+    - IfBlockPart::NestedIfBlock 追加
+    - process_nested_if_block() / generate_nested_if_block_code() 実装
 - [ ] **Phase D 未着手**: 互換性テスト整備
 - [ ] **Phase E 未着手**: docs サイト完成
 
