@@ -7,8 +7,9 @@ use super::super::js_ast::normalize_js;
 use super::super::shared::{escape_attr, escape_html, is_void_element};
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, BindDirective,
-    Component, EachBlock, ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, RegularElement,
-    RenderTag, Root, Script, SnippetBlock, SvelteDynamicElement, TemplateNode, Text,
+    ClassDirective, Component, EachBlock, ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock,
+    RegularElement, RenderTag, Root, Script, SnippetBlock, StyleDirective, SvelteDynamicElement,
+    TemplateNode, Text,
 };
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
@@ -211,14 +212,70 @@ impl<'a> ServerCodeGenerator<'a> {
             return self.generate_option_element(element);
         }
 
+        // Collect directives and base attributes
+        let mut class_directives: Vec<&ClassDirective> = Vec::new();
+        let mut style_directives: Vec<&StyleDirective> = Vec::new();
+        let mut base_class: Option<String> = None;
+        let mut base_style: Option<String> = None;
+
+        for attr in &element.attributes {
+            match attr {
+                Attribute::ClassDirective(dir) => {
+                    class_directives.push(dir);
+                }
+                Attribute::StyleDirective(dir) => {
+                    style_directives.push(dir);
+                }
+                Attribute::Attribute(node) if node.name.as_str() == "class" => {
+                    base_class = self.extract_attribute_text_value(node);
+                }
+                Attribute::Attribute(node) if node.name.as_str() == "style" => {
+                    base_style = self.extract_attribute_text_value(node);
+                }
+                _ => {}
+            }
+        }
+
         // Start tag
         let mut tag = format!("<{}", name);
 
-        // Attributes
+        // Attributes - handle class and style specially if directives exist
         for attr in &element.attributes {
-            if let Some(attr_str) = self.generate_attribute(attr)? {
-                tag.push_str(&attr_str);
+            match attr {
+                // Skip class/style directives - handled separately
+                Attribute::ClassDirective(_) | Attribute::StyleDirective(_) => continue,
+                // Skip class attribute if we have class directives
+                Attribute::Attribute(node)
+                    if node.name.as_str() == "class" && !class_directives.is_empty() =>
+                {
+                    continue;
+                }
+                // Skip style attribute if we have style directives
+                Attribute::Attribute(node)
+                    if node.name.as_str() == "style" && !style_directives.is_empty() =>
+                {
+                    continue;
+                }
+                _ => {
+                    if let Some(attr_str) = self.generate_attribute(attr)? {
+                        tag.push_str(&attr_str);
+                    }
+                }
             }
+        }
+
+        // Generate $.attr_class() if we have class directives
+        if !class_directives.is_empty() {
+            let attr_class_call =
+                self.generate_attr_class_call(&class_directives, base_class.as_deref())?;
+            tag.push_str(&attr_class_call);
+        }
+
+        // Generate $.attr_style() if we have style directives
+        if !style_directives.is_empty() {
+            let attr_style_call =
+                self.generate_attr_style_call(&style_directives, base_style.as_deref())?;
+            tag.push_str(&attr_style_call);
         }
 
         if is_void_element(name) {
@@ -426,6 +483,133 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
             }
         }
+    }
+
+    /// Extract a plain text value from an attribute.
+    fn extract_attribute_text_value(&self, node: &AttributeNode) -> Option<String> {
+        match &node.value {
+            AttributeValue::Sequence(parts) => {
+                let mut value = String::new();
+                for part in parts {
+                    if let AttributeValuePart::Text(text) = part {
+                        value.push_str(&text.data);
+                    }
+                }
+                Some(value)
+            }
+            AttributeValue::True(_) => None,
+            AttributeValue::Expression(_) => None,
+        }
+    }
+
+    /// Generate a $.attr_class() call for class directives.
+    fn generate_attr_class_call(
+        &self,
+        directives: &[&ClassDirective],
+        base_class: Option<&str>,
+    ) -> Result<String, TransformError> {
+        // Build the directives object
+        let mut directive_props = Vec::new();
+        for dir in directives {
+            // Get the expression - if it's an Identifier with the same name, use shorthand
+            let expr_start = dir.expression.start().unwrap_or(0) as usize;
+            let expr_end = dir.expression.end().unwrap_or(0) as usize;
+
+            let expr_value = if expr_end > expr_start && expr_end <= self.source.len() {
+                self.source[expr_start..expr_end].trim().to_string()
+            } else {
+                dir.name.to_string()
+            };
+
+            directive_props.push(format!("'{}': {}", dir.name, expr_value));
+        }
+
+        let base = base_class.unwrap_or("");
+        let directives_obj = format!("{{ {} }}", directive_props.join(", "));
+
+        // Output: ${$.attr_class('base', void 0, { 'foo': foo })}
+        Ok(format!(
+            "${{$.attr_class('{}', void 0, {})}}",
+            base, directives_obj
+        ))
+    }
+
+    /// Generate a $.attr_style() call for style directives.
+    fn generate_attr_style_call(
+        &self,
+        directives: &[&StyleDirective],
+        base_style: Option<&str>,
+    ) -> Result<String, TransformError> {
+        // Separate normal and important properties
+        let mut normal_props = Vec::new();
+        let mut important_props = Vec::new();
+
+        for dir in directives {
+            let value = match &dir.value {
+                AttributeValue::True(_) => {
+                    // Shorthand: style:color means style:color={color}
+                    dir.name.to_string()
+                }
+                AttributeValue::Sequence(parts) => {
+                    // Static text value
+                    let mut text_val = String::new();
+                    for part in parts {
+                        if let AttributeValuePart::Text(text) = part {
+                            text_val.push_str(&text.data);
+                        }
+                    }
+                    format!("'{}'", text_val)
+                }
+                AttributeValue::Expression(expr_tag) => {
+                    let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                    let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        self.source[expr_start..expr_end].trim().to_string()
+                    } else {
+                        "undefined".to_string()
+                    }
+                }
+            };
+
+            // CSS custom properties (--var) keep their case, others get lowercased
+            let prop_name = if dir.name.starts_with("--") {
+                dir.name.to_string()
+            } else {
+                dir.name.to_lowercase().replace("_", "-")
+            };
+
+            // Only quote property names that contain special characters like hyphens
+            let prop_str = if prop_name.contains('-') {
+                format!("'{}': {}", prop_name, value)
+            } else {
+                format!("{}: {}", prop_name, value)
+            };
+
+            // Check for !important modifier
+            if dir.modifiers.iter().any(|m| m.as_str() == "important") {
+                important_props.push(prop_str);
+            } else {
+                normal_props.push(prop_str);
+            }
+        }
+
+        let base = base_style.unwrap_or("");
+
+        // Build the directives argument
+        let directives_arg = if !important_props.is_empty() {
+            // Array form: [{ normal }, { important }]
+            format!(
+                "[{{ {} }}, {{ {} }}]",
+                normal_props.join(", "),
+                important_props.join(", ")
+            )
+        } else {
+            // Object form: { normal }
+            format!("{{ {} }}", normal_props.join(", "))
+        };
+
+        // Output: ${$.attr_style('base', { color: 'red' })}
+        Ok(format!("${{$.attr_style('{}', {})}}", base, directives_arg))
     }
 
     fn generate_expression_tag(&mut self, tag: &ExpressionTag) -> Result<(), TransformError> {
