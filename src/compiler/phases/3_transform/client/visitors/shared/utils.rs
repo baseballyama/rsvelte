@@ -9,7 +9,305 @@ use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use std::collections::HashMap;
 
-/// Build an expression with legacy reactivity handling.
+/// Apply registered transforms to an expression recursively.
+///
+/// This function walks through the expression tree and applies any registered
+/// transforms from `context.state.transform` to identifiers it encounters.
+///
+/// # Arguments
+///
+/// * `expr` - The expression to transform
+/// * `context` - The component context containing transform rules
+///
+/// # Returns
+///
+/// Returns the transformed expression with all applicable transforms applied.
+fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext) -> JsExpr {
+    match expr {
+        JsExpr::Identifier(name) => {
+            // Check if there's a transform registered for this identifier
+            if let Some(transform) = context.state.transform.get(name)
+                && let Some(read_fn) = transform.read
+            {
+                return read_fn(JsExpr::Identifier(name.clone()));
+            }
+            expr.clone()
+        }
+
+        JsExpr::Member(member) => {
+            // Apply transform to the object, but not the property (unless computed)
+            let transformed_object = apply_transforms_to_expression(&member.object, context);
+
+            let transformed_property = match &member.property {
+                JsMemberProperty::Expression(prop_expr) if member.computed => {
+                    // For computed properties, also apply transforms
+                    JsMemberProperty::Expression(Box::new(apply_transforms_to_expression(
+                        prop_expr, context,
+                    )))
+                }
+                _ => member.property.clone(),
+            };
+
+            JsExpr::Member(JsMemberExpression {
+                object: Box::new(transformed_object),
+                property: transformed_property,
+                computed: member.computed,
+                optional: member.optional,
+            })
+        }
+
+        JsExpr::Call(call) => {
+            // Apply transforms to callee and arguments
+            let transformed_callee = apply_transforms_to_expression(&call.callee, context);
+            let transformed_args: Vec<JsExpr> = call
+                .arguments
+                .iter()
+                .map(|arg| apply_transforms_to_expression(arg, context))
+                .collect();
+
+            JsExpr::Call(JsCallExpression {
+                callee: Box::new(transformed_callee),
+                arguments: transformed_args,
+                optional: call.optional,
+            })
+        }
+
+        JsExpr::Binary(binary) => {
+            let transformed_left = apply_transforms_to_expression(&binary.left, context);
+            let transformed_right = apply_transforms_to_expression(&binary.right, context);
+
+            JsExpr::Binary(JsBinaryExpression {
+                operator: binary.operator,
+                left: Box::new(transformed_left),
+                right: Box::new(transformed_right),
+            })
+        }
+
+        JsExpr::Logical(logical) => {
+            let transformed_left = apply_transforms_to_expression(&logical.left, context);
+            let transformed_right = apply_transforms_to_expression(&logical.right, context);
+
+            JsExpr::Logical(JsLogicalExpression {
+                operator: logical.operator,
+                left: Box::new(transformed_left),
+                right: Box::new(transformed_right),
+            })
+        }
+
+        JsExpr::Unary(unary) => {
+            let transformed_arg = apply_transforms_to_expression(&unary.argument, context);
+
+            JsExpr::Unary(JsUnaryExpression {
+                operator: unary.operator,
+                argument: Box::new(transformed_arg),
+                prefix: unary.prefix,
+            })
+        }
+
+        JsExpr::Conditional(cond) => {
+            let transformed_test = apply_transforms_to_expression(&cond.test, context);
+            let transformed_consequent = apply_transforms_to_expression(&cond.consequent, context);
+            let transformed_alternate = apply_transforms_to_expression(&cond.alternate, context);
+
+            JsExpr::Conditional(JsConditionalExpression {
+                test: Box::new(transformed_test),
+                consequent: Box::new(transformed_consequent),
+                alternate: Box::new(transformed_alternate),
+            })
+        }
+
+        JsExpr::Array(array) => {
+            let transformed_elements: Vec<Option<JsExpr>> = array
+                .elements
+                .iter()
+                .map(|elem| {
+                    elem.as_ref()
+                        .map(|e| apply_transforms_to_expression(e, context))
+                })
+                .collect();
+
+            JsExpr::Array(JsArrayExpression {
+                elements: transformed_elements,
+            })
+        }
+
+        JsExpr::Object(obj) => {
+            let transformed_properties: Vec<JsObjectMember> = obj
+                .properties
+                .iter()
+                .map(|prop| match prop {
+                    JsObjectMember::Property(p) => {
+                        let transformed_value = apply_transforms_to_expression(&p.value, context);
+
+                        let transformed_key = match &p.key {
+                            JsPropertyKey::Computed(key_expr) => JsPropertyKey::Computed(Box::new(
+                                apply_transforms_to_expression(key_expr, context),
+                            )),
+                            other => other.clone(),
+                        };
+
+                        JsObjectMember::Property(JsProperty {
+                            key: transformed_key,
+                            value: Box::new(transformed_value),
+                            kind: p.kind,
+                            computed: p.computed,
+                            shorthand: p.shorthand,
+                        })
+                    }
+                    JsObjectMember::SpreadElement(spread_expr) => JsObjectMember::SpreadElement(
+                        Box::new(apply_transforms_to_expression(spread_expr, context)),
+                    ),
+                })
+                .collect();
+
+            JsExpr::Object(JsObjectExpression {
+                properties: transformed_properties,
+            })
+        }
+
+        JsExpr::Arrow(_) => {
+            // Don't transform inside arrow function bodies - they have their own scope
+            expr.clone()
+        }
+
+        JsExpr::Function(_) => {
+            // Don't transform inside function bodies - they have their own scope
+            expr.clone()
+        }
+
+        JsExpr::Assignment(assign) => {
+            // For assignments, transform the right side
+            // The left side handling depends on whether it's a state variable
+            let transformed_right = apply_transforms_to_expression(&assign.right, context);
+
+            // For the left side, only transform if it's a member expression object
+            let transformed_left = match assign.left.as_ref() {
+                JsExpr::Member(member) => {
+                    let transformed_object =
+                        apply_transforms_to_expression(&member.object, context);
+
+                    let transformed_property = match &member.property {
+                        JsMemberProperty::Expression(prop_expr) if member.computed => {
+                            JsMemberProperty::Expression(Box::new(apply_transforms_to_expression(
+                                prop_expr, context,
+                            )))
+                        }
+                        _ => member.property.clone(),
+                    };
+
+                    JsExpr::Member(JsMemberExpression {
+                        object: Box::new(transformed_object),
+                        property: transformed_property,
+                        computed: member.computed,
+                        optional: member.optional,
+                    })
+                }
+                // Don't transform identifier on the left side of assignment
+                // (that's handled by the assign transform)
+                _ => assign.left.as_ref().clone(),
+            };
+
+            JsExpr::Assignment(JsAssignmentExpression {
+                operator: assign.operator,
+                left: Box::new(transformed_left),
+                right: Box::new(transformed_right),
+            })
+        }
+
+        JsExpr::Sequence(seq) => {
+            let transformed_exprs: Vec<JsExpr> = seq
+                .expressions
+                .iter()
+                .map(|e| apply_transforms_to_expression(e, context))
+                .collect();
+
+            JsExpr::Sequence(JsSequenceExpression {
+                expressions: transformed_exprs,
+            })
+        }
+
+        JsExpr::New(new_expr) => {
+            let transformed_callee = apply_transforms_to_expression(&new_expr.callee, context);
+            let transformed_args: Vec<JsExpr> = new_expr
+                .arguments
+                .iter()
+                .map(|arg| apply_transforms_to_expression(arg, context))
+                .collect();
+
+            JsExpr::New(JsNewExpression {
+                callee: Box::new(transformed_callee),
+                arguments: transformed_args,
+            })
+        }
+
+        JsExpr::Await(inner) => {
+            let transformed = apply_transforms_to_expression(inner, context);
+            JsExpr::Await(Box::new(transformed))
+        }
+
+        JsExpr::Yield(yield_expr) => {
+            let transformed_arg = yield_expr
+                .argument
+                .as_ref()
+                .map(|arg| Box::new(apply_transforms_to_expression(arg, context)));
+
+            JsExpr::Yield(JsYieldExpression {
+                argument: transformed_arg,
+                delegate: yield_expr.delegate,
+            })
+        }
+
+        JsExpr::Spread(inner) => {
+            let transformed = apply_transforms_to_expression(inner, context);
+            JsExpr::Spread(Box::new(transformed))
+        }
+
+        JsExpr::Update(update) => {
+            // For update expressions, check if the argument has an update transform
+            if let JsExpr::Identifier(name) = update.argument.as_ref()
+                && let Some(transform) = context.state.transform.get(name)
+                && let Some(update_fn) = transform.update
+            {
+                return update_fn(
+                    update.operator,
+                    JsExpr::Identifier(name.clone()),
+                    update.prefix,
+                );
+            }
+            // Otherwise just transform the argument
+            let transformed_arg = apply_transforms_to_expression(&update.argument, context);
+
+            JsExpr::Update(JsUpdateExpression {
+                operator: update.operator,
+                argument: Box::new(transformed_arg),
+                prefix: update.prefix,
+            })
+        }
+
+        JsExpr::TemplateLiteral(template) => {
+            let transformed_exprs: Vec<JsExpr> = template
+                .expressions
+                .iter()
+                .map(|e| apply_transforms_to_expression(e, context))
+                .collect();
+
+            JsExpr::TemplateLiteral(JsTemplateLiteral {
+                quasis: template.quasis.clone(),
+                expressions: transformed_exprs,
+            })
+        }
+
+        // Expressions that don't need transformation
+        JsExpr::Literal(_)
+        | JsExpr::This
+        | JsExpr::Raw(_)
+        | JsExpr::Class(_)
+        | JsExpr::Chain(_)
+        | JsExpr::Void(_) => expr.clone(),
+    }
+}
+
+/// Build an expression with transform application and legacy reactivity handling.
 ///
 /// Corresponds to `build_expression` in
 /// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/utils.js`.
@@ -22,25 +320,29 @@ use std::collections::HashMap;
 ///
 /// # Returns
 ///
-/// Returns a transformed expression with reactivity tracking if needed.
+/// Returns a transformed expression with all transforms applied and
+/// reactivity tracking if needed.
 pub fn build_expression(
     context: &mut ComponentContext,
     expression: &JsExpr,
     metadata: &ExpressionMetadata,
 ) -> JsExpr {
-    // In runes mode, expressions are already reactive
+    // Apply identifier transforms to the expression
+    let value = apply_transforms_to_expression(expression, context);
+
+    // In runes mode, expressions are already reactive (after transform application)
     if context.state.analysis.runes || context.state.analysis.maybe_runes {
-        return expression.clone();
+        return value;
     }
 
     // Legacy mode: wrap in reactivity tracking if the expression references state
     if metadata.has_state {
         // TODO: Implement legacy reactivity wrapping
-        // For now, return the expression as-is
-        return expression.clone();
+        // For now, return the transformed expression as-is
+        return value;
     }
 
-    expression.clone()
+    value
 }
 
 /// Build bind:this directive.
