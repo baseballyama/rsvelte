@@ -153,6 +153,12 @@ pub struct VisitorContext<'a> {
     pub has_svelte_head: bool,
     /// Whether we've seen svelte:options.
     pub has_svelte_options: bool,
+    /// First on: directive encountered (name for error message).
+    /// Used for mixed_event_handler_syntaxes validation.
+    pub event_directive_node: Option<String>,
+    /// Whether any event attributes (onclick, etc.) have been used.
+    /// Used for mixed_event_handler_syntaxes validation.
+    pub uses_event_attributes: bool,
 }
 
 /// Type of AST being analyzed.
@@ -192,6 +198,8 @@ impl<'a> VisitorContext<'a> {
             has_svelte_document: false,
             has_svelte_head: false,
             has_svelte_options: false,
+            event_directive_node: None,
+            uses_event_attributes: false,
         }
     }
 
@@ -239,6 +247,13 @@ pub fn analyze_template(
 
     // Build sibling relationships for CSS sibling combinator detection
     build_sibling_relationships(&mut context.analysis.css.dom_structure);
+
+    // Check for mixed event handler syntaxes (on:event and onevent mixed)
+    if let Some(ref event_name) = context.event_directive_node
+        && context.uses_event_attributes
+    {
+        return Err(super::errors::mixed_event_handler_syntaxes(event_name));
+    }
 
     Ok(())
 }

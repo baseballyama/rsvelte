@@ -7,7 +7,8 @@
 use super::super::AnalysisError;
 use super::super::errors;
 use super::VisitorContext;
-use crate::ast::template::SvelteElement;
+use super::bind_directive;
+use crate::ast::template::{Attribute, SvelteElement};
 
 /// Visit a svelte:document.
 pub fn visit(document: &SvelteElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
@@ -28,6 +29,13 @@ pub fn visit(document: &SvelteElement, context: &mut VisitorContext) -> Result<(
             "svelte_meta_invalid_content",
             "<svelte:document> cannot have children",
         ));
+    }
+
+    // Validate bind directives
+    for attr in &document.attributes {
+        if let Attribute::BindDirective(bind) = attr {
+            bind_directive::visit_with_svelte_element(bind, "svelte:document", context)?;
+        }
     }
 
     Ok(())

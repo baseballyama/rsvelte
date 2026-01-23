@@ -8,6 +8,7 @@ use super::super::AnalysisError;
 use super::VisitorContext;
 use super::attribute;
 use super::bind_directive;
+use super::on_directive;
 use super::shared::a11y::check_element as a11y_check;
 use super::shared::element::validate_element;
 use super::shared::fragment::{analyze, mark_subtree_dynamic};
@@ -670,16 +671,45 @@ pub fn visit(
 
     // Visit attributes and directives
     // We need to validate bind directives with the element context
-    for attr in &element.attributes {
-        match attr {
-            Attribute::Attribute(attr_node) => {
-                attribute::visit(attr_node, context)?;
+    // Using index-based iteration to avoid borrow issues
+    let attr_count = element.attributes.len();
+    for i in 0..attr_count {
+        match &element.attributes[i] {
+            Attribute::Attribute(_) => {
+                // Re-borrow the attribute for the visit call
+                if let Attribute::Attribute(attr_node) = &element.attributes[i] {
+                    // Check if this is an event attribute (onclick, etc.)
+                    // and track it for mixed_event_handler_syntaxes check
+                    if super::shared::attribute::is_event_attribute(attr_node) {
+                        context.uses_event_attributes = true;
+                        context.analysis.uses_event_attributes = true;
+                    }
+                    attribute::visit(attr_node, context)?;
+                }
             }
-            Attribute::BindDirective(bind) => {
-                // Validate bind directive with element context
-                bind_directive::visit_with_element(bind, element, context)?;
+            Attribute::BindDirective(_) => {
+                // Re-borrow the bind directive for the visit call
+                if let Attribute::BindDirective(bind) = &element.attributes[i] {
+                    bind_directive::visit_with_element(bind, element, context)?;
+                }
+            }
+            Attribute::OnDirective(_) => {
+                // Visit on: directive to track event_directive_node for mixed syntax detection
+                // Need mutable borrow so use a different approach
             }
             _ => {}
+        }
+    }
+
+    // Second pass for OnDirective which requires mutable borrow
+    for attr in &mut element.attributes {
+        if let Attribute::OnDirective(on) = attr {
+            // Track event directive for mixed_event_handler_syntaxes check
+            // This is a RegularElement, so we track it
+            if context.event_directive_node.is_none() {
+                context.event_directive_node = Some(on.name.to_string());
+            }
+            on_directive::visit(on, context)?;
         }
     }
 

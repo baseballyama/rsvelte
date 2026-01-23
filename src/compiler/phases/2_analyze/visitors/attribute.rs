@@ -106,6 +106,7 @@ pub fn visit(attribute: &AttributeNode, context: &mut VisitorContext) -> Result<
                 )
             {
                 // Track that this component uses event attributes
+                context.uses_event_attributes = true;
                 context.analysis.uses_event_attributes = true;
             }
 

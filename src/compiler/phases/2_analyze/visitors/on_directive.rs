@@ -57,12 +57,19 @@ pub fn visit(
             TemplateNode::SvelteElement(_) | TemplateNode::RegularElement(_)
         );
 
-        if is_element && context.analysis.event_directive_node.is_none() {
-            context.analysis.event_directive_node = Some(EventDirectiveInfo {
-                name: directive.name.to_string(),
-                start: directive.start,
-                end: directive.end,
-            });
+        if is_element {
+            // Track in context for mixed_event_handler_syntaxes check
+            if context.event_directive_node.is_none() {
+                context.event_directive_node = Some(directive.name.to_string());
+            }
+            // Also track in analysis for other purposes
+            if context.analysis.event_directive_node.is_none() {
+                context.analysis.event_directive_node = Some(EventDirectiveInfo {
+                    name: directive.name.to_string(),
+                    start: directive.start,
+                    end: directive.end,
+                });
+            }
         }
     }
 

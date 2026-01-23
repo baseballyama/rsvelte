@@ -681,3 +681,14 @@ pub fn tag_invalid_placement(name: &str, location: &str) -> AnalysisError {
         format!("{{@{} ...}} tag cannot be {}", name, location),
     )
 }
+
+/// Mixing old (on:event) and new syntaxes for event handling is not allowed
+pub fn mixed_event_handler_syntaxes(name: &str) -> AnalysisError {
+    error(
+        "mixed_event_handler_syntaxes",
+        format!(
+            "Mixing old (on:{}) and new syntaxes for event handling is not allowed. Use only the on{} syntax\nhttps://svelte.dev/e/mixed_event_handler_syntaxes",
+            name, name
+        ),
+    )
+}
