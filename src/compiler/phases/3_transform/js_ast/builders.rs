@@ -1176,6 +1176,31 @@ pub fn svelte_action(element: JsExpr, callback: JsExpr, arg_getter: Option<JsExp
     svelte_call("action", args)
 }
 
+/// Transition flag constants.
+/// Corresponds to constants in `svelte/packages/svelte/src/constants.js`.
+pub const TRANSITION_IN: u32 = 1;
+pub const TRANSITION_OUT: u32 = 1 << 1; // 2
+pub const TRANSITION_GLOBAL: u32 = 1 << 2; // 4
+
+/// Create $.transition(flags, element, name_thunk) or $.transition(flags, element, name_thunk, expr_thunk).
+///
+/// * `flags` - Combination of TRANSITION_IN, TRANSITION_OUT, TRANSITION_GLOBAL
+/// * `element` - The DOM element
+/// * `name_thunk` - Thunk returning the transition function: () => slide
+/// * `expr_thunk` - Optional thunk returning the expression: () => { duration: 300 }
+pub fn svelte_transition(
+    flags: u32,
+    element: JsExpr,
+    name_thunk: JsExpr,
+    expr_thunk: Option<JsExpr>,
+) -> JsExpr {
+    let mut args = vec![number(flags as f64), element, name_thunk];
+    if let Some(expr) = expr_thunk {
+        args.push(expr);
+    }
+    svelte_call("transition", args)
+}
+
 // ============================================================================
 // DOM Manipulation Helpers
 // ============================================================================

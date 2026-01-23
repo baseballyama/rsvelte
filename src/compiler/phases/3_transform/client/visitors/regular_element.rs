@@ -10,12 +10,14 @@
 
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, RegularElement as RegularElementNode, TemplateNode,
+    TransitionDirective,
 };
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::element::{
     build_attribute_effect, build_attribute_value, build_set_class_call, build_set_style_call,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::process_children;
+use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 use crate::compiler::phases::phase3_transform::utils::clean_nodes;
@@ -56,6 +58,7 @@ pub fn visit_regular_element(
     let mut class_directives = Vec::new();
     let mut style_directives = Vec::new();
     let mut on_directives = Vec::new();
+    let mut transition_directives: Vec<TransitionDirective> = Vec::new();
     let has_spread = node
         .attributes
         .iter()
@@ -74,6 +77,9 @@ pub fn visit_regular_element(
             }
             Attribute::OnDirective(dir) => {
                 on_directives.push(dir.clone());
+            }
+            Attribute::TransitionDirective(dir) => {
+                transition_directives.push(dir.clone());
             }
             Attribute::SpreadAttribute(_) => {
                 attributes.push(attribute.clone());
@@ -280,6 +286,11 @@ pub fn visit_regular_element(
                 context.state.after_update.push(b::stmt(event_call));
             }
         }
+    }
+
+    // Process transition directives
+    for trans_directive in &transition_directives {
+        transition_directive(trans_directive, context);
     }
 
     context.state.template.pop_element();

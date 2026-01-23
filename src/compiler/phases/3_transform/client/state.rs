@@ -376,6 +376,17 @@ pub struct EventHandler {
     pub handler: String,
 }
 
+/// Transition information for elements in if blocks.
+#[derive(Debug, Clone)]
+pub struct TransitionInfo {
+    /// Transition flags (TRANSITION_IN | TRANSITION_OUT | TRANSITION_GLOBAL)
+    pub flags: u32,
+    /// Transition name (e.g., "slide", "fade")
+    pub name: String,
+    /// Optional expression for transition parameters
+    pub expression: Option<String>,
+}
+
 /// Information about a svelte:element.
 #[derive(Debug, Clone)]
 pub struct SvelteElementInfo {
@@ -573,6 +584,7 @@ pub enum IfBlockPart {
         dynamic_attrs: Vec<DynamicAttribute>,
         event_handlers: Vec<EventHandler>,
         children: Vec<IfBlockPart>,
+        transitions: Vec<TransitionInfo>,
     },
     /// Nested if block
     NestedIfBlock(Box<IfBlockInfo>),

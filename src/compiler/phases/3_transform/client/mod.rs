@@ -14,23 +14,24 @@ use state::{
     AwaitBlockInfo, AwaitBlockPart, BindThisComponent, ChildPart, ComponentWithBinding,
     ComponentWithChildren, DynamicAttribute, EachBlockInfo, EventHandler, HtmlTagInfo, IfBlockInfo,
     IfBlockPart, NodeInfo, NodeType, SnippetBodyPart, SnippetInfo, SnippetParameter,
-    SpecialAttribute, StandaloneComponent, SvelteElementInfo,
+    SpecialAttribute, StandaloneComponent, SvelteElementInfo, TransitionInfo,
 };
 
 use super::TransformError;
 use super::js_ast::{
     builders::{
-        array, arrow, arrow_block, assign, assignment_pattern, boolean, call, const_decl,
-        export_default_function, getter, id, id_pattern, if_stmt, import_namespace,
-        import_side_effect, member, member_path, nullish, object, optional_call, program, prop,
-        quasi, raw, return_value, set_text_content, setter, stmt, string, svelte_action,
-        svelte_append, svelte_autofocus, svelte_await, svelte_bind_value, svelte_child,
-        svelte_comment, svelte_each, svelte_element, svelte_first_child, svelte_from_html,
-        svelte_get, svelte_html, svelte_index, svelte_next, svelte_remove_input_defaults,
-        svelte_reset, svelte_set, svelte_set_attribute, svelte_set_class,
-        svelte_set_custom_element_data, svelte_set_style, svelte_set_sync, svelte_set_text,
-        svelte_sibling, svelte_template_effect, svelte_template_effect_with_values, svelte_text,
-        template, thunk, var_decl,
+        TRANSITION_GLOBAL, TRANSITION_IN, TRANSITION_OUT, array, arrow, arrow_block, assign,
+        assignment_pattern, boolean, call, const_decl, export_default_function, getter, id,
+        id_pattern, if_stmt, import_namespace, import_side_effect, member, member_path, nullish,
+        object, optional_call, program, prop, quasi, raw, return_value, set_text_content, setter,
+        stmt, string, svelte_action, svelte_append, svelte_autofocus, svelte_await,
+        svelte_bind_value, svelte_child, svelte_comment, svelte_each, svelte_element,
+        svelte_first_child, svelte_from_html, svelte_get, svelte_html, svelte_index, svelte_next,
+        svelte_remove_input_defaults, svelte_reset, svelte_set, svelte_set_attribute,
+        svelte_set_class, svelte_set_custom_element_data, svelte_set_style, svelte_set_sync,
+        svelte_set_text, svelte_sibling, svelte_template_effect,
+        svelte_template_effect_with_values, svelte_text, svelte_transition, template, thunk,
+        var_decl,
     },
     generate,
     nodes::{
@@ -44,7 +45,7 @@ use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, ClassDirective,
     Component, EachBlock, ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, RegularElement,
     RenderTag, Root, SnippetBlock, StyleDirective, SvelteDynamicElement, TemplateNode, Text,
-    UseDirective,
+    TransitionDirective, UseDirective,
 };
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
@@ -1337,11 +1338,12 @@ impl ClientCodeGenerator {
         let is_input_element =
             elem.name == "input" || elem.name == "textarea" || elem.name == "select";
 
-        // Collect class:, style:, use:, bind: directives, and event handlers
+        // Collect class:, style:, use:, bind:, transition: directives, and event handlers
         let mut class_directives: Vec<&ClassDirective> = Vec::new();
         let mut style_directives: Vec<&StyleDirective> = Vec::new();
         let mut use_directives: Vec<&UseDirective> = Vec::new();
         let mut bind_directives: Vec<&crate::ast::template::BindDirective> = Vec::new();
+        let mut transition_directives: Vec<&TransitionDirective> = Vec::new();
         let mut event_handlers: Vec<(String, String)> = Vec::new();
 
         for attr in &elem.attributes {
@@ -1351,6 +1353,9 @@ impl ClientCodeGenerator {
                 }
                 Attribute::BindDirective(dir) => {
                     bind_directives.push(dir);
+                }
+                Attribute::TransitionDirective(dir) => {
+                    transition_directives.push(dir);
                 }
                 Attribute::Attribute(node) => {
                     let attr_name = node.name.as_str();
@@ -1578,6 +1583,52 @@ impl ClientCodeGenerator {
                     }
                 }
             }
+        }
+
+        // Generate $.transition() for transition: directives
+        // This follows the pattern from TransitionDirective.js
+        for trans_dir in transition_directives {
+            // Calculate flags based on modifiers and intro/outro
+            let mut flags: u32 = 0;
+
+            // Check for 'global' modifier
+            if trans_dir.modifiers.iter().any(|m| m.as_str() == "global") {
+                flags |= TRANSITION_GLOBAL;
+            }
+
+            // Add intro/outro flags
+            if trans_dir.intro {
+                flags |= TRANSITION_IN;
+            }
+            if trans_dir.outro {
+                flags |= TRANSITION_OUT;
+            }
+
+            // Build the name thunk: () => transitionName
+            // The transition name is an identifier (e.g., "slide", "fade")
+            let name_thunk = thunk(id(trans_dir.name.as_str()));
+
+            // Build expression thunk if expression is provided
+            let expr_thunk = if let Some(ref expr) = trans_dir.expression {
+                let expr_start = expr.start().unwrap_or(0) as usize;
+                let expr_end = expr.end().unwrap_or(0) as usize;
+                if expr_end > expr_start && expr_end <= self.source.len() {
+                    let expr_str = self.source[expr_start..expr_end].trim();
+                    Some(thunk(id(expr_str)))
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            // Generate: $.transition(flags, element, () => name, (() => expr)?)
+            stmts.push(stmt(svelte_transition(
+                flags,
+                id(var_name),
+                name_thunk,
+                expr_thunk,
+            )));
         }
     }
 
@@ -2032,6 +2083,37 @@ impl ClientCodeGenerator {
                     TemplateNode::RegularElement(elem) => {
                         let elem_html = self.build_element_template_html(elem);
                         template_html.push_str(&elem_html);
+
+                        // Collect transitions from the element's attributes
+                        let mut transitions = Vec::new();
+                        for attr in &elem.attributes {
+                            if let Attribute::TransitionDirective(trans) = attr {
+                                let mut flags = 0u32;
+                                if trans.modifiers.iter().any(|m| m.as_str() == "global") {
+                                    flags |= TRANSITION_GLOBAL;
+                                }
+                                if trans.intro {
+                                    flags |= TRANSITION_IN;
+                                }
+                                if trans.outro {
+                                    flags |= TRANSITION_OUT;
+                                }
+                                transitions.push(TransitionInfo {
+                                    flags,
+                                    name: trans.name.to_string(),
+                                    expression: trans.expression.as_ref().and_then(|e| {
+                                        let start = e.start().unwrap_or(0) as usize;
+                                        let end = e.end().unwrap_or(0) as usize;
+                                        if start < end && end <= self.source.len() {
+                                            Some(self.source[start..end].trim().to_string())
+                                        } else {
+                                            None
+                                        }
+                                    }),
+                                });
+                            }
+                        }
+
                         parts.push(IfBlockPart::Element {
                             tag: elem.name.to_string(),
                             template_var: template_var.clone(),
@@ -2039,6 +2121,7 @@ impl ClientCodeGenerator {
                             dynamic_attrs: Vec::new(),
                             event_handlers: Vec::new(),
                             children: self.collect_element_children_parts(elem),
+                            transitions,
                         });
                     }
                     TemplateNode::Text(text) => {
@@ -6854,7 +6937,45 @@ export default function {component_name}({fn_params}) {{
 
         if let Some(tpl_var) = template_var {
             // Element-based branch
-            body.push(var_decl("fragment_1", Some(call(id(tpl_var), vec![]))));
+            // Check if we have a single element with transitions - if so, use element name as variable
+            let (element_var, transitions_to_apply) = if parts.len() == 1 {
+                if let IfBlockPart::Element {
+                    tag, transitions, ..
+                } = &parts[0]
+                {
+                    if !transitions.is_empty() {
+                        (tag.clone(), transitions.clone())
+                    } else {
+                        ("fragment_1".to_string(), Vec::new())
+                    }
+                } else {
+                    ("fragment_1".to_string(), Vec::new())
+                }
+            } else {
+                ("fragment_1".to_string(), Vec::new())
+            };
+
+            body.push(var_decl(&element_var, Some(call(id(tpl_var), vec![]))));
+
+            // Generate transition calls for elements with transitions
+            for trans in &transitions_to_apply {
+                // Build the name thunk: () => transitionName
+                let name_thunk = thunk(id(&trans.name));
+
+                // Build expression thunk if expression is provided
+                let expr_thunk = trans
+                    .expression
+                    .as_ref()
+                    .map(|expr_str| thunk(raw(expr_str)));
+
+                // Generate: $.transition(flags, element, () => name, (() => expr)?)
+                body.push(stmt(svelte_transition(
+                    trans.flags,
+                    id(&element_var),
+                    name_thunk,
+                    expr_thunk,
+                )));
+            }
 
             // Process parts for text updates
             let mut text_idx = 0;
@@ -6903,11 +7024,11 @@ export default function {component_name}({fn_params}) {{
 
             // Generate text variable declarations for navigating to text nodes
             if has_expressions && !template_effect_parts.is_empty() {
-                // Add navigation: var text_1 = $.first_child(fragment_1)
+                // Add navigation: var text_1 = $.first_child(element_var)
                 let first_text_var = &template_effect_parts[0].0;
                 body.push(var_decl(
                     first_text_var,
-                    Some(svelte_first_child(id("fragment_1"))),
+                    Some(svelte_first_child(id(&element_var))),
                 ));
 
                 // Add sibling navigation for additional text nodes
@@ -6940,7 +7061,7 @@ export default function {component_name}({fn_params}) {{
                 ))));
             }
 
-            body.push(stmt(svelte_append(id("$$anchor"), id("fragment_1"))));
+            body.push(stmt(svelte_append(id("$$anchor"), id(&element_var))));
         } else if is_text_only && !parts.is_empty() {
             // Text-only branch
             body.push(var_decl("text", Some(svelte_text(None))));
@@ -9312,6 +9433,230 @@ $effect(() => {
         assert!(
             js.contains("return foo"),
             "Getter should return the snippet. Generated JS:\n{}",
+            js
+        );
+    }
+
+    #[test]
+    fn test_transition_directive_simple() {
+        use crate::CompileOptions;
+        use crate::compile;
+
+        let source = r#"<script>
+	import { slide } from 'svelte/transition';
+</script>
+
+<div transition:slide>Hello</div>"#;
+
+        let options = CompileOptions {
+            generate: crate::GenerateMode::Client,
+            filename: Some("main.svelte".to_string()),
+            ..Default::default()
+        };
+
+        let result = compile(source, options).unwrap();
+        let js = result.js.code;
+
+        // Check that $.transition is called
+        assert!(
+            js.contains("$.transition("),
+            "Should generate $.transition call. Generated JS:\n{}",
+            js
+        );
+
+        // Check that flags = 3 (TRANSITION_IN | TRANSITION_OUT)
+        assert!(
+            js.contains("$.transition(3,"),
+            "Transition flags should be 3 (IN|OUT). Generated JS:\n{}",
+            js
+        );
+
+        // Check that slide is wrapped in thunk
+        assert!(
+            js.contains("() => slide"),
+            "Transition name should be wrapped in thunk. Generated JS:\n{}",
+            js
+        );
+    }
+
+    #[test]
+    fn test_transition_directive_in_only() {
+        use crate::CompileOptions;
+        use crate::compile;
+
+        let source = r#"<script>
+	import { fade } from 'svelte/transition';
+</script>
+
+<div in:fade>Hello</div>"#;
+
+        let options = CompileOptions {
+            generate: crate::GenerateMode::Client,
+            filename: Some("main.svelte".to_string()),
+            ..Default::default()
+        };
+
+        let result = compile(source, options).unwrap();
+        let js = result.js.code;
+
+        // Check that flags = 1 (TRANSITION_IN only)
+        assert!(
+            js.contains("$.transition(1,"),
+            "Transition flags should be 1 (IN only). Generated JS:\n{}",
+            js
+        );
+    }
+
+    #[test]
+    fn test_transition_directive_out_only() {
+        use crate::CompileOptions;
+        use crate::compile;
+
+        let source = r#"<script>
+	import { fade } from 'svelte/transition';
+</script>
+
+<div out:fade>Hello</div>"#;
+
+        let options = CompileOptions {
+            generate: crate::GenerateMode::Client,
+            filename: Some("main.svelte".to_string()),
+            ..Default::default()
+        };
+
+        let result = compile(source, options).unwrap();
+        let js = result.js.code;
+
+        // Check that flags = 2 (TRANSITION_OUT only)
+        assert!(
+            js.contains("$.transition(2,"),
+            "Transition flags should be 2 (OUT only). Generated JS:\n{}",
+            js
+        );
+    }
+
+    #[test]
+    fn test_transition_directive_with_global_modifier() {
+        use crate::CompileOptions;
+        use crate::compile;
+
+        let source = r#"<script>
+	import { slide } from 'svelte/transition';
+</script>
+
+<div transition:slide|global>Hello</div>"#;
+
+        let options = CompileOptions {
+            generate: crate::GenerateMode::Client,
+            filename: Some("main.svelte".to_string()),
+            ..Default::default()
+        };
+
+        let result = compile(source, options).unwrap();
+        let js = result.js.code;
+
+        // Check that flags = 7 (TRANSITION_IN | TRANSITION_OUT | TRANSITION_GLOBAL)
+        assert!(
+            js.contains("$.transition(7,"),
+            "Transition flags should be 7 (IN|OUT|GLOBAL). Generated JS:\n{}",
+            js
+        );
+    }
+
+    #[test]
+    fn test_transition_directive_with_expression() {
+        use crate::CompileOptions;
+        use crate::compile;
+
+        let source = r#"<script>
+	import { slide } from 'svelte/transition';
+	const duration = 300;
+</script>
+
+<div transition:slide={{ duration }}>Hello</div>"#;
+
+        let options = CompileOptions {
+            generate: crate::GenerateMode::Client,
+            filename: Some("main.svelte".to_string()),
+            ..Default::default()
+        };
+
+        let result = compile(source, options).unwrap();
+        let js = result.js.code;
+
+        // Check that $.transition is called with expression thunk
+        assert!(
+            js.contains("$.transition(3,"),
+            "Transition should be generated. Generated JS:\n{}",
+            js
+        );
+
+        // Expression thunk should contain duration
+        // The expression is wrapped in a thunk: () => { duration }
+        assert!(
+            js.contains("duration") && js.contains("() =>"),
+            "Expression should be wrapped in thunk. Generated JS:\n{}",
+            js
+        );
+    }
+
+    #[test]
+    fn test_transition_in_nested_if_block() {
+        use crate::CompileOptions;
+        use crate::compile;
+
+        let source = r#"<script>
+	import { slide } from 'svelte/transition';
+	let showText = $state(false);
+	let show = $state(true);
+</script>
+
+<button onclick={() => showText = !showText}>Toggle</button>
+
+{#if showText}
+	{#if show}
+		<div transition:slide>
+			Should not transition out
+		</div>
+	{/if}
+{/if}"#;
+
+        let options = CompileOptions {
+            generate: crate::GenerateMode::Client,
+            filename: Some("main.svelte".to_string()),
+            ..Default::default()
+        };
+
+        let result = compile(source, options).unwrap();
+        let js = result.js.code;
+
+        println!("Generated JS for nested if with transition:\n{}", js);
+
+        // Check that $.transition is called in the nested if block
+        assert!(
+            js.contains("$.transition("),
+            "Should generate $.transition call in nested if block. Generated JS:\n{}",
+            js
+        );
+
+        // Check that the transition uses the correct flags (3 = TRANSITION_IN | TRANSITION_OUT)
+        assert!(
+            js.contains("$.transition(3,"),
+            "Transition flags should be 3 (IN|OUT). Generated JS:\n{}",
+            js
+        );
+
+        // Check that slide is wrapped in thunk
+        assert!(
+            js.contains("() => slide"),
+            "Transition name should be wrapped in thunk. Generated JS:\n{}",
+            js
+        );
+
+        // Check that the element variable is named 'div' not 'fragment_1'
+        assert!(
+            js.contains("var div ="),
+            "Element variable should be named 'div'. Generated JS:\n{}",
             js
         );
     }

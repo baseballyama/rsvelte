@@ -733,6 +733,8 @@ pub struct TransitionDirective {
     pub modifiers: Vec<CompactString>,
     pub intro: bool,
     pub outro: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata: Option<DirectiveMetadata>,
 }
 
 impl serde::Serialize for TransitionDirective {
@@ -755,6 +757,9 @@ impl serde::Serialize for TransitionDirective {
         map.serialize_entry("modifiers", &self.modifiers)?;
         map.serialize_entry("intro", &self.intro)?;
         map.serialize_entry("outro", &self.outro)?;
+        if let Some(ref metadata) = self.metadata {
+            map.serialize_entry("metadata", metadata)?;
+        }
         map.end()
     }
 }

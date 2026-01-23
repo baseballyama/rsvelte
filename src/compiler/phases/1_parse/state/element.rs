@@ -1586,6 +1586,7 @@ impl Parser<'_> {
                 modifiers,
                 intro,
                 outro,
+                metadata: None,
             },
         )))
     }
