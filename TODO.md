@@ -828,3 +828,20 @@ $.template_effect(() => $.set_text(text, `${$.get(item).name ?? ''} costs $${$.g
 **テスト結果:**
 - Runtime Runes: 25/724 (変化なし)
 - Compiler Snapshot: 19/19 (維持)
+
+### 2026-01-23 作業ログ（続き3）
+
+**visitor ベースの transform 適用:**
+- [x] `apply_transforms_to_expression()` 関数を追加
+- [x] `build_expression()` で transform を適用
+- [x] expression_converter の重複ロジックを削除
+
+**mod.rs 式変換の試み（退行のため取り消し）:**
+- 状態変数への `$.get()` ラッピングを試みたが、テスト退行が発生
+- 複数行ステートメントの処理が行単位処理の限界で難しい
+- ASTベースの変換が根本的な解決策として必要
+
+**教訓:**
+- mod.rs の式変換は複雑で、小さな変更でも退行を引き起こす
+- 大規模なリファクタリング（AST ベース変換）が必要
+- 段階的な改善より、visitor ベースのアプローチを完全に採用する方が効果的
