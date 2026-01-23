@@ -246,11 +246,15 @@ svelte/packages/svelte/src/compiler/
   - **完了**: 2026-01-23
   - 注: テストはまだ失敗（$.state() vs let、変数名の違い等の別問題）
 
-- [ ] **C-035**: svelte:boundary 実装（期待: +40-80 テスト）
+- [x] **C-035**: svelte:boundary 実装（部分完了）
   - 依存: なし
-  - 問題: 特別要素が未処理
-  - 完了条件: `async-derived-unchanging` 等のテスト通過
-  - **着手開始**: 2026-01-23
+  - 実装済み:
+    - `$.boundary()` 呼び出し生成（ClientCodeGenerator）
+    - BoundaryInfo 構造体
+    - pending/failed snippet サポート
+    - onerror 属性サポート
+  - **完了**: 2026-01-23
+  - 結果: Client +1 (22 → 23)
 
 #### 6.1.2 Phase 2 Analyze 補完
 
