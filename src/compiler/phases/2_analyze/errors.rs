@@ -253,11 +253,11 @@ pub fn module_illegal_default_export() -> AnalysisError {
 
 // Element-related errors
 
-/// `<svelte:element>` must have a `this` attribute
+/// `<svelte:element>` must have a 'this' attribute with a value
 pub fn svelte_element_missing_this() -> AnalysisError {
     error(
         "svelte_element_missing_this",
-        "`<svelte:element>` must have a `this` attribute",
+        "`<svelte:element>` must have a 'this' attribute with a value",
     )
 }
 
@@ -666,5 +666,13 @@ pub fn reactive_declaration_cycle(cycle: &str) -> AnalysisError {
     error(
         "reactive_declaration_cycle",
         format!("Cyclical dependency detected: {}", cycle),
+    )
+}
+
+/// {@%name% ...} tag cannot be %location%
+pub fn tag_invalid_placement(name: &str, location: &str) -> AnalysisError {
+    error(
+        "tag_invalid_placement",
+        format!("{{@{} ...}} tag cannot be {}", name, location),
     )
 }

@@ -1824,10 +1824,30 @@ impl Parser<'_> {
 
             // Check for expression
             if self.current_char() == '{' {
-                // For now, skip expressions in attribute values
-                // Just read until closing brace
                 let expr_start = self.index;
                 self.advance(); // consume '{'
+
+                // Check for {@html} or other @ tags in attribute value - this is invalid
+                self.skip_whitespace();
+                if self.current_char() == '@' {
+                    self.advance(); // consume '@'
+                    let tag_name: String = self
+                        .source
+                        .get(self.index..)
+                        .unwrap_or("")
+                        .chars()
+                        .take_while(|c| c.is_ascii_lowercase())
+                        .collect();
+                    return Err(crate::error::ParseError::svelte(
+                        "tag_invalid_placement",
+                        format!("{{@{} ...}} tag cannot be in attribute value", tag_name),
+                        (expr_start, expr_start),
+                    ));
+                }
+                // Reset position after whitespace check (we only peeked)
+                self.index = expr_start + 1;
+
+                // Parse expression content
                 let mut depth = 1;
                 while !self.is_eof() && depth > 0 {
                     let c = self.current_char();
@@ -1958,6 +1978,29 @@ impl Parser<'_> {
         while !self.is_eof() && !self.is_valid_closing_tag(&closing_tag) {
             // Check for expression tag
             if self.match_str("{") && !self.match_str("{{") {
+                let mustache_start = self.index;
+
+                // Check for {@html} or other @ tags in textarea - this is invalid
+                // Peek ahead: { followed by optional whitespace and @
+                let peek_content = self.source.get(self.index + 1..).unwrap_or("");
+                let trimmed_peek = peek_content.trim_start();
+                if trimmed_peek.starts_with('@') {
+                    // Extract the tag name after @
+                    let after_at = trimmed_peek.get(1..).unwrap_or("");
+                    let tag_name_str: String = after_at
+                        .chars()
+                        .take_while(|c| c.is_ascii_lowercase())
+                        .collect();
+                    return Err(crate::error::ParseError::svelte(
+                        "tag_invalid_placement",
+                        format!(
+                            "{{@{} ...}} tag cannot be inside a <textarea>",
+                            tag_name_str
+                        ),
+                        (mustache_start, mustache_start),
+                    ));
+                }
+
                 // Flush accumulated text
                 if self.index > text_start {
                     let text_content = &self.source[text_start..self.index];

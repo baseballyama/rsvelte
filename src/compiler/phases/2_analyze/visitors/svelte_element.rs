@@ -5,8 +5,10 @@
 //! Corresponds to Svelte's `2-analyze/visitors/SvelteElement.js`.
 
 use super::super::AnalysisError;
+use super::super::errors;
 use super::VisitorContext;
 use super::shared::fragment;
+use crate::ast::js::Expression;
 use crate::ast::template::{Attribute, SvelteDynamicElement};
 
 /// Visit a svelte:element.
@@ -16,6 +18,20 @@ pub fn visit(
 ) -> Result<(), AnalysisError> {
     // Mark that we have dynamic elements (can't safely prune type selectors)
     context.analysis.css.has_dynamic_elements = true;
+
+    // Check that svelte:element has a 'this' attribute with a value
+    // The 'tag' field is populated from the 'this' attribute during parsing
+    // If it's null/undefined or empty, the 'this' attribute is missing or has no value
+    let has_valid_this = match &element.tag {
+        Expression::Value(value) => {
+            // Check if it's a non-null value
+            !value.is_null()
+        }
+    };
+
+    if !has_valid_this {
+        return Err(errors::svelte_element_missing_this());
+    }
 
     // Check for invalid bindings on svelte:element
     // bind:value, bind:files, bind:group can only be used with specific elements
