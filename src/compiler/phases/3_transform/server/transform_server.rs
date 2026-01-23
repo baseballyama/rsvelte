@@ -1087,6 +1087,10 @@ impl<'a> ServerCodeGenerator<'a> {
                     String::new()
                 };
 
+                // First, remove $effect, $effect.pre, $effect.root, and $inspect.trace blocks
+                // These are client-side only and should not appear in SSR output
+                let raw_script = remove_effect_blocks(&raw_script);
+
                 // Check if script uses $props()
                 let uses_props = raw_script.contains("$props()");
 
@@ -2192,4 +2196,120 @@ fn find_matching_paren_server(s: &str) -> Option<usize> {
         }
     }
     None
+}
+
+/// Remove $effect, $effect.pre, $effect.root, and $inspect.trace blocks from script.
+/// These are client-side only runes and should not appear in SSR output.
+fn remove_effect_blocks(script: &str) -> String {
+    let mut result = script.to_string();
+
+    // List of effect-related runes to remove (order matters - check longer patterns first)
+    let effect_runes = [
+        "$effect.root(",
+        "$effect.pre(",
+        "$effect(",
+        "$inspect.trace(",
+    ];
+
+    for rune in effect_runes {
+        result = remove_rune_statement(&result, rune);
+    }
+
+    result
+}
+
+/// Remove a complete statement containing a rune call.
+/// For example: `$effect(() => { ... });` becomes empty.
+fn remove_rune_statement(script: &str, rune_prefix: &str) -> String {
+    let mut result = String::new();
+    let chars: Vec<char> = script.chars().collect();
+    let prefix_chars: Vec<char> = rune_prefix.chars().collect();
+    let prefix_len = prefix_chars.len();
+    let mut i = 0;
+
+    while i < chars.len() {
+        // Check if we're at the start of a rune call
+        if i + prefix_len <= chars.len() {
+            let potential: String = chars[i..i + prefix_len].iter().collect();
+            if potential == rune_prefix {
+                // Check if this is preceded only by whitespace/newlines on the current line
+                // (i.e., it's a statement, not part of an expression)
+                let is_statement = is_statement_start(&result);
+
+                if is_statement {
+                    // Find the matching closing paren
+                    let start = i + prefix_len;
+                    let mut depth = 1;
+                    let mut end = start;
+                    let mut in_string = false;
+                    let mut string_char = ' ';
+
+                    while end < chars.len() && depth > 0 {
+                        let c = chars[end];
+
+                        // Handle string literals
+                        if (c == '"' || c == '\'' || c == '`')
+                            && (end == 0 || chars[end - 1] != '\\')
+                        {
+                            if !in_string {
+                                in_string = true;
+                                string_char = c;
+                            } else if c == string_char {
+                                in_string = false;
+                            }
+                        }
+
+                        if !in_string {
+                            match c {
+                                '(' => depth += 1,
+                                ')' => depth -= 1,
+                                _ => {}
+                            }
+                        }
+                        if depth > 0 {
+                            end += 1;
+                        }
+                    }
+
+                    // Skip past the closing paren
+                    end += 1;
+
+                    // Skip optional semicolon and trailing whitespace on the same line
+                    while end < chars.len() && (chars[end] == ';' || chars[end] == ' ') {
+                        end += 1;
+                    }
+
+                    // Skip trailing newline if present
+                    if end < chars.len() && chars[end] == '\n' {
+                        end += 1;
+                    }
+
+                    // Remove leading whitespace/tabs on this line from result
+                    while result.ends_with(' ') || result.ends_with('\t') {
+                        result.pop();
+                    }
+
+                    i = end;
+                    continue;
+                }
+            }
+        }
+
+        result.push(chars[i]);
+        i += 1;
+    }
+
+    result
+}
+
+/// Check if we're at the start of a statement (preceded only by whitespace on current line).
+fn is_statement_start(preceding: &str) -> bool {
+    // Check what's on the current line before this position
+    if let Some(last_newline) = preceding.rfind('\n') {
+        let line_content = &preceding[last_newline + 1..];
+        line_content.chars().all(|c| c.is_whitespace())
+    } else {
+        // Start of file/string - check if all preceding is whitespace
+        preceding.chars().all(|c| c.is_whitespace())
+    }
 }
