@@ -334,6 +334,18 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     // TODO: Handle $derived expression tracking for async deriveds
     // TODO: Handle $inspect expression tracking
 
+    // Visit children (callee and arguments)
+    // This is equivalent to context.next() in the JavaScript implementation
+    if let Some(callee) = node.get("callee") {
+        super::script::walk_js_node(callee, context)?;
+    }
+
+    if let Some(arguments) = node.get("arguments").and_then(|a| a.as_array()) {
+        for arg in arguments {
+            super::script::walk_js_node(arg, context)?;
+        }
+    }
+
     Ok(())
 }
 

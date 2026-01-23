@@ -216,5 +216,19 @@ fn visit_children(node: &Value, context: &mut VisitorContext) -> Result<(), Anal
         walk_js_node(update, context)?;
     }
 
+    // Visit value (MethodDefinition, Property, etc.)
+    if let Some(value) = node.get("value") {
+        walk_js_node(value, context)?;
+    }
+
+    // Visit key for computed properties
+    let computed = node
+        .get("computed")
+        .and_then(|c| c.as_bool())
+        .unwrap_or(false);
+    if computed && let Some(key) = node.get("key") {
+        walk_js_node(key, context)?;
+    }
+
     Ok(())
 }

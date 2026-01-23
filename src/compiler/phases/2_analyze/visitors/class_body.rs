@@ -19,16 +19,20 @@ use std::collections::HashMap;
 /// and validates that field names don't conflict. It handles both PropertyDefinition nodes
 /// and assignments in the constructor (this.foo = $state(...)).
 pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    // Only analyze if using runes
-    if !context.analysis.runes {
-        return Ok(());
-    }
-
     // Get the class body array
     let body = match node.get("body").and_then(|b| b.as_array()) {
         Some(b) => b,
         None => return Ok(()),
     };
+
+    // Only analyze state fields if using runes
+    if !context.analysis.runes {
+        // Still need to visit children for non-runes mode to detect needs_context
+        for child in body {
+            super::script::walk_js_node(child, context)?;
+        }
+        return Ok(());
+    }
 
     // Track private identifiers to avoid conflicts when generating deconflicted names
     let mut private_ids: Vec<String> = Vec::new();
@@ -379,6 +383,12 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     // Create a unique key for this class body node
     let node_key = format!("{:?}", node); // Simple key based on the node structure
     context.analysis.classes.insert(node_key, state_fields);
+
+    // Visit children (methods, properties, etc.)
+    // This is equivalent to context.next() in the JavaScript implementation
+    for child in body {
+        super::script::walk_js_node(child, context)?;
+    }
 
     Ok(())
 }
