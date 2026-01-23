@@ -590,6 +590,51 @@ pub enum IfBlockPart {
     NestedIfBlock(Box<IfBlockInfo>),
 }
 
+/// Snippet info for boundary: (params, body_parts, template_var, template_html)
+pub type BoundarySnippetInfo = (
+    Vec<SnippetParameter>,
+    Vec<SnippetBodyPart>,
+    Option<String>,
+    Option<String>,
+);
+
+/// Information about a svelte:boundary for client-side code generation.
+#[derive(Debug, Clone)]
+pub struct BoundaryInfo {
+    /// onerror attribute expression (if present)
+    pub onerror: Option<String>,
+    /// Whether onerror has state (needs getter)
+    pub onerror_has_state: bool,
+    /// pending snippet info (if present)
+    pub pending_snippet: Option<BoundarySnippetInfo>,
+    /// failed snippet info (if present)
+    pub failed_snippet: Option<BoundarySnippetInfo>,
+    /// Children parts (content inside boundary, excluding pending/failed snippets)
+    pub children_parts: Vec<BoundaryChildPart>,
+    /// Template vars needed for children (for from_html declarations)
+    pub children_template_vars: Vec<(String, String)>,
+}
+
+/// A part of boundary children content.
+#[derive(Debug, Clone)]
+pub enum BoundaryChildPart {
+    /// Static text
+    Text(String),
+    /// Expression to evaluate
+    Expression(String),
+    /// Component call: (component_name, props_string)
+    Component(String, String),
+    /// Element with template
+    Element {
+        tag: String,
+        template_var: String,
+        template_html: String,
+        children: Vec<BoundaryChildPart>,
+    },
+    /// Const tag declaration
+    ConstTag(String),
+}
+
 /// Special attribute that needs runtime handling.
 #[derive(Debug, Clone)]
 pub enum SpecialAttribute {
@@ -653,6 +698,8 @@ pub struct FeatureCollector {
     pub components_with_bindings: Vec<ComponentWithBinding>,
     /// Await blocks
     pub await_blocks: Vec<AwaitBlockInfo>,
+    /// Boundary blocks
+    pub boundaries: Vec<BoundaryInfo>,
     /// Special attributes that need runtime handling
     pub special_attrs: Vec<SpecialAttribute>,
 }
@@ -711,6 +758,11 @@ impl FeatureCollector {
         self.await_blocks.push(info);
     }
 
+    /// Add a boundary block.
+    pub fn add_boundary(&mut self, info: BoundaryInfo) {
+        self.boundaries.push(info);
+    }
+
     /// Check if there are any each blocks.
     pub fn has_each_blocks(&self) -> bool {
         !self.each_blocks.is_empty()
@@ -719,6 +771,11 @@ impl FeatureCollector {
     /// Check if there are any await blocks.
     pub fn has_await_blocks(&self) -> bool {
         !self.await_blocks.is_empty()
+    }
+
+    /// Check if there are any boundary blocks.
+    pub fn has_boundaries(&self) -> bool {
+        !self.boundaries.is_empty()
     }
 
     /// Add a special attribute.

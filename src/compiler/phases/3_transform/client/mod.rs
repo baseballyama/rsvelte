@@ -11,10 +11,11 @@ mod visitor;
 pub mod visitors;
 
 use state::{
-    AwaitBlockInfo, AwaitBlockPart, BindThisComponent, ChildPart, ComponentWithBinding,
-    ComponentWithChildren, DynamicAttribute, EachBlockInfo, EventHandler, HtmlTagInfo, IfBlockInfo,
-    IfBlockPart, NodeInfo, NodeType, SnippetBodyPart, SnippetInfo, SnippetParameter,
-    SpecialAttribute, StandaloneComponent, SvelteElementInfo, TransitionInfo,
+    AwaitBlockInfo, AwaitBlockPart, BindThisComponent, BoundaryChildPart, BoundaryInfo,
+    BoundarySnippetInfo, ChildPart, ComponentWithBinding, ComponentWithChildren, DynamicAttribute,
+    EachBlockInfo, EventHandler, HtmlTagInfo, IfBlockInfo, IfBlockPart, NodeInfo, NodeType,
+    SnippetBodyPart, SnippetInfo, SnippetParameter, SpecialAttribute, StandaloneComponent,
+    SvelteElementInfo, TransitionInfo,
 };
 
 use super::TransformError;
@@ -44,8 +45,8 @@ use super::shared::{escape_attr, escape_html, is_void_element};
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, ClassDirective,
     Component, EachBlock, ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, RegularElement,
-    RenderTag, Root, SnippetBlock, StyleDirective, SvelteDynamicElement, TemplateNode, Text,
-    TransitionDirective, UseDirective,
+    RenderTag, Root, SnippetBlock, StyleDirective, SvelteDynamicElement, SvelteElement,
+    TemplateNode, Text, TransitionDirective, UseDirective,
 };
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
@@ -176,6 +177,8 @@ struct ClientCodeGenerator {
     standalone_components: Vec<StandaloneComponent>,
     /// Await blocks for runtime code generation
     await_blocks: Vec<AwaitBlockInfo>,
+    /// Boundary blocks for runtime code generation
+    boundaries: Vec<BoundaryInfo>,
     /// If blocks for runtime code generation
     if_blocks: Vec<IfBlockInfo>,
     /// Counter for if block template variable names
@@ -288,6 +291,7 @@ impl ClientCodeGenerator {
             components_with_bindings: Vec::new(),
             standalone_components: Vec::new(),
             await_blocks: Vec::new(),
+            boundaries: Vec::new(),
             if_blocks: Vec::new(),
             if_block_counter: 0,
             has_custom_elements: false,
@@ -511,6 +515,7 @@ impl ClientCodeGenerator {
             TemplateNode::RenderTag(tag) => self.generate_render_tag(tag),
             TemplateNode::HtmlTag(tag) => self.generate_html_tag(tag),
             TemplateNode::SvelteElement(elem) => self.generate_svelte_element(elem),
+            TemplateNode::SvelteBoundary(boundary) => self.generate_svelte_boundary(boundary),
             _ => Ok(()),
         }
     }
@@ -3073,6 +3078,222 @@ impl ClientCodeGenerator {
         Ok(())
     }
 
+    fn generate_svelte_boundary(&mut self, boundary: &SvelteElement) -> Result<(), TransformError> {
+        // svelte:boundary generates a comment placeholder
+        // The boundary is rendered via $.boundary(node, props, children)
+        self.html_parts.push("<!>".to_string());
+
+        // Extract onerror attribute
+        let mut onerror: Option<String> = None;
+        let mut onerror_has_state = false;
+
+        for attr in &boundary.attributes {
+            if let Attribute::Attribute(attr_node) = attr
+                && attr_node.name.as_str() == "onerror"
+                && let AttributeValue::Expression(expr_tag) = &attr_node.value
+            {
+                let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                if expr_end > expr_start && expr_end <= self.source.len() {
+                    let expr = self.source[expr_start..expr_end].trim().to_string();
+                    // Check if expression references state variables
+                    onerror_has_state = self.state_vars.iter().any(|sv| expr.contains(sv))
+                        || self.proxy_state_vars.iter().any(|sv| expr.contains(sv));
+                    onerror = Some(expr);
+                }
+            }
+        }
+
+        // Separate children: pending/failed snippets vs regular children
+        let mut pending_snippet: Option<BoundarySnippetInfo> = None;
+        let mut failed_snippet: Option<BoundarySnippetInfo> = None;
+        let mut children_parts: Vec<BoundaryChildPart> = Vec::new();
+        let mut children_template_vars: Vec<(String, String)> = Vec::new();
+        let mut template_var_counter = self.snippets.len() + 1;
+
+        for child in &boundary.fragment.nodes {
+            match child {
+                TemplateNode::SnippetBlock(snippet) => {
+                    // Extract snippet name
+                    let name_start = snippet.expression.start().unwrap_or(0) as usize;
+                    let name_end = snippet.expression.end().unwrap_or(0) as usize;
+                    let name = if name_end > name_start && name_end <= self.source.len() {
+                        self.source[name_start..name_end].trim().to_string()
+                    } else {
+                        continue;
+                    };
+
+                    // Extract parameters
+                    let mut params = Vec::new();
+                    for param in &snippet.parameters {
+                        let param_start = param.start().unwrap_or(0) as usize;
+                        let param_end = param.end().unwrap_or(0) as usize;
+                        if param_end > param_start && param_end <= self.source.len() {
+                            let param_text = self.source[param_start..param_end].trim();
+                            let (param_name, has_default) = if param_text.contains('=') {
+                                let parts: Vec<&str> = param_text.splitn(2, '=').collect();
+                                (parts[0].trim().to_string(), true)
+                            } else {
+                                (param_text.to_string(), false)
+                            };
+                            params.push(SnippetParameter {
+                                name: param_name,
+                                has_default,
+                            });
+                        }
+                    }
+
+                    // Analyze snippet body
+                    let (template_var, template_html, body_parts) =
+                        self.analyze_snippet_body(&snippet.body, &params);
+
+                    if name == "pending" {
+                        pending_snippet = Some((params, body_parts, template_var, template_html));
+                    } else if name == "failed" {
+                        failed_snippet = Some((params, body_parts, template_var, template_html));
+                    }
+                }
+                TemplateNode::ConstTag(const_tag) => {
+                    // Extract const declaration
+                    let decl_start = const_tag.declaration.start().unwrap_or(0) as usize;
+                    let decl_end = const_tag.declaration.end().unwrap_or(0) as usize;
+                    if decl_end > decl_start && decl_end <= self.source.len() {
+                        let decl = self.source[decl_start..decl_end].trim().to_string();
+                        children_parts.push(BoundaryChildPart::ConstTag(decl));
+                    }
+                }
+                TemplateNode::Component(comp) => {
+                    // Extract component name and props
+                    let comp_name = comp.name.to_string();
+                    let mut props_parts = Vec::new();
+
+                    for attr in &comp.attributes {
+                        if let Attribute::Attribute(attr_node) = attr {
+                            let attr_name = attr_node.name.as_str();
+                            if let AttributeValue::Expression(expr_tag) = &attr_node.value {
+                                let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                                let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                                if expr_end > expr_start && expr_end <= self.source.len() {
+                                    let expr = self.source[expr_start..expr_end].trim().to_string();
+                                    if expr == attr_name {
+                                        props_parts.push(attr_name.to_string());
+                                    } else {
+                                        props_parts.push(format!("{}: {}", attr_name, expr));
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    let props_str = props_parts.join(", ");
+                    children_parts.push(BoundaryChildPart::Component(comp_name, props_str));
+                }
+                TemplateNode::RegularElement(elem) => {
+                    // Analyze element and create template
+                    let template_var = format!("root_{}", template_var_counter);
+                    template_var_counter += 1;
+
+                    let (template_html, elem_children) = self.analyze_boundary_element(elem);
+                    children_template_vars.push((template_var.clone(), template_html.clone()));
+
+                    children_parts.push(BoundaryChildPart::Element {
+                        tag: elem.name.to_string(),
+                        template_var,
+                        template_html,
+                        children: elem_children,
+                    });
+                }
+                TemplateNode::ExpressionTag(expr) => {
+                    let expr_start = expr.expression.start().unwrap_or(0) as usize;
+                    let expr_end = expr.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let expr_text = self.source[expr_start..expr_end].trim().to_string();
+                        children_parts.push(BoundaryChildPart::Expression(expr_text));
+                    }
+                }
+                TemplateNode::Text(text) => {
+                    let trimmed = text.data.trim();
+                    if !trimmed.is_empty() {
+                        children_parts.push(BoundaryChildPart::Text(trimmed.to_string()));
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // Store the boundary info
+        self.boundaries.push(BoundaryInfo {
+            onerror,
+            onerror_has_state,
+            pending_snippet,
+            failed_snippet,
+            children_parts,
+            children_template_vars,
+        });
+
+        Ok(())
+    }
+
+    /// Analyze an element within a boundary body.
+    fn analyze_boundary_element(&self, elem: &RegularElement) -> (String, Vec<BoundaryChildPart>) {
+        let mut html = format!("<{}", elem.name);
+        let mut children_parts = Vec::new();
+
+        // Add attributes
+        for attr in &elem.attributes {
+            if let Attribute::Attribute(attr_node) = attr {
+                let attr_name = &attr_node.name;
+                if let AttributeValue::Sequence(ref parts) = attr_node.value
+                    && parts.len() == 1
+                    && let AttributeValuePart::Text(ref text) = parts[0]
+                {
+                    html.push_str(&format!(" {}=\"{}\"", attr_name, text.data));
+                }
+            }
+        }
+
+        html.push('>');
+
+        // Analyze children
+        let mut has_dynamic_text = false;
+        for child in &elem.fragment.nodes {
+            match child {
+                TemplateNode::Text(text) => {
+                    let data = text.data.as_str();
+                    let normalized = data
+                        .lines()
+                        .map(|line| line.trim_start())
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                        .trim_start()
+                        .to_string();
+                    if !normalized.is_empty() {
+                        children_parts.push(BoundaryChildPart::Text(normalized));
+                    }
+                }
+                TemplateNode::ExpressionTag(expr) => {
+                    has_dynamic_text = true;
+                    let expr_start = expr.expression.start().unwrap_or(0) as usize;
+                    let expr_end = expr.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let expr_text = self.source[expr_start..expr_end].trim().to_string();
+                        children_parts.push(BoundaryChildPart::Expression(expr_text));
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // If element has dynamic text content, add a space placeholder
+        if has_dynamic_text {
+            html.push(' ');
+        }
+
+        html.push_str(&format!("</{}>", elem.name));
+
+        (html, children_parts)
+    }
+
     fn build(self) -> String {
         let html = self.html_parts.join("");
         let is_fragment = self.root_element_count > 1;
@@ -3270,6 +3491,11 @@ impl ClientCodeGenerator {
         // Generate svelte:element code (using AST-based generation)
         let has_svelte_elements = !self.svelte_elements.is_empty();
         let svelte_element_code = self.generate_svelte_element_code_via_ast();
+
+        // Generate boundary templates and code
+        let boundary_templates: String = self.collect_all_boundary_templates();
+        let boundary_code = self.generate_boundary_code_via_ast();
+        let has_boundaries = !self.boundaries.is_empty();
 
         // Generate hoisted snippet code (using AST-based generation)
         let snippets_code = self.generate_snippets_code_via_ast();
@@ -3506,7 +3732,35 @@ export default function {component_name}({fn_params}) {{
                 if_code = if_code,
                 delegation_code = delegation_code
             )
-        } else if !has_html && runtime_code.is_empty() && !has_each_blocks && !has_if_blocks {
+        } else if has_boundaries
+            && (html.is_empty() || html.trim().is_empty() || html.trim() == "<!>")
+        {
+            // Only boundary blocks, no other HTML content
+            format!(
+                r#"{system_imports}
+{hoisted_imports}{module_script}
+{boundary_templates}export default function {component_name}({fn_params}) {{
+{script_code}	var fragment = $.comment();
+	var node = $.first_child(fragment);
+{boundary_code}
+	$.append($$anchor, fragment);
+}}{delegation_code}"#,
+                system_imports = system_imports,
+                hoisted_imports = hoisted_imports,
+                module_script = module_script,
+                boundary_templates = boundary_templates,
+                component_name = self.component_name,
+                fn_params = fn_params,
+                script_code = script_code,
+                boundary_code = boundary_code,
+                delegation_code = delegation_code
+            )
+        } else if !has_html
+            && runtime_code.is_empty()
+            && !has_each_blocks
+            && !has_if_blocks
+            && !has_boundaries
+        {
             // No HTML template - just script code
             let pop_code = if should_inject_context {
                 "\n\t$.pop();\n"
@@ -7253,6 +7507,353 @@ export default function {component_name}({fn_params}) {{
         self.statements_to_string(&statements)
     }
 
+    /// Collect all templates from boundary blocks.
+    fn collect_all_boundary_templates(&self) -> String {
+        let mut templates = Vec::new();
+
+        for boundary in &self.boundaries {
+            // Collect pending snippet templates
+            if let Some((_, _, Some(var), Some(html))) = &boundary.pending_snippet {
+                templates.push(format!("var {} = $.from_html(`{}`);\n\n", var, html));
+            }
+
+            // Collect failed snippet templates
+            if let Some((_, _, Some(var), Some(html))) = &boundary.failed_snippet {
+                templates.push(format!("var {} = $.from_html(`{}`);\n\n", var, html));
+            }
+
+            // Collect children templates
+            for (var, html) in &boundary.children_template_vars {
+                templates.push(format!("var {} = $.from_html(`{}`);\n\n", var, html));
+            }
+        }
+
+        templates.join("")
+    }
+
+    /// Generate boundary block code using AST-based generation.
+    fn generate_boundary_code_via_ast(&self) -> String {
+        let mut lines = Vec::new();
+
+        for boundary in &self.boundaries {
+            // Build the snippets inside a block
+            let mut block_content = Vec::new();
+
+            // Generate pending snippet if present
+            if let Some((params, body_parts, template_var, _template_html)) =
+                &boundary.pending_snippet
+            {
+                let params_str = params
+                    .iter()
+                    .map(|p| {
+                        if p.has_default {
+                            format!("{} = $.noop", p.name)
+                        } else {
+                            p.name.clone()
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                let body_code = self.generate_snippet_body_code(body_parts, template_var);
+                block_content.push(format!(
+                    "\t\tconst pending = ($$anchor{}) => {{\n{}\t\t}};",
+                    if params_str.is_empty() {
+                        String::new()
+                    } else {
+                        format!(", {}", params_str)
+                    },
+                    body_code
+                ));
+            }
+
+            // Generate failed snippet if present
+            if let Some((params, body_parts, template_var, _template_html)) =
+                &boundary.failed_snippet
+            {
+                let params_str = params
+                    .iter()
+                    .map(|p| {
+                        if p.has_default {
+                            format!("{} = $.noop", p.name)
+                        } else {
+                            p.name.clone()
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+
+                let body_code = self.generate_snippet_body_code(body_parts, template_var);
+                block_content.push(format!(
+                    "\t\tconst failed = ($$anchor{}) => {{\n{}\t\t}};",
+                    if params_str.is_empty() {
+                        String::new()
+                    } else {
+                        format!(", {}", params_str)
+                    },
+                    body_code
+                ));
+            }
+
+            // Build props object
+            let mut props_parts = Vec::new();
+
+            // Add onerror if present
+            if let Some(onerror_expr) = &boundary.onerror {
+                if boundary.onerror_has_state {
+                    props_parts.push(format!("get onerror() {{ return {}; }}", onerror_expr));
+                } else {
+                    props_parts.push(format!("onerror: {}", onerror_expr));
+                }
+            }
+
+            // Add pending/failed snippet references
+            if boundary.pending_snippet.is_some() {
+                props_parts.push("pending".to_string());
+            }
+            if boundary.failed_snippet.is_some() {
+                props_parts.push("failed".to_string());
+            }
+
+            let props_str = if props_parts.is_empty() {
+                "{}".to_string()
+            } else {
+                format!("{{ {} }}", props_parts.join(", "))
+            };
+
+            // Generate children callback
+            let children_code = self.generate_boundary_children_code(&boundary.children_parts);
+
+            // Build the boundary call
+            let boundary_call = format!(
+                "\t\t$.boundary(node, {}, ($$anchor) => {{\n{}\t\t}});",
+                props_str, children_code
+            );
+            block_content.push(boundary_call);
+
+            // If there are any snippets, wrap in a block
+            if boundary.pending_snippet.is_some() || boundary.failed_snippet.is_some() {
+                lines.push(format!("\n\t{{\n{}\n\t}}", block_content.join("\n\n")));
+            } else {
+                lines.push(format!("\n{}", block_content.join("\n\n")));
+            }
+        }
+
+        lines.join("\n")
+    }
+
+    /// Generate snippet body code for boundary snippets.
+    fn generate_snippet_body_code(
+        &self,
+        body_parts: &[SnippetBodyPart],
+        template_var: &Option<String>,
+    ) -> String {
+        let mut lines = Vec::new();
+
+        // Check if we have an element template
+        if let Some(var) = template_var {
+            // Element-based snippet
+            lines.push(format!("\t\t\tvar element = {}();", var));
+
+            // Check for dynamic text in element children
+            let has_dynamic_text = body_parts.iter().any(|p| {
+                matches!(p, SnippetBodyPart::Element { children, .. } if
+                    children.iter().any(|c| matches!(c, SnippetBodyPart::Expression(_))))
+            });
+
+            if has_dynamic_text {
+                lines.push("\t\t\tvar text = $.child(element, true);".to_string());
+                lines.push("\t\t\t$.reset(element);".to_string());
+
+                // Find expressions in children
+                for part in body_parts {
+                    if let SnippetBodyPart::Element { children, .. } = part {
+                        for child in children {
+                            if let SnippetBodyPart::Expression(expr) = child {
+                                // Transform expression for state variables
+                                let transformed = transform_state_in_expr(expr, &self.state_vars);
+                                lines.push(format!(
+                                    "\t\t\t$.template_effect(() => $.set_text(text, {}));",
+                                    transformed
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Always use "element" variable name since we created it above
+            lines.push("\t\t\t$.append($$anchor, element);".to_string());
+        } else {
+            // Text-only snippet
+            lines.push("\t\t\t$.next();".to_string());
+
+            // Check what kind of content we have
+            let has_expression = body_parts
+                .iter()
+                .any(|p| matches!(p, SnippetBodyPart::Expression(_)));
+
+            if has_expression {
+                lines.push("\t\t\tvar text = $.text();".to_string());
+
+                for part in body_parts {
+                    if let SnippetBodyPart::Expression(expr) = part {
+                        let transformed = transform_state_in_expr(expr, &self.state_vars);
+                        lines.push(format!(
+                            "\t\t\t$.template_effect(($0) => $.set_text(text, $0), [{}]);",
+                            transformed
+                        ));
+                    }
+                }
+
+                lines.push("\t\t\t$.append($$anchor, text);".to_string());
+            } else {
+                // Static text only
+                let text_content: String = body_parts
+                    .iter()
+                    .filter_map(|p| {
+                        if let SnippetBodyPart::Text(t) = p {
+                            Some(t.as_str())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                lines.push(format!("\t\t\tvar text = $.text('{}');", text_content));
+                lines.push("\t\t\t$.append($$anchor, text);".to_string());
+            }
+        }
+
+        lines.join("\n") + "\n"
+    }
+
+    /// Generate children code for boundary.
+    fn generate_boundary_children_code(&self, children_parts: &[BoundaryChildPart]) -> String {
+        let mut lines = Vec::new();
+
+        // Check for const tags first
+        for part in children_parts {
+            if let BoundaryChildPart::ConstTag(decl) = part {
+                // Transform const declaration for state variables
+                let transformed = self.transform_const_declaration(decl);
+                lines.push(format!("\t\t\t{}", transformed));
+            }
+        }
+
+        // Check if we have element content
+        let has_elements = children_parts
+            .iter()
+            .any(|p| matches!(p, BoundaryChildPart::Element { .. }));
+
+        // Check if we have component content
+        let has_components = children_parts
+            .iter()
+            .any(|p| matches!(p, BoundaryChildPart::Component(_, _)));
+
+        // Check if we have expression content
+        let has_expressions = children_parts
+            .iter()
+            .any(|p| matches!(p, BoundaryChildPart::Expression(_)));
+
+        if has_elements {
+            // Element-based children
+            for part in children_parts {
+                if let BoundaryChildPart::Element {
+                    tag,
+                    template_var,
+                    children,
+                    ..
+                } = part
+                {
+                    lines.push(format!("\t\t\tvar {} = {}();", tag, template_var));
+
+                    // Check for dynamic text in children
+                    let has_dynamic = children
+                        .iter()
+                        .any(|c| matches!(c, BoundaryChildPart::Expression(_)));
+
+                    if has_dynamic {
+                        lines.push(format!("\t\t\tvar text = $.child({}, true);", tag));
+                        lines.push(format!("\t\t\t$.reset({});", tag));
+
+                        for child in children {
+                            if let BoundaryChildPart::Expression(expr) = child {
+                                let transformed = transform_state_in_expr(expr, &self.state_vars);
+                                lines.push(format!(
+                                    "\t\t\t$.template_effect(() => $.set_text(text, {}));",
+                                    transformed
+                                ));
+                            }
+                        }
+                    }
+
+                    lines.push(format!("\t\t\t$.append($$anchor, {});", tag));
+                }
+            }
+        } else if has_components {
+            // Component-based children
+            for part in children_parts {
+                if let BoundaryChildPart::Component(name, props) = part {
+                    if props.is_empty() {
+                        lines.push(format!("\t\t\t{}($$anchor, {{}});", name));
+                    } else {
+                        lines.push(format!("\t\t\t{}($$anchor, {{ {} }});", name, props));
+                    }
+                }
+            }
+        } else if has_expressions {
+            // Expression-only children
+            lines.push("\t\t\t$.next();".to_string());
+            lines.push("\t\t\tvar text = $.text();".to_string());
+
+            for part in children_parts {
+                if let BoundaryChildPart::Expression(expr) = part {
+                    let transformed = transform_state_in_expr(expr, &self.state_vars);
+                    lines.push(format!(
+                        "\t\t\t$.template_effect(($0) => $.set_text(text, $0), [{}]);",
+                        transformed
+                    ));
+                }
+            }
+
+            lines.push("\t\t\t$.append($$anchor, text);".to_string());
+        }
+
+        if lines.is_empty() {
+            String::new()
+        } else {
+            lines.join("\n") + "\n"
+        }
+    }
+
+    /// Transform a const declaration for state variables.
+    fn transform_const_declaration(&self, decl: &str) -> String {
+        // Check if declaration uses state variables and transform to $.derived()
+        // e.g., "double = count * 2" -> "const double = $.derived(() => $.get(count) * 2);"
+
+        // Split on '=' to get name and value
+        let parts: Vec<&str> = decl.splitn(2, '=').collect();
+        if parts.len() != 2 {
+            return format!("const {};", decl);
+        }
+
+        let name = parts[0].trim();
+        let value = parts[1].trim();
+
+        // Check if value references any state variable
+        let references_state = self.state_vars.iter().any(|sv| value.contains(sv))
+            || self.proxy_state_vars.iter().any(|sv| value.contains(sv));
+
+        if references_state {
+            // Transform to $.derived() with $.get() for state variables
+            let transformed_value = transform_state_in_expr(value, &self.state_vars);
+            format!("const {} = $.derived(() => {});", name, transformed_value)
+        } else {
+            format!("const {} = {};", name, value)
+        }
+    }
+
     /// Collect all templates from if blocks recursively, including nested if blocks.
     fn collect_all_if_block_templates(&self) -> String {
         let mut templates = Vec::new();
@@ -9657,6 +10258,98 @@ $effect(() => {
         assert!(
             js.contains("var div ="),
             "Element variable should be named 'div'. Generated JS:\n{}",
+            js
+        );
+    }
+
+    #[test]
+    fn test_svelte_boundary_basic() {
+        use crate::CompileOptions;
+        use crate::compile;
+
+        let source = r#"<script>
+	function throw_error() {
+		throw new Error('test')
+	}
+</script>
+
+<svelte:boundary onerror={(e) => console.log('error caught')}>
+	{throw_error()}
+</svelte:boundary>"#;
+
+        let options = CompileOptions {
+            generate: crate::GenerateMode::Client,
+            filename: Some("test.svelte".to_string()),
+            ..Default::default()
+        };
+
+        let result = compile(source, options).unwrap();
+        let js = result.js.code;
+
+        println!("Generated JS for boundary:\n{}", js);
+
+        // Check that $.boundary is called
+        assert!(
+            js.contains("$.boundary("),
+            "Should generate $.boundary call. Generated JS:\n{}",
+            js
+        );
+
+        // Check that onerror prop is present
+        assert!(
+            js.contains("onerror"),
+            "Should have onerror prop. Generated JS:\n{}",
+            js
+        );
+    }
+
+    #[test]
+    fn test_svelte_boundary_with_snippets() {
+        use crate::CompileOptions;
+        use crate::compile;
+
+        let source = r#"<script>
+	import Test from './Test.svelte';
+</script>
+
+<svelte:boundary>
+	<Test />
+
+	{#snippet pending()}pending{/snippet}
+	{#snippet failed(_, reset)}
+		<button onclick={reset}>reset</button>
+	{/snippet}
+</svelte:boundary>"#;
+
+        let options = CompileOptions {
+            generate: crate::GenerateMode::Client,
+            filename: Some("test.svelte".to_string()),
+            ..Default::default()
+        };
+
+        let result = compile(source, options).unwrap();
+        let js = result.js.code;
+
+        println!("Generated JS for boundary with snippets:\n{}", js);
+
+        // Check that $.boundary is called
+        assert!(
+            js.contains("$.boundary("),
+            "Should generate $.boundary call. Generated JS:\n{}",
+            js
+        );
+
+        // Check that pending snippet is defined
+        assert!(
+            js.contains("const pending ="),
+            "Should define pending snippet. Generated JS:\n{}",
+            js
+        );
+
+        // Check that failed snippet is defined
+        assert!(
+            js.contains("const failed ="),
+            "Should define failed snippet. Generated JS:\n{}",
             js
         );
     }
