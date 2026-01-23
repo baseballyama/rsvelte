@@ -2240,14 +2240,18 @@ impl ClientCodeGenerator {
 
                     if has_only_static_text && !static_text.is_empty() {
                         template_html.push_str(&static_text);
+                    } else if !has_only_static_text {
+                        // Add a space placeholder for expression content
+                        // This creates a text node that can be updated at runtime
+                        template_html.push(' ');
                     }
 
                     template_html.push_str(&format!("</{elem_name}>"));
                     each_info.template_html = Some(template_html);
 
-                    // Check for dynamic expressions inside the element - build text template
+                    // Check for dynamic expressions inside the element
+                    // Store expressions for reactive handling with $.child + $.template_effect
                     if !has_only_static_text {
-                        let mut text_parts = Vec::new();
                         for child in &elem.fragment.nodes {
                             if let TemplateNode::ExpressionTag(tag) = child {
                                 let expr_start = tag.start as usize;
@@ -2256,22 +2260,10 @@ impl ClientCodeGenerator {
                                     let expr = self.source[expr_start + 1..expr_end - 1]
                                         .trim()
                                         .to_string();
-                                    text_parts.push(format!("${{{}}}", expr));
+                                    // Store raw expression (not wrapped in TEMPLATE:)
+                                    // This will be wrapped with $.get() in code generation
+                                    each_info.body_expressions.push(expr);
                                 }
-                            } else if let TemplateNode::Text(text) = child {
-                                let data = &text.data;
-                                if !data.is_empty() {
-                                    text_parts.push(data.to_string());
-                                }
-                            }
-                        }
-                        if !text_parts.is_empty() {
-                            let combined = text_parts.join("");
-                            let trimmed = combined.trim().to_string();
-                            if !trimmed.is_empty() {
-                                each_info
-                                    .body_expressions
-                                    .push(format!("TEMPLATE:{}", trimmed));
                             }
                         }
                     }
@@ -2299,7 +2291,10 @@ impl ClientCodeGenerator {
 
         self.each_blocks.push(each_info);
 
-        // Don't output anything in the template - the each block uses $.comment()
+        // Add comment marker in the template for the each block anchor
+        // The runtime uses this comment as an anchor point for the dynamic content
+        self.html_parts.push("<!>".to_string());
+
         Ok(())
     }
 
@@ -2766,8 +2761,10 @@ export default function {component_name}({fn_params}) {{
                 svelte_element_code = svelte_element_code,
                 delegation_code = delegation_code
             )
-        } else if has_each_blocks && (html.is_empty() || html.trim().is_empty()) {
-            // Only each blocks, no other HTML
+        } else if has_each_blocks
+            && (html.is_empty() || html.trim().is_empty() || html.trim() == "<!>")
+        {
+            // Only each blocks, no other HTML (or only the each block anchor comment)
             format!(
                 r#"{system_imports}
 {hoisted_imports}{module_script}
@@ -2878,18 +2875,56 @@ export default function {component_name}({fn_params}) {{
                 String::new()
             };
 
+            // Handle fragments with each blocks (need node navigation and $.each call)
+            let (each_node_code, each_block_code) = if has_each_blocks {
+                // Navigate to the each block anchor (comment marker)
+                // This is after the previous elements
+                let skip_count = self.root_element_count + 1; // +1 for whitespace
+                let node_code = if runtime_code.trim().is_empty() {
+                    // No runtime code yet, navigate from first_child
+                    format!(
+                        "\tvar node = $.sibling($.first_child(fragment), {});\n\n",
+                        skip_count
+                    )
+                } else {
+                    // Already have navigation, continue from last element
+                    // Find last element var name from runtime_code
+                    let vars: Vec<_> = runtime_code
+                        .lines()
+                        .filter_map(|line| {
+                            let trimmed = line.trim();
+                            if trimmed.starts_with("var ") && trimmed.contains("= $.first_child") {
+                                trimmed.split_whitespace().nth(1).map(|s| s.to_string())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    let last_var = vars
+                        .last()
+                        .cloned()
+                        .unwrap_or_else(|| "fragment".to_string());
+                    format!("\tvar node = $.sibling({}, 2);\n\n", last_var)
+                };
+                let block_code = each_code.clone();
+                (node_code, block_code)
+            } else {
+                (String::new(), String::new())
+            };
+
             format!(
                 r#"{system_imports}
-{hoisted_imports}{module_script}{snippets_code}{if_templates}var root = $.from_html(`{html}`, {template_flags});
+{hoisted_imports}{module_script}{snippets_code}{each_templates}{if_templates}var root = $.from_html(`{html}`, {template_flags});
 
 export default function {component_name}({fn_params}) {{
 {script_code}	var fragment = root();
-{runtime_code}{if_node_code}{if_code}{next_code}	$.append($$anchor, fragment);
+{runtime_code}{if_node_code}{if_code}{each_node_code}{each_block_code}{next_code}	$.append($$anchor, fragment);
 {pop_code}}}{delegation_code}"#,
                 system_imports = system_imports,
                 hoisted_imports = hoisted_imports,
                 module_script = module_script,
                 snippets_code = snippets_code,
+                each_templates = each_templates,
                 if_templates = if_templates,
                 html = html,
                 template_flags = template_flags,
@@ -2899,6 +2934,8 @@ export default function {component_name}({fn_params}) {{
                 runtime_code = runtime_code,
                 if_node_code = if_node_code,
                 if_code = if_code,
+                each_node_code = each_node_code,
+                each_block_code = each_block_code,
                 next_code = next_code,
                 pop_code = pop_code,
                 delegation_code = delegation_code
@@ -3087,10 +3124,24 @@ export default function {component_name}({fn_params}) {{
             ""
         };
 
+        // Generate each block templates (for bodies with elements)
+        // These are populated during generate_cursor_based_runtime_code when EachBlocks are processed
+        let each_templates: String = self
+            .each_blocks
+            .iter()
+            .filter_map(|each| {
+                if let (Some(var), Some(html)) = (&each.template_var, &each.template_html) {
+                    Some(format!("var {} = $.from_html(`{}`);\n", var, html))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
         let raw_output = if has_html {
             format!(
                 r#"{system_imports}
-{hoisted_imports}{module_script}var root = $.from_html(`{html}`{template_flags});
+{hoisted_imports}{module_script}{each_templates}var root = $.from_html(`{html}`{template_flags});
 
 export default function {component_name}({fn_params}) {{
 {script_code}	var {root_var} = root();
@@ -3099,6 +3150,7 @@ export default function {component_name}({fn_params}) {{
                 system_imports = system_imports,
                 hoisted_imports = hoisted_imports,
                 module_script = module_script,
+                each_templates = each_templates,
                 html = html,
                 template_flags = template_flags,
                 component_name = self.component_name,
@@ -3540,14 +3592,31 @@ export default function {component_name}({fn_params}) {{
                 continue;
             }
 
-            // Skip lines that are already part of class transformation (have $.state or $.derived)
+            // Skip lines that are already part of class transformation or contain runes
+            // Also skip getter/setter definitions and other class syntax
             if trimmed.contains("$.state(")
                 || trimmed.contains("$.derived(")
                 || trimmed.contains("$.get(")
                 || trimmed.contains("$.set(")
+                || trimmed.contains("$state(")
+                || trimmed.contains("$derived(")
+                || trimmed.starts_with("get ")
+                || trimmed.starts_with("set ")
+                || trimmed.starts_with("return ")
+                || trimmed.starts_with("class ")
+                || trimmed.starts_with("#")
+                || trimmed == "}"
+                || trimmed == "{"
+                || trimmed.starts_with("constructor")
             {
+                // Transform the runes first, then skip further processing
+                let transformed = transform_client_runes_with_skip_and_state(
+                    trimmed,
+                    &skip_state_vars,
+                    &self.state_vars,
+                );
                 result.push('\t');
-                result.push_str(trimmed);
+                result.push_str(&transformed);
                 result.push('\n');
                 continue;
             }
@@ -4765,6 +4834,17 @@ export default function {component_name}({fn_params}) {{
                         };
                         stmts.push(stmt(comp_call));
                     }
+                    TemplateNode::EachBlock(block) => {
+                        // Generate $.each() call for the each block
+                        let each_stmts =
+                            self.generate_each_block_inline(&var_name, block, fragment);
+                        stmts.extend(each_stmts);
+                    }
+                    TemplateNode::IfBlock(block) => {
+                        // Generate $.if() call for the if block
+                        let if_stmts = self.generate_if_block_inline(&var_name, block);
+                        stmts.extend(if_stmts);
+                    }
                     _ => {}
                 }
 
@@ -4940,31 +5020,53 @@ export default function {component_name}({fn_params}) {{
                     )));
                 }
 
-                // Text content
-                if !each.body_expressions.is_empty()
-                    && let Some(first) = each.body_expressions.first()
-                {
-                    if let Some(template_content) = first.strip_prefix("TEMPLATE:") {
-                        body_stmts.push(stmt(set_text_content(
-                            id(elem_var),
-                            template(vec![quasi(template_content, true)], vec![]),
-                        )));
+                // Handle dynamic text content
+                if !each.body_expressions.is_empty() {
+                    // Dynamic expressions - use $.child + $.reset + $.template_effect pattern
+                    // var text = $.child(elem, true);
+                    body_stmts.push(var_decl(
+                        "text",
+                        Some(svelte_child(id(elem_var), Some(true))),
+                    ));
+
+                    // $.reset(elem);
+                    body_stmts.push(stmt(svelte_reset(id(elem_var))));
+
+                    // Build the template effect expression
+                    // Wrap context variable references in $.get() for reactivity
+                    let context_name = each.context_name.as_deref().unwrap_or("$$item");
+                    let expr_parts: Vec<String> = each
+                        .body_expressions
+                        .iter()
+                        .map(|expr| {
+                            // Check if expression matches context variable and wrap in $.get()
+                            if expr == context_name {
+                                format!("$.get({})", expr)
+                            } else {
+                                expr.clone()
+                            }
+                        })
+                        .collect();
+
+                    // For a single expression, use direct $.get call
+                    // For multiple expressions, use template literal
+                    if expr_parts.len() == 1 {
+                        // $.template_effect(() => $.set_text(text, $.get(x)));
+                        body_stmts.push(stmt(svelte_template_effect(thunk(svelte_set_text(
+                            id("text"),
+                            id(&expr_parts[0]),
+                        )))));
                     } else {
-                        let expr_parts: Vec<String> = each
-                            .body_expressions
+                        // Multiple expressions - use template literal
+                        let template_str = expr_parts
                             .iter()
-                            .map(|expr| {
-                                if expr.starts_with('\'') || expr.starts_with('"') {
-                                    expr[1..expr.len() - 1].to_string()
-                                } else {
-                                    format!("${{{}}}", expr)
-                                }
-                            })
-                            .collect();
-                        body_stmts.push(stmt(set_text_content(
-                            id(elem_var),
-                            template(vec![quasi(expr_parts.join(""), true)], vec![]),
-                        )));
+                            .map(|e| format!("${{{}}}", e))
+                            .collect::<Vec<_>>()
+                            .join("");
+                        body_stmts.push(stmt(svelte_template_effect(thunk(svelte_set_text(
+                            id("text"),
+                            template(vec![quasi(&template_str, true)], vec![]),
+                        )))));
                     }
                 }
 
@@ -4983,10 +5085,17 @@ export default function {component_name}({fn_params}) {{
                 each.iterable.clone()
             };
 
-            // $.each(node, 0, () => iterable, $.index, (params) => { body });
+            // Each block flags:
+            // EACH_ITEM_REACTIVE = 1, EACH_INDEX_REACTIVE = 2, EACH_IS_CONTROLLED = 4,
+            // EACH_IS_ANIMATED = 8, EACH_ITEM_IMMUTABLE = 16
+            // For literal arrays without reactive state, flags should be 0
+            // TODO: Calculate flags based on expression metadata (has_state, is_keyed, etc.)
+            let flags = 0;
+
+            // $.each(node, flags, () => iterable, $.index, (params) => { body });
             let each_call = svelte_each(
                 id("node"),
-                0,
+                flags,
                 id(&iterable_str),
                 svelte_index(),
                 arrow_block(callback_params, callback_body),
@@ -5002,6 +5111,387 @@ export default function {component_name}({fn_params}) {{
     fn generate_each_block_code_via_ast(&self) -> String {
         let statements = self.generate_each_block_code_ast();
         self.statements_to_string(&statements)
+    }
+
+    /// Generate each block code inline for cursor-based navigation.
+    /// This is called during generate_cursor_based_runtime_code when an EachBlock is encountered.
+    fn generate_each_block_inline(
+        &mut self,
+        anchor_var: &str,
+        block: &EachBlock,
+        _fragment: &Fragment,
+    ) -> Vec<JsStatement> {
+        let mut stmts: Vec<JsStatement> = Vec::new();
+
+        // Get the iterable expression
+        let start = block.expression.start().unwrap_or(0) as usize;
+        let end = block.expression.end().unwrap_or(0) as usize;
+        let iterable = if end > start && end <= self.source.len() {
+            self.source[start..end].trim().to_string()
+        } else {
+            "[]".to_string()
+        };
+
+        // Get the context variable name
+        let context_name = if let Some(ref context) = block.context {
+            let ctx_start = context.start().unwrap_or(0) as usize;
+            let ctx_end = context.end().unwrap_or(0) as usize;
+            if ctx_end > ctx_start && ctx_end <= self.source.len() {
+                self.source[ctx_start..ctx_end].trim().to_string()
+            } else {
+                "$$item".to_string()
+            }
+        } else {
+            "$$item".to_string()
+        };
+
+        // Get optional index name
+        let index_name = block.index.as_ref().map(|idx| idx.to_string());
+
+        // Analyze body nodes to determine structure
+        let body_nodes: Vec<_> = block.body.nodes.iter().collect();
+
+        // Skip leading/trailing whitespace
+        let mut start_idx = 0;
+        let mut end_idx = body_nodes.len();
+
+        while start_idx < end_idx {
+            if let TemplateNode::Text(text) = body_nodes[start_idx]
+                && text.data.trim().is_empty()
+            {
+                start_idx += 1;
+                continue;
+            }
+            break;
+        }
+
+        while end_idx > start_idx {
+            if let TemplateNode::Text(text) = body_nodes[end_idx - 1]
+                && text.data.trim().is_empty()
+            {
+                end_idx -= 1;
+                continue;
+            }
+            break;
+        }
+
+        // Check if body contains elements
+        let has_elements = body_nodes[start_idx..end_idx]
+            .iter()
+            .any(|node| matches!(node, TemplateNode::RegularElement(_)));
+
+        // Build callback parameters
+        let mut callback_params: Vec<JsPattern> = vec![id_pattern("$$anchor")];
+        callback_params.push(id_pattern(&context_name));
+        if let Some(ref idx) = index_name {
+            callback_params.push(id_pattern(idx));
+        }
+
+        // Generate callback body based on whether body has elements or just text/expressions
+        let callback_body = if has_elements {
+            // Find the first element and build template for it
+            let mut body_stmts: Vec<JsStatement> = Vec::new();
+
+            for node in &body_nodes[start_idx..end_idx] {
+                if let TemplateNode::RegularElement(elem) = node {
+                    let elem_name = elem.name.as_str();
+
+                    // Build the template HTML
+                    let mut template_html = format!("<{}", elem_name);
+
+                    // Add CSS scoping class if present
+                    if let Some(ref hash) = self.css_hash {
+                        template_html.push_str(&format!(" class=\"{}\"", hash));
+                    }
+
+                    // Add static attributes
+                    for attr in &elem.attributes {
+                        if let Attribute::Attribute(attr_node) = attr {
+                            // Skip event handlers and dynamic attributes
+                            if attr_node.name.starts_with("on") {
+                                continue;
+                            }
+                            match &attr_node.value {
+                                AttributeValue::Sequence(parts)
+                                    if parts
+                                        .iter()
+                                        .all(|p| matches!(p, AttributeValuePart::Text(_))) =>
+                                {
+                                    let value: String = parts
+                                        .iter()
+                                        .filter_map(|p| {
+                                            if let AttributeValuePart::Text(t) = p {
+                                                Some(t.data.as_str())
+                                            } else {
+                                                None
+                                            }
+                                        })
+                                        .collect();
+                                    template_html
+                                        .push_str(&format!(" {}=\"{}\"", attr_node.name, value));
+                                }
+                                AttributeValue::True(_) => {
+                                    template_html.push_str(&format!(" {}", attr_node.name));
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+
+                    // Check if element has expression children (for text placeholder)
+                    let has_expressions = elem
+                        .fragment
+                        .nodes
+                        .iter()
+                        .any(|n| matches!(n, TemplateNode::ExpressionTag(_)));
+
+                    if has_expressions {
+                        template_html.push_str("> </");
+                    } else {
+                        template_html.push_str("></");
+                    }
+                    template_html.push_str(elem_name);
+                    template_html.push('>');
+
+                    // Store the template for later emission
+                    self.each_block_counter += 1;
+                    let template_var = format!("root_{}", self.each_block_counter);
+
+                    // Store template info for hoisting
+                    self.each_blocks.push(EachBlockInfo {
+                        template_var: Some(template_var.clone()),
+                        template_html: Some(template_html),
+                        iterable: iterable.clone(),
+                        context_name: Some(context_name.clone()),
+                        index_name: index_name.clone(),
+                        is_text_only: false,
+                        body_expressions: Vec::new(),
+                        body_element: Some(elem_name.to_string()),
+                        dynamic_attributes: Vec::new(),
+                        event_handlers: Vec::new(),
+                    });
+
+                    // var p = root_N();
+                    body_stmts.push(var_decl(elem_name, Some(call(id(&template_var), vec![]))));
+
+                    // Check for expression children
+                    if has_expressions {
+                        // var text = $.child(p, true);
+                        body_stmts.push(var_decl(
+                            "text",
+                            Some(svelte_child(id(elem_name), Some(true))),
+                        ));
+
+                        // $.reset(p);
+                        body_stmts.push(stmt(svelte_reset(id(elem_name))));
+
+                        // Build template effect for expressions
+                        for child in &elem.fragment.nodes {
+                            if let TemplateNode::ExpressionTag(tag) = child {
+                                let expr_start = tag.start as usize;
+                                let expr_end = tag.end as usize;
+                                if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                                    let expr = self.source[expr_start + 1..expr_end - 1].trim();
+                                    // $.template_effect(() => $.set_text(text, $.get(x)));
+                                    let get_call = call(member_path("$.get"), vec![id(expr)]);
+                                    body_stmts.push(stmt(svelte_template_effect(thunk(
+                                        svelte_set_text(id("text"), get_call),
+                                    ))));
+                                }
+                            }
+                        }
+                    }
+
+                    // $.append($$anchor, p);
+                    body_stmts.push(stmt(svelte_append(id("$$anchor"), id(elem_name))));
+
+                    break; // Only process first element
+                }
+            }
+
+            body_stmts
+        } else {
+            // Text-only body - collect expressions
+            let mut body_expressions = Vec::new();
+            for node in &body_nodes[start_idx..end_idx] {
+                if let TemplateNode::ExpressionTag(tag) = node {
+                    let expr_start = tag.start as usize;
+                    let expr_end = tag.end as usize;
+                    if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                        let expr = self.source[expr_start + 1..expr_end - 1].trim().to_string();
+                        body_expressions.push(expr);
+                    }
+                } else if let TemplateNode::Text(text) = node {
+                    let trimmed = text.data.trim();
+                    if !trimmed.is_empty() {
+                        body_expressions.push(format!("'{}'", trimmed));
+                    }
+                }
+            }
+
+            let expr_parts: Vec<String> = body_expressions
+                .iter()
+                .map(|expr| {
+                    if expr.starts_with('\'') || expr.starts_with('"') {
+                        expr[1..expr.len() - 1].to_string()
+                    } else {
+                        format!("${{{} ?? ''}}", expr)
+                    }
+                })
+                .collect();
+            let template_str = expr_parts.join("");
+
+            vec![
+                stmt(svelte_next(None)),
+                var_decl("text", Some(svelte_text(None))),
+                stmt(svelte_template_effect(thunk(svelte_set_text(
+                    id("text"),
+                    template(vec![quasi(&template_str, true)], vec![]),
+                )))),
+                stmt(svelte_append(id("$$anchor"), id("text"))),
+            ]
+        };
+
+        // Build iterable expression - wrap in thunk
+        let iterable_str = if iterable.trim().starts_with('{') {
+            format!("({})", iterable)
+        } else {
+            iterable
+        };
+
+        // Calculate flags
+        // EACH_ITEM_REACTIVE = 1, EACH_INDEX_REACTIVE = 2, EACH_IS_CONTROLLED = 4,
+        // EACH_IS_ANIMATED = 8, EACH_ITEM_IMMUTABLE = 16
+        // For literal arrays without reactive state, flags should be 0
+        // TODO: Calculate flags based on expression metadata (has_state, is_keyed, etc.)
+        let flags = 0;
+
+        // $.each(anchor, flags, () => iterable, $.index, (params) => { body });
+        let each_call = svelte_each(
+            id(anchor_var),
+            flags,
+            id(&iterable_str),
+            svelte_index(),
+            arrow_block(callback_params, callback_body),
+        );
+
+        stmts.push(stmt(each_call));
+
+        stmts
+    }
+
+    /// Generate if block code inline for cursor-based navigation.
+    /// This is called during generate_cursor_based_runtime_code when an IfBlock is encountered.
+    fn generate_if_block_inline(&self, anchor_var: &str, block: &IfBlock) -> Vec<JsStatement> {
+        let mut stmts: Vec<JsStatement> = Vec::new();
+
+        // Extract the condition expression
+        let test_start = block.test.start().unwrap_or(0) as usize;
+        let test_end = block.test.end().unwrap_or(0) as usize;
+        let condition = if test_end > test_start && test_end <= self.source.len() {
+            self.source[test_start..test_end].trim().to_string()
+        } else {
+            "true".to_string()
+        };
+
+        // Build consequent callback
+        let consequent_body = self.build_if_branch_body(&block.consequent);
+        let consequent_fn = arrow_block(vec![id_pattern("$$anchor")], consequent_body);
+
+        // Build alternate callback if present
+        let alternate_fn = if let Some(ref alternate) = block.alternate {
+            let alternate_body = self.build_if_branch_body(alternate);
+            Some(arrow_block(vec![id_pattern("$$anchor")], alternate_body))
+        } else {
+            None
+        };
+
+        // $.if(anchor, () => condition, ($$anchor) => { ... }, ($$anchor) => { ... })
+        let mut if_args = vec![id(anchor_var), thunk(id(&condition)), consequent_fn];
+
+        if let Some(alt_fn) = alternate_fn {
+            if_args.push(alt_fn);
+        }
+
+        let if_call = call(member_path("$.if"), if_args);
+        stmts.push(stmt(if_call));
+
+        stmts
+    }
+
+    /// Build the body statements for an if block branch.
+    fn build_if_branch_body(&self, fragment: &Fragment) -> Vec<JsStatement> {
+        let mut body: Vec<JsStatement> = Vec::new();
+
+        // Skip whitespace
+        let nodes: Vec<_> = fragment
+            .nodes
+            .iter()
+            .filter(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()))
+            .collect();
+
+        if nodes.is_empty() {
+            body.push(stmt(svelte_next(None)));
+            return body;
+        }
+
+        // Check if we have elements
+        let has_elements = nodes
+            .iter()
+            .any(|n| matches!(n, TemplateNode::RegularElement(_)));
+
+        if has_elements {
+            // For now, generate a simple text placeholder for element-based branches
+            // Full implementation would generate proper templates
+            body.push(stmt(svelte_next(None)));
+            body.push(var_decl(
+                "text",
+                Some(svelte_text(Some(string("TODO: element branch")))),
+            ));
+            body.push(stmt(svelte_append(id("$$anchor"), id("text"))));
+        } else {
+            // Text/expression only
+            let mut text_parts: Vec<String> = Vec::new();
+
+            for node in &nodes {
+                match node {
+                    TemplateNode::Text(t) => {
+                        let trimmed = t.data.trim();
+                        if !trimmed.is_empty() {
+                            text_parts.push(trimmed.to_string());
+                        }
+                    }
+                    TemplateNode::ExpressionTag(tag) => {
+                        let expr_start = tag.start as usize;
+                        let expr_end = tag.end as usize;
+                        if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                            let expr = self.source[expr_start + 1..expr_end - 1].trim();
+                            text_parts.push(format!("${{{} ?? ''}}", expr));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            let content = text_parts.join("");
+            if content.contains("${") {
+                // Has expressions - use template effect
+                body.push(stmt(svelte_next(None)));
+                body.push(var_decl("text", Some(svelte_text(None))));
+                body.push(stmt(svelte_template_effect(thunk(svelte_set_text(
+                    id("text"),
+                    template(vec![quasi(&content, true)], vec![]),
+                )))));
+                body.push(stmt(svelte_append(id("$$anchor"), id("text"))));
+            } else {
+                // Just static text
+                body.push(stmt(svelte_next(None)));
+                body.push(var_decl("text", Some(svelte_text(Some(string(&content))))));
+                body.push(stmt(svelte_append(id("$$anchor"), id("text"))));
+            }
+        }
+
+        body
     }
 
     /// Generate svelte:element code as AST statements.
@@ -6789,6 +7279,10 @@ fn transform_state_in_expr(expr: &str, state_vars: &[String]) -> String {
                         let followed_by_dot =
                             i + var_chars.len() < chars.len() && chars[i + var_chars.len()] == '.';
 
+                        // Check if preceded by `.` (member access) - don't wrap
+                        // Pattern: this.a or obj.field - these are property accesses
+                        let preceded_by_dot = i > 0 && chars[i - 1] == '.';
+
                         // Check if already wrapped in $.get()
                         let already_wrapped = if i >= 6 {
                             let prefix: String = chars[i - 6..i].iter().collect();
@@ -6797,7 +7291,20 @@ fn transform_state_in_expr(expr: &str, state_vars: &[String]) -> String {
                             false
                         };
 
-                        if !already_wrapped && !followed_by_dot {
+                        // Check if this is the first argument of $.set() - don't wrap
+                        // Pattern: $.set(varname, ...) - varname should not be wrapped
+                        let in_set_first_arg = if i >= 6 {
+                            let prefix: String = chars[i - 6..i].iter().collect();
+                            prefix == "$.set("
+                        } else {
+                            false
+                        };
+
+                        if !already_wrapped
+                            && !followed_by_dot
+                            && !preceded_by_dot
+                            && !in_set_first_arg
+                        {
                             new_result.push_str(&format!("$.get({})", var));
                             i += var_chars.len();
                             continue;

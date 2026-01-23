@@ -284,22 +284,17 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
             }
 
             // Check for special case: single comment
-            if context.state.template.nodes.len() == 1 {
-                // TODO: Check if node is a comment
-                // For now, use standard template case
-                let template_expr = transform_template(
-                    &mut context.state,
-                    parse_namespace(&namespace),
-                    Some(flags),
-                    None,
-                );
-                context
-                    .state
-                    .hoisted
-                    .push(b::var_decl(&template_name, Some(template_expr)));
+            // If the template has only one node and it's a comment, we can use $.comment()
+            // instead of creating a unique template
+            use crate::compiler::phases::phase3_transform::client::transform_template::types::Node;
+
+            if context.state.template.nodes.len() == 1
+                && matches!(context.state.template.nodes.first(), Some(Node::Comment(_)))
+            {
+                // Special case — we can use `$.comment` instead of creating a unique template
                 context.state.init.insert(
                     0,
-                    b::var_decl(&id_name, Some(b::call(b::id(&template_name), vec![]))),
+                    b::var_decl(&id_name, Some(b::call(b::member_path("$.comment"), vec![]))),
                 );
             } else {
                 // Standard template case
