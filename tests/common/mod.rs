@@ -204,6 +204,14 @@ fn normalize_blank_lines(code: &str) -> String {
 ///
 /// IMPORTANT: String literals (single/double quotes and template literals) are preserved
 /// exactly as-is, except for quote style normalization to single quotes.
+///
+/// This function handles:
+/// - Whitespace normalization (multiple spaces to single, trim lines)
+/// - Empty line removal (consecutive blank lines collapsed)
+/// - Quote normalization (double -> single quotes)
+/// - Semicolon removal (trailing semicolons stripped)
+/// - Scientific notation normalization (1e3 -> 1000)
+/// - Brace/newline normalization ({ followed by newline -> { space)
 pub fn normalize_js(js: &str) -> String {
     use regex::Regex;
     lazy_static::lazy_static! {
@@ -219,12 +227,32 @@ pub fn normalize_js(js: &str) -> String {
         static ref BRACE_NEWLINE: Regex = Regex::new(r"\{\s*\n\s*").unwrap();
         // Normalize closing braces across newlines: "}\n\t}" -> "}}"
         static ref CLOSE_BRACE_NEWLINE: Regex = Regex::new(r"\}\s*\n\s*\}").unwrap();
+        // Normalize opening paren followed by newline to paren (handles multiline function call args)
+        // This handles differences like "customElements.define(\n\t'value-builtin'," vs "customElements.define('value-builtin',"
+        static ref PAREN_NEWLINE: Regex = Regex::new(r"\(\s*\n\s*").unwrap();
+        // Normalize closing paren across newlines: ")\n\t)" -> "))"
+        static ref CLOSE_PAREN_NEWLINE: Regex = Regex::new(r"\)\s*\n\s*\)").unwrap();
+        // Normalize comma followed by newline to just comma (handles multiline function call arguments)
+        // This handles differences like "'value-builtin',\n\t\tclass" vs "'value-builtin', class"
+        static ref COMMA_NEWLINE: Regex = Regex::new(r",\s*\n\s*").unwrap();
+        // Normalize closing brace/paren followed by newline and closing paren
+        // This handles multiline function call endings like "}\n\t);" vs "});"
+        static ref CLOSE_BRACE_PAREN: Regex = Regex::new(r"\}\s*\n\s*\)").unwrap();
+        // Match scientific notation like 1e3, 2.5e4, 1e-2 (but not in string literals - handled separately)
+        static ref SCIENTIFIC_NOTATION: Regex = Regex::new(r"\b(\d+(?:\.\d+)?)[eE]([+-]?\d+)\b").unwrap();
     }
 
     // First, normalize brace + newline patterns across the entire source
     let mut result = js.to_string();
     result = BRACE_NEWLINE.replace_all(&result, "{ ").to_string();
     result = CLOSE_BRACE_NEWLINE.replace_all(&result, "}}").to_string();
+    // Normalize paren + newline patterns (multiline function args)
+    result = PAREN_NEWLINE.replace_all(&result, "(").to_string();
+    result = CLOSE_PAREN_NEWLINE.replace_all(&result, "))").to_string();
+    // Normalize comma + newline patterns (multiline function args between parameters)
+    result = COMMA_NEWLINE.replace_all(&result, ", ").to_string();
+    // Normalize closing brace + newline + closing paren patterns
+    result = CLOSE_BRACE_PAREN.replace_all(&result, "})").to_string();
 
     result
         .lines()
@@ -239,6 +267,7 @@ pub fn normalize_js(js: &str) -> String {
                 &SPACE_BEFORE_PUNC,
                 &SPACE_AFTER_PUNC,
                 &FUNCTION_SPACE_PAREN,
+                &SCIENTIFIC_NOTATION,
             );
 
             // Remove trailing semicolons for comparison (optional based on style)
@@ -246,6 +275,8 @@ pub fn normalize_js(js: &str) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n")
+        .trim()
+        .to_string()
 }
 
 /// Normalize a line while preserving string literal contents.
@@ -256,6 +287,7 @@ fn normalize_line_preserving_strings(
     space_before_punc: &Regex,
     space_after_punc: &Regex,
     function_space_paren: &Regex,
+    scientific_notation: &Regex,
 ) -> (String, Vec<String>) {
     let mut strings: Vec<String> = Vec::new();
     let mut result = String::with_capacity(line.len());
@@ -373,6 +405,14 @@ fn normalize_line_preserving_strings(
         .replace_all(&normalized, "function(")
         .to_string();
 
+    // Normalize scientific notation to decimal (1e3 -> 1000, 2.5e2 -> 250)
+    // This is done before restoring strings so we don't modify string contents
+    normalized = scientific_notation
+        .replace_all(&normalized, |caps: &regex::Captures| {
+            convert_scientific_to_decimal(&caps[1], &caps[2])
+        })
+        .to_string();
+
     // Restore string literals with normalized quotes (double -> single for outer quotes only)
     for (idx, string_content) in strings.iter().enumerate() {
         let placeholder = format!("__STR{}__", idx);
@@ -381,6 +421,41 @@ fn normalize_line_preserving_strings(
     }
 
     (normalized, strings)
+}
+
+/// Convert scientific notation to decimal representation.
+/// E.g., "1", "3" -> "1000", "2.5", "2" -> "250"
+fn convert_scientific_to_decimal(mantissa: &str, exponent: &str) -> String {
+    // Parse the exponent
+    let exp: i32 = exponent.parse().unwrap_or(0);
+
+    // Handle negative exponents - keep as scientific notation since they produce decimals
+    if exp < 0 {
+        return format!("{}e{}", mantissa, exponent);
+    }
+
+    // Parse the mantissa
+    if let Ok(base) = mantissa.parse::<f64>() {
+        let result = base * 10_f64.powi(exp);
+        // Only convert if the result is a reasonable integer (no decimal precision loss)
+        if result.fract() == 0.0 && result.abs() < 1e15 {
+            return format!("{}", result as i64);
+        }
+        // For non-integers, format without trailing zeros
+        let formatted = format!("{}", result);
+        // Remove unnecessary trailing zeros after decimal point
+        if formatted.contains('.') {
+            formatted
+                .trim_end_matches('0')
+                .trim_end_matches('.')
+                .to_string()
+        } else {
+            formatted
+        }
+    } else {
+        // If parsing fails, return original
+        format!("{}e{}", mantissa, exponent)
+    }
 }
 
 /// Normalize string quotes: convert double-quoted strings to single-quoted,
@@ -948,6 +1023,94 @@ mod tests {
     fn test_normalize_js_handles_template_with_expression() {
         let input = r#"const msg = `Count: ${count + 1}`;"#;
         let expected = r#"const msg = `Count: ${count + 1}`"#;
+        assert_eq!(normalize_js(input), expected);
+    }
+
+    #[test]
+    fn test_normalize_js_scientific_notation_basic() {
+        // Basic scientific notation conversions
+        let input = "const x = 1e3;";
+        let expected = "const x = 1000";
+        assert_eq!(normalize_js(input), expected);
+    }
+
+    #[test]
+    fn test_normalize_js_scientific_notation_decimal() {
+        // Scientific notation with decimal mantissa
+        let input = "const x = 2.5e2;";
+        let expected = "const x = 250";
+        assert_eq!(normalize_js(input), expected);
+    }
+
+    #[test]
+    fn test_normalize_js_scientific_notation_large() {
+        // Larger exponents
+        let input = "const x = 1e6;";
+        let expected = "const x = 1000000";
+        assert_eq!(normalize_js(input), expected);
+    }
+
+    #[test]
+    fn test_normalize_js_scientific_notation_in_expression() {
+        // Scientific notation in expressions (brace normalization converts "{ " to "{")
+        let input = "if (i < 1e3) { value = 1e4; }";
+        let expected = "if (i < 1000) {value = 10000;}";
+        assert_eq!(normalize_js(input), expected);
+    }
+
+    #[test]
+    fn test_normalize_js_scientific_notation_not_in_strings() {
+        // Scientific notation in strings should NOT be converted
+        let input = r#"const msg = "value is 1e3";"#;
+        let expected = r#"const msg = 'value is 1e3'"#;
+        assert_eq!(normalize_js(input), expected);
+    }
+
+    #[test]
+    fn test_normalize_js_scientific_notation_not_in_template() {
+        // Scientific notation in template literals should NOT be converted
+        let input = r#"const msg = `value is 1e3`;"#;
+        let expected = r#"const msg = `value is 1e3`"#;
+        assert_eq!(normalize_js(input), expected);
+    }
+
+    #[test]
+    fn test_normalize_js_multiple_empty_lines() {
+        // Multiple consecutive empty lines should be collapsed
+        let input = "const a = 1;\n\n\n\nconst b = 2;";
+        let expected = "const a = 1\nconst b = 2";
+        assert_eq!(normalize_js(input), expected);
+    }
+
+    #[test]
+    fn test_normalize_js_trailing_whitespace() {
+        // Trailing whitespace and newlines should be trimmed
+        let input = "const a = 1;  \n\n";
+        let expected = "const a = 1";
+        assert_eq!(normalize_js(input), expected);
+    }
+
+    #[test]
+    fn test_normalize_js_leading_empty_lines() {
+        // Leading empty lines should be removed
+        let input = "\n\nconst a = 1;";
+        let expected = "const a = 1";
+        assert_eq!(normalize_js(input), expected);
+    }
+
+    #[test]
+    fn test_normalize_js_import_blank_line() {
+        // Blank line after imports should be removed
+        let input = "import * as $ from 'svelte';\n\nfunction foo() {}";
+        let expected = "import * as $ from 'svelte'\nfunction foo() {}";
+        assert_eq!(normalize_js(input), expected);
+    }
+
+    #[test]
+    fn test_normalize_js_multiline_function_args() {
+        // Multiline function call arguments should be normalized
+        let input = "customElements.define(\n\t\t'value-builtin',\n\t\tclass extends Foo {})";
+        let expected = "customElements.define('value-builtin', class extends Foo {})";
         assert_eq!(normalize_js(input), expected);
     }
 }
