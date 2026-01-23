@@ -798,3 +798,33 @@ jobs:
 3. アイテム変換: `build_declarations()` で変換ルールを設定
 
 **推定作業量:** 40-60時間（包括的な修正の場合）
+
+### 2026-01-23 作業ログ（続き2）
+
+**each ブロック改善:**
+- [x] フラグ計算の実装（EACH_ITEM_IMMUTABLE=16, EACH_ITEM_REACTIVE=1）
+- [x] コレクション式の `$.get()` ラッピング
+- [x] アイテム変数への `$.get()` ラッピング
+- [x] テンプレートリテラルの正しい生成（null coalescing 含む）
+
+**each ブロック出力の改善例:**
+```javascript
+// Before:
+$.each(node, 0, () => items, $.index, ...)
+$.template_effect(() => $.set_text(text, `${item.name}${item.price}`));
+
+// After:
+$.each(node, 17, () => $.get(items), $.index, ...)
+$.template_effect(() => $.set_text(text, `${$.get(item).name ?? ''} costs $${$.get(item).price ?? ''}`));
+```
+
+**残存問題（each 以外）:**
+| 問題 | 説明 |
+|-----|------|
+| $state 初期化 | `$.state($.proxy({...}))` が生成されない |
+| $effect 内式 | `$.get(data).items` が `data.items` になる |
+| $.set 引数 | 第3引数 `true` が欠落 |
+
+**テスト結果:**
+- Runtime Runes: 25/724 (変化なし)
+- Compiler Snapshot: 19/19 (維持)
