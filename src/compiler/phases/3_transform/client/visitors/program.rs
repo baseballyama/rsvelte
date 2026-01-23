@@ -18,6 +18,7 @@
 
 use crate::compiler::phases::phase2_analyze::scope::{BindingKind, DeclarationKind};
 use crate::compiler::phases::phase3_transform::client::types::*;
+use crate::compiler::phases::phase3_transform::client::visitors::shared::declarations::add_state_transformers;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 
 /// Visit a Program node and set up transformations.
@@ -61,6 +62,10 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
         }
     }
 
+    // Add state transformers for all reactive bindings
+    // This sets up read/assign/mutate/update transforms that wrap identifiers with $.get(), $.set(), etc.
+    add_state_transformers(context);
+
     // Handle store subscriptions, props, and state bindings for all modes
     for (_name, binding_idx) in &context.state.scope.declarations {
         if let Some(binding) = context.state.scope_root.bindings.get(*binding_idx) {
@@ -76,7 +81,7 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
                 }
                 BindingKind::State | BindingKind::RawState | BindingKind::Derived => {
                     // State variables need $.get() wrapping
-                    // Will be transformed during visitor traversal
+                    // Transforms are set up by add_state_transformers above
                 }
                 BindingKind::LegacyReactive => {
                     // Legacy reactive statements need special handling
