@@ -153,9 +153,24 @@ pub fn build_template_effect(
 
 /// Build a render statement.
 ///
-/// Wraps statements in a render function for conditional or repeated rendering.
+/// Wraps statements in a template_effect call for reactive updates.
+///
+/// Corresponds to `build_render_statement` in
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/utils.js`.
+///
+/// # Arguments
+///
+/// * `statements` - The update statements to wrap
+///
+/// # Returns
+///
+/// Returns a call to `$.template_effect(() => { ... })`
 pub fn build_render_statement(statements: Vec<JsStatement>) -> JsExpr {
-    b::arrow_block(vec![], statements)
+    // Build the effect function body
+    let effect_fn = b::arrow_block(vec![], statements);
+
+    // Wrap in $.template_effect()
+    b::call(b::member_path("$.template_effect"), vec![effect_fn])
 }
 
 /// Bind expression types.

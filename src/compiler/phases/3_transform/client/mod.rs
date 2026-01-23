@@ -450,9 +450,12 @@ impl ClientCodeGenerator {
         // Check if this is an input element
         let is_input = name == "input" || name == "textarea" || name == "select";
 
-        // Extract event handlers and bindings from attributes
+        // Extract event handlers, bindings, and check for spread attributes
         let mut event_handlers = Vec::new();
         let mut bindings = Vec::new();
+        let mut spread_props = Vec::new();
+        let mut attribute_values: Vec<(String, String)> = Vec::new();
+        let mut has_spread = false;
 
         for attr in &element.attributes {
             match attr {
@@ -466,7 +469,9 @@ impl ClientCodeGenerator {
                         let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
                         if expr_end > expr_start && expr_end <= self.source.len() {
                             let expr_source = self.source[expr_start..expr_end].trim().to_string();
-                            event_handlers.push((event_name.to_string(), expr_source));
+                            event_handlers.push((event_name.to_string(), expr_source.clone()));
+                            // Also add to attribute_values for spread handling
+                            attribute_values.push((attr_name.to_string(), expr_source));
                         }
                     }
                 }
@@ -478,6 +483,16 @@ impl ClientCodeGenerator {
                     if expr_end > expr_start && expr_end <= self.source.len() {
                         let expr_source = self.source[expr_start..expr_end].trim().to_string();
                         bindings.push((bind_name.to_string(), expr_source));
+                    }
+                }
+                Attribute::SpreadAttribute(spread) => {
+                    has_spread = true;
+                    let expr = &spread.expression;
+                    let expr_start = expr.start().unwrap_or(0) as usize;
+                    let expr_end = expr.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let expr_source = self.source[expr_start..expr_end].trim().to_string();
+                        spread_props.push(expr_source);
                     }
                 }
                 _ => {}
@@ -495,6 +510,9 @@ impl ClientCodeGenerator {
             is_input,
             is_custom_element,
             content_template: None,
+            has_spread,
+            spread_props,
+            attribute_values,
         });
 
         // Check if element has any expression children
@@ -1598,6 +1616,9 @@ impl ClientCodeGenerator {
                     is_input: false,
                     is_custom_element: false,
                     content_template: None,
+                    has_spread: false,
+                    spread_props: Vec::new(),
+                    attribute_values: Vec::new(),
                 });
             } else {
                 // Expression inside an element
@@ -1612,6 +1633,9 @@ impl ClientCodeGenerator {
                     is_input: false,
                     is_custom_element: false,
                     content_template: None,
+                    has_spread: false,
+                    spread_props: Vec::new(),
+                    attribute_values: Vec::new(),
                 });
             }
         }
@@ -1754,6 +1778,9 @@ impl ClientCodeGenerator {
             is_input: false,
             is_custom_element: false,
             content_template: None,
+            has_spread: false,
+            spread_props: Vec::new(),
+            attribute_values: Vec::new(),
         });
 
         Ok(())
@@ -2386,6 +2413,9 @@ impl ClientCodeGenerator {
             is_input: false,
             is_custom_element: false,
             content_template: then_value,
+            has_spread: false,
+            spread_props: Vec::new(),
+            attribute_values: Vec::new(),
         });
 
         self.html_parts.push("<!>".to_string());
@@ -4341,22 +4371,73 @@ export default function {component_name}({fn_params}) {{
                         statements.push(stmt(svelte_remove_input_defaults(id(var))));
                     }
 
-                    // Event handlers - use delegated pattern for supported events
-                    for (event_name, handler) in &node.event_handlers {
-                        let transformed = transform_state_assignments(handler, &self.state_vars);
+                    // Event handlers
+                    if node.has_spread {
+                        // When there's a spread, use $.attribute_effect to combine all attrs and events
+                        let mut handler_decls = Vec::new();
+                        let mut obj_props = Vec::new();
 
-                        if is_delegated_event_name(event_name) {
-                            // Delegated event: element.__click = handler
-                            let prop_name = format!("__{}", event_name);
-                            statements
-                                .push(stmt(assign(member(id(var), &prop_name), id(&transformed))));
-                        } else {
-                            // Non-delegated event: $.event('eventname', element, handler)
-                            statements.push(stmt(super::js_ast::builders::svelte_event(
-                                event_name.as_str(),
-                                id(var),
-                                id(&transformed),
-                            )));
+                        // Add spread props first
+                        for spread_expr in &node.spread_props {
+                            obj_props.push(format!("...{}", spread_expr));
+                        }
+
+                        // Add event handlers
+                        for (attr_name, handler) in &node.attribute_values {
+                            if attr_name.starts_with("on") {
+                                let transformed =
+                                    transform_state_assignments(handler, &self.state_vars);
+                                // Check if it's an arrow function or function expression
+                                let is_function = transformed.trim().starts_with("(")
+                                    || transformed.trim().starts_with("function");
+                                if is_function {
+                                    // Give it a stable ID
+                                    let handler_id = if handler_decls.is_empty() {
+                                        "event_handler".to_string()
+                                    } else {
+                                        format!("event_handler_{}", handler_decls.len())
+                                    };
+                                    handler_decls
+                                        .push(format!("var {} = {}", handler_id, transformed));
+                                    obj_props.push(format!("{}: {}", attr_name, handler_id));
+                                } else {
+                                    obj_props.push(format!("{}: {}", attr_name, transformed));
+                                }
+                            }
+                        }
+
+                        // Add handler declarations
+                        for decl in handler_decls {
+                            statements.push(stmt(raw(decl)));
+                        }
+
+                        // Build the $.attribute_effect call
+                        let obj_literal = format!("{{ {} }}", obj_props.join(", "));
+                        statements.push(stmt(raw(format!(
+                            "$.attribute_effect({}, () => ({}))",
+                            var, obj_literal
+                        ))));
+                    } else {
+                        // No spread - use delegated pattern for supported events
+                        for (event_name, handler) in &node.event_handlers {
+                            let transformed =
+                                transform_state_assignments(handler, &self.state_vars);
+
+                            if is_delegated_event_name(event_name) {
+                                // Delegated event: element.__click = handler
+                                let prop_name = format!("__{}", event_name);
+                                statements.push(stmt(assign(
+                                    member(id(var), &prop_name),
+                                    id(&transformed),
+                                )));
+                            } else {
+                                // Non-delegated event: $.event('eventname', element, handler)
+                                statements.push(stmt(super::js_ast::builders::svelte_event(
+                                    event_name.as_str(),
+                                    id(var),
+                                    id(&transformed),
+                                )));
+                            }
                         }
                     }
 
@@ -4447,15 +4528,10 @@ export default function {component_name}({fn_params}) {{
                                         Some(svelte_child(id(var), Some(true))),
                                     ));
                                     statements.push(stmt(svelte_reset(id(var))));
-                                    // Wrap in arrow function and array
-                                    let callback = arrow(
-                                        vec![id_pattern("$0")],
-                                        svelte_set_text(id(text_var), id("$0")),
-                                    );
-                                    let values = array(vec![arrow(vec![], id(expr))]);
-                                    statements.push(stmt(svelte_template_effect_with_values(
-                                        callback, values,
-                                    )));
+                                    // Use 1-argument form: $.template_effect(() => $.set_text(text, expr))
+                                    statements.push(stmt(svelte_template_effect(thunk(
+                                        svelte_set_text(id(text_var), id(expr)),
+                                    ))));
                                 } else {
                                     // Static: use textContent assignment
                                     statements.push(stmt(set_text_content(id(var), id(expr))));
@@ -4491,14 +4567,10 @@ export default function {component_name}({fn_params}) {{
                                             Some(svelte_child(id(var), Some(true))),
                                         ));
                                         statements.push(stmt(svelte_reset(id(var))));
-                                        let callback = arrow(
-                                            vec![id_pattern("$0")],
-                                            svelte_set_text(id(text_var), id("$0")),
-                                        );
-                                        let values = array(vec![arrow(vec![], id(last))]);
-                                        statements.push(stmt(svelte_template_effect_with_values(
-                                            callback, values,
-                                        )));
+                                        // Use 1-argument form: $.template_effect(() => $.set_text(text, expr))
+                                        statements.push(stmt(svelte_template_effect(thunk(
+                                            svelte_set_text(id(text_var), id(last)),
+                                        ))));
                                     } else {
                                         statements.push(stmt(set_text_content(id(var), id(last))));
                                     }

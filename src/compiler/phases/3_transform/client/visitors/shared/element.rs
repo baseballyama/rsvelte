@@ -9,7 +9,11 @@ use crate::ast::template::{
 };
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
-use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+#[cfg(test)]
+use crate::compiler::phases::phase3_transform::js_ast::nodes::JsLiteral;
+use crate::compiler::phases::phase3_transform::js_ast::nodes::{
+    JsExpr, JsObjectMember, JsStatement, JsTemplateLiteral,
+};
 
 use super::utils::build_expression;
 
@@ -42,15 +46,12 @@ where
         },
 
         AttributeValue::Expression(expr_tag) => {
-            // Extract the expression from the ExpressionTag
-            let expression = extract_expression_from_tag(expr_tag);
+            // Extract the expression from the ExpressionTag using the full expression converter
+            let expression = extract_expression_from_tag_with_context(expr_tag, context);
             let metadata = extract_metadata_from_tag(expr_tag);
 
-            // Build the expression with reactivity handling
-            let built = build_expression(context, &expression, &metadata);
-
             // Memoize if needed
-            let memoized = memoize(built, &metadata);
+            let memoized = memoize(expression, &metadata);
 
             AttributeValueResult {
                 value: memoized,
@@ -67,11 +68,10 @@ where
                 },
 
                 AttributeValuePart::ExpressionTag(expr_tag) => {
-                    let expression = extract_expression_from_tag(expr_tag);
+                    let expression = extract_expression_from_tag_with_context(expr_tag, context);
                     let metadata = extract_metadata_from_tag(expr_tag);
 
-                    let built = build_expression(context, &expression, &metadata);
-                    let memoized = memoize(built, &metadata);
+                    let memoized = memoize(expression, &metadata);
 
                     AttributeValueResult {
                         value: memoized,
@@ -155,13 +155,26 @@ where
 
 /// Extract the JavaScript expression from an ExpressionTag.
 ///
-/// TODO: This is a placeholder - implement proper expression extraction
-/// based on the actual ExpressionTag structure.
+/// This function converts the parsed ExpressionTag to a JsExpr using the
+/// expression_converter module.
+fn extract_expression_from_tag_with_context(
+    expr_tag: &ExpressionTag,
+    context: &mut ComponentContext,
+) -> JsExpr {
+    use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+
+    // Use the expression converter to properly convert the expression
+    convert_expression(&expr_tag.expression, context)
+}
+
+/// Extract the JavaScript expression from an ExpressionTag (simple version without context).
+///
+/// This is a fallback for cases where we don't have mutable access to context.
+/// It only handles simple expressions like identifiers.
 fn extract_expression_from_tag(expr_tag: &ExpressionTag) -> JsExpr {
     use crate::ast::js::Expression;
 
-    // For now, convert the expression to a string and create an identifier
-    // In the full implementation, this would properly parse the expression
+    // For simple cases, we can convert directly
     match &expr_tag.expression {
         Expression::Value(val) => match val {
             serde_json::Value::Object(obj) => {
@@ -361,6 +374,128 @@ pub fn build_set_style_call(
         b::member_path("$.set_style"),
         vec![node_expr, style_attr, prev, style_obj],
     )
+}
+
+/// Build an attribute effect for elements with spread attributes.
+///
+/// Corresponds to `build_attribute_effect` in
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/element.js`.
+///
+/// When an element has spread attributes, we use `$.attribute_effect()` to handle
+/// all attributes and event handlers together. This ensures proper order is maintained
+/// and event handlers can be overridden by spreads.
+///
+/// # Arguments
+///
+/// * `attributes` - Regular attributes and spread attributes
+/// * `class_directives` - Class directives (class:foo)
+/// * `style_directives` - Style directives (style:color)
+/// * `context` - The component context
+/// * `element_id` - The element identifier
+/// * `css_hash` - The CSS hash for scoping
+///
+/// # Example Output
+///
+/// ```js
+/// var event_handler = () => $.set(changed, 'a');
+/// $.attribute_effect(div, () => ({ ...props, ona: event_handler }));
+/// ```
+pub fn build_attribute_effect(
+    attributes: &[crate::ast::template::Attribute],
+    class_directives: &[ClassDirective],
+    style_directives: &[StyleDirective],
+    context: &mut ComponentContext,
+    element_id: JsExpr,
+    css_hash: &str,
+) {
+    use crate::ast::template::Attribute;
+    use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+
+    let mut properties: Vec<JsObjectMember> = Vec::new();
+    let mut event_handler_decls: Vec<JsStatement> = Vec::new();
+
+    for attribute in attributes {
+        match attribute {
+            Attribute::Attribute(attr) => {
+                // Build the attribute value
+                let result = build_attribute_value(&attr.value, context, |expr, _metadata| expr);
+
+                // Check if this is an event attribute
+                if is_event_attribute_node(attr) {
+                    // Check if the value is an arrow function or function expression
+                    if is_function_expression(&result.value) {
+                        // Give the event handler a stable ID so it isn't removed and readded on every update
+                        let id = context.state.memoizer.generate_id("event_handler");
+                        event_handler_decls.push(b::var_decl(&id, Some(result.value)));
+                        properties.push(b::prop(attr.name.to_string(), b::id(&id)));
+                    } else {
+                        properties.push(b::prop(attr.name.to_string(), result.value));
+                    }
+                } else {
+                    properties.push(b::prop(attr.name.to_string(), result.value));
+                }
+            }
+            Attribute::SpreadAttribute(spread) => {
+                // Convert the spread expression
+                let spread_expr = convert_expression(&spread.expression, context);
+                properties.push(b::spread(spread_expr));
+            }
+            _ => {}
+        }
+    }
+
+    // Add class directives
+    if !class_directives.is_empty() {
+        let class_obj = build_class_directives_object(class_directives, context);
+        // Use $.CLASS as the key - using computed property
+        properties.push(b::prop_computed(b::member_path("$.CLASS"), class_obj));
+    }
+
+    // Add style directives
+    if !style_directives.is_empty() {
+        let style_obj = build_style_directives_object(style_directives, context);
+        // Use $.STYLE as the key - using computed property
+        properties.push(b::prop_computed(b::member_path("$.STYLE"), style_obj));
+    }
+
+    // Add event handler declarations first
+    for decl in event_handler_decls {
+        context.state.init.push(decl);
+    }
+
+    // Build the attribute effect call
+    // $.attribute_effect(element, () => ({ ...attrs }), sync_values?, async_values?, blockers?, css_hash?)
+    let obj = b::object(properties);
+    let arrow = b::arrow(vec![], obj);
+
+    let mut args = vec![element_id, arrow];
+
+    // For now, we don't handle memoization - pass undefined for sync/async values
+    // This matches the simple case without complex expressions
+
+    // Add CSS hash if present
+    if !css_hash.is_empty() {
+        // Need to add undefined placeholders for sync_values, async_values, blockers
+        args.push(b::undefined());
+        args.push(b::undefined());
+        args.push(b::undefined());
+        args.push(b::string(css_hash));
+    }
+
+    context
+        .state
+        .init
+        .push(b::stmt(b::call(b::member_path("$.attribute_effect"), args)));
+}
+
+/// Check if an attribute node is an event attribute (starts with "on").
+fn is_event_attribute_node(attr: &crate::ast::template::AttributeNode) -> bool {
+    attr.name.starts_with("on")
+}
+
+/// Check if an expression is a function expression (arrow or function).
+fn is_function_expression(expr: &JsExpr) -> bool {
+    matches!(expr, JsExpr::Arrow(_) | JsExpr::Function(_))
 }
 
 /// Extract a JavaScript expression from a directive's expression.

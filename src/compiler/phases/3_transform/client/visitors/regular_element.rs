@@ -13,7 +13,7 @@ use crate::ast::template::{
 };
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::element::{
-    build_attribute_value, build_set_class_call, build_set_style_call,
+    build_attribute_effect, build_attribute_value, build_set_class_call, build_set_style_call,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::process_children;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
@@ -83,10 +83,25 @@ pub fn visit_regular_element(
     }
 
     // Process attributes (excluding directives)
-    if !has_spread {
+    if has_spread {
+        // Use build_attribute_effect for spread attributes
+        // This combines all attributes (including event handlers) into a single $.attribute_effect call
+        let node_id = extract_node_id(&context.state.node);
+        let node_expr = b::id(&node_id);
+        let css_hash = context.state.analysis.css.hash.clone();
+
+        build_attribute_effect(
+            &attributes,
+            &class_directives,
+            &style_directives,
+            context,
+            node_expr,
+            &css_hash,
+        );
+    } else {
         for attribute in &attributes {
             if let Attribute::Attribute(attr) = attribute {
-                // Skip event attributes
+                // Skip event attributes - they're handled separately below
                 if is_event_attribute(attr) {
                     continue;
                 }
@@ -243,11 +258,27 @@ pub fn visit_regular_element(
         )));
     }
 
-    // Process event handlers (OnDirective)
-    for on_directive in &on_directives {
-        if let TransformResult::Expression(event_call) = context.visit_on_directive(on_directive) {
-            // Event handlers go into after_update for regular elements
-            context.state.after_update.push(b::stmt(event_call));
+    // Process event handlers (OnDirective) - only if not using spread
+    // When we have a spread, event handlers from on:* directives are still processed separately,
+    // but event handlers from attributes (onclick, etc.) are already included in attribute_effect
+    if !has_spread {
+        for on_directive in &on_directives {
+            if let TransformResult::Expression(event_call) =
+                context.visit_on_directive(on_directive)
+            {
+                // Event handlers go into after_update for regular elements
+                context.state.after_update.push(b::stmt(event_call));
+            }
+        }
+    } else {
+        // With spread, on: directives are still processed separately (they're not in attribute_effect)
+        for on_directive in &on_directives {
+            if let TransformResult::Expression(event_call) =
+                context.visit_on_directive(on_directive)
+            {
+                // Event handlers go into after_update for regular elements
+                context.state.after_update.push(b::stmt(event_call));
+            }
         }
     }
 

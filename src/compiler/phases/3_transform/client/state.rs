@@ -308,6 +308,12 @@ pub struct NodeInfo {
     pub is_custom_element: bool,
     /// Content template for element's text content
     pub content_template: Option<String>,
+    /// Whether this element has spread attributes
+    pub has_spread: bool,
+    /// Spread expressions (for $.attribute_effect)
+    pub spread_props: Vec<String>,
+    /// All attribute values: (name, value_expression) - includes event handlers when has_spread
+    pub attribute_values: Vec<(String, String)>,
 }
 
 /// Type of node for code generation.

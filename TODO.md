@@ -537,9 +537,10 @@ jobs:
     - `$.comment()` vs `$.from_html()` の正しい使い分け
     - each ブロック本体の生成改善
     - 注意: スナップショット 2 テスト後退（C-028 で修正予定）
-  - [ ] C-028: スナップショット後退修正
+  - [x] C-028: スナップショット後退修正
     - function-prop-no-getter: テンプレートリテラル空白保持
     - each-index-non-null: 静的最適化（textContent 直接代入）
+    - 結果: 19/19 復帰 ✅
   - [ ] C-023: イベントハンドラー処理の統一
     - `$.event()` vs `$.attribute_effect()` の選択ロジック
     - スプレッド操作でのイベントハンドラー検出
@@ -562,10 +563,8 @@ jobs:
 
 **現在のテスト状況（2026-01-23 最新）:**
 
-- Runtime Runes: 14/724 (client: 21, server: 102)
-- **Compiler Snapshot: 17/19 (89.5%)**
-  - 失敗: function-prop-no-getter（テンプレートリテラル空白）
-  - 失敗: each-index-non-null（静的最適化差分）
+- Runtime Runes: 14/724 (client: 19, server: 102)
+- **Compiler Snapshot: 19/19 (100%)** ✅
 - Clippy: 0 件（全て修正済み）
 
 **発見事項（2026-01-23）:**
