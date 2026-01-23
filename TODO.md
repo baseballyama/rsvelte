@@ -552,9 +552,11 @@ jobs:
     - パラメータに $.noop デフォルト値
     - スニペット本体: テンプレート呼び出し + $.child + $.reset
     - コンポーネント props をゲッター形式で生成
-  - [ ] C-025: `{#await}` ブロック完全実装
-    - `$.boundary()` ラッパーの生成
-    - pending/then/catch の完全な処理
+  - [x] C-025: `{#await}` ブロック完全実装
+    - AwaitBlockInfo 拡張（AwaitBlockPart enum 追加）
+    - generate_await_block() で pending/then/catch フラグメント処理
+    - build_await_stmt_full() で $.await() 呼び出し生成
+    - 各ブロック（pending/then/catch）のコールバック生成
   - [x] C-020: 複数テンプレート参照の生成
     - collect_all_if_block_templates() で再帰的にテンプレート収集
     - ネストされた IfBlockPart::NestedIfBlock からもテンプレート抽出
@@ -586,13 +588,19 @@ jobs:
 | スニペット関数シグネチャ | 15% | パラメータとデフォルト値（`$.noop`）の欠落 | ~108 |
 
 **修正優先順位**（シンプルで効果大 → 複雑）:
-1. C-022: 要素参照の初期化（最大改善効果）
-2. C-023: イベントハンドラー処理の統一
-3. C-019: `$.template_effect()` 2引数形式対応
-4. C-024: スニペット関数パラメータ完全実装
-5. C-025: `{#await}` ブロック完全実装
+1. ~~C-022: 要素参照の初期化~~ ✅ 完了
+2. ~~C-023: イベントハンドラー処理の統一~~ ✅ 完了
+3. ~~C-019: `$.template_effect()` 1引数形式対応~~ ✅ 完了
+4. ~~C-024: スニペット関数パラメータ完全実装~~ ✅ 完了
+5. ~~C-025: `{#await}` ブロック完全実装~~ ✅ 完了
 
-**次のステップ**: C-022 要素参照の初期化から着手
+**C-025 実装完了（2026-01-23）:**
+- AwaitBlockInfo 拡張（AwaitBlockPart enum 追加）
+- generate_await_block() で pending/then/catch フラグメント処理
+- build_await_stmt_full() で $.await() 呼び出し生成
+- 各ブロックコールバック生成実装
+
+**次のステップ**: Runtime Runes テスト通過率改善に向けた調査・実装
 
 ---
 
