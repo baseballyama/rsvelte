@@ -52,6 +52,17 @@ use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
+/// Each block flag constants (from Svelte runtime).
+/// These control how the each block handles reactivity.
+const EACH_ITEM_REACTIVE: i32 = 1;
+#[allow(dead_code)]
+const EACH_INDEX_REACTIVE: i32 = 2;
+#[allow(dead_code)]
+const EACH_IS_CONTROLLED: i32 = 4;
+#[allow(dead_code)]
+const EACH_IS_ANIMATED: i32 = 8;
+const EACH_ITEM_IMMUTABLE: i32 = 16;
+
 /// Collect non-reactive state variables from the analysis.
 /// These are $state() variables that are never reassigned, so they don't need
 /// reactive tracking ($.state/$.get/$.set) and can be plain variables.
@@ -6410,6 +6421,49 @@ export default function {component_name}({fn_params}) {{
         self.statements_to_string(&stmts)
     }
 
+    /// Check if an expression references any state variables.
+    /// Returns true if the expression contains a state variable identifier.
+    fn expression_references_state(&self, expr: &str) -> bool {
+        // Check if the expression contains any of the state variables
+        for state_var in &self.state_vars {
+            // Use word boundary matching to avoid false positives
+            // e.g., "items" should match "items" but not "items2" or "myitems"
+            let pattern = format!(r"\b{}\b", regex::escape(state_var));
+            if let Ok(re) = regex::Regex::new(&pattern)
+                && re.is_match(expr)
+            {
+                return true;
+            }
+        }
+        // Also check proxy state vars (objects/arrays with $state)
+        for proxy_var in &self.proxy_state_vars {
+            let pattern = format!(r"\b{}\b", regex::escape(proxy_var));
+            if let Ok(re) = regex::Regex::new(&pattern)
+                && re.is_match(expr)
+            {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Calculate the flags for an each block based on runes mode and expression analysis.
+    fn calculate_each_flags(&self, iterable_expr: &str) -> i32 {
+        let mut flags = 0;
+
+        // In runes mode, items are immutable by default
+        if self.uses_runes {
+            flags |= EACH_ITEM_IMMUTABLE;
+        }
+
+        // If the iterable expression references state variables, it's reactive
+        if self.expression_references_state(iterable_expr) {
+            flags |= EACH_ITEM_REACTIVE;
+        }
+
+        flags
+    }
+
     /// Generate each block code as AST statements.
     fn generate_each_block_code_ast(&self) -> Vec<JsStatement> {
         let mut statements: Vec<JsStatement> = Vec::new();
@@ -6551,18 +6605,21 @@ export default function {component_name}({fn_params}) {{
                 each.iterable.clone()
             };
 
-            // Each block flags:
-            // EACH_ITEM_REACTIVE = 1, EACH_INDEX_REACTIVE = 2, EACH_IS_CONTROLLED = 4,
-            // EACH_IS_ANIMATED = 8, EACH_ITEM_IMMUTABLE = 16
-            // For literal arrays without reactive state, flags should be 0
-            // TODO: Calculate flags based on expression metadata (has_state, is_keyed, etc.)
-            let flags = 0;
+            // Calculate flags based on runes mode and reactive state
+            let flags = self.calculate_each_flags(&each.iterable);
+
+            // If EACH_ITEM_REACTIVE is set, wrap the iterable in $.get()
+            let collection_expr = if (flags & EACH_ITEM_REACTIVE) != 0 {
+                svelte_get(id(&iterable_str))
+            } else {
+                id(&iterable_str)
+            };
 
             // $.each(node, flags, () => iterable, $.index, (params) => { body });
             let each_call = svelte_each(
                 id("node"),
                 flags,
-                id(&iterable_str),
+                collection_expr,
                 svelte_index(),
                 arrow_block(callback_params, callback_body),
             );
@@ -6901,23 +6958,26 @@ export default function {component_name}({fn_params}) {{
 
         // Build iterable expression - wrap in thunk
         let iterable_str = if iterable.trim().starts_with('{') {
-            format!("({})", iterable)
+            format!("({})", iterable.clone())
         } else {
-            iterable
+            iterable.clone()
         };
 
-        // Calculate flags
-        // EACH_ITEM_REACTIVE = 1, EACH_INDEX_REACTIVE = 2, EACH_IS_CONTROLLED = 4,
-        // EACH_IS_ANIMATED = 8, EACH_ITEM_IMMUTABLE = 16
-        // For literal arrays without reactive state, flags should be 0
-        // TODO: Calculate flags based on expression metadata (has_state, is_keyed, etc.)
-        let flags = 0;
+        // Calculate flags based on runes mode and reactive state
+        let flags = self.calculate_each_flags(&iterable);
+
+        // If EACH_ITEM_REACTIVE is set, wrap the iterable in $.get()
+        let collection_expr = if (flags & EACH_ITEM_REACTIVE) != 0 {
+            svelte_get(id(&iterable_str))
+        } else {
+            id(&iterable_str)
+        };
 
         // $.each(anchor, flags, () => iterable, $.index, (params) => { body });
         let each_call = svelte_each(
             id(anchor_var),
             flags,
-            id(&iterable_str),
+            collection_expr,
             svelte_index(),
             arrow_block(callback_params, callback_body),
         );
