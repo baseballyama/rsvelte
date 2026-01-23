@@ -2731,10 +2731,41 @@ impl ClientCodeGenerator {
                                 .body_expressions
                                 .push(format!("TEMPLATE:{}", trimmed));
                         } else {
-                            // Reactive expressions - store for $.child + $.template_effect
-                            for expr in expressions {
-                                each_info.body_expressions.push(expr);
+                            // Reactive expressions - build a template literal combining text and expressions
+                            // e.g., `${$.get(item).name ?? ''} costs $${$.get(item).price ?? ''}`
+                            let context_name =
+                                each_info.context_name.as_deref().unwrap_or("$$item");
+                            let mut template_parts = Vec::new();
+                            for child in &elem.fragment.nodes {
+                                match child {
+                                    TemplateNode::Text(text) => {
+                                        // Preserve text as-is (including whitespace)
+                                        template_parts.push(text.data.to_string());
+                                    }
+                                    TemplateNode::ExpressionTag(tag) => {
+                                        let expr_start = tag.start as usize;
+                                        let expr_end = tag.end as usize;
+                                        if expr_start + 1 < expr_end
+                                            && expr_end <= self.source.len()
+                                        {
+                                            let expr =
+                                                self.source[expr_start + 1..expr_end - 1].trim();
+                                            // Wrap each item variable with $.get()
+                                            let wrapped_expr =
+                                                wrap_each_item_with_get(expr, context_name);
+                                            // Add nullish coalescing for safety
+                                            template_parts
+                                                .push(format!("${{{} ?? ''}}", wrapped_expr));
+                                        }
+                                    }
+                                    _ => {}
+                                }
                             }
+                            // Store as single TEMPLATE: expression
+                            let template_str = template_parts.join("");
+                            each_info
+                                .body_expressions
+                                .push(format!("TEMPLATE:{}", template_str));
                         }
                     }
                     break;
@@ -6536,10 +6567,30 @@ export default function {component_name}({fn_params}) {{
                     // Check if first expression is a pre-built template (for index-only expressions)
                     let first_expr = &each.body_expressions[0];
                     if let Some(template_content) = first_expr.strip_prefix("TEMPLATE:") {
-                        // Static template content - use direct textContent assignment
-                        // p.textContent = `index: ${i}`;
-                        let template_lit = template(vec![quasi(template_content, true)], vec![]);
-                        body_stmts.push(stmt(set_text_content(id(elem_var), template_lit)));
+                        // Check if template contains $.get() - if so, it's reactive
+                        if template_content.contains("$.get(") {
+                            // Reactive template - use $.child + $.template_effect
+                            // var text = $.child(elem);
+                            body_stmts
+                                .push(var_decl("text", Some(svelte_child(id(elem_var), None))));
+
+                            // $.reset(elem);
+                            body_stmts.push(stmt(svelte_reset(id(elem_var))));
+
+                            // $.template_effect(() => $.set_text(text, `...`));
+                            let template_lit =
+                                template(vec![quasi(template_content, true)], vec![]);
+                            body_stmts.push(stmt(svelte_template_effect(thunk(svelte_set_text(
+                                id("text"),
+                                template_lit,
+                            )))));
+                        } else {
+                            // Static template content - use direct textContent assignment
+                            // p.textContent = `index: ${i}`;
+                            let template_lit =
+                                template(vec![quasi(template_content, true)], vec![]);
+                            body_stmts.push(stmt(set_text_content(id(elem_var), template_lit)));
+                        }
                     } else {
                         // Dynamic expressions - use $.child + $.reset + $.template_effect pattern
                         // var text = $.child(elem, true);
@@ -6879,30 +6930,49 @@ export default function {component_name}({fn_params}) {{
                             body_stmts.push(stmt(set_text_content(id(elem_name), template_lit)));
                         } else {
                             // Dynamic case: use $.child + $.template_effect
-                            // var text = $.child(p, true);
-                            body_stmts.push(var_decl(
-                                "text",
-                                Some(svelte_child(id(elem_name), Some(true))),
-                            ));
+                            // var text = $.child(p);
+                            body_stmts
+                                .push(var_decl("text", Some(svelte_child(id(elem_name), None))));
 
                             // $.reset(p);
                             body_stmts.push(stmt(svelte_reset(id(elem_name))));
 
-                            // Build template effect for expressions
+                            // Build a single template literal combining all text and expressions
+                            // e.g., `${$.get(item).name ?? ''} costs $${$.get(item).price ?? ''}`
+                            let mut template_parts: Vec<String> = Vec::new();
+
                             for child in &elem.fragment.nodes {
-                                if let TemplateNode::ExpressionTag(tag) = child {
-                                    let expr_start = tag.start as usize;
-                                    let expr_end = tag.end as usize;
-                                    if expr_start + 1 < expr_end && expr_end <= self.source.len() {
-                                        let expr = self.source[expr_start + 1..expr_end - 1].trim();
-                                        // $.template_effect(() => $.set_text(text, $.get(x)));
-                                        let get_call = call(member_path("$.get"), vec![id(expr)]);
-                                        body_stmts.push(stmt(svelte_template_effect(thunk(
-                                            svelte_set_text(id("text"), get_call),
-                                        ))));
+                                match child {
+                                    TemplateNode::Text(text) => {
+                                        template_parts.push(text.data.to_string());
                                     }
+                                    TemplateNode::ExpressionTag(tag) => {
+                                        let expr_start = tag.start as usize;
+                                        let expr_end = tag.end as usize;
+                                        if expr_start + 1 < expr_end
+                                            && expr_end <= self.source.len()
+                                        {
+                                            let expr =
+                                                self.source[expr_start + 1..expr_end - 1].trim();
+                                            // Wrap each item variable with $.get()
+                                            let wrapped_expr =
+                                                wrap_each_item_with_get(expr, &context_name);
+                                            // Add nullish coalescing for safety
+                                            template_parts
+                                                .push(format!("${{{} ?? ''}}", wrapped_expr));
+                                        }
+                                    }
+                                    _ => {}
                                 }
                             }
+
+                            let template_str = template_parts.join("");
+
+                            // $.template_effect(() => $.set_text(text, `...`));
+                            body_stmts.push(stmt(svelte_template_effect(thunk(svelte_set_text(
+                                id("text"),
+                                template(vec![quasi(&template_str, true)], vec![]),
+                            )))));
                         }
                     }
 
@@ -9525,6 +9595,53 @@ fn transform_state_in_expr(expr: &str, state_vars: &[String]) -> String {
 /// Check if a character can be part of a JavaScript identifier
 fn is_identifier_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_' || c == '$'
+}
+
+/// Wrap each block item variable references with $.get().
+/// Unlike regular state variables, each item variables need $.get() even for property access.
+/// e.g., `item.name` becomes `$.get(item).name`
+/// e.g., `item` becomes `$.get(item)`
+fn wrap_each_item_with_get(expr: &str, item_var: &str) -> String {
+    let mut result = String::new();
+    let chars: Vec<char> = expr.chars().collect();
+    let var_chars: Vec<char> = item_var.chars().collect();
+    let mut i = 0;
+
+    while i < chars.len() {
+        // Check if we're at the start of the item variable name
+        if i + var_chars.len() <= chars.len() {
+            let potential_match: String = chars[i..i + var_chars.len()].iter().collect();
+            if potential_match == item_var {
+                // Check if it's a whole word (not part of a larger identifier)
+                let before_ok = i == 0 || !is_identifier_char(chars[i - 1]);
+                let after_ok = i + var_chars.len() >= chars.len()
+                    || !is_identifier_char(chars[i + var_chars.len()]);
+
+                if before_ok && after_ok {
+                    // Check if preceded by `.` (member access) - don't wrap
+                    let preceded_by_dot = i > 0 && chars[i - 1] == '.';
+
+                    // Check if already wrapped in $.get()
+                    let already_wrapped = if i >= 6 {
+                        let prefix: String = chars[i - 6..i].iter().collect();
+                        prefix == "$.get("
+                    } else {
+                        false
+                    };
+
+                    if !already_wrapped && !preceded_by_dot {
+                        result.push_str(&format!("$.get({})", item_var));
+                        i += var_chars.len();
+                        continue;
+                    }
+                }
+            }
+        }
+        result.push(chars[i]);
+        i += 1;
+    }
+
+    result
 }
 
 /// Replace a pattern with word boundary checking.
