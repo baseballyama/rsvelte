@@ -79,7 +79,7 @@ svelte/packages/svelte/src/compiler/
 | Parser Legacy | 82/82 | 100% | - |
 | Compiler Snapshot | 15/19 | 78.9% | 高 |
 | CSS | 110/177 | 62.1% | 中 |
-| Validator | 147/312 | 47.1% | 中 |
+| Validator | 156/312 | 50.0% | 中 |
 | Compiler Errors | 0/118 | 0% | 高 |
 | Runtime Runes | 10/724 | 1.4% | 最高 |
 | Runtime Legacy | 13/1198 | 1.1% | 高 |
@@ -584,20 +584,22 @@ jobs:
 
 - Runtime Runes: 16/724 (Client: 23, Server: 111)
 - **Compiler Snapshot: 19/19 (100%)** ✅
-- **Validator: 147/312 (47.1%)** ⚠️ 大幅改善
+- **Validator: 156/312 (50.0%)** ✅ **50%達成**
 - Clippy: 0 件（全て修正済み）
 
 **本日の改善:**
 - C-034: Transition 実装（$.transition() 生成）
 - C-035: svelte:boundary 実装（$.boundary() 生成、Client +1）
-- **A-001: Validator Quick Wins** (82/312 → 147/312, +65 通過)
+- **A-001: Validator Quick Wins** (82/312 → 156/312, +74 通過, **50%達成**)
   - component_invalid_directive（コンポーネントへの無効なディレクティブ）
   - svelte_head_illegal_attribute, title_illegal_attribute
   - tag_invalid_placement（属性/textarea 内の @タグ）
   - svelte_element_missing_this
   - module_illegal_default_export
   - attribute_invalid_multiple（select の動的 multiple）
-  - bind_invalid_name（window バインディング）
+  - bind_invalid_name（window/document バインディング）
+  - mixed_event_handler_syntaxes（on: と onevent 混在）
+  - constant_assignment（@const への代入）
 
 **発見事項（2026-01-23）:**
 - 多くのテストがフォーマットの違い（空行、クォート）で失敗
