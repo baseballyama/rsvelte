@@ -16,6 +16,15 @@ use oxc_ast::ast::{
 use oxc_parser::Parser as OxcParser;
 use oxc_span::SourceType;
 
+/// An update/assignment to track for marking bindings as reassigned/mutated.
+#[derive(Debug)]
+struct Update {
+    /// The binding name being updated
+    name: String,
+    /// Whether this is a direct assignment (true) or member mutation (false)
+    is_direct_assignment: bool,
+}
+
 /// Builds a scope tree from an AST.
 pub struct ScopeBuilder<'a> {
     /// All scopes (arena-style storage)
@@ -26,6 +35,8 @@ pub struct ScopeBuilder<'a> {
     current_scope: usize,
     /// Source code for extracting script content
     source: &'a str,
+    /// Tracked updates (assignments and update expressions) to process after declarations
+    updates: Vec<Update>,
 }
 
 impl<'a> ScopeBuilder<'a> {
@@ -36,6 +47,7 @@ impl<'a> ScopeBuilder<'a> {
             bindings: Vec::new(),
             current_scope: 0,
             source,
+            updates: Vec::new(),
         }
     }
 
@@ -69,6 +81,19 @@ impl<'a> ScopeBuilder<'a> {
                     .declarations
                     .entry(name)
                     .or_insert(binding_idx);
+            }
+        }
+
+        // Process all tracked updates to mark bindings as reassigned/mutated
+        // This must happen after all declarations are collected
+        for update in &self.updates {
+            // Look up the binding in the root scope
+            if let Some(&binding_idx) = self.scopes[0].declarations.get(&update.name) {
+                if update.is_direct_assignment {
+                    self.bindings[binding_idx].reassigned = true;
+                } else {
+                    self.bindings[binding_idx].mutated = true;
+                }
             }
         }
 
@@ -173,6 +198,8 @@ impl<'a> ScopeBuilder<'a> {
                     let name = id.name.to_string();
                     self.declare_binding(name, BindingKind::Normal, DeclarationKind::Const);
                 }
+                // Process function body for assignments
+                self.process_function_body(&func_decl.body);
             }
             Statement::ClassDeclaration(class_decl) => {
                 if let Some(id) = &class_decl.id {
@@ -188,7 +215,337 @@ impl<'a> ScopeBuilder<'a> {
             Statement::ExportDefaultDeclaration(_) => {
                 // Export default doesn't create a named binding in the module scope
             }
+            Statement::ExpressionStatement(expr_stmt) => {
+                // Process expressions to find assignments
+                self.track_expression_updates(&expr_stmt.expression);
+            }
+            Statement::IfStatement(if_stmt) => {
+                self.track_expression_updates(&if_stmt.test);
+                self.process_statement(&if_stmt.consequent);
+                if let Some(ref alternate) = if_stmt.alternate {
+                    self.process_statement(alternate);
+                }
+            }
+            Statement::WhileStatement(while_stmt) => {
+                self.track_expression_updates(&while_stmt.test);
+                self.process_statement(&while_stmt.body);
+            }
+            Statement::DoWhileStatement(do_while_stmt) => {
+                self.process_statement(&do_while_stmt.body);
+                self.track_expression_updates(&do_while_stmt.test);
+            }
+            Statement::ForStatement(for_stmt) => {
+                if let Some(oxc_ast::ast::ForStatementInit::VariableDeclaration(var_decl)) =
+                    &for_stmt.init
+                {
+                    self.process_variable_declaration(var_decl);
+                }
+                if let Some(ref test) = for_stmt.test {
+                    self.track_expression_updates(test);
+                }
+                if let Some(ref update) = for_stmt.update {
+                    self.track_expression_updates(update);
+                }
+                self.process_statement(&for_stmt.body);
+            }
+            Statement::ForInStatement(for_in_stmt) => {
+                self.track_expression_updates(&for_in_stmt.right);
+                self.process_statement(&for_in_stmt.body);
+            }
+            Statement::ForOfStatement(for_of_stmt) => {
+                self.track_expression_updates(&for_of_stmt.right);
+                self.process_statement(&for_of_stmt.body);
+            }
+            Statement::BlockStatement(block_stmt) => {
+                for stmt in &block_stmt.body {
+                    self.process_statement(stmt);
+                }
+            }
+            Statement::ReturnStatement(return_stmt) => {
+                if let Some(ref argument) = return_stmt.argument {
+                    self.track_expression_updates(argument);
+                }
+            }
             _ => {}
+        }
+    }
+
+    /// Process a function body to look for assignments.
+    fn process_function_body(
+        &mut self,
+        body: &Option<oxc_allocator::Box<oxc_ast::ast::FunctionBody>>,
+    ) {
+        if let Some(body) = body {
+            for stmt in &body.statements {
+                self.process_statement(stmt);
+            }
+        }
+    }
+
+    /// Track updates (assignments, update expressions) in an expression.
+    fn track_expression_updates(&mut self, expr: &Expression) {
+        match expr {
+            Expression::AssignmentExpression(assign_expr) => {
+                // Track the assignment
+                self.track_assignment_target(&assign_expr.left);
+                // Also track updates in the right-hand side
+                self.track_expression_updates(&assign_expr.right);
+            }
+            Expression::UpdateExpression(update_expr) => {
+                // Track the update
+                self.track_simple_assignment_target(&update_expr.argument);
+            }
+            Expression::CallExpression(call_expr) => {
+                // Track updates in callee and arguments
+                self.track_expression_updates(&call_expr.callee);
+                for arg in &call_expr.arguments {
+                    match arg {
+                        oxc_ast::ast::Argument::SpreadElement(spread) => {
+                            self.track_expression_updates(&spread.argument);
+                        }
+                        _ => {
+                            if let Some(expr) = arg.as_expression() {
+                                self.track_expression_updates(expr);
+                            }
+                        }
+                    }
+                }
+            }
+            Expression::ArrowFunctionExpression(arrow_func) => {
+                // Track updates in arrow function body
+                for stmt in &arrow_func.body.statements {
+                    self.process_statement(stmt);
+                }
+            }
+            Expression::FunctionExpression(func_expr) => {
+                // Track updates in function body
+                self.process_function_body(&func_expr.body);
+            }
+            Expression::ConditionalExpression(cond_expr) => {
+                self.track_expression_updates(&cond_expr.test);
+                self.track_expression_updates(&cond_expr.consequent);
+                self.track_expression_updates(&cond_expr.alternate);
+            }
+            Expression::LogicalExpression(logical_expr) => {
+                self.track_expression_updates(&logical_expr.left);
+                self.track_expression_updates(&logical_expr.right);
+            }
+            Expression::BinaryExpression(binary_expr) => {
+                self.track_expression_updates(&binary_expr.left);
+                self.track_expression_updates(&binary_expr.right);
+            }
+            Expression::UnaryExpression(unary_expr) => {
+                self.track_expression_updates(&unary_expr.argument);
+            }
+            Expression::SequenceExpression(seq_expr) => {
+                for expr in &seq_expr.expressions {
+                    self.track_expression_updates(expr);
+                }
+            }
+            Expression::ArrayExpression(array_expr) => {
+                for elem in &array_expr.elements {
+                    match elem {
+                        oxc_ast::ast::ArrayExpressionElement::SpreadElement(spread) => {
+                            self.track_expression_updates(&spread.argument);
+                        }
+                        _ => {
+                            if let Some(expr) = elem.as_expression() {
+                                self.track_expression_updates(expr);
+                            }
+                        }
+                    }
+                }
+            }
+            Expression::ObjectExpression(obj_expr) => {
+                for prop in &obj_expr.properties {
+                    match prop {
+                        oxc_ast::ast::ObjectPropertyKind::ObjectProperty(obj_prop) => {
+                            self.track_expression_updates(&obj_prop.value);
+                        }
+                        oxc_ast::ast::ObjectPropertyKind::SpreadProperty(spread) => {
+                            self.track_expression_updates(&spread.argument);
+                        }
+                    }
+                }
+            }
+            Expression::StaticMemberExpression(member_expr) => {
+                self.track_expression_updates(&member_expr.object);
+            }
+            Expression::ComputedMemberExpression(member_expr) => {
+                self.track_expression_updates(&member_expr.object);
+            }
+            Expression::PrivateFieldExpression(member_expr) => {
+                self.track_expression_updates(&member_expr.object);
+            }
+            Expression::TemplateLiteral(template_literal) => {
+                for expr in &template_literal.expressions {
+                    self.track_expression_updates(expr);
+                }
+            }
+            Expression::TaggedTemplateExpression(tagged_template) => {
+                self.track_expression_updates(&tagged_template.tag);
+                for expr in &tagged_template.quasi.expressions {
+                    self.track_expression_updates(expr);
+                }
+            }
+            Expression::NewExpression(new_expr) => {
+                self.track_expression_updates(&new_expr.callee);
+                for arg in &new_expr.arguments {
+                    match arg {
+                        oxc_ast::ast::Argument::SpreadElement(spread) => {
+                            self.track_expression_updates(&spread.argument);
+                        }
+                        _ => {
+                            if let Some(expr) = arg.as_expression() {
+                                self.track_expression_updates(expr);
+                            }
+                        }
+                    }
+                }
+            }
+            Expression::AwaitExpression(await_expr) => {
+                self.track_expression_updates(&await_expr.argument);
+            }
+            Expression::YieldExpression(yield_expr) => {
+                if let Some(ref argument) = yield_expr.argument {
+                    self.track_expression_updates(argument);
+                }
+            }
+            Expression::ParenthesizedExpression(paren_expr) => {
+                self.track_expression_updates(&paren_expr.expression);
+            }
+            // Leaf expressions that don't contain assignments
+            Expression::Identifier(_)
+            | Expression::BooleanLiteral(_)
+            | Expression::NullLiteral(_)
+            | Expression::NumericLiteral(_)
+            | Expression::StringLiteral(_)
+            | Expression::BigIntLiteral(_)
+            | Expression::RegExpLiteral(_)
+            | Expression::ThisExpression(_)
+            | Expression::Super(_)
+            | Expression::MetaProperty(_) => {}
+            // Skip other complex expressions for now
+            _ => {}
+        }
+    }
+
+    /// Track an assignment target (left-hand side of assignment).
+    fn track_assignment_target(&mut self, target: &oxc_ast::ast::AssignmentTarget) {
+        match target {
+            oxc_ast::ast::AssignmentTarget::AssignmentTargetIdentifier(ident) => {
+                self.updates.push(Update {
+                    name: ident.name.to_string(),
+                    is_direct_assignment: true,
+                });
+            }
+            oxc_ast::ast::AssignmentTarget::StaticMemberExpression(member) => {
+                // For member expressions like obj.prop = value, track the base object as mutated
+                if let Some(name) = self.get_base_identifier_name(&member.object) {
+                    self.updates.push(Update {
+                        name,
+                        is_direct_assignment: false,
+                    });
+                }
+            }
+            oxc_ast::ast::AssignmentTarget::ComputedMemberExpression(member) => {
+                // For computed member expressions like obj[prop] = value
+                if let Some(name) = self.get_base_identifier_name(&member.object) {
+                    self.updates.push(Update {
+                        name,
+                        is_direct_assignment: false,
+                    });
+                }
+            }
+            oxc_ast::ast::AssignmentTarget::ArrayAssignmentTarget(array_target) => {
+                // For destructuring assignment [a, b] = [1, 2]
+                for target in array_target.elements.iter().flatten() {
+                    match target {
+                        oxc_ast::ast::AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(
+                            with_default,
+                        ) => {
+                            self.track_assignment_target(&with_default.binding);
+                        }
+                        _ => {
+                            if let Some(target) = target.as_assignment_target() {
+                                self.track_assignment_target(target);
+                            }
+                        }
+                    }
+                }
+            }
+            oxc_ast::ast::AssignmentTarget::ObjectAssignmentTarget(obj_target) => {
+                // For destructuring assignment { a, b } = obj
+                for prop in &obj_target.properties {
+                    match prop {
+                        oxc_ast::ast::AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(ident_prop) => {
+                            self.updates.push(Update {
+                                name: ident_prop.binding.name.to_string(),
+                                is_direct_assignment: true,
+                            });
+                        }
+                        oxc_ast::ast::AssignmentTargetProperty::AssignmentTargetPropertyProperty(prop_prop) => {
+                            match &prop_prop.binding {
+                                oxc_ast::ast::AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(with_default) => {
+                                    self.track_assignment_target(&with_default.binding);
+                                }
+                                _ => {
+                                    if let Some(target) = prop_prop.binding.as_assignment_target() {
+                                        self.track_assignment_target(target);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Track a simple assignment target (argument of update expression).
+    fn track_simple_assignment_target(&mut self, target: &oxc_ast::ast::SimpleAssignmentTarget) {
+        match target {
+            oxc_ast::ast::SimpleAssignmentTarget::AssignmentTargetIdentifier(ident) => {
+                self.updates.push(Update {
+                    name: ident.name.to_string(),
+                    is_direct_assignment: true,
+                });
+            }
+            oxc_ast::ast::SimpleAssignmentTarget::StaticMemberExpression(member) => {
+                if let Some(name) = self.get_base_identifier_name(&member.object) {
+                    self.updates.push(Update {
+                        name,
+                        is_direct_assignment: false,
+                    });
+                }
+            }
+            oxc_ast::ast::SimpleAssignmentTarget::ComputedMemberExpression(member) => {
+                if let Some(name) = self.get_base_identifier_name(&member.object) {
+                    self.updates.push(Update {
+                        name,
+                        is_direct_assignment: false,
+                    });
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Get the base identifier name from an expression (walking through member expressions).
+    fn get_base_identifier_name(&self, expr: &Expression) -> Option<String> {
+        match expr {
+            Expression::Identifier(ident) => Some(ident.name.to_string()),
+            Expression::StaticMemberExpression(member) => {
+                self.get_base_identifier_name(&member.object)
+            }
+            Expression::ComputedMemberExpression(member) => {
+                self.get_base_identifier_name(&member.object)
+            }
+            Expression::ParenthesizedExpression(paren) => {
+                self.get_base_identifier_name(&paren.expression)
+            }
+            _ => None,
         }
     }
 
@@ -330,6 +687,8 @@ impl<'a> ScopeBuilder<'a> {
             TemplateNode::KeyBlock(block) => self.visit_key_block(block),
             TemplateNode::SnippetBlock(block) => self.visit_snippet_block(block),
             TemplateNode::Component(component) => {
+                // Process expressions in component attributes
+                self.process_attributes(&component.attributes);
                 // Visit component children
                 self.visit_fragment(&component.fragment);
             }
@@ -341,8 +700,100 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Visit a regular element.
     fn visit_element(&mut self, element: &RegularElement) {
+        // Process expressions in attributes (for tracking updates)
+        self.process_attributes(&element.attributes);
+
         // Elements don't create new scopes, but we visit their children
         self.visit_fragment(&element.fragment);
+    }
+
+    /// Process attributes to find expressions containing updates.
+    fn process_attributes(&mut self, attributes: &[crate::ast::template::Attribute]) {
+        use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart};
+
+        for attr in attributes {
+            match attr {
+                Attribute::Attribute(attr_node) => {
+                    // Process expression values
+                    match &attr_node.value {
+                        AttributeValue::Expression(expr_tag) => {
+                            self.process_template_expression(&expr_tag.expression);
+                        }
+                        AttributeValue::Sequence(parts) => {
+                            for part in parts {
+                                if let AttributeValuePart::ExpressionTag(expr_tag) = part {
+                                    self.process_template_expression(&expr_tag.expression);
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                Attribute::OnDirective(on_dir) => {
+                    // Process onclick, onchange, etc.
+                    if let Some(ref expression) = on_dir.expression {
+                        self.process_template_expression(expression);
+                    }
+                }
+                Attribute::BindDirective(bind_dir) => {
+                    // bind:value - marks the variable as reassigned
+                    // For bind directives, the expression target is reassigned
+                    self.process_template_expression_for_bind(&bind_dir.expression);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// Process a template expression (from attributes, event handlers, etc.) to track updates.
+    fn process_template_expression(&mut self, expr: &crate::ast::js::Expression) {
+        // Extract the source range and parse the expression
+        if let Some(start) = expr.start()
+            && let Some(end) = expr.end()
+        {
+            let start = start as usize;
+            let end = end as usize;
+            if end <= self.source.len() && start < end {
+                let expr_source = &self.source[start..end];
+                self.parse_and_track_expression(expr_source);
+            }
+        }
+    }
+
+    /// Process a bind expression - the target is marked as reassigned.
+    fn process_template_expression_for_bind(&mut self, expr: &crate::ast::js::Expression) {
+        // For bind directives, get the identifier name and mark as reassigned
+        if let Some(serde_json::Value::String(name)) = expr.as_json().get("name") {
+            self.updates.push(Update {
+                name: name.clone(),
+                is_direct_assignment: true,
+            });
+        }
+    }
+
+    /// Parse an expression string and track updates within it.
+    fn parse_and_track_expression(&mut self, expr_source: &str) {
+        // Wrap in a statement to make it valid JavaScript
+        let code = format!("({})", expr_source);
+
+        let allocator = Allocator::default();
+        let ret = OxcParser::new(&allocator, &code, SourceType::default()).parse();
+
+        if ret.errors.is_empty() && !ret.program.body.is_empty() {
+            // Get the expression from the parsed program
+            if let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
+                ret.program.body.first()
+            {
+                // Strip the outer parentheses
+                if let oxc_ast::ast::Expression::ParenthesizedExpression(paren) =
+                    &expr_stmt.expression
+                {
+                    self.track_expression_updates(&paren.expression);
+                } else {
+                    self.track_expression_updates(&expr_stmt.expression);
+                }
+            }
+        }
     }
 
     /// Visit an each block.

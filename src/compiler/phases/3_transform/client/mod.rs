@@ -50,6 +50,29 @@ use crate::ast::template::{
 };
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
+use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+
+/// Collect non-reactive state variables from the analysis.
+/// These are $state() variables that are never reassigned, so they don't need
+/// reactive tracking ($.state/$.get/$.set) and can be plain variables.
+fn collect_non_reactive_state_vars(analysis: &ComponentAnalysis) -> Vec<String> {
+    let mut non_reactive = Vec::new();
+
+    // In runes mode with immutable = true, state variables that are not reassigned
+    // don't need reactive tracking.
+    if analysis.immutable {
+        for binding in &analysis.root.bindings {
+            if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
+                && !binding.reassigned
+                && !analysis.accessors
+            {
+                non_reactive.push(binding.name.clone());
+            }
+        }
+    }
+
+    non_reactive
+}
 
 /// Transform a component analysis into client-side JavaScript.
 ///
@@ -99,6 +122,9 @@ pub fn transform_client(
         exports_count: analysis.exports.len(),
     };
 
+    // Collect non-reactive state variables (state vars that are never reassigned)
+    let non_reactive_state_vars = collect_non_reactive_state_vars(analysis);
+
     let mut generator = ClientCodeGenerator::new(
         component_name.clone(),
         analysis.source.clone(),
@@ -107,6 +133,7 @@ pub fn transform_client(
         css_hash,
         analysis_flags,
         module_script_content,
+        non_reactive_state_vars,
     );
 
     // Use the AST fragment directly (no re-parsing needed)
@@ -228,6 +255,9 @@ struct ClientCodeGenerator {
     /// Module script content (from <script module> blocks)
     /// This is emitted at the module level, before the component function
     module_script_content: Option<String>,
+    /// Non-reactive state variables (state vars that are never reassigned)
+    /// These don't need $.state() / $.get() / $.set() wrappers
+    non_reactive_state_vars: Vec<String>,
 }
 
 /// Analysis flags from Phase 2 for code generation decisions
@@ -244,6 +274,7 @@ struct AnalysisFlags {
 }
 
 impl ClientCodeGenerator {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         component_name: String,
         source: String,
@@ -252,9 +283,14 @@ impl ClientCodeGenerator {
         css_hash: Option<String>,
         analysis_flags: AnalysisFlags,
         module_script_content: Option<String>,
+        non_reactive_state_vars: Vec<String>,
     ) -> Self {
         // Collect state variables from script content (primitive types only)
-        let state_vars = collect_state_variables(&script_content);
+        // Filter out non-reactive state vars - they don't need $.get() / $.set()
+        let state_vars: Vec<String> = collect_state_variables(&script_content)
+            .into_iter()
+            .filter(|v| !non_reactive_state_vars.contains(v))
+            .collect();
         // Collect proxy state variables (object/array types)
         let proxy_state_vars = collect_proxy_state_variables(&script_content);
         // Collect derived variables
@@ -314,6 +350,7 @@ impl ClientCodeGenerator {
             analysis_has_reactive_statements: analysis_flags.has_reactive_statements,
             analysis_exports_count: analysis_flags.exports_count,
             module_script_content,
+            non_reactive_state_vars,
         }
     }
 
@@ -1334,6 +1371,10 @@ impl ClientCodeGenerator {
                         }
                     }
                     TemplateNode::RegularElement(elem) => {
+                        // Generate special attribute statements IMMEDIATELY after navigation
+                        // (before processing children, to match JS implementation order)
+                        self.generate_special_attr_stmts(&var_name, elem, &mut stmts);
+
                         // Recursively process this element's children
                         let (child_stmts, child_has_dynamic, _trailing) =
                             self.process_children_cursor(&var_name, &elem.fragment.nodes);
@@ -1344,9 +1385,6 @@ impl ClientCodeGenerator {
                         if child_has_dynamic {
                             stmts.push(stmt(svelte_reset(id(&var_name))));
                         }
-
-                        // Handle special attributes for this element
-                        self.generate_special_attr_stmts(&var_name, elem, &mut stmts);
                     }
                     _ => {}
                 }
@@ -1464,25 +1502,47 @@ impl ClientCodeGenerator {
                         "is" => {}
                         _ if is_custom => {
                             // Custom element attribute (except `is`)
-                            let attr_value = match &node.value {
-                                AttributeValue::True(_) => "true".to_string(),
-                                AttributeValue::Sequence(parts) => parts
-                                    .iter()
-                                    .filter_map(|p| {
-                                        if let AttributeValuePart::Text(t) = p {
-                                            Some(t.data.to_string())
-                                        } else {
-                                            None
-                                        }
-                                    })
-                                    .collect(),
-                                _ => continue,
-                            };
-                            stmts.push(stmt(svelte_set_custom_element_data(
-                                id(var_name),
-                                attr_name,
-                                string(&attr_value),
-                            )));
+                            match &node.value {
+                                AttributeValue::True(_) => {
+                                    stmts.push(stmt(svelte_set_custom_element_data(
+                                        id(var_name),
+                                        attr_name,
+                                        string("true"),
+                                    )));
+                                }
+                                AttributeValue::Sequence(parts) => {
+                                    let attr_value: String = parts
+                                        .iter()
+                                        .filter_map(|p| {
+                                            if let AttributeValuePart::Text(t) = p {
+                                                Some(t.data.to_string())
+                                            } else {
+                                                None
+                                            }
+                                        })
+                                        .collect();
+                                    stmts.push(stmt(svelte_set_custom_element_data(
+                                        id(var_name),
+                                        attr_name,
+                                        string(&attr_value),
+                                    )));
+                                }
+                                AttributeValue::Expression(expr_tag) => {
+                                    // Expression value (e.g., object={{ test: true }})
+                                    let expr_start =
+                                        expr_tag.expression.start().unwrap_or(0) as usize;
+                                    let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                                    if expr_end > expr_start && expr_end <= self.source.len() {
+                                        let expr_source =
+                                            self.source[expr_start..expr_end].trim().to_string();
+                                        stmts.push(stmt(svelte_set_custom_element_data(
+                                            id(var_name),
+                                            attr_name,
+                                            raw(&expr_source),
+                                        )));
+                                    }
+                                }
+                            }
                         }
                         _ => {}
                     }
@@ -4091,6 +4151,15 @@ export default function {component_name}({fn_params}) {{
             self.transform_script_content(&script_rest)
         };
 
+        // Debug: show transformation
+        if script_rest.contains("showText") && script_rest.contains("$state(true)") {
+            eprintln!("DEBUG build_with_fragment: script_rest='{}'", script_rest);
+            eprintln!(
+                "DEBUG build_with_fragment: transformed='{}'",
+                transformed_script
+            );
+        }
+
         // Prepend $.push() if should_inject_context is true
         // Also add $.init() for legacy mode (non-runes) when needs_context is true
         // Reference: transform-client.js lines 381-383
@@ -4628,7 +4697,9 @@ export default function {component_name}({fn_params}) {{
         let script = transform_class_fields_client(script);
 
         // Detect state variables that should be skipped (used in FUNC_ARRAY pattern)
-        let skip_state_vars = self.detect_func_array_state_vars(&script);
+        let mut skip_state_vars = self.detect_func_array_state_vars(&script);
+        // Also skip non-reactive state variables (state vars that are never reassigned)
+        skip_state_vars.extend(self.non_reactive_state_vars.iter().cloned());
 
         let mut result = String::new();
 
@@ -5445,6 +5516,22 @@ export default function {component_name}({fn_params}) {{
             }
         }
 
+        // Build a map of elements to their special attributes
+        let mut element_special_attrs: HashMap<String, Vec<&SpecialAttribute>> = HashMap::new();
+        for attr in &self.special_attrs {
+            let var_name = match attr {
+                SpecialAttribute::Autofocus { var_name } => var_name,
+                SpecialAttribute::Muted { var_name } => var_name,
+                SpecialAttribute::OptionValue { var_name, .. } => var_name,
+                SpecialAttribute::CustomElementData { var_name, .. } => var_name,
+                SpecialAttribute::CustomElementDataExpr { var_name, .. } => var_name,
+            };
+            element_special_attrs
+                .entry(var_name.clone())
+                .or_default()
+                .push(attr);
+        }
+
         // Process all nodes in order
         for node in &self.nodes {
             match &node.node_type {
@@ -5455,12 +5542,14 @@ export default function {component_name}({fn_params}) {{
                     let exprs = element_expressions.get(var).cloned().unwrap_or_default();
                     let has_exprs = !exprs.is_empty();
 
+                    let has_special_attrs = element_special_attrs.contains_key(var);
                     let needs_runtime = has_exprs
                         || !node.event_handlers.is_empty()
                         || !node.bindings.is_empty()
                         || node.is_input
                         || node.is_custom_element
-                        || node.content_template.is_some();
+                        || node.content_template.is_some()
+                        || has_special_attrs;
 
                     if !needs_runtime {
                         continue;
@@ -5473,6 +5562,53 @@ export default function {component_name}({fn_params}) {{
                             first_nav = false;
                         } else if let Some(ref prev) = prev_var {
                             statements.push(var_decl(var, Some(svelte_sibling(id(prev), Some(2)))));
+                        }
+                    }
+
+                    // Process special attributes for this element (immediately after navigation)
+                    if let Some(attrs) = element_special_attrs.get(var) {
+                        for attr in attrs {
+                            match attr {
+                                SpecialAttribute::Autofocus { var_name } => {
+                                    statements.push(stmt(svelte_autofocus(id(var_name), true)));
+                                }
+                                SpecialAttribute::Muted { var_name } => {
+                                    statements.push(stmt(assign(
+                                        member(id(var_name), "muted"),
+                                        boolean(true),
+                                    )));
+                                }
+                                SpecialAttribute::OptionValue { var_name, value } => {
+                                    let inner_assign =
+                                        assign(member(id(var_name), "__value"), string(value));
+                                    statements.push(stmt(assign(
+                                        member(id(var_name), "value"),
+                                        inner_assign,
+                                    )));
+                                }
+                                SpecialAttribute::CustomElementData {
+                                    var_name,
+                                    attr_name,
+                                    attr_value,
+                                } => {
+                                    statements.push(stmt(svelte_set_custom_element_data(
+                                        id(var_name),
+                                        attr_name,
+                                        string(attr_value),
+                                    )));
+                                }
+                                SpecialAttribute::CustomElementDataExpr {
+                                    var_name,
+                                    attr_name,
+                                    expr_value,
+                                } => {
+                                    statements.push(stmt(svelte_set_custom_element_data(
+                                        id(var_name),
+                                        attr_name,
+                                        raw(expr_value),
+                                    )));
+                                }
+                            }
                         }
                     }
 
@@ -5784,50 +5920,6 @@ export default function {component_name}({fn_params}) {{
         // Add bindings after all navigation
         statements.extend(bindings_stmts);
 
-        // Generate special attribute runtime code
-        for attr in &self.special_attrs {
-            match attr {
-                SpecialAttribute::Autofocus { var_name } => {
-                    // $.autofocus(element, true)
-                    statements.push(stmt(svelte_autofocus(id(var_name), true)));
-                }
-                SpecialAttribute::Muted { var_name } => {
-                    // element.muted = true
-                    statements.push(stmt(assign(member(id(var_name), "muted"), boolean(true))));
-                }
-                SpecialAttribute::OptionValue { var_name, value } => {
-                    // option.value = option.__value = 'value'
-                    let inner_assign = assign(member(id(var_name), "__value"), string(value));
-                    statements.push(stmt(assign(member(id(var_name), "value"), inner_assign)));
-                }
-                SpecialAttribute::CustomElementData {
-                    var_name,
-                    attr_name,
-                    attr_value,
-                } => {
-                    // $.set_custom_element_data(element, 'attr', 'value')
-                    statements.push(stmt(svelte_set_custom_element_data(
-                        id(var_name),
-                        attr_name,
-                        string(attr_value),
-                    )));
-                }
-                SpecialAttribute::CustomElementDataExpr {
-                    var_name,
-                    attr_name,
-                    expr_value,
-                } => {
-                    // $.set_custom_element_data(element, 'attr', expression)
-                    // Use raw expression as the value
-                    statements.push(stmt(svelte_set_custom_element_data(
-                        id(var_name),
-                        attr_name,
-                        raw(expr_value),
-                    )));
-                }
-            }
-        }
-
         // Generate {@html} runtime code
         for (i, html_tag) in self.html_tags.iter().enumerate() {
             let var_name = if i == 0 {
@@ -6078,6 +6170,10 @@ export default function {component_name}({fn_params}) {{
                             stmts.push(stmt(svelte_remove_input_defaults(id(&var_name))));
                         }
 
+                        // Generate special attribute statements IMMEDIATELY after navigation
+                        // (before processing children, to match JS implementation order)
+                        self.generate_special_attr_stmts(&var_name, elem, &mut stmts);
+
                         // Process children with cursor navigation
                         let (child_stmts, has_dynamic_children, trailing) =
                             self.process_children_cursor(&var_name, &elem.fragment.nodes);
@@ -6092,9 +6188,6 @@ export default function {component_name}({fn_params}) {{
                         if has_dynamic_children {
                             stmts.push(stmt(svelte_reset(id(&var_name))));
                         }
-
-                        // Generate special attribute statements
-                        self.generate_special_attr_stmts(&var_name, elem, &mut stmts);
                     }
                     TemplateNode::ExpressionTag(tag) => {
                         let expr_start = tag.start as usize;
@@ -8381,19 +8474,26 @@ fn transform_client_runes_with_skip_and_state(
         if result[..pos].contains("let ") || result[..pos].contains("const ") {
             // Extract variable name
             let before_eq = result[..pos].trim();
-            let var_name = before_eq
-                .split_whitespace()
-                .last()
-                .unwrap_or("")
-                .trim_end_matches('=')
-                .trim();
+            // The string is like "let show =" or "let show="
+            // We need to get "show" from before the "="
+            let before_equals = if let Some(eq_pos) = before_eq.rfind('=') {
+                before_eq[..eq_pos].trim()
+            } else {
+                before_eq
+            };
+            let var_name = before_equals.split_whitespace().last().unwrap_or("").trim();
 
             // Check if we should skip this state variable
-            if skip_state_vars.contains(&var_name.to_string()) {
-                // Just extract the value from $state(value)
-                let state_start = pos + 7; // after "$state("
-                if let Some(content_end) = find_matching_paren(&result[state_start..]) {
-                    let content = &result[state_start..state_start + content_end];
+            // Only skip primitives - objects/arrays still need $.proxy() for reactivity
+            let state_start = pos + 7; // after "$state("
+            if let Some(content_end) = find_matching_paren(&result[state_start..]) {
+                let content = &result[state_start..state_start + content_end];
+                let trimmed_content = content.trim();
+                let is_object_or_array =
+                    trimmed_content.starts_with('{') || trimmed_content.starts_with('[');
+
+                if skip_state_vars.contains(&var_name.to_string()) && !is_object_or_array {
+                    // Just extract the value from $state(value)
                     // Replace $state(value) with just value
                     result = format!(
                         "{}{}{}",
@@ -8401,22 +8501,16 @@ fn transform_client_runes_with_skip_and_state(
                         content,
                         &result[state_start + content_end + 1..]
                     );
-                }
-            } else {
-                // Find the content inside $state(...)
-                let state_start = pos + 7; // after "$state("
-                if let Some(content_end) = find_matching_paren(&result[state_start..]) {
-                    let content = &result[state_start..state_start + content_end];
-                    let trimmed_content = content.trim();
-                    // Check if it's an object literal
-                    if trimmed_content.starts_with('{') || trimmed_content.starts_with('[') {
-                        result = result.replacen("$state(", "$.proxy(", 1);
-                    } else {
-                        result = result.replacen("$state(", "$.state(", 1);
-                    }
+                } else if is_object_or_array {
+                    // Objects/arrays need $.proxy() for deep reactivity
+                    result = result.replacen("$state(", "$.proxy(", 1);
                 } else {
+                    // Primitives that ARE reassigned need $.state()
                     result = result.replacen("$state(", "$.state(", 1);
                 }
+            } else {
+                // Fallback for unparseable content
+                result = result.replacen("$state(", "$.state(", 1);
             }
         }
     }
@@ -9607,7 +9701,15 @@ fn transform_state_assignments(line: &str, state_vars: &[String]) -> String {
                     None => (after, ""),
                 };
 
-                result = format!("{}$.set({}, {}){}", before, var, value.trim(), suffix);
+                // Transform state variable reads in the value expression
+                let transformed_value = transform_state_in_expr(value.trim(), state_vars);
+                result = format!(
+                    "{}$.set({}, {}){}",
+                    before,
+                    var,
+                    transformed_value.trim(),
+                    suffix
+                );
             }
         }
     }

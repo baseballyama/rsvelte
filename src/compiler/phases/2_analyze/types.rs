@@ -300,6 +300,12 @@ impl ComponentAnalysis {
             }
         }
 
+        // In runes mode, immutable is always true
+        // This matches the official Svelte compiler: immutable: runes || options.immutable
+        if self.runes {
+            self.immutable = true;
+        }
+
         Ok(())
     }
 
