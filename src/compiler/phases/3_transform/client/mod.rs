@@ -11,9 +11,10 @@ mod visitor;
 pub mod visitors;
 
 use state::{
-    AwaitBlockInfo, BindThisComponent, ChildPart, ComponentWithBinding, ComponentWithChildren,
-    DynamicAttribute, EachBlockInfo, EventHandler, HtmlTagInfo, IfBlockInfo, IfBlockPart, NodeInfo,
-    NodeType, SnippetBodyPart, SnippetInfo, SnippetParameter, SpecialAttribute, SvelteElementInfo,
+    AwaitBlockInfo, AwaitBlockPart, BindThisComponent, ChildPart, ComponentWithBinding,
+    ComponentWithChildren, DynamicAttribute, EachBlockInfo, EventHandler, HtmlTagInfo, IfBlockInfo,
+    IfBlockPart, NodeInfo, NodeType, SnippetBodyPart, SnippetInfo, SnippetParameter,
+    SpecialAttribute, SvelteElementInfo,
 };
 
 use super::TransformError;
@@ -620,6 +621,14 @@ impl ClientCodeGenerator {
                                     content_parts.push(format!("${{{} ?? ''}}", transformed));
                                 }
                             }
+                            // Handle block nodes - they add comment placeholders
+                            TemplateNode::AwaitBlock(_)
+                            | TemplateNode::IfBlock(_)
+                            | TemplateNode::EachBlock(_) => {
+                                // These blocks will be processed by generate_node
+                                // They add <!> comment placeholders to the HTML
+                                self.generate_node(child, false)?;
+                            }
                             _ => {}
                         }
                         self.current_child_index += 1;
@@ -698,10 +707,20 @@ impl ClientCodeGenerator {
                         if has_reactive_expression {
                             self.html_parts.push(" ".to_string());
                         }
-                        // Track the expressions
+                        // Track the expressions and process blocks
                         for child in &element.fragment.nodes {
-                            if let TemplateNode::ExpressionTag(tag) = child {
-                                self.generate_expression_tag(tag)?;
+                            match child {
+                                TemplateNode::ExpressionTag(tag) => {
+                                    self.generate_expression_tag(tag)?;
+                                }
+                                // Handle block nodes - they add comment placeholders
+                                TemplateNode::AwaitBlock(_)
+                                | TemplateNode::IfBlock(_)
+                                | TemplateNode::EachBlock(_) => {
+                                    // These blocks will be processed by generate_node
+                                    self.generate_node(child, false)?;
+                                }
+                                _ => {}
                             }
                             self.current_child_index += 1;
                         }
@@ -2382,6 +2401,11 @@ impl ClientCodeGenerator {
             "null".to_string()
         };
 
+        // Determine if expression needs $.get() wrapper
+        // Props are passed directly, state/derived values need $.get()
+        let needs_get_wrapper =
+            self.state_vars.contains(&promise_expr) || self.derived_vars.contains(&promise_expr);
+
         // Extract then value variable name (e.g., "counter" from "{#await promise then counter}")
         let then_value = if let Some(ref value) = block.value {
             let val_start = value.start().unwrap_or(0) as usize;
@@ -2395,10 +2419,58 @@ impl ClientCodeGenerator {
             None
         };
 
+        // Extract catch error variable name
+        let catch_value = if let Some(ref error) = block.error {
+            let err_start = error.start().unwrap_or(0) as usize;
+            let err_end = error.end().unwrap_or(0) as usize;
+            if err_end > err_start && err_end <= self.source.len() {
+                Some(self.source[err_start..err_end].trim().to_string())
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        // Process pending block
+        let (pending_parts, pending_template_var, pending_template_html) =
+            if let Some(ref pending) = block.pending {
+                self.process_await_block_fragment(pending, "pending")?
+            } else {
+                (Vec::new(), None, None)
+            };
+
+        // Process then block
+        let (then_parts, then_template_var, then_template_html) =
+            if let Some(ref then_fragment) = block.then {
+                self.process_await_block_fragment(then_fragment, "then")?
+            } else {
+                (Vec::new(), None, None)
+            };
+
+        // Process catch block
+        let (catch_parts, catch_template_var, catch_template_html) =
+            if let Some(ref catch_fragment) = block.catch {
+                self.process_await_block_fragment(catch_fragment, "catch")?
+            } else {
+                (Vec::new(), None, None)
+            };
+
         // Store await block info
         self.await_blocks.push(AwaitBlockInfo {
             promise_expr: promise_expr.clone(),
             then_value: then_value.clone(),
+            catch_value,
+            pending_parts,
+            pending_template_var,
+            pending_template_html,
+            then_parts,
+            then_template_var,
+            then_template_html,
+            catch_parts,
+            catch_template_var,
+            catch_template_html,
+            needs_get_wrapper,
         });
 
         // Track await block as a node for navigation
@@ -2421,6 +2493,143 @@ impl ClientCodeGenerator {
 
         self.html_parts.push("<!>".to_string());
         Ok(())
+    }
+
+    /// Process a fragment within an await block (pending, then, or catch).
+    /// Returns (parts, template_var, template_html).
+    #[allow(clippy::type_complexity)]
+    fn process_await_block_fragment(
+        &mut self,
+        fragment: &Fragment,
+        _block_type: &str,
+    ) -> Result<(Vec<AwaitBlockPart>, Option<String>, Option<String>), TransformError> {
+        let mut parts = Vec::new();
+        let nodes = &fragment.nodes;
+
+        // Skip leading and trailing whitespace
+        let mut start_idx = 0;
+        let mut end_idx = nodes.len();
+
+        while start_idx < end_idx {
+            if let TemplateNode::Text(text) = &nodes[start_idx]
+                && text.data.trim().is_empty()
+            {
+                start_idx += 1;
+                continue;
+            }
+            break;
+        }
+
+        while end_idx > start_idx {
+            if let TemplateNode::Text(text) = &nodes[end_idx - 1]
+                && text.data.trim().is_empty()
+            {
+                end_idx -= 1;
+                continue;
+            }
+            break;
+        }
+
+        // Check if the branch contains elements
+        let has_elements = nodes[start_idx..end_idx]
+            .iter()
+            .any(|node| matches!(node, TemplateNode::RegularElement(_)));
+
+        if has_elements {
+            // Generate a template for element-based content
+            self.if_block_counter += 1; // Reuse counter for uniqueness
+            let template_var = format!("root_{}", self.if_block_counter);
+
+            // Build template HTML and parts
+            let mut template_html = String::new();
+
+            for node in &nodes[start_idx..end_idx] {
+                match node {
+                    TemplateNode::RegularElement(elem) => {
+                        let elem_html = self.build_element_template_html(elem);
+                        template_html.push_str(&elem_html);
+                        parts.push(AwaitBlockPart::Element {
+                            tag: elem.name.to_string(),
+                            template_var: template_var.clone(),
+                            template_html: elem_html,
+                            dynamic_attrs: Vec::new(),
+                            event_handlers: Vec::new(),
+                            children: self.collect_await_element_children_parts(elem),
+                        });
+                    }
+                    TemplateNode::Text(text) => {
+                        let trimmed = text.data.trim();
+                        if !trimmed.is_empty() {
+                            template_html.push_str(trimmed);
+                            parts.push(AwaitBlockPart::Text(trimmed.to_string()));
+                        }
+                    }
+                    TemplateNode::ExpressionTag(tag) => {
+                        // Add placeholder for expressions
+                        template_html.push(' ');
+                        let expr_start = tag.start as usize;
+                        let expr_end = tag.end as usize;
+                        if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                            let expr = self.source[expr_start + 1..expr_end - 1].trim().to_string();
+                            parts.push(AwaitBlockPart::Expression(expr));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            Ok((parts, Some(template_var), Some(template_html)))
+        } else {
+            // Text-only content
+            for node in &nodes[start_idx..end_idx] {
+                match node {
+                    TemplateNode::Text(text) => {
+                        let trimmed = text.data.trim();
+                        if !trimmed.is_empty() {
+                            parts.push(AwaitBlockPart::Text(trimmed.to_string()));
+                        }
+                    }
+                    TemplateNode::ExpressionTag(tag) => {
+                        let expr_start = tag.start as usize;
+                        let expr_end = tag.end as usize;
+                        if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                            let expr = self.source[expr_start + 1..expr_end - 1].trim().to_string();
+                            parts.push(AwaitBlockPart::Expression(expr));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            Ok((parts, None, None))
+        }
+    }
+
+    /// Collect children parts for an element within an await block.
+    fn collect_await_element_children_parts(&self, elem: &RegularElement) -> Vec<AwaitBlockPart> {
+        let mut children = Vec::new();
+
+        for node in &elem.fragment.nodes {
+            match node {
+                TemplateNode::Text(text) => {
+                    let trimmed = text.data.trim();
+                    if !trimmed.is_empty() {
+                        children.push(AwaitBlockPart::Text(trimmed.to_string()));
+                    }
+                }
+                TemplateNode::ExpressionTag(tag) => {
+                    let expr_start = tag.start as usize;
+                    let expr_end = tag.end as usize;
+                    if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                        let expr = self.source[expr_start + 1..expr_end - 1].trim().to_string();
+                        children.push(AwaitBlockPart::Expression(expr));
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        children
     }
 
     fn generate_key_block(&mut self, _block: &KeyBlock) -> Result<(), TransformError> {
@@ -4422,7 +4631,151 @@ export default function {component_name}({fn_params}) {{
         ))
     }
 
-    /// Build $.await() statement
+    /// Build $.await() statement with full block content
+    fn build_await_stmt_full(&self, anchor_var: &str, await_info: &AwaitBlockInfo) -> JsStatement {
+        // Build promise expression (with or without $.get() wrapper)
+        let promise_expr = if await_info.needs_get_wrapper {
+            thunk(svelte_get(id(&await_info.promise_expr)))
+        } else {
+            id(&await_info.promise_expr)
+        };
+
+        // Build pending callback
+        let pending_callback =
+            if !await_info.pending_parts.is_empty() || await_info.pending_template_var.is_some() {
+                let body = self.build_await_block_body(
+                    &await_info.pending_parts,
+                    &await_info.pending_template_var,
+                    None,
+                );
+                arrow_block(vec![id_pattern("$$anchor")], body)
+            } else {
+                id("null")
+            };
+
+        // Build then callback
+        let then_callback =
+            if !await_info.then_parts.is_empty() || await_info.then_template_var.is_some() {
+                let mut params = vec![id_pattern("$$anchor")];
+                if let Some(ref val) = await_info.then_value {
+                    params.push(id_pattern(val));
+                }
+                let body = self.build_await_block_body(
+                    &await_info.then_parts,
+                    &await_info.then_template_var,
+                    await_info.then_value.as_deref(),
+                );
+                arrow_block(params, body)
+            } else if await_info.then_value.is_some() {
+                // Even if empty, we need the callback with parameter for the value
+                let val = await_info.then_value.as_ref().unwrap();
+                arrow_block(vec![id_pattern("$$anchor"), id_pattern(val)], vec![])
+            } else {
+                id("null")
+            };
+
+        // Build catch callback (only if there's catch content)
+        let has_catch =
+            !await_info.catch_parts.is_empty() || await_info.catch_template_var.is_some();
+        let catch_callback = if has_catch {
+            let mut params = vec![id_pattern("$$anchor")];
+            if let Some(ref val) = await_info.catch_value {
+                params.push(id_pattern(val));
+            }
+            let body = self.build_await_block_body(
+                &await_info.catch_parts,
+                &await_info.catch_template_var,
+                await_info.catch_value.as_deref(),
+            );
+            Some(arrow_block(params, body))
+        } else {
+            None
+        };
+
+        // Build $.await() call
+        // $.await(anchor, promise, pending, then) or $.await(anchor, promise, pending, then, catch)
+        let mut args = vec![
+            id(anchor_var),
+            promise_expr,
+            pending_callback,
+            then_callback,
+        ];
+
+        // Only add catch argument if there's actually a catch block
+        if let Some(catch_cb) = catch_callback {
+            args.push(catch_cb);
+        }
+
+        stmt(call(member(id("$"), "await"), args))
+    }
+
+    /// Build the body statements for an await block callback.
+    fn build_await_block_body(
+        &self,
+        parts: &[AwaitBlockPart],
+        _template_var: &Option<String>,
+        value_var: Option<&str>,
+    ) -> Vec<JsStatement> {
+        let mut body = Vec::new();
+
+        // Track text variable counter for unique naming
+        let mut text_counter = 0;
+
+        for part in parts {
+            match part {
+                AwaitBlockPart::Text(text) => {
+                    // var text = $.text("content");
+                    let var_name = if text_counter == 0 {
+                        "text".to_string()
+                    } else {
+                        format!("text_{}", text_counter)
+                    };
+                    text_counter += 1;
+
+                    body.push(var_decl(&var_name, Some(svelte_text(Some(string(text))))));
+                    body.push(stmt(svelte_append(id("$$anchor"), id(&var_name))));
+                }
+                AwaitBlockPart::Expression(expr) => {
+                    // For reactive expressions, we need:
+                    // var text = $.text();
+                    // $.template_effect(() => $.set_text(text, value));
+                    // $.append($$anchor, text);
+                    let var_name = if text_counter == 0 {
+                        "text".to_string()
+                    } else {
+                        format!("text_{}", text_counter)
+                    };
+                    text_counter += 1;
+
+                    body.push(var_decl(&var_name, Some(svelte_text(None))));
+
+                    // If the expression references the value variable, wrap in $.get()
+                    let expr_val = if let Some(val) = value_var
+                        && expr.contains(val)
+                    {
+                        // The expression uses the value variable, wrap in $.get()
+                        svelte_template_effect(thunk(svelte_set_text(
+                            id(&var_name),
+                            svelte_get(id(expr)),
+                        )))
+                    } else {
+                        // Direct expression
+                        svelte_template_effect(thunk(svelte_set_text(id(&var_name), id(expr))))
+                    };
+                    body.push(stmt(expr_val));
+                    body.push(stmt(svelte_append(id("$$anchor"), id(&var_name))));
+                }
+                AwaitBlockPart::Element { .. } => {
+                    // TODO: Handle element content within await blocks
+                    // This is more complex and will be implemented in a follow-up
+                }
+            }
+        }
+
+        body
+    }
+
+    /// Build $.await() statement (legacy - simple version)
     #[allow(dead_code)]
     fn build_await_stmt(
         &self,
@@ -4733,9 +5086,19 @@ export default function {component_name}({fn_params}) {{
                         first_nav = false;
                     }
 
+                    // Find the corresponding await block info by matching promise expression
                     if let Some(ref promise_expr) = node.expression {
-                        let then_val = node.content_template.as_deref();
-                        statements.push(self.build_await_stmt(var, promise_expr, then_val));
+                        if let Some(await_info) = self
+                            .await_blocks
+                            .iter()
+                            .find(|b| &b.promise_expr == promise_expr)
+                        {
+                            statements.push(self.build_await_stmt_full(var, await_info));
+                        } else {
+                            // Fallback to simple version
+                            let then_val = node.content_template.as_deref();
+                            statements.push(self.build_await_stmt(var, promise_expr, then_val));
+                        }
                     }
 
                     prev_var = Some(var.clone());

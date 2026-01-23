@@ -472,6 +472,24 @@ pub struct ComponentWithBinding {
     pub bind_var: String,
 }
 
+/// Part of an await block content (pending, then, or catch).
+#[derive(Debug, Clone)]
+pub enum AwaitBlockPart {
+    /// Static text
+    Text(String),
+    /// Expression to evaluate
+    Expression(String),
+    /// Element template
+    Element {
+        tag: String,
+        template_var: String,
+        template_html: String,
+        dynamic_attrs: Vec<DynamicAttribute>,
+        event_handlers: Vec<EventHandler>,
+        children: Vec<AwaitBlockPart>,
+    },
+}
+
 /// Information about an await block for client-side code generation.
 #[derive(Debug, Clone)]
 pub struct AwaitBlockInfo {
@@ -479,6 +497,28 @@ pub struct AwaitBlockInfo {
     pub promise_expr: String,
     /// Then value variable name (e.g., "counter")
     pub then_value: Option<String>,
+    /// Catch error variable name (e.g., "error")
+    pub catch_value: Option<String>,
+    /// Pending block parts (if present)
+    pub pending_parts: Vec<AwaitBlockPart>,
+    /// Pending block template var (for element content)
+    pub pending_template_var: Option<String>,
+    /// Pending block template HTML
+    pub pending_template_html: Option<String>,
+    /// Then block parts (if present)
+    pub then_parts: Vec<AwaitBlockPart>,
+    /// Then block template var (for element content)
+    pub then_template_var: Option<String>,
+    /// Then block template HTML
+    pub then_template_html: Option<String>,
+    /// Catch block parts (if present)
+    pub catch_parts: Vec<AwaitBlockPart>,
+    /// Catch block template var (for element content)
+    pub catch_template_var: Option<String>,
+    /// Catch block template HTML
+    pub catch_template_html: Option<String>,
+    /// Whether the expression is wrapped in $.get() (for derived/state values)
+    pub needs_get_wrapper: bool,
 }
 
 /// Information about an if block for client-side code generation.
