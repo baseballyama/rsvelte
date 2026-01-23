@@ -582,13 +582,13 @@ jobs:
 
 **現在のテスト状況（2026-01-23 更新）:**
 
-- Runtime Runes: 16/724 (client: 19, server: 109)
+- Runtime Runes: 16/724 (Client: 23, Server: 111)
 - **Compiler Snapshot: 19/19 (100%)** ✅
 - Clippy: 0 件（全て修正済み）
 
 **本日の改善:**
-- C-032: Server +7 (102 → 109)
-- C-033: Total +2 (14 → 16)
+- C-034: Transition 実装（$.transition() 生成）
+- C-035: svelte:boundary 実装（$.boundary() 生成、Client +1）
 
 **発見事項（2026-01-23）:**
 - 多くのテストがフォーマットの違い（空行、クォート）で失敗
