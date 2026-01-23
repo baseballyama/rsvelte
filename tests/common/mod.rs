@@ -201,6 +201,9 @@ fn normalize_blank_lines(code: &str) -> String {
 /// Normalize JavaScript code for comparison (optimized for performance).
 /// This function performs lightweight normalization to compare the essential structure
 /// of JavaScript code, ignoring formatting differences like quotes, whitespace, and semicolons.
+///
+/// IMPORTANT: String literals (single/double quotes and template literals) are preserved
+/// exactly as-is, except for quote style normalization to single quotes.
 pub fn normalize_js(js: &str) -> String {
     use regex::Regex;
     lazy_static::lazy_static! {
@@ -216,35 +219,187 @@ pub fn normalize_js(js: &str) -> String {
     js.lines()
         .filter(|line| !line.trim().is_empty())
         .map(|line| {
-            let mut normalized = line.trim().to_string();
+            let trimmed = line.trim();
 
-            // Normalize quotes: double quotes to single quotes
-            normalized = normalized.replace('"', "'");
-
-            // Normalize tabs to spaces
-            normalized = normalized.replace('\t', " ");
-
-            // Normalize multiple spaces to single space
-            normalized = MULTI_SPACE.replace_all(&normalized, " ").to_string();
-
-            // Remove spaces before punctuation
-            normalized = SPACE_BEFORE_PUNC.replace_all(&normalized, "$1").to_string();
-
-            // Remove spaces after opening brackets
-            normalized = SPACE_AFTER_PUNC.replace_all(&normalized, "$1").to_string();
-
-            // Normalize "function ()" to "function()"
-            normalized = FUNCTION_SPACE_PAREN
-                .replace_all(&normalized, "function(")
-                .to_string();
+            // Extract string literals, normalize outside of strings, then restore
+            let (normalized, _) = normalize_line_preserving_strings(
+                trimmed,
+                &MULTI_SPACE,
+                &SPACE_BEFORE_PUNC,
+                &SPACE_AFTER_PUNC,
+                &FUNCTION_SPACE_PAREN,
+            );
 
             // Remove trailing semicolons for comparison (optional based on style)
-            normalized = normalized.trim_end_matches(';').to_string();
-
-            normalized
+            normalized.trim_end_matches(';').to_string()
         })
         .collect::<Vec<_>>()
         .join("\n")
+}
+
+/// Normalize a line while preserving string literal contents.
+/// Returns the normalized line and extracts string literals for protection.
+fn normalize_line_preserving_strings(
+    line: &str,
+    multi_space: &Regex,
+    space_before_punc: &Regex,
+    space_after_punc: &Regex,
+    function_space_paren: &Regex,
+) -> (String, Vec<String>) {
+    let mut strings: Vec<String> = Vec::new();
+    let mut result = String::with_capacity(line.len());
+    let mut chars = line.chars().peekable();
+    let mut placeholder_idx = 0;
+
+    while let Some(c) = chars.next() {
+        match c {
+            // Handle string literals
+            '"' | '\'' => {
+                let quote = c;
+                let mut string_content = String::new();
+                string_content.push(quote);
+
+                while let Some(&next_c) = chars.peek() {
+                    chars.next();
+                    string_content.push(next_c);
+
+                    if next_c == '\\' {
+                        // Handle escape sequence - consume next char
+                        if let Some(&escaped) = chars.peek() {
+                            chars.next();
+                            string_content.push(escaped);
+                        }
+                    } else if next_c == quote {
+                        // End of string
+                        break;
+                    }
+                }
+
+                // Store string and add placeholder
+                let placeholder = format!("__STR{}__", placeholder_idx);
+                placeholder_idx += 1;
+                strings.push(string_content);
+                result.push_str(&placeholder);
+            }
+            // Handle template literals
+            '`' => {
+                let mut template_content = String::new();
+                template_content.push('`');
+                let mut brace_depth = 0;
+
+                while let Some(&next_c) = chars.peek() {
+                    chars.next();
+                    template_content.push(next_c);
+
+                    if next_c == '\\' {
+                        // Handle escape sequence
+                        if let Some(&escaped) = chars.peek() {
+                            chars.next();
+                            template_content.push(escaped);
+                        }
+                    } else if next_c == '$' {
+                        // Check for ${
+                        if let Some(&'{') = chars.peek() {
+                            chars.next();
+                            template_content.push('{');
+                            brace_depth += 1;
+                        }
+                    } else if next_c == '{' && brace_depth > 0 {
+                        brace_depth += 1;
+                    } else if next_c == '}' && brace_depth > 0 {
+                        brace_depth -= 1;
+                    } else if next_c == '`' && brace_depth == 0 {
+                        // End of template literal
+                        break;
+                    }
+                }
+
+                // Store template and add placeholder
+                let placeholder = format!("__STR{}__", placeholder_idx);
+                placeholder_idx += 1;
+                strings.push(template_content);
+                result.push_str(&placeholder);
+            }
+            // Handle line comments - skip rest of line
+            '/' if chars.peek() == Some(&'/') => {
+                // Skip to end of line
+                break;
+            }
+            // Handle block comments
+            '/' if chars.peek() == Some(&'*') => {
+                chars.next(); // consume '*'
+                // Skip until */
+                while let Some(c) = chars.next() {
+                    if c == '*' && chars.peek() == Some(&'/') {
+                        chars.next(); // consume '/'
+                        break;
+                    }
+                }
+            }
+            _ => {
+                result.push(c);
+            }
+        }
+    }
+
+    // Now normalize the code (without string literals)
+    let mut normalized = result;
+
+    // Normalize tabs to spaces
+    normalized = normalized.replace('\t', " ");
+
+    // Normalize multiple spaces to single space
+    normalized = multi_space.replace_all(&normalized, " ").to_string();
+
+    // Remove spaces before punctuation
+    normalized = space_before_punc.replace_all(&normalized, "$1").to_string();
+
+    // Remove spaces after opening brackets
+    normalized = space_after_punc.replace_all(&normalized, "$1").to_string();
+
+    // Normalize "function ()" to "function()"
+    normalized = function_space_paren
+        .replace_all(&normalized, "function(")
+        .to_string();
+
+    // Restore string literals with normalized quotes (double -> single for outer quotes only)
+    for (idx, string_content) in strings.iter().enumerate() {
+        let placeholder = format!("__STR{}__", idx);
+        let normalized_string = normalize_string_quotes(string_content);
+        normalized = normalized.replace(&placeholder, &normalized_string);
+    }
+
+    (normalized, strings)
+}
+
+/// Normalize string quotes: convert double-quoted strings to single-quoted,
+/// but preserve the content exactly as-is.
+fn normalize_string_quotes(s: &str) -> String {
+    if s.is_empty() {
+        return s.to_string();
+    }
+
+    let mut chars = s.chars();
+    let first = chars.next().unwrap();
+
+    if first == '"' {
+        // Convert double-quoted string to single-quoted
+        // The content stays the same, just change outer quotes
+        let mut result = String::with_capacity(s.len());
+        result.push('\'');
+
+        let rest: String = chars.collect();
+        if rest.ends_with('"') {
+            result.push_str(&rest[..rest.len() - 1]);
+            result.push('\'');
+        } else {
+            result.push_str(&rest);
+        }
+        result
+    } else {
+        // Single quote or template literal - keep as-is
+        s.to_string()
+    }
 }
 
 /// Normalize CSS for comparison (replace hashes with placeholder).
@@ -727,5 +882,61 @@ impl TestCategory {
 impl std::fmt::Display for TestCategory {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.svelte_dir())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_normalize_js_preserves_template_literal_spaces() {
+        let input =
+            r#"$.template_effect(() => $.set_text(text, `clicks: ${$.get(count) ?? ''}`));"#;
+        let expected =
+            r#"$.template_effect(() => $.set_text(text, `clicks: ${$.get(count) ?? ''}`))"#;
+        assert_eq!(normalize_js(input), expected);
+    }
+
+    #[test]
+    fn test_normalize_js_preserves_string_literal_spaces() {
+        let input = r#"const msg = "hello   world";"#;
+        let expected = r#"const msg = 'hello   world'"#;
+        assert_eq!(normalize_js(input), expected);
+    }
+
+    #[test]
+    fn test_normalize_js_removes_empty_lines() {
+        let input = "const a = 1;\n\nconst b = 2;";
+        let expected = "const a = 1\nconst b = 2";
+        assert_eq!(normalize_js(input), expected);
+    }
+
+    #[test]
+    fn test_normalize_js_normalizes_quotes() {
+        let input = r#"const a = "test";"#;
+        let expected = "const a = 'test'";
+        assert_eq!(normalize_js(input), expected);
+    }
+
+    #[test]
+    fn test_normalize_js_normalizes_spaces() {
+        let input = "const   a  =   1;";
+        let expected = "const a = 1";
+        assert_eq!(normalize_js(input), expected);
+    }
+
+    #[test]
+    fn test_normalize_js_preserves_escaped_quotes() {
+        let input = r#"const a = "hello \"world\"";"#;
+        let expected = r#"const a = 'hello \"world\"'"#;
+        assert_eq!(normalize_js(input), expected);
+    }
+
+    #[test]
+    fn test_normalize_js_handles_template_with_expression() {
+        let input = r#"const msg = `Count: ${count + 1}`;"#;
+        let expected = r#"const msg = `Count: ${count + 1}`"#;
+        assert_eq!(normalize_js(input), expected);
     }
 }
