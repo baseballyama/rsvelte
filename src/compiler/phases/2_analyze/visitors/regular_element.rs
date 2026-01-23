@@ -7,6 +7,7 @@
 use super::super::AnalysisError;
 use super::VisitorContext;
 use super::attribute;
+use super::bind_directive;
 use super::shared::a11y::check_element as a11y_check;
 use super::shared::element::validate_element;
 use super::shared::fragment::{analyze, mark_subtree_dynamic};
@@ -667,10 +668,18 @@ pub fn visit(
             .push(element_idx);
     }
 
-    // Visit attributes
+    // Visit attributes and directives
+    // We need to validate bind directives with the element context
     for attr in &element.attributes {
-        if let Attribute::Attribute(attr_node) = attr {
-            attribute::visit(attr_node, context)?;
+        match attr {
+            Attribute::Attribute(attr_node) => {
+                attribute::visit(attr_node, context)?;
+            }
+            Attribute::BindDirective(bind) => {
+                // Validate bind directive with element context
+                bind_directive::visit_with_element(bind, element, context)?;
+            }
+            _ => {}
         }
     }
 

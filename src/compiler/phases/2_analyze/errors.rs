@@ -142,15 +142,20 @@ pub fn bind_invalid_target(name: &str, target: &str) -> AnalysisError {
     )
 }
 
-/// `%name%` binding is invalid for this element. %message%
-pub fn bind_invalid_name(name: &str, message: &str) -> AnalysisError {
-    error(
-        "bind_invalid_name",
+/// `bind:%name%` is not a valid binding. %explanation%
+pub fn bind_invalid_name(name: &str, explanation: Option<&str>) -> AnalysisError {
+    let message = if let Some(exp) = explanation {
         format!(
-            "`{}` binding is invalid for this element. {}",
-            name, message
-        ),
-    )
+            "`bind:{}` is not a valid binding. {}\nhttps://svelte.dev/e/bind_invalid_name",
+            name, exp
+        )
+    } else {
+        format!(
+            "`bind:{}` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name",
+            name
+        )
+    };
+    error("bind_invalid_name", message)
 }
 
 /// Cannot assign to %thing%
@@ -189,11 +194,11 @@ pub fn attribute_invalid_type(name: &str) -> AnalysisError {
     )
 }
 
-/// The 'multiple' attribute must be static
+/// The 'multiple' attribute must be static if select uses two-way binding
 pub fn attribute_invalid_multiple() -> AnalysisError {
     error(
         "attribute_invalid_multiple",
-        "The 'multiple' attribute must be static",
+        "'multiple' attribute must be static if select uses two-way binding\nhttps://svelte.dev/e/attribute_invalid_multiple",
     )
 }
 
@@ -247,7 +252,7 @@ pub fn derived_invalid_export() -> AnalysisError {
 pub fn module_illegal_default_export() -> AnalysisError {
     error(
         "module_illegal_default_export",
-        "A component cannot have a default export",
+        "A component cannot have a default export\nhttps://svelte.dev/e/module_illegal_default_export",
     )
 }
 

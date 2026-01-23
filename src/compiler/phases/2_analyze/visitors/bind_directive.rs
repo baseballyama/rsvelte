@@ -6,11 +6,41 @@
 
 use super::VisitorContext;
 use super::shared::utils::validate_assignment;
-use crate::ast::template::{AttributeValue, BindDirective, TemplateNode};
+use crate::ast::template::{AttributeValue, BindDirective, RegularElement, TemplateNode};
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use crate::compiler::phases::phase2_analyze::binding_properties::BINDING_PROPERTIES;
 use crate::compiler::phases::phase2_analyze::errors;
 use serde_json::Value;
+
+/// Visit a bind directive with explicit element context.
+///
+/// This is called from regular_element visitor when we have direct access to the element.
+pub fn visit_with_element(
+    directive: &BindDirective,
+    element: &RegularElement,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
+    // Validate binding for the element
+    validate_binding_for_regular_element(&directive.name, element, context)?;
+
+    // Continue with the rest of the validation
+    visit_common(directive, context)
+}
+
+/// Visit a bind directive on a Svelte special element (svelte:window, svelte:document, etc).
+///
+/// This is called from special element visitors like svelte_window.
+pub fn visit_with_svelte_element(
+    directive: &BindDirective,
+    element_name: &str,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
+    // Validate binding for the svelte element
+    validate_binding_for_svelte_element(&directive.name, element_name)?;
+
+    // Continue with the rest of the validation
+    visit_common(directive, context)
+}
 
 /// Visit a bind directive.
 ///
@@ -46,6 +76,14 @@ pub fn visit(directive: &BindDirective, context: &mut VisitorContext) -> Result<
         }
     }
 
+    visit_common(directive, context)
+}
+
+/// Common validation logic for bind directives.
+fn visit_common(
+    directive: &BindDirective,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
     // Handle getter/setter syntax (SequenceExpression)
     if directive
         .expression
@@ -156,28 +194,32 @@ pub fn visit(directive: &BindDirective, context: &mut VisitorContext) -> Result<
         == Some("Identifier")
     {
         // bind:this also works for regular variables, so skip validation for it
-        if directive.name != "this" {
-            if let Some(binding) = binding {
-                let valid_kind = matches!(
-                    binding.kind,
-                    crate::compiler::phases::phase2_analyze::BindingKind::State
-                        | crate::compiler::phases::phase2_analyze::BindingKind::RawState
-                        | crate::compiler::phases::phase2_analyze::BindingKind::Prop
-                        | crate::compiler::phases::phase2_analyze::BindingKind::BindableProp
-                        | crate::compiler::phases::phase2_analyze::BindingKind::EachItem
-                        | crate::compiler::phases::phase2_analyze::BindingKind::StoreSub
-                ) || binding.mutated;
+        // Note: For undefined variables, we allow the binding to proceed
+        // This may occur when the variable is defined elsewhere (e.g., in module scope)
+        // or when there are scoping issues that need to be resolved separately.
+        if directive.name != "this"
+            && let Some(binding) = binding
+        {
+            // In runes mode, check binding kind strictly
+            // In legacy mode, `let` declarations are allowed for bindings
+            // (their `updated` flag will be set during template analysis)
+            let valid_kind = matches!(
+                binding.kind,
+                crate::compiler::phases::phase2_analyze::BindingKind::State
+                    | crate::compiler::phases::phase2_analyze::BindingKind::RawState
+                    | crate::compiler::phases::phase2_analyze::BindingKind::Prop
+                    | crate::compiler::phases::phase2_analyze::BindingKind::BindableProp
+                    | crate::compiler::phases::phase2_analyze::BindingKind::EachItem
+                    | crate::compiler::phases::phase2_analyze::BindingKind::StoreSub
+                    // Legacy mode: allow let declarations (Normal kind)
+                    | crate::compiler::phases::phase2_analyze::BindingKind::Normal
+                    | crate::compiler::phases::phase2_analyze::BindingKind::Let
+            ) || binding.mutated;
 
-                if !valid_kind {
-                    return Err(AnalysisError::ValidationWithCode {
-                        code: "bind_invalid_value".to_string(),
-                        message: "Cannot bind to this value".to_string(),
-                    });
-                }
-            } else {
+            if !valid_kind {
                 return Err(AnalysisError::ValidationWithCode {
                     code: "bind_invalid_value".to_string(),
-                    message: "Cannot bind to undefined variable".to_string(),
+                    message: "Cannot bind to this value".to_string(),
                 });
             }
         }
@@ -258,7 +300,7 @@ fn validate_binding_for_element(
                 valid_bindings.join(", ")
             );
 
-            return Err(errors::bind_invalid_name(binding_name, &message));
+            return Err(errors::bind_invalid_name(binding_name, Some(&message)));
         }
 
         // Special validation for <input> elements
@@ -302,11 +344,147 @@ fn validate_binding_for_element(
         {
             return Err(errors::bind_invalid_name(
                 binding_name,
-                &format!("Did you mean '{}'?", match_name),
+                Some(&format!("Did you mean '{}'?", match_name)),
             ));
         }
 
-        return Err(errors::bind_invalid_name(binding_name, ""));
+        return Err(errors::bind_invalid_name(binding_name, None));
+    }
+
+    Ok(())
+}
+
+/// Validate binding for a Svelte special element (svelte:window, svelte:document, svelte:body).
+fn validate_binding_for_svelte_element(
+    binding_name: &str,
+    element_name: &str,
+) -> Result<(), AnalysisError> {
+    // Check if binding exists in binding_properties
+    if let Some(property) = BINDING_PROPERTIES.get(binding_name) {
+        // Check valid_elements
+        if let Some(valid_elements) = property.valid_elements
+            && !valid_elements.contains(&element_name)
+        {
+            // For svelte: elements, provide a list of possible bindings
+            let valid_bindings = get_valid_bindings_for_element(element_name);
+            let message = format!(
+                "Possible bindings for <{}> are {}",
+                element_name,
+                valid_bindings.join(", ")
+            );
+
+            return Err(errors::bind_invalid_name(binding_name, Some(&message)));
+        }
+
+        // Check invalid_elements
+        if let Some(invalid_elements) = property.invalid_elements
+            && invalid_elements.contains(&element_name)
+        {
+            let valid_bindings = get_valid_bindings_for_element(element_name);
+            let message = format!(
+                "Possible bindings for <{}> are {}",
+                element_name,
+                valid_bindings.join(", ")
+            );
+
+            return Err(errors::bind_invalid_name(binding_name, Some(&message)));
+        }
+    } else {
+        // Binding not found - try fuzzy match
+        let match_name = fuzzy_match(binding_name, &get_all_binding_names());
+
+        if let Some(match_name) = match_name
+            && let Some(property) = BINDING_PROPERTIES.get(match_name)
+            && (property.valid_elements.is_none()
+                || property.valid_elements.unwrap().contains(&element_name))
+        {
+            return Err(errors::bind_invalid_name(
+                binding_name,
+                Some(&format!("Did you mean '{}'?", match_name)),
+            ));
+        }
+
+        return Err(errors::bind_invalid_name(binding_name, None));
+    }
+
+    Ok(())
+}
+
+/// Validate binding for a regular element directly (without going through path).
+fn validate_binding_for_regular_element(
+    binding_name: &str,
+    element: &RegularElement,
+    context: &VisitorContext,
+) -> Result<(), AnalysisError> {
+    let parent_name = element.name.as_str();
+
+    // Check if binding exists in binding_properties
+    if let Some(property) = BINDING_PROPERTIES.get(binding_name) {
+        // Check valid_elements
+        if let Some(valid_elements) = property.valid_elements
+            && !valid_elements.contains(&parent_name)
+        {
+            let valid_list = valid_elements
+                .iter()
+                .map(|e| format!("`<{e}>`"))
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            return Err(errors::bind_invalid_target(binding_name, &valid_list));
+        }
+
+        // Check invalid_elements
+        if let Some(invalid_elements) = property.invalid_elements
+            && invalid_elements.contains(&parent_name)
+        {
+            let valid_bindings = get_valid_bindings_for_element(parent_name);
+            let message = format!(
+                "Possible bindings for <{}> are {}",
+                parent_name,
+                valid_bindings.join(", ")
+            );
+
+            return Err(errors::bind_invalid_name(binding_name, Some(&message)));
+        }
+
+        // Special validation for <input> elements
+        if parent_name == "input" && binding_name != "this" {
+            validate_input_binding(binding_name, element, context)?;
+        }
+
+        // Special validation for <select> elements
+        if parent_name == "select" && binding_name != "this" {
+            validate_select_binding(element)?;
+        }
+
+        // Special validation for SVG elements
+        if binding_name == "offsetWidth" && is_svg(parent_name) {
+            return Err(errors::bind_invalid_target(
+                binding_name,
+                "non-`<svg>` elements. Use `bind:clientWidth` for `<svg>` instead",
+            ));
+        }
+
+        // Validate contenteditable bindings
+        if is_content_editable_binding(binding_name) {
+            validate_contenteditable_binding(element)?;
+        }
+    } else {
+        // Binding not found - try fuzzy match
+        let match_name = fuzzy_match(binding_name, &get_all_binding_names());
+
+        if let Some(match_name) = match_name
+            && let Some(property) = BINDING_PROPERTIES.get(match_name)
+            && (property.valid_elements.is_none()
+                || property.valid_elements.unwrap().contains(&parent_name))
+        {
+            return Err(errors::bind_invalid_name(
+                binding_name,
+                Some(&format!("Did you mean '{}'?", match_name)),
+            ));
+        }
+
+        return Err(errors::bind_invalid_name(binding_name, None));
     }
 
     Ok(())
@@ -376,22 +554,34 @@ fn validate_input_binding(
 fn validate_select_binding(
     element: &crate::ast::template::RegularElement,
 ) -> Result<(), AnalysisError> {
-    // Find the multiple attribute
+    // Find the multiple attribute that is dynamic (not static text, not boolean true)
     let multiple = element.attributes.iter().find(|attr| {
         if let crate::ast::template::Attribute::Attribute(a) = attr {
-            a.name == "multiple"
-                && !is_text_attribute(a)
-                && !matches!(a.value, AttributeValue::True(_))
+            if a.name == "multiple" {
+                // Check if the value is dynamic (not static text and not boolean true)
+                match &a.value {
+                    AttributeValue::True(_) => false,      // Static boolean true is OK
+                    AttributeValue::Expression(_) => true, // Dynamic expression is an error
+                    AttributeValue::Sequence(seq) => {
+                        // Check if any part is an expression (dynamic)
+                        seq.iter().any(|part| {
+                            matches!(
+                                part,
+                                crate::ast::template::AttributeValuePart::ExpressionTag(_)
+                            )
+                        })
+                    }
+                }
+            } else {
+                false
+            }
         } else {
             false
         }
     });
 
     if multiple.is_some() {
-        return Err(AnalysisError::ValidationWithCode {
-            code: "attribute_invalid_multiple".to_string(),
-            message: "The 'multiple' attribute must be static".to_string(),
-        });
+        return Err(errors::attribute_invalid_multiple());
     }
 
     Ok(())
