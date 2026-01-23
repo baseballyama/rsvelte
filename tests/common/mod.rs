@@ -214,9 +214,20 @@ pub fn normalize_js(js: &str) -> String {
         static ref SPACE_AFTER_PUNC: Regex = Regex::new(r"([(\[{])\s+").unwrap();
         // Normalize "function ()" vs "function()" - remove space before opening paren after "function"
         static ref FUNCTION_SPACE_PAREN: Regex = Regex::new(r"function\s+\(").unwrap();
+        // Normalize opening brace followed by newline to brace followed by space
+        // This handles differences like "Counter($$anchor, {\n\tget foo()" vs "Counter($$anchor, { get foo()"
+        static ref BRACE_NEWLINE: Regex = Regex::new(r"\{\s*\n\s*").unwrap();
+        // Normalize closing braces across newlines: "}\n\t}" -> "}}"
+        static ref CLOSE_BRACE_NEWLINE: Regex = Regex::new(r"\}\s*\n\s*\}").unwrap();
     }
 
-    js.lines()
+    // First, normalize brace + newline patterns across the entire source
+    let mut result = js.to_string();
+    result = BRACE_NEWLINE.replace_all(&result, "{ ").to_string();
+    result = CLOSE_BRACE_NEWLINE.replace_all(&result, "}}").to_string();
+
+    result
+        .lines()
         .filter(|line| !line.trim().is_empty())
         .map(|line| {
             let trimmed = line.trim();

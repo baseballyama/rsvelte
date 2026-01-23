@@ -472,6 +472,18 @@ pub struct ComponentWithBinding {
     pub bind_var: String,
 }
 
+/// Information about a standalone component (component as only non-hoisted child).
+/// This is used when a component is the only child of a fragment (aside from hoisted nodes
+/// like snippets), and has no children itself. In this case, no template wrapper is needed.
+#[derive(Debug, Clone)]
+pub struct StandaloneComponent {
+    /// Component name (e.g., "Counter")
+    pub component_name: String,
+    /// Props as key-value pairs (name, expression)
+    /// For getters, the expression is wrapped in a getter during codegen
+    pub props: Vec<(String, String, bool)>, // (name, value, is_reactive)
+}
+
 /// Part of an await block content (pending, then, or catch).
 #[derive(Debug, Clone)]
 pub enum AwaitBlockPart {

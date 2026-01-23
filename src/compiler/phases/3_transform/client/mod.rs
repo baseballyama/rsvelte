@@ -14,7 +14,7 @@ use state::{
     AwaitBlockInfo, AwaitBlockPart, BindThisComponent, ChildPart, ComponentWithBinding,
     ComponentWithChildren, DynamicAttribute, EachBlockInfo, EventHandler, HtmlTagInfo, IfBlockInfo,
     IfBlockPart, NodeInfo, NodeType, SnippetBodyPart, SnippetInfo, SnippetParameter,
-    SpecialAttribute, SvelteElementInfo,
+    SpecialAttribute, StandaloneComponent, SvelteElementInfo,
 };
 
 use super::TransformError;
@@ -171,6 +171,8 @@ struct ClientCodeGenerator {
     snippets: Vec<SnippetInfo>,
     /// Components with value bindings (for getter/setter generation)
     components_with_bindings: Vec<ComponentWithBinding>,
+    /// Standalone components (component as only non-hoisted child, no template needed)
+    standalone_components: Vec<StandaloneComponent>,
     /// Await blocks for runtime code generation
     await_blocks: Vec<AwaitBlockInfo>,
     /// If blocks for runtime code generation
@@ -283,6 +285,7 @@ impl ClientCodeGenerator {
             components_with_children: Vec::new(),
             snippets: Vec::new(),
             components_with_bindings: Vec::new(),
+            standalone_components: Vec::new(),
             await_blocks: Vec::new(),
             if_blocks: Vec::new(),
             if_block_counter: 0,
@@ -310,6 +313,110 @@ impl ClientCodeGenerator {
     }
 
     fn generate_component(&mut self, fragment: &Fragment) -> Result<(), TransformError> {
+        // Separate hoisted nodes from regular nodes
+        // Hoisted: ConstTag, DebugTag, SnippetBlock, SvelteBody, SvelteWindow, SvelteDocument, SvelteHead, TitleElement
+        let mut hoisted_nodes: Vec<&TemplateNode> = Vec::new();
+        let mut regular_nodes: Vec<&TemplateNode> = Vec::new();
+
+        for node in &fragment.nodes {
+            match node {
+                TemplateNode::ConstTag(_)
+                | TemplateNode::DebugTag(_)
+                | TemplateNode::SnippetBlock(_)
+                | TemplateNode::SvelteBody(_)
+                | TemplateNode::SvelteWindow(_)
+                | TemplateNode::SvelteDocument(_)
+                | TemplateNode::SvelteHead(_)
+                | TemplateNode::TitleElement(_) => {
+                    hoisted_nodes.push(node);
+                }
+                TemplateNode::Text(t) if t.data.trim().is_empty() => {
+                    // Skip whitespace-only text
+                }
+                _ => {
+                    regular_nodes.push(node);
+                }
+            }
+        }
+
+        // Collect snippet names from hoisted nodes for prop reactivity detection
+        let snippet_names: Vec<String> = hoisted_nodes
+            .iter()
+            .filter_map(|node| {
+                if let TemplateNode::SnippetBlock(snippet) = node {
+                    // Extract snippet name from expression
+                    let expr_start = snippet.expression.start().unwrap_or(0) as usize;
+                    let expr_end = snippet.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        return Some(self.source[expr_start..expr_end].trim().to_string());
+                    }
+                }
+                None
+            })
+            .collect();
+
+        // Check if this is a standalone component case:
+        // - Exactly one regular node that is a Component
+        // - Component has no children (empty fragment or only whitespace)
+        // - Component has no bind directives (bind:this is handled separately)
+        if regular_nodes.len() == 1
+            && let TemplateNode::Component(component) = regular_nodes[0]
+        {
+            // Check if component has bind directives (bind:this, bind:value, etc.)
+            let has_bind_directives = component
+                .attributes
+                .iter()
+                .any(|attr| matches!(attr, Attribute::BindDirective(_)));
+
+            // Check if component has no meaningful children
+            let has_children = component
+                .fragment
+                .nodes
+                .iter()
+                .any(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()));
+
+            if !has_children && !has_bind_directives {
+                // This is a standalone component - extract props and track it
+                let comp_name = component.name.to_string();
+                let mut props: Vec<(String, String, bool)> = Vec::new();
+
+                for attr in &component.attributes {
+                    if let Attribute::Attribute(node) = attr {
+                        let name = node.name.as_str();
+                        if let AttributeValue::Expression(expr_tag) = &node.value {
+                            let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                            let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                            if expr_end > expr_start && expr_end <= self.source.len() {
+                                let expr_source =
+                                    self.source[expr_start..expr_end].trim().to_string();
+                                // Mark as needs_getter if:
+                                // 1. Expression is different from prop name (computed value)
+                                // 2. Expression references a snippet (module-level binding)
+                                // 3. Expression references a state variable
+                                let needs_getter = expr_source != name
+                                    || snippet_names.contains(&expr_source)
+                                    || self.state_vars.contains(&expr_source)
+                                    || self.proxy_state_vars.contains(&expr_source);
+                                props.push((name.to_string(), expr_source, needs_getter));
+                            }
+                        }
+                    }
+                }
+
+                self.standalone_components.push(StandaloneComponent {
+                    component_name: comp_name,
+                    props,
+                });
+
+                // Process hoisted nodes (like snippets) but don't add template placeholder
+                for node in hoisted_nodes {
+                    self.generate_node(node, true)?;
+                }
+
+                return Ok(());
+            }
+        }
+
         // Count root elements (non-whitespace nodes)
         self.root_element_count = fragment
             .nodes
@@ -3092,13 +3199,60 @@ impl ClientCodeGenerator {
         let has_component_with_children =
             !self.components_with_children.is_empty() && html.is_empty() && self.nodes.is_empty();
 
+        // Check for standalone component (component as only non-hoisted child, no template needed)
+        let has_standalone_component = !self.standalone_components.is_empty();
+
         // Check for component with bindings (like bind:value)
         let has_component_with_binding = !self.components_with_bindings.is_empty();
 
         // Generate component binding code (using AST-based generation)
         let component_binding_code = self.generate_component_binding_code_via_ast();
 
-        let raw_output = if has_component_with_binding && !snippets_code.is_empty() {
+        let raw_output = if has_standalone_component {
+            // Standalone component - no template wrapper needed
+            // Just call Component($$anchor, { props })
+            let comp = &self.standalone_components[0];
+            let props_str = if comp.props.is_empty() {
+                String::new()
+            } else {
+                let props_formatted: Vec<String> = comp
+                    .props
+                    .iter()
+                    .map(|(name, value, is_reactive)| {
+                        if *is_reactive {
+                            // Use getter for reactive props
+                            format!("get {}() {{\n\t\t\treturn {};\n\t\t}}", name, value)
+                        } else {
+                            // Shorthand for non-reactive props that match name
+                            name.clone()
+                        }
+                    })
+                    .collect();
+                format!("{{\n\t\t{}\n\t}}", props_formatted.join(",\n\t\t"))
+            };
+
+            let component_call = if props_str.is_empty() {
+                format!("\t{}($$anchor);", comp.component_name)
+            } else {
+                format!("\t{}($$anchor, {});", comp.component_name, props_str)
+            };
+
+            format!(
+                r#"{system_imports}
+{hoisted_imports}{module_script}{snippets_code}
+export default function {component_name}({fn_params}) {{
+{script_code}{component_call}
+}}"#,
+                system_imports = system_imports,
+                hoisted_imports = hoisted_imports,
+                module_script = module_script,
+                snippets_code = snippets_code,
+                component_name = self.component_name,
+                fn_params = fn_params,
+                script_code = script_code,
+                component_call = component_call
+            )
+        } else if has_component_with_binding && !snippets_code.is_empty() {
             // Component with binding + snippets + root-level expressions
             // Template is just `<!> ` for the component placeholder + space for text node
             // Check if we have root-level expressions in nodes
