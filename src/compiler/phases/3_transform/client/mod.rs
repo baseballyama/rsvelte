@@ -31,7 +31,10 @@ use super::js_ast::{
         svelte_template_effect_with_values, svelte_text, template, thunk, var_decl,
     },
     generate,
-    nodes::{JsBlockStatement, JsExpr, JsObjectMember, JsPattern, JsStatement},
+    nodes::{
+        JsBlockStatement, JsExpr, JsObjectMember, JsPattern, JsStatement, JsTemplateElement,
+        JsTemplateLiteral,
+    },
     normalize_js,
 };
 use super::shared::{escape_attr, escape_html, is_void_element};
@@ -2220,9 +2223,11 @@ impl ClientCodeGenerator {
                     each_info.dynamic_attributes = dynamic_attrs;
                     each_info.event_handlers = event_handlers;
 
-                    // Check for static text content
-                    let mut has_only_static_text = true;
+                    // Check for static text content and expressions
+                    let mut has_expressions = false;
                     let mut static_text = String::new();
+                    let mut expressions: Vec<String> = Vec::new();
+
                     for child in &elem.fragment.nodes {
                         match child {
                             TemplateNode::Text(text) => {
@@ -2231,39 +2236,80 @@ impl ClientCodeGenerator {
                                     static_text.push_str(trimmed);
                                 }
                             }
-                            TemplateNode::ExpressionTag(_) => {
-                                has_only_static_text = false;
-                            }
-                            _ => {}
-                        }
-                    }
-
-                    if has_only_static_text && !static_text.is_empty() {
-                        template_html.push_str(&static_text);
-                    } else if !has_only_static_text {
-                        // Add a space placeholder for expression content
-                        // This creates a text node that can be updated at runtime
-                        template_html.push(' ');
-                    }
-
-                    template_html.push_str(&format!("</{elem_name}>"));
-                    each_info.template_html = Some(template_html);
-
-                    // Check for dynamic expressions inside the element
-                    // Store expressions for reactive handling with $.child + $.template_effect
-                    if !has_only_static_text {
-                        for child in &elem.fragment.nodes {
-                            if let TemplateNode::ExpressionTag(tag) = child {
+                            TemplateNode::ExpressionTag(tag) => {
+                                has_expressions = true;
                                 let expr_start = tag.start as usize;
                                 let expr_end = tag.end as usize;
                                 if expr_start + 1 < expr_end && expr_end <= self.source.len() {
                                     let expr = self.source[expr_start + 1..expr_end - 1]
                                         .trim()
                                         .to_string();
-                                    // Store raw expression (not wrapped in TEMPLATE:)
-                                    // This will be wrapped with $.get() in code generation
-                                    each_info.body_expressions.push(expr);
+                                    expressions.push(expr);
                                 }
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    // Check if all expressions only reference the index variable (non-reactive)
+                    let expressions_only_index = if has_expressions {
+                        if let Some(ref idx_name) = each_info.index_name {
+                            expressions.iter().all(|expr| expr == idx_name)
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    };
+
+                    if !has_expressions && !static_text.is_empty() {
+                        // Pure static text content
+                        template_html.push_str(&static_text);
+                    } else if has_expressions && !expressions_only_index {
+                        // Reactive expressions - add space placeholder
+                        template_html.push(' ');
+                    }
+                    // If expressions_only_index, no placeholder needed (we'll use textContent)
+
+                    template_html.push_str(&format!("</{elem_name}>"));
+                    each_info.template_html = Some(template_html);
+
+                    // Handle expressions
+                    if has_expressions {
+                        if expressions_only_index {
+                            // Index-only expressions: build a template literal for static assignment
+                            // Build template content: "text ${index}"
+                            let mut template_parts = Vec::new();
+                            for child in &elem.fragment.nodes {
+                                match child {
+                                    TemplateNode::Text(text) => {
+                                        // Preserve text as-is (including whitespace)
+                                        template_parts.push(text.data.to_string());
+                                    }
+                                    TemplateNode::ExpressionTag(tag) => {
+                                        let expr_start = tag.start as usize;
+                                        let expr_end = tag.end as usize;
+                                        if expr_start + 1 < expr_end
+                                            && expr_end <= self.source.len()
+                                        {
+                                            let expr =
+                                                self.source[expr_start + 1..expr_end - 1].trim();
+                                            template_parts.push(format!("${{{}}}", expr));
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            // Trim leading/trailing whitespace from the combined template
+                            let combined = template_parts.join("");
+                            let trimmed = combined.trim();
+                            each_info
+                                .body_expressions
+                                .push(format!("TEMPLATE:{}", trimmed));
+                        } else {
+                            // Reactive expressions - store for $.child + $.template_effect
+                            for expr in expressions {
+                                each_info.body_expressions.push(expr);
                             }
                         }
                     }
@@ -3213,9 +3259,24 @@ export default function {component_name}({fn_params}) {{
             for part in children_parts {
                 match part {
                     ChildPart::Text(text) => {
-                        let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
+                        // Normalize internal whitespace but preserve trailing space if present
+                        let trimmed_start = text.trim_start();
+                        let trimmed_end = text.trim_end();
+                        let has_trailing_space = text.len() > trimmed_end.len();
+
+                        // Normalize internal whitespace
+                        let normalized = trimmed_start
+                            .split_whitespace()
+                            .collect::<Vec<_>>()
+                            .join(" ");
+
                         if !normalized.is_empty() {
-                            content_parts.push(normalized);
+                            // Add trailing space back if it was present (for text followed by expression)
+                            if has_trailing_space {
+                                content_parts.push(format!("{} ", normalized));
+                            } else {
+                                content_parts.push(normalized);
+                            }
                         }
                     }
                     ChildPart::Expression(expr) => {
@@ -5022,51 +5083,60 @@ export default function {component_name}({fn_params}) {{
 
                 // Handle dynamic text content
                 if !each.body_expressions.is_empty() {
-                    // Dynamic expressions - use $.child + $.reset + $.template_effect pattern
-                    // var text = $.child(elem, true);
-                    body_stmts.push(var_decl(
-                        "text",
-                        Some(svelte_child(id(elem_var), Some(true))),
-                    ));
-
-                    // $.reset(elem);
-                    body_stmts.push(stmt(svelte_reset(id(elem_var))));
-
-                    // Build the template effect expression
-                    // Wrap context variable references in $.get() for reactivity
-                    let context_name = each.context_name.as_deref().unwrap_or("$$item");
-                    let expr_parts: Vec<String> = each
-                        .body_expressions
-                        .iter()
-                        .map(|expr| {
-                            // Check if expression matches context variable and wrap in $.get()
-                            if expr == context_name {
-                                format!("$.get({})", expr)
-                            } else {
-                                expr.clone()
-                            }
-                        })
-                        .collect();
-
-                    // For a single expression, use direct $.get call
-                    // For multiple expressions, use template literal
-                    if expr_parts.len() == 1 {
-                        // $.template_effect(() => $.set_text(text, $.get(x)));
-                        body_stmts.push(stmt(svelte_template_effect(thunk(svelte_set_text(
-                            id("text"),
-                            id(&expr_parts[0]),
-                        )))));
+                    // Check if first expression is a pre-built template (for index-only expressions)
+                    let first_expr = &each.body_expressions[0];
+                    if let Some(template_content) = first_expr.strip_prefix("TEMPLATE:") {
+                        // Static template content - use direct textContent assignment
+                        // p.textContent = `index: ${i}`;
+                        let template_lit = template(vec![quasi(template_content, true)], vec![]);
+                        body_stmts.push(stmt(set_text_content(id(elem_var), template_lit)));
                     } else {
-                        // Multiple expressions - use template literal
-                        let template_str = expr_parts
+                        // Dynamic expressions - use $.child + $.reset + $.template_effect pattern
+                        // var text = $.child(elem, true);
+                        body_stmts.push(var_decl(
+                            "text",
+                            Some(svelte_child(id(elem_var), Some(true))),
+                        ));
+
+                        // $.reset(elem);
+                        body_stmts.push(stmt(svelte_reset(id(elem_var))));
+
+                        // Build the template effect expression
+                        // Wrap context variable references in $.get() for reactivity
+                        let context_name = each.context_name.as_deref().unwrap_or("$$item");
+                        let expr_parts: Vec<String> = each
+                            .body_expressions
                             .iter()
-                            .map(|e| format!("${{{}}}", e))
-                            .collect::<Vec<_>>()
-                            .join("");
-                        body_stmts.push(stmt(svelte_template_effect(thunk(svelte_set_text(
-                            id("text"),
-                            template(vec![quasi(&template_str, true)], vec![]),
-                        )))));
+                            .map(|expr| {
+                                // Check if expression matches context variable and wrap in $.get()
+                                if expr == context_name {
+                                    format!("$.get({})", expr)
+                                } else {
+                                    expr.clone()
+                                }
+                            })
+                            .collect();
+
+                        // For a single expression, use direct $.get call
+                        // For multiple expressions, use template literal
+                        if expr_parts.len() == 1 {
+                            // $.template_effect(() => $.set_text(text, $.get(x)));
+                            body_stmts.push(stmt(svelte_template_effect(thunk(svelte_set_text(
+                                id("text"),
+                                id(&expr_parts[0]),
+                            )))));
+                        } else {
+                            // Multiple expressions - use template literal
+                            let template_str = expr_parts
+                                .iter()
+                                .map(|e| format!("${{{}}}", e))
+                                .collect::<Vec<_>>()
+                                .join("");
+                            body_stmts.push(stmt(svelte_template_effect(thunk(svelte_set_text(
+                                id("text"),
+                                template(vec![quasi(&template_str, true)], vec![]),
+                            )))));
+                        }
                     }
                 }
 
@@ -5245,7 +5315,34 @@ export default function {component_name}({fn_params}) {{
                         .iter()
                         .any(|n| matches!(n, TemplateNode::ExpressionTag(_)));
 
-                    if has_expressions {
+                    // Check if all expressions only reference the index variable (non-reactive)
+                    // If so, we can use static textContent assignment instead of $.template_effect
+                    let expressions_only_index = if has_expressions {
+                        if let Some(ref idx_name) = index_name {
+                            elem.fragment.nodes.iter().all(|n| {
+                                if let TemplateNode::ExpressionTag(tag) = n {
+                                    let expr_start = tag.start as usize;
+                                    let expr_end = tag.end as usize;
+                                    if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                                        let expr = self.source[expr_start + 1..expr_end - 1].trim();
+                                        // Check if expression is just the index variable
+                                        expr == idx_name
+                                    } else {
+                                        false
+                                    }
+                                } else {
+                                    true // Text nodes are ok
+                                }
+                            })
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    };
+
+                    // If expressions only use index variable, no placeholder needed
+                    if has_expressions && !expressions_only_index {
                         template_html.push_str("> </");
                     } else {
                         template_html.push_str("></");
@@ -5276,27 +5373,81 @@ export default function {component_name}({fn_params}) {{
 
                     // Check for expression children
                     if has_expressions {
-                        // var text = $.child(p, true);
-                        body_stmts.push(var_decl(
-                            "text",
-                            Some(svelte_child(id(elem_name), Some(true))),
-                        ));
+                        if expressions_only_index {
+                            // Static case: expressions only use index variable
+                            // Build template literal from all children: `text ${index} text`
+                            let mut quasis_strs: Vec<String> = Vec::new();
+                            let mut expressions: Vec<JsExpr> = Vec::new();
+                            let mut current_text = String::new();
 
-                        // $.reset(p);
-                        body_stmts.push(stmt(svelte_reset(id(elem_name))));
+                            for child in &elem.fragment.nodes {
+                                match child {
+                                    TemplateNode::Text(text) => {
+                                        current_text.push_str(&text.data);
+                                    }
+                                    TemplateNode::ExpressionTag(tag) => {
+                                        // Push accumulated text as quasi
+                                        quasis_strs.push(current_text.clone());
+                                        current_text.clear();
 
-                        // Build template effect for expressions
-                        for child in &elem.fragment.nodes {
-                            if let TemplateNode::ExpressionTag(tag) = child {
-                                let expr_start = tag.start as usize;
-                                let expr_end = tag.end as usize;
-                                if expr_start + 1 < expr_end && expr_end <= self.source.len() {
-                                    let expr = self.source[expr_start + 1..expr_end - 1].trim();
-                                    // $.template_effect(() => $.set_text(text, $.get(x)));
-                                    let get_call = call(member_path("$.get"), vec![id(expr)]);
-                                    body_stmts.push(stmt(svelte_template_effect(thunk(
-                                        svelte_set_text(id("text"), get_call),
-                                    ))));
+                                        // Get the expression
+                                        let expr_start = tag.start as usize;
+                                        let expr_end = tag.end as usize;
+                                        if expr_start + 1 < expr_end
+                                            && expr_end <= self.source.len()
+                                        {
+                                            let expr =
+                                                self.source[expr_start + 1..expr_end - 1].trim();
+                                            expressions.push(id(expr));
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            // Push final text
+                            quasis_strs.push(current_text);
+
+                            // Build quasis
+                            let quasis: Vec<JsTemplateElement> = quasis_strs
+                                .iter()
+                                .enumerate()
+                                .map(|(i, s)| JsTemplateElement {
+                                    raw: s.clone(),
+                                    cooked: s.clone(),
+                                    tail: i == quasis_strs.len() - 1,
+                                })
+                                .collect();
+
+                            // p.textContent = `text ${index}`;
+                            let template_lit = JsExpr::TemplateLiteral(JsTemplateLiteral {
+                                quasis,
+                                expressions,
+                            });
+                            body_stmts.push(stmt(set_text_content(id(elem_name), template_lit)));
+                        } else {
+                            // Dynamic case: use $.child + $.template_effect
+                            // var text = $.child(p, true);
+                            body_stmts.push(var_decl(
+                                "text",
+                                Some(svelte_child(id(elem_name), Some(true))),
+                            ));
+
+                            // $.reset(p);
+                            body_stmts.push(stmt(svelte_reset(id(elem_name))));
+
+                            // Build template effect for expressions
+                            for child in &elem.fragment.nodes {
+                                if let TemplateNode::ExpressionTag(tag) = child {
+                                    let expr_start = tag.start as usize;
+                                    let expr_end = tag.end as usize;
+                                    if expr_start + 1 < expr_end && expr_end <= self.source.len() {
+                                        let expr = self.source[expr_start + 1..expr_end - 1].trim();
+                                        // $.template_effect(() => $.set_text(text, $.get(x)));
+                                        let get_call = call(member_path("$.get"), vec![id(expr)]);
+                                        body_stmts.push(stmt(svelte_template_effect(thunk(
+                                            svelte_set_text(id("text"), get_call),
+                                        ))));
+                                    }
                                 }
                             }
                         }
