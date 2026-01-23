@@ -13,22 +13,23 @@ pub mod visitors;
 use state::{
     AwaitBlockInfo, BindThisComponent, ChildPart, ComponentWithBinding, ComponentWithChildren,
     DynamicAttribute, EachBlockInfo, EventHandler, HtmlTagInfo, IfBlockInfo, IfBlockPart, NodeInfo,
-    NodeType, SnippetInfo, SpecialAttribute, SvelteElementInfo,
+    NodeType, SnippetBodyPart, SnippetInfo, SnippetParameter, SpecialAttribute, SvelteElementInfo,
 };
 
 use super::TransformError;
 use super::js_ast::{
     builders::{
-        array, arrow, arrow_block, assign, boolean, call, const_decl, export_default_function,
-        getter, id, id_pattern, if_stmt, import_namespace, import_side_effect, member, member_path,
-        nullish, object, optional_call, program, prop, quasi, raw, return_value, set_text_content,
-        setter, stmt, string, svelte_action, svelte_append, svelte_autofocus, svelte_await,
-        svelte_bind_value, svelte_child, svelte_comment, svelte_each, svelte_element,
-        svelte_first_child, svelte_from_html, svelte_get, svelte_html, svelte_index, svelte_next,
-        svelte_remove_input_defaults, svelte_reset, svelte_set, svelte_set_attribute,
-        svelte_set_class, svelte_set_custom_element_data, svelte_set_style, svelte_set_sync,
-        svelte_set_text, svelte_sibling, svelte_template_effect,
-        svelte_template_effect_with_values, svelte_text, template, thunk, var_decl,
+        array, arrow, arrow_block, assign, assignment_pattern, boolean, call, const_decl,
+        export_default_function, getter, id, id_pattern, if_stmt, import_namespace,
+        import_side_effect, member, member_path, nullish, object, optional_call, program, prop,
+        quasi, raw, return_value, set_text_content, setter, stmt, string, svelte_action,
+        svelte_append, svelte_autofocus, svelte_await, svelte_bind_value, svelte_child,
+        svelte_comment, svelte_each, svelte_element, svelte_first_child, svelte_from_html,
+        svelte_get, svelte_html, svelte_index, svelte_next, svelte_remove_input_defaults,
+        svelte_reset, svelte_set, svelte_set_attribute, svelte_set_class,
+        svelte_set_custom_element_data, svelte_set_style, svelte_set_sync, svelte_set_text,
+        svelte_sibling, svelte_template_effect, svelte_template_effect_with_values, svelte_text,
+        template, thunk, var_decl,
     },
     generate,
     nodes::{
@@ -2437,21 +2438,167 @@ impl ClientCodeGenerator {
             return Ok(());
         };
 
-        // Extract body content (for now just text)
-        let mut body_text = String::new();
-        for node in &block.body.nodes {
-            if let TemplateNode::Text(text) = node {
-                let trimmed = text.data.trim();
-                if !trimmed.is_empty() {
-                    body_text = trimmed.to_string();
+        // Extract parameters
+        let mut parameters = Vec::new();
+        for param in &block.parameters {
+            let param_start = param.start().unwrap_or(0) as usize;
+            let param_end = param.end().unwrap_or(0) as usize;
+            if param_end > param_start && param_end <= self.source.len() {
+                let param_text = self.source[param_start..param_end].trim();
+                // Check if it's a simple identifier or has a default value
+                let (param_name, has_default) = if param_text.contains('=') {
+                    // AssignmentPattern: param = default
+                    let parts: Vec<&str> = param_text.splitn(2, '=').collect();
+                    (parts[0].trim().to_string(), true)
+                } else {
+                    (param_text.to_string(), false)
+                };
+                parameters.push(SnippetParameter {
+                    name: param_name,
+                    has_default,
+                });
+            }
+        }
+
+        // Analyze body to generate template and body parts
+        let (template_var, template_html, body_parts) =
+            self.analyze_snippet_body(&block.body, &parameters);
+
+        // Store snippet info
+        self.snippets.push(SnippetInfo {
+            name,
+            parameters,
+            template_var,
+            template_html,
+            body_parts,
+            can_hoist: block.metadata.can_hoist,
+        });
+
+        Ok(())
+    }
+
+    /// Analyze snippet body to extract template and body parts.
+    fn analyze_snippet_body(
+        &mut self,
+        fragment: &Fragment,
+        parameters: &[SnippetParameter],
+    ) -> (Option<String>, Option<String>, Vec<SnippetBodyPart>) {
+        let mut body_parts = Vec::new();
+        let mut template_html = String::new();
+        let mut has_element = false;
+
+        for node in &fragment.nodes {
+            match node {
+                TemplateNode::Text(text) => {
+                    let trimmed = text.data.trim();
+                    if !trimmed.is_empty() {
+                        // For text-only content, we add it directly
+                        // For element content, whitespace becomes " " in template
+                        body_parts.push(SnippetBodyPart::Text(trimmed.to_string()));
+                    }
+                }
+                TemplateNode::RegularElement(elem) => {
+                    has_element = true;
+                    let (elem_html, elem_parts) = self.analyze_snippet_element(elem, parameters);
+                    template_html = elem_html;
+
+                    // Create element body part
+                    let template_var = format!("root_{}", self.snippets.len() + 1);
+                    body_parts.push(SnippetBodyPart::Element {
+                        tag: elem.name.to_string(),
+                        template_var: template_var.clone(),
+                        template_html: template_html.clone(),
+                        children: elem_parts,
+                    });
+                }
+                TemplateNode::ExpressionTag(expr) => {
+                    // Check if this expression references a parameter
+                    let expr_start = expr.expression.start().unwrap_or(0) as usize;
+                    let expr_end = expr.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let expr_text = self.source[expr_start..expr_end].trim().to_string();
+                        body_parts.push(SnippetBodyPart::Expression(expr_text));
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if has_element {
+            let template_var = format!("root_{}", self.snippets.len() + 1);
+            (Some(template_var), Some(template_html), body_parts)
+        } else {
+            (None, None, body_parts)
+        }
+    }
+
+    /// Analyze an element within a snippet body.
+    fn analyze_snippet_element(
+        &self,
+        elem: &RegularElement,
+        _parameters: &[SnippetParameter],
+    ) -> (String, Vec<SnippetBodyPart>) {
+        let mut html = format!("<{}", elem.name);
+        let mut children_parts = Vec::new();
+
+        // Add attributes
+        for attr in &elem.attributes {
+            if let Attribute::Attribute(attr_node) = attr {
+                let attr_name = &attr_node.name;
+                if let AttributeValue::Sequence(ref parts) = attr_node.value
+                    && parts.len() == 1
+                    && let AttributeValuePart::Text(ref text) = parts[0]
+                {
+                    html.push_str(&format!(" {}=\"{}\"", attr_name, text.data));
                 }
             }
         }
 
-        // Store snippet info
-        self.snippets.push(SnippetInfo { name, body_text });
+        html.push('>');
 
-        Ok(())
+        // Analyze children - look for expressions that reference parameters
+        let mut has_dynamic_text = false;
+        for child in &elem.fragment.nodes {
+            match child {
+                TemplateNode::Text(text) => {
+                    // Don't fully trim - we need to preserve spacing around expressions
+                    // e.g., "clicks: " should keep the trailing space
+                    let data = text.data.as_str();
+                    // Only trim leading/trailing newlines and leading whitespace on new lines
+                    let normalized = data
+                        .lines()
+                        .map(|line| line.trim_start())
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                        .trim_start()
+                        .to_string();
+                    if !normalized.is_empty() {
+                        children_parts.push(SnippetBodyPart::Text(normalized));
+                    }
+                }
+                TemplateNode::ExpressionTag(expr) => {
+                    has_dynamic_text = true;
+                    let expr_start = expr.expression.start().unwrap_or(0) as usize;
+                    let expr_end = expr.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let expr_text = self.source[expr_start..expr_end].trim().to_string();
+                        // Add expression regardless of whether it's a parameter
+                        // (the differentiation happens during code generation)
+                        children_parts.push(SnippetBodyPart::Expression(expr_text));
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // If element has dynamic text content, add a space placeholder in template
+        if has_dynamic_text {
+            html.push(' ');
+        }
+
+        html.push_str(&format!("</{}>", elem.name));
+
+        (html, children_parts)
     }
 
     fn generate_render_tag(&mut self, _tag: &RenderTag) -> Result<(), TransformError> {
@@ -3409,24 +3556,8 @@ export default function {component_name}({fn_params}) {{
     /// Legacy string-based snippet code generation.
     #[allow(dead_code)]
     fn generate_snippets_code(&self) -> String {
-        let mut code = String::new();
-
-        for snippet in &self.snippets {
-            code.push_str(&format!(
-                r#"const {} = ($$anchor) => {{
-	$.next();
-
-	var text = $.text('{}');
-
-	$.append($$anchor, text);
-}};
-
-"#,
-                snippet.name, snippet.body_text
-            ));
-        }
-
-        code
+        // Use AST-based generation instead
+        self.generate_snippets_code_via_ast()
     }
 
     /// Legacy string-based component binding code generation.
@@ -4633,10 +4764,9 @@ export default function {component_name}({fn_params}) {{
 
                     let call_expr = if let Some(ref expr) = node.expression {
                         // Parse the expression as object properties
-                        call(
-                            id(name),
-                            vec![id(&node.var_name), id(format!("{{ {} }}", expr))],
-                        )
+                        // For snippets, we need to use getters: { get foo() { return foo; } }
+                        let props_obj = self.build_component_props_object(expr, &node.var_name);
+                        call(id(name), vec![id(&node.var_name), props_obj])
                     } else {
                         call(id(name), vec![id(&node.var_name)])
                     };
@@ -4757,6 +4887,57 @@ export default function {component_name}({fn_params}) {{
     fn generate_runtime_code_via_ast(&self, root_var: &str) -> String {
         let statements = self.generate_runtime_code_ast(root_var);
         self.statements_to_string(&statements)
+    }
+
+    /// Build a props object for a component call, converting snippet references to getters.
+    /// Input: "foo" (shorthand) or "name: value, other: val2"
+    /// For snippets, produces: { get foo() { return foo; } }
+    /// For other props, produces: { name: value }
+    fn build_component_props_object(&self, expr: &str, _anchor: &str) -> JsExpr {
+        let snippet_names: Vec<String> = self.snippets.iter().map(|s| s.name.clone()).collect();
+
+        let mut members: Vec<JsObjectMember> = Vec::new();
+
+        // Parse the expression - it could be:
+        // - "foo" (single shorthand)
+        // - "foo, bar" (multiple shorthands)
+        // - "name: value" (key-value)
+        // - "name: value, other: val2" (multiple key-values)
+        // - "foo, name: value" (mixed)
+
+        for prop_str in expr.split(',') {
+            let prop_str = prop_str.trim();
+            if prop_str.is_empty() {
+                continue;
+            }
+
+            if let Some((key, value)) = prop_str.split_once(':') {
+                // Key-value pair: "name: value"
+                let key = key.trim();
+                let value = value.trim();
+
+                if snippet_names.contains(&value.to_string()) {
+                    // Snippet reference - use getter
+                    let get_body = vec![return_value(id(value))];
+                    members.push(getter(key, get_body));
+                } else {
+                    members.push(prop(key.to_string(), id(value)));
+                }
+            } else {
+                // Shorthand property: "foo" means { foo: foo }
+                let name = prop_str;
+                if snippet_names.contains(&name.to_string()) {
+                    // Snippet reference - use getter
+                    let get_body = vec![return_value(id(name))];
+                    members.push(getter(name, get_body));
+                } else {
+                    // Regular shorthand
+                    members.push(prop(name.to_string(), id(name)));
+                }
+            }
+        }
+
+        object(members)
     }
 
     /// Generate runtime code using cursor-based navigation.
@@ -4902,22 +5083,36 @@ export default function {component_name}({fn_params}) {{
                         // Generate: ComponentName(anchor, { prop: value, ... })
                         let comp_name = comp.name.as_str();
 
+                        // Collect snippet names for checking if a prop is a snippet
+                        let snippet_names: Vec<String> =
+                            self.snippets.iter().map(|s| s.name.clone()).collect();
+
                         // Build props object from attributes
                         let mut props: Vec<JsObjectMember> = Vec::new();
                         for attr in &comp.attributes {
                             if let Attribute::Attribute(a) = attr {
                                 let prop_name = a.name.to_string();
-                                let prop_value = match &a.value {
-                                    AttributeValue::True(_) => boolean(true),
+                                match &a.value {
+                                    AttributeValue::True(_) => {
+                                        props.push(prop(prop_name, boolean(true)));
+                                    }
                                     AttributeValue::Expression(expr_tag) => {
                                         // Extract expression from the tag
                                         let start =
                                             expr_tag.expression.start().unwrap_or(0) as usize;
                                         let end = expr_tag.expression.end().unwrap_or(0) as usize;
                                         if end > start && end <= self.source.len() {
-                                            id(self.source[start..end].trim())
+                                            let expr_text = self.source[start..end].trim();
+                                            // Check if this is a snippet reference
+                                            // Snippets need getter: get foo() { return foo; }
+                                            if snippet_names.contains(&expr_text.to_string()) {
+                                                let get_body = vec![return_value(id(expr_text))];
+                                                props.push(getter(&prop_name, get_body));
+                                            } else {
+                                                props.push(prop(prop_name, id(expr_text)));
+                                            }
                                         } else {
-                                            boolean(true)
+                                            props.push(prop(prop_name, boolean(true)));
                                         }
                                     }
                                     AttributeValue::Sequence(parts) => {
@@ -4942,13 +5137,12 @@ export default function {component_name}({fn_params}) {{
                                             }
                                         }
                                         if expr_str.is_empty() {
-                                            string("")
+                                            props.push(prop(prop_name, string("")));
                                         } else {
-                                            id(&expr_str)
+                                            props.push(prop(prop_name, id(&expr_str)));
                                         }
                                     }
                                 };
-                                props.push(prop(prop_name, prop_value));
                             }
                         }
 
@@ -5732,21 +5926,208 @@ export default function {component_name}({fn_params}) {{
     }
 
     /// Generate snippets code as AST statements.
+    ///
+    /// Generates code like:
+    /// ```javascript
+    /// const foo = ($$anchor, n = $.noop) => {
+    ///     var p = root_1();
+    ///     var text = $.child(p);
+    ///     $.reset(p);
+    ///     $.template_effect(() => $.set_text(text, `clicks: ${n() ?? ''}`));
+    ///     $.append($$anchor, p);
+    /// };
+    /// var root_1 = $.from_html(`<p> </p>`);
+    /// ```
     fn generate_snippets_code_ast(&self) -> Vec<JsStatement> {
-        self.snippets
-            .iter()
-            .map(|snippet| {
-                let body = vec![
-                    stmt(svelte_next(None)),
-                    var_decl("text", Some(svelte_text(Some(string(&snippet.body_text))))),
-                    stmt(svelte_append(id("$$anchor"), id("text"))),
-                ];
-                const_decl(
-                    &snippet.name,
-                    arrow_block(vec![id_pattern("$$anchor")], body),
-                )
-            })
-            .collect()
+        let mut result = Vec::new();
+
+        for snippet in &self.snippets {
+            // Build function parameters: ($$anchor, param1 = $.noop, param2 = $.noop, ...)
+            let mut params: Vec<JsPattern> = vec![id_pattern("$$anchor")];
+            for param in &snippet.parameters {
+                // Each parameter gets a default value of $.noop
+                let param_pattern =
+                    assignment_pattern(id_pattern(&param.name), member_path("$.noop"));
+                params.push(param_pattern);
+            }
+
+            // Generate the function body
+            let body = self.generate_snippet_body(snippet);
+
+            // Create the const declaration: const name = ($$anchor, ...) => { ... };
+            let arrow_fn = arrow_block(params, body);
+            result.push(const_decl(&snippet.name, arrow_fn));
+
+            // If snippet has a template, generate the template variable
+            if let (Some(template_var), Some(template_html)) =
+                (&snippet.template_var, &snippet.template_html)
+            {
+                // var root_N = $.from_html(`<template>`);
+                result.push(var_decl(
+                    template_var,
+                    Some(svelte_from_html(template_html, None)),
+                ));
+            }
+        }
+
+        result
+    }
+
+    /// Generate the body statements for a snippet function.
+    fn generate_snippet_body(&self, snippet: &SnippetInfo) -> Vec<JsStatement> {
+        let mut body = Vec::new();
+
+        // Check if snippet has an element template
+        if let Some(ref _template_var) = snippet.template_var {
+            // Find the element body part
+            for part in &snippet.body_parts {
+                if let SnippetBodyPart::Element {
+                    tag,
+                    template_var,
+                    template_html: _,
+                    children,
+                } = part
+                {
+                    // var p = root_N();
+                    body.push(var_decl(tag, Some(call(id(template_var), vec![]))));
+
+                    // Check if there are dynamic expressions in children
+                    let has_dynamic_children = children
+                        .iter()
+                        .any(|c| matches!(c, SnippetBodyPart::Expression(_)));
+
+                    if has_dynamic_children {
+                        // var text = $.child(p);
+                        body.push(var_decl("text", Some(svelte_child(id(tag), None))));
+
+                        // $.reset(p);
+                        body.push(stmt(svelte_reset(id(tag))));
+
+                        // Generate template expression from children
+                        let template_expr =
+                            self.generate_snippet_template_expr(children, &snippet.parameters);
+
+                        // $.template_effect(() => $.set_text(text, `...`));
+                        body.push(stmt(svelte_template_effect(thunk(svelte_set_text(
+                            id("text"),
+                            template_expr,
+                        )))));
+                    }
+
+                    // $.append($$anchor, p);
+                    body.push(stmt(svelte_append(id("$$anchor"), id(tag))));
+                }
+            }
+        } else {
+            // No element template - just text content
+            // This is the simple case for text-only snippets
+            body.push(stmt(svelte_next(None)));
+
+            // Check for dynamic expressions
+            let has_expressions = snippet
+                .body_parts
+                .iter()
+                .any(|p| matches!(p, SnippetBodyPart::Expression(_)));
+
+            if has_expressions {
+                // Generate template expression
+                let template_expr =
+                    self.generate_snippet_template_expr(&snippet.body_parts, &snippet.parameters);
+                body.push(var_decl("text", Some(svelte_text(None))));
+                body.push(stmt(svelte_template_effect(thunk(svelte_set_text(
+                    id("text"),
+                    template_expr,
+                )))));
+            } else {
+                // Static text only
+                let text_content = snippet
+                    .body_parts
+                    .iter()
+                    .filter_map(|p| {
+                        if let SnippetBodyPart::Text(t) = p {
+                            Some(t.as_str())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                body.push(var_decl(
+                    "text",
+                    Some(svelte_text(Some(string(&text_content)))),
+                ));
+            }
+
+            body.push(stmt(svelte_append(id("$$anchor"), id("text"))));
+        }
+
+        body
+    }
+
+    /// Generate a template expression for snippet content.
+    /// Converts body parts to a template literal like `clicks: ${n() ?? ''}`
+    fn generate_snippet_template_expr(
+        &self,
+        parts: &[SnippetBodyPart],
+        parameters: &[SnippetParameter],
+    ) -> JsExpr {
+        let mut quasi_parts = Vec::new();
+        let mut expr_parts = Vec::new();
+        let mut current_text = String::new();
+
+        for part in parts {
+            match part {
+                SnippetBodyPart::Text(text) => {
+                    current_text.push_str(text);
+                }
+                SnippetBodyPart::Expression(expr_name) => {
+                    // Add the text before this expression
+                    quasi_parts.push(quasi(&current_text, quasi_parts.is_empty()));
+                    current_text = String::new();
+
+                    // Check if this is a parameter - if so, call it
+                    let is_param = parameters.iter().any(|p| p.name == *expr_name);
+                    let expr = if is_param {
+                        // Parameter: call it like n()
+                        call(id(expr_name), vec![])
+                    } else {
+                        // Regular variable
+                        id(expr_name)
+                    };
+
+                    // Wrap in nullish coalescing: expr ?? ''
+                    expr_parts.push(nullish(expr, string("")));
+                }
+                SnippetBodyPart::Element { children, .. } => {
+                    // Recursively process element children
+                    for child in children {
+                        match child {
+                            SnippetBodyPart::Text(text) => {
+                                current_text.push_str(text);
+                            }
+                            SnippetBodyPart::Expression(expr_name) => {
+                                quasi_parts.push(quasi(&current_text, quasi_parts.is_empty()));
+                                current_text = String::new();
+
+                                let is_param = parameters.iter().any(|p| p.name == *expr_name);
+                                let expr = if is_param {
+                                    call(id(expr_name), vec![])
+                                } else {
+                                    id(expr_name)
+                                };
+                                expr_parts.push(nullish(expr, string("")));
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+
+        // Add the final text part
+        quasi_parts.push(quasi(&current_text, quasi_parts.is_empty()));
+
+        template(quasi_parts, expr_parts)
     }
 
     /// Generate snippets code using AST builders and return as string.
@@ -8292,5 +8673,79 @@ $effect(() => {
                 usage
             );
         }
+    }
+
+    #[test]
+    fn test_snippet_with_parameter() {
+        use crate::CompileOptions;
+        use crate::compile;
+
+        let source = r#"<script>
+	import Counter from './Counter.svelte';
+</script>
+
+{#snippet foo(n)}
+	<p>clicks: {n}</p>
+{/snippet}
+
+<Counter {foo} />"#;
+
+        let options = CompileOptions {
+            generate: crate::GenerateMode::Client,
+            filename: Some("main.svelte".to_string()),
+            ..Default::default()
+        };
+
+        let result = compile(source, options).unwrap();
+        let js = result.js.code;
+
+        // Check that snippet has parameter with $.noop default
+        assert!(
+            js.contains("n = $.noop"),
+            "Snippet should have parameter 'n' with $.noop default. Generated JS:\n{}",
+            js
+        );
+
+        // Check that snippet generates root_1 template for the <p> element
+        assert!(
+            js.contains("var root_1 = $.from_html("),
+            "Snippet should have root_1 template. Generated JS:\n{}",
+            js
+        );
+
+        // Check that snippet body uses $.child and $.reset
+        assert!(
+            js.contains("$.child("),
+            "Snippet body should use $.child(). Generated JS:\n{}",
+            js
+        );
+
+        // Check that snippet uses template_effect for dynamic text
+        assert!(
+            js.contains("$.template_effect"),
+            "Snippet should have template_effect for dynamic text. Generated JS:\n{}",
+            js
+        );
+
+        // Check that parameter is called as n() in template
+        assert!(
+            js.contains("n()"),
+            "Parameter should be called as n() in template. Generated JS:\n{}",
+            js
+        );
+
+        // Check that component props use getter for snippet
+        assert!(
+            js.contains("get foo()"),
+            "Component props should use getter for snippet. Generated JS:\n{}",
+            js
+        );
+
+        // Check that getter returns the snippet
+        assert!(
+            js.contains("return foo"),
+            "Getter should return the snippet. Generated JS:\n{}",
+            js
+        );
     }
 }

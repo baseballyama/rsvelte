@@ -419,13 +419,46 @@ pub struct ComponentWithChildren {
     pub children_parts: Vec<ChildPart>,
 }
 
+/// A parameter for a snippet function.
+#[derive(Debug, Clone)]
+pub struct SnippetParameter {
+    /// Parameter name
+    pub name: String,
+    /// Whether this parameter has a default value
+    pub has_default: bool,
+}
+
+/// Content part in a snippet body.
+#[derive(Debug, Clone)]
+pub enum SnippetBodyPart {
+    /// Static text
+    Text(String),
+    /// Expression that needs to be evaluated (parameter name)
+    Expression(String),
+    /// Element with tag name, template var, template HTML, and children
+    Element {
+        tag: String,
+        template_var: String,
+        template_html: String,
+        children: Vec<SnippetBodyPart>,
+    },
+}
+
 /// Information about a snippet.
 #[derive(Debug, Clone)]
 pub struct SnippetInfo {
     /// Snippet name
     pub name: String,
-    /// Snippet body content (text only for now)
-    pub body_text: String,
+    /// Snippet parameters (name = $.noop for each)
+    pub parameters: Vec<SnippetParameter>,
+    /// Template variable name (e.g., "root_1")
+    pub template_var: Option<String>,
+    /// Template HTML (e.g., "<p> </p>")
+    pub template_html: Option<String>,
+    /// Body parts for generating dynamic content
+    pub body_parts: Vec<SnippetBodyPart>,
+    /// Whether the snippet can be hoisted (doesn't reference instance state)
+    pub can_hoist: bool,
 }
 
 /// Information about a component with value binding for code generation.
