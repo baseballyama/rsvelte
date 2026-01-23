@@ -213,34 +213,41 @@ svelte/packages/svelte/src/compiler/
   - 完了: 2026-01-22
   - JsIdentifier → String、JsStatement API修正
 
-#### 6.1.1 Phase 3 Client Visitors（最優先）
+#### 6.1.1 Phase 3 Client Visitors（完了）
 
-- [ ] **C-001**: IfBlock visitor 完全実装（調査完了）
+- [x] **C-001〜C-006**: 基本 visitor 実装完了
+  - IfBlock, EachBlock, Component, AwaitBlock, SnippetBlock, BindDirective
+  - 詳細は進捗ログ（2026-01-22）参照
+
+#### 6.1.1b Runtime Runes 改善（最優先）
+
+- [ ] **C-031**: $.push/$.init 注入修正（期待: +80-120 テスト）
   - 依存: なし
-  - 完了条件: runtime-runes の if 関連テスト通過
-  - 参照: `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/IfBlock.js`
+  - 対象: `src/compiler/phases/3_transform/client/mod.rs`
+  - 問題: コンテキスト注入判定が不完全
+  - 完了条件: `custom-element-attributes` 等のテスト通過
 
-- [ ] **C-002**: EachBlock visitor 完全実装
+- [ ] **C-032**: $effect ブロック SSR 削除（期待: +30-50 テスト）
   - 依存: なし
-  - 完了条件: runtime-runes の each 関連テスト通過
-  - 参照: `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/EachBlock.js`
+  - 対象: `src/compiler/phases/3_transform/server/transform_server.rs`
+  - 問題: ルーンブロックが SSR 出力に含まれる
+  - 完了条件: `effect-cleanup` 等のサーバーテスト通過
 
-- [ ] **C-003**: Component visitor 完全実装
-  - 依存: C-001, C-002
-  - 完了条件: コンポーネントのネストが正しく動作
-  - 参照: `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/Component.js`
-
-- [ ] **C-004**: AwaitBlock visitor 実装
+- [ ] **C-033**: コンポーネントフラグメントラッパー修正（期待: +40-80 テスト）
   - 依存: なし
-  - 完了条件: {#await} テスト通過
+  - 対象: `src/compiler/phases/3_transform/client/mod.rs`
+  - 問題: 単一コンポーネントに不要なラッパーが追加される
+  - 完了条件: `snippet-prop-explicit` 等のテスト通過
 
-- [ ] **C-005**: SnippetBlock visitor 実装
-  - 依存: なし
-  - 完了条件: {#snippet} テスト通過
+- [ ] **C-034**: Transition/Animation 実装（期待: +50-100 テスト）
+  - 依存: C-031
+  - 問題: transition:、animate: ディレクティブが未実装
+  - 完了条件: `transition-if-nested-static` 等のテスト通過
 
-- [ ] **C-006**: BindDirective visitor 完全実装
+- [ ] **C-035**: svelte:boundary 実装（期待: +40-80 テスト）
   - 依存: なし
-  - 完了条件: bind: ディレクティブテスト通過
+  - 問題: 特別要素が未処理
+  - 完了条件: `async-derived-unchanging` 等のテスト通過
 
 #### 6.1.2 Phase 2 Analyze 補完
 
