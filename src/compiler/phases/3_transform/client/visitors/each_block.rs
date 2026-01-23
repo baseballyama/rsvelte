@@ -332,29 +332,27 @@ fn uses_store_subscription(
 }
 
 /// Check if expression has external dependencies (references state outside the each block).
+///
+/// In Svelte's implementation, this checks if `binding.scope.function_depth < context.state.scope.function_depth`.
+/// Since template scopes have higher function_depth than instance scopes, any dependency
+/// declared in the instance scope is considered "external" from the template's perspective.
+///
+/// For simplicity, we check if the expression has any dependencies at all. In runes mode,
+/// dependencies from the instance scope (where $state variables are declared) are always
+/// considered external because the template operates at a higher function_depth level.
 fn has_external_dependencies(
     metadata: &crate::ast::template::EachBlockMetadata,
-    context: &ComponentContext,
+    _context: &ComponentContext,
 ) -> bool {
-    // Check if any dependency is from an outer scope by comparing scope indices
-    // The current scope's index is stored as the parent field in nested scopes
-    for binding_idx in &metadata.expression.dependencies {
-        if let Some(binding) = context.state.scope_root.bindings.get(*binding_idx) {
-            // If the binding is from a different scope, it's an external dependency
-            // In the full implementation, we'd need to walk the scope tree to check
-            // if the binding's scope is an ancestor of the current scope
-            // For now, we check if the scope indices differ
-            if let Some(current_scope_idx) = context.state.scope.parent {
-                if binding.scope_index != current_scope_idx {
-                    return true;
-                }
-            } else {
-                // Root scope - any binding from outside is external
-                return true;
-            }
-        }
-    }
-    false
+    // If the expression has any dependencies (binding references), those are from
+    // the instance scope and are considered external from the each block's perspective.
+    //
+    // This matches the JS behavior where:
+    // - Instance scope has function_depth = 1
+    // - Template/EachBlock scopes have function_depth >= 3
+    // - Any binding from instance scope (function_depth 1) is < template scope (function_depth 3+)
+    // - Therefore it's considered an external dependency
+    !metadata.expression.dependencies.is_empty()
 }
 
 /// Check if the each block has an animate directive on any direct child element.
