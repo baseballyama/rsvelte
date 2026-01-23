@@ -595,6 +595,15 @@ pub enum SpecialAttribute {
         /// Attribute value
         attr_value: String,
     },
+    /// Expression attribute on custom element - needs $.set_custom_element_data() with expression
+    CustomElementDataExpr {
+        /// Variable name of the element
+        var_name: String,
+        /// Attribute name
+        attr_name: String,
+        /// Expression value (raw JS code)
+        expr_value: String,
+    },
 }
 
 /// Feature collector for various block types.

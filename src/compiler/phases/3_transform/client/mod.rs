@@ -1546,29 +1546,51 @@ impl ClientCodeGenerator {
             }
             _ if is_custom_element => {
                 // All OTHER attributes on custom elements need $.set_custom_element_data()
-                let attr_value = match &node.value {
-                    AttributeValue::True(_) => "true".to_string(),
-                    AttributeValue::Sequence(parts) => parts
-                        .iter()
-                        .filter_map(|p| {
-                            if let AttributeValuePart::Text(t) = p {
-                                Some(t.data.to_string())
-                            } else {
-                                None
-                            }
-                        })
-                        .collect::<String>(),
-                    AttributeValue::Expression(_) => {
+                match &node.value {
+                    AttributeValue::True(_) => {
+                        self.special_attrs
+                            .push(SpecialAttribute::CustomElementData {
+                                var_name,
+                                attr_name: attr_name.to_string(),
+                                attr_value: "true".to_string(),
+                            });
+                    }
+                    AttributeValue::Sequence(parts) => {
+                        let attr_value = parts
+                            .iter()
+                            .filter_map(|p| {
+                                if let AttributeValuePart::Text(t) = p {
+                                    Some(t.data.to_string())
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect::<String>();
+                        self.special_attrs
+                            .push(SpecialAttribute::CustomElementData {
+                                var_name,
+                                attr_name: attr_name.to_string(),
+                                attr_value,
+                            });
+                    }
+                    AttributeValue::Expression(expr_container) => {
+                        // Expression attributes on custom elements need $.set_custom_element_data() with expression
                         self.has_expressions = true;
-                        return Ok(()); // Expression attributes handled separately
+                        // Extract the expression source code
+                        let start = expr_container.start as usize;
+                        let end = expr_container.end as usize;
+                        if start + 1 < end && end <= self.source.len() {
+                            // The expression container includes {} so we extract the inner expression
+                            let expr_source = self.source[start + 1..end - 1].trim().to_string();
+                            self.special_attrs
+                                .push(SpecialAttribute::CustomElementDataExpr {
+                                    var_name,
+                                    attr_name: attr_name.to_string(),
+                                    expr_value: expr_source,
+                                });
+                        }
                     }
                 };
-                self.special_attrs
-                    .push(SpecialAttribute::CustomElementData {
-                        var_name,
-                        attr_name: attr_name.to_string(),
-                        attr_value,
-                    });
                 return Ok(()); // Skip adding to template
             }
             _ => {}
@@ -2967,20 +2989,30 @@ impl ClientCodeGenerator {
 
         // Then, prepend $.push() if should_inject_context is true
         // Reference: transform-client.js line 434: component_block.body.unshift(b.stmt(b.call('$.push', ...push_args)))
+        //
+        // Also add $.init() for legacy mode (non-runes) when needs_context is true
+        // Reference: transform-client.js lines 381-383:
+        // if (!analysis.runes && analysis.needs_context) {
+        //     component_block.body.push(b.stmt(b.call('$.init', analysis.immutable ? b.true : undefined)));
+        // }
+        let is_runes_mode = self.uses_runes && !has_legacy_export_let;
         let script_code = if should_inject_context {
-            let runes_arg = if has_legacy_export_let {
-                "false"
-            } else if self.uses_runes {
-                "true"
+            let runes_arg = if is_runes_mode { "true" } else { "false" };
+
+            // Add $.init() for legacy mode when needs_context is true
+            // Reference: transform-client.js lines 381-383
+            let init_call = if !is_runes_mode && self.analysis_needs_context {
+                "\t$.init();\n"
             } else {
-                "false"
+                ""
             };
+
             if transformed_script.trim().is_empty() {
-                format!("\t$.push($$props, {});\n", runes_arg)
+                format!("\t$.push($$props, {});\n{}", runes_arg, init_call)
             } else {
                 format!(
-                    "\t$.push($$props, {});\n\n{}",
-                    runes_arg, transformed_script
+                    "\t$.push($$props, {});\n{}\n{}",
+                    runes_arg, init_call, transformed_script
                 )
             }
         } else {
@@ -3480,20 +3512,25 @@ export default function {component_name}({fn_params}) {{
         };
 
         // Prepend $.push() if should_inject_context is true
+        // Also add $.init() for legacy mode (non-runes) when needs_context is true
+        // Reference: transform-client.js lines 381-383
+        let is_runes_mode = self.uses_runes && !has_legacy_export_let;
         let script_code = if should_inject_context {
-            let runes_arg = if has_legacy_export_let {
-                "false"
-            } else if self.uses_runes {
-                "true"
+            let runes_arg = if is_runes_mode { "true" } else { "false" };
+
+            // Add $.init() for legacy mode when needs_context is true
+            let init_call = if !is_runes_mode && self.analysis_needs_context {
+                "\t$.init();\n"
             } else {
-                "false"
+                ""
             };
+
             if transformed_script.trim().is_empty() {
-                format!("\t$.push($$props, {});\n", runes_arg)
+                format!("\t$.push($$props, {});\n{}", runes_arg, init_call)
             } else {
                 format!(
-                    "\t$.push($$props, {});\n\n{}",
-                    runes_arg, transformed_script
+                    "\t$.push($$props, {});\n{}\n{}",
+                    runes_arg, init_call, transformed_script
                 )
             }
         } else {
@@ -5169,6 +5206,19 @@ export default function {component_name}({fn_params}) {{
                         id(var_name),
                         attr_name,
                         string(attr_value),
+                    )));
+                }
+                SpecialAttribute::CustomElementDataExpr {
+                    var_name,
+                    attr_name,
+                    expr_value,
+                } => {
+                    // $.set_custom_element_data(element, 'attr', expression)
+                    // Use raw expression as the value
+                    statements.push(stmt(svelte_set_custom_element_data(
+                        id(var_name),
+                        attr_name,
+                        raw(expr_value),
                     )));
                 }
             }
