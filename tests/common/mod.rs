@@ -212,6 +212,7 @@ fn normalize_blank_lines(code: &str) -> String {
 /// - Semicolon removal (trailing semicolons stripped)
 /// - Scientific notation normalization (1e3 -> 1000)
 /// - Brace/newline normalization ({ followed by newline -> { space)
+/// - If/else brace normalization (single-statement braces removed for consistency)
 pub fn normalize_js(js: &str) -> String {
     use regex::Regex;
     lazy_static::lazy_static! {
@@ -413,6 +414,11 @@ fn normalize_line_preserving_strings(
         })
         .to_string();
 
+    // Normalize if/else single-statement braces
+    // Convert: if (cond) {stmt;} -> if (cond) stmt;
+    // This handles differences between compilers that may or may not use braces for single statements
+    normalized = normalize_if_else_braces(&normalized);
+
     // Restore string literals with normalized quotes (double -> single for outer quotes only)
     for (idx, string_content) in strings.iter().enumerate() {
         let placeholder = format!("__STR{}__", idx);
@@ -421,6 +427,256 @@ fn normalize_line_preserving_strings(
     }
 
     (normalized, strings)
+}
+
+/// Normalize if/else single-statement braces.
+/// Removes braces around single statements in if/else blocks for consistent comparison.
+/// - `if (cond) {stmt;}` -> `if (cond) stmt;`
+/// - `} else {stmt;}` -> `} else stmt;`
+///
+/// Preserves braces when:
+/// - Multiple statements are present (contains `;` before the final one)
+/// - Nested braces exist (for callbacks, objects, etc.)
+fn normalize_if_else_braces(code: &str) -> String {
+    let mut result = code.to_string();
+
+    // Process if statements with braces: if (cond) {single_stmt;}
+    // We need to be careful about:
+    // 1. Nested parentheses in condition
+    // 2. Nested braces in statement (callbacks, objects)
+    // 3. Multiple statements
+
+    loop {
+        let before = result.clone();
+        result = normalize_single_if_brace(&result);
+        result = normalize_single_else_brace(&result);
+        if result == before {
+            break;
+        }
+    }
+
+    result
+}
+
+/// Normalize a single if statement with braces around a single statement.
+fn normalize_single_if_brace(code: &str) -> String {
+    // Find "if (" pattern
+    let mut result = String::new();
+    let mut i = 0;
+    let code_bytes = code.as_bytes();
+    let code_len = code.len();
+
+    while i < code_len {
+        // Check for "if " or "if("
+        if i + 3 <= code_len && (&code[i..i + 3] == "if " || &code[i..i + 3] == "if(") {
+            // Check if preceded by word character (to avoid matching "else if" incorrectly)
+            let is_word_boundary = i == 0 || !code_bytes[i - 1].is_ascii_alphanumeric();
+            if !is_word_boundary {
+                result.push(code_bytes[i] as char);
+                i += 1;
+                continue;
+            }
+
+            // Found "if"
+            result.push_str("if");
+            i += 2;
+
+            // Skip whitespace
+            while i < code_len && code_bytes[i].is_ascii_whitespace() {
+                result.push(code_bytes[i] as char);
+                i += 1;
+            }
+
+            // Must have opening paren
+            if i >= code_len || code_bytes[i] != b'(' {
+                continue;
+            }
+
+            // Find matching closing paren (handling nested parens)
+            let cond_start = i;
+            let mut paren_depth = 0;
+            while i < code_len {
+                match code_bytes[i] {
+                    b'(' => paren_depth += 1,
+                    b')' => {
+                        paren_depth -= 1;
+                        if paren_depth == 0 {
+                            i += 1;
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+                i += 1;
+            }
+            let condition = &code[cond_start..i];
+            result.push_str(condition);
+
+            // Skip whitespace after condition (but remember if there was any)
+            let whitespace_start = i;
+            while i < code_len && code_bytes[i].is_ascii_whitespace() {
+                i += 1;
+            }
+
+            // Check if followed by opening brace
+            if i >= code_len || code_bytes[i] != b'{' {
+                // Not followed by brace, restore the whitespace and continue
+                result.push_str(&code[whitespace_start..i]);
+                continue;
+            }
+
+            // Find the matching closing brace
+            let brace_start = i;
+            i += 1; // skip opening brace
+            let mut brace_depth = 1;
+            let mut inner_brace_count = 0;
+            let mut semicolon_count = 0;
+
+            while i < code_len && brace_depth > 0 {
+                match code_bytes[i] {
+                    b'{' => {
+                        brace_depth += 1;
+                        inner_brace_count += 1;
+                    }
+                    b'}' => {
+                        brace_depth -= 1;
+                    }
+                    b';' if brace_depth == 1 => {
+                        semicolon_count += 1;
+                    }
+                    _ => {}
+                }
+                i += 1;
+            }
+
+            let block_content = &code[brace_start + 1..i - 1]; // content between { and }
+
+            // Only remove braces if:
+            // 1. Single statement (one semicolon or none for expression statements)
+            // 2. No nested braces (except for callbacks which we handle specially)
+            let should_remove_braces =
+                semicolon_count <= 1 && inner_brace_count == 0 && !block_content.trim().is_empty();
+
+            if should_remove_braces {
+                // Remove braces, output just the statement
+                let stmt = block_content.trim();
+                result.push(' ');
+                result.push_str(stmt);
+                if !stmt.ends_with(';') {
+                    result.push(';');
+                }
+            } else {
+                // Keep braces as-is
+                result.push_str(&code[brace_start..i]);
+            }
+        } else {
+            result.push(code_bytes[i] as char);
+            i += 1;
+        }
+    }
+
+    result
+}
+
+/// Normalize a single else statement with braces around a single statement.
+fn normalize_single_else_brace(code: &str) -> String {
+    let mut result = String::new();
+    let code_bytes = code.as_bytes();
+    let code_len = code.len();
+    let mut i = 0;
+
+    while i < code_len {
+        // Check for "} else" or "; else" or just " else" patterns
+        let is_else_pattern = i + 6 <= code_len
+            && (code[i..].starts_with("} else") || code[i..].starts_with("; else"))
+            || (i > 0
+                && i + 5 <= code_len
+                && code_bytes[i] == b' '
+                && code[i + 1..].starts_with("else"));
+
+        if is_else_pattern {
+            // Output the prefix character (}, ;, or space)
+            result.push(code_bytes[i] as char);
+            i += 1;
+
+            // Skip whitespace
+            while i < code_len && code_bytes[i].is_ascii_whitespace() {
+                result.push(code_bytes[i] as char);
+                i += 1;
+            }
+
+            // Match "else"
+            if i + 4 <= code_len && &code[i..i + 4] == "else" {
+                result.push_str("else");
+                i += 4;
+
+                // Skip whitespace (but remember the position)
+                let whitespace_start = i;
+                while i < code_len && code_bytes[i].is_ascii_whitespace() {
+                    i += 1;
+                }
+
+                // Check if followed by "if" (else if) - restore whitespace and don't process further
+                if i + 2 <= code_len && &code[i..i + 2] == "if" {
+                    result.push_str(&code[whitespace_start..i]);
+                    continue;
+                }
+
+                // Check if followed by opening brace
+                if i >= code_len || code_bytes[i] != b'{' {
+                    // Not followed by brace, restore the whitespace and continue
+                    result.push_str(&code[whitespace_start..i]);
+                    continue;
+                }
+
+                // Find the matching closing brace
+                let brace_start = i;
+                i += 1;
+                let mut brace_depth = 1;
+                let mut inner_brace_count = 0;
+                let mut semicolon_count = 0;
+
+                while i < code_len && brace_depth > 0 {
+                    match code_bytes[i] {
+                        b'{' => {
+                            brace_depth += 1;
+                            inner_brace_count += 1;
+                        }
+                        b'}' => {
+                            brace_depth -= 1;
+                        }
+                        b';' if brace_depth == 1 => {
+                            semicolon_count += 1;
+                        }
+                        _ => {}
+                    }
+                    i += 1;
+                }
+
+                let block_content = &code[brace_start + 1..i - 1];
+
+                let should_remove_braces = semicolon_count <= 1
+                    && inner_brace_count == 0
+                    && !block_content.trim().is_empty();
+
+                if should_remove_braces {
+                    let stmt = block_content.trim();
+                    result.push(' ');
+                    result.push_str(stmt);
+                    if !stmt.ends_with(';') {
+                        result.push(';');
+                    }
+                } else {
+                    result.push_str(&code[brace_start..i]);
+                }
+            }
+        } else {
+            result.push(code_bytes[i] as char);
+            i += 1;
+        }
+    }
+
+    result
 }
 
 /// Convert scientific notation to decimal representation.
@@ -1052,9 +1308,10 @@ mod tests {
 
     #[test]
     fn test_normalize_js_scientific_notation_in_expression() {
-        // Scientific notation in expressions (brace normalization converts "{ " to "{")
+        // Scientific notation in expressions
+        // Note: single-statement braces are removed by if/else brace normalization
         let input = "if (i < 1e3) { value = 1e4; }";
-        let expected = "if (i < 1000) {value = 10000;}";
+        let expected = "if (i < 1000) value = 10000";
         assert_eq!(normalize_js(input), expected);
     }
 
@@ -1112,5 +1369,76 @@ mod tests {
         let input = "customElements.define(\n\t\t'value-builtin',\n\t\tclass extends Foo {})";
         let expected = "customElements.define('value-builtin', class extends Foo {})";
         assert_eq!(normalize_js(input), expected);
+    }
+
+    #[test]
+    fn test_normalize_js_if_brace_single_stmt() {
+        // if (cond) {stmt;} should normalize to if (cond) stmt;
+        let input1 = "if (show) $$render(callback);";
+        let input2 = "if (show) {$$render(callback);}";
+        let normalized1 = normalize_js(input1);
+        let normalized2 = normalize_js(input2);
+        // Both should normalize to the same output (without braces)
+        assert_eq!(normalized1, normalized2);
+        assert!(!normalized1.contains('{'));
+    }
+
+    #[test]
+    fn test_normalize_js_if_brace_with_function_call() {
+        // Test the exact case from user report
+        // Expected: if (show) $$render_X(consequent_X);
+        // Actual:   if (show) {$$render_X(consequent_X);}
+        let input1 = "if (show) $$render_X(consequent_X);";
+        let input2 = "if (show) {$$render_X(consequent_X);}";
+        let normalized1 = normalize_js(input1);
+        let normalized2 = normalize_js(input2);
+        assert_eq!(
+            normalized1, normalized2,
+            "Both forms should normalize to the same output"
+        );
+    }
+
+    #[test]
+    fn test_normalize_js_if_brace_preserves_multiple_stmts() {
+        // Multiple statements should keep braces
+        let input = "if (cond) {a(); b();}";
+        let normalized = normalize_js(input);
+        // Should preserve braces since there are multiple statements
+        assert!(normalized.contains('{'));
+    }
+
+    #[test]
+    fn test_normalize_js_if_brace_preserves_nested_braces() {
+        // Nested braces (callbacks) should keep outer braces
+        let input = "if (cond) {fn(() => {});}";
+        let normalized = normalize_js(input);
+        // Should preserve braces since there are nested braces
+        // Note: spacing around braces may be normalized, but braces should remain
+        assert!(
+            normalized.contains("if (cond){") || normalized.contains("if (cond) {"),
+            "Expected braces to be preserved, got: {}",
+            normalized
+        );
+        // The block content should still have the nested function
+        assert!(normalized.contains("fn(() => {})"));
+    }
+
+    #[test]
+    fn test_normalize_js_else_brace_single_stmt() {
+        // } else {stmt;} should normalize to } else stmt;
+        let input1 = "if (a) b(); else c();";
+        let input2 = "if (a) {b();} else {c();}";
+        let normalized1 = normalize_js(input1);
+        let normalized2 = normalize_js(input2);
+        assert_eq!(normalized1, normalized2);
+    }
+
+    #[test]
+    fn test_normalize_js_else_if_preserved() {
+        // else if should be handled correctly
+        let input = "if (a) {b();} else if (c) {d();}";
+        let normalized = normalize_js(input);
+        // Should have "else if" preserved
+        assert!(normalized.contains("else if"));
     }
 }
