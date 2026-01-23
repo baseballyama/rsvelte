@@ -304,6 +304,8 @@ pub struct NodeInfo {
     pub bindings: Vec<(String, String)>,
     /// Whether this is an input element
     pub is_input: bool,
+    /// Whether this is a custom element (has hyphen or `is` attribute)
+    pub is_custom_element: bool,
     /// Content template for element's text content
     pub content_template: Option<String>,
 }

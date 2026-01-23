@@ -180,6 +180,8 @@ struct ClientCodeGenerator {
     special_attrs: Vec<SpecialAttribute>,
     /// Current element name being processed (for tracking custom elements)
     current_element_name: Option<String>,
+    /// Whether current element is a custom element (has hyphen or `is` attribute)
+    current_element_is_custom: bool,
     /// CSS hash for scoping (e.g., "svelte-abc123")
     css_hash: Option<String>,
     // === Cursor-based navigation state ===
@@ -283,6 +285,7 @@ impl ClientCodeGenerator {
             read_only_props,
             special_attrs: Vec::new(),
             current_element_name: None,
+            current_element_is_custom: false,
             css_hash,
             nav_stmts: Vec::new(),
             template_effects: Vec::new(),
@@ -422,9 +425,13 @@ impl ClientCodeGenerator {
     fn generate_element(&mut self, element: &RegularElement) -> Result<(), TransformError> {
         let name = element.name.as_str();
 
-        // Check for custom elements (elements with hyphens) or video elements
+        // Check for custom elements (elements with hyphens OR with `is` attribute) or video elements
         // These require TEMPLATE_USE_IMPORT_NODE flag
-        let is_custom_element = name.contains('-');
+        let is_custom_element = name.contains('-')
+            || element
+                .attributes
+                .iter()
+                .any(|attr| matches!(attr, Attribute::Attribute(a) if a.name == "is"));
         if is_custom_element || name == "video" {
             self.has_custom_elements = true;
         }
@@ -434,6 +441,7 @@ impl ClientCodeGenerator {
 
         // Track current element for attribute processing
         self.current_element_name = Some(name.to_string());
+        self.current_element_is_custom = is_custom_element;
         let child_index = self.current_child_index;
 
         // Check if this is an input element
@@ -482,6 +490,7 @@ impl ClientCodeGenerator {
             event_handlers,
             bindings,
             is_input,
+            is_custom_element,
             content_template: None,
         });
 
@@ -965,7 +974,12 @@ impl ClientCodeGenerator {
                         )
                 });
                 // 3. It is a custom element (needs $.set_custom_element_data)
-                let is_custom_element = elem.name.contains('-');
+                // Custom elements have hyphens in name OR have `is` attribute
+                let is_custom_element = elem.name.contains('-')
+                    || elem
+                        .attributes
+                        .iter()
+                        .any(|attr| matches!(attr, Attribute::Attribute(a) if a.name == "is"));
                 // 4. It is an input element (needs $.remove_input_defaults)
                 let is_input = matches!(elem.name.as_str(), "input" | "textarea" | "select");
                 // 5. It has dynamic children that we need to traverse to
@@ -1166,7 +1180,12 @@ impl ClientCodeGenerator {
         elem: &RegularElement,
         stmts: &mut Vec<JsStatement>,
     ) {
-        let is_custom = elem.name.contains('-');
+        // Custom elements have hyphens in name OR have `is` attribute
+        let is_custom = elem.name.contains('-')
+            || elem
+                .attributes
+                .iter()
+                .any(|attr| matches!(attr, Attribute::Attribute(a) if a.name == "is"));
         let is_input_element =
             elem.name == "input" || elem.name == "textarea" || elem.name == "select";
 
@@ -1225,8 +1244,10 @@ impl ClientCodeGenerator {
                                 stmts.push(stmt(assign(member(id(var_name), "value"), inner)));
                             }
                         }
+                        // Skip `is` attribute - it stays in template (customized built-in elements API)
+                        "is" => {}
                         _ if is_custom => {
-                            // Custom element attribute
+                            // Custom element attribute (except `is`)
                             let attr_value = match &node.value {
                                 AttributeValue::True(_) => "true".to_string(),
                                 AttributeValue::Sequence(parts) => parts
@@ -1434,7 +1455,8 @@ impl ClientCodeGenerator {
         let element_name = self.current_element_name.clone().unwrap_or_default();
 
         // Check for special attributes that need runtime handling
-        let is_custom_element = element_name.contains('-');
+        // Use the tracked flag which already accounts for both hyphen and `is` attribute
+        let is_custom_element = self.current_element_is_custom;
         let is_option = element_name == "option";
         let is_source_or_video = element_name == "source" || element_name == "video";
 
@@ -1477,8 +1499,12 @@ impl ClientCodeGenerator {
                     return Ok(()); // Skip adding to template
                 }
             }
+            // Skip the `is` attribute - it stays in the template (part of customized built-in elements API)
+            "is" => {
+                // Let it fall through to normal attribute handling below
+            }
             _ if is_custom_element => {
-                // All attributes on custom elements need $.set_custom_element_data()
+                // All OTHER attributes on custom elements need $.set_custom_element_data()
                 let attr_value = match &node.value {
                     AttributeValue::True(_) => "true".to_string(),
                     AttributeValue::Sequence(parts) => parts
@@ -1567,6 +1593,7 @@ impl ClientCodeGenerator {
                     event_handlers: Vec::new(),
                     bindings: Vec::new(),
                     is_input: false,
+                    is_custom_element: false,
                     content_template: None,
                 });
             } else {
@@ -1580,6 +1607,7 @@ impl ClientCodeGenerator {
                     event_handlers: Vec::new(),
                     bindings: Vec::new(),
                     is_input: false,
+                    is_custom_element: false,
                     content_template: None,
                 });
             }
@@ -1721,6 +1749,7 @@ impl ClientCodeGenerator {
             event_handlers: Vec::new(),
             bindings: Vec::new(),
             is_input: false,
+            is_custom_element: false,
             content_template: None,
         });
 
@@ -2314,6 +2343,7 @@ impl ClientCodeGenerator {
             event_handlers: Vec::new(),
             bindings: Vec::new(),
             is_input: false,
+            is_custom_element: false,
             content_template: then_value,
         });
 
@@ -4159,6 +4189,7 @@ export default function {component_name}({fn_params}) {{
                         || !node.event_handlers.is_empty()
                         || !node.bindings.is_empty()
                         || node.is_input
+                        || node.is_custom_element
                         || node.content_template.is_some();
 
                     if !needs_runtime {
