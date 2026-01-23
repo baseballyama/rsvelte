@@ -1087,6 +1087,13 @@ impl<'a> ServerCodeGenerator<'a> {
                     String::new()
                 };
 
+                // Check if $effect is used BEFORE removing it
+                // $effect, $effect.pre, $effect.root trigger needs_context in the JS compiler
+                // which requires $$props parameter and $$renderer.component() wrapper
+                let has_effect = raw_script.contains("$effect(")
+                    || raw_script.contains("$effect.pre(")
+                    || raw_script.contains("$effect.root(");
+
                 // First, remove $effect, $effect.pre, $effect.root, and $inspect.trace blocks
                 // These are client-side only and should not appear in SSR output
                 let raw_script = remove_effect_blocks(&raw_script);
@@ -1111,12 +1118,16 @@ impl<'a> ServerCodeGenerator<'a> {
 
                 let transformed = transform_script_content(&rest);
 
-                if uses_props || has_class_state_fields {
+                // needs_context is set when $effect is used (even though it's removed for SSR)
+                // This triggers both $$props parameter and $$renderer.component() wrapper
+                let needs_context = has_effect;
+
+                if uses_props || has_class_state_fields || needs_context {
                     (
                         ", $$props",
                         transformed,
                         imports,
-                        uses_props_spread || has_class_state_fields,
+                        uses_props_spread || has_class_state_fields || needs_context,
                     )
                 } else {
                     ("", transformed, imports, false)

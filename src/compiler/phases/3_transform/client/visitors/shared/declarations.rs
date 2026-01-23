@@ -114,6 +114,7 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
                     read: Some(read_fn),
                     assign: Some(assign_fn),
                     mutate: Some(mutate_fn),
+                    update: Some(update_value),
                 };
 
                 // Register the transform in the state

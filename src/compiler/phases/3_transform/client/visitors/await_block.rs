@@ -232,6 +232,7 @@ fn create_derived_block_argument(
                 read: Some(get_value),
                 assign: None,
                 mutate: None,
+                update: None,
             },
         );
         return (Some(JsPattern::Identifier(name)), vec![]);
@@ -293,6 +294,7 @@ fn create_derived_block_argument(
                 read: Some(get_value),
                 assign: None,
                 mutate: None,
+                update: None,
             },
         );
 

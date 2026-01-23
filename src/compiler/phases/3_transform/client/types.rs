@@ -452,6 +452,14 @@ pub struct IdentifierTransform {
     /// - identifier: The identifier being mutated
     /// - mutation_expr: The mutation expression (e.g., `obj.prop = value`)
     pub mutate: Option<fn(JsExpr, JsExpr) -> JsExpr>,
+
+    /// How to handle update expressions (++ or --)
+    ///
+    /// Parameters:
+    /// - operator: The update operator (++ or --)
+    /// - argument: The identifier being updated
+    /// - prefix: Whether the operator is prefix (++x) or postfix (x++)
+    pub update: Option<fn(JsUpdateOp, JsExpr, bool) -> JsExpr>,
 }
 
 /// Component metadata.

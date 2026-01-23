@@ -298,8 +298,10 @@ pub struct NodeInfo {
     pub expression: Option<String>,
     /// Child index in parent (for navigation)
     pub child_index: usize,
-    /// Event handlers: (event_name, handler_expression)
-    pub event_handlers: Vec<(String, String)>,
+    /// Event handlers: (event_name, handler_expression, is_directive)
+    /// When is_directive is true, the event came from `on:click` syntax and should use $.event()
+    /// When is_directive is false, the event came from `onclick` attribute and can use delegation
+    pub event_handlers: Vec<(String, String, bool)>,
     /// Bindings: (binding_name, value_expression)
     pub bindings: Vec<(String, String)>,
     /// Whether this is an input element

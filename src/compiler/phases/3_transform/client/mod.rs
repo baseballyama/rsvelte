@@ -584,7 +584,12 @@ impl ClientCodeGenerator {
                         let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
                         if expr_end > expr_start && expr_end <= self.source.len() {
                             let expr_source = self.source[expr_start..expr_end].trim().to_string();
-                            event_handlers.push((event_name.to_string(), expr_source.clone()));
+                            // Attribute form (onclick) - can use delegation (is_directive = false)
+                            event_handlers.push((
+                                event_name.to_string(),
+                                expr_source.clone(),
+                                false,
+                            ));
                             // Also add to attribute_values for spread handling
                             attribute_values.push((attr_name.to_string(), expr_source));
                         }
@@ -608,6 +613,25 @@ impl ClientCodeGenerator {
                     if expr_end > expr_start && expr_end <= self.source.len() {
                         let expr_source = self.source[expr_start..expr_end].trim().to_string();
                         spread_props.push(expr_source);
+                    }
+                }
+                Attribute::OnDirective(on_dir) => {
+                    // Handle on:click, on:mousedown, etc.
+                    // Directive form (on:click) - always use $.event() (is_directive = true)
+                    let event_name = on_dir.name.as_str();
+                    if let Some(ref expr) = on_dir.expression {
+                        let expr_start = expr.start().unwrap_or(0) as usize;
+                        let expr_end = expr.end().unwrap_or(0) as usize;
+                        if expr_end > expr_start && expr_end <= self.source.len() {
+                            let expr_source = self.source[expr_start..expr_end].trim().to_string();
+                            event_handlers.push((
+                                event_name.to_string(),
+                                expr_source.clone(),
+                                true,
+                            ));
+                            // Also add to attribute_values for spread handling
+                            attribute_values.push((format!("on{}", event_name), expr_source));
+                        }
                     }
                 }
                 _ => {}
@@ -695,9 +719,10 @@ impl ClientCodeGenerator {
                         let expr_end = tag.end as usize;
                         if expr_start + 1 < expr_end && expr_end <= self.source.len() {
                             let expr = self.source[expr_start + 1..expr_end - 1].trim();
-                            // Check if expression contains any state variable (primitive or proxy)
+                            // Check if expression contains any state variable (primitive, proxy, or derived)
                             return self.state_vars.iter().any(|sv| expr.contains(sv))
-                                || self.proxy_state_vars.iter().any(|sv| expr.contains(sv));
+                                || self.proxy_state_vars.iter().any(|sv| expr.contains(sv))
+                                || self.derived_vars.iter().any(|sv| expr.contains(sv));
                         }
                     }
                     false
@@ -1073,6 +1098,19 @@ impl ClientCodeGenerator {
                 }
             }
         }
+        // Check if expression contains any derived variable ($derived)
+        // Derived variables need $.get() wrapping and are reactive
+        for var in &self.derived_vars {
+            if expr.contains(var.as_str()) {
+                let pattern = format!(r"\b{}\b", regex::escape(var));
+                if regex::Regex::new(&pattern)
+                    .map(|re| re.is_match(expr))
+                    .unwrap_or(false)
+                {
+                    return true;
+                }
+            }
+        }
         false
     }
 
@@ -1273,9 +1311,15 @@ impl ClientCodeGenerator {
                         let expr_end = tag.end as usize;
                         if expr_start + 1 < expr_end && expr_end <= self.source.len() {
                             let expr = self.source[expr_start + 1..expr_end - 1].trim();
+                            // Transform read-only props and wrap derived/state vars in $.get()
                             let transformed =
                                 transform_read_only_props(expr, &self.read_only_props);
-                            self.template_effects.push((var_name.clone(), transformed));
+                            let wrapped = wrap_derived_var_reads(
+                                &transformed,
+                                &self.derived_vars,
+                                &self.state_vars,
+                            );
+                            self.template_effects.push((var_name.clone(), wrapped));
                         }
                     }
                     TemplateNode::HtmlTag(tag) => {
@@ -1349,7 +1393,9 @@ impl ClientCodeGenerator {
         let mut use_directives: Vec<&UseDirective> = Vec::new();
         let mut bind_directives: Vec<&crate::ast::template::BindDirective> = Vec::new();
         let mut transition_directives: Vec<&TransitionDirective> = Vec::new();
-        let mut event_handlers: Vec<(String, String)> = Vec::new();
+        // event_handlers: (event_name, handler_expression, is_directive)
+        // is_directive = true for on:click, false for onclick attribute
+        let mut event_handlers: Vec<(String, String, bool)> = Vec::new();
 
         for attr in &elem.attributes {
             match attr {
@@ -1362,10 +1408,22 @@ impl ClientCodeGenerator {
                 Attribute::TransitionDirective(dir) => {
                     transition_directives.push(dir);
                 }
+                Attribute::OnDirective(on_dir) => {
+                    // Handle on:click, on:mousedown, etc. - directive form (always use $.event())
+                    let event_name = on_dir.name.as_str();
+                    if let Some(ref expr) = on_dir.expression {
+                        let expr_start = expr.start().unwrap_or(0) as usize;
+                        let expr_end = expr.end().unwrap_or(0) as usize;
+                        if expr_end > expr_start && expr_end <= self.source.len() {
+                            let expr_source = self.source[expr_start..expr_end].trim().to_string();
+                            event_handlers.push((event_name.to_string(), expr_source, true));
+                        }
+                    }
+                }
                 Attribute::Attribute(node) => {
                     let attr_name = node.name.as_str();
 
-                    // Check for event handlers (onclick, onmousedown, etc.)
+                    // Check for event handlers (onclick, onmousedown, etc.) - attribute form (can use delegation)
                     if let Some(event_name) = attr_name.strip_prefix("on") {
                         if let AttributeValue::Expression(expr_tag) = &node.value {
                             let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
@@ -1373,7 +1431,7 @@ impl ClientCodeGenerator {
                             if expr_end > expr_start && expr_end <= self.source.len() {
                                 let expr_source =
                                     self.source[expr_start..expr_end].trim().to_string();
-                                event_handlers.push((event_name.to_string(), expr_source));
+                                event_handlers.push((event_name.to_string(), expr_source, false));
                             }
                         }
                         continue;
@@ -1553,13 +1611,24 @@ impl ClientCodeGenerator {
         }
 
         // Generate event handlers
-        for (event_name, handler) in event_handlers {
+        for (event_name, handler, is_directive) in event_handlers {
             let transformed = transform_state_assignments(&handler, &self.state_vars);
-            let prop_name = format!("__{}", event_name);
-            stmts.push(stmt(assign(
-                member(id(var_name), &prop_name),
-                id(&transformed),
-            )));
+            // Only use delegation for attribute form (onclick) with delegatable events
+            if !is_directive && is_delegated_event_name(&event_name) {
+                // Delegated event: element.__click = handler
+                let prop_name = format!("__{}", event_name);
+                stmts.push(stmt(assign(
+                    member(id(var_name), &prop_name),
+                    id(&transformed),
+                )));
+            } else {
+                // Directive form or non-delegatable: $.event('eventname', element, handler)
+                stmts.push(stmt(super::js_ast::builders::svelte_event(
+                    &event_name,
+                    id(var_name),
+                    id(&transformed),
+                )));
+            }
         }
 
         // Generate $.bind_value() for bind: directives
@@ -2416,6 +2485,26 @@ impl ClientCodeGenerator {
                     let mut event_handlers = Vec::new();
 
                     for attr in &elem.attributes {
+                        // Handle on:click, on:mousedown, etc. (directive form)
+                        if let Attribute::OnDirective(on_dir) = attr {
+                            let event_name = on_dir.name.as_str();
+                            if let Some(ref expr) = on_dir.expression {
+                                let expr_start = expr.start().unwrap_or(0) as usize;
+                                let expr_end = expr.end().unwrap_or(0) as usize;
+                                if expr_end > expr_start && expr_end <= self.source.len() {
+                                    let handler =
+                                        self.source[expr_start..expr_end].trim().to_string();
+                                    // Strip TypeScript non-null assertions (!)
+                                    let handler = handler.replace(")!", ")");
+                                    event_handlers.push(EventHandler {
+                                        event: event_name.to_string(),
+                                        handler,
+                                    });
+                                }
+                            }
+                            continue;
+                        }
+
                         if let Attribute::Attribute(attr_node) = attr {
                             let attr_name = attr_node.name.as_str();
 
@@ -4821,10 +4910,15 @@ export default function {component_name}({fn_params}) {{
     /// Collect all event types that need delegation
     fn collect_delegated_events(&self) -> Vec<String> {
         let mut events: Vec<String> = Vec::new();
-        // Collect from regular nodes - only include delegatable events
+        // Collect from regular nodes - only include delegatable events from attribute form
+        // Directive form (on:click) should never use delegation
         for node in &self.nodes {
-            for (event_name, _) in &node.event_handlers {
-                if is_delegated_event_name(event_name) && !events.contains(event_name) {
+            for (event_name, _, is_directive) in &node.event_handlers {
+                // Only delegate if it's from attribute form AND the event is delegatable
+                if !is_directive
+                    && is_delegated_event_name(event_name)
+                    && !events.contains(event_name)
+                {
                     events.push(event_name.clone());
                 }
             }
@@ -4849,12 +4943,16 @@ export default function {component_name}({fn_params}) {{
 
     /// Recursively collect event names from nodes
     /// Only collects events that are delegatable (click, input, change, etc.)
+    /// NOTE: Only attribute-form events (onclick) can be delegated.
+    /// Directive-form events (on:click) should NOT be delegated.
     fn collect_events_from_nodes(nodes: &[TemplateNode], events: &mut Vec<String>) {
         for node in nodes {
             match node {
                 TemplateNode::RegularElement(elem) => {
                     // Collect events from this element's attributes - only delegatable events
+                    // OnDirective (on:click) should NOT be delegated - only Attribute (onclick) can be
                     for attr in &elem.attributes {
+                        // Only collect events from attribute form (onclick), not directive form (on:click)
                         if let Attribute::Attribute(node) = attr {
                             let attr_name = node.name.as_str();
                             if let Some(event_name) = attr_name.strip_prefix("on")
@@ -5430,12 +5528,14 @@ export default function {component_name}({fn_params}) {{
                             var, obj_literal
                         ))));
                     } else {
-                        // No spread - use delegated pattern for supported events
-                        for (event_name, handler) in &node.event_handlers {
+                        // No spread - use delegated pattern for attribute-form events
+                        // Directive-form events (on:click) always use $.event()
+                        for (event_name, handler, is_directive) in &node.event_handlers {
                             let transformed =
                                 transform_state_assignments(handler, &self.state_vars);
 
-                            if is_delegated_event_name(event_name) {
+                            // Only use delegation for attribute form (onclick) with delegatable events
+                            if !is_directive && is_delegated_event_name(event_name) {
                                 // Delegated event: element.__click = handler
                                 let prop_name = format!("__{}", event_name);
                                 statements.push(stmt(assign(
@@ -5443,7 +5543,7 @@ export default function {component_name}({fn_params}) {{
                                     id(&transformed),
                                 )));
                             } else {
-                                // Non-delegated event: $.event('eventname', element, handler)
+                                // Non-delegated event or directive form: $.event('eventname', element, handler)
                                 statements.push(stmt(super::js_ast::builders::svelte_event(
                                     event_name.as_str(),
                                     id(var),
@@ -5527,6 +5627,7 @@ export default function {component_name}({fn_params}) {{
                         let is_reactive = combined.iter().any(|expr| {
                             self.state_vars.iter().any(|sv| expr.contains(sv))
                                 || self.proxy_state_vars.iter().any(|sv| expr.contains(sv))
+                                || self.derived_vars.iter().any(|sv| expr.contains(sv))
                         });
 
                         match combined.len() {
@@ -5540,9 +5641,15 @@ export default function {component_name}({fn_params}) {{
                                         Some(svelte_child(id(var), Some(true))),
                                     ));
                                     statements.push(stmt(svelte_reset(id(var))));
+                                    // Wrap derived variables in $.get()
+                                    let wrapped_expr = wrap_derived_var_reads(
+                                        expr,
+                                        &self.derived_vars,
+                                        &self.state_vars,
+                                    );
                                     // Use 1-argument form: $.template_effect(() => $.set_text(text, expr))
                                     statements.push(stmt(svelte_template_effect(thunk(
-                                        svelte_set_text(id(text_var), id(expr)),
+                                        svelte_set_text(id(text_var), id(&wrapped_expr)),
                                     ))));
                                 } else {
                                     // Static: use textContent assignment
@@ -5579,9 +5686,15 @@ export default function {component_name}({fn_params}) {{
                                             Some(svelte_child(id(var), Some(true))),
                                         ));
                                         statements.push(stmt(svelte_reset(id(var))));
+                                        // Wrap derived variables in $.get()
+                                        let wrapped_last = wrap_derived_var_reads(
+                                            last,
+                                            &self.derived_vars,
+                                            &self.state_vars,
+                                        );
                                         // Use 1-argument form: $.template_effect(() => $.set_text(text, expr))
                                         statements.push(stmt(svelte_template_effect(thunk(
-                                            svelte_set_text(id(text_var), id(last)),
+                                            svelte_set_text(id(text_var), id(&wrapped_last)),
                                         ))));
                                     } else {
                                         statements.push(stmt(set_text_content(id(var), id(last))));
@@ -5872,10 +5985,7 @@ export default function {component_name}({fn_params}) {{
             && let TemplateNode::RegularElement(elem) = non_whitespace_nodes[0]
         {
             // Root element is already assigned to root_var by `var root_var = root()`
-            // Generate event handlers for root element first
-            self.generate_special_attr_stmts(root_var, elem, &mut stmts);
-
-            // Then process its children
+            // Process children first (DOM navigation)
             let (child_stmts, has_dynamic, _trailing) =
                 self.process_children_cursor(root_var, &elem.fragment.nodes);
             stmts.extend(child_stmts);
@@ -5883,6 +5993,29 @@ export default function {component_name}({fn_params}) {{
             if has_dynamic {
                 stmts.push(stmt(svelte_reset(id(root_var))));
             }
+
+            // Generate $.template_effect for collected expressions
+            if !self.template_effects.is_empty() {
+                if self.template_effects.len() == 1 {
+                    let (var_name, expr) = &self.template_effects[0];
+                    stmts.push(stmt(svelte_template_effect(thunk(svelte_set_text(
+                        id(var_name),
+                        id(expr),
+                    )))));
+                } else {
+                    let mut effect_body: Vec<JsStatement> = Vec::new();
+                    for (var_name, expr) in &self.template_effects {
+                        effect_body.push(stmt(svelte_set_text(id(var_name), id(expr))));
+                    }
+                    stmts.push(stmt(svelte_template_effect(arrow_block(
+                        vec![],
+                        effect_body,
+                    ))));
+                }
+            }
+
+            // Generate event handlers AFTER DOM navigation and template effects
+            self.generate_special_attr_stmts(root_var, elem, &mut stmts);
 
             return self.statements_to_string(&stmts);
         }
@@ -9193,10 +9326,30 @@ fn transform_state_in_expr(expr: &str, state_vars: &[String]) -> String {
                             false
                         };
 
+                        // Check if this is the first argument of $.update() - don't wrap
+                        // Pattern: $.update(varname) or $.update(varname, -1)
+                        let in_update_arg = if i >= 9 {
+                            let prefix: String = chars[i - 9..i].iter().collect();
+                            prefix == "$.update("
+                        } else {
+                            false
+                        };
+
+                        // Check if this is the first argument of $.update_pre() - don't wrap
+                        // Pattern: $.update_pre(varname) or $.update_pre(varname, -1)
+                        let in_update_pre_arg = if i >= 13 {
+                            let prefix: String = chars[i - 13..i].iter().collect();
+                            prefix == "$.update_pre("
+                        } else {
+                            false
+                        };
+
                         if !already_wrapped
                             && !followed_by_dot
                             && !preceded_by_dot
                             && !in_set_first_arg
+                            && !in_update_arg
+                            && !in_update_pre_arg
                         {
                             new_result.push_str(&format!("$.get({})", var));
                             i += var_chars.len();
@@ -9218,6 +9371,57 @@ fn transform_state_in_expr(expr: &str, state_vars: &[String]) -> String {
 /// Check if a character can be part of a JavaScript identifier
 fn is_identifier_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_' || c == '$'
+}
+
+/// Replace a pattern with word boundary checking.
+/// This ensures we don't match property accesses (e.g., o.x++ should not match x++).
+///
+/// For prefix operators (++x, --x): word boundary before ++ is required (not identifier char)
+/// For postfix operators (x++, x--): skip if preceded by '.' (property access like o.x++)
+///
+/// `is_prefix_op` indicates whether this is a prefix operator pattern (++x, --x)
+fn replace_with_word_boundary(
+    input: &str,
+    pattern: &str,
+    replacement: &str,
+    is_prefix_op: bool,
+) -> String {
+    let chars: Vec<char> = input.chars().collect();
+    let pattern_chars: Vec<char> = pattern.chars().collect();
+    let mut result = String::new();
+    let mut i = 0;
+
+    while i < chars.len() {
+        // Check if we're at the start of the pattern
+        if i + pattern_chars.len() <= chars.len() {
+            let potential_match: String = chars[i..i + pattern_chars.len()].iter().collect();
+            if potential_match == pattern {
+                let should_replace = if is_prefix_op {
+                    // For prefix ops like "++x", we need word boundary before "++"
+                    // Valid: (++x), ++x at start, "++x"
+                    // The char before position i should not be an identifier char
+                    i == 0 || !is_identifier_char(chars[i - 1])
+                } else {
+                    // For postfix ops like "x++", skip if preceded by '.' (property access)
+                    // Invalid: o.x++ should not match (this is property access)
+                    // Valid: x++, (x++), etc.
+                    let preceded_by_dot = i > 0 && chars[i - 1] == '.';
+                    let has_word_boundary = i == 0 || !is_identifier_char(chars[i - 1]);
+                    !preceded_by_dot && has_word_boundary
+                };
+
+                if should_replace {
+                    result.push_str(replacement);
+                    i += pattern_chars.len();
+                    continue;
+                }
+            }
+        }
+        result.push(chars[i]);
+        i += 1;
+    }
+
+    result
 }
 
 /// Wrap state variable references with $.get() in an expression.
@@ -9285,17 +9489,41 @@ fn transform_state_assignments(line: &str, state_vars: &[String]) -> String {
     let mut result = line.to_string();
 
     for var in state_vars {
+        // Transform ++varname to $.update_pre(varname)
+        // But skip if preceded by '.' (property access like o.x)
+        let pre_inc_pattern = format!("++{}", var);
+        result = replace_with_word_boundary(
+            &result,
+            &pre_inc_pattern,
+            &format!("$.update_pre({})", var),
+            true,
+        );
+
+        // Transform --varname to $.update_pre(varname, -1)
+        // But skip if preceded by '.' (property access like o.x)
+        let pre_dec_pattern = format!("--{}", var);
+        result = replace_with_word_boundary(
+            &result,
+            &pre_dec_pattern,
+            &format!("$.update_pre({}, -1)", var),
+            true,
+        );
+
         // Transform varname++ to $.update(varname)
+        // But skip if preceded by '.' (property access like o.x++)
         let inc_pattern = format!("{}++", var);
-        if result.contains(&inc_pattern) {
-            result = result.replace(&inc_pattern, &format!("$.update({})", var));
-        }
+        result =
+            replace_with_word_boundary(&result, &inc_pattern, &format!("$.update({})", var), false);
 
         // Transform varname-- to $.update(varname, -1)
+        // But skip if preceded by '.' (property access like o.x--)
         let dec_pattern = format!("{}--", var);
-        if result.contains(&dec_pattern) {
-            result = result.replace(&dec_pattern, &format!("$.update({}, -1)", var));
-        }
+        result = replace_with_word_boundary(
+            &result,
+            &dec_pattern,
+            &format!("$.update({}, -1)", var),
+            false,
+        );
 
         // Transform compound assignments: varname += value to $.set(varname, $.get(varname) + value)
         for (op, js_op) in &[

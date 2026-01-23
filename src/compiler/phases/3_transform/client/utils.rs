@@ -77,12 +77,12 @@ pub fn transform_state_write(var_name: &str, value: &str) -> String {
 ///
 /// A binding is a state source if it's a `$state` or `$state.raw` binding,
 /// and either:
-/// - The component is not in runes mode, OR
-/// - The binding has been reassigned
+/// - The component is not in immutable mode, OR
+/// - The binding has been reassigned, OR
+/// - The component uses accessors mode
 ///
-/// Note: The reference implementation also checks `analysis.immutable` and
-/// `analysis.accessors`, but these fields are not yet implemented in
-/// ComponentAnalysis.
+/// This matches the official Svelte compiler's implementation:
+/// `(!analysis.immutable || binding.reassigned || analysis.accessors)`
 ///
 /// # Arguments
 ///
@@ -94,7 +94,7 @@ pub fn transform_state_write(var_name: &str, value: &str) -> String {
 /// `true` if the binding needs reactive tracking as a state source
 pub fn is_state_source(binding: &Binding, analysis: &ComponentAnalysis) -> bool {
     matches!(binding.kind, BindingKind::State | BindingKind::RawState)
-        && (!analysis.runes || binding.reassigned)
+        && (!analysis.immutable || binding.reassigned || analysis.accessors)
 }
 
 #[cfg(test)]

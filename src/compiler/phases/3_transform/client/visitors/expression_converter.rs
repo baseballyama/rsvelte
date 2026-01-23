@@ -599,6 +599,10 @@ fn convert_assignment_expression(
 }
 
 /// Convert an UpdateExpression node.
+///
+/// For state variables (those with an `update` transformer), this generates
+/// `$.update_pre(x)` for prefix increment or `$.update(x)` for postfix.
+/// For non-state variables, it generates a regular update expression.
 fn convert_update_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
@@ -611,12 +615,27 @@ fn convert_update_expression(
         _ => JsUpdateOp::Increment,
     };
 
-    let argument = obj
-        .get("argument")
+    let prefix = obj.get("prefix").and_then(|p| p.as_bool()).unwrap_or(true);
+
+    // Get the argument
+    let argument_value = obj.get("argument");
+
+    // Check if the argument is a simple identifier with an update transformer
+    if let Some(arg_obj) = argument_value.and_then(|a| a.as_object())
+        && arg_obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+        && let Some(name) = arg_obj.get("name").and_then(|n| n.as_str())
+        && let Some(transform) = context.state.transform.get(name)
+        && let Some(update_fn) = transform.update
+    {
+        // Use the update transformer
+        let identifier = JsExpr::Identifier(name.to_string());
+        return update_fn(operator, identifier, prefix);
+    }
+
+    // Fall back to regular update expression
+    let argument = argument_value
         .map(|a| Box::new(convert_json_value(a, context)))
         .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
-
-    let prefix = obj.get("prefix").and_then(|p| p.as_bool()).unwrap_or(true);
 
     JsExpr::Update(JsUpdateExpression {
         operator,

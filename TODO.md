@@ -256,6 +256,27 @@ svelte/packages/svelte/src/compiler/
   - **完了**: 2026-01-23
   - 結果: Client +1 (22 → 23)
 
+- [ ] **C-036**: 非リアクティブ変数の最適化
+  - 依存: なし
+  - 実装:
+    - Phase 2 で変数の再代入を追跡
+    - 再代入されない $state() は let に変換
+  - 影響: ~30% のテスト改善見込み
+
+- [ ] **C-037**: 変数命名の一貫性
+  - 依存: なし
+  - 実装:
+    - ユニーク変数カウンターのリセットロジック確認
+    - JS 実装と同じ順序で変数を生成
+  - 影響: テスト一致率向上
+
+- [ ] **C-038**: $.get() 最適化
+  - 依存: C-036
+  - 実装:
+    - リアクティビティ分析結果を使用
+    - 非リアクティブ変数には $.get() を省略
+  - 影響: 出力コードの簡潔化
+
 #### 6.1.2 Phase 2 Analyze 補完
 
 - [x] **A-001**: Validator 警告生成システム（Quick Wins 完了）
@@ -581,12 +602,11 @@ jobs:
 - [ ] **Phase D 未着手**: 互換性テスト整備
 - [ ] **Phase E 未着手**: docs サイト完成
 
-**現在のテスト状況（2026-01-23 更新）:**
+**現在のテスト状況（2026-01-24 更新）:**
 
-- Runtime Runes: 16/724 (Client: 23, Server: 111)
-- **Compiler Snapshot: 19/19 (100%)** ✅
-- **Validator: 156/312 (50.0%)** ✅ **50%達成**
-- Clippy: 0 件（全て修正済み）
+- Runtime Runes: 18/724 (Client: 24, Server: 130)
+- Compiler Snapshot: 19/19 (100%) ✅
+- Validator: 156/312 (50.0%) ✅
 
 **本日の改善:**
 - C-034: Transition 実装（$.transition() 生成）
@@ -673,3 +693,26 @@ jobs:
 1. 非リアクティブ変数の最適化（多くのテストに影響）
 2. 変数命名の改善（可読性・一貫性）
 3. $.get() 最適化（パフォーマンス）
+
+### 2026-01-24
+
+- [ ] **Phase C 継続**: Runtime Runes 最適化
+  - [x] C-039: UpdateExpression 変換修正
+    - ++x → $.update_pre(x)、x++ → $.update(x) の正しい生成
+    - word boundary を考慮した置換で誤検出を防止
+    - IdentifierTransform に update フィールド追加
+    - 結果: Client +1 (23 → 24)
+  - [x] C-040: サーバー $$props と component ラッパー
+    - $effect 使用時に needs_context を検出
+    - $$props パラメータ追加
+    - $$renderer.component() ラッパー生成
+    - 結果: Server +20 (110 → 130)
+  - [ ] C-036: 非リアクティブ変数の最適化
+    - 再代入されない $state() を let に変換
+    - ReactivityAnalysis で変数の再代入を追跡
+    - 対象: `src/compiler/phases/2_analyze/`
+  - [ ] C-037: 変数命名の一貫性
+    - JS 実装と同じ命名規則に合わせる
+    - root_1/root_2、consequent/consequent_1 等
+  - [ ] C-038: $.get() 最適化
+    - 非リアクティブ変数への不要な $.get() 呼び出しを除去

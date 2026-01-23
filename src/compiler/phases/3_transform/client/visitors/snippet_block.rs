@@ -353,6 +353,7 @@ fn create_call_transform()
         read: Some(|expr| b::call(expr, vec![])),
         assign: None,
         mutate: None,
+        update: None,
     }
 }
 
@@ -363,6 +364,7 @@ fn create_get_value_transform()
         read: Some(|expr| b::call(b::member_path("$.get"), vec![expr])),
         assign: None,
         mutate: None,
+        update: None,
     }
 }
 
