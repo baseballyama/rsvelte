@@ -79,7 +79,7 @@ svelte/packages/svelte/src/compiler/
 | Parser Legacy | 82/82 | 100% | - |
 | Compiler Snapshot | 15/19 | 78.9% | 高 |
 | CSS | 110/177 | 62.1% | 中 |
-| Validator | 82/312 | 26.3% | 中 |
+| Validator | 128/312 | 41.0% | 中 |
 | Compiler Errors | 0/118 | 0% | 高 |
 | Runtime Runes | 10/724 | 1.4% | 最高 |
 | Runtime Legacy | 13/1198 | 1.1% | 高 |
