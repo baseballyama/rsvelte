@@ -12,6 +12,11 @@ use crate::ast::template::SvelteElement;
 
 /// Visit a svelte:head.
 pub fn visit(head: &mut SvelteElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    // Check for illegal attributes - svelte:head cannot have any attributes or directives
+    if !head.attributes.is_empty() {
+        return Err(errors::svelte_head_illegal_attribute());
+    }
+
     // Check for duplicate
     if context.has_svelte_head {
         return Err(errors::svelte_meta_duplicate("svelte:head"));

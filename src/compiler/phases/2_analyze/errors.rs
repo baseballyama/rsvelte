@@ -628,3 +628,43 @@ pub fn props_invalid_pattern() -> AnalysisError {
         "Props destructuring pattern cannot use computed properties or non-identifier keys",
     )
 }
+
+// Component-related errors
+
+/// This type of directive is not valid on components
+pub fn component_invalid_directive() -> AnalysisError {
+    error(
+        "component_invalid_directive",
+        "This type of directive is not valid on components",
+    )
+}
+
+// Svelte element errors
+
+/// `<svelte:head>` cannot have attributes nor directives
+pub fn svelte_head_illegal_attribute() -> AnalysisError {
+    error(
+        "svelte_head_illegal_attribute",
+        "`<svelte:head>` cannot have attributes nor directives",
+    )
+}
+
+// Title element errors
+
+/// `<title>` cannot have attributes nor directives
+pub fn title_illegal_attribute() -> AnalysisError {
+    error(
+        "title_illegal_attribute",
+        "`<title>` cannot have attributes nor directives",
+    )
+}
+
+// Reactive declaration errors
+
+/// Cyclical dependency detected: %cycle%
+pub fn reactive_declaration_cycle(cycle: &str) -> AnalysisError {
+    error(
+        "reactive_declaration_cycle",
+        format!("Cyclical dependency detected: {}", cycle),
+    )
+}

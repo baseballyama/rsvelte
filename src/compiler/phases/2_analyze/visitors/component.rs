@@ -6,7 +6,7 @@
 
 use super::super::AnalysisError;
 use super::VisitorContext;
-use super::shared::component::validate_component;
+use super::shared::component::{validate_component, visit_component};
 use crate::ast::template::Component;
 
 /// Visit a component node.
@@ -68,8 +68,11 @@ pub fn visit(component: &mut Component, context: &mut VisitorContext) -> Result<
         }
     }
 
-    // Delegate to shared validate_component for the full component analysis
+    // Delegate to shared validate_component for attribute validation
     validate_component(component, context)?;
+
+    // Delegate to shared visit_component for full analysis (includes directive validation)
+    visit_component(component, context)?;
 
     Ok(())
 }

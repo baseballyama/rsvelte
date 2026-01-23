@@ -265,12 +265,14 @@ pub fn order_reactive_statements(
 
     // Check for cycles using depth-first search
     if let Some(cycle) = utils::check_graph_for_cycles(&edges) {
-        // The cycle contains binding indices, we need to report it
-        // For now, just return an error with the cycle information
-        return Err(AnalysisError::Validation(format!(
-            "Cyclical dependency detected in reactive statements involving bindings: {:?}",
-            cycle
-        )));
+        // The cycle contains binding indices
+        // Format them as "idx1 → idx2 → idx3 → idx1"
+        let cycle_str = cycle
+            .iter()
+            .map(|idx| idx.to_string())
+            .collect::<Vec<_>>()
+            .join(" → ");
+        return Err(errors::reactive_declaration_cycle(&cycle_str));
     }
 
     // Build the ordered list using dependency ordering

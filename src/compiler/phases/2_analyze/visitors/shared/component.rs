@@ -7,6 +7,7 @@
 use std::collections::HashSet;
 
 use super::super::super::AnalysisError;
+use super::super::super::errors;
 use super::super::VisitorContext;
 use super::fragment;
 use crate::ast::template::{Attribute, Component};
@@ -114,8 +115,8 @@ pub fn visit_component(
             }
             _ => {
                 // All other directive types are invalid on components
-                // TODO: Error - invalid directive
-                // e.component_invalid_directive(attribute)
+                // (TransitionDirective, AnimateDirective, UseDirective, ClassDirective, StyleDirective)
+                return Err(errors::component_invalid_directive());
             }
         }
     }
