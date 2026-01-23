@@ -356,25 +356,38 @@ pub fn validate_no_const_assignment(
             }
         }
         Some("Identifier") => {
-            if let Some(name) = argument.get("name").and_then(|n| n.as_str())
-                && let Some(binding_idx) = context.analysis.root.scope.declarations.get(name)
-            {
-                let binding = &context.analysis.root.bindings[*binding_idx];
+            if let Some(name) = argument.get("name").and_then(|n| n.as_str()) {
+                // First try the scope declarations
+                let binding_idx = context.analysis.root.scope.declarations.get(name).copied();
 
-                if binding.declaration_kind == DeclarationKind::Import
-                    || (binding.declaration_kind == DeclarationKind::Const
-                        && binding.kind != BindingKind::EachItem)
-                {
-                    let thing = if binding.declaration_kind == DeclarationKind::Import {
-                        "import"
-                    } else {
-                        "constant"
-                    };
+                // If not found, search through all bindings by name
+                let binding_idx = binding_idx.or_else(|| {
+                    context
+                        .analysis
+                        .root
+                        .bindings
+                        .iter()
+                        .position(|b| b.name == name)
+                });
 
-                    if is_binding {
-                        return Err(errors::constant_binding(thing));
-                    } else {
-                        return Err(errors::constant_assignment(thing));
+                if let Some(idx) = binding_idx {
+                    let binding = &context.analysis.root.bindings[idx];
+
+                    if binding.declaration_kind == DeclarationKind::Import
+                        || (binding.declaration_kind == DeclarationKind::Const
+                            && binding.kind != BindingKind::EachItem)
+                    {
+                        let thing = if binding.declaration_kind == DeclarationKind::Import {
+                            "import"
+                        } else {
+                            "constant"
+                        };
+
+                        if is_binding {
+                            return Err(errors::constant_binding(thing));
+                        } else {
+                            return Err(errors::constant_assignment(thing));
+                        }
                     }
                 }
             }
@@ -1167,9 +1180,16 @@ pub fn walk_js_expression(
                 walk_js_expression(right, context, metadata)?;
             }
         }
-        Some("UnaryExpression") | Some("UpdateExpression") => {
+        Some("UnaryExpression") => {
             // Visit argument
             if let Some(argument) = expression.get("argument") {
+                walk_js_expression(argument, context, metadata)?;
+            }
+        }
+        Some("UpdateExpression") => {
+            // Validate assignment before visiting argument
+            if let Some(argument) = expression.get("argument") {
+                validate_no_const_assignment(argument, context, false)?;
                 walk_js_expression(argument, context, metadata)?;
             }
         }
@@ -1221,7 +1241,104 @@ pub fn walk_js_expression(
                 }
             }
         }
+        Some("AssignmentExpression") => {
+            // Validate assignment before visiting
+            if let Some(left) = expression.get("left") {
+                validate_no_const_assignment(left, context, false)?;
+                walk_js_expression(left, context, metadata)?;
+            }
+            if let Some(right) = expression.get("right") {
+                walk_js_expression(right, context, metadata)?;
+            }
+        }
+        Some("ArrowFunctionExpression") | Some("FunctionExpression") => {
+            // Visit function body
+            if let Some(body) = expression.get("body") {
+                walk_js_expression(body, context, metadata)?;
+            }
+        }
+        Some("BlockStatement") => {
+            // Visit statements in block
+            if let Some(body) = expression.get("body").and_then(|b| b.as_array()) {
+                for stmt in body {
+                    walk_js_statement(stmt, context, metadata)?;
+                }
+            }
+        }
+        Some("ExpressionStatement") => {
+            // Visit expression
+            if let Some(expr) = expression.get("expression") {
+                walk_js_expression(expr, context, metadata)?;
+            }
+        }
         // Literals and other leaf nodes - no recursion needed
+        _ => {}
+    }
+
+    Ok(())
+}
+
+/// Visit a JavaScript statement and track identifier references.
+///
+/// Helper for walk_js_expression when encountering BlockStatement.
+pub fn walk_js_statement(
+    statement: &Value,
+    context: &VisitorContext,
+    metadata: &mut crate::ast::template::ExpressionMetadata,
+) -> Result<(), AnalysisError> {
+    let stmt_type = statement.get("type").and_then(|t| t.as_str());
+
+    match stmt_type {
+        Some("ExpressionStatement") => {
+            if let Some(expr) = statement.get("expression") {
+                walk_js_expression(expr, context, metadata)?;
+            }
+        }
+        Some("ReturnStatement") => {
+            if let Some(argument) = statement.get("argument") {
+                walk_js_expression(argument, context, metadata)?;
+            }
+        }
+        Some("IfStatement") => {
+            if let Some(test) = statement.get("test") {
+                walk_js_expression(test, context, metadata)?;
+            }
+            if let Some(consequent) = statement.get("consequent") {
+                walk_js_statement(consequent, context, metadata)?;
+            }
+            if let Some(alternate) = statement.get("alternate") {
+                walk_js_statement(alternate, context, metadata)?;
+            }
+        }
+        Some("BlockStatement") => {
+            if let Some(body) = statement.get("body").and_then(|b| b.as_array()) {
+                for stmt in body {
+                    walk_js_statement(stmt, context, metadata)?;
+                }
+            }
+        }
+        Some("VariableDeclaration") => {
+            if let Some(declarations) = statement.get("declarations").and_then(|d| d.as_array()) {
+                for decl in declarations {
+                    if let Some(init) = decl.get("init") {
+                        walk_js_expression(init, context, metadata)?;
+                    }
+                }
+            }
+        }
+        Some("ForStatement") | Some("ForInStatement") | Some("ForOfStatement") => {
+            if let Some(body) = statement.get("body") {
+                walk_js_statement(body, context, metadata)?;
+            }
+        }
+        Some("WhileStatement") | Some("DoWhileStatement") => {
+            if let Some(test) = statement.get("test") {
+                walk_js_expression(test, context, metadata)?;
+            }
+            if let Some(body) = statement.get("body") {
+                walk_js_statement(body, context, metadata)?;
+            }
+        }
         _ => {}
     }
 

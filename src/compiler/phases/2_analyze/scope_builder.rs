@@ -4,8 +4,8 @@
 
 use super::scope::{Binding, BindingKind, DeclarationKind, Scope, ScopeRoot};
 use crate::ast::template::{
-    AwaitBlock, EachBlock, Fragment, IfBlock, KeyBlock, RegularElement, Root, Script, SnippetBlock,
-    TemplateNode,
+    AwaitBlock, ConstTag, EachBlock, Fragment, IfBlock, KeyBlock, RegularElement, Root, Script,
+    SnippetBlock, TemplateNode,
 };
 
 use oxc_allocator::Allocator;
@@ -53,6 +53,24 @@ impl<'a> ScopeBuilder<'a> {
 
         // Visit template
         self.visit_fragment(&ast.fragment);
+
+        // Collect all declarations from all scopes into the root scope
+        // This allows name lookup from any scope level to find bindings
+        // Note: This is a temporary solution until proper scope chain lookup is implemented
+        for i in 1..self.scopes.len() {
+            let declarations: Vec<(String, usize)> = self.scopes[i]
+                .declarations
+                .iter()
+                .map(|(k, v)| (k.clone(), *v))
+                .collect();
+            for (name, binding_idx) in declarations {
+                // Only add if not already in root scope (child scope takes precedence)
+                self.scopes[0]
+                    .declarations
+                    .entry(name)
+                    .or_insert(binding_idx);
+            }
+        }
 
         // Return the root scope
         let root_scope = self.scopes.remove(0);
@@ -315,6 +333,7 @@ impl<'a> ScopeBuilder<'a> {
                 // Visit component children
                 self.visit_fragment(&component.fragment);
             }
+            TemplateNode::ConstTag(tag) => self.visit_const_tag(tag),
             // Other nodes don't create scopes
             _ => {}
         }
@@ -444,6 +463,78 @@ impl<'a> ScopeBuilder<'a> {
         self.visit_fragment(&block.body);
 
         self.pop_scope(old_scope);
+    }
+
+    /// Visit a const tag.
+    ///
+    /// {@const} tags declare a constant binding in the current scope.
+    fn visit_const_tag(&mut self, tag: &ConstTag) {
+        // Get the declaration from the const tag
+        // The declaration can be either:
+        // - AssignmentExpression: @const b = a + 1 (left is Identifier)
+        // - VariableDeclaration: @const {x, y} = obj (declarations array)
+        let crate::ast::js::Expression::Value(value) = &tag.declaration;
+
+        // Check if it's an AssignmentExpression
+        if value.get("type").and_then(|t| t.as_str()) == Some("AssignmentExpression") {
+            // Extract binding from left side
+            if let Some(left) = value.get("left") {
+                self.process_binding_pattern_from_json(left);
+            }
+        }
+        // Check if it's a VariableDeclaration
+        else if let Some(declarations) = value.get("declarations").and_then(|d| d.as_array())
+            && let Some(declaration) = declarations.first()
+        {
+            // Extract identifier names from the pattern
+            if let Some(id) = declaration.get("id") {
+                self.process_binding_pattern_from_json(id);
+            }
+        }
+    }
+
+    /// Process a binding pattern from a JSON value.
+    fn process_binding_pattern_from_json(&mut self, pattern: &serde_json::Value) {
+        match pattern.get("type").and_then(|t| t.as_str()) {
+            Some("Identifier") => {
+                if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
+                    self.declare_binding(
+                        name.to_string(),
+                        BindingKind::Normal,
+                        DeclarationKind::Const,
+                    );
+                }
+            }
+            Some("ObjectPattern") => {
+                if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
+                    for prop in properties {
+                        if let Some(value) = prop.get("value") {
+                            self.process_binding_pattern_from_json(value);
+                        }
+                    }
+                }
+            }
+            Some("ArrayPattern") => {
+                if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
+                    for element in elements {
+                        if !element.is_null() {
+                            self.process_binding_pattern_from_json(element);
+                        }
+                    }
+                }
+            }
+            Some("AssignmentPattern") => {
+                if let Some(left) = pattern.get("left") {
+                    self.process_binding_pattern_from_json(left);
+                }
+            }
+            Some("RestElement") => {
+                if let Some(argument) = pattern.get("argument") {
+                    self.process_binding_pattern_from_json(argument);
+                }
+            }
+            _ => {}
+        }
     }
 }
 
