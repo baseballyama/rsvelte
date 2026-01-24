@@ -1231,10 +1231,12 @@ impl<'a> ServerCodeGenerator<'a> {
                 // Extract imports and transform the rest
                 let (imports, rest) = extract_imports(&raw_script);
 
-                // Check if imported functions are called or `new` is used
-                // This triggers needs_context in the JS compiler
-                let calls_imported_function = check_calls_imported_function(&raw_script, &imports);
-                let uses_new_operator = check_uses_new_operator(&raw_script);
+                // TODO: C-049 detection is currently disabled to avoid regressions
+                // The string-based detection (check_calls_imported_function, check_uses_new_operator)
+                // caused false positives. A proper AST-based approach is needed.
+                // For now, only use has_effect as the needs_context trigger.
+                let _calls_imported_function = false; // check_calls_imported_function(&raw_script, &imports);
+                let _uses_new_operator = false; // check_uses_new_operator(&raw_script);
 
                 // Apply class field transformation for $derived fields
                 let rest = transform_class_fields_server(&rest);
@@ -1243,10 +1245,8 @@ impl<'a> ServerCodeGenerator<'a> {
 
                 // needs_context is set when:
                 // - $effect is used (even though it's removed for SSR)
-                // - imported functions are called
-                // - `new` operator is used
                 // This triggers both $$props parameter and $$renderer.component() wrapper
-                let needs_context = has_effect || calls_imported_function || uses_new_operator;
+                let needs_context = has_effect;
 
                 if uses_props || has_class_state_fields || needs_context {
                     (
@@ -1857,6 +1857,8 @@ fn detect_props_spread_pattern(script: &str) -> bool {
 
 /// Check if the script calls any imported function.
 /// This triggers needs_context in the Svelte compiler.
+/// NOTE: Currently disabled due to false positives. Needs AST-based approach.
+#[allow(dead_code)]
 fn check_calls_imported_function(script: &str, imports: &[String]) -> bool {
     // Extract imported identifiers from import statements
     let mut imported_names: Vec<String> = Vec::new();
@@ -1925,6 +1927,8 @@ fn check_calls_imported_function(script: &str, imports: &[String]) -> bool {
 
 /// Check if the script uses the `new` operator.
 /// This triggers needs_context in the Svelte compiler.
+/// NOTE: Currently disabled due to false positives. Needs AST-based approach.
+#[allow(dead_code)]
 fn check_uses_new_operator(script: &str) -> bool {
     // Look for "new " followed by an identifier
     // Be careful not to match inside strings or comments
@@ -2004,6 +2008,7 @@ fn check_uses_new_operator(script: &str) -> bool {
 }
 
 /// Check if a character is valid in an identifier.
+#[allow(dead_code)]
 fn is_identifier_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_' || c == '$'
 }

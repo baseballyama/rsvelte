@@ -22,13 +22,22 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::element
 use crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::process_children;
 use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
-use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
+use crate::compiler::phases::phase3_transform::js_ast::nodes::{JsExpr, JsStatement};
 use crate::compiler::phases::phase3_transform::utils::clean_nodes;
 use crate::compiler::utils::{can_delegate_event, is_capture_event};
 
 /// Visit a regular element node.
 ///
 /// Corresponds to `RegularElement()` function in RegularElement.js.
+///
+/// **Important ordering of statements:**
+/// Following the JS implementation, we use separate vectors for element-level
+/// directives (element_state) vs child processing (added directly to context.state).
+/// The final order is:
+/// 1. Child processing statements ($.child, $.sibling, $.reset, etc.)
+/// 2. Element-level directive statements ($.event for on:, $.transition, etc.)
+///
+/// This ensures that child element navigation happens before actions on the parent.
 pub fn visit_regular_element(
     node: &RegularElementNode,
     context: &mut ComponentContext,
@@ -68,6 +77,10 @@ pub fn visit_regular_element(
         .attributes
         .iter()
         .any(|attr| matches!(attr, Attribute::SpreadAttribute(_)));
+    let has_use = node
+        .attributes
+        .iter()
+        .any(|attr| matches!(attr, Attribute::UseDirective(_)));
 
     for attribute in &node.attributes {
         match attribute {
@@ -95,6 +108,49 @@ pub fn visit_regular_element(
                 attributes.push(attribute.clone());
             }
             _ => {}
+        }
+    }
+
+    // Create separate vectors for element-level state (directives that apply to this element)
+    // Following JS implementation: element_state = { ...context.state, init: [], after_update: [] }
+    // These will be merged AFTER child processing to ensure correct statement order.
+    let mut element_state_init: Vec<JsStatement> = Vec::new();
+    let mut element_state_after_update: Vec<JsStatement> = Vec::new();
+
+    // Process other_directives (OnDirective, TransitionDirective) into element_state
+    // This matches JS: for (const attribute of other_directives) { ... element_state.init/after_update }
+    for on_directive in &on_directives {
+        if let TransformResult::Expression(event_call) = context.visit_on_directive(on_directive) {
+            if has_use {
+                // If there's a use: directive, wrap in $.effect
+                element_state_init.push(b::stmt(b::call(
+                    b::member_path("$.effect"),
+                    vec![b::thunk(event_call)],
+                )));
+            } else {
+                element_state_after_update.push(b::stmt(event_call));
+            }
+        }
+    }
+
+    // Process transition directives into element_state
+    for trans_directive in &transition_directives {
+        // Store current init length to capture any statements added by transition_directive
+        let init_before = context.state.init.len();
+        let after_update_before = context.state.after_update.len();
+
+        transition_directive(trans_directive, context);
+
+        // Move any statements added to context.state to element_state instead
+        while context.state.init.len() > init_before {
+            if let Some(stmt) = context.state.init.pop() {
+                element_state_init.insert(0, stmt);
+            }
+        }
+        while context.state.after_update.len() > after_update_before {
+            if let Some(stmt) = context.state.after_update.pop() {
+                element_state_after_update.insert(0, stmt);
+            }
         }
     }
 
@@ -249,6 +305,7 @@ pub fn visit_regular_element(
     );
 
     // Process trimmed child nodes
+    // These statements go directly into context.state (child_state in JS)
     let current_node = context.state.node.clone();
     process_children(
         &cleaned.trimmed,
@@ -282,7 +339,7 @@ pub fn visit_regular_element(
         )));
     }
 
-    // Process non-delegated event attributes AFTER child nodes
+    // Process non-delegated event attributes AFTER child nodes but BEFORE element_state
     // Non-delegated events use $.event() pattern
     if !has_spread {
         for event_attr in &event_attributes {
@@ -295,19 +352,14 @@ pub fn visit_regular_element(
         }
     }
 
-    // Process event handlers (OnDirective)
-    // on: directives always use $.event() and go into after_update
-    for on_directive in &on_directives {
-        if let TransformResult::Expression(event_call) = context.visit_on_directive(on_directive) {
-            // Event handlers go into after_update for regular elements
-            context.state.after_update.push(b::stmt(event_call));
-        }
-    }
-
-    // Process transition directives
-    for trans_directive in &transition_directives {
-        transition_directive(trans_directive, context);
-    }
+    // Now merge element_state statements AFTER child processing
+    // This ensures: child navigation -> $.reset -> element directives
+    // Matches JS: context.state.init.push(...child_state.init, ...element_state.init)
+    context.state.init.extend(element_state_init);
+    context
+        .state
+        .after_update
+        .extend(element_state_after_update);
 
     context.state.template.pop_element();
     TransformResult::None

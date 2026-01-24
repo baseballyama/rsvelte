@@ -1382,9 +1382,13 @@ impl ClientCodeGenerator {
                         }
                     }
                     TemplateNode::RegularElement(elem) => {
-                        // Generate special attribute statements IMMEDIATELY after navigation
-                        // (before processing children, to match JS implementation order)
-                        self.generate_special_attr_stmts(&var_name, elem, &mut stmts);
+                        // Process children FIRST, then element attributes/directives
+                        // This ensures child navigation ($.child, $.sibling) happens
+                        // before actions on the parent element.
+                        // See C-048: correct order is:
+                        //   1. var child = $.child(parent)  -- navigate to children
+                        //   2. $.reset(parent)              -- reset after children
+                        //   3. $.action(parent, ...)        -- parent's directives last
 
                         // Recursively process this element's children
                         let (child_stmts, child_has_dynamic, _trailing) =
@@ -1396,6 +1400,10 @@ impl ClientCodeGenerator {
                         if child_has_dynamic {
                             stmts.push(stmt(svelte_reset(id(&var_name))));
                         }
+
+                        // Generate special attribute statements AFTER child processing
+                        // (after $.reset, to match JS implementation order)
+                        self.generate_special_attr_stmts(&var_name, elem, &mut stmts);
                     }
                     _ => {}
                 }

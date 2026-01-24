@@ -888,7 +888,26 @@ $.template_effect(() => $.set_text(text, `${$.get(item).name ?? ''} costs $${$.g
   - 実装: Component props に $$events フィールド追加
   - 影響: 30-50テスト改善見込み
 
-**次のアクション**: C-046（ネストしたブロック命名）またはテスト差異の根本原因調査
+**次のアクション**: 以下の高インパクトタスクを実装
+
+### 2026-01-24 追加タスク（詳細分析結果）
+
+- [x] **C-048**: クライアント $.reset() 配置修正 ✅
+  - 対象: `src/compiler/phases/3_transform/client/visitors/regular_element.rs`
+  - 実装: element_state / child_state パターンを導入
+  - 完了: 2026-01-24
+  - 結果: 退行なし、他の差異に埋もれている
+
+- [ ] **C-049**: サーバー $$renderer.component ラッパー（一時保留）
+  - 対象: `src/compiler/phases/3_transform/server/transform_server.rs`
+  - 問題: 文字列ベースの検出が誤検出を引き起こす
+  - 注意: AST ベースのアプローチが必要
+  - 現状: $effect 使用時のみ needs_context を設定
+
+- [ ] **C-050**: サーバー側ブロック生成完全実装
+  - 対象: `src/compiler/phases/3_transform/server/`
+  - 問題: {#await}, {#each} ブロックが空出力
+  - 影響: 20テスト (2.8%)
 
 ### 2026-01-24 作業開始
 
