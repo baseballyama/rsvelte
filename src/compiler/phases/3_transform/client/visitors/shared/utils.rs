@@ -801,8 +801,9 @@ pub struct TemplateChunkResult {
 /// Returns a TemplateChunkResult with the generated expression and state flag.
 pub fn build_template_chunk(
     values: &[crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::TextOrExpr],
-    _context: &mut ComponentContext,
+    context: &mut ComponentContext,
 ) -> TemplateChunkResult {
+    use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
     use crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::TextOrExpr;
 
     let mut expressions: Vec<JsExpr> = Vec::new();
@@ -828,10 +829,20 @@ pub fn build_template_chunk(
                         last_quasi.cooked.push_str(&val);
                     }
                 } else {
-                    // Convert Expression to JsExpr
-                    let value = convert_expression_to_js_expr(&expr_tag.expression);
+                    // Convert Expression to JsExpr using the proper converter
+                    let converted_expr = convert_expression(&expr_tag.expression, context);
 
-                    // Assume has_state for non-literal expressions (conservative)
+                    // Build the expression with transforms applied (e.g., $.get() wrapping)
+                    // Note: ExpressionTag doesn't have metadata in current implementation,
+                    // so we use conservative defaults (has_state = true for non-literals)
+                    let expr_metadata = ExpressionMetadata {
+                        has_state: true, // Conservative: assume state for non-literals
+                        ..Default::default()
+                    };
+
+                    let value = build_expression(context, &converted_expr, &expr_metadata);
+
+                    // Conservative: assume has_state for non-literal expressions
                     has_state = true;
 
                     // For single expression, return directly
@@ -900,48 +911,6 @@ fn get_literal_value(expr: &crate::ast::js::Expression) -> Option<Option<String>
                 }
             }
             None
-        }
-    }
-}
-
-/// Convert an Expression (JSON AST) to a JsExpr.
-///
-/// This is a simplified conversion that handles common cases.
-/// TODO: Implement full conversion for all expression types.
-fn convert_expression_to_js_expr(expr: &crate::ast::js::Expression) -> JsExpr {
-    use crate::ast::js::Expression;
-
-    match expr {
-        Expression::Value(json_value) => {
-            // Parse the JSON AST and convert to JsExpr
-            if let Some(obj) = json_value.as_object()
-                && let Some(expr_type) = obj.get("type").and_then(|v| v.as_str())
-            {
-                match expr_type {
-                    "Identifier" => {
-                        if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
-                            return b::id(name);
-                        }
-                    }
-                    "Literal" => {
-                        if let Some(value) = obj.get("value") {
-                            if let Some(s) = value.as_str() {
-                                return b::string(s);
-                            } else if let Some(n) = value.as_f64() {
-                                return b::number(n);
-                            } else if let Some(b_val) = value.as_bool() {
-                                return b::boolean(b_val);
-                            } else if value.is_null() {
-                                return b::null();
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-            }
-
-            // Fallback: create a placeholder
-            b::id("expr")
         }
     }
 }
