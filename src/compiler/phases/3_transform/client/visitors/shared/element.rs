@@ -200,12 +200,22 @@ fn extract_metadata_from_tag(expr_tag: &ExpressionTag) -> ExpressionMetadata {
     // For now, analyze the expression to guess metadata
     let (has_call, has_member, has_state) = match &expr_tag.expression {
         Expression::Value(val) => {
-            let expr_str = val.to_string();
-            (
-                expr_str.contains('('),
-                expr_str.contains('.'),
-                expr_str.contains("$state") || expr_str.contains("$derived"),
-            )
+            // Check if this is a literal value (number, string, boolean, null)
+            // Literal values never have state
+            let is_literal = is_literal_value(val);
+
+            if is_literal {
+                (false, false, false)
+            } else {
+                let expr_str = val.to_string();
+                (
+                    expr_str.contains('('),
+                    expr_str.contains('.'),
+                    // Only mark as having state if it references $state or $derived runes
+                    // or is an identifier that might be reactive
+                    expr_str.contains("$state") || expr_str.contains("$derived"),
+                )
+            }
         }
     };
 
@@ -217,6 +227,35 @@ fn extract_metadata_from_tag(expr_tag: &ExpressionTag) -> ExpressionMetadata {
         has_assignment: false, // TODO: Detect assignment
         dynamic: false,
         blockers: Vec::new(), // TODO: Detect blockers
+    }
+}
+
+/// Check if a JSON value represents a literal (non-reactive) value.
+///
+/// Literals include: numbers, strings, booleans, null, undefined
+/// These never have state and don't need reactive wrappers.
+fn is_literal_value(val: &serde_json::Value) -> bool {
+    match val {
+        serde_json::Value::Null => true,
+        serde_json::Value::Bool(_) => true,
+        serde_json::Value::Number(_) => true,
+        serde_json::Value::String(_) => true,
+        serde_json::Value::Object(obj) => {
+            // Check if this is a Literal AST node
+            if let Some(serde_json::Value::String(node_type)) = obj.get("type") {
+                matches!(
+                    node_type.as_str(),
+                    "Literal"
+                        | "NumericLiteral"
+                        | "StringLiteral"
+                        | "BooleanLiteral"
+                        | "NullLiteral"
+                )
+            } else {
+                false
+            }
+        }
+        serde_json::Value::Array(_) => false,
     }
 }
 
@@ -601,5 +640,83 @@ mod tests {
             JsExpr::Literal(JsLiteral::String(s)) => assert_eq!(s, "hello"),
             _ => panic!("Expected string literal"),
         }
+    }
+
+    #[test]
+    fn test_is_literal_value_number() {
+        // Number AST node: { "type": "Literal", "value": 5 }
+        let val = serde_json::json!({
+            "type": "Literal",
+            "value": 5
+        });
+        assert!(
+            is_literal_value(&val),
+            "Literal number should be detected as literal"
+        );
+    }
+
+    #[test]
+    fn test_is_literal_value_identifier() {
+        // Identifier AST node: { "type": "Identifier", "name": "foo" }
+        let val = serde_json::json!({
+            "type": "Identifier",
+            "name": "foo"
+        });
+        assert!(
+            !is_literal_value(&val),
+            "Identifier should not be detected as literal"
+        );
+    }
+
+    #[test]
+    fn test_is_literal_value_raw_number() {
+        // Raw JSON number
+        let val = serde_json::json!(5);
+        assert!(
+            is_literal_value(&val),
+            "Raw number should be detected as literal"
+        );
+    }
+
+    #[test]
+    fn test_parse_literal_attribute() {
+        // Test that literal attributes (a={5}) are correctly parsed
+        // and recognized as non-reactive (has_state = false)
+        let input = "<Test a={5} />";
+        let result = crate::parse(input, Default::default()).unwrap();
+
+        // Find the Component node
+        let mut found_component = false;
+        for node in &result.fragment.nodes {
+            if let crate::ast::template::TemplateNode::Component(comp) = node {
+                found_component = true;
+                assert_eq!(comp.name.to_string(), "Test");
+
+                for attr in &comp.attributes {
+                    if let crate::ast::template::Attribute::Attribute(a) = attr {
+                        assert_eq!(a.name.as_str(), "a");
+
+                        // The attribute value should be an Expression
+                        if let crate::ast::template::AttributeValue::Expression(expr_tag) = &a.value
+                        {
+                            let crate::ast::js::Expression::Value(val) = &expr_tag.expression;
+
+                            // Should be recognized as a literal
+                            assert!(
+                                is_literal_value(val),
+                                "Numeric literal should be detected as literal"
+                            );
+
+                            // Metadata should have has_state = false
+                            let metadata = extract_metadata_from_tag(expr_tag);
+                            assert!(!metadata.has_state, "Literal value should not have state");
+                        } else {
+                            panic!("Expected Expression attribute value");
+                        }
+                    }
+                }
+            }
+        }
+        assert!(found_component, "Should find Component node");
     }
 }

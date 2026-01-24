@@ -85,6 +85,51 @@ fn collect_non_reactive_state_vars(analysis: &ComponentAnalysis) -> Vec<String> 
     non_reactive
 }
 
+/// Check if an expression string represents a literal value.
+/// Literals don't need reactive getters because they never change.
+fn is_literal_expression(expr: &str) -> bool {
+    let expr = expr.trim();
+
+    // Empty expression
+    if expr.is_empty() {
+        return false;
+    }
+
+    // Numeric literal (including negative numbers and decimals)
+    if expr.parse::<f64>().is_ok() {
+        return true;
+    }
+
+    // BigInt literal (e.g., "5n")
+    if expr.ends_with('n') && expr[..expr.len() - 1].parse::<i64>().is_ok() {
+        return true;
+    }
+
+    // Boolean literals
+    if expr == "true" || expr == "false" {
+        return true;
+    }
+
+    // Null/undefined
+    if expr == "null" || expr == "undefined" {
+        return true;
+    }
+
+    // String literal (single or double quotes)
+    if (expr.starts_with('"') && expr.ends_with('"'))
+        || (expr.starts_with('\'') && expr.ends_with('\''))
+    {
+        return true;
+    }
+
+    // Template literal with no expressions (backticks)
+    if expr.starts_with('`') && expr.ends_with('`') && !expr.contains("${") {
+        return true;
+    }
+
+    false
+}
+
 /// Transform a component analysis into client-side JavaScript.
 ///
 /// # Arguments
@@ -442,14 +487,15 @@ impl ClientCodeGenerator {
                             if expr_end > expr_start && expr_end <= self.source.len() {
                                 let expr_source =
                                     self.source[expr_start..expr_end].trim().to_string();
-                                // Mark as needs_getter if:
-                                // 1. Expression is different from prop name (computed value)
-                                // 2. Expression references a snippet (module-level binding)
-                                // 3. Expression references a state variable
-                                let needs_getter = expr_source != name
-                                    || snippet_names.contains(&expr_source)
+                                // Mark as needs_getter if the expression references reactive values:
+                                // 1. Expression references a snippet (module-level binding)
+                                // 2. Expression references a state variable
+                                // 3. Expression references a proxy state variable
+                                // Note: Static/literal values (numbers, strings, etc.) don't need getters
+                                let needs_getter = snippet_names.contains(&expr_source)
                                     || self.state_vars.contains(&expr_source)
-                                    || self.proxy_state_vars.contains(&expr_source);
+                                    || self.proxy_state_vars.contains(&expr_source)
+                                    || self.expression_references_reactive(&expr_source);
                                 props.push((name.to_string(), expr_source, needs_getter));
                             }
                         }
@@ -1006,6 +1052,40 @@ impl ClientCodeGenerator {
         };
         self.node_var_index += 1;
         name
+    }
+
+    /// Check if an expression references reactive values (state vars, derived vars, etc.)
+    /// This is used to determine if a component prop needs a getter.
+    /// Literal values (numbers, strings, booleans) don't need getters.
+    fn expression_references_reactive(&self, expr: &str) -> bool {
+        // Quick check: if expression is a pure literal, it's not reactive
+        if is_literal_expression(expr) {
+            return false;
+        }
+
+        // Check if expression contains any reactive variable references
+        for var in &self.state_vars {
+            if expr.contains(var.as_str()) {
+                return true;
+            }
+        }
+        for var in &self.proxy_state_vars {
+            if expr.contains(var.as_str()) {
+                return true;
+            }
+        }
+        for var in &self.derived_vars {
+            if expr.contains(var.as_str()) {
+                return true;
+            }
+        }
+
+        // Check for derived syntax like $derived()
+        if expr.contains("$derived") || expr.contains("$state") {
+            return true;
+        }
+
+        false
     }
 
     /// Reset variable name counters for fresh code generation.
@@ -3740,9 +3820,12 @@ impl ClientCodeGenerator {
                         if *is_reactive {
                             // Use getter for reactive props
                             format!("get {}() {{\n\t\t\treturn {};\n\t\t}}", name, value)
-                        } else {
-                            // Shorthand for non-reactive props that match name
+                        } else if name == value {
+                            // Shorthand for props where name equals value (e.g., a={a})
                             name.clone()
+                        } else {
+                            // Regular prop with different name and value (e.g., a={5})
+                            format!("{}: {}", name, value)
                         }
                     })
                     .collect();
