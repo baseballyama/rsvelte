@@ -5,6 +5,7 @@
 
 use crate::ast::template::{Attribute, AttributeNode};
 use crate::compiler::phases::phase3_transform::client::types::ComponentContext;
+use crate::compiler::utils::can_delegate_event;
 
 /// Visit an Attribute node and generate client-side code.
 ///
@@ -178,10 +179,19 @@ fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContext) {
     // Build the event handler
     let handler = build_event_handler(expr_tag, context);
 
-    // Check if this event should be delegated
-    // TODO: For now, we don't have metadata.delegated, so we assume non-delegated
-    // In the full implementation, this would check node.metadata.delegated
-    let delegated = false;
+    // Determine if this event should be delegated.
+    //
+    // Event delegation is used when:
+    // 1. The event is delegatable (click, input, etc. - see can_delegate_event())
+    // 2. The element containing this attribute is a RegularElement (not SvelteElement or special elements)
+    // 3. The event is not in capture mode
+    //
+    // Since visit_event_attribute is only called from visit_regular_element when
+    // processing a RegularElement's attributes, the element is always a RegularElement.
+    // So we just need to check if the event type is delegatable and not captured.
+    //
+    // Note: SvelteElement would need separate handling if we add that visitor.
+    let delegated = !capture && can_delegate_event(event_name);
 
     if delegated {
         // Delegated event: assign handler to element property
@@ -532,5 +542,36 @@ mod tests {
             AttributeValuePart::ExpressionTag(expr_tag),
         ]);
         assert!(!is_expression_attribute_value(&multi_sequence));
+    }
+
+    #[test]
+    fn test_can_delegate_event() {
+        // Delegatable events
+        assert!(can_delegate_event("click"));
+        assert!(can_delegate_event("input"));
+        assert!(can_delegate_event("change"));
+        assert!(can_delegate_event("keydown"));
+        assert!(can_delegate_event("keyup"));
+        assert!(can_delegate_event("mousedown"));
+        assert!(can_delegate_event("mouseup"));
+        assert!(can_delegate_event("mousemove"));
+        assert!(can_delegate_event("dblclick"));
+        assert!(can_delegate_event("contextmenu"));
+        assert!(can_delegate_event("focusin"));
+        assert!(can_delegate_event("focusout"));
+        assert!(can_delegate_event("pointerdown"));
+        assert!(can_delegate_event("pointerup"));
+        assert!(can_delegate_event("touchstart"));
+        assert!(can_delegate_event("touchmove"));
+        assert!(can_delegate_event("touchend"));
+        assert!(can_delegate_event("beforeinput"));
+
+        // Non-delegatable events
+        assert!(!can_delegate_event("scroll"));
+        assert!(!can_delegate_event("focus"));
+        assert!(!can_delegate_event("blur"));
+        assert!(!can_delegate_event("load"));
+        assert!(!can_delegate_event("resize"));
+        assert!(!can_delegate_event("submit"));
     }
 }
