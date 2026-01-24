@@ -1231,14 +1231,22 @@ impl<'a> ServerCodeGenerator<'a> {
                 // Extract imports and transform the rest
                 let (imports, rest) = extract_imports(&raw_script);
 
+                // Check if imported functions are called or `new` is used
+                // This triggers needs_context in the JS compiler
+                let calls_imported_function = check_calls_imported_function(&raw_script, &imports);
+                let uses_new_operator = check_uses_new_operator(&raw_script);
+
                 // Apply class field transformation for $derived fields
                 let rest = transform_class_fields_server(&rest);
 
                 let transformed = transform_script_content(&rest);
 
-                // needs_context is set when $effect is used (even though it's removed for SSR)
+                // needs_context is set when:
+                // - $effect is used (even though it's removed for SSR)
+                // - imported functions are called
+                // - `new` operator is used
                 // This triggers both $$props parameter and $$renderer.component() wrapper
-                let needs_context = has_effect;
+                let needs_context = has_effect || calls_imported_function || uses_new_operator;
 
                 if uses_props || has_class_state_fields || needs_context {
                     (
@@ -1845,6 +1853,159 @@ fn detect_props_spread_pattern(script: &str) -> bool {
         }
     }
     false
+}
+
+/// Check if the script calls any imported function.
+/// This triggers needs_context in the Svelte compiler.
+fn check_calls_imported_function(script: &str, imports: &[String]) -> bool {
+    // Extract imported identifiers from import statements
+    let mut imported_names: Vec<String> = Vec::new();
+
+    for import_line in imports {
+        // Parse import { foo, bar } from 'module'
+        // or import foo from 'module'
+        // or import * as foo from 'module'
+
+        let trimmed = import_line.trim();
+
+        // Handle: import { foo, bar as baz } from 'module'
+        if let Some(start) = trimmed.find('{') {
+            if let Some(end) = trimmed.find('}') {
+                let names_part = &trimmed[start + 1..end];
+                for name in names_part.split(',') {
+                    let name = name.trim();
+                    // Handle "foo as bar" -> use "bar"
+                    if let Some(as_idx) = name.find(" as ") {
+                        imported_names.push(name[as_idx + 4..].trim().to_string());
+                    } else {
+                        imported_names.push(name.to_string());
+                    }
+                }
+            }
+        }
+        // Handle: import foo from 'module'
+        else if trimmed.starts_with("import ") && !trimmed.contains('*') {
+            // Extract default import name
+            let rest = &trimmed[7..]; // After "import "
+            if let Some(from_idx) = rest.find(" from ") {
+                let name = rest[..from_idx].trim();
+                if !name.is_empty() && !name.starts_with('{') {
+                    imported_names.push(name.to_string());
+                }
+            }
+        }
+        // Handle: import * as foo from 'module'
+        else if let Some(star_idx) = trimmed.find("* as ") {
+            let rest = &trimmed[star_idx + 5..];
+            if let Some(from_idx) = rest.find(" from ") {
+                let name = rest[..from_idx].trim();
+                if !name.is_empty() {
+                    imported_names.push(name.to_string());
+                }
+            }
+        }
+    }
+
+    // Check if any imported name is called in the script
+    for name in &imported_names {
+        // Look for patterns like "name(" which indicate a function call
+        let call_pattern = format!("{}(", name);
+        if script.contains(&call_pattern) {
+            return true;
+        }
+        // Also check for method calls like "name.method("
+        let method_pattern = format!("{}.", name);
+        if script.contains(&method_pattern) {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Check if the script uses the `new` operator.
+/// This triggers needs_context in the Svelte compiler.
+fn check_uses_new_operator(script: &str) -> bool {
+    // Look for "new " followed by an identifier
+    // Be careful not to match inside strings or comments
+    let mut in_string = false;
+    let mut string_char = ' ';
+    let mut in_line_comment = false;
+    let mut in_block_comment = false;
+    let mut prev_char = ' ';
+
+    let script_bytes = script.as_bytes();
+    let len = script_bytes.len();
+    let mut i = 0;
+
+    while i < len {
+        let c = script_bytes[i] as char;
+
+        // Handle comments
+        if !in_string {
+            if !in_block_comment && c == '/' && i + 1 < len && script_bytes[i + 1] == b'/' {
+                in_line_comment = true;
+                i += 2;
+                continue;
+            }
+            if !in_line_comment && c == '/' && i + 1 < len && script_bytes[i + 1] == b'*' {
+                in_block_comment = true;
+                i += 2;
+                continue;
+            }
+            if in_line_comment && c == '\n' {
+                in_line_comment = false;
+                i += 1;
+                continue;
+            }
+            if in_block_comment && c == '*' && i + 1 < len && script_bytes[i + 1] == b'/' {
+                in_block_comment = false;
+                i += 2;
+                continue;
+            }
+        }
+
+        if in_line_comment || in_block_comment {
+            i += 1;
+            continue;
+        }
+
+        // Handle strings
+        if (c == '"' || c == '\'' || c == '`') && prev_char != '\\' {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char {
+                in_string = false;
+            }
+        }
+
+        if in_string {
+            prev_char = c;
+            i += 1;
+            continue;
+        }
+
+        // Look for "new " pattern
+        if i + 4 <= len && &script[i..i + 4] == "new " {
+            // Check that this is not part of a larger identifier
+            // (preceded by a non-identifier character)
+            let before_ok = i == 0 || !is_identifier_char(script_bytes[i - 1] as char);
+            if before_ok {
+                return true;
+            }
+        }
+
+        prev_char = c;
+        i += 1;
+    }
+
+    false
+}
+
+/// Check if a character is valid in an identifier.
+fn is_identifier_char(c: char) -> bool {
+    c.is_alphanumeric() || c == '_' || c == '$'
 }
 
 /// Transform script code to use proper destructuring for props spread pattern.
