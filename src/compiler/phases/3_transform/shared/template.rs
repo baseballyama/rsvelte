@@ -72,6 +72,23 @@ pub fn sanitize_template_string(s: &str) -> String {
         .replace("${", "\\${")
 }
 
+/// Escape a string for use in a single-quoted JavaScript string literal.
+/// Escapes: backslashes, single quotes, newlines, carriage returns, tabs.
+pub fn escape_js_string(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '\'' => result.push_str("\\'"),
+            '\\' => result.push_str("\\\\"),
+            '\n' => result.push_str("\\n"),
+            '\r' => result.push_str("\\r"),
+            '\t' => result.push_str("\\t"),
+            _ => result.push(c),
+        }
+    }
+    result
+}
+
 /// Check if an attribute is a boolean attribute.
 pub fn is_boolean_attribute(name: &str) -> bool {
     matches!(
@@ -154,5 +171,19 @@ mod tests {
         assert_eq!(normalize_whitespace("a  b"), "a b");
         assert_eq!(normalize_whitespace("a\n\nb"), "a b");
         assert_eq!(normalize_whitespace("  a  "), " a ");
+    }
+
+    #[test]
+    fn test_escape_js_string() {
+        assert_eq!(escape_js_string("hello"), "hello");
+        assert_eq!(escape_js_string("don't"), "don\\'t");
+        assert_eq!(escape_js_string("it's"), "it\\'s");
+        assert_eq!(escape_js_string("a\\b"), "a\\\\b");
+        assert_eq!(escape_js_string("a\nb"), "a\\nb");
+        assert_eq!(escape_js_string("a\tb"), "a\\tb");
+        assert_eq!(
+            escape_js_string("I don't need to use the argument if I don't want to"),
+            "I don\\'t need to use the argument if I don\\'t want to"
+        );
     }
 }

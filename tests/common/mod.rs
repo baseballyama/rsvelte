@@ -274,6 +274,8 @@ pub fn normalize_js(js: &str) -> String {
             // Remove trailing semicolons for comparison (optional based on style)
             normalized.trim_end_matches(';').to_string()
         })
+        // Filter again after normalization to remove comment-only lines that became empty
+        .filter(|line| !line.trim().is_empty())
         .collect::<Vec<_>>()
         .join("\n")
         .trim()
@@ -1440,5 +1442,35 @@ mod tests {
         let normalized = normalize_js(input);
         // Should have "else if" preserved
         assert!(normalized.contains("else if"));
+    }
+
+    #[test]
+    fn test_normalize_js_effect_cleanup_comparison() {
+        // Test that actual and expected from effect-cleanup test normalize to the same output
+        let actual = r#"import * as $ from 'svelte/internal/server';
+export default function Main($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let count = 0;
+		$$renderer.push(`<button>Click</button>`);
+	});
+}"#;
+        let expected = r#"import * as $ from 'svelte/internal/server';
+
+export default function Main($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let count = 0;
+
+		$$renderer.push(`<button>Click</button>`);
+		// @ts-expect-error
+	});
+}"#;
+        let normalized_actual = normalize_js(actual);
+        let normalized_expected = normalize_js(expected);
+        println!("Normalized actual:\n{}\n", normalized_actual);
+        println!("Normalized expected:\n{}\n", normalized_expected);
+        assert_eq!(
+            normalized_actual, normalized_expected,
+            "Actual and expected should normalize to the same output"
+        );
     }
 }

@@ -1013,4 +1013,20 @@ mod tests {
         println!("{}", code);
         assert!(code.contains("`Hello, ${name}!`"));
     }
+
+    #[test]
+    fn test_apostrophe_escaping() {
+        // Test that apostrophes are properly escaped when using single quotes
+        let prog = program(vec![const_decl("msg", string("I don't need this"))]);
+
+        let code = generate(&prog).unwrap();
+        println!("Generated code: {}", code);
+        // oxc codegen with single_quote: true should escape apostrophes
+        // Either it uses double quotes OR escapes the apostrophe
+        assert!(
+            code.contains(r#"'I don\'t need this'"#) || code.contains(r#""I don't need this""#),
+            "Apostrophe should be escaped or double quotes should be used: {}",
+            code
+        );
+    }
 }

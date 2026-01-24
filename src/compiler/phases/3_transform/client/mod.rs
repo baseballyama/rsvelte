@@ -41,7 +41,7 @@ use super::js_ast::{
     },
     normalize_js,
 };
-use super::shared::{escape_attr, escape_html, is_void_element};
+use super::shared::{escape_attr, escape_html, escape_js_string, is_void_element};
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, ClassDirective,
     Component, EachBlock, ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock, RegularElement,
@@ -2800,7 +2800,9 @@ impl ClientCodeGenerator {
                 } else if let TemplateNode::Text(text) = node {
                     let trimmed = text.data.trim();
                     if !trimmed.is_empty() {
-                        each_info.body_expressions.push(format!("'{}'", trimmed));
+                        each_info
+                            .body_expressions
+                            .push(format!("'{}'", escape_js_string(trimmed)));
                     }
                 }
             }
@@ -4458,7 +4460,7 @@ export default function {component_name}({fn_params}) {{
 
 			$.append($$anchor, text);
 		}}"#,
-                    content_parts.join("")
+                    escape_js_string(&content_parts.join(""))
                 )
             }
         }
@@ -7023,7 +7025,7 @@ export default function {component_name}({fn_params}) {{
                 } else if let TemplateNode::Text(text) = node {
                     let trimmed = text.data.trim();
                     if !trimmed.is_empty() {
-                        body_expressions.push(format!("'{}'", trimmed));
+                        body_expressions.push(format!("'{}'", escape_js_string(trimmed)));
                     }
                 }
             }
@@ -7032,7 +7034,8 @@ export default function {component_name}({fn_params}) {{
                 .iter()
                 .map(|expr| {
                     if expr.starts_with('\'') || expr.starts_with('"') {
-                        expr[1..expr.len() - 1].to_string()
+                        // Unescape for template literal context (since we're building a template literal)
+                        expr[1..expr.len() - 1].replace("\\'", "'").to_string()
                     } else {
                         format!("${{{} ?? ''}}", expr)
                     }
@@ -8109,7 +8112,10 @@ export default function {component_name}({fn_params}) {{
                     })
                     .collect();
 
-                lines.push(format!("\t\t\tvar text = $.text('{}');", text_content));
+                lines.push(format!(
+                    "\t\t\tvar text = $.text('{}');",
+                    escape_js_string(&text_content)
+                ));
                 lines.push("\t\t\t$.append($$anchor, text);".to_string());
             }
         }
