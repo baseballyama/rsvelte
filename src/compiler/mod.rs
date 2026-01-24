@@ -523,4 +523,179 @@ mod tests {
         let result = compile(source, options).unwrap();
         assert!(result.js.code.contains("svelte/internal/server"));
     }
+
+    #[test]
+    fn test_compile_if_block_server() {
+        let source = r#"<script>
+  let { visible } = $props();
+</script>
+
+{#if visible}
+  <div>Visible!</div>
+{/if}"#;
+        let options = CompileOptions {
+            generate: GenerateMode::Server,
+            ..Default::default()
+        };
+        let result = compile(source, options).unwrap();
+        let code = &result.js.code;
+
+        // Should contain if statement
+        assert!(code.contains("if (visible)"), "Should have if statement");
+        // Should contain BLOCK_OPEN marker
+        assert!(code.contains("<!--[-->"), "Should have BLOCK_OPEN marker");
+        // Should contain BLOCK_CLOSE marker
+        assert!(code.contains("<!--]-->"), "Should have BLOCK_CLOSE marker");
+        // Should contain the div content
+        assert!(code.contains("Visible!"), "Should have content");
+    }
+
+    #[test]
+    fn test_compile_if_else_block_server() {
+        let source = r#"<script>
+  let { visible } = $props();
+</script>
+
+{#if visible}
+  <div>Yes</div>
+{:else}
+  <div>No</div>
+{/if}"#;
+        let options = CompileOptions {
+            generate: GenerateMode::Server,
+            ..Default::default()
+        };
+        let result = compile(source, options).unwrap();
+        let code = &result.js.code;
+
+        // Should contain if and else
+        assert!(code.contains("if (visible)"), "Should have if statement");
+        assert!(code.contains("else"), "Should have else branch");
+        // Should contain BLOCK_OPEN marker for if branch
+        assert!(code.contains("<!--[-->"), "Should have BLOCK_OPEN marker");
+        // Should contain BLOCK_OPEN_ELSE marker for else branch
+        assert!(
+            code.contains("<!--[!-->"),
+            "Should have BLOCK_OPEN_ELSE marker"
+        );
+        // Should contain BLOCK_CLOSE marker
+        assert!(code.contains("<!--]-->"), "Should have BLOCK_CLOSE marker");
+    }
+
+    #[test]
+    fn test_compile_if_elseif_else_block_server() {
+        let source = r#"<script>
+  let { value } = $props();
+</script>
+
+{#if value === 1}
+  <div>One</div>
+{:else if value === 2}
+  <div>Two</div>
+{:else}
+  <div>Other</div>
+{/if}"#;
+        let options = CompileOptions {
+            generate: GenerateMode::Server,
+            ..Default::default()
+        };
+        let result = compile(source, options).unwrap();
+        let code = &result.js.code;
+
+        // Should contain if, else if, and else
+        assert!(
+            code.contains("if (value === 1)"),
+            "Should have if statement"
+        );
+        assert!(
+            code.contains("else if (value === 2)"),
+            "Should have else if statement"
+        );
+        assert!(code.contains("else"), "Should have else branch");
+    }
+
+    #[test]
+    fn test_compile_if_block_server_output() {
+        let source = r#"<script>
+  let { visible } = $props();
+</script>
+
+{#if visible}
+  <div>Visible!</div>
+{:else}
+  <div>Hidden</div>
+{/if}"#;
+        let options = CompileOptions {
+            generate: GenerateMode::Server,
+            ..Default::default()
+        };
+        let result = compile(source, options).unwrap();
+        let code = &result.js.code;
+
+        // Print for debugging
+        println!("Generated code:\n{}", code);
+
+        // Verify structure
+        assert!(code.contains("if (visible)"), "Should have if statement");
+        assert!(code.contains("<!--[-->"), "Should have BLOCK_OPEN marker");
+        assert!(
+            code.contains("<!--[!-->"),
+            "Should have BLOCK_OPEN_ELSE marker"
+        );
+        assert!(code.contains("<!--]-->"), "Should have BLOCK_CLOSE marker");
+    }
+
+    #[test]
+    fn test_compile_if_block_with_derived_server() {
+        // Test case that exactly mimics if-block-dependencies test
+        let source = r#"<script>
+	let first = $state(true)
+	let second = $state(false)
+	let derivedSecond = $derived(second)
+
+	queueMicrotask(() => {
+		first = false
+	});
+</script>
+
+{first} {second}
+
+<button onclick={() => {
+	second = true
+}}>Toggle</button>
+
+{#if first || derivedSecond}
+		first: {first}
+		<br />
+		second: {derivedSecond}
+{/if}"#;
+        let options = CompileOptions {
+            generate: GenerateMode::Server,
+            ..Default::default()
+        };
+        let result = compile(source, options).unwrap();
+        let code = &result.js.code;
+
+        // Print for debugging
+        println!("Generated code with derived:\n{}", code);
+
+        // Should contain the expressions before if block
+        assert!(
+            code.contains("$.escape(first)"),
+            "Should have first expression"
+        );
+
+        // Should contain the button
+        assert!(code.contains("<button"), "Should have button");
+
+        // Should contain if statement
+        assert!(
+            code.contains("if (first || derivedSecond)"),
+            "Should have if statement with condition"
+        );
+        // Should contain BLOCK_OPEN marker
+        assert!(code.contains("<!--[-->"), "Should have BLOCK_OPEN marker");
+        // Should contain BLOCK_CLOSE marker
+        assert!(code.contains("<!--]-->"), "Should have BLOCK_CLOSE marker");
+    }
 }

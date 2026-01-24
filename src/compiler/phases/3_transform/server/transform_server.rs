@@ -99,6 +99,12 @@ enum OutputPart {
         index_name: Option<String>,
         body: Vec<OutputPart>,
     },
+    /// If block - produces an if statement
+    IfBlock {
+        test_expr: String,
+        consequent_body: Vec<OutputPart>,
+        alternate_body: Option<Vec<OutputPart>>,
+    },
     /// svelte:element - dynamic element
     SvelteElement {
         tag_expr: String,
@@ -820,9 +826,121 @@ impl<'a> ServerCodeGenerator<'a> {
         Ok(Some(body_generator.output_parts))
     }
 
-    fn generate_if_block(&mut self, _block: &IfBlock) -> Result<(), TransformError> {
-        self.output_parts.push(OutputPart::Comment);
+    fn generate_if_block(&mut self, block: &IfBlock) -> Result<(), TransformError> {
+        // Get the test expression from the source
+        let start = block.test.start().unwrap_or(0) as usize;
+        let end = block.test.end().unwrap_or(0) as usize;
+        let test_expr = if end > start && end <= self.source.len() {
+            self.source[start..end].trim().to_string()
+        } else {
+            "false".to_string()
+        };
+
+        // Generate consequent body parts
+        let consequent_body = self.generate_if_branch_body(&block.consequent)?;
+
+        // Generate alternate body parts if present
+        let alternate_body = if let Some(ref alternate) = block.alternate {
+            Some(self.generate_if_branch_body(alternate)?)
+        } else {
+            None
+        };
+
+        self.output_parts.push(OutputPart::IfBlock {
+            test_expr,
+            consequent_body,
+            alternate_body,
+        });
+
         Ok(())
+    }
+
+    /// Generate body parts for an if/else branch, handling nested IfBlocks for else-if chains.
+    fn generate_if_branch_body(
+        &mut self,
+        fragment: &Fragment,
+    ) -> Result<Vec<OutputPart>, TransformError> {
+        // Check if this fragment contains only a single IfBlock (else-if case)
+        let nodes: Vec<_> = fragment.nodes.iter().collect();
+
+        // Filter out whitespace-only text nodes
+        let meaningful_nodes: Vec<_> = nodes
+            .iter()
+            .filter(|n| {
+                if let TemplateNode::Text(text) = n {
+                    !text.data.trim().is_empty()
+                } else {
+                    true
+                }
+            })
+            .collect();
+
+        // If there's exactly one node and it's an IfBlock, this is an else-if chain
+        if meaningful_nodes.len() == 1
+            && let TemplateNode::IfBlock(nested_if) = meaningful_nodes[0]
+        {
+            // For else-if, we return a nested IfBlock OutputPart directly
+            let nested_test_start = nested_if.test.start().unwrap_or(0) as usize;
+            let nested_test_end = nested_if.test.end().unwrap_or(0) as usize;
+            let nested_test_expr =
+                if nested_test_end > nested_test_start && nested_test_end <= self.source.len() {
+                    self.source[nested_test_start..nested_test_end]
+                        .trim()
+                        .to_string()
+                } else {
+                    "false".to_string()
+                };
+
+            let nested_consequent = self.generate_if_branch_body(&nested_if.consequent)?;
+            let nested_alternate = if let Some(ref alt) = nested_if.alternate {
+                Some(self.generate_if_branch_body(alt)?)
+            } else {
+                None
+            };
+
+            return Ok(vec![OutputPart::IfBlock {
+                test_expr: nested_test_expr,
+                consequent_body: nested_consequent,
+                alternate_body: nested_alternate,
+            }]);
+        }
+
+        // Standard case: generate body parts for the branch
+        let len = nodes.len();
+        let mut start_idx = 0;
+        let mut end_idx = len;
+
+        // Skip leading whitespace
+        while start_idx < len {
+            if let TemplateNode::Text(text) = nodes[start_idx]
+                && text.data.trim().is_empty()
+            {
+                start_idx += 1;
+                continue;
+            }
+            break;
+        }
+
+        // Skip trailing whitespace
+        while end_idx > start_idx {
+            if let TemplateNode::Text(text) = nodes[end_idx - 1]
+                && text.data.trim().is_empty()
+            {
+                end_idx -= 1;
+                continue;
+            }
+            break;
+        }
+
+        // Generate body parts
+        let mut body_generator =
+            ServerCodeGenerator::new(self.component_name.clone(), self.source.clone(), None);
+
+        for node in nodes.iter().take(end_idx).skip(start_idx) {
+            body_generator.generate_node(node, false)?;
+        }
+
+        Ok(body_generator.output_parts)
     }
 
     fn generate_each_block(&mut self, block: &EachBlock) -> Result<(), TransformError> {
@@ -1407,6 +1525,30 @@ export default function {component_name}($$renderer{props_param}) {{}}"#,
                     // Closing marker
                     body_code.push_str(&format!("{}$$renderer.push(`<!--]-->`);\n", indent));
                 }
+                OutputPart::IfBlock {
+                    test_expr,
+                    consequent_body,
+                    alternate_body,
+                } => {
+                    // Flush current HTML before if block
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+
+                    // Generate the if block with proper markers
+                    let if_code = Self::build_if_statement(
+                        test_expr,
+                        consequent_body,
+                        alternate_body,
+                        indent_level,
+                    );
+                    body_code.push_str(&if_code);
+
+                    // Add closing marker after the if statement
+                    body_code.push_str(&format!("\n{}$$renderer.push(`<!--]-->`);\n", indent));
+                }
                 OutputPart::SvelteElement { tag_expr } => {
                     // Flush current HTML before svelte:element
                     if !current_html.is_empty() {
@@ -1525,6 +1667,135 @@ export default function {component_name}($$renderer{props_param}) {{}}"#,
         }
 
         body_code
+    }
+
+    /// Build an if statement with proper block markers.
+    /// Handles nested IfBlocks for else-if chains.
+    fn build_if_statement(
+        test_expr: &str,
+        consequent_body: &[OutputPart],
+        alternate_body: &Option<Vec<OutputPart>>,
+        indent_level: usize,
+    ) -> String {
+        let mut code = String::new();
+        let indent = "\t".repeat(indent_level);
+
+        // Start the if statement
+        code.push_str(&format!("{}if ({}) {{\n", indent, test_expr));
+
+        // Add opening marker for consequent (BLOCK_OPEN = <!--[-->)
+        code.push_str(&format!("{}\t$$renderer.push(`<!--[-->`);\n", indent));
+
+        // Generate consequent body
+        let consequent_code = Self::build_parts(consequent_body, indent_level + 1);
+        code.push_str(&consequent_code);
+
+        // Close consequent block
+        code.push_str(&format!("{}}}", indent));
+
+        // Handle alternate (else/else-if)
+        if let Some(alt_body) = alternate_body {
+            // Check if the alternate is another IfBlock (else-if chain)
+            if alt_body.len() == 1
+                && let OutputPart::IfBlock {
+                    test_expr: nested_test,
+                    consequent_body: nested_consequent,
+                    alternate_body: nested_alternate,
+                } = &alt_body[0]
+            {
+                // else-if case
+                code.push_str(&format!(" else if ({}) {{\n", nested_test));
+
+                // Add opening marker for else-if (still BLOCK_OPEN = <!--[-->)
+                code.push_str(&format!("{}\t$$renderer.push(`<!--[-->`);\n", indent));
+
+                // Generate nested consequent body
+                let nested_code = Self::build_parts(nested_consequent, indent_level + 1);
+                code.push_str(&nested_code);
+
+                // Close nested block and handle deeper nesting
+                code.push_str(&format!("{}}}", indent));
+
+                // Recursively handle the rest of the else-if chain
+                if let Some(deeper_alt) = nested_alternate {
+                    let deeper_code = Self::build_alternate_chain(deeper_alt, indent_level);
+                    code.push_str(&deeper_code);
+                } else {
+                    // No more alternates, add the final else with BLOCK_OPEN_ELSE
+                    code.push_str(" else {\n");
+                    code.push_str(&format!("{}\t$$renderer.push(`<!--[!-->`);\n", indent));
+                    code.push_str(&format!("{}}}", indent));
+                }
+
+                return code;
+            }
+
+            // Regular else case (not else-if)
+            code.push_str(" else {\n");
+
+            // Add opening marker for else (BLOCK_OPEN_ELSE = <!--[!-->)
+            code.push_str(&format!("{}\t$$renderer.push(`<!--[!-->`);\n", indent));
+
+            // Generate alternate body
+            let alternate_code = Self::build_parts(alt_body, indent_level + 1);
+            code.push_str(&alternate_code);
+
+            // Close else block
+            code.push_str(&format!("{}}}", indent));
+        } else {
+            // No alternate - add empty else with BLOCK_OPEN_ELSE
+            code.push_str(" else {\n");
+            code.push_str(&format!("{}\t$$renderer.push(`<!--[!-->`);\n", indent));
+            code.push_str(&format!("{}}}", indent));
+        }
+
+        code
+    }
+
+    /// Build the alternate chain for else-if/else.
+    fn build_alternate_chain(alt_body: &[OutputPart], indent_level: usize) -> String {
+        let mut code = String::new();
+        let indent = "\t".repeat(indent_level);
+
+        // Check if this is another IfBlock
+        if alt_body.len() == 1
+            && let OutputPart::IfBlock {
+                test_expr: nested_test,
+                consequent_body: nested_consequent,
+                alternate_body: nested_alternate,
+            } = &alt_body[0]
+        {
+            // else-if case
+            code.push_str(&format!(" else if ({}) {{\n", nested_test));
+            code.push_str(&format!("{}\t$$renderer.push(`<!--[-->`);\n", indent));
+
+            let nested_code = Self::build_parts(nested_consequent, indent_level + 1);
+            code.push_str(&nested_code);
+            code.push_str(&format!("{}}}", indent));
+
+            // Handle deeper nesting
+            if let Some(deeper_alt) = nested_alternate {
+                let deeper_code = Self::build_alternate_chain(deeper_alt, indent_level);
+                code.push_str(&deeper_code);
+            } else {
+                // Final else
+                code.push_str(" else {\n");
+                code.push_str(&format!("{}\t$$renderer.push(`<!--[!-->`);\n", indent));
+                code.push_str(&format!("{}}}", indent));
+            }
+
+            return code;
+        }
+
+        // Regular else case
+        code.push_str(" else {\n");
+        code.push_str(&format!("{}\t$$renderer.push(`<!--[!-->`);\n", indent));
+
+        let alternate_code = Self::build_parts(alt_body, indent_level + 1);
+        code.push_str(&alternate_code);
+
+        code.push_str(&format!("{}}}", indent));
+        code
     }
 
     /// Build snippet function definitions.
