@@ -904,10 +904,14 @@ $.template_effect(() => $.set_text(text, `${$.get(item).name ?? ''} costs $${$.g
   - 注意: AST ベースのアプローチが必要
   - 現状: $effect 使用時のみ needs_context を設定
 
-- [ ] **C-050**: サーバー側ブロック生成完全実装
-  - 対象: `src/compiler/phases/3_transform/server/`
-  - 問題: {#await}, {#each} ブロックが空出力
-  - 影響: 20テスト (2.8%)
+- [x] **C-050**: サーバー側ブロック生成完全実装（AwaitBlock 部分）✅
+  - 対象: `src/compiler/phases/3_transform/server/transform_server.rs`
+  - 完了: 2026-01-24
+  - 実装内容:
+    - OutputPart::AwaitBlock を拡張（pending_body, then_body, catch_body）
+    - generate_await_block() で pending/then/catch ブロックを再帰的に生成
+    - build_parts() で callback 内に body を出力
+  - 結果: 退行なし、AwaitBlock の内容が正しく生成される
 
 ### 2026-01-24 作業開始
 

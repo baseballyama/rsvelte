@@ -118,6 +118,10 @@ enum OutputPart {
     AwaitBlock {
         promise: String,
         then_param: String,
+        pending_body: Vec<OutputPart>,
+        then_body: Vec<OutputPart>,
+        catch_param: String,
+        catch_body: Vec<OutputPart>,
     },
 }
 
@@ -1047,9 +1051,71 @@ impl<'a> ServerCodeGenerator<'a> {
             String::new()
         };
 
+        // Get the catch error variable name if present
+        let catch_param = if let Some(ref error) = block.error {
+            let start = error.start().unwrap_or(0) as usize;
+            let end = error.end().unwrap_or(0) as usize;
+            if end > start && end <= self.source.len() {
+                self.source[start..end].trim().to_string()
+            } else {
+                String::new()
+            }
+        } else {
+            String::new()
+        };
+
+        // Generate pending body
+        let pending_body = if let Some(ref pending) = block.pending {
+            let mut pending_generator = ServerCodeGenerator::new(
+                self.component_name.clone(),
+                self.source.clone(),
+                self.instance_script,
+            );
+            for node in &pending.nodes {
+                pending_generator.generate_node(node, false)?;
+            }
+            pending_generator.output_parts
+        } else {
+            Vec::new()
+        };
+
+        // Generate then body
+        let then_body = if let Some(ref then) = block.then {
+            let mut then_generator = ServerCodeGenerator::new(
+                self.component_name.clone(),
+                self.source.clone(),
+                self.instance_script,
+            );
+            for node in &then.nodes {
+                then_generator.generate_node(node, false)?;
+            }
+            then_generator.output_parts
+        } else {
+            Vec::new()
+        };
+
+        // Generate catch body
+        let catch_body = if let Some(ref catch) = block.catch {
+            let mut catch_generator = ServerCodeGenerator::new(
+                self.component_name.clone(),
+                self.source.clone(),
+                self.instance_script,
+            );
+            for node in &catch.nodes {
+                catch_generator.generate_node(node, false)?;
+            }
+            catch_generator.output_parts
+        } else {
+            Vec::new()
+        };
+
         self.output_parts.push(OutputPart::AwaitBlock {
             promise: promise_expr,
             then_param,
+            pending_body,
+            then_body,
+            catch_param,
+            catch_body,
         });
 
         Ok(())
@@ -1601,6 +1667,10 @@ export default function {component_name}($$renderer{props_param}) {{}}"#,
                 OutputPart::AwaitBlock {
                     promise,
                     then_param,
+                    pending_body,
+                    then_body,
+                    catch_param,
+                    catch_body,
                 } => {
                     // Flush current HTML before await block
                     if !current_html.is_empty() {
@@ -1609,18 +1679,64 @@ export default function {component_name}($$renderer{props_param}) {{}}"#,
                         current_html.clear();
                     }
 
-                    // Generate $.await call
-                    let pending_callback = "() => {}";
-                    let then_callback = if then_param.is_empty() {
-                        "() => {}".to_string()
-                    } else {
-                        format!("({}) => {{}}", then_param)
-                    };
+                    // Generate $.await call with proper callbacks
+                    body_code.push_str(&format!("{}$.await(\n", indent));
+                    body_code.push_str(&format!("{}\t$$renderer,\n", indent));
+                    body_code.push_str(&format!("{}\t{},\n", indent, promise));
 
-                    body_code.push_str(&format!(
-                        "{}$.await($$renderer, {}, {}, {});\n",
-                        indent, promise, pending_callback, then_callback
-                    ));
+                    // Pending callback
+                    if pending_body.is_empty() {
+                        body_code.push_str(&format!("{}\t() => {{}},\n", indent));
+                    } else {
+                        body_code.push_str(&format!("{}\t() => {{\n", indent));
+                        let pending_code = Self::build_parts(pending_body, indent_level + 2);
+                        body_code.push_str(&pending_code);
+                        body_code.push_str(&format!("{}\t}},\n", indent));
+                    }
+
+                    // Then callback
+                    if then_body.is_empty() {
+                        if then_param.is_empty() {
+                            body_code.push_str(&format!("{}\t() => {{}}", indent));
+                        } else {
+                            body_code.push_str(&format!("{}\t({}) => {{}}", indent, then_param));
+                        }
+                    } else {
+                        if then_param.is_empty() {
+                            body_code.push_str(&format!("{}\t() => {{\n", indent));
+                        } else {
+                            body_code.push_str(&format!("{}\t({}) => {{\n", indent, then_param));
+                        }
+                        let then_code = Self::build_parts(then_body, indent_level + 2);
+                        body_code.push_str(&then_code);
+                        body_code.push_str(&format!("{}\t}}", indent));
+                    }
+
+                    // Catch callback (only if catch block exists)
+                    if !catch_body.is_empty() || !catch_param.is_empty() {
+                        body_code.push_str(",\n");
+                        if catch_body.is_empty() {
+                            if catch_param.is_empty() {
+                                body_code.push_str(&format!("{}\t() => {{}}", indent));
+                            } else {
+                                body_code
+                                    .push_str(&format!("{}\t({}) => {{}}", indent, catch_param));
+                            }
+                        } else {
+                            if catch_param.is_empty() {
+                                body_code.push_str(&format!("{}\t() => {{\n", indent));
+                            } else {
+                                body_code
+                                    .push_str(&format!("{}\t({}) => {{\n", indent, catch_param));
+                            }
+                            let catch_code = Self::build_parts(catch_body, indent_level + 2);
+                            body_code.push_str(&catch_code);
+                            body_code.push_str(&format!("{}\t}}", indent));
+                        }
+                    }
+
+                    body_code.push('\n');
+                    body_code.push_str(&format!("{});\n", indent));
 
                     // Add closing marker to the next push
                     current_html.push_str("<!--]-->");
