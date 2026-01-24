@@ -802,8 +802,11 @@ impl ClientCodeGenerator {
                                 if expr_start + 1 < expr_end && expr_end <= self.source.len() {
                                     let expr = self.source[expr_start + 1..expr_end - 1].trim();
                                     // Transform state variable references in the expression
-                                    let transformed =
-                                        transform_state_in_expr(expr, &self.state_vars);
+                                    let transformed = transform_state_in_expr(
+                                        expr,
+                                        &self.state_vars,
+                                        &self.non_reactive_state_vars,
+                                    );
                                     content_parts.push(format!("${{{} ?? ''}}", transformed));
                                 }
                             }
@@ -1057,6 +1060,7 @@ impl ClientCodeGenerator {
                                             let transformed_expr = transform_arrow_function_expr(
                                                 &expr_source,
                                                 &self.state_vars,
+                                                &self.non_reactive_state_vars,
                                             );
                                             props.push(format!("{}: {}", name, transformed_expr));
                                         }
@@ -1947,7 +1951,8 @@ impl ClientCodeGenerator {
         if start + 1 < end && end <= self.source.len() {
             let raw_expr = self.source[start + 1..end - 1].trim();
             // Transform state variable references in the expression
-            let expr_source = transform_state_in_expr(raw_expr, &self.state_vars);
+            let expr_source =
+                transform_state_in_expr(raw_expr, &self.state_vars, &self.non_reactive_state_vars);
 
             // Check if this is a root-level expression (no parent element)
             if self.element_stack.is_empty() {
@@ -2078,8 +2083,11 @@ impl ClientCodeGenerator {
                             props.push(name.to_string());
                         } else {
                             // Transform arrow function expressions with state variable assignments
-                            let transformed_expr =
-                                transform_arrow_function_expr(&expr_source, &self.state_vars);
+                            let transformed_expr = transform_arrow_function_expr(
+                                &expr_source,
+                                &self.state_vars,
+                                &self.non_reactive_state_vars,
+                            );
                             props.push(format!("{}: {}", name, transformed_expr));
                         }
                     }
@@ -4403,7 +4411,11 @@ export default function {component_name}({fn_params}) {{
                     }
                     ChildPart::Expression(expr) => {
                         has_expressions = true;
-                        let transformed = transform_state_in_expr(expr, &self.state_vars);
+                        let transformed = transform_state_in_expr(
+                            expr,
+                            &self.state_vars,
+                            &self.non_reactive_state_vars,
+                        );
                         content_parts.push(format!("${{{} ?? ''}}", transformed));
                     }
                     ChildPart::Component(..) => {
@@ -4783,6 +4795,7 @@ export default function {component_name}({fn_params}) {{
                     trimmed,
                     &skip_state_vars,
                     &self.state_vars,
+                    &self.non_reactive_state_vars,
                 );
                 result.push('\t');
                 result.push_str(&transformed);
@@ -4796,6 +4809,7 @@ export default function {component_name}({fn_params}) {{
                 trimmed,
                 &skip_state_vars,
                 &self.state_vars,
+                &self.non_reactive_state_vars,
             );
 
             // Transform state variable assignments to $.set()
@@ -5787,8 +5801,11 @@ export default function {component_name}({fn_params}) {{
                                     .push(var_decl(text_var, Some(svelte_child(id(var), None))));
                                 statements.push(stmt(svelte_reset(id(var))));
                                 // For proxy state vars, don't wrap in $.get() - just use directly
-                                let template_str =
-                                    wrap_state_vars_in_get(content_template, &self.state_vars);
+                                let template_str = wrap_state_vars_in_get(
+                                    content_template,
+                                    &self.state_vars,
+                                    &self.non_reactive_state_vars,
+                                );
                                 template_effect_parts.push((text_var.to_string(), template_str));
                             } else {
                                 let evaluated =
@@ -8035,7 +8052,11 @@ export default function {component_name}({fn_params}) {{
                         for child in children {
                             if let SnippetBodyPart::Expression(expr) = child {
                                 // Transform expression for state variables
-                                let transformed = transform_state_in_expr(expr, &self.state_vars);
+                                let transformed = transform_state_in_expr(
+                                    expr,
+                                    &self.state_vars,
+                                    &self.non_reactive_state_vars,
+                                );
                                 lines.push(format!(
                                     "\t\t\t$.template_effect(() => $.set_text(text, {}));",
                                     transformed
@@ -8062,7 +8083,11 @@ export default function {component_name}({fn_params}) {{
 
                 for part in body_parts {
                     if let SnippetBodyPart::Expression(expr) = part {
-                        let transformed = transform_state_in_expr(expr, &self.state_vars);
+                        let transformed = transform_state_in_expr(
+                            expr,
+                            &self.state_vars,
+                            &self.non_reactive_state_vars,
+                        );
                         lines.push(format!(
                             "\t\t\t$.template_effect(($0) => $.set_text(text, $0), [{}]);",
                             transformed
@@ -8143,7 +8168,11 @@ export default function {component_name}({fn_params}) {{
 
                         for child in children {
                             if let BoundaryChildPart::Expression(expr) = child {
-                                let transformed = transform_state_in_expr(expr, &self.state_vars);
+                                let transformed = transform_state_in_expr(
+                                    expr,
+                                    &self.state_vars,
+                                    &self.non_reactive_state_vars,
+                                );
                                 lines.push(format!(
                                     "\t\t\t$.template_effect(() => $.set_text(text, {}));",
                                     transformed
@@ -8173,7 +8202,11 @@ export default function {component_name}({fn_params}) {{
 
             for part in children_parts {
                 if let BoundaryChildPart::Expression(expr) = part {
-                    let transformed = transform_state_in_expr(expr, &self.state_vars);
+                    let transformed = transform_state_in_expr(
+                        expr,
+                        &self.state_vars,
+                        &self.non_reactive_state_vars,
+                    );
                     lines.push(format!(
                         "\t\t\t$.template_effect(($0) => $.set_text(text, $0), [{}]);",
                         transformed
@@ -8211,7 +8244,8 @@ export default function {component_name}({fn_params}) {{
 
         if references_state {
             // Transform to $.derived() with $.get() for state variables
-            let transformed_value = transform_state_in_expr(value, &self.state_vars);
+            let transformed_value =
+                transform_state_in_expr(value, &self.state_vars, &self.non_reactive_state_vars);
             format!("const {} = $.derived(() => {});", name, transformed_value)
         } else {
             format!("const {} = {};", name, value)
@@ -8589,10 +8623,12 @@ fn extract_imports(script: &str) -> (Vec<String>, String) {
 /// Converts `$state(x)` to `$.state(x)` or `$.proxy(x)`, `$derived(x)` to `$.derived(() => x)`, etc.
 /// If `skip_state_vars` contains variable names, those $state() calls will be transformed to just the value.
 /// `state_vars` are used to wrap state variable references inside $derived() with $.get().
+/// `non_reactive_vars` contains state vars that don't need $.get() wrapping (never reassigned).
 fn transform_client_runes_with_skip_and_state(
     line: &str,
     skip_state_vars: &[String],
     state_vars: &[String],
+    non_reactive_vars: &[String],
 ) -> String {
     let mut result = line.to_string();
 
@@ -8666,7 +8702,8 @@ fn transform_client_runes_with_skip_and_state(
             let trimmed = content.trim();
             if !trimmed.starts_with("()") && !trimmed.starts_with("function") {
                 // Wrap state variables inside the derived expression with $.get()
-                let wrapped_content = wrap_state_vars_in_expr(content, state_vars);
+                let wrapped_content =
+                    wrap_state_vars_in_expr(content, state_vars, non_reactive_vars);
                 let new_derived = format!("$.derived(() => {})", wrapped_content);
                 result = format!(
                     "{}{}{}",
@@ -8701,13 +8738,13 @@ fn transform_client_runes_with_skip_and_state(
 /// Backwards compatible wrapper for transform_client_runes_with_skip_and_state without state vars
 #[allow(dead_code)]
 fn transform_client_runes_with_skip(line: &str, skip_state_vars: &[String]) -> String {
-    transform_client_runes_with_skip_and_state(line, skip_state_vars, &[])
+    transform_client_runes_with_skip_and_state(line, skip_state_vars, &[], &[])
 }
 
 /// Transform runes for client-side usage.
 /// Converts `$state(x)` to `$.state(x)` or `$.proxy(x)`, `$derived(x)` to `$.derived(() => x)`, etc.
 fn transform_client_runes(line: &str) -> String {
-    transform_client_runes_with_skip_and_state(line, &[], &[])
+    transform_client_runes_with_skip_and_state(line, &[], &[], &[])
 }
 
 /// Transform `export let x = value` to `let x = $.prop($$props, 'x', 12, value)`.
@@ -9425,10 +9462,20 @@ fn transform_props_access(line: &str, props_var: &str) -> String {
 
 /// Wrap state variable references in $.get() inside template expressions.
 /// Transforms `${count ?? ''}` to `${$.get(count) ?? ''}`.
-fn wrap_state_vars_in_get(template: &str, state_vars: &[String]) -> String {
+fn wrap_state_vars_in_get(
+    template: &str,
+    state_vars: &[String],
+    non_reactive_vars: &[String],
+) -> String {
+    // Filter out non-reactive state vars - they don't need $.get() wrapping
+    let effective_state_vars: Vec<&String> = state_vars
+        .iter()
+        .filter(|v| !non_reactive_vars.contains(v))
+        .collect();
+
     let mut result = template.to_string();
 
-    for var in state_vars {
+    for var in effective_state_vars {
         // Pattern: ${var ?? ''} -> ${$.get(var) ?? ''}
         // Pattern: ${var} -> ${$.get(var)}
         // Need to be careful not to match partial variable names
@@ -9451,7 +9498,11 @@ fn wrap_state_vars_in_get(template: &str, state_vars: &[String]) -> String {
 /// Converts `varname = value` to `$.set(varname, value)` for state variables.
 /// Transform arrow function expressions that contain state variable assignments.
 /// e.g., `() => count += 1` becomes `() => $.set(count, $.get(count) + 1)`
-fn transform_arrow_function_expr(expr: &str, state_vars: &[String]) -> String {
+fn transform_arrow_function_expr(
+    expr: &str,
+    state_vars: &[String],
+    non_reactive_vars: &[String],
+) -> String {
     // Check if this is an arrow function with simple body (no braces)
     if !expr.contains("=>") {
         return expr.to_string();
@@ -9494,7 +9545,8 @@ fn transform_arrow_function_expr(expr: &str, state_vars: &[String]) -> String {
             {
                 let value = &body[eq_pos + assignment_pattern.len()..];
                 // Transform state vars in the value part
-                let transformed_value = transform_state_in_expr(value.trim(), state_vars);
+                let transformed_value =
+                    transform_state_in_expr(value.trim(), state_vars, non_reactive_vars);
                 return format!("{} $.set({}, {}, true)", params, var, transformed_value);
             }
         }
@@ -9511,10 +9563,20 @@ fn transform_arrow_function_expr(expr: &str, state_vars: &[String]) -> String {
 /// NOTE: Does NOT wrap state variables followed by `.` (property access)
 /// because object state variables are already reactive proxies.
 /// e.g., `counter.count` stays as `counter.count`, not `$.get(counter).count`
-fn transform_state_in_expr(expr: &str, state_vars: &[String]) -> String {
+fn transform_state_in_expr(
+    expr: &str,
+    state_vars: &[String],
+    non_reactive_vars: &[String],
+) -> String {
+    // Filter out non-reactive state vars - they don't need $.get() wrapping
+    let effective_state_vars: Vec<&String> = state_vars
+        .iter()
+        .filter(|v| !non_reactive_vars.contains(v))
+        .collect();
+
     let mut result = expr.to_string();
 
-    for var in state_vars {
+    for var in effective_state_vars {
         // Use a more robust approach: find all occurrences of the variable
         // that are not part of a larger identifier (word boundaries)
         let mut new_result = String::new();
@@ -9706,8 +9768,12 @@ fn replace_with_word_boundary(
 /// Wrap state variable references with $.get() in an expression.
 /// This is used for wrapping state vars inside $derived() arrow functions.
 /// e.g., `count * 2` becomes `$.get(count) * 2`
-fn wrap_state_vars_in_expr(expr: &str, state_vars: &[String]) -> String {
-    transform_state_in_expr(expr, state_vars)
+fn wrap_state_vars_in_expr(
+    expr: &str,
+    state_vars: &[String],
+    non_reactive_vars: &[String],
+) -> String {
+    transform_state_in_expr(expr, state_vars, non_reactive_vars)
 }
 
 /// Extract function parameter names from a function definition line.
@@ -9863,12 +9929,14 @@ fn wrap_derived_var_reads(line: &str, derived_vars: &[String], state_vars: &[Str
         }
 
         // Wrap this derived variable with $.get()
-        result = transform_state_in_expr(&result, std::slice::from_ref(var));
+        // Empty non_reactive_vars here since derived vars are already filtered
+        result = transform_state_in_expr(&result, std::slice::from_ref(var), &[]);
     }
 
     // Also wrap state variable reads that weren't already wrapped
     // This handles cases inside $.user_effect callbacks
-    result = transform_state_in_expr(&result, &effective_state_vars);
+    // Empty non_reactive_vars here since effective_state_vars is already filtered
+    result = transform_state_in_expr(&result, &effective_state_vars, &[]);
 
     result
 }
@@ -9996,7 +10064,8 @@ fn transform_state_assignments(line: &str, state_vars: &[String]) -> String {
                 };
 
                 // Transform state variable reads in the value expression
-                let transformed_value = transform_state_in_expr(value.trim(), state_vars);
+                // Empty non_reactive_vars since state_vars is already filtered by caller
+                let transformed_value = transform_state_in_expr(value.trim(), state_vars, &[]);
                 result = format!(
                     "{}$.set({}, {}){}",
                     before,
@@ -10488,7 +10557,7 @@ $effect(() => {
         // Test that $derived wraps state vars with $.get()
         let line = "let double = $derived(count * 2)";
         let state_vars = vec!["count".to_string()];
-        let result = transform_client_runes_with_skip_and_state(line, &[], &state_vars);
+        let result = transform_client_runes_with_skip_and_state(line, &[], &state_vars, &[]);
         assert_eq!(result, "let double = $.derived(() => $.get(count) * 2)");
     }
 
