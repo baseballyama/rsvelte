@@ -1951,18 +1951,35 @@ export default function {component_name}($$renderer{props_param}) {{}}"#,
     }
 }
 
-/// Detect if script uses the spread pattern for $props(): `let props = $props()`
-/// This requires a different transformation with $$renderer.component() wrapper.
+/// Detect if script uses patterns that require $$renderer.component() wrapper with $$slots/$$events exclusion.
+///
+/// This detects two cases:
+/// 1. `let props = $props()` - simple identifier assignment (needs `let { $$slots, $$events, ...props } = $$props`)
+/// 2. `let { ...rest } = $props()` or `let { x, ...rest } = $props()` - ObjectPattern with RestElement
+///
+/// In both cases, we need to wrap in $$renderer.component() and inject $$slots, $$events exclusion.
 fn detect_props_spread_pattern(script: &str) -> bool {
     for line in script.lines() {
         let trimmed = line.trim();
         if (trimmed.starts_with("let ") || trimmed.starts_with("const "))
             && trimmed.contains("= $props()")
         {
-            let parts: Vec<&str> = trimmed.splitn(2, '=').collect();
-            if parts.len() == 2 {
-                let left = parts[0].trim();
-                if !left.contains('{') && !left.contains('[') {
+            // Find the assignment `= $props()` part
+            if let Some(props_idx) = trimmed.find("= $props()") {
+                let left = &trimmed[..props_idx].trim();
+                let pattern = left
+                    .strip_prefix("let ")
+                    .or_else(|| left.strip_prefix("const "))
+                    .map(|s| s.trim())
+                    .unwrap_or(left);
+
+                // Case 1: Simple identifier (let props = $props())
+                if !pattern.contains('{') && !pattern.contains('[') {
+                    return true;
+                }
+
+                // Case 2: ObjectPattern with RestElement (let { ...rest } = $props())
+                if pattern.starts_with('{') && pattern.contains("...") {
                     return true;
                 }
             }
@@ -2130,6 +2147,11 @@ fn is_identifier_char(c: char) -> bool {
 }
 
 /// Transform script code to use proper destructuring for props spread pattern.
+///
+/// Handles two cases:
+/// 1. `let props = $$props` -> `let { $$slots, $$events, ...props } = $$props`
+/// 2. `let { ...rest } = $$props` -> `let { $$slots, $$events, ...rest } = $$props`
+/// 3. `let { x, y, ...rest } = $$props` -> `let { $$slots, $$events, x, y, ...rest } = $$props`
 fn transform_props_spread(script: &str) -> String {
     let mut result = String::new();
 
@@ -2139,10 +2161,10 @@ fn transform_props_spread(script: &str) -> String {
         if (trimmed.starts_with("let ") || trimmed.starts_with("const "))
             && trimmed.contains("= $$props")
         {
-            let parts: Vec<&str> = trimmed.splitn(2, '=').collect();
-            if parts.len() == 2 {
-                let left = parts[0].trim();
-                let var_name = if let Some(stripped) = left.strip_prefix("let ") {
+            // Find the assignment `= $$props` part (not default value `=`)
+            if let Some(props_idx) = trimmed.find("= $$props") {
+                let left = trimmed[..props_idx].trim();
+                let pattern = if let Some(stripped) = left.strip_prefix("let ") {
                     stripped.trim()
                 } else if let Some(stripped) = left.strip_prefix("const ") {
                     stripped.trim()
@@ -2150,10 +2172,58 @@ fn transform_props_spread(script: &str) -> String {
                     left
                 };
 
-                result.push_str(&format!(
-                    "\t\tlet {{ $$slots, $$events, ...{} }} = $$props;\n",
-                    var_name
-                ));
+                // Case 1: Simple identifier (let props = $$props)
+                if !pattern.starts_with('{') {
+                    result.push_str(&format!(
+                        "\t\tlet {{ $$slots, $$events, ...{} }} = $$props;\n",
+                        pattern
+                    ));
+                    continue;
+                }
+
+                // Case 2 & 3: ObjectPattern with RestElement
+                // Parse the pattern: { x, y, ...rest } or { ...rest }
+                if pattern.starts_with('{') && pattern.ends_with('}') {
+                    let inner = &pattern[1..pattern.len() - 1].trim();
+
+                    // Check if there's a rest element
+                    if let Some(rest_idx) = inner.find("...") {
+                        // Extract the rest element name
+                        let rest_part = &inner[rest_idx..];
+                        let rest_name = rest_part.trim_start_matches("...").trim();
+
+                        // Extract other properties (before the rest element)
+                        let other_props = inner[..rest_idx].trim().trim_end_matches(',').trim();
+
+                        // Preserve const vs let from original
+                        let decl_keyword = if trimmed.starts_with("const ") {
+                            "const"
+                        } else {
+                            "let"
+                        };
+
+                        if other_props.is_empty() {
+                            // Case 2: Only rest element: { ...rest }
+                            // Output: { $$slots, $$events, ...rest }
+                            result.push_str(&format!(
+                                "\t\t{} {{ $$slots, $$events, ...{} }} = $$props;\n",
+                                decl_keyword, rest_name
+                            ));
+                        } else {
+                            // Case 3: Props with rest element: { x, y, ...rest }
+                            // JS implementation inserts $$slots, $$events BEFORE the rest element
+                            // Output: { x, y, $$slots, $$events, ...rest }
+                            result.push_str(&format!(
+                                "\t\t{} {{ {}, $$slots, $$events, ...{} }} = $$props;\n",
+                                decl_keyword, other_props, rest_name
+                            ));
+                        }
+                        continue;
+                    }
+                }
+
+                // Fallback: keep original line
+                result.push_str(&format!("\t\t{}\n", trimmed));
                 continue;
             }
         }

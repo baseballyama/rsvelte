@@ -558,6 +558,26 @@ impl Memoizer {
         }
     }
 
+    /// Create a new memoizer that inherits conflicts from a parent.
+    ///
+    /// This is used when creating nested blocks (like nested IfBlocks) to ensure
+    /// that variable names don't collide between outer and inner scopes.
+    ///
+    /// # Arguments
+    ///
+    /// * `parent` - The parent memoizer to inherit conflicts from
+    ///
+    /// # Returns
+    ///
+    /// A new memoizer with a copy of the parent's conflicts set.
+    pub fn with_parent_conflicts(parent: &Memoizer) -> Self {
+        Self {
+            counter: 0,
+            memos: HashMap::new(),
+            conflicts: parent.conflicts.clone(),
+        }
+    }
+
     /// Add an expression to be memoized.
     ///
     /// # Arguments
@@ -620,6 +640,18 @@ impl Memoizer {
         self.counter = 0;
         self.memos.clear();
         self.conflicts.clear();
+    }
+
+    /// Merge conflicts from another memoizer.
+    ///
+    /// This is used to propagate conflicts from a child scope back to the parent,
+    /// ensuring that sibling scopes also avoid collisions.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` - The memoizer to merge conflicts from
+    pub fn merge_conflicts(&mut self, other: &Memoizer) {
+        self.conflicts.extend(other.conflicts.iter().cloned());
     }
 }
 
@@ -716,5 +748,63 @@ mod tests {
             JsExpr::Literal(JsLiteral::String(s)) => assert_eq!(s, "test"),
             _ => panic!("Expected string literal"),
         }
+    }
+
+    #[test]
+    fn test_memoizer_with_parent_conflicts() {
+        // Create parent memoizer and generate some ids
+        let mut parent = Memoizer::new();
+        let id1 = parent.generate_id("consequent");
+        assert_eq!(id1, "consequent");
+
+        // Create child memoizer inheriting parent's conflicts
+        let mut child = Memoizer::with_parent_conflicts(&parent);
+
+        // Child should avoid conflicts with parent
+        let id2 = child.generate_id("consequent");
+        assert_eq!(id2, "consequent_1");
+
+        // And should track its own conflicts too
+        let id3 = child.generate_id("consequent");
+        assert_eq!(id3, "consequent_2");
+    }
+
+    #[test]
+    fn test_memoizer_merge_conflicts() {
+        // Create parent and generate an id
+        let mut parent = Memoizer::new();
+        let _ = parent.generate_id("fragment");
+
+        // Create child inheriting parent's conflicts
+        let mut child = Memoizer::with_parent_conflicts(&parent);
+        let _ = child.generate_id("alternate");
+
+        // Merge child's conflicts back to parent
+        parent.merge_conflicts(&child);
+
+        // Parent should now avoid conflicts from child
+        let id = parent.generate_id("alternate");
+        assert_eq!(id, "alternate_1");
+    }
+
+    #[test]
+    fn test_memoizer_nested_blocks_scenario() {
+        // Simulates nested IfBlocks:
+        // Outer IfBlock: uses "consequent"
+        // Inner IfBlock: should use "consequent_1"
+
+        let mut outer = Memoizer::new();
+        let outer_id = outer.generate_id("consequent");
+        assert_eq!(outer_id, "consequent");
+
+        // Nested fragment creates child memoizer
+        let mut inner = Memoizer::with_parent_conflicts(&outer);
+        let inner_id = inner.generate_id("consequent");
+        assert_eq!(inner_id, "consequent_1");
+
+        // Inner nested fragment
+        let mut innermost = Memoizer::with_parent_conflicts(&inner);
+        let innermost_id = innermost.generate_id("consequent");
+        assert_eq!(innermost_id, "consequent_2");
     }
 }

@@ -102,6 +102,8 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
     let mut close: Option<JsStatement> = None;
 
     // Create new state for this fragment
+    // Use Memoizer::with_parent_conflicts to inherit conflicts from the parent,
+    // ensuring variable names don't collide between outer and inner scopes (e.g., nested IfBlocks)
     let state = ComponentClientTransformState {
         scope: context.state.scope,
         scopes: HashMap::new(),
@@ -117,7 +119,7 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
         async_consts: None,
         let_directives: Vec::new(),
         node: context.state.node.clone(),
-        memoizer: Memoizer::new(),
+        memoizer: Memoizer::with_parent_conflicts(&context.state.memoizer),
         transform: context.state.transform.clone(),
         events: context.state.events.clone(),
         metadata: ComponentMetadata {
@@ -377,6 +379,9 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
         .state
         .instance_level_snippets
         .extend(state.instance_level_snippets);
+
+    // Merge memoizer conflicts back to parent so sibling scopes also avoid collisions
+    context.state.memoizer.merge_conflicts(&state.memoizer);
 
     JsBlockStatement { body }
 }

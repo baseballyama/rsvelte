@@ -256,26 +256,32 @@ svelte/packages/svelte/src/compiler/
   - **完了**: 2026-01-23
   - 結果: Client +1 (22 → 23)
 
-- [ ] **C-036**: 非リアクティブ変数の最適化
-  - 依存: なし
-  - 実装:
-    - Phase 2 で変数の再代入を追跡
-    - 再代入されない $state() は let に変換
-  - 影響: ~30% のテスト改善見込み
+- [x] **C-036**: 非リアクティブ変数の最適化 ✅
+  - 完了: 2026-01-24（実装済み確認）
+  - 実装内容:
+    - Phase 2: `scope_builder.rs` で `reassigned` / `mutated` フラグを追跡
+    - Phase 3: `collect_non_reactive_state_vars()` で非リアクティブ変数を収集
+    - 非リアクティブ $state() → let 変換、オブジェクト/配列 → $.proxy()
+  - 注: 完全に実装済み、テスト改善は C-037/C-038 に依存
 
-- [ ] **C-037**: 変数命名の一貫性
-  - 依存: なし
-  - 実装:
-    - ユニーク変数カウンターのリセットロジック確認
-    - JS 実装と同じ順序で変数を生成
-  - 影響: テスト一致率向上
+- [x] **C-037**: 変数命名の一貫性 ✅
+  - 完了: 2026-01-24
+  - 実装内容:
+    - `Memoizer::with_parent_conflicts()` 追加（親の conflicts を継承）
+    - `Memoizer::merge_conflicts()` 追加（子の conflicts を親に伝播）
+    - `fragment.rs` で Memoizer をネストでも共有
+  - 結果: ネストされた IfBlock で `consequent` → `consequent_1` の衝突回避
+  - 注: テスト通過率は他の差異が大きいため変化なし
 
-- [ ] **C-038**: $.get() 最適化
-  - 依存: C-036
-  - 実装:
-    - リアクティビティ分析結果を使用
-    - 非リアクティブ変数には $.get() を省略
-  - 影響: 出力コードの簡潔化
+- [x] **C-038**: $.get() 最適化 ✅
+  - 完了: 2026-01-24
+  - 依存: C-036（完了）
+  - 実装内容:
+    - `wrap_state_vars_in_expr()` に `non_reactive_vars` パラメータ追加
+    - `wrap_state_vars_in_get()` に同パラメータ追加
+    - `transform_state_in_expr()` に同パラメータ追加
+    - すべての呼び出し箇所で `non_reactive_state_vars` を渡す
+  - 結果: 非リアクティブ変数への不要な $.get() 呼び出しを正しくスキップ
 
 #### 6.1.2 Phase 2 Analyze 補完
 
@@ -899,10 +905,16 @@ $.template_effect(() => $.set_text(text, `${$.get(item).name ?? ''} costs $${$.g
   - 結果: コンパイル成功、退行なし（19/19維持）
   - 注: 効果は他の差異に埋もれている可能性あり
 
-- [ ] **C-047**: サーバー $$events オブジェクト生成
-  - 対象: `src/compiler/phases/3_transform/server/visitors/shared/component.rs`
-  - 実装: Component props に $$events フィールド追加
-  - 影響: 30-50テスト改善見込み
+- [x] **C-047**: サーバー $$events オブジェクト生成 ✅
+  - 完了: 2026-01-24
+  - 対象: `src/compiler/phases/3_transform/server/transform_server.rs`
+  - 実装内容:
+    - `detect_props_spread_pattern()` 修正: RestElement パターン検出改善
+    - `transform_props_spread()` 修正: `$$slots, $$events` を RestElement の前に配置
+    - Case 1: `let props = $props()` → `let { $$slots, $$events, ...props } = $$props;`
+    - Case 2: `let { ...rest } = $props()` → `let { $$slots, $$events, ...rest } = $$props;`
+    - Case 3: `{ foo, ...rest } = $props()` → `{ foo, $$slots, $$events, ...rest } = $$props;`
+  - 結果: Server 132 → 134 (+2)
 
 **次のアクション**: 以下の高インパクトタスクを実装
 
