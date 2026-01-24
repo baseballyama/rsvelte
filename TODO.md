@@ -845,3 +845,71 @@ $.template_effect(() => $.set_text(text, `${$.get(item).name ?? ''} costs $${$.g
 - mod.rs の式変換は複雑で、小さな変更でも退行を引き起こす
 - 大規模なリファクタリング（AST ベース変換）が必要
 - 段階的な改善より、visitor ベースのアプローチを完全に採用する方が効果的
+
+### 2026-01-24 詳細失敗分析（再調査）
+
+**Runtime Runes テスト失敗パターン（740テスト分析）:**
+
+| 優先度 | 問題カテゴリ | 影響テスト数 | 現状 |
+|--------|------------|------------|------|
+| 1 | **クライアント: イベントハンドラ生成欠落** | 400-500 | `button.__click = ...` が生成されない |
+| 2 | **サーバー: 条件ブロック ({#if}) 生成** | 120-150 | if block 全体が生成されない |
+| 3 | **ネストしたブロック命名衝突** | 50-100 | consequent 関数名が衝突 |
+| 4 | **サーバー: $$events オブジェクト生成** | 30-50 | $$events プロパティ欠落 |
+| 5 | **サーバー: module script ブロック処理** | 20-30 | `<script module>` 内容が消失 |
+
+**合格・失敗パターン:**
+- Client ❌ / Server ❌: 587テスト (83.6%)
+- Client ❌ / Server ✅: 110テスト (15.7%)
+- Client ✅ / Server ❌: 5テスト (0.7%)
+
+**新規タスク（優先度順）:**
+
+- [ ] **C-044**: クライアント イベントハンドラ属性生成
+  - 対象: `src/compiler/phases/3_transform/client/visitors/shared/events.rs`
+  - 実装: `element.__eventname = handler` の直接割り当て生成
+  - 影響: 400-500テスト改善見込み
+
+- [x] **C-045**: サーバー 条件ブロック完全実装 ✅
+  - 対象: `src/compiler/phases/3_transform/server/transform_server.rs`
+  - 実装: if/else/else-if ブロックの HTML 条件生成
+  - 完了: 2026-01-24
+  - 結果: IfBlock 生成は正しく動作、テスト通過率は他の差異により変化なし
+
+- [ ] **C-046**: ネストしたブロックの consequent 命名修正
+  - 対象: `src/compiler/phases/3_transform/client/visitors/if_block.rs`
+  - 実装: ネストレベルに応じた unique 命名 (consequent_1, consequent_2)
+  - 影響: 50-100テスト改善見込み
+
+- [ ] **C-047**: サーバー $$events オブジェクト生成
+  - 対象: `src/compiler/phases/3_transform/server/visitors/shared/component.rs`
+  - 実装: Component props に $$events フィールド追加
+  - 影響: 30-50テスト改善見込み
+
+**次のアクション**: C-046（ネストしたブロック命名）またはテスト差異の根本原因調査
+
+### 2026-01-24 作業開始
+
+**着手タスク:**
+- [ ] **C-044**: クライアント イベントハンドラ属性生成（調査完了、実装保留）
+  - 目標: `element.__eventname = handler` の直接割り当て生成
+  - 影響: 400-500テスト改善見込み
+  - **調査結果**:
+    - イベント委任判定 (`can_delegate_event`) は `attribute.rs` に追加済み（退行なし）
+    - 順序変更（子ノード処理前に生成）は 6 テスト退行を引き起こす
+    - **原因**: `generate_special_attr_stmts` が delegated/非delegated の両方を処理
+    - **解決策**: イベント処理を分離する必要あり
+      1. delegated イベント (`element.__click`) → 子ノード処理前
+      2. 非delegated イベント (`$.event()`) → 子ノード処理後
+  - ステータス: 複雑な修正のため保留、C-045 へ進む
+
+- [x] **C-045**: サーバー IfBlock 生成完全実装
+  - 対象: `src/compiler/phases/3_transform/server/transform_server.rs`
+  - 実装済み:
+    - `OutputPart::IfBlock` バリアント追加
+    - `generate_if_block()` メソッド実装（テスト式抽出、再帰処理）
+    - `generate_if_branch_body()` ヘルパー（else-if チェーン対応）
+    - `build_if_statement()` / `build_alternate_chain()` コード生成
+    - ブロックマーカー: `<!--[-->`, `<!--[!-->`, `<!--]-->`
+  - 結果: IfBlock は正しく生成されるが、テスト通過率は変化なし（他の差異が原因）
+  - 発見: 先頭コメントマーカー位置、onclick 属性欠落など別の問題がテスト不一致の主因
