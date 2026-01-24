@@ -9710,12 +9710,100 @@ fn wrap_state_vars_in_expr(expr: &str, state_vars: &[String]) -> String {
     transform_state_in_expr(expr, state_vars)
 }
 
+/// Extract function parameter names from a function definition line.
+/// e.g., `function action(_, count) {` returns `["_", "count"]`
+/// e.g., `function foo(a, b, c) {` returns `["a", "b", "c"]`
+/// e.g., `update(count) {` returns `["count"]` (method definition)
+fn extract_function_params(line: &str) -> Vec<String> {
+    let mut params = Vec::new();
+
+    // Find the opening parenthesis
+    let Some(open_paren) = line.find('(') else {
+        return params;
+    };
+
+    // Find the matching closing parenthesis
+    let after_open = &line[open_paren + 1..];
+    let Some(close_paren) = find_matching_paren(after_open) else {
+        return params;
+    };
+
+    let params_str = &after_open[..close_paren];
+
+    // Split by comma and extract parameter names
+    for param in params_str.split(',') {
+        let param = param.trim();
+        if param.is_empty() {
+            continue;
+        }
+
+        // Handle destructuring patterns like { a, b } or [a, b]
+        if param.starts_with('{') || param.starts_with('[') {
+            // For now, skip destructuring - complex to parse
+            continue;
+        }
+
+        // Handle default values like `count = 0`
+        let param_name = if let Some(eq_pos) = param.find('=') {
+            param[..eq_pos].trim()
+        } else {
+            param
+        };
+
+        // Handle type annotations like `count: number`
+        let param_name = if let Some(colon_pos) = param_name.find(':') {
+            param_name[..colon_pos].trim()
+        } else {
+            param_name
+        };
+
+        // Skip rest parameters like `...args`
+        let param_name = param_name.trim_start_matches("...");
+
+        if !param_name.is_empty() && is_valid_identifier(param_name) {
+            params.push(param_name.to_string());
+        }
+    }
+
+    params
+}
+
+/// Check if a line is a function definition (function declaration or method)
+fn is_function_definition(line: &str) -> bool {
+    let trimmed = line.trim();
+    // function declarations
+    if trimmed.starts_with("function ") {
+        return true;
+    }
+    // Arrow functions with parameters: `(a, b) =>` or `a =>`
+    if trimmed.contains("=>") {
+        return true;
+    }
+    // Method definitions in objects: `update(count) {` or `methodName(params) {`
+    // Look for pattern: identifier followed by ( ... ) {
+    if let Some(paren_pos) = trimmed.find('(') {
+        let before_paren = trimmed[..paren_pos].trim();
+        // Check if it's a valid identifier (method name)
+        if is_valid_identifier(before_paren) {
+            // Check if it ends with ) { or ) followed by newline/end
+            if let Some(close_paren) = trimmed.rfind(')') {
+                let after_close = trimmed[close_paren + 1..].trim();
+                if after_close.is_empty() || after_close == "{" || after_close.starts_with('{') {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
 /// Wrap derived variable reads with $.get() when used (not in declaration).
 ///
 /// This transforms code like:
 /// - `console.log('init ' + double)` -> `console.log('init ' + $.get(double))`
 ///
 /// Also wraps state variable reads in contexts like user_effect callbacks.
+/// Does NOT wrap variables that are shadowed by function parameters.
 fn wrap_derived_var_reads(line: &str, derived_vars: &[String], state_vars: &[String]) -> String {
     let mut result = line.to_string();
 
@@ -9735,9 +9823,30 @@ fn wrap_derived_var_reads(line: &str, derived_vars: &[String], state_vars: &[Str
         }
     }
 
+    // Check if this is a function definition with parameters that shadow state/derived vars
+    // e.g., `function action(_, count) {` - don't wrap `count` on this line
+    let shadowed_params: Vec<String> = if is_function_definition(line) {
+        extract_function_params(line)
+    } else {
+        Vec::new()
+    };
+
+    // Filter out shadowed variables from state_vars and derived_vars
+    let effective_state_vars: Vec<String> = state_vars
+        .iter()
+        .filter(|v| !shadowed_params.contains(v))
+        .cloned()
+        .collect();
+
+    let effective_derived_vars: Vec<String> = derived_vars
+        .iter()
+        .filter(|v| !shadowed_params.contains(v))
+        .cloned()
+        .collect();
+
     // Don't process lines that are derived variable declarations
     // (let varname = $.derived(...) should not wrap the varname on the left side)
-    for var in derived_vars {
+    for var in &effective_derived_vars {
         // Check if this is a declaration of this derived variable
         let declaration_patterns = [
             format!("let {} =", var),
@@ -9759,7 +9868,7 @@ fn wrap_derived_var_reads(line: &str, derived_vars: &[String], state_vars: &[Str
 
     // Also wrap state variable reads that weren't already wrapped
     // This handles cases inside $.user_effect callbacks
-    result = transform_state_in_expr(&result, state_vars);
+    result = transform_state_in_expr(&result, &effective_state_vars);
 
     result
 }
@@ -10391,6 +10500,62 @@ $effect(() => {
         let state_vars: Vec<String> = vec![];
         let result = wrap_derived_var_reads(line, &derived_vars, &state_vars);
         assert_eq!(result, "console.log('init ' + $.get(double));");
+    }
+
+    #[test]
+    fn test_extract_function_params() {
+        // Test basic function definition
+        assert_eq!(
+            extract_function_params("function action(_, count) {"),
+            vec!["_", "count"]
+        );
+
+        // Test multiple params
+        assert_eq!(
+            extract_function_params("function foo(a, b, c) {"),
+            vec!["a", "b", "c"]
+        );
+
+        // Test method definition
+        assert_eq!(extract_function_params("update(count) {"), vec!["count"]);
+
+        // Test with default values
+        assert_eq!(
+            extract_function_params("function foo(x = 0, y = 1) {"),
+            vec!["x", "y"]
+        );
+
+        // Test no params
+        assert_eq!(
+            extract_function_params("function foo() {"),
+            Vec::<String>::new()
+        );
+
+        // Test no parenthesis
+        assert_eq!(extract_function_params("let x = 5;"), Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_function_param_shadowing() {
+        // When state var `count` is shadowed by function parameter,
+        // it should NOT be wrapped with $.get()
+        let line = "function action(_, count) {";
+        let derived_vars: Vec<String> = vec![];
+        let state_vars = vec!["count".to_string()];
+        let result = wrap_derived_var_reads(line, &derived_vars, &state_vars);
+        // count should NOT be wrapped since it's a function parameter (shadow)
+        assert_eq!(result, "function action(_, count) {");
+    }
+
+    #[test]
+    fn test_method_param_shadowing() {
+        // Method definition with shadowed parameter
+        let line = "update(count) {";
+        let derived_vars: Vec<String> = vec![];
+        let state_vars = vec!["count".to_string()];
+        let result = wrap_derived_var_reads(line, &derived_vars, &state_vars);
+        // count should NOT be wrapped since it's a method parameter (shadow)
+        assert_eq!(result, "update(count) {");
     }
 
     #[test]
