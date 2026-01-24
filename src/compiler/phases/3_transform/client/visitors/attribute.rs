@@ -50,7 +50,7 @@ pub fn visit_attribute(node: &Attribute, context: &mut ComponentContext) {
 ///     return is_expression_attribute(attribute) && attribute.name.startsWith('on');
 /// }
 /// ```
-fn is_event_attribute(attribute: &Attribute) -> Option<&AttributeNode> {
+pub fn is_event_attribute(attribute: &Attribute) -> Option<&AttributeNode> {
     match attribute {
         Attribute::Attribute(attr_node) => {
             // Check if name starts with "on"
@@ -159,7 +159,7 @@ fn is_expression_attribute_value(value: &crate::ast::template::AttributeValue) -
 ///     }
 /// }
 /// ```
-fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContext) {
+pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContext) {
     use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 
     // Extract event name (remove "on" prefix)

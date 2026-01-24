@@ -543,12 +543,19 @@ pub struct Memoizer {
 
     /// Map from expression hash to memoized variable name
     memos: HashMap<String, String>,
+
+    /// Set of conflicting names to avoid collisions in nested blocks
+    conflicts: HashSet<String>,
 }
 
 impl Memoizer {
     /// Create a new memoizer.
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            counter: 0,
+            memos: HashMap::new(),
+            conflicts: HashSet::new(),
+        }
     }
 
     /// Add an expression to be memoized.
@@ -595,18 +602,24 @@ impl Memoizer {
     ///
     /// A unique identifier like "text", "text_2", "text_3", etc.
     pub fn generate_id(&mut self, base: &str) -> String {
-        self.counter += 1;
-        if self.counter == 1 {
-            base.to_string()
-        } else {
-            format!("{}_{}", base, self.counter)
+        let mut name = base.to_string();
+        let mut n = 1;
+
+        // Add suffix until there's no conflict
+        while self.conflicts.contains(&name) {
+            name = format!("{}_{}", base, n);
+            n += 1;
         }
+
+        self.conflicts.insert(name.clone());
+        name
     }
 
     /// Reset the memoizer state.
     pub fn reset(&mut self) {
         self.counter = 0;
         self.memos.clear();
+        self.conflicts.clear();
     }
 }
 

@@ -876,10 +876,12 @@ $.template_effect(() => $.set_text(text, `${$.get(item).name ?? ''} costs $${$.g
   - 完了: 2026-01-24
   - 結果: IfBlock 生成は正しく動作、テスト通過率は他の差異により変化なし
 
-- [ ] **C-046**: ネストしたブロックの consequent 命名修正
-  - 対象: `src/compiler/phases/3_transform/client/visitors/if_block.rs`
-  - 実装: ネストレベルに応じた unique 命名 (consequent_1, consequent_2)
-  - 影響: 50-100テスト改善見込み
+- [x] **C-046**: ネストしたブロックの consequent 命名修正 ✅
+  - 対象: `src/compiler/phases/3_transform/client/types.rs`
+  - 実装: Memoizer に `conflicts: HashSet<String>` を追加、競合チェック
+  - 完了: 2026-01-24
+  - 結果: コンパイル成功、退行なし（19/19維持）
+  - 注: 効果は他の差異に埋もれている可能性あり
 
 - [ ] **C-047**: サーバー $$events オブジェクト生成
   - 対象: `src/compiler/phases/3_transform/server/visitors/shared/component.rs`
@@ -890,18 +892,25 @@ $.template_effect(() => $.set_text(text, `${$.get(item).name ?? ''} costs $${$.g
 
 ### 2026-01-24 作業開始
 
+**セッション再開 (2026-01-24):**
+
+現在地: Phase C - Rust 実装
+優先タスク:
+1. C-046: ネストしたブロック consequent 命名修正（着手）
+2. C-044: イベントハンドラ属性生成（保留中、解決策検討）
+3. C-047: サーバー $$events オブジェクト生成
+
 **着手タスク:**
-- [ ] **C-044**: クライアント イベントハンドラ属性生成（調査完了、実装保留）
+- [x] **C-044**: クライアント イベントハンドラ属性生成 ✅
   - 目標: `element.__eventname = handler` の直接割り当て生成
-  - 影響: 400-500テスト改善見込み
-  - **調査結果**:
-    - イベント委任判定 (`can_delegate_event`) は `attribute.rs` に追加済み（退行なし）
-    - 順序変更（子ノード処理前に生成）は 6 テスト退行を引き起こす
-    - **原因**: `generate_special_attr_stmts` が delegated/非delegated の両方を処理
-    - **解決策**: イベント処理を分離する必要あり
-      1. delegated イベント (`element.__click`) → 子ノード処理前
-      2. 非delegated イベント (`$.event()`) → 子ノード処理後
-  - ステータス: 複雑な修正のため保留、C-045 へ進む
+  - 完了: 2026-01-24
+  - **実装内容**:
+    - イベント処理を2フェーズに分離
+    - Delegated イベント (`element.__click`) → `init`（子ノード処理前）
+    - Non-delegated イベント (`$.event()`) → `after_update`（子ノード処理後）
+    - `attribute.rs` の関数を `pub` にして共有
+    - `regular_element.rs` で適切な順序でイベントを処理
+  - 結果: 退行なし（19/19維持）、テスト改善は他の差異に埋もれている
 
 - [x] **C-045**: サーバー IfBlock 生成完全実装
   - 対象: `src/compiler/phases/3_transform/server/transform_server.rs`

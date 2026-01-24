@@ -9,10 +9,13 @@
 #![allow(dead_code)]
 
 use crate::ast::template::{
-    Attribute, AttributeNode, AttributeValue, RegularElement as RegularElementNode, TemplateNode,
-    TransitionDirective,
+    Attribute, AttributeNode, AttributeValue, OnDirective, RegularElement as RegularElementNode,
+    TemplateNode, TransitionDirective,
 };
 use crate::compiler::phases::phase3_transform::client::types::*;
+use crate::compiler::phases::phase3_transform::client::visitors::attribute::{
+    is_event_attribute, visit_event_attribute,
+};
 use crate::compiler::phases::phase3_transform::client::visitors::shared::element::{
     build_attribute_effect, build_attribute_value, build_set_class_call, build_set_style_call,
 };
@@ -21,6 +24,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::transition_dire
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 use crate::compiler::phases::phase3_transform::utils::clean_nodes;
+use crate::compiler::utils::{can_delegate_event, is_capture_event};
 
 /// Visit a regular element node.
 ///
@@ -57,7 +61,8 @@ pub fn visit_regular_element(
     let mut attributes = Vec::new();
     let mut class_directives = Vec::new();
     let mut style_directives = Vec::new();
-    let mut on_directives = Vec::new();
+    let mut on_directives: Vec<OnDirective> = Vec::new();
+    let mut event_attributes: Vec<AttributeNode> = Vec::new(); // onclick={...} style event attributes
     let mut transition_directives: Vec<TransitionDirective> = Vec::new();
     let has_spread = node
         .attributes
@@ -66,8 +71,13 @@ pub fn visit_regular_element(
 
     for attribute in &node.attributes {
         match attribute {
-            Attribute::Attribute(_attr) => {
-                attributes.push(attribute.clone());
+            Attribute::Attribute(attr) => {
+                // Check if this is an event attribute (onclick={...})
+                if is_event_attribute(attribute).is_some() {
+                    event_attributes.push(attr.clone());
+                } else {
+                    attributes.push(attribute.clone());
+                }
             }
             Attribute::ClassDirective(dir) => {
                 class_directives.push(dir.clone());
@@ -105,13 +115,21 @@ pub fn visit_regular_element(
             &css_hash,
         );
     } else {
+        // Process delegated event attributes BEFORE other attributes
+        // Delegated events use element.__eventname = handler pattern
+        if !has_spread {
+            for event_attr in &event_attributes {
+                let event_name = &event_attr.name[2..]; // Remove "on" prefix
+                let is_delegated = !is_capture_event(event_name) && can_delegate_event(event_name);
+
+                if is_delegated {
+                    visit_event_attribute(event_attr, context);
+                }
+            }
+        }
+
         for attribute in &attributes {
             if let Attribute::Attribute(attr) = attribute {
-                // Skip event attributes - they're handled separately below
-                if is_event_attribute(attr) {
-                    continue;
-                }
-
                 let name = get_attribute_name(node, attr);
 
                 // Static text attributes can go in the template
@@ -264,27 +282,25 @@ pub fn visit_regular_element(
         )));
     }
 
-    // Process event handlers (OnDirective) - only if not using spread
-    // When we have a spread, event handlers from on:* directives are still processed separately,
-    // but event handlers from attributes (onclick, etc.) are already included in attribute_effect
+    // Process non-delegated event attributes AFTER child nodes
+    // Non-delegated events use $.event() pattern
     if !has_spread {
-        for on_directive in &on_directives {
-            if let TransformResult::Expression(event_call) =
-                context.visit_on_directive(on_directive)
-            {
-                // Event handlers go into after_update for regular elements
-                context.state.after_update.push(b::stmt(event_call));
+        for event_attr in &event_attributes {
+            let event_name = &event_attr.name[2..]; // Remove "on" prefix
+            let is_delegated = !is_capture_event(event_name) && can_delegate_event(event_name);
+
+            if !is_delegated {
+                visit_event_attribute(event_attr, context);
             }
         }
-    } else {
-        // With spread, on: directives are still processed separately (they're not in attribute_effect)
-        for on_directive in &on_directives {
-            if let TransformResult::Expression(event_call) =
-                context.visit_on_directive(on_directive)
-            {
-                // Event handlers go into after_update for regular elements
-                context.state.after_update.push(b::stmt(event_call));
-            }
+    }
+
+    // Process event handlers (OnDirective)
+    // on: directives always use $.event() and go into after_update
+    for on_directive in &on_directives {
+        if let TransformResult::Expression(event_call) = context.visit_on_directive(on_directive) {
+            // Event handlers go into after_update for regular elements
+            context.state.after_update.push(b::stmt(event_call));
         }
     }
 
@@ -391,11 +407,6 @@ fn is_dom_property(name: &str) -> bool {
             | "innerText"
             | "textContent"
     )
-}
-
-/// Check if an attribute is an event attribute (onclick, etc.).
-fn is_event_attribute(attr: &AttributeNode) -> bool {
-    attr.name.starts_with("on")
 }
 
 /// Extract node ID from a JsExpr (identifier name or "node" as fallback).
