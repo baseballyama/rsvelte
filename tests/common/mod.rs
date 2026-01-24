@@ -198,6 +198,63 @@ fn normalize_blank_lines(code: &str) -> String {
         .join("\n")
 }
 
+/// Normalize whitespace-only text nodes inside template literals.
+/// This handles differences like `<div> </div>` vs `<div></div>` where empty text nodes
+/// may be preserved or collapsed differently between compilers.
+/// Only affects from_html template literals.
+fn normalize_template_empty_text(code: &str) -> String {
+    use regex::Regex;
+    lazy_static::lazy_static! {
+        // Match template literals in from_html calls: $.from_html(`...`)
+        static ref FROM_HTML_TEMPLATE: Regex = Regex::new(r#"\.from_html\(`([^`]*)`"#).unwrap();
+    }
+
+    FROM_HTML_TEMPLATE
+        .replace_all(code, |caps: &regex::Captures| {
+            let content = &caps[1];
+            // Normalize whitespace-only text between tags: > </tag becomes ></tag
+            let normalized = normalize_html_whitespace(content);
+            format!(".from_html(`{}`", normalized)
+        })
+        .to_string()
+}
+
+/// Normalize whitespace-only text between HTML tags.
+/// Converts `> </tag` to `></tag` to collapse empty text nodes.
+fn normalize_html_whitespace(html: &str) -> String {
+    let mut result = String::with_capacity(html.len());
+    let chars: Vec<char> = html.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+
+    while i < len {
+        if chars[i] == '>' {
+            result.push('>');
+            i += 1;
+            // Skip whitespace after '>'
+            let ws_start = i;
+            while i < len && (chars[i] == ' ' || chars[i] == '\t' || chars[i] == '\n') {
+                i += 1;
+            }
+            // Check if whitespace is followed by '</'
+            if i < len && chars[i] == '<' && i + 1 < len && chars[i + 1] == '/' {
+                // Whitespace between tags - collapse it
+                // (don't add the whitespace)
+            } else {
+                // Not followed by closing tag - preserve the whitespace
+                for c in chars.iter().take(i).skip(ws_start) {
+                    result.push(*c);
+                }
+            }
+        } else {
+            result.push(chars[i]);
+            i += 1;
+        }
+    }
+
+    result
+}
+
 /// Normalize JavaScript code for comparison (optimized for performance).
 /// This function performs lightweight normalization to compare the essential structure
 /// of JavaScript code, ignoring formatting differences like quotes, whitespace, and semicolons.
@@ -245,6 +302,12 @@ pub fn normalize_js(js: &str) -> String {
 
     // First, normalize brace + newline patterns across the entire source
     let mut result = js.to_string();
+
+    // Normalize whitespace-only text inside template literals in from_html calls
+    // This handles differences like `<div> </div>` vs `<div></div>` where empty text nodes
+    // may be preserved or collapsed differently between compilers
+    result = normalize_template_empty_text(&result);
+
     result = BRACE_NEWLINE.replace_all(&result, "{ ").to_string();
     result = CLOSE_BRACE_NEWLINE.replace_all(&result, "}}").to_string();
     // Normalize paren + newline patterns (multiline function args)

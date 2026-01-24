@@ -147,11 +147,14 @@ pub fn transform_client(
     let component_name = &analysis.name;
 
     // Use pre-extracted script content from analysis (avoids re-parsing)
-    let (script_content, uses_runes) = if let Some(ref content) = analysis.instance_script_content {
-        (content.raw.clone(), content.uses_runes)
+    let script_content = if let Some(ref content) = analysis.instance_script_content {
+        content.raw.clone()
     } else {
-        (String::new(), false)
+        String::new()
     };
+
+    // Use analysis.runes which combines: explicit options.runes OR detected runes from source
+    let uses_runes = analysis.runes;
 
     // Extract module script content (for <script module> blocks)
     let module_script_content = analysis

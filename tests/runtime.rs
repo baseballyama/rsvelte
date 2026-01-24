@@ -139,6 +139,7 @@ fn run_runtime_fixture_test(category: &str, fixture: &RuntimeFixture) -> TestRes
             generate: GenerateMode::Client,
             filename: Some("main.svelte".to_string()),
             css: CssMode::External,
+            // Let runes mode be auto-detected from source (matches official compiler behavior)
             ..Default::default()
         };
 
@@ -184,6 +185,7 @@ fn run_runtime_fixture_test(category: &str, fixture: &RuntimeFixture) -> TestRes
             generate: GenerateMode::Server,
             filename: Some("main.svelte".to_string()),
             css: CssMode::External,
+            // Let runes mode be auto-detected from source (matches official compiler behavior)
             ..Default::default()
         };
 

@@ -225,6 +225,10 @@ impl ComponentAnalysis {
             .map(|f| derive_component_name(f))
             .unwrap_or_else(|| "Component".to_string());
 
+        // If runes is explicitly set in options, use that; otherwise default to false
+        // and let the analysis phase detect runes from source
+        let initial_runes = options.runes.unwrap_or(false);
+
         Self {
             root: ScopeRoot::new(),
             module: None,
@@ -232,7 +236,7 @@ impl ComponentAnalysis {
             template: TemplateAnalysis::default(),
             css: CssAnalysis::default(),
             name,
-            runes: false,
+            runes: initial_runes,
             maybe_runes: false,
             uses_props: false,
             uses_rest_props: false,
