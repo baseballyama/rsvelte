@@ -72,7 +72,7 @@ pub mod if_block;
 // pub mod key_block;
 pub mod snippet_block;
 // pub mod html_tag;
-// pub mod render_tag;
+pub mod render_tag;
 // pub mod svelte_element;
 pub mod attribute;
 pub mod bind_directive;

@@ -283,6 +283,59 @@ svelte/packages/svelte/src/compiler/
     - すべての呼び出し箇所で `non_reactive_state_vars` を渡す
   - 結果: 非リアクティブ変数への不要な $.get() 呼び出しを正しくスキップ
 
+#### 6.1.1c Runtime Runes 重点タスク（2026-01-25 分析結果）
+
+**分析結果**: 700テスト失敗の主要原因を特定
+
+| 問題カテゴリ | 影響テスト数 | 推定改善 |
+|------------|------------|---------|
+| テンプレートホイスト/DOM参照 | 350-400 | +250 |
+| コンポーネント・スニペット処理 | 150-200 | +200 |
+| 変数命名スコープ | 30-50 | +50（C-037で一部対応済み）|
+| フォーマット・エスケープ | 100-150 | +150 |
+
+- [ ] **C-052**: テンプレートホイスト修正（最優先）
+  - 対象: `src/compiler/phases/3_transform/client/`
+  - **発見（2026-01-25）**:
+    - 2つの異なる実装が存在
+    - 古い実装: `mod.rs` 内の `ClientCodeGenerator`（現在使用中）
+    - 新しい実装: `visitors/fragment.rs` など（未統合）
+  - 根本原因: `transform_client` が古い `ClientCodeGenerator::generate_component()` を呼び出し
+  - 解決方針:
+    1. 短期: 古い実装の改善（直近のテスト改善）
+    2. 長期: 新しいビジター実装への切り替え
+  - 実装済み:
+    - `visitors/render_tag.rs` 新規作成（@render タグ処理）
+    - `visitors/shared/fragment.rs` 修正
+    - `types.rs` に `visit_render_tag` 追加
+  - 影響: 350-400テスト（約50%）
+  - テストケース: `snippet-whitespace`, `img-loading-lazy-no-static`
+
+- [ ] **C-053**: コンポーネント要素のDOM参照実装
+  - 対象: `src/compiler/phases/3_transform/client/visitors/regular_element.rs`
+  - 問題:
+    - コンポーネント要素が生成するノード参照が追跡されていない
+    - `$.sibling()` の引数が不正確
+  - 影響: 150-200テスト（約20%）
+  - テストケース: `snippet-whitespace`, `custom-element-attributes`
+
+- [ ] **C-054**: スニペット呼び出し（@render）の完全実装
+  - 対象: `src/compiler/phases/3_transform/client/visitors/fragment.rs`
+  - 問題:
+    - `{@render snip()}` のコード生成が不完全
+    - スニペット関数の参照が失われている
+  - 影響: 50-100テスト（約10%）
+  - テストケース: `snippet-prop-explicit`, `snippet-hoisting-*`
+
+- [x] **C-055**: 文字列エスケープとフォーマット統一 ✅
+  - 完了: 2026-01-25
+  - 対象: `src/compiler/phases/3_transform/` 全般
+  - 実装内容:
+    - `shared/template.rs` に `escape_js_string()` 関数追加
+    - `client/mod.rs` の複数箇所でエスケープ適用
+    - テスト正規化で空行フィルタ追加
+  - 結果: Runtime Runes 25/724 → 26/724 (+1)
+
 #### 6.1.2 Phase 2 Analyze 補完
 
 - [x] **A-001**: Validator 警告生成システム（Quick Wins 完了）

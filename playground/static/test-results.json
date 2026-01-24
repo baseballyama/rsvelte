@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-01-22T15:18:27.607221+00:00",
+  "generated_at": "2026-01-24T15:08:22.289800+00:00",
   "commit_sha": "0ac5af488da4",
   "summary": {
     "total": 3027,
-    "passed": 317,
-    "failed": 2513,
+    "passed": 376,
+    "failed": 2454,
     "skipped": 197,
-    "percentage": 11.201413427561837
+    "percentage": 13.286219081272085
   },
   "categories": [
     {
@@ -1486,10 +1486,10 @@
       "id": "validator",
       "name": "Validator",
       "total": 323,
-      "passed": 121,
-      "failed": 186,
+      "passed": 155,
+      "failed": 150,
       "skipped": 11,
-      "percentage": 38.782051282051285,
+      "percentage": 49.67948717948718,
       "tests": [
         {
           "name": "css-invalid-global-selector-2",
@@ -1502,8 +1502,7 @@
         },
         {
           "name": "const-tag-readonly-1",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "component-namespaced",
@@ -1534,8 +1533,7 @@
         },
         {
           "name": "window-binding-invalid-dimensions",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "custom-element-props-identifier-rest",
@@ -1544,8 +1542,7 @@
         },
         {
           "name": "html-block-in-attribute",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "a11y-aria-props",
@@ -1562,8 +1559,7 @@
         },
         {
           "name": "action-on-component",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "css-invalid-global-selector-4",
@@ -1581,8 +1577,7 @@
         },
         {
           "name": "default-export-indirect",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "css-invalid-global-selector-3",
@@ -1594,8 +1589,7 @@
         },
         {
           "name": "dynamic-element-missing-tag",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "custom-element-props-identifier-props-option",
@@ -1608,13 +1602,11 @@
         },
         {
           "name": "title-no-attributes",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "svelte-head-attributes",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "class-state-constructor-1",
@@ -1657,8 +1649,7 @@
         },
         {
           "name": "html-block-in-textarea",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "a11y-interactive-supports-focus",
@@ -1670,8 +1661,7 @@
         },
         {
           "name": "binding-select-multiple-dynamic",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "invalid-self-closing-tag",
@@ -1705,8 +1695,7 @@
         },
         {
           "name": "runes-legacy-syntax-warnings-2",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "store-looking-like-rune",
@@ -1729,8 +1718,7 @@
         },
         {
           "name": "document-binding-invalid-dimensions",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "tag-reserved",
@@ -1802,8 +1790,7 @@
         },
         {
           "name": "contenteditable-dynamic",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "css-invalid-combinator-selector-3",
@@ -1811,8 +1798,7 @@
         },
         {
           "name": "binding-await-then-2",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "ignore-warnings-stacked",
@@ -1839,7 +1825,7 @@
         {
           "name": "error-mode-warn",
           "status": "fail",
-          "error_message": "Expected 2 warnings, got 0"
+          "error_message": "Unexpected compilation error: Analysis(ValidationWithCode { code: \"constant_binding\", message: \"Cannot bind to constant\" })"
         },
         {
           "name": "svelte-ignore-non-reactive-update",
@@ -1863,17 +1849,16 @@
         },
         {
           "name": "binding-dimensions-svg",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "binding-await-then",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "comment-before-function-binding",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Unexpected compilation error: Analysis(ValidationWithCode { code: \"bind_invalid_parens\", message: \"bind:value cannot have parentheses around the expression\" })"
         },
         {
           "name": "select-multiple",
@@ -1984,8 +1969,7 @@
         },
         {
           "name": "contenteditable-missing",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "module-script-reactive-declaration",
@@ -2073,8 +2057,7 @@
         },
         {
           "name": "dynamic-element-invalid-tag",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "binding-const-field",
@@ -2157,8 +2140,7 @@
         },
         {
           "name": "binding-import-element",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "const-tag-placement-2",
@@ -2199,8 +2181,7 @@
         },
         {
           "name": "binding-invalid-on-element-2",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "a11y-aria-role",
@@ -2226,8 +2207,7 @@
         },
         {
           "name": "const-tag-readonly-2",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "a11y-no-autofocus",
@@ -2251,8 +2231,7 @@
         },
         {
           "name": "binding-invalid",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "dollar-dollar-global-in-markup",
@@ -2276,13 +2255,11 @@
         },
         {
           "name": "bind_group_invalid_expression",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "window-binding-invalid",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "transition-duplicate-transition",
@@ -2300,7 +2277,7 @@
         {
           "name": "slot-warning",
           "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "error_message": "Expected 1 warnings, got 2"
         },
         {
           "name": "ignore-warning",
@@ -2313,7 +2290,8 @@
         },
         {
           "name": "slot-warning-ignore",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected 0 warnings, got 2"
         },
         {
           "name": "logic-block-in-textarea",
@@ -2421,7 +2399,7 @@
         {
           "name": "slot-warning2",
           "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "error_message": "Expected 1 warnings, got 2"
         },
         {
           "name": "binding-invalid-value-global",
@@ -2468,8 +2446,7 @@
         },
         {
           "name": "binding-radio-input-checked",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "transition-duplicate-out",
@@ -2552,13 +2529,11 @@
         },
         {
           "name": "binding-const",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "transition-on-component",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "rune-invalid-spread-derived",
@@ -2658,8 +2633,7 @@
         },
         {
           "name": "window-binding-invalid-innerwidth",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "a11y-no-noninteractive-element-to-interactive-role",
@@ -2704,8 +2678,7 @@
         },
         {
           "name": "a11y-not-on-components",
-          "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "attribute-invalid-name-4",
@@ -2771,8 +2744,7 @@
         },
         {
           "name": "animation-on-component",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "const-tag-conflict-1",
@@ -2818,13 +2790,11 @@
         },
         {
           "name": "assignment-to-const-2",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "bind-group-snippet-parameter",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "reactive-declaration-non-top-level",
@@ -2846,8 +2816,7 @@
         },
         {
           "name": "binding-await-catch",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "a11y-no-noninteractive-tabindex",
@@ -2878,13 +2847,11 @@
         },
         {
           "name": "inline-new-class-4",
-          "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "binding-invalid-on-element",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "animation-siblings",
@@ -2915,8 +2882,7 @@
         },
         {
           "name": "binding-input-type-boolean",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "svelte-fragment-placement-2",
@@ -2953,8 +2919,7 @@
         },
         {
           "name": "component-invalid-style-directive",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "default-export-anonymous-class",
@@ -2978,7 +2943,8 @@
         },
         {
           "name": "assignment-to-const-3",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected error but compilation succeeded"
         },
         {
           "name": "if-block-whitespace-runes",
@@ -2991,10 +2957,10 @@
       "id": "compiler-errors",
       "name": "Compiler Errors",
       "total": 144,
-      "passed": 51,
-      "failed": 67,
+      "passed": 54,
+      "failed": 64,
       "skipped": 26,
-      "percentage": 43.22033898305085,
+      "percentage": 45.76271186440678,
       "tests": [
         {
           "name": "dollar-binding-import",
@@ -3027,8 +2993,7 @@
         },
         {
           "name": "runes-wrong-state-placement",
-          "status": "fail",
-          "error_message": "Expected error 'state_invalid_placement' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "element-invalid-name",
@@ -3094,8 +3059,7 @@
         },
         {
           "name": "runes-invalid-each-binding",
-          "status": "fail",
-          "error_message": "Expected error 'each_item_invalid_assignment' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "attribute-sequence-expression-2",
@@ -3135,8 +3099,7 @@
         },
         {
           "name": "invalid-snippet-binding",
-          "status": "fail",
-          "error_message": "Expected error 'snippet_parameter_assignment' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "css",
@@ -3671,15 +3634,14 @@
       "id": "runtime-runes",
       "name": "Runtime Runes",
       "total": 740,
-      "passed": 10,
-      "failed": 714,
+      "passed": 24,
+      "failed": 700,
       "skipped": 16,
-      "percentage": 1.3812154696132597,
+      "percentage": 3.314917127071823,
       "tests": [
         {
           "name": "directives",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "effect-cleanup",
@@ -3689,17 +3651,17 @@
         {
           "name": "custom-element-attributes",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "event-attribute-delegation-5",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "snippet-prop-explicit",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "transition-if-nested-static",
@@ -3724,7 +3686,7 @@
         {
           "name": "event-attribute-delegation-2",
           "status": "fail",
-          "error_message": "Server JS mismatch"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "await-render-error-restore-reaction",
@@ -3773,8 +3735,7 @@
         },
         {
           "name": "class-state-constructor-closure-private-1",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "snippet-hoisting-3",
@@ -3973,8 +3934,7 @@
         },
         {
           "name": "snippet-after-text",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "dynamic-style-attr",
@@ -4222,7 +4182,7 @@
         {
           "name": "runes-in-module-context",
           "status": "fail",
-          "error_message": "Client compilation error: Analysis error: rune_invalid_usage: Cannot use `$state` rune in non-runes mode\nhttps://svelte.dev/e/rune_invalid_usage"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "transition-each",
@@ -4322,7 +4282,7 @@
         {
           "name": "writable-derived",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: bind_invalid_value: Cannot bind to this value"
         },
         {
           "name": "derived-unowned-5",
@@ -4415,8 +4375,7 @@
         },
         {
           "name": "snippet-children-without-render-tag-dev",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "derived-cleanup-old-value",
@@ -4475,8 +4434,7 @@
         },
         {
           "name": "tick-timing",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "async-derived-module",
@@ -4610,8 +4568,7 @@
         },
         {
           "name": "event-arguments",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "effect-order",
@@ -4756,7 +4713,7 @@
         {
           "name": "mutation-local",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: constant_assignment: Cannot assign to constant"
         },
         {
           "name": "custom-element-svelte-class",
@@ -4844,7 +4801,8 @@
         },
         {
           "name": "action-sequence",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "async-derived-invalidation-during-init",
@@ -5158,8 +5116,7 @@
         },
         {
           "name": "event-arguments-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "ownership-function-bindings",
@@ -5482,8 +5439,7 @@
         },
         {
           "name": "class-state-increment",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "event-attribute-not-reactive",
@@ -5806,8 +5762,7 @@
         },
         {
           "name": "snippet-children-without-render-tag-dev-prod",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "snippet-argument",
@@ -5821,8 +5776,7 @@
         },
         {
           "name": "event-attribute-delegation-8",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "event-media-element-cleanup",
@@ -5895,8 +5849,7 @@
         },
         {
           "name": "class-state",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "store-async-first-value",
@@ -6149,8 +6102,7 @@
         },
         {
           "name": "state-update",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "async-attachment",
@@ -6679,8 +6631,7 @@
         },
         {
           "name": "ownership-invalid-binding-ignored",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "dependencyless-abort-signal",
@@ -6979,8 +6930,7 @@
         },
         {
           "name": "derived-direct",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "state-space",
@@ -7269,7 +7219,7 @@
         {
           "name": "error-boundary-14",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "attachment-component-falsy",
@@ -7298,8 +7248,7 @@
         },
         {
           "name": "non-local-mutation-with-binding-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "readonly-state",
@@ -7372,10 +7321,10 @@
       "id": "runtime-legacy",
       "name": "Runtime Legacy",
       "total": 1198,
-      "passed": 13,
-      "failed": 1185,
+      "passed": 23,
+      "failed": 1175,
       "skipped": 0,
-      "percentage": 1.0851419031719534,
+      "percentage": 1.9198664440734556,
       "tests": [
         {
           "name": "svg",
@@ -8532,7 +8481,7 @@
         {
           "name": "component-slot-nested-component",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "svg-child-component-declared-namespace",
@@ -8647,7 +8596,7 @@
         {
           "name": "binding-input-group-each-1",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: each_item_invalid_assignment: Cannot reassign or bind to each block item"
         },
         {
           "name": "array-rest-is-array-or-object",
@@ -8787,7 +8736,7 @@
         {
           "name": "binding-input-text-contextual",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: each_item_invalid_assignment: Cannot reassign or bind to each block item"
         },
         {
           "name": "dynamic-element-void-with-content-3",
@@ -8975,8 +8924,7 @@
         },
         {
           "name": "action-custom-event-handler-this",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-this-component-computed-key",
@@ -10053,7 +10001,7 @@
         {
           "name": "binding-input-text-contextual-deconflicted",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: each_item_invalid_assignment: Cannot reassign or bind to each block item"
         },
         {
           "name": "svg-child-component-declared-namespace-shorthand",
@@ -10587,8 +10535,7 @@
         },
         {
           "name": "transition-js-intro-skipped-by-default",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-block-unkeyed-else-2",
@@ -10697,8 +10644,7 @@
         },
         {
           "name": "component-not-void",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "reactive-values-non-cyclical",
@@ -10727,8 +10673,7 @@
         },
         {
           "name": "action",
-          "status": "fail",
-          "error_message": "Client compilation error: Analysis error: constant_assignment: Cannot assign to constant"
+          "status": "pass"
         },
         {
           "name": "single-static-element",
@@ -10877,7 +10822,7 @@
         {
           "name": "self-reference-component",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: svelte_self_invalid_placement: `<svelte:self>` components can only exist inside {#if}, {#each}, {#snippet} blocks or component `children` snippets"
         },
         {
           "name": "component-slot-names-sanitized",
@@ -10896,13 +10841,12 @@
         },
         {
           "name": "class-boolean",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-store-each",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: each_item_invalid_assignment: Cannot reassign or bind to each block item"
         },
         {
           "name": "dynamic-component-this",
@@ -11340,7 +11284,7 @@
         {
           "name": "binding-input-group-each-4",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: each_item_invalid_assignment: Cannot reassign or bind to each block item"
         },
         {
           "name": "each-block",
@@ -11673,8 +11617,7 @@
         },
         {
           "name": "transition-js-intro-enabled-by-option",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-select-late-2",
@@ -11738,8 +11681,7 @@
         },
         {
           "name": "inline-style-directive-string",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-binding-onMount",
@@ -12249,7 +12191,7 @@
         {
           "name": "each-block-deconflict-name-context",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: each_item_invalid_assignment: Cannot reassign or bind to each block item"
         },
         {
           "name": "reactive-function",
@@ -12419,7 +12361,7 @@
         {
           "name": "reactive-function-called-reassigned",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Analysis error: each_item_invalid_assignment: Cannot reassign or bind to each block item"
         },
         {
           "name": "binding-select-multiple",
@@ -12557,8 +12499,7 @@
         },
         {
           "name": "component-yield-follows-element",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-block-text-node",
@@ -12802,8 +12743,7 @@
         },
         {
           "name": "event-handler-async",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-select-unmatched",
@@ -12928,7 +12868,7 @@
         {
           "name": "action-body",
           "status": "fail",
-          "error_message": "Client compilation error: Analysis error: constant_assignment: Cannot assign to constant"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "component-binding-each-object",
@@ -13003,7 +12943,7 @@
         {
           "name": "action-function",
           "status": "fail",
-          "error_message": "Client compilation error: Analysis error: constant_assignment: Cannot assign to constant"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "if-block-static-with-else-and-outros",
@@ -13071,8 +13011,7 @@
         },
         {
           "name": "store-shadow-scope-declaration",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-css-in-out-in-with-param",
@@ -13142,7 +13081,7 @@
         {
           "name": "action-document",
           "status": "fail",
-          "error_message": "Client compilation error: Analysis error: constant_assignment: Cannot assign to constant"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "component-data-static",
@@ -13317,7 +13256,7 @@
         {
           "name": "action-update",
           "status": "fail",
-          "error_message": "Client compilation error: Analysis error: constant_assignment: Cannot assign to constant"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "component-slot-let-named-2",
@@ -13881,10 +13820,10 @@
       "id": "server-side-rendering",
       "name": "SSR",
       "total": 80,
-      "passed": 10,
-      "failed": 70,
+      "passed": 8,
+      "failed": 72,
       "skipped": 0,
-      "percentage": 12.5,
+      "percentage": 10,
       "tests": [
         {
           "name": "bindings-zero",
@@ -13997,7 +13936,8 @@
         },
         {
           "name": "comment",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "select-value-bind-store",
@@ -14254,7 +14194,8 @@
         },
         {
           "name": "comment-preserve",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "triple",

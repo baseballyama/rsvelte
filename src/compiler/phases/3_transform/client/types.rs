@@ -209,9 +209,10 @@ impl<'a> ComponentContext<'a> {
         TransformResult::None
     }
 
-    fn visit_render_tag(&mut self, _render: &crate::ast::template::RenderTag) -> TransformResult {
-        // TODO: Implement {@render} transformation
-        TransformResult::None
+    fn visit_render_tag(&mut self, render: &crate::ast::template::RenderTag) -> TransformResult {
+        use crate::compiler::phases::phase3_transform::client::visitors::render_tag::render_tag as visit_render_tag_impl;
+        let stmt = visit_render_tag_impl(render, self);
+        TransformResult::Statement(stmt)
     }
 
     fn visit_html_tag(&mut self, _html: &crate::ast::template::HtmlTag) -> TransformResult {

@@ -698,4 +698,67 @@ mod tests {
         // Should contain BLOCK_CLOSE marker
         assert!(code.contains("<!--]-->"), "Should have BLOCK_CLOSE marker");
     }
+
+    #[test]
+    fn test_compile_await_block_server() {
+        let source = r#"<script>
+let promise = Promise.resolve(42);
+</script>
+
+{#await promise}
+  <p>pending</p>
+{:then value}
+  <p>then {value}</p>
+{:catch error}
+  <p>error {error}</p>
+{/await}"#;
+        let options = CompileOptions {
+            generate: GenerateMode::Server,
+            ..Default::default()
+        };
+        let result = compile(source, options).unwrap();
+        let code = &result.js.code;
+
+        // Print for debugging
+        println!("Generated await code:\n{}", code);
+
+        // Should contain $.await call
+        assert!(code.contains("$.await("), "Should have $.await call");
+        // Should contain $$renderer in first argument
+        assert!(
+            code.contains("$$renderer,"),
+            "Should have $$renderer parameter"
+        );
+        // Should contain the promise
+        assert!(code.contains("promise"), "Should have promise parameter");
+        // Should contain pending body with <p>pending</p>
+        assert!(
+            code.contains("<p>pending</p>"),
+            "Should have pending content"
+        );
+        // Should contain then callback with value parameter
+        assert!(
+            code.contains("(value) =>"),
+            "Should have then callback with value"
+        );
+        // Should contain then body content
+        assert!(
+            code.contains("then ${$.escape(value)}")
+                || code.contains("<p>then ${$.escape(value)}</p>"),
+            "Should have then content with escaped value"
+        );
+        // Should contain catch callback with error parameter
+        assert!(
+            code.contains("(error) =>"),
+            "Should have catch callback with error"
+        );
+        // Should contain catch body content
+        assert!(
+            code.contains("error ${$.escape(error)}")
+                || code.contains("<p>error ${$.escape(error)}</p>"),
+            "Should have catch content with escaped error"
+        );
+        // Should contain BLOCK_CLOSE marker
+        assert!(code.contains("<!--]-->"), "Should have BLOCK_CLOSE marker");
+    }
 }

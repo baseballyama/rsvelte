@@ -277,13 +277,33 @@ pub fn process_children<F>(
                         // Mark as controlled (would need to modify node, skipping for now)
                         // each.metadata.is_controlled = true;
                         // Visit without changing node
-                        context.visit_node(node, None);
+                        let result = context.visit_node(node, None);
+                        // Add the result to init if it's a statement or block
+                        match result {
+                            crate::compiler::phases::phase3_transform::client::types::TransformResult::Statement(stmt) => {
+                                context.state.init.push(stmt);
+                            }
+                            crate::compiler::phases::phase3_transform::client::types::TransformResult::Block(block) => {
+                                context.state.init.push(JsStatement::Block(block));
+                            }
+                            _ => {}
+                        }
                     } else {
                         let name = "node";
                         let id = flush_node(false, name, None, &mut prev, &mut skipped, context);
                         // Save original node and temporarily replace it
                         let saved_node = std::mem::replace(&mut context.state.node, id);
-                        context.visit_node(node, None);
+                        let result = context.visit_node(node, None);
+                        // Add the result to init if it's a statement or block
+                        match result {
+                            crate::compiler::phases::phase3_transform::client::types::TransformResult::Statement(stmt) => {
+                                context.state.init.push(stmt);
+                            }
+                            crate::compiler::phases::phase3_transform::client::types::TransformResult::Block(block) => {
+                                context.state.init.push(JsStatement::Block(block));
+                            }
+                            _ => {}
+                        }
                         context.state.node = saved_node;
                     }
                 } else {
@@ -297,7 +317,17 @@ pub fn process_children<F>(
                     let id = flush_node(false, name, None, &mut prev, &mut skipped, context);
                     // Save original node and temporarily replace it
                     let saved_node = std::mem::replace(&mut context.state.node, id);
-                    context.visit_node(node, None);
+                    let result = context.visit_node(node, None);
+                    // Add the result to init if it's a statement or block
+                    match result {
+                        crate::compiler::phases::phase3_transform::client::types::TransformResult::Statement(stmt) => {
+                            context.state.init.push(stmt);
+                        }
+                        crate::compiler::phases::phase3_transform::client::types::TransformResult::Block(block) => {
+                            context.state.init.push(JsStatement::Block(block));
+                        }
+                        _ => {}
+                    }
                     context.state.node = saved_node;
                 }
             }

@@ -50,13 +50,13 @@ Current compatibility with the official Svelte compiler test suite:
 | Parser Legacy | 78 | 82 | 95% | 1 skipped |
 | Compiler Snapshot | 0 | 17 | 0% | 8 skipped |
 | CSS | 10 | 177 | 6% |  |
-| Validator | 121 | 312 | 39% | 11 skipped |
-| Compiler Errors | 51 | 118 | 43% | 26 skipped |
-| Runtime Runes | 10 | 724 | 1% | 16 skipped |
-| Runtime Legacy | 13 | 1198 | 1% |  |
+| Validator | 155 | 312 | 50% | 11 skipped |
+| Compiler Errors | 54 | 118 | 46% | 26 skipped |
+| Runtime Runes | 24 | 724 | 3% | 16 skipped |
+| Runtime Legacy | 23 | 1198 | 2% |  |
 | Runtime Browser | 1 | 30 | 3% |  |
 | Hydration | 5 | 70 | 7% | 1 skipped |
-| SSR | 10 | 80 | 13% |  |
+| SSR | 8 | 80 | 10% |  |
 | Sourcemaps | 0 | 0 | 0% |  |
 | Preprocess | 0 | 0 | 0% | Not implemented |
 | Print | 0 | 0 | 0% | Not implemented |
