@@ -1167,4 +1167,70 @@ button.__click = () => $.update(count);
 - レガシーシステム: Snapshot 19/19 通過（維持）✅
 - イベントハンドラが正しく生成されるようになった
 
+### 2026-01-25 セッション3
+
+**セッション再開 (2026-01-25 セッション3):**
+
+現在地: Phase C - Rust 実装
+目標: 新しいビジター実装の完成
+
+**完了タスク:**
+
+- [x] イベント委譲の修正
+  - `fragment.rs` でイベントを親コンテキストにマージ
+  - `context.state.events.extend(state.events)` を追加
+  - `$.delegate(['click'])` が正しく生成されるように
+  - コミット: "fix(transform): Merge events from child fragment contexts for $.delegate()"
+
+- [x] `$.child()` 引数の最適化
+  - 第2引数 `false` がデフォルトなので省略
+  - `$.child(element, false)` → `$.child(element)`
+  - コミット: "fix(transform): Omit unnecessary false argument from $.child() calls"
+
+- [x] リアクティブ状態検出の追加
+  - `expression_has_reactive_state()` 関数を追加
+  - 式内の全ての識別子のバインディング種別を再帰的にチェック
+  - `$state`, `$derived`, props, stores などのリアクティブバインディングを検出
+  - `build_template_chunk()` で正確な `has_state` を設定
+  - 非リアクティブ式は `template_effect` ではなく直接 `nodeValue` 代入
+  - コミット: "feat(transform): Add reactive state detection for expressions"
+
+**テスト結果（セッション3終了時）:**
+- 新システム: Snapshot 3/19 通過（維持）
+- レガシーシステム: Snapshot 19/19 通過（維持）✅
+
+**改善例:**
+```javascript
+// Before (全て template_effect 内):
+$.template_effect(() => {
+    $.set_text(text, `Hello, ${name}!`);
+    $.set_text(text_2, `Count is ${$.get(count)}`);
+});
+
+// After (静的式は init で直接代入):
+text.nodeValue = `Hello, ${name}!`;  // name は非リアクティブ
+$.template_effect(() => {
+    $.set_text(text_2, `Count is ${$.get(count)}`);  // count はリアクティブ
+});
+```
+
+**残存問題:**
+1. **静的テキスト最適化** - `h1.textContent = 'value'` vs `text.nodeValue = 'value'`
+   - 期待される出力は要素の `textContent` を直接設定
+   - 現在は子テキストノードの `nodeValue` を設定
+   - これには要素レベルでの静的コンテンツ検出が必要
+
+2. **テンプレート空白** - `<h1></h1>` vs `<h1> </h1>`
+   - 混合コンテンツの場合、プレースホルダ " " がテンプレートに追加される
+   - 静的コンテンツの場合はプレースホルダ不要
+
+3. **定数畳み込み** - `1 ?? 'stuff'` → `1`
+   - 期待される出力はコンパイル時に式を評価
+   - これは Phase 2 で定数値を追跡する必要がある
+
+**次のアクション:**
+1. 要素レベルでの静的コンテンツ検出と `textContent` 最適化
+2. module_script_content の処理
+3. instance_script_content の処理
+
 **着手タスク:**
