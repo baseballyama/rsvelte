@@ -229,10 +229,73 @@ impl Default for Template {
     }
 }
 
+/// Normalize whitespace in text content for template strings.
+/// Collapses sequences of whitespace (including newlines and tabs) into single spaces.
+fn normalize_template_whitespace(text: &str) -> String {
+    // Replace newlines and tabs with spaces, then collapse multiple spaces
+    let mut result = String::with_capacity(text.len());
+    let mut last_was_whitespace = false;
+
+    for c in text.chars() {
+        if c == '\n' || c == '\r' || c == '\t' || c == ' ' {
+            if !last_was_whitespace {
+                result.push(' ');
+                last_was_whitespace = true;
+            }
+            // Skip additional whitespace characters
+        } else {
+            result.push(c);
+            last_was_whitespace = false;
+        }
+    }
+
+    result
+}
+
+/// Stringify element children with proper whitespace handling.
+/// - Trims leading whitespace from the first child (if text)
+/// - Trims trailing whitespace from the last child (if text)
+/// - Normalizes internal whitespace
+fn stringify_children(children: &[Node]) -> String {
+    let mut result = String::new();
+
+    for (i, child) in children.iter().enumerate() {
+        let is_first = i == 0;
+        let is_last = i == children.len() - 1;
+
+        match child {
+            Node::Text(text) => {
+                let raw_text: String = text.nodes.iter().map(|node| &node.raw).cloned().collect();
+                let normalized = normalize_template_whitespace(&raw_text);
+
+                // Trim leading whitespace if this is the first child
+                let trimmed = if is_first {
+                    normalized.trim_start()
+                } else {
+                    &normalized
+                };
+
+                // Trim trailing whitespace if this is the last child
+                let final_text = if is_last { trimmed.trim_end() } else { trimmed };
+
+                result.push_str(final_text);
+            }
+            _ => {
+                result.push_str(&stringify(child));
+            }
+        }
+    }
+
+    result
+}
+
 /// Convert a node to HTML string.
 fn stringify(item: &Node) -> String {
     match item {
-        Node::Text(text) => text.nodes.iter().map(|node| &node.raw).cloned().collect(),
+        Node::Text(text) => {
+            let raw_text: String = text.nodes.iter().map(|node| &node.raw).cloned().collect();
+            normalize_template_whitespace(&raw_text)
+        }
         Node::Comment(comment) => {
             if let Some(ref data) = comment.data {
                 format!("<!--{}-->", data)
@@ -255,9 +318,8 @@ fn stringify(item: &Node) -> String {
                 str.push_str("/>");
             } else {
                 str.push('>');
-                for child in &element.children {
-                    str.push_str(&stringify(child));
-                }
+                // Use stringify_children to properly handle whitespace at element boundaries
+                str.push_str(&stringify_children(&element.children));
                 str.push_str(&format!("</{}>", element.name));
             }
 
