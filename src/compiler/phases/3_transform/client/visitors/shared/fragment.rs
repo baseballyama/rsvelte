@@ -53,7 +53,7 @@ fn is_text_attribute(attr: &Attribute) -> bool {
     }
 }
 
-/// Recursively check if any child nodes contain dynamic content.
+/// Recursively check if any child nodes contain dynamic content or special attributes.
 fn has_dynamic_children(nodes: &[TemplateNode]) -> bool {
     for node in nodes {
         match node {
@@ -70,6 +70,26 @@ fn has_dynamic_children(nodes: &[TemplateNode]) -> bool {
             TemplateNode::SvelteElement(_) => return true,
             TemplateNode::SvelteSelf(_) => return true,
             TemplateNode::RegularElement(elem) => {
+                // Check if this child element has special attributes that need runtime handling
+                if is_custom_element_node(elem) {
+                    return true;
+                }
+
+                // Check for attributes that cannot be set statically (need runtime code)
+                // Note: img loading does NOT need runtime code - it can be static in template
+                for attr in &elem.attributes {
+                    if let Attribute::Attribute(a) = attr {
+                        if cannot_be_set_statically(&a.name) {
+                            return true;
+                        }
+                        // option value needs special handling
+                        if elem.name == "option" && a.name == "value" {
+                            return true;
+                        }
+                    }
+                }
+
+                // Recursively check children
                 if has_dynamic_children(&elem.fragment.nodes) {
                     return true;
                 }

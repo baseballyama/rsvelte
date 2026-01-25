@@ -242,9 +242,10 @@ impl<'a> ComponentContext<'a> {
         TransformResult::Statement(stmt)
     }
 
-    fn visit_html_tag(&mut self, _html: &crate::ast::template::HtmlTag) -> TransformResult {
-        // TODO: Implement {@html} transformation
-        TransformResult::None
+    fn visit_html_tag(&mut self, html: &crate::ast::template::HtmlTag) -> TransformResult {
+        use crate::compiler::phases::phase3_transform::client::visitors::html_tag::html_tag as visit_html_tag_impl;
+        let stmt = visit_html_tag_impl(html, self);
+        TransformResult::Statement(stmt)
     }
 
     pub fn visit_on_directive(

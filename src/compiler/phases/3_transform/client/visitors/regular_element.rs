@@ -122,6 +122,12 @@ pub fn visit_regular_element(
         }
     }
 
+    // Check if value attribute needs special handling (option, select, or bindings)
+    let needs_special_value_handling = node.name == "option"
+        || node.name == "select"
+        || bindings.contains_key("group")
+        || bindings.contains_key("checked");
+
     // Create separate vectors for element-level state (directives that apply to this element)
     // Following JS implementation: element_state = { ...context.state, init: [], after_update: [] }
     // These will be merged AFTER child processing to ensure correct statement order.
@@ -225,6 +231,11 @@ pub fn visit_regular_element(
             if let Attribute::Attribute(attr) = attribute {
                 let name = get_attribute_name(node, attr);
 
+                // Skip value attribute if it needs special handling (for option/select)
+                if needs_special_value_handling && name == "value" {
+                    continue;
+                }
+
                 // Static text attributes can go in the template
                 let is_true_value = matches!(&attr.value, AttributeValue::True(true));
                 if !is_custom_element
@@ -275,6 +286,38 @@ pub fn visit_regular_element(
                             .state
                             .template
                             .set_prop(attr.name.to_string(), prop_value);
+                    }
+                } else if name == "autofocus" {
+                    // Special case: autofocus needs $.autofocus() call
+                    let result =
+                        build_attribute_value(&attr.value, context, |expr, _metadata| expr);
+                    let node_id = extract_node_id(&context.state.node);
+                    context.state.init.push(b::stmt(b::call(
+                        b::member_path("$.autofocus"),
+                        vec![b::id(&node_id), result.value],
+                    )));
+                } else if is_custom_element {
+                    // Custom element: use $.set_custom_element_data
+                    let result =
+                        build_attribute_value(&attr.value, context, |expr, _metadata| expr);
+                    let node_id = extract_node_id(&context.state.node);
+                    let call = b::call(
+                        b::member_path("$.set_custom_element_data"),
+                        vec![
+                            b::id(&node_id),
+                            b::string(attr.name.to_string()),
+                            result.value,
+                        ],
+                    );
+
+                    if result.has_state {
+                        // For reactive values, wrap in template_effect
+                        context.state.init.push(b::stmt(b::call(
+                            b::member_path("$.template_effect"),
+                            vec![b::thunk(call)],
+                        )));
+                    } else {
+                        context.state.init.push(b::stmt(call));
                     }
                 } else {
                     // Dynamic attribute - needs runtime handling
@@ -335,6 +378,28 @@ pub fn visit_regular_element(
                 if is_delegated {
                     visit_event_attribute(event_attr, context);
                 }
+            }
+        }
+    }
+
+    // Handle special value attribute for option/select
+    if !has_spread && needs_special_value_handling {
+        // Find the value attribute
+        for attribute in &attributes {
+            if let Attribute::Attribute(attr) = attribute
+                && attr.name == "value"
+            {
+                let node_id = extract_node_id(&context.state.node);
+                let result = build_attribute_value(&attr.value, context, |expr, _metadata| expr);
+
+                // For option/select: element.value = element.__value = value
+                // This sets both the hidden __value property and the visible value
+                let assignment =
+                    b::assign(b::member(b::id(&node_id), "__value"), result.value.clone());
+                let set_value = b::assign(b::member(b::id(&node_id), "value"), assignment);
+
+                context.state.init.push(b::stmt(set_value));
+                break;
             }
         }
     }
