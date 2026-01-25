@@ -278,10 +278,13 @@ fn build_event_handler(
     use crate::compiler::phases::phase3_transform::js_ast::builders as b;
     use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 
-    // Convert the expression to a JS expression
-    // TODO: This is a simplified conversion - in the full implementation,
-    // we would use the expression_converter visitor
-    let js_expr = convert_expression_to_js(&expr_tag.expression, context);
+    // Convert the expression to a JS expression using the expression converter
+    use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+    let js_expr = convert_expression(&expr_tag.expression, context);
+
+    // Apply state transforms (e.g., count++ -> $.update(count))
+    use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
+    let js_expr = apply_transforms_to_expression(&js_expr, context);
 
     // Check if it's already a function
     if matches!(js_expr, JsExpr::Arrow(_) | JsExpr::Function(_)) {
@@ -436,34 +439,6 @@ fn is_capture_event(name: &str) -> bool {
 /// ```
 fn is_passive_event(name: &str) -> bool {
     matches!(name, "touchstart" | "touchmove")
-}
-
-/// Convert an AST expression to a JS expression.
-///
-/// This is a simplified conversion - in the full implementation,
-/// we would use the expression_converter visitor.
-///
-/// TODO: Replace with proper expression conversion using the visitor.
-fn convert_expression_to_js(
-    expression: &crate::ast::js::Expression,
-    _context: &mut ComponentContext,
-) -> crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr {
-    use crate::ast::js::Expression;
-    use crate::compiler::phases::phase3_transform::js_ast::builders as b;
-
-    // For now, just extract the identifier name from the expression
-    // In the full implementation, this would be a full expression visitor
-    match expression {
-        Expression::Value(val) => {
-            if let Some(obj) = val.as_object()
-                && let Some(name) = obj.get("name").and_then(|v| v.as_str())
-            {
-                return b::id(name);
-            }
-            // Fallback: create a placeholder
-            b::id("handler")
-        }
-    }
 }
 
 /// Check if an expression contains a function call.

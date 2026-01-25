@@ -22,7 +22,7 @@ use std::collections::HashMap;
 /// # Returns
 ///
 /// Returns the transformed expression with all applicable transforms applied.
-fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext) -> JsExpr {
+pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext) -> JsExpr {
     match expr {
         JsExpr::Identifier(name) => {
             // Check if there's a transform registered for this identifier
