@@ -577,12 +577,32 @@ fn process_bind_directive(
     // Check if it's a store subscription
     let is_store_sub = is_store_subscription(&bind.expression, context);
 
+    // Check if this is a state source binding that needs $.get/$.set
+    let is_state_binding = if let JsExpr::Identifier(name) = &expression {
+        if let Some(binding) = context.state.get_binding(name) {
+            crate::compiler::phases::phase3_transform::client::utils::is_state_source(
+                binding,
+                context.state.analysis,
+            )
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
     // Create getter
     let getter_body = if is_store_sub {
         vec![
             b::stmt(b::call(b::member_path("$.mark_store_binding"), vec![])),
             b::return_value(expression.clone()),
         ]
+    } else if is_state_binding {
+        // For state bindings, use $.get()
+        vec![b::return_value(b::call(
+            b::member_path("$.get"),
+            vec![expression.clone()],
+        ))]
     } else {
         vec![b::return_value(expression.clone())]
     };
@@ -590,11 +610,17 @@ fn process_bind_directive(
     let getter = b::getter(bind.name.as_str(), getter_body);
 
     // Create setter
-    let setter = b::setter(
-        bind.name.as_str(),
-        "$$value",
-        vec![b::stmt(b::assign(expression.clone(), b::id("$$value")))],
-    );
+    let setter_body = if is_state_binding {
+        // For state bindings, use $.set(value, $$value, true)
+        vec![b::stmt(b::call(
+            b::member_path("$.set"),
+            vec![expression.clone(), b::id("$$value"), b::boolean(true)],
+        ))]
+    } else {
+        vec![b::stmt(b::assign(expression.clone(), b::id("$$value")))]
+    };
+
+    let setter = b::setter(bind.name.as_str(), "$$value", setter_body);
 
     // Add as delayed props (bindings come at the end)
     delayed_props.push(DelayedProp { prop: getter });
