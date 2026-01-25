@@ -53,6 +53,33 @@ fn is_text_attribute(attr: &Attribute) -> bool {
     }
 }
 
+/// Recursively check if any child nodes contain dynamic content.
+fn has_dynamic_children(nodes: &[TemplateNode]) -> bool {
+    for node in nodes {
+        match node {
+            TemplateNode::ExpressionTag(_) => return true,
+            TemplateNode::HtmlTag(_) => return true,
+            TemplateNode::RenderTag(_) => return true,
+            TemplateNode::IfBlock(_) => return true,
+            TemplateNode::EachBlock(_) => return true,
+            TemplateNode::AwaitBlock(_) => return true,
+            TemplateNode::KeyBlock(_) => return true,
+            TemplateNode::SnippetBlock(_) => return true,
+            TemplateNode::Component(_) => return true,
+            TemplateNode::SvelteComponent(_) => return true,
+            TemplateNode::SvelteElement(_) => return true,
+            TemplateNode::SvelteSelf(_) => return true,
+            TemplateNode::RegularElement(elem) => {
+                if has_dynamic_children(&elem.fragment.nodes) {
+                    return true;
+                }
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
 /// Check if a node is a static element.
 ///
 /// A static element is one that can be rendered in the template without
@@ -62,6 +89,12 @@ fn is_static_element(node: &TemplateNode, _state: &ComponentClientTransformState
         TemplateNode::RegularElement(elem) => {
             // Dynamic fragment means we can't be static
             if elem.fragment.metadata.dynamic {
+                return false;
+            }
+
+            // Check if any child is an ExpressionTag (which means dynamic content)
+            // This is a workaround for metadata.dynamic not being set correctly in Phase 2
+            if has_dynamic_children(&elem.fragment.nodes) {
                 return false;
             }
 
@@ -270,6 +303,8 @@ pub fn process_children<F>(
                 }
 
                 if is_static_element(node, &context.state) {
+                    // Push the static element to the template
+                    push_static_element_to_template(node, &mut context.state.template);
                     skipped += 1;
                 } else if let TemplateNode::EachBlock(each) = node {
                     // Special case: single EachBlock in element can be controlled
@@ -359,3 +394,50 @@ pub enum TextOrExpr {
     Text(Text),
     Expr(ExpressionTag),
 }
+
+/// Push a static element and its children to the template.
+fn push_static_element_to_template(node: &TemplateNode, template: &mut Template) {
+    match node {
+        TemplateNode::RegularElement(elem) => {
+            // Push the element opening tag
+            template.push_element(elem.name.to_string(), elem.start);
+
+            // Add attributes
+            for attr in &elem.attributes {
+                if let Attribute::Attribute(a) = attr {
+                    let value = match &a.value {
+                        crate::ast::template::AttributeValue::True(_) => None,
+                        crate::ast::template::AttributeValue::Sequence(parts) => {
+                            let mut val = String::new();
+                            for part in parts {
+                                if let crate::ast::template::AttributeValuePart::Text(t) = part {
+                                    val.push_str(&t.data);
+                                }
+                            }
+                            Some(val)
+                        }
+                        _ => None,
+                    };
+                    template.set_prop(a.name.to_string(), value);
+                }
+            }
+
+            // Recursively add children
+            for child in &elem.fragment.nodes {
+                push_static_element_to_template(child, template);
+            }
+
+            // Close the element
+            template.pop_element();
+        }
+        TemplateNode::Text(text) => {
+            template.push_text(vec![text.clone()]);
+        }
+        TemplateNode::Comment(comment) => {
+            template.push_comment(Some(comment.data.to_string()));
+        }
+        _ => {}
+    }
+}
+
+use crate::compiler::phases::phase3_transform::client::transform_template::template::Template;
