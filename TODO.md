@@ -1249,10 +1249,15 @@ $.template_effect(() => {
   - `build_getter_setter()` で `$state` 変数を `$.get()`/`$.set()` でラップ
   - コミット: "feat(transform): Add bind directive support for regular elements"
 
+- [x] モジュール/インスタンススクリプトのインポート処理
+  - `<script context="module">` の内容を処理
+  - インスタンススクリプトからインポートを抽出してホイスト
+  - コミット: "feat(transform): Add module and instance script imports to new visitor system"
+
 **テスト結果（セッション3継続後）:**
-- 新システム: Snapshot **4/19** 通過（3/19 → 4/19, +1）
+- 新システム: Snapshot **5/19** 通過（3/19 → 5/19, +2）
 - レガシーシステム: Snapshot 19/19 通過（維持）✅
-- `state-proxy-literal` テストが新たに通過
+- `state-proxy-literal` と `imports-in-modules` が新たに通過
 
 **残存問題（更新）:**
 1. **識別子の定数畳み込み** - Phase 2 で `binding.initial` が設定されていない
