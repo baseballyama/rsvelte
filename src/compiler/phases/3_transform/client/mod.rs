@@ -9178,6 +9178,15 @@ fn transform_instance_script_for_visitors(script: &str, analysis: &ComponentAnal
         .map(|b| b.name.clone())
         .collect();
 
+    // Collect rest_prop variable names (from `let props = $props()`)
+    let rest_prop_vars: Vec<String> = analysis
+        .root
+        .bindings
+        .iter()
+        .filter(|b| matches!(b.kind, BindingKind::RestProp))
+        .map(|b| b.name.clone())
+        .collect();
+
     // Collect non-reactive state vars (never reassigned - don't need $.get/$.set)
     let non_reactive_state_vars: Vec<String> = if analysis.immutable {
         analysis
@@ -9241,8 +9250,109 @@ fn transform_instance_script_for_visitors(script: &str, analysis: &ComponentAnal
         // Transform state variable assignments to $.set()
         let transformed = transform_state_assignments(&transformed, &state_vars);
 
+        // Transform rest_prop member access to $$props (only in runes mode)
+        let transformed = if analysis.runes && !rest_prop_vars.is_empty() {
+            transform_rest_prop_member_access(&transformed, &rest_prop_vars)
+        } else {
+            transformed
+        };
+
         result.push_str(&transformed);
         result.push('\n');
+    }
+
+    result
+}
+
+/// Transform rest_prop member access to $$props.
+///
+/// Handles the optimization where `props.a` becomes `$$props.a` for read access,
+/// but direct property assignments `props.a = true` are kept as-is.
+///
+/// Transformation rules:
+/// - `props.a;` → `$$props.a;` (read access)
+/// - `props.a.b;` → `$$props.a.b;` (read access)
+/// - `props.a.b = true;` → `$$props.a.b = true;` (deep property assignment)
+/// - `props.a = true;` → `props.a = true;` (direct property assignment - no transform)
+/// - `props[a];` → `props[a];` (computed access - no transform)
+/// - `props;` → `props;` (bare reference - no transform)
+fn transform_rest_prop_member_access(line: &str, rest_prop_vars: &[String]) -> String {
+    let mut result = line.to_string();
+
+    for var_name in rest_prop_vars {
+        // Transform props.X to $$props.X, but not:
+        // 1. Direct property assignment: props.X = ... (where X is directly assigned)
+        // 2. Computed property access: props[X]
+        // 3. Bare reference: props
+
+        // Create a regex pattern to find props.X patterns
+        // We need to transform props.X to $$props.X when:
+        // - It's read access (no = immediately after the property)
+        // - OR it's deep property access with assignment (props.X.Y = ...)
+
+        let pattern = format!(r"\b{}\.", var_name);
+        let re = match regex::Regex::new(&pattern) {
+            Ok(r) => r,
+            Err(_) => continue,
+        };
+
+        // Find all matches and determine which ones to transform
+        let mut offset = 0;
+        let mut new_result = String::new();
+
+        for mat in re.find_iter(&result.clone()) {
+            // Add everything before the match
+            new_result.push_str(&result[offset..mat.start()]);
+
+            let after_match = &result[mat.end()..];
+
+            // Check what comes after "props."
+            // We need to find the property name and see if it's a direct assignment
+            let mut prop_end = 0;
+            let mut is_computed = false;
+
+            // Check if next char is [ (computed property access)
+            if after_match.starts_with('[') {
+                is_computed = true;
+            }
+
+            if is_computed {
+                // Keep original for computed access
+                new_result.push_str(mat.as_str());
+            } else {
+                // Find the end of the property name
+                for (i, c) in after_match.chars().enumerate() {
+                    if c.is_alphanumeric() || c == '_' || c == '$' {
+                        prop_end = i + 1;
+                    } else {
+                        break;
+                    }
+                }
+
+                let after_prop = &after_match[prop_end..].trim_start();
+
+                // Check if this is a direct assignment (props.X = ... without more dots)
+                let is_direct_assignment =
+                    after_prop.starts_with('=') && !after_prop.starts_with("==");
+
+                // Check if this has deeper property access (props.X.Y)
+                let has_deeper_access = after_prop.starts_with('.');
+
+                if is_direct_assignment && !has_deeper_access {
+                    // Direct assignment to property - don't transform
+                    new_result.push_str(mat.as_str());
+                } else {
+                    // Read access or deep assignment - transform to $$props.
+                    new_result.push_str("$$props.");
+                }
+            }
+
+            offset = mat.end();
+        }
+
+        // Add any remaining content after the last match
+        new_result.push_str(&result[offset..]);
+        result = new_result;
     }
 
     result

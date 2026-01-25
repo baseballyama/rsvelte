@@ -256,6 +256,7 @@ fn normalize_template_whitespace(text: &str) -> String {
 /// - Trims leading whitespace from the first child (if text)
 /// - Trims trailing whitespace from the last child (if text)
 /// - Normalizes internal whitespace
+/// - Preserves single-space placeholders for dynamic text nodes
 fn stringify_children(children: &[Node]) -> String {
     let mut result = String::new();
 
@@ -267,6 +268,13 @@ fn stringify_children(children: &[Node]) -> String {
             Node::Text(text) => {
                 let raw_text: String = text.nodes.iter().map(|node| &node.raw).cloned().collect();
                 let normalized = normalize_template_whitespace(&raw_text);
+
+                // Special case: preserve single-space placeholder for dynamic text nodes
+                // This is used when there's an expression tag that will be replaced at runtime
+                if normalized == " " && children.len() == 1 {
+                    result.push(' ');
+                    continue;
+                }
 
                 // Trim leading whitespace if this is the first child
                 let trimmed = if is_first {

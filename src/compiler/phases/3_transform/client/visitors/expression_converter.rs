@@ -7,6 +7,7 @@
 //! Corresponds to the visitor pattern in Svelte's transform phase.
 
 use crate::ast::js::Expression;
+use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::client::types::ComponentContext;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use serde_json::Value;
@@ -123,15 +124,15 @@ fn convert_literal(
 }
 
 /// Convert a MemberExpression node.
+///
+/// This also handles the rest_prop → $$props optimization:
+/// When accessing a property on a rest_prop binding (e.g., `props.a` where `let props = $props()`),
+/// we transform the object to `$$props` for read access, but NOT for direct property assignments
+/// (e.g., `props.a = true` stays as-is, but `props.a.b = true` becomes `$$props.a.b = true`).
 fn convert_member_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
 ) -> JsExpr {
-    let object = obj
-        .get("object")
-        .map(|o| Box::new(convert_json_value(o, context)))
-        .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".to_string())));
-
     let computed = obj
         .get("computed")
         .and_then(|c| c.as_bool())
@@ -141,6 +142,35 @@ fn convert_member_expression(
         .get("optional")
         .and_then(|o| o.as_bool())
         .unwrap_or(false);
+
+    // Check if the object is a rest_prop identifier and should be transformed to $$props
+    let should_transform_to_props =
+        if !computed && context.state.analysis.runes && !context.state.in_direct_assignment_lhs {
+            // Check if object is an Identifier
+            if let Some(object_obj) = obj.get("object").and_then(|o| o.as_object())
+                && let Some("Identifier") = object_obj.get("type").and_then(|t| t.as_str())
+                && let Some(name) = object_obj.get("name").and_then(|n| n.as_str())
+            {
+                // Check if this identifier is a rest_prop binding
+                if let Some(binding) = context.state.get_binding(name) {
+                    matches!(binding.kind, BindingKind::RestProp)
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+    let object = if should_transform_to_props {
+        Box::new(JsExpr::Identifier("$$props".to_string()))
+    } else {
+        obj.get("object")
+            .map(|o| Box::new(convert_json_value(o, context)))
+            .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".to_string())))
+    };
 
     let property = if computed {
         obj.get("property")
@@ -647,6 +677,11 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
 }
 
 /// Convert an AssignmentExpression node.
+///
+/// Special handling for rest_prop transformation:
+/// When the LHS is `props.a = ...` (direct property assignment on rest_prop),
+/// we DON'T transform `props` to `$$props`. But for deeper assignments like
+/// `props.a.b = ...`, we DO transform `props` to `$$props`.
 fn convert_assignment_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
@@ -673,10 +708,46 @@ fn convert_assignment_expression(
         _ => JsAssignmentOp::Assign,
     };
 
+    // Check if the LHS is a MemberExpression with a direct Identifier object (e.g., props.a)
+    // If so, we set the flag to prevent rest_prop → $$props transformation
+    let is_direct_member_assignment = if let Some(left_obj) =
+        obj.get("left").and_then(|l| l.as_object())
+        && let Some("MemberExpression") = left_obj.get("type").and_then(|t| t.as_str())
+    {
+        // Check if the computed flag is false (non-computed property access)
+        let computed = left_obj
+            .get("computed")
+            .and_then(|c| c.as_bool())
+            .unwrap_or(false);
+        if !computed {
+            // Check if the object is directly an Identifier (not a nested MemberExpression)
+            if let Some(object_obj) = left_obj.get("object").and_then(|o| o.as_object())
+                && let Some("Identifier") = object_obj.get("type").and_then(|t| t.as_str())
+            {
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
+    // Set the flag if this is a direct member assignment
+    let saved_flag = context.state.in_direct_assignment_lhs;
+    if is_direct_member_assignment {
+        context.state.in_direct_assignment_lhs = true;
+    }
+
     let left = obj
         .get("left")
         .map(|l| Box::new(convert_json_value(l, context)))
         .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+
+    // Restore the flag
+    context.state.in_direct_assignment_lhs = saved_flag;
 
     let right = obj
         .get("right")
@@ -695,6 +766,10 @@ fn convert_assignment_expression(
 /// Note: Transform application is NOT done here. Transforms are applied
 /// in `build_expression()` in `shared/utils.rs` to ensure consistent
 /// handling across all expression types.
+///
+/// Special handling for rest_prop transformation:
+/// When the argument is `props.a` (MemberExpression on rest_prop),
+/// we DON'T transform `props` to `$$props`, similar to direct assignments.
 fn convert_update_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
@@ -711,10 +786,42 @@ fn convert_update_expression(
 
     let argument_value = obj.get("argument");
 
-    // Convert the argument without applying transforms
+    // Check if the argument is a MemberExpression with a direct Identifier object
+    let is_direct_member_update = if let Some(arg_obj) = argument_value.and_then(|a| a.as_object())
+        && let Some("MemberExpression") = arg_obj.get("type").and_then(|t| t.as_str())
+    {
+        let computed = arg_obj
+            .get("computed")
+            .and_then(|c| c.as_bool())
+            .unwrap_or(false);
+        if !computed {
+            if let Some(object_obj) = arg_obj.get("object").and_then(|o| o.as_object())
+                && let Some("Identifier") = object_obj.get("type").and_then(|t| t.as_str())
+            {
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
+    // Set the flag if this is a direct member update
+    let saved_flag = context.state.in_direct_assignment_lhs;
+    if is_direct_member_update {
+        context.state.in_direct_assignment_lhs = true;
+    }
+
+    // Convert the argument
     let argument = argument_value
         .map(|a| Box::new(convert_json_value(a, context)))
         .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+
+    // Restore the flag
+    context.state.in_direct_assignment_lhs = saved_flag;
 
     JsExpr::Update(JsUpdateExpression {
         operator,

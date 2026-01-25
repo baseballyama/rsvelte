@@ -412,6 +412,10 @@ pub struct ComponentClientTransformState<'a> {
     /// Snippets hoisted to the module level (outside the component function).
     /// These are snippets that don't reference instance-level state and can be safely hoisted.
     pub module_level_snippets: Vec<JsStatement>,
+
+    /// Flag indicating if we're in a direct assignment LHS (props.X = ...).
+    /// This is used to skip rest_prop → $$props transformation for direct property assignments.
+    pub in_direct_assignment_lhs: bool,
 }
 
 impl<'a> ComponentClientTransformState<'a> {
@@ -450,6 +454,7 @@ impl<'a> ComponentClientTransformState<'a> {
             preserve_whitespace: false,
             instance_level_snippets: Vec::new(),
             module_level_snippets: Vec::new(),
+            in_direct_assignment_lhs: false,
         }
     }
 

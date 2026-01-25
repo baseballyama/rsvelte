@@ -1267,24 +1267,94 @@ pub fn expression_has_reactive_state(
                     false
                 }
                 "CallExpression" => {
-                    // Check callee and arguments
-                    if let Some(callee) = obj.get("callee")
-                        && let Ok(inner_expr) = serde_json::from_value::<Expression>(callee.clone())
-                        && expression_has_reactive_state(&inner_expr, context)
-                    {
-                        return true;
-                    }
-                    if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
-                        for arg in args {
-                            if let Ok(inner_expr) =
-                                serde_json::from_value::<Expression>(arg.clone())
-                                && expression_has_reactive_state(&inner_expr, context)
-                            {
-                                return true;
+                    // Check if callee is a pure global function that doesn't depend on reactive state
+                    // Pure functions like Math.*, encodeURIComponent, etc. are not reactive
+                    if let Some(callee) = obj.get("callee").and_then(|v| v.as_object()) {
+                        let callee_type = callee.get("type").and_then(|t| t.as_str());
+
+                        // Check for pure global functions like Math.max, encodeURIComponent, etc.
+                        if callee_type == Some("Identifier")
+                            && let Some(name) = callee.get("name").and_then(|n| n.as_str())
+                        {
+                            // List of known pure global functions
+                            const PURE_GLOBALS: &[&str] = &[
+                                "encodeURIComponent",
+                                "decodeURIComponent",
+                                "encodeURI",
+                                "decodeURI",
+                                "parseInt",
+                                "parseFloat",
+                                "isNaN",
+                                "isFinite",
+                                "String",
+                                "Number",
+                                "Boolean",
+                                "Array",
+                                "Object",
+                                "JSON",
+                            ];
+                            if PURE_GLOBALS.contains(&name) {
+                                // Check if any arguments are reactive
+                                if let Some(args) = obj.get("arguments").and_then(|v| v.as_array())
+                                {
+                                    for arg in args {
+                                        if let Ok(inner_expr) =
+                                            serde_json::from_value::<Expression>(arg.clone())
+                                            && expression_has_reactive_state(&inner_expr, context)
+                                        {
+                                            return true;
+                                        }
+                                    }
+                                }
+                                return false;
+                            }
+                            // Check if it's a binding - if not a known pure function, assume reactive
+                            // User-defined functions may return reactive values
+                            if context.state.get_binding(name).is_none() {
+                                // Unknown identifier - could be a global, check arguments only
+                                if let Some(args) = obj.get("arguments").and_then(|v| v.as_array())
+                                {
+                                    for arg in args {
+                                        if let Ok(inner_expr) =
+                                            serde_json::from_value::<Expression>(arg.clone())
+                                            && expression_has_reactive_state(&inner_expr, context)
+                                        {
+                                            return true;
+                                        }
+                                    }
+                                }
+                                return false;
+                            }
+                        }
+                        // Check for pure member expressions like Math.max, Math.min, etc.
+                        if callee_type == Some("MemberExpression")
+                            && let Some(object) = callee.get("object").and_then(|o| o.as_object())
+                            && let Some("Identifier") = object.get("type").and_then(|t| t.as_str())
+                            && let Some(obj_name) = object.get("name").and_then(|n| n.as_str())
+                        {
+                            const PURE_OBJECTS: &[&str] =
+                                &["Math", "JSON", "Object", "Array", "String", "Number"];
+                            if PURE_OBJECTS.contains(&obj_name) {
+                                // Check if any arguments are reactive
+                                if let Some(args) = obj.get("arguments").and_then(|v| v.as_array())
+                                {
+                                    for arg in args {
+                                        if let Ok(inner_expr) =
+                                            serde_json::from_value::<Expression>(arg.clone())
+                                            && expression_has_reactive_state(&inner_expr, context)
+                                        {
+                                            return true;
+                                        }
+                                    }
+                                }
+                                return false;
                             }
                         }
                     }
-                    false
+
+                    // For non-pure functions (user-defined), assume the result could be reactive
+                    // because the function may return values derived from reactive state
+                    true
                 }
                 "BinaryExpression" | "LogicalExpression" => {
                     // Check left and right

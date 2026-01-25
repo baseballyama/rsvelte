@@ -268,8 +268,11 @@ pub fn process_children<F>(
 
         let result = build_template_chunk(&seq, ctx);
 
-        // Check if this is a standalone expression
-        let is_text = seq.len() == 1;
+        // is_text is true when the sequence contains only expressions (no text nodes)
+        // This triggers $.child(node, true) to get the text node directly
+        // For mixed text/expression sequences, is_text should be false
+        let has_text = seq.iter().any(|n| matches!(n, TextOrExpr::Text(_)));
+        let is_text = !has_text;
         let id = flush_node(is_text, "text", None, prev_fn, skip_count, ctx);
 
         let update = b::stmt(b::call(

@@ -136,6 +136,7 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
         preserve_whitespace: context.state.preserve_whitespace,
         instance_level_snippets: Vec::new(),
         module_level_snippets: Vec::new(),
+        in_direct_assignment_lhs: false,
     };
 
     // Swap context.state with our local state so that process_children uses it
