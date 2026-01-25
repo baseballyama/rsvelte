@@ -42,6 +42,7 @@ use crate::compiler::constants::*;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::client::types::ComponentContext;
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment as visit_fragment_impl;
 // Note: get_value from declarations is available if needed for reactive index/item access
 use crate::compiler::phases::phase3_transform::client::types::ExpressionMetadata;
 #[allow(unused_imports)]
@@ -131,7 +132,11 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     let item = generate_item_identifier(node);
 
     // Track usage
-    let mut uses_index = each_node_meta.contains_group_binding;
+    // In the JS implementation, uses_index is set to true when the index is read
+    // via a transform callback. Since we don't have that mechanism, we use a
+    // simplified approach: if an index is explicitly declared, assume it's used.
+    // This is conservative (may include index when not needed) but correct.
+    let mut uses_index = each_node_meta.contains_group_binding || node.index.is_some();
     let key_uses_index = false; // Will be set properly when visiting key
 
     // Build declarations for the render function body
@@ -147,8 +152,9 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
         &mut uses_index,
     );
 
-    // Visit the each block body to get the body statements
-    let body_statements = visit_fragment(&node.body, context);
+    // Visit the each block body to get the body block
+    // The Fragment visitor handles template creation and hoisting
+    let body_block = visit_fragment(&node.body, context);
 
     // Build the key function
     let key_function = build_key_function(node, context, key_uses_index, &index);
@@ -157,8 +163,9 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     let render_args = build_render_args(&index, &item, uses_index, collection_id.as_ref());
 
     // Combine declarations and body statements
+    // This matches JS: b.arrow(render_args, b.block(declarations.concat(block.body)))
     let mut render_body = declarations;
-    render_body.extend(body_statements);
+    render_body.extend(body_block.body);
 
     // Build the render function
     let render_fn = b::arrow_block(
@@ -198,8 +205,8 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
 
     // Add fallback function if present
     if let Some(fallback) = &node.fallback {
-        let fallback_body = visit_fragment(fallback, context);
-        let fallback_fn = b::arrow_block(vec![b::id_pattern("$$anchor")], fallback_body);
+        let fallback_block = visit_fragment(fallback, context);
+        let fallback_fn = b::arrow_block(vec![b::id_pattern("$$anchor")], fallback_block.body);
         each_args.push(fallback_fn);
     }
 
@@ -427,51 +434,55 @@ fn get_object_name(expr: &Expression) -> Option<String> {
 }
 
 /// Get a unique collection ID if the inner scope shadows outer scope variables.
+///
+/// In Svelte's implementation (lines 119-127 of EachBlock.js):
+/// ```javascript
+/// for (const [name] of context.state.scope.declarations) {
+///     if (context.state.scope.parent?.get(name) != null) {
+///         collection_id = context.state.scope.root.unique('$$array');
+///         break;
+///     }
+/// }
+/// ```
+///
+/// This checks if any declaration in the each block's scope shadows something
+/// from the parent scope. This is needed because we need access to the array
+/// expression when bindings are reassigned, to invalidate the array.
 fn get_collection_id_if_needed(node: &EachBlock, context: &ComponentContext) -> Option<String> {
-    // Check if any declaration in the each block scope shadows a parent scope declaration
-    // We need to check if the context pattern or index shadows anything
+    // Get the names declared in this each block's scope
+    let mut declared_names: Vec<&str> = Vec::new();
 
-    // In the Rust implementation, we don't have direct access to the parent scope's declarations
-    // through scope_root.scopes. Instead, we check the current scope's declarations against
-    // what's reachable from parent scope bindings.
-
-    // Check context pattern name
+    // Add context pattern name if it's a simple identifier
     if let Some(ctx) = &node.context {
         let Expression::Value(val) = ctx;
         if let serde_json::Value::Object(obj) = val
             && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
             && let Some(name) = obj.get("name").and_then(|v| v.as_str())
-            && context.state.scope.declarations.contains_key(name)
         {
-            // Check if the binding exists in a parent scope too
-            // by looking at all bindings with the same name
-            for binding in &context.state.scope_root.bindings {
-                if binding.name == name && binding.scope_index != 0 {
-                    // Found a binding in a different scope with same name
-                    // This suggests shadowing
-                    return Some(format!(
-                        "$$array_{}",
-                        context.state.scope.declarations.len()
-                    ));
-                }
-            }
+            declared_names.push(name);
         }
     }
 
-    // Check index name
-    if let Some(index_name) = &node.index
-        && context
-            .state
-            .scope
-            .declarations
-            .contains_key(index_name.as_str())
-    {
-        for binding in &context.state.scope_root.bindings {
-            if binding.name == index_name.as_str() && binding.scope_index != 0 {
-                return Some(format!(
-                    "$$array_{}",
-                    context.state.scope.declarations.len()
-                ));
+    // Add index name if present
+    if let Some(index_name) = &node.index {
+        declared_names.push(index_name.as_str());
+    }
+
+    // Check if any of these names exist in the parent scope
+    // We use the scope's parent field to get the parent scope index
+    if let Some(parent_idx) = context.state.scope.parent {
+        for name in declared_names {
+            // Look for a binding with this name in the parent scope
+            for binding in &context.state.scope_root.bindings {
+                if binding.name == name && binding.scope_index == parent_idx {
+                    // Found a binding with the same name in the parent scope
+                    // This means we have shadowing, so we need a collection_id
+                    // Use a simple counter based on the number of bindings
+                    return Some(format!(
+                        "$$array_{}",
+                        context.state.scope_root.bindings.len()
+                    ));
+                }
             }
         }
     }
@@ -662,24 +673,15 @@ fn build_render_args(
     args
 }
 
-/// Visit a fragment and return its statements.
-fn visit_fragment(fragment: &Fragment, context: &mut ComponentContext) -> Vec<JsStatement> {
-    // Save the current state
-    let saved_init = std::mem::take(&mut context.state.init);
-    let saved_update = std::mem::take(&mut context.state.update);
-
-    // Visit each node in the fragment
-    for node in &fragment.nodes {
-        let _ = context.visit_node(node, None);
-    }
-
-    // Collect the generated init statements
-    let result = std::mem::replace(&mut context.state.init, saved_init);
-
-    // Restore the update statements
-    context.state.update = saved_update;
-
-    result
+/// Visit a fragment and return its block statement.
+///
+/// This uses the Fragment visitor which handles:
+/// - Template creation and hoisting
+/// - Child node processing
+/// - Render effect generation
+/// - Append statement generation
+fn visit_fragment(fragment: &Fragment, context: &mut ComponentContext) -> JsBlockStatement {
+    visit_fragment_impl(fragment, context)
 }
 
 /// Convert an AST Expression to a JsPattern.

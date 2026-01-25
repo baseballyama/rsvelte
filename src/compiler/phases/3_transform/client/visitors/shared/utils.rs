@@ -1028,10 +1028,18 @@ pub fn build_template_chunk(
                         return TemplateChunkResult { value, has_state };
                     }
 
-                    // Add ?? '' where necessary
-                    let value_with_fallback = b::logical_str("??", value, b::string(""));
+                    // Check if expression is guaranteed to be non-null (like each block index)
+                    // This corresponds to Svelte's `state.scope.evaluate(value).is_defined` check
+                    let is_defined = is_expression_defined(&expr_tag.expression, context);
 
-                    expressions.push(value_with_fallback);
+                    // Add ?? '' where necessary (only if not guaranteed to be defined)
+                    let final_value = if is_defined {
+                        value
+                    } else {
+                        b::logical_str("??", value, b::string(""))
+                    };
+
+                    expressions.push(final_value);
 
                     // Start new quasi
                     let tail = i + 1 == values.len();
@@ -1159,6 +1167,59 @@ fn get_literal_value(
                     }
                 }
                 _ => None,
+            }
+        }
+    }
+}
+
+/// Check if an expression is guaranteed to be defined (non-null/undefined).
+///
+/// This corresponds to Svelte's `state.scope.evaluate(value).is_defined` check.
+/// Returns true for expressions that are known to never be null/undefined, such as:
+/// - Each block indices (always numbers)
+/// - Numeric/boolean literals
+/// - Known non-nullable bindings
+fn is_expression_defined(expr: &crate::ast::js::Expression, context: &ComponentContext) -> bool {
+    use crate::ast::js::Expression;
+    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+
+    match expr {
+        Expression::Value(json_value) => {
+            let Some(obj) = json_value.as_object() else {
+                return false;
+            };
+            let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
+                return false;
+            };
+
+            match expr_type {
+                "Identifier" => {
+                    // Check if identifier is an EachIndex binding (always a number)
+                    if let Some(name) = obj.get("name").and_then(|v| v.as_str())
+                        && let Some(binding) = context.state.get_binding(name)
+                    {
+                        // EachIndex is always a number, never null/undefined
+                        return matches!(binding.kind, BindingKind::EachIndex);
+                    }
+                    false
+                }
+                "Literal" => {
+                    // Literals are defined unless they're null/undefined
+                    if let Some(value) = obj.get("value") {
+                        return !value.is_null();
+                    }
+                    // If no value field but raw exists, it's likely a valid literal
+                    obj.get("raw").is_some()
+                }
+                "BinaryExpression" | "UnaryExpression" => {
+                    // Arithmetic operations always produce defined results
+                    true
+                }
+                "TemplateLiteral" => {
+                    // Template literals are always strings (defined)
+                    true
+                }
+                _ => false,
             }
         }
     }

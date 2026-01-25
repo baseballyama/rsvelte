@@ -544,11 +544,106 @@ fn convert_params(
 
 /// Convert a BlockStatement.
 fn convert_block_statement(
-    _obj: &serde_json::Map<String, Value>,
-    _context: &mut ComponentContext,
+    obj: &serde_json::Map<String, Value>,
+    context: &mut ComponentContext,
 ) -> JsBlockStatement {
-    // TODO: Implement full block statement conversion
-    JsBlockStatement::new()
+    let body = obj
+        .get("body")
+        .and_then(|b| b.as_array())
+        .map(|stmts| {
+            stmts
+                .iter()
+                .filter_map(|stmt| convert_statement(stmt, context))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    JsBlockStatement { body }
+}
+
+/// Convert a statement node to JsStatement.
+fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsStatement> {
+    let obj = stmt.as_object()?;
+    let stmt_type = obj.get("type").and_then(|t| t.as_str())?;
+
+    match stmt_type {
+        "ExpressionStatement" => {
+            let expr = obj
+                .get("expression")
+                .map(|e| convert_json_value(e, context))?;
+            Some(JsStatement::Expression(JsExpressionStatement {
+                expression: Box::new(expr),
+            }))
+        }
+        "VariableDeclaration" => {
+            let kind = obj.get("kind").and_then(|k| k.as_str()).unwrap_or("let");
+            let declarations = obj
+                .get("declarations")
+                .and_then(|d| d.as_array())
+                .map(|decls| {
+                    decls
+                        .iter()
+                        .filter_map(|decl| {
+                            let decl_obj = decl.as_object()?;
+                            let id = decl_obj.get("id").and_then(|i| i.as_object())?;
+                            let name = id.get("name").and_then(|n| n.as_str())?;
+                            let init = decl_obj
+                                .get("init")
+                                .map(|i| Box::new(convert_json_value(i, context)));
+                            Some(JsVariableDeclarator {
+                                id: JsPattern::Identifier(name.to_string()),
+                                init,
+                            })
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            Some(JsStatement::VariableDeclaration(JsVariableDeclaration {
+                kind: match kind {
+                    "const" => crate::compiler::phases::phase3_transform::js_ast::nodes::JsVariableKind::Const,
+                    "let" => crate::compiler::phases::phase3_transform::js_ast::nodes::JsVariableKind::Let,
+                    _ => crate::compiler::phases::phase3_transform::js_ast::nodes::JsVariableKind::Var,
+                },
+                declarations,
+            }))
+        }
+        "ReturnStatement" => {
+            let argument = obj
+                .get("argument")
+                .map(|a| Box::new(convert_json_value(a, context)));
+            Some(JsStatement::Return(JsReturnStatement { argument }))
+        }
+        "BlockStatement" => {
+            let block = convert_block_statement(obj, context);
+            Some(JsStatement::Block(block))
+        }
+        "IfStatement" => {
+            let test = obj
+                .get("test")
+                .map(|t| Box::new(convert_json_value(t, context)))
+                .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Boolean(false))));
+            let consequent = obj
+                .get("consequent")
+                .and_then(|c| convert_statement(c, context))
+                .map(Box::new)
+                .unwrap_or_else(|| Box::new(JsStatement::Empty));
+            let alternate = obj
+                .get("alternate")
+                .and_then(|a| convert_statement(a, context))
+                .map(Box::new);
+            Some(JsStatement::If(JsIfStatement {
+                test,
+                consequent,
+                alternate,
+            }))
+        }
+        "EmptyStatement" => Some(JsStatement::Empty),
+        _ => {
+            // For unhandled statement types, try to convert as expression statement if possible
+            None
+        }
+    }
 }
 
 /// Convert an AssignmentExpression node.

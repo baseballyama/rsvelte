@@ -303,6 +303,7 @@ impl BindingKind {
                 | BindingKind::BindableProp
                 | BindingKind::Store
                 | BindingKind::StoreSub
+                | BindingKind::EachItem // Each block items are reactive since they can change
         )
     }
 
