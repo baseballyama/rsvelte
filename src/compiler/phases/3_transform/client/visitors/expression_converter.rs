@@ -78,15 +78,43 @@ fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
 /// Note: Transform application is NOT done here. Transforms are applied
 /// in `build_expression()` in `shared/utils.rs` to ensure consistent
 /// handling across all expression types.
+///
+/// However, we do handle read-only props here: if a binding is a Prop
+/// that is not a "prop source" (i.e., it doesn't have a default value,
+/// hasn't been reassigned, etc.), we convert it to `$$props.propName`
+/// for direct access.
 fn convert_identifier(
     obj: &serde_json::Map<String, Value>,
-    _context: &mut ComponentContext,
+    context: &mut ComponentContext,
 ) -> JsExpr {
     let name = obj
         .get("name")
         .and_then(|n| n.as_str())
         .unwrap_or("unknown")
         .to_string();
+
+    // Check if this is a read-only prop that should be accessed via $$props
+    // This applies to props without defaults from $props() destructuring
+    if context.state.analysis.runes
+        && let Some(binding) = context.state.get_binding(&name)
+        && matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp)
+    {
+        // Check if this is a prop source (has default value, reassigned, etc.)
+        let is_source = crate::compiler::phases::phase3_transform::client::utils::is_prop_source(
+            binding,
+            context.state.analysis,
+        );
+
+        // If NOT a prop source, access directly via $$props.propName
+        if !is_source {
+            return JsExpr::Member(JsMemberExpression {
+                object: Box::new(JsExpr::Identifier("$$props".to_string())),
+                property: JsMemberProperty::Identifier(name),
+                computed: false,
+                optional: false,
+            });
+        }
+    }
 
     JsExpr::Identifier(name)
 }

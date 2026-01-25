@@ -97,6 +97,37 @@ pub fn is_state_source(binding: &Binding, analysis: &ComponentAnalysis) -> bool 
         && (!analysis.immutable || binding.reassigned || analysis.accessors)
 }
 
+/// Check if a prop binding is a "prop source" that needs to be tracked via `$.prop()`.
+///
+/// A prop binding is a prop source if it's a `Prop` or `BindableProp` and either:
+/// - NOT in runes mode, OR
+/// - The component uses accessors mode, OR
+/// - The binding has been reassigned, OR
+/// - The binding has an initial value (default), OR
+/// - The binding has been updated/mutated
+///
+/// When a prop is a "prop source", it uses `$.prop()` and is accessed by its direct name.
+/// When a prop is NOT a prop source, it should be accessed via `$$props.propName`.
+///
+/// This matches the official Svelte compiler's `is_prop_source` implementation.
+///
+/// # Arguments
+///
+/// * `binding` - The binding to check
+/// * `analysis` - The component analysis
+///
+/// # Returns
+///
+/// `true` if the prop binding should use `$.prop()` and be accessed by name
+pub fn is_prop_source(binding: &Binding, analysis: &ComponentAnalysis) -> bool {
+    matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp)
+        && (!analysis.runes
+            || analysis.accessors
+            || binding.reassigned
+            || binding.initial.is_some()
+            || binding.mutated)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

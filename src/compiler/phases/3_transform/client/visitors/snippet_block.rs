@@ -409,23 +409,16 @@ fn place_snippet_declaration(
 }
 
 /// Visit a fragment and return its statements.
-fn visit_fragment(fragment: &Fragment, context: &mut ComponentContext) -> Vec<JsStatement> {
-    // Save the current state
-    let saved_init = std::mem::take(&mut context.state.init);
-    let saved_update = std::mem::take(&mut context.state.update);
+///
+/// This function properly processes the fragment using the Fragment visitor
+/// which handles whitespace trimming, $.next() for text_first, and proper
+/// $.text() / $.append() for single text nodes.
+fn visit_fragment(frag: &Fragment, context: &mut ComponentContext) -> Vec<JsStatement> {
+    // Use the proper fragment visitor to handle all cases correctly
+    use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment as fragment_visitor;
 
-    // Visit each node in the fragment
-    for node in &fragment.nodes {
-        let _ = context.visit_node(node, None);
-    }
-
-    // Collect the generated init statements
-    let result = std::mem::replace(&mut context.state.init, saved_init);
-
-    // Restore the update statements
-    context.state.update = saved_update;
-
-    result
+    let block = fragment_visitor(frag, context);
+    block.body
 }
 
 /// Helper to convert an AST expression to a JS expression.
