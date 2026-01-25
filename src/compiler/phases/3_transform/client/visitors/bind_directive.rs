@@ -596,11 +596,45 @@ fn build_getter_setter(
     expr: &JsExpr,
     context: &ComponentContext,
 ) -> (JsExpr, Option<JsExpr>) {
+    // Check if this is a simple identifier that's a state variable
+    // If so, we need to wrap with $.get() and $.set()
+    let is_state_var = is_state_variable(original_expr, context);
+
     // In dev mode, create named functions for better stack traces
     // In prod mode, optimize for brevity
     let dev = context.state.dev;
 
-    if dev {
+    if is_state_var {
+        // For state variables, use $.get() in getter and $.set() in setter
+        // get = () => $.get(expr)
+        // set = ($$value) => $.set(expr, $$value)
+        let get_call = b::call(b::member_path("$.get"), vec![expr.clone()]);
+        let get = if dev {
+            b::function_expr(
+                Some("get".to_string()),
+                vec![],
+                vec![b::return_value(get_call)],
+            )
+        } else {
+            b::thunk(get_call)
+        };
+
+        let set_call = b::call(
+            b::member_path("$.set"),
+            vec![expr.clone(), b::id("$$value")],
+        );
+        let set = if dev {
+            b::function_expr(
+                Some("set".to_string()),
+                vec![b::id_pattern("$$value")],
+                vec![b::stmt(set_call)],
+            )
+        } else {
+            b::arrow(vec![b::id_pattern("$$value")], set_call)
+        };
+
+        (get, Some(set))
+    } else if dev {
         // Dev mode: named functions
         // get = function get() { return expression; }
         // set = function set($$value) { expression = $$value; }
@@ -627,10 +661,28 @@ fn build_getter_setter(
         let set_expr = b::assign(expr.clone(), b::id("$$value"));
         let set = b::arrow(vec![b::id_pattern("$$value")], set_expr);
 
-        // Check if set can be optimized away (unthunk)
-        // For now, always include set
-        let _ = original_expr; // Suppress unused warning
         (get, Some(set))
+    }
+}
+
+/// Check if an expression is a state variable ($state or $derived).
+fn is_state_variable(expr: &Expression, context: &ComponentContext) -> bool {
+    match expr {
+        Expression::Value(val) => {
+            if let Some(obj) = val.as_object()
+                && let Some(expr_type) = obj.get("type").and_then(|v| v.as_str())
+                && expr_type == "Identifier"
+                && let Some(name) = obj.get("name").and_then(|v| v.as_str())
+                && let Some(binding) = context.state.get_binding(name)
+            {
+                use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+                return matches!(
+                    binding.kind,
+                    BindingKind::State | BindingKind::Derived | BindingKind::RawState
+                );
+            }
+            false
+        }
     }
 }
 

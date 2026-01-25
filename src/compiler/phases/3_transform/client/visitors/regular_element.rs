@@ -9,13 +9,14 @@
 #![allow(dead_code)]
 
 use crate::ast::template::{
-    Attribute, AttributeNode, AttributeValue, OnDirective, RegularElement as RegularElementNode,
-    TemplateNode, TransitionDirective,
+    Attribute, AttributeNode, AttributeValue, BindDirective, OnDirective,
+    RegularElement as RegularElementNode, TemplateNode, TransitionDirective,
 };
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::attribute::{
     is_event_attribute, visit_event_attribute,
 };
+use crate::compiler::phases::phase3_transform::client::visitors::bind_directive::bind_directive;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::element::{
     build_attribute_effect, build_attribute_value, build_set_class_call, build_set_style_call,
 };
@@ -30,6 +31,7 @@ use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::{JsExpr, JsStatement};
 use crate::compiler::phases::phase3_transform::utils::clean_nodes;
 use crate::compiler::utils::{can_delegate_event, is_capture_event};
+use std::collections::HashMap;
 
 /// Visit a regular element node.
 ///
@@ -78,6 +80,7 @@ pub fn visit_regular_element(
     let mut on_directives: Vec<OnDirective> = Vec::new();
     let mut event_attributes: Vec<AttributeNode> = Vec::new(); // onclick={...} style event attributes
     let mut transition_directives: Vec<TransitionDirective> = Vec::new();
+    let mut bindings: HashMap<String, BindDirective> = HashMap::new();
     let has_spread = node
         .attributes
         .iter()
@@ -108,6 +111,9 @@ pub fn visit_regular_element(
             }
             Attribute::TransitionDirective(dir) => {
                 transition_directives.push(dir.clone());
+            }
+            Attribute::BindDirective(dir) => {
+                bindings.insert(dir.name.to_string(), dir.clone());
             }
             Attribute::SpreadAttribute(_) => {
                 attributes.push(attribute.clone());
@@ -156,6 +162,43 @@ pub fn visit_regular_element(
             if let Some(stmt) = context.state.after_update.pop() {
                 element_state_after_update.insert(0, stmt);
             }
+        }
+    }
+
+    // Process bind directives into element_state
+    let parent_node = TemplateNode::RegularElement(node.clone());
+    for bind_dir in bindings.values() {
+        // Store current init length to capture any statements added by bind_directive
+        let init_before = context.state.init.len();
+        let after_update_before = context.state.after_update.len();
+
+        bind_directive(bind_dir, context, Some(&parent_node));
+
+        // Move any statements added to context.state to element_state instead
+        while context.state.init.len() > init_before {
+            if let Some(stmt) = context.state.init.pop() {
+                element_state_init.insert(0, stmt);
+            }
+        }
+        while context.state.after_update.len() > after_update_before {
+            if let Some(stmt) = context.state.after_update.pop() {
+                element_state_after_update.insert(0, stmt);
+            }
+        }
+    }
+
+    // For input elements with bind:value, bind:checked, or bind:group,
+    // add $.remove_input_defaults() call
+    if node.name == "input" && !has_spread {
+        let has_value_binding = bindings.contains_key("value")
+            || bindings.contains_key("checked")
+            || bindings.contains_key("group");
+
+        if has_value_binding {
+            context.state.init.push(b::stmt(b::call(
+                b::member_path("$.remove_input_defaults"),
+                vec![context.state.node.clone()],
+            )));
         }
     }
 
