@@ -116,17 +116,18 @@ pub fn await_block(node: &AwaitBlock, context: &mut ComponentContext) {
         b::null()
     };
 
-    // Build $.await() call
-    let await_call = b::call(
-        b::member_path("$.await"),
-        vec![
-            context.state.node.clone(),
-            expression,
-            pending_block,
-            then_block.unwrap_or_else(b::null),
-            catch_block.unwrap_or_else(b::null),
-        ],
-    );
+    // Build $.await() call arguments
+    // Only include catch_block if it exists (avoid trailing null)
+    let mut await_args = vec![
+        context.state.node.clone(),
+        expression,
+        pending_block,
+        then_block.unwrap_or_else(b::null),
+    ];
+    if let Some(catch_fn) = catch_block {
+        await_args.push(catch_fn);
+    }
+    let await_call = b::call(b::member_path("$.await"), await_args);
 
     // Add svelte metadata
     let stmt = add_svelte_meta(

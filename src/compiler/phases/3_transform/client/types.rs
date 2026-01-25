@@ -89,6 +89,8 @@ impl<'a> ComponentContext<'a> {
 
             TemplateNode::SvelteSelf(self_node) => self.visit_svelte_self(self_node),
 
+            TemplateNode::SvelteElement(elem) => self.visit_svelte_element(elem),
+
             TemplateNode::ExpressionTag(expr) => self.visit_expression_tag(expr),
 
             TemplateNode::RegularElement(elem) => self.visit_regular_element(elem),
@@ -150,6 +152,31 @@ impl<'a> ComponentContext<'a> {
         _self_node: &crate::ast::template::SvelteElement,
     ) -> TransformResult {
         // TODO: Implement <svelte:self> transformation
+        TransformResult::None
+    }
+
+    fn visit_svelte_element(
+        &mut self,
+        elem: &crate::ast::template::SvelteDynamicElement,
+    ) -> TransformResult {
+        use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+        use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
+        // Add a comment node to the template for the anchor
+        self.state.template.push_comment(None);
+
+        // Convert the tag expression
+        let tag_expr = convert_expression(&elem.tag, self);
+
+        // Build $.element(anchor, tag, false) call
+        // The third argument is whether it's an SVG element (we assume false for now)
+        let element_call = b::call(
+            b::member_path("$.element"),
+            vec![self.state.node.clone(), tag_expr, b::boolean(false)],
+        );
+
+        self.state.init.push(b::stmt(element_call));
+
         TransformResult::None
     }
 

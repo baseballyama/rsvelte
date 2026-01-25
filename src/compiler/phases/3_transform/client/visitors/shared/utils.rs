@@ -632,7 +632,17 @@ pub fn build_template_effect(
 ///
 /// Returns a call to `$.template_effect(() => { ... })`
 pub fn build_render_statement(statements: Vec<JsStatement>) -> JsExpr {
-    // Build the effect function body
+    // If there's a single statement that's an expression statement, use expression body
+    if statements.len() == 1
+        && let JsStatement::Expression(expr_stmt) = &statements[0]
+    {
+        return b::call(
+            b::member_path("$.template_effect"),
+            vec![b::arrow(vec![], (*expr_stmt.expression).clone())],
+        );
+    }
+
+    // Build the effect function body with block
     let effect_fn = b::arrow_block(vec![], statements);
 
     // Wrap in $.template_effect()

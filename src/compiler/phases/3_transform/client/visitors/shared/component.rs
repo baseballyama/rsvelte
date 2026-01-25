@@ -975,9 +975,9 @@ fn build_bind_this_call(
 
     // Simple expression - create getter and setter
     let getter = b::arrow(vec![], expression.clone());
-    let setter = b::arrow_block(
+    let setter = b::arrow(
         vec![b::id_pattern("$$value")],
-        vec![b::stmt(b::assign(expression, b::id("$$value")))],
+        b::assign(expression, b::id("$$value")),
     );
 
     b::call(b::member_path("$.bind_this"), vec![value, setter, getter])
