@@ -165,6 +165,32 @@ fn transform_client_with_visitors(
         }
     }
 
+    // Generate $$exports object if there are exports
+    if !analysis.exports.is_empty() {
+        let mut exports_code = String::from("var $$exports = {\n");
+        for (i, export) in analysis.exports.iter().enumerate() {
+            let name = &export.name;
+            // Getter: return propName()
+            exports_code.push_str(&format!(
+                "\tget {}() {{\n\t\treturn {}();\n\t}}",
+                name, name
+            ));
+            exports_code.push_str(",\n");
+            // Setter: propName($$value)
+            exports_code.push_str(&format!(
+                "\tset {}($$value) {{\n\t\t{}($$value);\n\t}}",
+                name, name
+            ));
+            if i < analysis.exports.len() - 1 {
+                exports_code.push_str(",\n");
+            } else {
+                exports_code.push('\n');
+            }
+        }
+        exports_code.push_str("};");
+        component_body.push(JsStatement::Raw(exports_code));
+    }
+
     // Add template body statements
     component_body.extend(template_body.body);
 
@@ -406,7 +432,13 @@ fn transform_instance_script_for_visitors(script: &str, analysis: &ComponentAnal
         .map(|b| b.name.clone())
         .collect();
 
+    // Collect exported names from analysis
+    let exported_names: Vec<String> = analysis.exports.iter().map(|e| e.name.clone()).collect();
+
     let mut result = String::new();
+
+    // Track if we're inside a multi-line export block
+    let mut in_export_block = false;
 
     // Process script lines
     for line in script_rest.lines() {
@@ -419,6 +451,18 @@ fn transform_instance_script_for_visitors(script: &str, analysis: &ComponentAnal
 
         // Skip import statements (already extracted)
         if trimmed.starts_with("import ") {
+            continue;
+        }
+
+        // Skip export { ... } statements (will be handled via $$exports object)
+        if trimmed.starts_with("export {") {
+            in_export_block = !trimmed.contains('}');
+            continue;
+        }
+        if in_export_block {
+            if trimmed.contains('}') {
+                in_export_block = false;
+            }
             continue;
         }
 
@@ -437,6 +481,7 @@ fn transform_instance_script_for_visitors(script: &str, analysis: &ComponentAnal
             &state_vars,
             &non_reactive_state_vars,
             &prop_source_vars,
+            &exported_names,
         );
 
         // Skip empty transformations (e.g., read-only $props() with no defaults)
@@ -472,6 +517,7 @@ fn transform_client_runes_with_skip_and_state(
     state_vars: &[String],
     non_reactive_vars: &[String],
     prop_source_vars: &[String],
+    exported_names: &[String],
 ) -> String {
     let mut result = line.to_string();
 
@@ -564,7 +610,8 @@ fn transform_client_runes_with_skip_and_state(
 
     // Transform $props() destructuring to $.prop() calls (only for source props)
     if result.contains("$props()")
-        && let Some(transformed) = transform_props_destructuring(&result, prop_source_vars)
+        && let Some(transformed) =
+            transform_props_destructuring(&result, prop_source_vars, exported_names)
     {
         return transformed;
     }
@@ -597,9 +644,20 @@ fn transform_export_let(line: &str) -> String {
 
 /// Transform $props() usage.
 ///
-/// Only generates `$.prop()` declarations for props that are "sources" (reassigned or mutated).
+/// Only generates `$.prop()` declarations for props that are "sources" (reassigned or mutated)
+/// or props that have default values or are exported.
 /// Read-only props are accessed directly via `$$props.propName` without declarations.
-fn transform_props_destructuring(line: &str, prop_source_vars: &[String]) -> Option<String> {
+///
+/// Prop flags:
+/// - 1 = READABLE
+/// - 2 = HAS_DEFAULT
+/// - 4 = SYNC_READABLE (for exported props)
+/// - 8 = WRITABLE
+fn transform_props_destructuring(
+    line: &str,
+    prop_source_vars: &[String],
+    exported_names: &[String],
+) -> Option<String> {
     let trimmed = line.trim();
 
     // Check for identifier pattern: let/const props = $props()
@@ -648,18 +706,26 @@ fn transform_props_destructuring(line: &str, prop_source_vars: &[String]) -> Opt
             let name = prop_part[..eq_pos].trim();
             let default_value = prop_part[eq_pos + 1..].trim();
 
-            // Flag 3 = 1 (readable) + 2 (has default)
+            // Calculate flag:
+            // - 1 (READABLE) + 2 (HAS_DEFAULT) = 3
+            // - Add 4 (SYNC_READABLE) if exported = 7
+            let is_exported = exported_names.contains(&name.to_string());
+            let flag = if is_exported { 7 } else { 3 };
+
             result.push_str(&format!(
-                "let {} = $.prop($$props, '{}', 3, {});\n",
-                name, name, default_value
+                "let {} = $.prop($$props, '{}', {}, {});\n",
+                name, name, flag, default_value
             ));
         } else {
-            // No default value - only generate if this is a source prop
-            if prop_source_vars.contains(&prop_part.to_string()) {
-                // Flag 8 = 8 (writable) for props without default
+            // No default value - only generate if this is a source prop or exported
+            let is_exported = exported_names.contains(&prop_part.to_string());
+            if prop_source_vars.contains(&prop_part.to_string()) || is_exported {
+                // Flag 8 = WRITABLE for props without default
+                // Add 4 (SYNC_READABLE) if exported = 12
+                let flag = if is_exported { 12 } else { 8 };
                 result.push_str(&format!(
-                    "let {} = $.prop($$props, '{}', 8);\n",
-                    prop_part, prop_part
+                    "let {} = $.prop($$props, '{}', {});\n",
+                    prop_part, prop_part, flag
                 ));
             }
             // Read-only props without defaults are accessed directly via $$props.propName

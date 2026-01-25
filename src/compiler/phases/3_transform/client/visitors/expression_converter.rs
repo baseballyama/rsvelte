@@ -79,10 +79,10 @@ fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
 /// in `build_expression()` in `shared/utils.rs` to ensure consistent
 /// handling across all expression types.
 ///
-/// However, we do handle read-only props here: if a binding is a Prop
-/// that is not a "prop source" (i.e., it doesn't have a default value,
-/// hasn't been reassigned, etc.), we convert it to `$$props.propName`
-/// for direct access.
+/// However, we do handle props here:
+/// - Read-only props (not a "prop source"): access directly via `$$props.propName`
+/// - Exported props: call as function `propName()` because `$.prop()` returns a getter
+/// - Non-exported prop sources (with default value but not exported): access directly `propName`
 fn convert_identifier(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
@@ -93,8 +93,7 @@ fn convert_identifier(
         .unwrap_or("unknown")
         .to_string();
 
-    // Check if this is a read-only prop that should be accessed via $$props
-    // This applies to props without defaults from $props() destructuring
+    // Check if this is a prop that needs special handling
     if context.state.analysis.runes
         && let Some(binding) = context.state.get_binding(&name)
         && matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp)
@@ -105,12 +104,30 @@ fn convert_identifier(
             context.state.analysis,
         );
 
-        // If NOT a prop source, access directly via $$props.propName
-        if !is_source {
+        // Check if this prop is exported
+        let is_exported = context
+            .state
+            .analysis
+            .exports
+            .iter()
+            .any(|e| e.name == name);
+
+        if !is_source && !is_exported {
+            // Not a source and not exported: access directly via $$props.propName
             return JsExpr::Member(JsMemberExpression {
                 object: Box::new(JsExpr::Identifier("$$props".to_string())),
                 property: JsMemberProperty::Identifier(name),
                 computed: false,
+                optional: false,
+            });
+        }
+
+        // Only exported props need to be called as functions
+        // Non-exported props with defaults are accessed directly
+        if is_exported {
+            return JsExpr::Call(JsCallExpression {
+                callee: Box::new(JsExpr::Identifier(name)),
+                arguments: vec![],
                 optional: false,
             });
         }
