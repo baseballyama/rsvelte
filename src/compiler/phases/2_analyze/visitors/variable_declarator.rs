@@ -89,6 +89,16 @@ fn visit_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<(), An
             }
             _ => {}
         }
+    } else if let Some(init) = init {
+        // Non-rune variable declaration - set initial value for constant folding
+        for path in &paths {
+            if let Some(name) = path.get("name").and_then(|n| n.as_str())
+                && let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name)
+            {
+                let binding = &mut context.analysis.root.bindings[binding_idx];
+                binding.initial = extract_literal_string(init);
+            }
+        }
     }
 
     // Handle $props() specifically
@@ -352,9 +362,8 @@ fn process_props_object_pattern(
                         });
                         binding.kind = BindingKind::BindableProp;
                     } else {
-                        // Regular initial value
-                        // TODO: Properly serialize expression
-                        binding.initial = Some(format!("{:?}", init));
+                        // Regular initial value - extract literal if possible
+                        binding.initial = extract_literal_string(init);
                     }
                 } else {
                     binding.initial = None;
@@ -516,5 +525,48 @@ fn extract_paths_recursive(pattern: &Value, paths: &mut Vec<Value>, is_rest: boo
             }
         }
         _ => {}
+    }
+}
+
+/// Extract a literal string representation from an AST node.
+///
+/// For Literal nodes, returns the raw string representation (e.g., "'world'", "42").
+/// For other nodes, returns None (cannot be folded at compile time).
+fn extract_literal_string(node: &Value) -> Option<String> {
+    let node_type = node.get("type").and_then(|t| t.as_str())?;
+
+    match node_type {
+        "Literal" => {
+            // Check for raw (preferred for strings) or value
+            if let Some(raw) = node.get("raw").and_then(|r| r.as_str()) {
+                return Some(raw.to_string());
+            }
+            // Fall back to value representation
+            if let Some(value) = node.get("value") {
+                if let Some(s) = value.as_str() {
+                    return Some(format!("'{}'", s));
+                } else if let Some(n) = value.as_f64() {
+                    if n.fract() == 0.0 && n.abs() < i64::MAX as f64 {
+                        return Some(format!("{}", n as i64));
+                    }
+                    return Some(n.to_string());
+                } else if let Some(b) = value.as_bool() {
+                    return Some(b.to_string());
+                } else if value.is_null() {
+                    return Some("null".to_string());
+                }
+            }
+            None
+        }
+        "Identifier" => {
+            // Handle undefined and other simple identifiers
+            let name = node.get("name").and_then(|n| n.as_str())?;
+            if name == "undefined" {
+                return Some("undefined".to_string());
+            }
+            // For other identifiers, we can't fold them at this stage
+            None
+        }
+        _ => None,
     }
 }

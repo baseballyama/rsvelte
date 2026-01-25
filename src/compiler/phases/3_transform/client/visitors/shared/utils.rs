@@ -1235,6 +1235,57 @@ fn get_literal_value(
                         }
                     }
                 }
+                "CallExpression" => {
+                    // Handle pure Math functions with constant arguments
+                    let callee = obj.get("callee").and_then(|v| v.as_object())?;
+                    let callee_type = callee.get("type").and_then(|t| t.as_str())?;
+
+                    if callee_type == "MemberExpression" {
+                        let obj_node = callee.get("object").and_then(|o| o.as_object())?;
+                        let prop_node = callee.get("property").and_then(|p| p.as_object())?;
+
+                        let obj_type = obj_node.get("type").and_then(|t| t.as_str())?;
+                        let obj_name = obj_node.get("name").and_then(|n| n.as_str())?;
+                        let prop_name = prop_node.get("name").and_then(|n| n.as_str())?;
+
+                        if obj_type == "Identifier" && obj_name == "Math" {
+                            let args = obj.get("arguments").and_then(|a| a.as_array())?;
+
+                            // Evaluate all arguments
+                            let mut arg_values: Vec<f64> = Vec::new();
+                            for arg in args {
+                                let arg_expr =
+                                    serde_json::from_value::<Expression>(arg.clone()).ok()?;
+                                let arg_val = get_literal_value(&arg_expr, context)??;
+                                let num = arg_val.parse::<f64>().ok()?;
+                                arg_values.push(num);
+                            }
+
+                            let result = match prop_name {
+                                "max" if !arg_values.is_empty() => {
+                                    arg_values.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
+                                }
+                                "min" if !arg_values.is_empty() => {
+                                    arg_values.iter().cloned().fold(f64::INFINITY, f64::min)
+                                }
+                                "floor" if arg_values.len() == 1 => arg_values[0].floor(),
+                                "ceil" if arg_values.len() == 1 => arg_values[0].ceil(),
+                                "round" if arg_values.len() == 1 => arg_values[0].round(),
+                                "abs" if arg_values.len() == 1 => arg_values[0].abs(),
+                                "sqrt" if arg_values.len() == 1 => arg_values[0].sqrt(),
+                                "pow" if arg_values.len() == 2 => arg_values[0].powf(arg_values[1]),
+                                _ => return None,
+                            };
+
+                            // Format result
+                            if result.fract() == 0.0 && result.abs() < i64::MAX as f64 {
+                                return Some(Some(format!("{}", result as i64)));
+                            }
+                            return Some(Some(result.to_string()));
+                        }
+                    }
+                    None
+                }
                 _ => None,
             }
         }
