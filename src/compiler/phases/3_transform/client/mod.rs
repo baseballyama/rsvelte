@@ -9165,9 +9165,16 @@ fn transform_instance_script_for_visitors(script: &str, analysis: &ComponentAnal
         return String::new();
     }
 
+    // First, transform class fields with $state and $derived
+    // This handles class body transformations like:
+    // - `a = $state(0)` -> `#a = $.state(0)` + getter/setter
+    // - `#b = $state()` -> `#b = $.state()` (private field, no getter/setter)
+    // - `foo = $derived({...})` -> `#foo = $.derived(() => ({...}))` + getter/setter
+    let script = transform_class_fields_client(script);
+
     // Extract imports from script (they will be hoisted separately)
     // Script imports are hoisted separately and handled at the program level
-    let (_script_imports, script_rest) = extract_imports(script);
+    let (_script_imports, script_rest) = extract_imports(&script);
 
     // Collect state variables from analysis for $.get() wrapping
     let state_vars: Vec<String> = analysis

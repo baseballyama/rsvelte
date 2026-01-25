@@ -39,5 +39,10 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     //     w.perf_avoid_nested_class(node);
     // }
 
+    // Visit the class body to analyze state fields and detect needs_context
+    if let Some(body) = node.get("body") {
+        super::script::walk_js_node(body, context)?;
+    }
+
     Ok(())
 }

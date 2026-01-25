@@ -75,6 +75,20 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         context.analysis.needs_context = true;
     }
 
-    // Continue walking the tree (the visitor will handle child nodes)
+    // Visit children (object and property)
+    // This is equivalent to context.next() in the JavaScript implementation
+    if let Some(object) = node.get("object") {
+        super::script::walk_js_node(object, context)?;
+    }
+
+    // Only visit property if computed (dynamic property access)
+    let computed = node
+        .get("computed")
+        .and_then(|c| c.as_bool())
+        .unwrap_or(false);
+    if computed && let Some(property) = node.get("property") {
+        super::script::walk_js_node(property, context)?;
+    }
+
     Ok(())
 }

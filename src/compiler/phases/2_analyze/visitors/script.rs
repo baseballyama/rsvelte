@@ -230,5 +230,48 @@ fn visit_children(node: &Value, context: &mut VisitorContext) -> Result<(), Anal
         walk_js_node(key, context)?;
     }
 
+    // Visit properties (ObjectExpression, ObjectPattern)
+    if let Some(properties) = node.get("properties").and_then(|p| p.as_array()) {
+        for prop in properties {
+            walk_js_node(prop, context)?;
+        }
+    }
+
+    // Visit elements (ArrayExpression, ArrayPattern)
+    if let Some(elements) = node.get("elements").and_then(|e| e.as_array()) {
+        for elem in elements {
+            if !elem.is_null() {
+                walk_js_node(elem, context)?;
+            }
+        }
+    }
+
+    // Visit left and right (BinaryExpression, LogicalExpression, AssignmentExpression)
+    if let Some(left) = node.get("left") {
+        walk_js_node(left, context)?;
+    }
+    if let Some(right) = node.get("right") {
+        walk_js_node(right, context)?;
+    }
+
+    // Visit object and property (MemberExpression)
+    // Note: MemberExpression visitor doesn't visit children, so we need to handle it here
+    if node_type == Some("MemberExpression") {
+        if let Some(object) = node.get("object") {
+            walk_js_node(object, context)?;
+        }
+        if let Some(property) = node.get("property") {
+            // Only visit property if computed (dynamic property access)
+            if computed {
+                walk_js_node(property, context)?;
+            }
+        }
+    }
+
+    // Visit argument (UnaryExpression, UpdateExpression, SpreadElement, etc.)
+    if let Some(argument) = node.get("argument") {
+        walk_js_node(argument, context)?;
+    }
+
     Ok(())
 }
