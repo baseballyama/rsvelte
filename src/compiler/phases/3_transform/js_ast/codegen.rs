@@ -192,6 +192,11 @@ impl JsCodegen {
                 self.needs_semicolon = true;
             }
             JsStatement::Try(try_stmt) => self.emit_try_statement(try_stmt),
+            JsStatement::Raw(code) => {
+                // Output raw JavaScript code verbatim
+                self.output.push_str(code);
+                self.needs_semicolon = false; // Raw code handles its own semicolons
+            }
         }
     }
 

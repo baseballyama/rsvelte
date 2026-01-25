@@ -288,6 +288,18 @@ fn transform_client_with_visitors(
     // Add instance-level snippets
     component_body.extend(instance_level_snippets);
 
+    // Add instance script content (transformed runes)
+    // This includes $state, $derived, $effect, $props transformations
+    if let Some(ref content) = analysis.instance_script_content {
+        let transformed_script = transform_instance_script_for_visitors(&content.raw, analysis);
+        // Only add if there's actual content (not just whitespace)
+        let trimmed = transformed_script.trim();
+        if !trimmed.is_empty() {
+            // Parse transformed script as raw JavaScript statement
+            component_body.push(JsStatement::Raw(trimmed.to_string()));
+        }
+    }
+
     // Add template body statements
     component_body.extend(template_body.body);
 
@@ -9111,6 +9123,105 @@ fn transform_client_runes_with_skip(line: &str, skip_state_vars: &[String]) -> S
 /// Converts `$state(x)` to `$.state(x)` or `$.proxy(x)`, `$derived(x)` to `$.derived(() => x)`, etc.
 fn transform_client_runes(line: &str) -> String {
     transform_client_runes_with_skip_and_state(line, &[], &[], &[])
+}
+
+/// Transform instance script content for the new visitor-based system.
+///
+/// This function transforms the raw instance script content, converting Svelte runes
+/// to their runtime equivalents:
+/// - `$state(x)` -> `$.state(x)` or `$.proxy(x)` for objects/arrays
+/// - `$derived(x)` -> `$.derived(() => x)`
+/// - `$effect(x)` -> `$.user_effect(x)`
+/// - `$props()` -> `$.prop($$props, ...)` calls
+///
+/// This is a simplified version for the new visitor system. Full transformation
+/// will be improved as more features are implemented.
+fn transform_instance_script_for_visitors(script: &str, analysis: &ComponentAnalysis) -> String {
+    if script.is_empty() {
+        return String::new();
+    }
+
+    // Extract imports from script (they will be hoisted separately)
+    // Script imports are hoisted separately and handled at the program level
+    let (_script_imports, script_rest) = extract_imports(script);
+
+    // Collect state variables from analysis for $.get() wrapping
+    let state_vars: Vec<String> = analysis
+        .root
+        .bindings
+        .iter()
+        .filter(|b| matches!(b.kind, BindingKind::State | BindingKind::RawState))
+        .map(|b| b.name.clone())
+        .collect();
+
+    // Collect non-reactive state vars (never reassigned - don't need $.get/$.set)
+    let non_reactive_state_vars: Vec<String> = if analysis.immutable {
+        analysis
+            .root
+            .bindings
+            .iter()
+            .filter(|b| {
+                matches!(b.kind, BindingKind::State | BindingKind::RawState)
+                    && !b.reassigned
+                    && !analysis.accessors
+            })
+            .map(|b| b.name.clone())
+            .collect()
+    } else {
+        Vec::new()
+    };
+
+    // Check for legacy mode (export let)
+    let has_legacy_export_let = script_rest.lines().any(|line| {
+        let trimmed = line.trim();
+        trimmed.starts_with("export let ") || trimmed.starts_with("export let\t")
+    });
+
+    let mut result = String::new();
+
+    // Process script lines
+    for line in script_rest.lines() {
+        let trimmed = line.trim();
+
+        // Skip empty lines
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        // Skip import statements (already extracted)
+        if trimmed.starts_with("import ") {
+            continue;
+        }
+
+        // Handle legacy export let declarations
+        if has_legacy_export_let && trimmed.starts_with("export let ") {
+            let transformed = transform_export_let(trimmed);
+            result.push_str(&transformed);
+            result.push('\n');
+            continue;
+        }
+
+        // Transform runes ($state, $derived, $effect, $props)
+        let transformed = transform_client_runes_with_skip_and_state(
+            trimmed,
+            &non_reactive_state_vars,
+            &state_vars,
+            &non_reactive_state_vars,
+        );
+
+        // Skip empty transformations (e.g., read-only $props() with no defaults)
+        if transformed.trim().is_empty() {
+            continue;
+        }
+
+        // Transform state variable assignments to $.set()
+        let transformed = transform_state_assignments(&transformed, &state_vars);
+
+        result.push_str(&transformed);
+        result.push('\n');
+    }
+
+    result
 }
 
 /// Transform `export let x = value` to `let x = $.prop($$props, 'x', 12, value)`.

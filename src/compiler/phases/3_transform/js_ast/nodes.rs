@@ -74,6 +74,8 @@ pub enum JsStatement {
     Throw(Box<JsExpr>),
     /// Try statement
     Try(JsTryStatement),
+    /// Raw JavaScript code (as a statement, output verbatim)
+    Raw(String),
 }
 
 /// Import declaration.

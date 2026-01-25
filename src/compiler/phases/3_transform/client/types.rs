@@ -623,12 +623,15 @@ impl Memoizer {
     ///
     /// A unique identifier like "text", "text_2", "text_3", etc.
     pub fn generate_id(&mut self, base: &str) -> String {
-        let mut name = base.to_string();
+        // Sanitize the base name to be a valid JavaScript identifier
+        // Replace hyphens with underscores, and ensure it starts with a valid char
+        let sanitized = sanitize_identifier(base);
+        let mut name = sanitized.clone();
         let mut n = 1;
 
         // Add suffix until there's no conflict
         while self.conflicts.contains(&name) {
-            name = format!("{}_{}", base, n);
+            name = format!("{}_{}", sanitized, n);
             n += 1;
         }
 
@@ -654,6 +657,37 @@ impl Memoizer {
     pub fn merge_conflicts(&mut self, other: &Memoizer) {
         self.conflicts.extend(other.conflicts.iter().cloned());
     }
+}
+
+/// Sanitize a string to be a valid JavaScript identifier.
+///
+/// - Replaces hyphens and other invalid characters with underscores
+/// - Ensures the identifier starts with a valid character
+/// - Returns a valid JavaScript identifier
+fn sanitize_identifier(name: &str) -> String {
+    let mut result = String::with_capacity(name.len());
+
+    for (i, c) in name.chars().enumerate() {
+        if c.is_ascii_alphabetic() || c == '_' || c == '$' {
+            result.push(c);
+        } else if c.is_ascii_digit() {
+            if i == 0 {
+                // Can't start with a digit, prefix with underscore
+                result.push('_');
+            }
+            result.push(c);
+        } else {
+            // Replace invalid characters (like '-') with underscore
+            result.push('_');
+        }
+    }
+
+    // If result is empty or starts with invalid char, prefix with underscore
+    if result.is_empty() {
+        return "_".to_string();
+    }
+
+    result
 }
 
 /// Expression metadata for analysis.
