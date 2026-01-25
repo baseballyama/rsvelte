@@ -800,28 +800,34 @@ fn visit_slot_children(
             }
         }
     } else {
-        // For non-standalone cases, visit each child node
-        for node in &cleaned.trimmed {
-            let result = context.visit_node(node, None);
-            match result {
-                crate::compiler::phases::phase3_transform::client::types::TransformResult::Statement(
-                    stmt,
-                ) => {
-                    context.state.init.push(stmt);
-                }
-                crate::compiler::phases::phase3_transform::client::types::TransformResult::Block(
-                    block,
-                ) => {
-                    context
-                        .state
-                        .init
-                        .push(crate::compiler::phases::phase3_transform::js_ast::JsStatement::Block(
-                            block,
-                        ));
-                }
-                _ => {}
-            }
-        }
+        // For non-standalone cases, use process_children to handle text+expression sequences
+        // This properly handles cases like `clicks: {count}` which needs:
+        // - Empty $.text() node
+        // - $.template_effect() wrapping the dynamic text update
+        // - $.append($$anchor, text) to add to DOM
+        use crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::process_children;
+
+        // Add $.next() at the beginning to position properly
+        context
+            .state
+            .init
+            .push(b::stmt(b::call(b::member_path("$.next"), vec![])));
+
+        // Use process_children for proper text+expression handling
+        process_children(
+            &cleaned.trimmed,
+            move |_is_text| {
+                // This creates the text node
+                b::call(b::member_path("$.text"), vec![])
+            },
+            false, // not an element context
+            context,
+        );
+
+        // After process_children, look for the text node variable and add append
+        // We need to find the variable that was created
+        // For now, add a generic append using the last created text id
+        // This is a simplified approach - full implementation would track the ID properly
     }
 
     // Collect the generated init statements
@@ -830,10 +836,46 @@ fn visit_slot_children(
     // If there are update statements, wrap them in an effect
     let update_stmts = std::mem::replace(&mut context.state.update, saved_update);
     if !update_stmts.is_empty() {
-        // Wrap update statements in $.template_effect or similar
+        // Wrap update statements in $.template_effect
+        // Use inline arrow for single expression statements, block arrow otherwise
+        let arrow_fn =
+            if update_stmts.len() == 1 && matches!(update_stmts[0], JsStatement::Expression(_)) {
+                // Single expression statement - use inline arrow
+                if let JsStatement::Expression(expr_stmt) = &update_stmts[0] {
+                    b::arrow(vec![], (*expr_stmt.expression).clone())
+                } else {
+                    // Fallback to block (shouldn't happen)
+                    b::arrow_block(vec![], update_stmts)
+                }
+            } else {
+                // Multiple statements or non-expression - use block arrow
+                b::arrow_block(vec![], update_stmts)
+            };
+
         result.push(b::stmt(b::call(
             b::member_path("$.template_effect"),
-            vec![b::arrow_block(vec![], update_stmts)],
+            vec![arrow_fn],
+        )));
+    }
+
+    // Find any text variable from the init statements and add $.append at the end
+    // This ensures append happens after template_effect
+    let mut text_var_name: Option<String> = None;
+    for stmt in result.iter() {
+        if let JsStatement::VariableDeclaration(var_decl) = stmt
+            && let Some(first_decl) = var_decl.declarations.first()
+            && let JsPattern::Identifier(name) = &first_decl.id
+            && name.starts_with("text")
+        {
+            text_var_name = Some(name.clone());
+        }
+    }
+
+    // Add $.append($$anchor, text) at the end if we found a text variable
+    if let Some(name) = text_var_name {
+        result.push(b::stmt(b::call(
+            b::member_path("$.append"),
+            vec![b::id("$$anchor"), b::id(&name)],
         )));
     }
 
