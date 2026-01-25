@@ -310,17 +310,12 @@ pub fn visit_regular_element(
     process_children(
         &cleaned.trimmed,
         |is_text| {
-            b::call(
-                b::member_path("$.child"),
-                vec![
-                    current_node.clone(),
-                    if is_text {
-                        b::boolean(true)
-                    } else {
-                        b::boolean(false)
-                    },
-                ],
-            )
+            let mut args = vec![current_node.clone()];
+            // Only include second argument if it's true
+            if is_text {
+                args.push(b::boolean(true));
+            }
+            b::call(b::member_path("$.child"), args)
         },
         true, // is_element
         context,
