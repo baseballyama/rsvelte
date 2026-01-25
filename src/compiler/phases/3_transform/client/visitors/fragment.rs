@@ -95,7 +95,8 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
 
     // Generate unique template name
     // TODO: Use scope.root.unique() when available - for now use memoizer
-    let template_name = format!("root_{}", context.state.memoizer.generate_id(""));
+    // Generate unique template name (will be "root" if no conflicts)
+    let template_name = context.state.memoizer.generate_id("root");
 
     // Initialize result containers
     let mut body: Vec<JsStatement> = Vec::new();

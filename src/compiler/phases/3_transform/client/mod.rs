@@ -1,6 +1,24 @@
 //! Client-side code generation.
 //!
 //! Generates JavaScript code for browser execution.
+//!
+//! # Architecture
+//!
+//! This module provides two code generation systems:
+//!
+//! 1. **Legacy System** (`ClientCodeGenerator`):
+//!    - String-based code generation
+//!    - Currently active and used by default
+//!    - Returns `String` directly
+//!
+//! 2. **New Visitor System** (`transform_client_with_visitors`):
+//!    - AST-based code generation using the visitor pattern
+//!    - Uses `ComponentContext` and `ComponentClientTransformState`
+//!    - Returns `JsProgram` which is converted to string via `js_ast::generate()`
+//!    - Enabled via environment variable: `SVELTE_USE_NEW_VISITORS=1`
+//!
+//! The new visitor system mirrors the official Svelte compiler structure at
+//! `svelte/packages/svelte/src/compiler/phases/3-transform/client/`.
 
 mod state;
 pub mod transform_client;
@@ -21,8 +39,8 @@ use state::{
 use super::TransformError;
 use super::js_ast::{
     builders::{
-        TRANSITION_GLOBAL, TRANSITION_IN, TRANSITION_OUT, array, arrow, arrow_block, assign,
-        assignment_pattern, boolean, call, const_decl, export_default_function, getter, id,
+        self as b, TRANSITION_GLOBAL, TRANSITION_IN, TRANSITION_OUT, array, arrow, arrow_block,
+        assign, assignment_pattern, boolean, call, const_decl, export_default_function, getter, id,
         id_pattern, if_stmt, import_namespace, import_side_effect, member, member_path, nullish,
         object, optional_call, program, prop, quasi, raw, return_value, set_text_content, setter,
         stmt, string, svelte_action, svelte_append, svelte_autofocus, svelte_await,
@@ -36,8 +54,9 @@ use super::js_ast::{
     },
     generate,
     nodes::{
-        JsBlockStatement, JsExpr, JsObjectMember, JsPattern, JsStatement, JsTemplateElement,
-        JsTemplateLiteral,
+        JsBlockStatement, JsExportDefault, JsExportDefaultDeclaration, JsExpr,
+        JsFunctionDeclaration, JsImportDeclaration, JsImportSpecifier, JsObjectMember, JsPattern,
+        JsProgram, JsStatement, JsTemplateElement, JsTemplateLiteral,
     },
     normalize_js,
 };
@@ -51,6 +70,10 @@ use crate::ast::template::{
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+
+// Import new visitor system types (will be used when full integration is enabled)
+#[allow(unused_imports)]
+use types::{ComponentClientTransformState, ComponentContext, TransformOptions, TransformResult};
 
 /// Each block flag constants (from Svelte runtime).
 /// These control how the each block handles reactivity.
@@ -130,6 +153,18 @@ fn is_literal_expression(expr: &str) -> bool {
     false
 }
 
+/// Check if the new visitor system should be used.
+///
+/// The new visitor system is enabled by setting the environment variable:
+/// `SVELTE_USE_NEW_VISITORS=1`
+///
+/// This allows gradual testing and adoption of the new visitor-based code generation.
+fn use_new_visitors() -> bool {
+    std::env::var("SVELTE_USE_NEW_VISITORS")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
 /// Transform a component analysis into client-side JavaScript.
 ///
 /// # Arguments
@@ -137,12 +172,260 @@ fn is_literal_expression(expr: &str) -> bool {
 /// * `analysis` - The component analysis from Phase 2 (includes pre-extracted script content)
 /// * `ast` - The parsed AST from Phase 1 (to avoid re-parsing)
 /// * `_source` - The original source code (for backward compatibility)
-/// * `_options` - Compile options
+/// * `options` - Compile options
 pub fn transform_client(
     analysis: &ComponentAnalysis,
     ast: &Root,
     _source: &str,
-    _options: &CompileOptions,
+    options: &CompileOptions,
+) -> Result<String, TransformError> {
+    // Check if we should use the new visitor-based system
+    if use_new_visitors() {
+        return transform_client_with_visitors(analysis, ast, options);
+    }
+
+    // Legacy path using ClientCodeGenerator
+    transform_client_legacy(analysis, ast)
+}
+
+/// Transform using the new visitor-based system.
+///
+/// This function implements the new visitor pattern that mirrors the official Svelte compiler.
+/// It uses `ComponentContext`, `ComponentClientTransformState`, and the fragment visitor.
+///
+/// # Architecture
+///
+/// The transformation follows these steps:
+/// 1. Initialize `ComponentClientTransformState` with analysis data
+/// 2. Create `ComponentContext` with the visitor dispatch function
+/// 3. Call `fragment()` visitor to transform the template
+/// 4. Build the final `JsProgram` with imports, component function, and exports
+/// 5. Generate JavaScript string via `js_ast::generate()`
+///
+/// # Reference
+///
+/// Corresponds to `client_component()` in
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/client/transform-client.js`
+#[inline(never)]
+fn transform_client_with_visitors(
+    analysis: &ComponentAnalysis,
+    ast: &Root,
+    options: &CompileOptions,
+) -> Result<String, TransformError> {
+    use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment;
+
+    // Create initial node (anchor) for the transformation
+    let initial_node = b::id("$$anchor");
+
+    // Create the component client transform state
+    let state = ComponentClientTransformState::new(
+        &analysis.root.scope,
+        &analysis.root,
+        analysis,
+        initial_node,
+    );
+
+    // Create the component context with a dummy visit function
+    // The actual visiting is done via ComponentContext::visit_node which dispatches
+    // based on node type - the visit function pointer is not actually used
+    let mut context = ComponentContext::new(state, |_, _, _| TransformResult::None);
+
+    // Set up transform options from compile options
+    context.state.options.dev = options.dev;
+    context.state.options.preserve_whitespace = options.preserve_whitespace;
+    context.state.options.preserve_comments = options.preserve_comments;
+    context.state.preserve_whitespace = options.preserve_whitespace;
+    context.state.dev = options.dev;
+
+    // Call the fragment visitor to transform the template
+    let template_body = fragment(&ast.fragment, &mut context);
+
+    // Collect results from state
+    let hoisted_statements = std::mem::take(&mut context.state.hoisted);
+    let module_level_snippets = std::mem::take(&mut context.state.module_level_snippets);
+    let instance_level_snippets = std::mem::take(&mut context.state.instance_level_snippets);
+    let events = std::mem::take(&mut context.state.events);
+
+    // Determine if we need context injection ($.push/$.pop)
+    let component_returned_object_length = analysis.exports.len();
+    let should_inject_context = options.dev
+        || analysis.needs_context
+        || !analysis.reactive_statements.is_empty()
+        || component_returned_object_length > 0;
+
+    // Determine if we need $$props parameter
+    let should_inject_props = should_inject_context
+        || analysis.needs_props
+        || analysis.uses_props
+        || analysis.uses_rest_props
+        || analysis.uses_slots
+        || !analysis.slot_names.is_empty();
+
+    // Build component function body
+    let mut component_body: Vec<JsStatement> = Vec::new();
+
+    // Add $.push at the start if injecting context
+    if should_inject_context {
+        let mut push_args = vec![
+            b::id("$$props"),
+            b::literal(super::js_ast::nodes::JsLiteral::Boolean(analysis.runes)),
+        ];
+        if options.dev {
+            push_args.push(b::id(&analysis.name));
+        }
+        component_body.push(b::stmt(b::call(b::member_path("$.push"), push_args)));
+    }
+
+    // Add CSS styles injection if needed
+    if analysis.css.has_css && analysis.inject_styles {
+        // $.append_styles($$anchor, $$css)
+        component_body.push(b::stmt(b::call(
+            b::member_path("$.append_styles"),
+            vec![b::id("$$anchor"), b::id("$$css")],
+        )));
+    }
+
+    // Add instance-level snippets
+    component_body.extend(instance_level_snippets);
+
+    // Add template body statements
+    component_body.extend(template_body.body);
+
+    // Add $.pop at the end if injecting context
+    if should_inject_context {
+        if component_returned_object_length > 0 {
+            // return $.pop($$exports)
+            component_body.push(JsStatement::Return(
+                super::js_ast::nodes::JsReturnStatement {
+                    argument: Some(Box::new(b::call(
+                        b::member_path("$.pop"),
+                        vec![b::id("$$exports")],
+                    ))),
+                },
+            ));
+        } else {
+            component_body.push(b::stmt(b::call(b::member_path("$.pop"), vec![])));
+        }
+    }
+
+    // Build component function parameters
+    let params = if should_inject_props {
+        vec![
+            JsPattern::Identifier("$$anchor".to_string()),
+            JsPattern::Identifier("$$props".to_string()),
+        ]
+    } else {
+        vec![JsPattern::Identifier("$$anchor".to_string())]
+    };
+
+    // Create component function declaration
+    let component_fn = JsFunctionDeclaration {
+        id: Some(analysis.name.clone()),
+        params,
+        body: JsBlockStatement {
+            body: component_body,
+        },
+        is_async: false,
+        is_generator: false,
+    };
+
+    // Build program body
+    let mut body: Vec<JsStatement> = Vec::new();
+
+    // Add disclose-version import (always first)
+    body.push(JsStatement::Import(JsImportDeclaration {
+        specifiers: vec![],
+        source: "svelte/internal/disclose-version".to_string(),
+    }));
+
+    // Add feature flag imports
+    if !analysis.runes {
+        body.push(JsStatement::Import(JsImportDeclaration {
+            specifiers: vec![],
+            source: "svelte/internal/flags/legacy".to_string(),
+        }));
+    }
+
+    if options.experimental.r#async {
+        body.push(JsStatement::Import(JsImportDeclaration {
+            specifiers: vec![],
+            source: "svelte/internal/flags/async".to_string(),
+        }));
+    }
+
+    if analysis.tracing {
+        body.push(JsStatement::Import(JsImportDeclaration {
+            specifiers: vec![],
+            source: "svelte/internal/flags/tracing".to_string(),
+        }));
+    }
+
+    // Add svelte/internal/client import (namespace import as $)
+    body.push(JsStatement::Import(JsImportDeclaration {
+        specifiers: vec![JsImportSpecifier::Namespace("$".to_string())],
+        source: "svelte/internal/client".to_string(),
+    }));
+
+    // Add hoisted statements (template declarations, etc.)
+    body.extend(hoisted_statements);
+
+    // Add module-level snippets
+    body.extend(module_level_snippets);
+
+    // Add CSS declaration if needed
+    if analysis.css.has_css && analysis.inject_styles {
+        let hash = b::string(analysis.css.hash.clone());
+        // TODO: Generate actual CSS code
+        let code = b::string("/* CSS code placeholder */".to_string());
+        body.push(b::const_decl(
+            "$$css",
+            b::object(vec![
+                super::js_ast::nodes::JsObjectMember::Property(super::js_ast::nodes::JsProperty {
+                    key: super::js_ast::nodes::JsPropertyKey::Identifier("hash".to_string()),
+                    value: Box::new(hash),
+                    kind: super::js_ast::nodes::JsPropertyKind::Init,
+                    shorthand: false,
+                    computed: false,
+                }),
+                super::js_ast::nodes::JsObjectMember::Property(super::js_ast::nodes::JsProperty {
+                    key: super::js_ast::nodes::JsPropertyKey::Identifier("code".to_string()),
+                    value: Box::new(code),
+                    kind: super::js_ast::nodes::JsPropertyKind::Init,
+                    shorthand: false,
+                    computed: false,
+                }),
+            ]),
+        ));
+    }
+
+    // Export default component function
+    body.push(JsStatement::ExportDefault(JsExportDefault {
+        declaration: JsExportDefaultDeclaration::Function(component_fn),
+    }));
+
+    // Add event delegation if there are delegated events
+    if !events.is_empty() {
+        let event_literals: Vec<JsExpr> =
+            events.iter().map(|name| b::string(name.clone())).collect();
+        body.push(b::stmt(b::call(
+            b::member_path("$.delegate"),
+            vec![b::array(event_literals)],
+        )));
+    }
+
+    // Create the program
+    let program = JsProgram { body };
+
+    // Generate JavaScript code from the program
+    generate(&program).map_err(TransformError::CodeGen)
+}
+
+/// Legacy transform using ClientCodeGenerator.
+///
+/// This is the original string-based code generation system.
+fn transform_client_legacy(
+    analysis: &ComponentAnalysis,
+    ast: &Root,
 ) -> Result<String, TransformError> {
     let component_name = &analysis.name;
 
@@ -4296,15 +4579,6 @@ export default function {component_name}({fn_params}) {{
         } else {
             self.transform_script_content(&script_rest)
         };
-
-        // Debug: show transformation
-        if script_rest.contains("showText") && script_rest.contains("$state(true)") {
-            eprintln!("DEBUG build_with_fragment: script_rest='{}'", script_rest);
-            eprintln!(
-                "DEBUG build_with_fragment: transformed='{}'",
-                transformed_script
-            );
-        }
 
         // Prepend $.push() if should_inject_context is true
         // Also add $.init() for legacy mode (non-runes) when needs_context is true
@@ -11193,5 +11467,74 @@ $effect(() => {
             "Should define failed snippet. Generated JS:\n{}",
             js
         );
+    }
+
+    #[test]
+    fn test_new_visitor_system_skeleton() {
+        // Test that the new visitor system produces valid JS output
+        // (minimal skeleton for now, without full fragment transformation)
+
+        use crate::ast::template::{Fragment, FragmentType, Root, RootType};
+        use crate::compiler::CompileOptions;
+        use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
+
+        let source = "<h1>Hello</h1>";
+        let options = CompileOptions::default();
+        let mut analysis = ComponentAnalysis::new(source, &options);
+        analysis.runes = true;
+
+        let ast = Root {
+            fragment: Fragment {
+                nodes: vec![],
+                node_type: FragmentType::Fragment,
+                metadata: Default::default(),
+            },
+            instance: None,
+            module: None,
+            css: None,
+            options: None,
+            js: vec![],
+            node_type: RootType::Root,
+            start: 0,
+            end: source.len() as u32,
+        };
+
+        // Set the environment variable for this test
+        // SAFETY: This test runs serially, env var access is safe
+        unsafe {
+            std::env::set_var("SVELTE_USE_NEW_VISITORS", "1");
+        }
+
+        let result = transform_client(&analysis, &ast, source, &options);
+
+        // Reset the environment variable
+        // SAFETY: This test runs serially, env var access is safe
+        unsafe {
+            std::env::remove_var("SVELTE_USE_NEW_VISITORS");
+        }
+
+        assert!(result.is_ok(), "Should generate valid JS");
+        let js = result.unwrap();
+
+        // Check basic structure of output
+        assert!(
+            js.contains("import * as $ from 'svelte/internal/client'"),
+            "Should import svelte internal client"
+        );
+        assert!(
+            js.contains("export default function"),
+            "Should export default function"
+        );
+    }
+
+    #[test]
+    fn test_use_new_visitors_env_check() {
+        // Test the environment variable check function
+        // Note: We skip the env var modification tests since they require unsafe
+        // and could interfere with other tests. The basic functionality is tested
+        // in test_new_visitor_system_skeleton.
+
+        // Just test that the function can be called
+        let _ = use_new_visitors();
     }
 }

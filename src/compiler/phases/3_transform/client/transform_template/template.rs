@@ -11,6 +11,12 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 use crate::compiler::phases::phase3_transform::shared::template::{escape_attr, is_void_element};
 use regex::Regex;
 
+/// Path to a node in the tree, represented as indices at each level.
+/// An empty path means the root nodes vector.
+/// [0] means the first child of root.
+/// [0, 2] means the third child of the first element in root.
+type NodePath = Vec<usize>;
+
 /// `true` if HTML template contains a `<script>` tag. In this case we need to invoke a special
 /// template instantiation function
 #[derive(Debug, Clone)]
@@ -24,33 +30,55 @@ pub struct Template {
     /// Template nodes
     pub nodes: Vec<Node>,
 
-    /// Stack of node arrays for nesting
-    stack: Vec<*mut Vec<Node>>,
+    /// Stack of paths for nesting - each path points to the parent element's children
+    path_stack: Vec<NodePath>,
 
-    /// Current element being built
-    element: Option<Element>,
-
-    /// Current fragment (reference to current nodes array)
-    fragment: *mut Vec<Node>,
+    /// Current element being built (stored separately for set_prop access)
+    current_element: Option<Element>,
 }
 
 impl Template {
     /// Create a new template builder.
     pub fn new() -> Self {
-        let mut template = Template {
+        Template {
             contains_script_tag: false,
             needs_import_node: false,
             nodes: Vec::new(),
-            stack: Vec::new(),
-            element: None,
-            fragment: std::ptr::null_mut(),
-        };
+            path_stack: vec![vec![]], // Start with root path (empty)
+            current_element: None,
+        }
+    }
 
-        // Initialize fragment pointer to nodes
-        template.fragment = &mut template.nodes as *mut Vec<Node>;
-        template.stack.push(template.fragment);
+    /// Get a mutable reference to the current fragment (nodes at current path).
+    fn current_fragment_mut(&mut self) -> &mut Vec<Node> {
+        let path = self.path_stack.last().cloned().unwrap_or_default();
+        self.get_nodes_at_path_mut(&path)
+    }
 
-        template
+    /// Get nodes at a given path.
+    fn get_nodes_at_path_mut(&mut self, path: &[usize]) -> &mut Vec<Node> {
+        if path.is_empty() {
+            return &mut self.nodes;
+        }
+
+        let mut current = &mut self.nodes;
+        for &idx in &path[..path.len() - 1] {
+            if let Some(Node::Element(elem)) = current.get_mut(idx) {
+                current = &mut elem.children;
+            } else {
+                // Shouldn't happen if paths are managed correctly
+                panic!("Invalid path: expected element at index {}", idx);
+            }
+        }
+
+        // Return the children of the last element in the path
+        let last_idx = path[path.len() - 1];
+        if let Some(Node::Element(elem)) = current.get_mut(last_idx) {
+            &mut elem.children
+        } else {
+            // Shouldn't happen
+            panic!("Invalid path: expected element at last index {}", last_idx);
+        }
     }
 
     /// Push a new element onto the template.
@@ -63,18 +91,21 @@ impl Template {
             start,
         };
 
-        // Push element to current fragment
-        unsafe {
-            (*self.fragment).push(Node::Element(element.clone()));
-        }
+        // Get current path
+        let current_path = self.path_stack.last().cloned().unwrap_or_default();
 
-        self.element = Some(element);
+        // Add element to current fragment
+        let fragment = self.get_nodes_at_path_mut(&current_path);
+        fragment.push(Node::Element(element.clone()));
+        let new_idx = fragment.len() - 1;
 
-        // Update fragment to point to the element's children
-        if let Some(Node::Element(elem)) = unsafe { (*self.fragment).last_mut() } {
-            self.fragment = &mut elem.children as *mut Vec<Node>;
-            self.stack.push(self.fragment);
-        }
+        // Store current element for set_prop
+        self.current_element = Some(element);
+
+        // Create new path pointing to this element
+        let mut new_path = current_path;
+        new_path.push(new_idx);
+        self.path_stack.push(new_path);
     }
 
     /// Push a comment node.
@@ -84,9 +115,8 @@ impl Template {
             data,
         };
 
-        unsafe {
-            (*self.fragment).push(Node::Comment(comment));
-        }
+        let fragment = self.current_fragment_mut();
+        fragment.push(Node::Comment(comment));
     }
 
     /// Push text nodes.
@@ -96,23 +126,70 @@ impl Template {
             nodes,
         };
 
-        unsafe {
-            (*self.fragment).push(Node::Text(text));
-        }
+        let fragment = self.current_fragment_mut();
+        fragment.push(Node::Text(text));
     }
 
     /// Pop the current element from the stack.
     pub fn pop_element(&mut self) {
-        self.stack.pop();
-        if let Some(&last) = self.stack.last() {
-            self.fragment = last;
+        self.path_stack.pop();
+        // Update current_element to the parent element (or None if at root)
+        self.current_element = self.get_current_element();
+    }
+
+    /// Get the current element (the one at the top of the path stack).
+    fn get_current_element(&self) -> Option<Element> {
+        if self.path_stack.len() <= 1 {
+            return None;
+        }
+
+        let path = &self.path_stack[self.path_stack.len() - 1];
+        if path.is_empty() {
+            return None;
+        }
+
+        // Navigate to the element
+        let mut current: &Vec<Node> = &self.nodes;
+        for &idx in &path[..path.len() - 1] {
+            if let Some(Node::Element(elem)) = current.get(idx) {
+                current = &elem.children;
+            } else {
+                return None;
+            }
+        }
+
+        let last_idx = path[path.len() - 1];
+        if let Some(Node::Element(elem)) = current.get(last_idx) {
+            Some(elem.clone())
+        } else {
+            None
         }
     }
 
     /// Set a property on the current element.
     pub fn set_prop(&mut self, key: String, value: Option<String>) {
-        if let Some(ref mut element) = self.element {
-            element.attributes.insert(key, value);
+        // We need to set the property on the actual element in the tree,
+        // not just on current_element (which is a copy)
+        if self.path_stack.len() <= 1 {
+            return;
+        }
+
+        let path = self.path_stack.last().cloned().unwrap_or_default();
+        if path.is_empty() {
+            return;
+        }
+
+        // Navigate to the parent of the current element
+        let parent_path = &path[..path.len() - 1];
+        let last_idx = path[path.len() - 1];
+
+        let parent_fragment = self.get_nodes_at_path_mut(parent_path);
+        if let Some(Node::Element(elem)) = parent_fragment.get_mut(last_idx) {
+            elem.attributes.insert(key.clone(), value.clone());
+            // Also update current_element
+            if let Some(ref mut ce) = self.current_element {
+                ce.attributes.insert(key, value);
+            }
         }
     }
 

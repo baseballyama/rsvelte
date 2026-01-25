@@ -1066,3 +1066,53 @@ $.template_effect(() => $.set_text(text, `${$.get(item).name ?? ''} costs $${$.g
 1. C-052: 新しいビジター実装への切り替え（大規模）
 2. C-053: コンポーネント要素のDOM参照実装
 3. C-054: スニペット呼び出し（@render）の完全実装
+
+### 2026-01-25 セッション2
+
+**セッション再開 (2026-01-25 セッション2):**
+
+現在地: Phase C - Rust 実装
+優先タスク: C-052（新しいビジター実装への切り替え）
+
+**調査結果:**
+
+アーキテクチャ分析完了:
+1. **古いシステム** (`client/mod.rs`):
+   - `transform_client()` → `ClientCodeGenerator` → 文字列生成
+   - ~8000行の単一ファイル
+   - 現在使用中
+
+2. **新しいシステム** (`client/transform_client.rs` + `visitors/`):
+   - `client_component()` → `ComponentContext` + ビジターパターン → ESTree AST
+   - 29個のビジターファイル（fragment, if_block, each_block, component など）
+   - 基盤は完成しているが、`transform_client()` から呼び出されていない
+
+**切り替え計画（C-052）:**
+
+Phase 1: 最小限の切り替え ✅ **完了**
+- [x] `transform_client()` で新しいシステムを条件付きで有効化
+  - 環境変数 `SVELTE_USE_NEW_VISITORS=1` で切り替え可能
+- [x] `ComponentContext` の初期化
+- [x] `fragment()` 呼び出しによるテンプレート変換
+- [x] JS AST → 文字列変換
+
+Phase 2: 機能完成
+- [x] imports/exports の生成（disclose-version 追加済み）
+- [ ] module_script_content の処理
+- [ ] instance_script_content の処理
+- [ ] hoisted 宣言の出力（部分的に動作）
+
+**実装完了:**
+- `use_new_visitors()`: 環境変数で切り替え
+- `transform_client_with_visitors()`: 新しいビジターシステムを使用
+- `transform_client_legacy()`: 旧システム（デフォルト）
+- fragment visitor 呼び出し統合
+- disclose-version インポート追加
+- 変数名生成の修正（root_ → root）
+
+**テスト結果:**
+- レガシーシステム: Snapshot 19/19 通過（維持）✅
+- 新システム: Snapshot 2/19 通過（hello-world など簡単なケース）
+- 新システムは基盤完成、詳細な visitor 実装が残る
+
+**着手タスク:**
