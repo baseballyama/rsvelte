@@ -1276,4 +1276,55 @@ $.template_effect(() => {
 2. instance_script_content の処理
 3. 関数呼び出しのリアクティブ検出の改善
 
+### 2026-01-25 セッション4
+
+**セッション再開 (2026-01-25 セッション4):**
+
+現在地: Phase C - Rust 実装
+目標: 新しいビジター実装の改善
+
+**完了タスク:**
+
+- [x] bind:this setter のアロー関数を式本体に修正
+  - `shared/component.rs` の `build_bind_this_call` で `b::arrow_block` → `b::arrow` に変更
+  - `($$value) => { foo = $$value; }` → `($$value) => foo = $$value`
+  - コミット: "feat(transform): Improve new visitor system (5/19 → 8/19)"
+
+- [x] template_effect のアロー関数を式本体に修正
+  - `shared/utils.rs` の `build_render_statement` で単一の式ステートメントの場合は式本体を使用
+  - `$.template_effect(() => { $.set_text(...); })` → `$.template_effect(() => $.set_text(...))`
+
+- [x] await ブロックの末尾 null 引数を削除
+  - `await_block.rs` で catch ブロックがない場合は引数を追加しない
+  - `$.await(node, expr, null, then, null)` → `$.await(node, expr, null, then)`
+
+- [x] svelte:element visitor の実装
+  - `types.rs` に `visit_svelte_element` を追加
+  - `$.element(node, tag, false)` 呼び出し生成
+  - テンプレートにコメントを追加して `$.comment()` を使用
+
+**テスト結果（セッション4終了時）:**
+- 新システム: Snapshot **8/19** 通過（5/19 → 8/19, +3）
+- レガシーシステム: Snapshot 19/19 通過（維持）✅
+
+**通過したテスト（新システム）:**
+1. hello-world
+2. function-prop-no-getter
+3. state-proxy-literal
+4. imports-in-modules
+5. hmr
+6. bind-this（新規）
+7. await-block-scope（新規）
+8. svelte-element（新規）
+
+**残存問題（複雑で後で対応が必要）:**
+
+| 問題 | 影響テスト | 難易度 |
+|------|----------|--------|
+| 定数畳み込み | purity, nullish-coallescence-omittance | 高（Phase 2 binding.initial 設定必要）|
+| $props トランスフォーム | props-identifier | 高（$$props への変換ロジック）|
+| クラスフィールド | class-state-field-constructor-assignment | 高（$state/$derived クラス内処理）|
+| each ブロック | each-index-non-null, each-string-template | 高（コールバック生成の改善）|
+| 複雑な要素処理 | skip-static-subtree | 中（autofocus, muted, option.value 等）|
+
 **着手タスク:**
