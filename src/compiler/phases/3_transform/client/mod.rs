@@ -402,11 +402,11 @@ fn transform_client_with_visitors(
         }
     }
 
+    // Add module-level snippets (before templates)
+    body.extend(module_level_snippets);
+
     // Add hoisted statements (template declarations, etc.)
     body.extend(hoisted_statements);
-
-    // Add module-level snippets
-    body.extend(module_level_snippets);
 
     // Add CSS declaration if needed
     if analysis.css.has_css && analysis.inject_styles {

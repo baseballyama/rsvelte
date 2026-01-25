@@ -398,7 +398,11 @@ fn place_snippet_declaration(
     let is_at_root = context.path.is_empty() || context.path.len() == 1;
 
     if is_at_root {
-        if node.metadata.can_hoist {
+        // Use metadata.can_hoist if set, otherwise use a simple heuristic:
+        // snippets with only static content (no dynamic children) can be hoisted
+        let can_hoist = node.metadata.can_hoist || can_hoist_snippet(node);
+
+        if can_hoist {
             context.state.module_level_snippets.push(declaration);
         } else {
             context.state.instance_level_snippets.push(declaration);
@@ -406,6 +410,89 @@ fn place_snippet_declaration(
     } else {
         context.state.init.push(declaration);
     }
+}
+
+/// Check if a snippet can be hoisted based on its body content.
+///
+/// A snippet can be hoisted if its body contains only static content
+/// (text nodes, static elements) and no dynamic references to reactive state.
+///
+/// This is a simplified heuristic. The proper implementation should check
+/// scope references during Phase 2 analysis.
+fn can_hoist_snippet(node: &SnippetBlock) -> bool {
+    use crate::ast::template::TemplateNode;
+
+    // Check if the body has any dynamic content
+    fn has_dynamic_content(nodes: &[TemplateNode]) -> bool {
+        for node in nodes {
+            match node {
+                // Dynamic content that prevents hoisting
+                TemplateNode::ExpressionTag(_)
+                | TemplateNode::HtmlTag(_)
+                | TemplateNode::RenderTag(_)
+                | TemplateNode::IfBlock(_)
+                | TemplateNode::EachBlock(_)
+                | TemplateNode::AwaitBlock(_)
+                | TemplateNode::KeyBlock(_)
+                | TemplateNode::Component(_)
+                | TemplateNode::SvelteComponent(_)
+                | TemplateNode::SvelteElement(_)
+                | TemplateNode::SvelteSelf(_) => return true,
+
+                // Nested snippet - can't hoist if contains dynamic content
+                TemplateNode::SnippetBlock(snippet) => {
+                    if has_dynamic_content(&snippet.body.nodes) {
+                        return true;
+                    }
+                }
+
+                // Regular elements - check their children
+                TemplateNode::RegularElement(elem) => {
+                    // Check for dynamic attributes
+                    for attr in &elem.attributes {
+                        match attr {
+                            crate::ast::template::Attribute::Attribute(a) => {
+                                // Check if attribute value is dynamic
+                                match &a.value {
+                                    crate::ast::template::AttributeValue::Sequence(parts) => {
+                                        if parts.iter().any(|p| {
+                                            matches!(
+                                                p,
+                                                crate::ast::template::AttributeValuePart::ExpressionTag(
+                                                    _
+                                                )
+                                            )
+                                        }) {
+                                            return true;
+                                        }
+                                    }
+                                    crate::ast::template::AttributeValue::Expression(_) => {
+                                        return true
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            // Directives are dynamic
+                            _ => return true,
+                        }
+                    }
+                    // Check children
+                    if has_dynamic_content(&elem.fragment.nodes) {
+                        return true;
+                    }
+                }
+
+                // Static content - fine
+                TemplateNode::Text(_) | TemplateNode::Comment(_) => {}
+
+                // Other nodes - assume dynamic to be safe
+                _ => return true,
+            }
+        }
+        false
+    }
+
+    !has_dynamic_content(&node.body.nodes)
 }
 
 /// Visit a fragment and return its statements.
