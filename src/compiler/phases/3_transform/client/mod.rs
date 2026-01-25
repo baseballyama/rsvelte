@@ -230,6 +230,12 @@ fn transform_client_with_visitors(
     // based on node type - the visit function pointer is not actually used
     let mut context = ComponentContext::new(state, |_, _, _| TransformResult::None);
 
+    // Set up state transformers ($.get, $.set wrappers for $state variables)
+    // This must be called before processing the template so that state variable
+    // references in event handlers get properly transformed
+    use crate::compiler::phases::phase3_transform::client::visitors::shared::declarations::add_state_transformers;
+    add_state_transformers(&mut context);
+
     // Set up transform options from compile options
     context.state.options.dev = options.dev;
     context.state.options.preserve_whitespace = options.preserve_whitespace;

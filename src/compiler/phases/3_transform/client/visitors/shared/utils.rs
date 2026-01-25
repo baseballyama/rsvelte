@@ -165,19 +165,112 @@ fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext) -> 
             })
         }
 
-        JsExpr::Arrow(_) => {
-            // Don't transform inside arrow function bodies - they have their own scope
-            expr.clone()
+        JsExpr::Arrow(arrow) => {
+            // Transform arrow function bodies - state variable transforms should apply
+            // inside inline arrow functions (like event handlers)
+            let transformed_body = match &arrow.body {
+                JsArrowBody::Expression(expr_box) => JsArrowBody::Expression(Box::new(
+                    apply_transforms_to_expression(expr_box, context),
+                )),
+                JsArrowBody::Block(block) => {
+                    // Transform statements in the block
+                    let transformed_body: Vec<JsStatement> = block
+                        .body
+                        .iter()
+                        .map(|stmt| apply_transforms_to_statement(stmt, context))
+                        .collect();
+                    JsArrowBody::Block(JsBlockStatement {
+                        body: transformed_body,
+                    })
+                }
+            };
+
+            JsExpr::Arrow(JsArrowFunction {
+                params: arrow.params.clone(),
+                body: transformed_body,
+                is_async: arrow.is_async,
+            })
         }
 
-        JsExpr::Function(_) => {
-            // Don't transform inside function bodies - they have their own scope
-            expr.clone()
+        JsExpr::Function(func) => {
+            // Transform function expression bodies
+            let transformed_body: Vec<JsStatement> = func
+                .body
+                .body
+                .iter()
+                .map(|stmt| apply_transforms_to_statement(stmt, context))
+                .collect();
+
+            JsExpr::Function(JsFunctionExpression {
+                id: func.id.clone(),
+                params: func.params.clone(),
+                body: JsBlockStatement {
+                    body: transformed_body,
+                },
+                is_async: func.is_async,
+                is_generator: func.is_generator,
+            })
         }
 
         JsExpr::Assignment(assign) => {
-            // For assignments, transform the right side
-            // The left side handling depends on whether it's a state variable
+            // For assignments, check if the left side is a state variable that needs transform
+            if let JsExpr::Identifier(name) = assign.left.as_ref()
+                && let Some(transform) = context.state.transform.get(name)
+                && let Some(assign_fn) = transform.assign
+            {
+                // Transform the right side first
+                let transformed_right = apply_transforms_to_expression(&assign.right, context);
+
+                // Handle compound assignment operators (+=, -=, etc.)
+                let final_value = match assign.operator {
+                    JsAssignmentOp::Assign => transformed_right,
+                    JsAssignmentOp::AddAssign => {
+                        // count += 1 -> $.set(count, $.get(count) + 1)
+                        let read_fn = transform.read.unwrap_or(|e| e);
+                        let current = read_fn(JsExpr::Identifier(name.clone()));
+                        b::binary(JsBinaryOp::Add, current, transformed_right)
+                    }
+                    JsAssignmentOp::SubAssign => {
+                        let read_fn = transform.read.unwrap_or(|e| e);
+                        let current = read_fn(JsExpr::Identifier(name.clone()));
+                        b::binary(JsBinaryOp::Sub, current, transformed_right)
+                    }
+                    JsAssignmentOp::MulAssign => {
+                        let read_fn = transform.read.unwrap_or(|e| e);
+                        let current = read_fn(JsExpr::Identifier(name.clone()));
+                        b::binary(JsBinaryOp::Mul, current, transformed_right)
+                    }
+                    JsAssignmentOp::DivAssign => {
+                        let read_fn = transform.read.unwrap_or(|e| e);
+                        let current = read_fn(JsExpr::Identifier(name.clone()));
+                        b::binary(JsBinaryOp::Div, current, transformed_right)
+                    }
+                    JsAssignmentOp::ModAssign => {
+                        let read_fn = transform.read.unwrap_or(|e| e);
+                        let current = read_fn(JsExpr::Identifier(name.clone()));
+                        b::binary(JsBinaryOp::Mod, current, transformed_right)
+                    }
+                    _ => {
+                        // For other operators, just use the right side
+                        transformed_right
+                    }
+                };
+
+                // Use the assign transform to wrap in $.set()
+                // The third parameter (needs_proxy) should be true for:
+                // - Object literals
+                // - Array literals
+                // - Function calls (could return objects)
+                // This is because $.set() needs to know if it should proxify the value
+                let needs_proxy = matches!(
+                    assign.right.as_ref(),
+                    JsExpr::Object(_) | JsExpr::Array(_) | JsExpr::Call(_)
+                );
+
+                return assign_fn(JsExpr::Identifier(name.clone()), final_value, needs_proxy);
+            }
+
+            // For non-state variables, transform the right side
             let transformed_right = apply_transforms_to_expression(&assign.right, context);
 
             // For the left side, only transform if it's a member expression object
@@ -203,7 +296,6 @@ fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext) -> 
                     })
                 }
                 // Don't transform identifier on the left side of assignment
-                // (that's handled by the assign transform)
                 _ => assign.left.as_ref().clone(),
             };
 
@@ -304,6 +396,78 @@ fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext) -> 
         | JsExpr::Class(_)
         | JsExpr::Chain(_)
         | JsExpr::Void(_) => expr.clone(),
+    }
+}
+
+/// Apply transforms to a statement recursively.
+///
+/// This handles statements that contain expressions, applying transforms
+/// to all expressions within.
+fn apply_transforms_to_statement(stmt: &JsStatement, context: &ComponentContext) -> JsStatement {
+    match stmt {
+        JsStatement::Expression(expr_stmt) => JsStatement::Expression(JsExpressionStatement {
+            expression: Box::new(apply_transforms_to_expression(
+                &expr_stmt.expression,
+                context,
+            )),
+        }),
+
+        JsStatement::Return(ret_stmt) => JsStatement::Return(JsReturnStatement {
+            argument: ret_stmt
+                .argument
+                .as_ref()
+                .map(|arg| Box::new(apply_transforms_to_expression(arg, context))),
+        }),
+
+        JsStatement::VariableDeclaration(var_decl) => {
+            let transformed_declarations: Vec<JsVariableDeclarator> = var_decl
+                .declarations
+                .iter()
+                .map(|decl| JsVariableDeclarator {
+                    id: decl.id.clone(),
+                    init: decl
+                        .init
+                        .as_ref()
+                        .map(|init| Box::new(apply_transforms_to_expression(init, context))),
+                })
+                .collect();
+
+            JsStatement::VariableDeclaration(JsVariableDeclaration {
+                kind: var_decl.kind,
+                declarations: transformed_declarations,
+            })
+        }
+
+        JsStatement::If(if_stmt) => JsStatement::If(JsIfStatement {
+            test: Box::new(apply_transforms_to_expression(&if_stmt.test, context)),
+            consequent: Box::new(apply_transforms_to_statement(&if_stmt.consequent, context)),
+            alternate: if_stmt
+                .alternate
+                .as_ref()
+                .map(|alt| Box::new(apply_transforms_to_statement(alt, context))),
+        }),
+
+        JsStatement::Block(block) => {
+            let transformed_body: Vec<JsStatement> = block
+                .body
+                .iter()
+                .map(|s| apply_transforms_to_statement(s, context))
+                .collect();
+            JsStatement::Block(JsBlockStatement {
+                body: transformed_body,
+            })
+        }
+
+        // Statements that don't need transformation
+        JsStatement::Empty
+        | JsStatement::Break(_)
+        | JsStatement::Continue(_)
+        | JsStatement::Debugger
+        | JsStatement::Raw(_) => stmt.clone(),
+
+        // For other statement types, just clone for now
+        // TODO: Add more comprehensive handling as needed
+        _ => stmt.clone(),
     }
 }
 

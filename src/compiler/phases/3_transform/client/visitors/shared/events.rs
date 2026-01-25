@@ -100,6 +100,15 @@ pub fn build_event_handler(
     // Convert the expression to JS
     let handler = convert_expression(expression, context);
 
+    // Apply state transforms to the handler
+    // This transforms state variable references (e.g., count += 1 -> $.set(count, $.get(count) + 1))
+    use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_expression;
+    let metadata = crate::compiler::phases::phase3_transform::client::types::ExpressionMetadata {
+        has_state: true, // Conservative: assume handlers may reference state
+        ..Default::default()
+    };
+    let handler = build_expression(context, &handler, &metadata);
+
     // Inline handler (arrow or function expression)
     if matches!(handler, JsExpr::Arrow(_) | JsExpr::Function(_)) {
         return handler;

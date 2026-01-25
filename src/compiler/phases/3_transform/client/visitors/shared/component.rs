@@ -474,29 +474,49 @@ fn process_regular_attribute(
     props_and_spreads: &mut Vec<PropsEntry>,
     custom_css_props: &mut Vec<JsObjectMember>,
 ) {
+    use crate::compiler::phases::phase3_transform::client::types::ExpressionMetadata;
+    use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_expression;
+
     // Handle custom CSS properties (--var)
     if attr.name.starts_with("--") {
-        let result = build_attribute_value(&attr.value, context, |value, _metadata| value);
+        let result = build_attribute_value(&attr.value, context, |value, _metadata| {
+            // CSS property values don't need state transforms
+            value
+        });
         custom_css_props.push(b::prop(attr.name.as_str(), result.value));
         return;
     }
 
-    // Build attribute value
+    // Build attribute value with state transform application
     let result = build_attribute_value(&attr.value, context, |value, _metadata| {
-        // TODO: Implement proper memoization
+        // Note: We can't call build_expression here because the closure takes context by mutable ref
+        // The transforms will be applied during the build_attribute_value phase
         value
     });
+
+    // Apply state transforms to the value AFTER extraction
+    // This handles cases like event handlers: onmousedown={() => count += 1}
+    let transformed_value = {
+        let metadata = ExpressionMetadata {
+            has_state: result.has_state,
+            ..Default::default()
+        };
+        build_expression(context, &result.value, &metadata)
+    };
 
     // Add to props
     if result.has_state {
         // Use getter for reactive values
         push_prop_immediate(
             props_and_spreads,
-            b::getter(attr.name.as_str(), vec![b::return_value(result.value)]),
+            b::getter(attr.name.as_str(), vec![b::return_value(transformed_value)]),
         );
     } else {
         // Use init for static values
-        push_prop_immediate(props_and_spreads, b::prop(attr.name.as_str(), result.value));
+        push_prop_immediate(
+            props_and_spreads,
+            b::prop(attr.name.as_str(), transformed_value),
+        );
     }
 }
 
