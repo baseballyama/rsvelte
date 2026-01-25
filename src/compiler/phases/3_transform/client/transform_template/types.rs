@@ -1,12 +1,12 @@
 use crate::ast::template::Text;
-use std::collections::HashMap;
+use indexmap::IndexMap;
 
 /// Element node in the template
 #[derive(Debug, Clone)]
 pub struct Element {
     pub node_type: &'static str, // Always "element"
     pub name: String,
-    pub attributes: HashMap<String, Option<String>>,
+    pub attributes: IndexMap<String, Option<String>>,
     pub children: Vec<Node>,
     /// Used for populating __svelte_meta
     pub start: u32,

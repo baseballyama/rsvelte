@@ -86,7 +86,7 @@ impl Template {
         let element = Element {
             node_type: "element",
             name,
-            attributes: std::collections::HashMap::new(),
+            attributes: indexmap::IndexMap::new(),
             children: Vec::new(),
             start,
         };

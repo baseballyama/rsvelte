@@ -567,9 +567,22 @@ impl TemplateBuilder {
     }
 }
 
+/// A memoized expression entry.
+#[derive(Debug, Clone)]
+pub struct MemoEntry {
+    /// The identifier that will replace this expression
+    pub id: JsExpr,
+    /// The original expression
+    pub expression: JsExpr,
+}
+
 /// Memoizer for expressions.
 ///
-/// Tracks expressions that should be memoized to avoid redundant computation.
+/// A utility for extracting complex expressions (such as call expressions)
+/// from templates and replacing them with `$0`, `$1` etc.
+///
+/// Corresponds to `Memoizer` class in
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/utils.js`.
 #[derive(Debug, Default, Clone)]
 pub struct Memoizer {
     /// Counter for generating unique memoization variable names
@@ -580,6 +593,12 @@ pub struct Memoizer {
 
     /// Set of conflicting names to avoid collisions in nested blocks
     conflicts: HashSet<String>,
+
+    /// Synchronous memoized expressions
+    sync: Vec<MemoEntry>,
+
+    /// Asynchronous memoized expressions
+    async_entries: Vec<MemoEntry>,
 }
 
 impl Memoizer {
@@ -589,6 +608,8 @@ impl Memoizer {
             counter: 0,
             memos: HashMap::new(),
             conflicts: HashSet::new(),
+            sync: Vec::new(),
+            async_entries: Vec::new(),
         }
     }
 
@@ -609,6 +630,8 @@ impl Memoizer {
             counter: 0,
             memos: HashMap::new(),
             conflicts: parent.conflicts.clone(),
+            sync: Vec::new(),
+            async_entries: Vec::new(),
         }
     }
 
@@ -646,6 +669,132 @@ impl Memoizer {
         expression
     }
 
+    /// Add an expression to be memoized for template effects.
+    ///
+    /// Corresponds to `Memoizer.add()` in the official Svelte compiler.
+    ///
+    /// # Arguments
+    ///
+    /// * `expression` - The expression to memoize
+    /// * `has_call` - Whether the expression contains a function call
+    /// * `has_await` - Whether the expression contains await
+    /// * `memoize_if_state` - Whether to memoize if the expression has state
+    /// * `has_state` - Whether the expression references reactive state
+    ///
+    /// # Returns
+    ///
+    /// Returns an identifier ($0, $1, etc.) that will be used as the parameter
+    /// in the template_effect. If no memoization is needed, returns the original expression.
+    pub fn add_memoized(
+        &mut self,
+        expression: JsExpr,
+        has_call: bool,
+        has_await: bool,
+        memoize_if_state: bool,
+        has_state: bool,
+    ) -> JsExpr {
+        let should_memoize = has_call || has_await || (memoize_if_state && has_state);
+
+        if !should_memoize {
+            return expression;
+        }
+
+        use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
+        // Calculate the index for this memoized expression
+        // Sync expressions come first, then async expressions
+        let idx = if has_await {
+            self.sync.len() + self.async_entries.len()
+        } else {
+            self.sync.len()
+        };
+
+        // Create the parameter identifier immediately with the correct name
+        let name = format!("${}", idx);
+        let id = b::id(&name);
+
+        let entry = MemoEntry {
+            id: id.clone(),
+            expression,
+        };
+
+        if has_await {
+            self.async_entries.push(entry);
+        } else {
+            self.sync.push(entry);
+        }
+
+        id
+    }
+
+    /// Get the parameter identifiers for the template_effect arrow function.
+    ///
+    /// Returns the list of parameter identifiers ($0, $1, etc.) that will be
+    /// used in the arrow function parameters.
+    pub fn get_params(&self) -> Vec<JsExpr> {
+        use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
+        (0..self.sync.len() + self.async_entries.len())
+            .map(|i| b::id(format!("${}", i)))
+            .collect()
+    }
+
+    /// Apply memoization - this is kept for compatibility but now just returns the params.
+    pub fn apply(&mut self) -> Vec<JsExpr> {
+        self.get_params()
+    }
+
+    /// Get the sync values array for template_effect.
+    ///
+    /// Returns an array of thunked expressions: `[() => expr1, () => expr2]`
+    /// Returns `None` if there are no sync expressions.
+    pub fn sync_values(&self) -> Option<JsExpr> {
+        use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
+        if self.sync.is_empty() {
+            return None;
+        }
+
+        let thunks: Vec<JsExpr> = self
+            .sync
+            .iter()
+            .map(|memo| b::thunk(memo.expression.clone()))
+            .collect();
+
+        Some(b::array(thunks))
+    }
+
+    /// Get the async values array.
+    ///
+    /// Returns an array of thunked async expressions.
+    /// Returns `None` if there are no async expressions.
+    pub fn async_values(&self) -> Option<JsExpr> {
+        use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
+        if self.async_entries.is_empty() {
+            return None;
+        }
+
+        let thunks: Vec<JsExpr> = self
+            .async_entries
+            .iter()
+            .map(|memo| b::thunk(memo.expression.clone()))
+            .collect();
+
+        Some(b::array(thunks))
+    }
+
+    /// Check if there are any memoized expressions.
+    pub fn has_memoized(&self) -> bool {
+        !self.sync.is_empty() || !self.async_entries.is_empty()
+    }
+
+    /// Clear all memoized expressions (but keep conflicts).
+    pub fn clear_memoized(&mut self) {
+        self.sync.clear();
+        self.async_entries.clear();
+    }
+
     /// Generate a unique identifier with a given base name.
     ///
     /// # Arguments
@@ -677,6 +826,8 @@ impl Memoizer {
         self.counter = 0;
         self.memos.clear();
         self.conflicts.clear();
+        self.sync.clear();
+        self.async_entries.clear();
     }
 
     /// Merge conflicts from another memoizer.

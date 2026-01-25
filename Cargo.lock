@@ -1543,6 +1543,7 @@ dependencies = [
  "criterion",
  "getrandom 0.2.16",
  "glob",
+ "indexmap",
  "insta",
  "lazy_static",
  "miette",

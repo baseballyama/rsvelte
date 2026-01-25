@@ -12,7 +12,9 @@ use crate::compiler::phases::phase3_transform::client::transform_template::{
 };
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::process_children;
-use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_render_statement;
+use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
+    build_render_statement, build_render_statement_with_memoizer,
+};
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use crate::compiler::phases::phase3_transform::utils::{clean_nodes, infer_namespace};
@@ -359,7 +361,21 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
 
     // Add render effect if there are updates
     if !state.update.is_empty() {
-        body.push(b::stmt(build_render_statement(state.update)));
+        // Check if we have memoized expressions
+        if state.memoizer.has_memoized() {
+            let params = state.memoizer.get_params();
+            let sync_values = state.memoizer.sync_values();
+            let async_values = state.memoizer.async_values();
+            body.push(b::stmt(build_render_statement_with_memoizer(
+                state.update,
+                params,
+                sync_values,
+                async_values,
+                None, // blockers
+            )));
+        } else {
+            body.push(b::stmt(build_render_statement(state.update)));
+        }
     }
 
     body.extend(state.after_update);

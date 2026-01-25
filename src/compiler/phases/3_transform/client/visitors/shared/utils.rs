@@ -632,21 +632,78 @@ pub fn build_template_effect(
 ///
 /// Returns a call to `$.template_effect(() => { ... })`
 pub fn build_render_statement(statements: Vec<JsStatement>) -> JsExpr {
-    // If there's a single statement that's an expression statement, use expression body
-    if statements.len() == 1
+    build_render_statement_with_memoizer(statements, vec![], None, None, None)
+}
+
+/// Build a render statement with memoization support.
+///
+/// Generates: `$.template_effect(($0, $1) => { ... }, [() => expr1, () => expr2])`
+///
+/// # Arguments
+///
+/// * `statements` - The update statements to wrap
+/// * `params` - Memoizer parameter names ($0, $1, etc.)
+/// * `sync_values` - Sync memoized values array
+/// * `async_values` - Async memoized values array (optional)
+/// * `blockers` - Blocker expressions (optional)
+///
+/// # Returns
+///
+/// Returns a call to `$.template_effect(...)` with appropriate parameters.
+pub fn build_render_statement_with_memoizer(
+    statements: Vec<JsStatement>,
+    params: Vec<JsExpr>,
+    sync_values: Option<JsExpr>,
+    async_values: Option<JsExpr>,
+    blockers: Option<JsExpr>,
+) -> JsExpr {
+    // Convert params to patterns
+    let param_patterns: Vec<JsPattern> = params
+        .iter()
+        .filter_map(|p| {
+            if let JsExpr::Identifier(name) = p {
+                Some(JsPattern::Identifier(name.clone()))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    // Build the arrow function body
+    let effect_fn = if statements.len() == 1
         && let JsStatement::Expression(expr_stmt) = &statements[0]
     {
-        return b::call(
-            b::member_path("$.template_effect"),
-            vec![b::arrow(vec![], (*expr_stmt.expression).clone())],
-        );
+        // Single expression - use expression body
+        b::arrow(param_patterns, (*expr_stmt.expression).clone())
+    } else {
+        // Multiple statements - use block body
+        b::arrow_block(param_patterns, statements)
+    };
+
+    // Build arguments list
+    let mut args = vec![effect_fn];
+
+    // Add sync values if present
+    if let Some(sync) = sync_values {
+        args.push(sync);
+    } else if async_values.is_some() || blockers.is_some() {
+        // Need placeholder if we have async_values or blockers
+        args.push(b::undefined());
     }
 
-    // Build the effect function body with block
-    let effect_fn = b::arrow_block(vec![], statements);
+    // Add async values if present
+    if let Some(async_vals) = async_values {
+        args.push(async_vals);
+    } else if blockers.is_some() {
+        args.push(b::undefined());
+    }
 
-    // Wrap in $.template_effect()
-    b::call(b::member_path("$.template_effect"), vec![effect_fn])
+    // Add blockers if present
+    if let Some(block) = blockers {
+        args.push(block);
+    }
+
+    b::call(b::member_path("$.template_effect"), args)
 }
 
 /// Bind expression types.
@@ -1006,20 +1063,32 @@ pub fn build_template_chunk(
                     // Convert Expression to JsExpr using the proper converter
                     let converted_expr = convert_expression(&expr_tag.expression, context);
 
-                    // Check if the expression references reactive state
+                    // Check if the expression references reactive state or contains calls
                     let expr_has_state =
                         expression_has_reactive_state(&expr_tag.expression, context);
+                    let expr_has_call = expression_has_call(&expr_tag.expression);
 
                     // Build the expression with transforms applied (e.g., $.get() wrapping)
                     let expr_metadata = ExpressionMetadata {
                         has_state: expr_has_state,
+                        has_call: expr_has_call,
                         ..Default::default()
                     };
 
-                    let value = build_expression(context, &converted_expr, &expr_metadata);
+                    let built_expr = build_expression(context, &converted_expr, &expr_metadata);
 
-                    // Track if any expression has state
-                    if expr_has_state {
+                    // Memoize if expression contains a call
+                    // This matches Svelte's behavior of replacing function calls with $0, $1, etc.
+                    let value = context.state.memoizer.add_memoized(
+                        built_expr,
+                        expr_has_call,
+                        false, // has_await
+                        false, // memoize_if_state
+                        expr_has_state,
+                    );
+
+                    // Track if any expression has state or call (need reactive update)
+                    if expr_has_state || expr_has_call {
                         has_state = true;
                     }
 
@@ -1414,6 +1483,113 @@ pub fn expression_has_reactive_state(
                     // Unknown expression type - conservatively assume non-reactive
                     false
                 }
+            }
+        }
+    }
+}
+
+/// Check if an expression contains a function call.
+///
+/// Returns true if the expression contains a CallExpression at any level.
+pub fn expression_has_call(expr: &crate::ast::js::Expression) -> bool {
+    use crate::ast::js::Expression;
+
+    match expr {
+        Expression::Value(json_value) => {
+            let Some(obj) = json_value.as_object() else {
+                return false;
+            };
+            let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
+                return false;
+            };
+
+            match expr_type {
+                "CallExpression" => true,
+                "MemberExpression" => {
+                    if let Some(object) = obj.get("object")
+                        && let Ok(inner_expr) = serde_json::from_value::<Expression>(object.clone())
+                    {
+                        return expression_has_call(&inner_expr);
+                    }
+                    false
+                }
+                "BinaryExpression" | "LogicalExpression" => {
+                    if let Some(left) = obj.get("left")
+                        && let Ok(inner_expr) = serde_json::from_value::<Expression>(left.clone())
+                        && expression_has_call(&inner_expr)
+                    {
+                        return true;
+                    }
+                    if let Some(right) = obj.get("right")
+                        && let Ok(inner_expr) = serde_json::from_value::<Expression>(right.clone())
+                        && expression_has_call(&inner_expr)
+                    {
+                        return true;
+                    }
+                    false
+                }
+                "UnaryExpression" => {
+                    if let Some(argument) = obj.get("argument")
+                        && let Ok(inner_expr) =
+                            serde_json::from_value::<Expression>(argument.clone())
+                    {
+                        return expression_has_call(&inner_expr);
+                    }
+                    false
+                }
+                "ConditionalExpression" => {
+                    for field in ["test", "consequent", "alternate"] {
+                        if let Some(val) = obj.get(field)
+                            && let Ok(inner_expr) =
+                                serde_json::from_value::<Expression>(val.clone())
+                            && expression_has_call(&inner_expr)
+                        {
+                            return true;
+                        }
+                    }
+                    false
+                }
+                "TemplateLiteral" => {
+                    if let Some(exprs) = obj.get("expressions").and_then(|v| v.as_array()) {
+                        for expr_val in exprs {
+                            if let Ok(inner_expr) =
+                                serde_json::from_value::<Expression>(expr_val.clone())
+                                && expression_has_call(&inner_expr)
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                    false
+                }
+                "ArrayExpression" => {
+                    if let Some(elements) = obj.get("elements").and_then(|v| v.as_array()) {
+                        for elem in elements {
+                            if let Ok(inner_expr) =
+                                serde_json::from_value::<Expression>(elem.clone())
+                                && expression_has_call(&inner_expr)
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                    false
+                }
+                "ObjectExpression" => {
+                    if let Some(properties) = obj.get("properties").and_then(|v| v.as_array()) {
+                        for prop in properties {
+                            if let Some(value) = prop.as_object().and_then(|p| p.get("value"))
+                                && let Ok(inner_expr) =
+                                    serde_json::from_value::<Expression>(value.clone())
+                                && expression_has_call(&inner_expr)
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                    false
+                }
+                _ => false,
             }
         }
     }

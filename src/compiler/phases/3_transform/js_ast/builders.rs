@@ -243,8 +243,66 @@ pub fn async_arrow_block(params: Vec<JsPattern>, body: Vec<JsStatement>) -> JsEx
 }
 
 /// Create a thunk (arrow function with no params that returns the expression).
+///
+/// Applies the `unthunk` optimization: `() => func()` becomes `func`.
+/// This matches Svelte's optimization for simple function calls.
 pub fn thunk(expr: JsExpr) -> JsExpr {
-    arrow(vec![], expr)
+    unthunk(arrow(vec![], expr))
+}
+
+/// Optimize `(arg) => func(arg)` to `func` and `() => func()` to `func`.
+///
+/// Corresponds to `unthunk` in Svelte's builders.js.
+fn unthunk(expr: JsExpr) -> JsExpr {
+    // Only optimize arrow functions
+    let JsExpr::Arrow(arrow) = &expr else {
+        return expr;
+    };
+
+    // Don't optimize async arrows
+    if arrow.is_async {
+        return expr;
+    }
+
+    // Body must be an expression (not a block)
+    let JsArrowBody::Expression(body_expr) = &arrow.body else {
+        return expr;
+    };
+
+    // Body must be a call expression
+    let JsExpr::Call(call) = body_expr.as_ref() else {
+        return expr;
+    };
+
+    // Callee must be an identifier
+    let JsExpr::Identifier(callee_name) = call.callee.as_ref() else {
+        return expr;
+    };
+
+    // Check that params match arguments exactly
+    // e.g., (a, b) => func(a, b) -> func
+    // e.g., () => func() -> func
+    if arrow.params.len() != call.arguments.len() {
+        return expr;
+    }
+
+    // Check each param matches corresponding argument
+    for (i, param) in arrow.params.iter().enumerate() {
+        let JsPattern::Identifier(param_name) = param else {
+            return expr;
+        };
+
+        let JsExpr::Identifier(arg_name) = &call.arguments[i] else {
+            return expr;
+        };
+
+        if param_name != arg_name {
+            return expr;
+        }
+    }
+
+    // Optimization applies: return just the callee
+    JsExpr::Identifier(callee_name.clone())
 }
 
 /// Create a thunk with a block body.
