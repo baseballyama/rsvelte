@@ -381,6 +381,9 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
         .instance_level_snippets
         .extend(state.instance_level_snippets);
 
+    // Merge events back to parent for delegation
+    context.state.events.extend(state.events);
+
     // Merge memoizer conflicts back to parent so sibling scopes also avoid collisions
     context.state.memoizer.merge_conflicts(&state.memoizer);
 
