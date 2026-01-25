@@ -985,8 +985,8 @@ pub fn build_template_chunk(
                 last_quasi.cooked.push_str(&text.data);
             }
             TextOrExpr::Expr(expr_tag) => {
-                // Check if it's a literal
-                if let Some(lit_value) = get_literal_value(&expr_tag.expression) {
+                // Check if it's a literal or can be evaluated at compile time
+                if let Some(lit_value) = get_literal_value(&expr_tag.expression, context) {
                     if let Some(val) = lit_value {
                         let last_quasi = quasis.last_mut().unwrap();
                         last_quasi.raw.push_str(&val);
@@ -1048,37 +1048,108 @@ pub fn build_template_chunk(
     TemplateChunkResult { value, has_state }
 }
 
-/// Get literal value from an expression if it's a simple literal.
-fn get_literal_value(expr: &crate::ast::js::Expression) -> Option<Option<String>> {
+/// Get literal value from an expression if it can be evaluated at compile time.
+///
+/// Returns:
+/// - `Some(Some(value))` - expression evaluates to a non-null/undefined string value
+/// - `Some(None)` - expression evaluates to null/undefined (should be omitted)
+/// - `None` - expression cannot be evaluated at compile time
+fn get_literal_value(
+    expr: &crate::ast::js::Expression,
+    context: &ComponentContext,
+) -> Option<Option<String>> {
     use crate::ast::js::Expression;
 
     match expr {
         Expression::Value(json_value) => {
-            if let Some(obj) = json_value.as_object()
-                && let Some(expr_type) = obj.get("type").and_then(|v| v.as_str())
-            {
-                if expr_type == "Literal"
-                    && let Some(value) = obj.get("value")
-                {
-                    if let Some(s) = value.as_str() {
-                        return Some(Some(s.to_string()));
-                    } else if let Some(n) = value.as_f64() {
-                        return Some(Some(n.to_string()));
-                    } else if let Some(b_val) = value.as_bool() {
-                        return Some(Some(b_val.to_string()));
-                    } else if value.is_null() {
+            let obj = json_value.as_object()?;
+            let expr_type = obj.get("type").and_then(|v| v.as_str())?;
+
+            match expr_type {
+                "Literal" => {
+                    if let Some(value) = obj.get("value") {
+                        if let Some(s) = value.as_str() {
+                            return Some(Some(s.to_string()));
+                        } else if let Some(n) = value.as_f64() {
+                            // Format integers without decimal point
+                            if n.fract() == 0.0 {
+                                return Some(Some(format!("{}", n as i64)));
+                            }
+                            return Some(Some(n.to_string()));
+                        } else if let Some(b_val) = value.as_bool() {
+                            return Some(Some(b_val.to_string()));
+                        } else if value.is_null() {
+                            return Some(None);
+                        }
+                    }
+                    None
+                }
+                "Identifier" => {
+                    let name = obj.get("name").and_then(|v| v.as_str())?;
+                    if name == "undefined" {
                         return Some(None);
                     }
-                } else if expr_type == "Identifier"
-                    && let Some(name) = obj.get("name").and_then(|v| v.as_str())
-                    && name == "undefined"
-                {
-                    // Check if undefined is shadowed in scope
-                    // For now, assume it's the global undefined
-                    return Some(None);
+
+                    // Check if the identifier is a constant binding
+                    let binding = context.state.get_binding(name)?;
+                    // Only fold if it's a normal (non-reactive) binding
+                    if binding.kind.is_reactive() {
+                        return None;
+                    }
+                    // Check if we have a known initial value (stored as source string)
+                    let init = binding.initial.as_ref()?;
+                    // Parse simple string literals like 'world' or "world"
+                    let trimmed = init.trim();
+                    let is_string_literal = (trimmed.starts_with('\'') && trimmed.ends_with('\''))
+                        || (trimmed.starts_with('"') && trimmed.ends_with('"'));
+                    if is_string_literal && trimmed.len() >= 2 {
+                        return Some(Some(trimmed[1..trimmed.len() - 1].to_string()));
+                    }
+                    // Parse number literals
+                    if let Ok(n) = trimmed.parse::<f64>() {
+                        if n.fract() == 0.0 {
+                            return Some(Some(format!("{}", n as i64)));
+                        }
+                        return Some(Some(n.to_string()));
+                    }
+                    // Handle boolean and null literals
+                    match trimmed {
+                        "true" => Some(Some("true".to_string())),
+                        "false" => Some(Some("false".to_string())),
+                        "null" | "undefined" => Some(None),
+                        _ => None,
+                    }
                 }
+                "LogicalExpression" => {
+                    // Handle ?? (nullish coalescing) operator
+                    let operator = obj.get("operator").and_then(|v| v.as_str())?;
+                    if operator != "??" {
+                        return None;
+                    }
+
+                    let left = obj.get("left")?;
+                    let left_expr = serde_json::from_value::<Expression>(left.clone()).ok()?;
+
+                    match get_literal_value(&left_expr, context) {
+                        Some(Some(val)) => {
+                            // Left side has non-null value, return it
+                            Some(Some(val))
+                        }
+                        Some(None) => {
+                            // Left side is null/undefined, evaluate right side
+                            let right = obj.get("right")?;
+                            let right_expr =
+                                serde_json::from_value::<Expression>(right.clone()).ok()?;
+                            get_literal_value(&right_expr, context)
+                        }
+                        None => {
+                            // Left side cannot be evaluated at compile time
+                            None
+                        }
+                    }
+                }
+                _ => None,
             }
-            None
         }
     }
 }
@@ -1087,7 +1158,7 @@ fn get_literal_value(expr: &crate::ast::js::Expression) -> Option<Option<String>
 ///
 /// Returns true if the expression contains identifiers that reference
 /// reactive bindings ($state, $derived, props, stores, etc.).
-fn expression_has_reactive_state(
+pub fn expression_has_reactive_state(
     expr: &crate::ast::js::Expression,
     context: &ComponentContext,
 ) -> bool {

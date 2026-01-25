@@ -19,7 +19,12 @@ use crate::compiler::phases::phase3_transform::client::visitors::attribute::{
 use crate::compiler::phases::phase3_transform::client::visitors::shared::element::{
     build_attribute_effect, build_attribute_value, build_set_class_call, build_set_style_call,
 };
-use crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::process_children;
+use crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::{
+    TextOrExpr, process_children,
+};
+use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
+    build_template_chunk, expression_has_reactive_state,
+};
 use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::{JsExpr, JsStatement};
@@ -304,34 +309,89 @@ pub fn visit_regular_element(
         context.state.options.preserve_comments,
     );
 
-    // Process trimmed child nodes
-    // These statements go directly into context.state (child_state in JS)
-    let current_node = context.state.node.clone();
-    process_children(
-        &cleaned.trimmed,
-        |is_text| {
-            let mut args = vec![current_node.clone()];
-            // Only include second argument if it's true
-            if is_text {
-                args.push(b::boolean(true));
-            }
-            b::call(b::member_path("$.child"), args)
-        },
-        true, // is_element
-        context,
-    );
-
-    // Reset after processing children if needed
-    let needs_reset = cleaned
+    // Check if we can use textContent optimization
+    // This applies when:
+    // 1. All children are Text or ExpressionTag
+    // 2. All ExpressionTags are non-reactive (no has_state, no has_await, no blockers)
+    // 3. At least one ExpressionTag exists (otherwise pure text is in template)
+    let all_text_or_expr = cleaned
         .trimmed
         .iter()
-        .any(|n| !matches!(n, TemplateNode::Text(_)));
+        .all(|n| matches!(n, TemplateNode::Text(_) | TemplateNode::ExpressionTag(_)));
 
-    if needs_reset {
-        context.state.init.push(b::stmt(b::call(
-            b::member_path("$.reset"),
-            vec![context.state.node.clone()],
-        )));
+    let has_expression_tag = cleaned
+        .trimmed
+        .iter()
+        .any(|n| matches!(n, TemplateNode::ExpressionTag(_)));
+
+    let all_expressions_static = cleaned.trimmed.iter().all(|n| {
+        match n {
+            TemplateNode::Text(_) => true,
+            TemplateNode::ExpressionTag(expr_tag) => {
+                // Check if expression is non-reactive
+                !expression_has_reactive_state(&expr_tag.expression, context)
+            }
+            _ => false,
+        }
+    });
+
+    let use_text_content = all_text_or_expr && has_expression_tag && all_expressions_static;
+
+    if use_text_content {
+        // Convert children to TextOrExpr for build_template_chunk
+        let values: Vec<TextOrExpr> = cleaned
+            .trimmed
+            .iter()
+            .filter_map(|n| match n {
+                TemplateNode::Text(t) => Some(TextOrExpr::Text(t.clone())),
+                TemplateNode::ExpressionTag(e) => Some(TextOrExpr::Expr(e.clone())),
+                _ => None,
+            })
+            .collect();
+
+        let result = build_template_chunk(&values, context);
+
+        // Check if the result is an empty string literal
+        let is_empty_string = matches!(&result.value, JsExpr::Literal(crate::compiler::phases::phase3_transform::js_ast::nodes::JsLiteral::String(s)) if s.is_empty());
+
+        if !is_empty_string {
+            // Set element.textContent = value
+            context.state.init.push(b::stmt(b::assign(
+                b::member(context.state.node.clone(), "textContent"),
+                result.value,
+            )));
+        }
+        // No need for $.reset() since we didn't descend into children
+    } else {
+        // Process trimmed child nodes
+        // These statements go directly into context.state (child_state in JS)
+        let current_node = context.state.node.clone();
+        process_children(
+            &cleaned.trimmed,
+            |is_text| {
+                let mut args = vec![current_node.clone()];
+                // Only include second argument if it's true
+                if is_text {
+                    args.push(b::boolean(true));
+                }
+                b::call(b::member_path("$.child"), args)
+            },
+            true, // is_element
+            context,
+        );
+
+        // Reset after processing children if needed
+        let needs_reset = cleaned
+            .trimmed
+            .iter()
+            .any(|n| !matches!(n, TemplateNode::Text(_)));
+
+        if needs_reset {
+            context.state.init.push(b::stmt(b::call(
+                b::member_path("$.reset"),
+                vec![context.state.node.clone()],
+            )));
+        }
     }
 
     // Process non-delegated event attributes AFTER child nodes but BEFORE element_state
