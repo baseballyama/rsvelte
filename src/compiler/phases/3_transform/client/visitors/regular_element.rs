@@ -219,19 +219,8 @@ pub fn visit_regular_element(
             &css_hash,
         );
     } else {
-        // Process delegated event attributes BEFORE other attributes
-        // Delegated events use element.__eventname = handler pattern
-        if !has_spread {
-            for event_attr in &event_attributes {
-                let event_name = &event_attr.name[2..]; // Remove "on" prefix
-                let is_delegated = !is_capture_event(event_name) && can_delegate_event(event_name);
-
-                if is_delegated {
-                    visit_event_attribute(event_attr, context);
-                }
-            }
-        }
-
+        // Process regular attributes first (before event handlers)
+        // This matches the official JS implementation which processes in source order
         for attribute in &attributes {
             if let Attribute::Attribute(attr) = attribute {
                 let name = get_attribute_name(node, attr);
@@ -333,6 +322,20 @@ pub fn visit_regular_element(
 
             let set_style = build_set_style_call(node_expr, &style_directives, context);
             context.state.init.push(b::stmt(set_style));
+        }
+
+        // Process delegated event attributes AFTER regular attributes
+        // Delegated events use element.__eventname = handler pattern
+        // This matches the official JS implementation source order
+        if !has_spread {
+            for event_attr in &event_attributes {
+                let event_name = &event_attr.name[2..]; // Remove "on" prefix
+                let is_delegated = !is_capture_event(event_name) && can_delegate_event(event_name);
+
+                if is_delegated {
+                    visit_event_attribute(event_attr, context);
+                }
+            }
         }
     }
 
