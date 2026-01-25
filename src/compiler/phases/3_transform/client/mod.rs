@@ -384,6 +384,24 @@ fn transform_client_with_visitors(
         source: "svelte/internal/client".to_string(),
     }));
 
+    // Add module script content (imports and module-level declarations)
+    // This comes from <script context="module"> and includes component imports
+    if let Some(ref module_content) = analysis.module_script_content {
+        let trimmed = module_content.raw.trim();
+        if !trimmed.is_empty() {
+            body.push(JsStatement::Raw(trimmed.to_string()));
+        }
+    }
+
+    // Extract and add imports from instance script
+    // These are hoisted to module level (after svelte imports)
+    if let Some(ref instance_content) = analysis.instance_script_content {
+        let (script_imports, _) = extract_imports(&instance_content.raw);
+        for import_line in script_imports {
+            body.push(JsStatement::Raw(import_line));
+        }
+    }
+
     // Add hoisted statements (template declarations, etc.)
     body.extend(hoisted_statements);
 
