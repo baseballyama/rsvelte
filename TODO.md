@@ -1115,4 +1115,29 @@ Phase 2: 機能完成
 - 新システム: Snapshot 2/19 通過（hello-world など簡単なケース）
 - 新システムは基盤完成、詳細な visitor 実装が残る
 
+**セッション2 完了タスク:**
+- [x] 状態変数のトランスフォーム追加（$.get/$.set）
+  - `add_state_transformers()` を `transform_client_with_visitors()` から呼び出し
+  - `apply_transforms_to_expression()` でアロー関数ボディを再帰的に変換
+  - `AssignmentExpression` の処理を修正（+= 等の複合演算子対応）
+  - イベントハンドラ内の状態変数参照が正しく変換されるように
+  - コミット: "feat(transform): Add state variable transforms to new visitor system"
+
+- [x] Children callback 生成の改善
+  - `visit_slot_children()` で `process_children()` を使用
+  - `$.next()` を先頭に追加
+  - `$.template_effect()` でインラインアロー関数を使用（単一式の場合）
+  - `$.append()` を末尾に追加
+  - コミット: "feat(transform): Improve children callback generation in new visitor system"
+
+**テスト結果（セッション2終了時）:**
+- 新システム: Snapshot **3/19** 通過（2/19 → 3/19, +1）
+- レガシーシステム: Snapshot 19/19 通過（維持）✅
+- `function-prop-no-getter` が意味的に正しいコードを生成（フォーマット差分のみ）
+
+**残存問題（次回対応）:**
+- 空行のフォーマット差異（ステートメント間の空行）
+- module_script_content の処理
+- instance_script_content の処理
+
 **着手タスク:**
