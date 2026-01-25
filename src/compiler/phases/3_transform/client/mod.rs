@@ -363,6 +363,24 @@ fn extract_imports(script: &str) -> (Vec<String>, String) {
     (imports, rest.join("\n"))
 }
 
+/// Extract local reactive variable names from script content.
+/// These are variables declared with $state() or $derived() inside functions
+/// (like inside $effect callbacks) that aren't tracked in analysis.root.bindings.
+fn extract_local_reactive_vars(script: &str) -> Vec<String> {
+    let mut vars = Vec::new();
+
+    // Pattern: let/const varname = $state(...) or let/const varname = $derived(...)
+    let re = regex::Regex::new(r"(?:let|const)\s+(\w+)\s*=\s*\$(?:state|derived)\s*\(").unwrap();
+
+    for cap in re.captures_iter(script) {
+        if let Some(name) = cap.get(1) {
+            vars.push(name.as_str().to_string());
+        }
+    }
+
+    vars
+}
+
 /// Transform instance script content for the visitor-based code generation.
 /// Handles $state, $derived, $effect, $props transformations.
 fn transform_instance_script_for_visitors(script: &str, analysis: &ComponentAnalysis) -> String {
@@ -377,13 +395,24 @@ fn transform_instance_script_for_visitors(script: &str, analysis: &ComponentAnal
     let (_script_imports, script_rest) = extract_imports(&script);
 
     // Collect state variables from analysis for $.get() wrapping
-    let state_vars: Vec<String> = analysis
+    let mut state_vars: Vec<String> = analysis
         .root
         .bindings
         .iter()
-        .filter(|b| matches!(b.kind, BindingKind::State | BindingKind::RawState))
+        .filter(|b| {
+            matches!(
+                b.kind,
+                BindingKind::State | BindingKind::RawState | BindingKind::Derived
+            )
+        })
         .map(|b| b.name.clone())
         .collect();
+
+    // Also scan for local $state and $derived declarations in the script
+    // These are variables declared inside functions (like inside $effect callbacks)
+    // that aren't tracked in analysis.root.bindings
+    let local_reactive_vars = extract_local_reactive_vars(&script_rest);
+    state_vars.extend(local_reactive_vars);
 
     // Collect rest_prop variable names (from `let props = $props()`)
     let rest_prop_vars: Vec<String> = analysis
