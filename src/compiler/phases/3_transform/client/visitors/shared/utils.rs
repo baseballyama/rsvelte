@@ -996,18 +996,22 @@ pub fn build_template_chunk(
                     // Convert Expression to JsExpr using the proper converter
                     let converted_expr = convert_expression(&expr_tag.expression, context);
 
+                    // Check if the expression references reactive state
+                    let expr_has_state =
+                        expression_has_reactive_state(&expr_tag.expression, context);
+
                     // Build the expression with transforms applied (e.g., $.get() wrapping)
-                    // Note: ExpressionTag doesn't have metadata in current implementation,
-                    // so we use conservative defaults (has_state = true for non-literals)
                     let expr_metadata = ExpressionMetadata {
-                        has_state: true, // Conservative: assume state for non-literals
+                        has_state: expr_has_state,
                         ..Default::default()
                     };
 
                     let value = build_expression(context, &converted_expr, &expr_metadata);
 
-                    // Conservative: assume has_state for non-literal expressions
-                    has_state = true;
+                    // Track if any expression has state
+                    if expr_has_state {
+                        has_state = true;
+                    }
 
                     // For single expression, return directly
                     if values.len() == 1 {
@@ -1075,6 +1079,130 @@ fn get_literal_value(expr: &crate::ast::js::Expression) -> Option<Option<String>
                 }
             }
             None
+        }
+    }
+}
+
+/// Check if an expression references any reactive state.
+///
+/// Returns true if the expression contains identifiers that reference
+/// reactive bindings ($state, $derived, props, stores, etc.).
+fn expression_has_reactive_state(
+    expr: &crate::ast::js::Expression,
+    context: &ComponentContext,
+) -> bool {
+    use crate::ast::js::Expression;
+
+    match expr {
+        Expression::Value(json_value) => {
+            let Some(obj) = json_value.as_object() else {
+                return false;
+            };
+            let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
+                return false;
+            };
+
+            match expr_type {
+                "Identifier" => {
+                    // Check if identifier is a reactive binding
+                    if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+                        if let Some(binding) = context.state.get_binding(name) {
+                            return binding.kind.is_reactive();
+                        }
+                        // Unknown identifier - conservatively assume non-reactive
+                        // (could be a global or module-level binding)
+                        return false;
+                    }
+                    false
+                }
+                "MemberExpression" => {
+                    // Check the object part
+                    if let Some(object) = obj.get("object")
+                        && let Ok(inner_expr) = serde_json::from_value::<Expression>(object.clone())
+                    {
+                        return expression_has_reactive_state(&inner_expr, context);
+                    }
+                    false
+                }
+                "CallExpression" => {
+                    // Check callee and arguments
+                    if let Some(callee) = obj.get("callee")
+                        && let Ok(inner_expr) = serde_json::from_value::<Expression>(callee.clone())
+                        && expression_has_reactive_state(&inner_expr, context)
+                    {
+                        return true;
+                    }
+                    if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+                        for arg in args {
+                            if let Ok(inner_expr) =
+                                serde_json::from_value::<Expression>(arg.clone())
+                                && expression_has_reactive_state(&inner_expr, context)
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                    false
+                }
+                "BinaryExpression" | "LogicalExpression" => {
+                    // Check left and right
+                    if let Some(left) = obj.get("left")
+                        && let Ok(inner_expr) = serde_json::from_value::<Expression>(left.clone())
+                        && expression_has_reactive_state(&inner_expr, context)
+                    {
+                        return true;
+                    }
+                    if let Some(right) = obj.get("right")
+                        && let Ok(inner_expr) = serde_json::from_value::<Expression>(right.clone())
+                        && expression_has_reactive_state(&inner_expr, context)
+                    {
+                        return true;
+                    }
+                    false
+                }
+                "UnaryExpression" => {
+                    if let Some(argument) = obj.get("argument")
+                        && let Ok(inner_expr) =
+                            serde_json::from_value::<Expression>(argument.clone())
+                    {
+                        return expression_has_reactive_state(&inner_expr, context);
+                    }
+                    false
+                }
+                "ConditionalExpression" => {
+                    for field in ["test", "consequent", "alternate"] {
+                        if let Some(val) = obj.get(field)
+                            && let Ok(inner_expr) =
+                                serde_json::from_value::<Expression>(val.clone())
+                            && expression_has_reactive_state(&inner_expr, context)
+                        {
+                            return true;
+                        }
+                    }
+                    false
+                }
+                "TemplateLiteral" => {
+                    if let Some(exprs) = obj.get("expressions").and_then(|v| v.as_array()) {
+                        for expr_val in exprs {
+                            if let Ok(inner_expr) =
+                                serde_json::from_value::<Expression>(expr_val.clone())
+                                && expression_has_reactive_state(&inner_expr, context)
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                    false
+                }
+                "Literal" => {
+                    // Literals are never reactive
+                    false
+                }
+                _ => {
+                    // Unknown expression type - conservatively assume non-reactive
+                    false
+                }
+            }
         }
     }
 }
