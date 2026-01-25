@@ -1228,9 +1228,47 @@ $.template_effect(() => {
    - 期待される出力はコンパイル時に式を評価
    - これは Phase 2 で定数値を追跡する必要がある
 
+**セッション3 追加タスク（2026-01-25 継続）:**
+
+- [x] textContent 最適化の実装
+  - 要素の全ての子が Text または非リアクティブ ExpressionTag の場合
+  - `element.textContent = 'value'` を使用（子テキストノード作成をスキップ）
+  - テンプレートは空要素 `<h1></h1>` を生成（プレースホルダ不要）
+  - コミット: "feat(transform): Add textContent optimization and constant folding"
+
+- [x] 定数畳み込みの実装
+  - `??` (nullish coalescing) 演算子のコンパイル時評価
+  - `{1 ?? 'stuff'}` → `'1'`
+  - `{null ?? 'fallback'}` → `'fallback'`
+  - `get_literal_value()` 関数を拡張
+
+- [x] bind ディレクティブサポートの追加
+  - `regular_element.rs` で BindDirective を処理
+  - `bind:value`, `bind:checked`, `bind:group` のサポート
+  - input 要素に `$.remove_input_defaults()` を追加
+  - `build_getter_setter()` で `$state` 変数を `$.get()`/`$.set()` でラップ
+  - コミット: "feat(transform): Add bind directive support for regular elements"
+
+**テスト結果（セッション3継続後）:**
+- 新システム: Snapshot **4/19** 通過（3/19 → 4/19, +1）
+- レガシーシステム: Snapshot 19/19 通過（維持）✅
+- `state-proxy-literal` テストが新たに通過
+
+**残存問題（更新）:**
+1. **識別子の定数畳み込み** - Phase 2 で `binding.initial` が設定されていない
+   - `let name = 'world'` の初期値がバインディングに保存されていない
+   - これにより `{name}` が定数として評価されない
+
+2. **関数呼び出しのリアクティブ検出** - `text1()` が静的と判定される
+   - 関数本体内で `$state` を参照するケースの検出が必要
+   - `text-nodes-deriveds` テストで影響
+
+3. **コンポーネントのインポート** - `bind-component-snippet` でインポートが生成されない
+   - `import TextInput from './Child.svelte'` が出力に含まれない
+
 **次のアクション:**
-1. 要素レベルでの静的コンテンツ検出と `textContent` 最適化
-2. module_script_content の処理
-3. instance_script_content の処理
+1. module_script_content の処理（インポート生成に必要）
+2. instance_script_content の処理
+3. 関数呼び出しのリアクティブ検出の改善
 
 **着手タスク:**
