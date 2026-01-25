@@ -1140,4 +1140,31 @@ Phase 2: 機能完成
 - module_script_content の処理
 - instance_script_content の処理
 
+**セッション2 追加完了タスク:**
+- [x] 静的要素のHTML生成を修正
+  - `has_dynamic_children()` 関数追加（子ノードに動的コンテンツがあるかチェック）
+  - `push_static_element_to_template()` 関数追加（静的要素をテンプレートに再帰的に追加）
+  - `is_static_element()` 改善（metadata.dynamic が正しく設定されていない問題のワークアラウンド）
+  - コミット: "feat(transform): Add static element HTML generation to new visitor system"
+
+- [x] イベントハンドラの式変換を修正
+  - `convert_expression` を `expression_converter` から使用
+  - 状態変数のトランスフォームを適用（count++ → $.update(count)）
+  - 未使用の `convert_expression_to_js` を削除
+  - コミット: "feat(transform): Fix event handler expression conversion in new visitor system"
+
+**改善例:**
+```javascript
+// Before:
+button.__click = function(...$$args) { handler.apply(this, $$args); }
+
+// After:
+button.__click = () => $.update(count);
+```
+
+**テスト結果（セッション2最終）:**
+- 新システム: Snapshot 3/19 通過（維持）
+- レガシーシステム: Snapshot 19/19 通過（維持）✅
+- イベントハンドラが正しく生成されるようになった
+
 **着手タスク:**
