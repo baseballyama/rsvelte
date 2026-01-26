@@ -1450,15 +1450,32 @@ $.template_effect(() => {
     - Runtime Runes Client 75/724 → 80/724 (+5)
   - **コミット**: `fix(transform): Remove incorrect $.get() wrapping for $.proxy() variables`
 
+- [x] Rune validation メソッド追加
+  - `$props.id`, `$state.eager`, `$state.snapshot`, `$effect.pending`, `$inspect.trace` などをサポート
+  - **コミット**: `feat(analyze): Add support for additional rune methods`
+
+- [x] Parse エラー修正（プロパティアクセスでの状態変数置換）
+  - `foo.count++` が `foo.$.update(count)` に誤変換される問題を修正
+  - **結果**: Runtime Runes Total +1, Client +3
+  - **コミット**: `fix(transform): Prevent incorrect state var replacement in property access`
+
+- [x] インポート後の空行追加
+  - `normalize_js()` でインポート文の後に空行を挿入
+  - **コミット**: `style(codegen): Add blank line after imports in normalize_js`
+
+- [ ] Module script transformation（revert）
+  - 無限ループまたは性能問題が発生したため revert
+  - 将来的に再実装が必要
+
 **テスト状況（セッション2最終）:**
 | メトリック | セッション開始 | 現在 | 差分 |
 |-----------|--------------|------|------|
-| Runtime Runes Total | 33/724 | **44/724** | **+11** |
-| Runtime Runes Client | 61/724 | **80/724** | **+19** |
+| Runtime Runes Total | 33/724 | **45/724** | **+12** |
+| Runtime Runes Client | 61/724 | **82/724** | **+21** |
 | Runtime Runes Server | 127/724 | **131/724** | **+4** |
-| **Compiler Snapshot** | 18/19 | **19/19** | **+1 (100%)** ✅ |
+| **Compiler Snapshot** | 18/19 | **19/19** | **100%** ✅ |
 
 **次のアクション:**
-1. Server コンポーネントラッパー修正
-2. テキストコンテンツ処理の改善
-3. Template whitespace 正規化
+1. Module script transformation の慎重な再実装
+2. Server コンポーネントラッパー修正
+3. Fragment visitor の改善
