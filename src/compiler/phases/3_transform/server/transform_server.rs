@@ -2451,6 +2451,8 @@ fn extract_imports(script: &str) -> (Vec<String>, String) {
 /// Transform script content for server-side rendering.
 fn transform_script_content(script: &str) -> String {
     let script = script.replace("$props()", "$$props");
+    // Note: Order matters - check $state.raw before $state to avoid partial matches
+    let script = transform_rune_call_multiline(&script, "$state.raw(");
     let script = transform_rune_call_multiline(&script, "$state(");
     let script = transform_rune_call_multiline(&script, "$derived.by(");
     let script = transform_rune_call_multiline(&script, "$derived(");
