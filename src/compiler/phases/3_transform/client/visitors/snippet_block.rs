@@ -71,6 +71,10 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 /// 5. Creates either an arrow function or wrapped function (dev mode)
 /// 6. Places the declaration in the appropriate snippet collection
 pub fn snippet_block(node: &SnippetBlock, context: &mut ComponentContext) {
+    // Get the snippet name and register it
+    let snippet_name = get_snippet_name(&node.expression);
+    context.state.snippet_names.insert(snippet_name.clone());
+
     // Build function arguments - $$anchor is always the first argument
     let mut args: Vec<JsPattern> = vec![b::id_pattern("$$anchor")];
 
@@ -414,22 +418,43 @@ fn place_snippet_declaration(
 
 /// Check if a snippet can be hoisted based on its body content.
 ///
-/// A snippet can be hoisted if its body contains only static content
-/// (text nodes, static elements) and no dynamic references to reactive state.
+/// A snippet can be hoisted if it only references its own parameters and
+/// no instance-level state. Since we don't have full scope information
+/// in Phase 3, we use a simplified heuristic:
+///
+/// - Snippets that only contain static content can always be hoisted
+/// - Snippets that reference variables ONLY through expression tags referencing
+///   their own parameters can be hoisted
+/// - Snippets that reference instance state cannot be hoisted
 ///
 /// This is a simplified heuristic. The proper implementation should check
 /// scope references during Phase 2 analysis.
 fn can_hoist_snippet(node: &SnippetBlock) -> bool {
     use crate::ast::template::TemplateNode;
 
-    // Check if the body has any dynamic content
-    fn has_dynamic_content(nodes: &[TemplateNode]) -> bool {
+    // Collect parameter names
+    let param_names: std::collections::HashSet<String> = node
+        .parameters
+        .iter()
+        .filter_map(extract_param_name)
+        .collect();
+
+    // Check if the body only references parameters (not instance state)
+    fn check_hoistable(
+        nodes: &[TemplateNode],
+        param_names: &std::collections::HashSet<String>,
+    ) -> bool {
         for node in nodes {
             match node {
-                // Dynamic content that prevents hoisting
-                TemplateNode::ExpressionTag(_)
-                | TemplateNode::HtmlTag(_)
-                | TemplateNode::RenderTag(_)
+                // Expression tags are OK if they only reference parameters
+                TemplateNode::ExpressionTag(tag) => {
+                    if !expression_only_uses_params(&tag.expression, param_names) {
+                        return false;
+                    }
+                }
+
+                // These prevent hoisting regardless
+                TemplateNode::HtmlTag(_)
                 | TemplateNode::IfBlock(_)
                 | TemplateNode::EachBlock(_)
                 | TemplateNode::AwaitBlock(_)
@@ -437,62 +462,257 @@ fn can_hoist_snippet(node: &SnippetBlock) -> bool {
                 | TemplateNode::Component(_)
                 | TemplateNode::SvelteComponent(_)
                 | TemplateNode::SvelteElement(_)
-                | TemplateNode::SvelteSelf(_) => return true,
+                | TemplateNode::SvelteSelf(_) => return false,
 
-                // Nested snippet - can't hoist if contains dynamic content
-                TemplateNode::SnippetBlock(snippet) => {
-                    if has_dynamic_content(&snippet.body.nodes) {
-                        return true;
+                // RenderTag - check the expression
+                TemplateNode::RenderTag(tag) => {
+                    if !expression_only_uses_params(&tag.expression, param_names) {
+                        return false;
                     }
                 }
 
-                // Regular elements - check their children
+                // Nested snippet - recursively check
+                TemplateNode::SnippetBlock(_snippet) => {
+                    // Nested snippets have their own scope; don't check their internals
+                    // but do ensure the nested snippet itself doesn't reference parent state
+                }
+
+                // Regular elements - check attributes and children
                 TemplateNode::RegularElement(elem) => {
                     // Check for dynamic attributes
                     for attr in &elem.attributes {
                         match attr {
-                            crate::ast::template::Attribute::Attribute(a) => {
-                                // Check if attribute value is dynamic
-                                match &a.value {
-                                    crate::ast::template::AttributeValue::Sequence(parts) => {
-                                        if parts.iter().any(|p| {
-                                            matches!(
-                                                p,
-                                                crate::ast::template::AttributeValuePart::ExpressionTag(
-                                                    _
-                                                )
-                                            )
-                                        }) {
-                                            return true;
-                                        }
+                            crate::ast::template::Attribute::Attribute(a) => match &a.value {
+                                crate::ast::template::AttributeValue::Sequence(parts) => {
+                                    for p in parts {
+                                        if let crate::ast::template::AttributeValuePart::ExpressionTag(tag) = p
+                                                && !expression_only_uses_params(&tag.expression, param_names) {
+                                                    return false;
+                                                }
                                     }
-                                    crate::ast::template::AttributeValue::Expression(_) => {
-                                        return true
+                                }
+                                crate::ast::template::AttributeValue::Expression(tag) => {
+                                    if !expression_only_uses_params(&tag.expression, param_names) {
+                                        return false;
                                     }
-                                    _ => {}
+                                }
+                                _ => {}
+                            },
+                            // Directives might reference state
+                            crate::ast::template::Attribute::BindDirective(bind) => {
+                                if !expression_only_uses_params(&bind.expression, param_names) {
+                                    return false;
                                 }
                             }
-                            // Directives are dynamic
-                            _ => return true,
+                            crate::ast::template::Attribute::OnDirective(on) => {
+                                if let Some(ref expr) = on.expression
+                                    && !expression_only_uses_params(expr, param_names)
+                                {
+                                    return false;
+                                }
+                            }
+                            // Other directives - assume they might reference state
+                            _ => {}
                         }
                     }
                     // Check children
-                    if has_dynamic_content(&elem.fragment.nodes) {
-                        return true;
+                    if !check_hoistable(&elem.fragment.nodes, param_names) {
+                        return false;
                     }
                 }
 
-                // Static content - fine
+                // Static content - always OK
                 TemplateNode::Text(_) | TemplateNode::Comment(_) => {}
 
-                // Other nodes - assume dynamic to be safe
-                _ => return true,
+                // Other nodes - assume safe to hoist
+                _ => {}
             }
         }
-        false
+        true
     }
 
-    !has_dynamic_content(&node.body.nodes)
+    check_hoistable(&node.body.nodes, &param_names)
+}
+
+/// Extract parameter name from a parameter expression.
+fn extract_param_name(param: &crate::ast::js::Expression) -> Option<String> {
+    let Expression::Value(val) = param;
+    if let serde_json::Value::Object(obj) = val
+        && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
+    {
+        return obj
+            .get("name")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+    }
+    // For destructured patterns, we'd need to extract all names recursively
+    // For simplicity, return None for complex patterns
+    None
+}
+
+/// Check if an expression only uses the given parameter names.
+/// Returns true if the expression only references parameters (can be hoisted).
+fn expression_only_uses_params(
+    expr: &crate::ast::js::Expression,
+    param_names: &std::collections::HashSet<String>,
+) -> bool {
+    use crate::ast::js::Expression;
+
+    let Expression::Value(val) = expr;
+
+    if let serde_json::Value::Object(obj) = val {
+        let expr_type = obj.get("type").and_then(|v| v.as_str());
+
+        match expr_type {
+            // Identifier - must be a parameter or a known safe global
+            Some("Identifier") => {
+                if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+                    // Parameters are safe
+                    if param_names.contains(name) {
+                        return true;
+                    }
+                    // Some globals are safe (undefined, null, etc.)
+                    if matches!(
+                        name,
+                        "undefined"
+                            | "null"
+                            | "NaN"
+                            | "Infinity"
+                            | "console"
+                            | "Math"
+                            | "JSON"
+                            | "Object"
+                            | "Array"
+                            | "String"
+                            | "Number"
+                            | "Boolean"
+                    ) {
+                        return true;
+                    }
+                    // Unknown identifiers might be instance state - but for simplicity,
+                    // assume that identifiers not in params are instance state
+                    return false;
+                }
+                true
+            }
+
+            // Literals are always safe
+            Some("Literal")
+            | Some("NumericLiteral")
+            | Some("StringLiteral")
+            | Some("BooleanLiteral")
+            | Some("NullLiteral") => true,
+
+            // Call expressions - check callee and arguments
+            Some("CallExpression") => {
+                // Check callee
+                if let Some(callee) = obj.get("callee") {
+                    let callee_expr = Expression::Value(callee.clone());
+                    if !expression_only_uses_params(&callee_expr, param_names) {
+                        return false;
+                    }
+                }
+                // Check arguments
+                if let Some(args) = obj.get("arguments").and_then(|a| a.as_array()) {
+                    for arg in args {
+                        if !expression_only_uses_params(
+                            &Expression::Value(arg.clone()),
+                            param_names,
+                        ) {
+                            return false;
+                        }
+                    }
+                }
+                true
+            }
+
+            // Member expressions - check object and property
+            Some("MemberExpression") => {
+                if let Some(object) = obj.get("object")
+                    && !expression_only_uses_params(&Expression::Value(object.clone()), param_names)
+                {
+                    return false;
+                }
+                // Computed properties need checking too
+                if obj
+                    .get("computed")
+                    .and_then(|c| c.as_bool())
+                    .unwrap_or(false)
+                    && let Some(prop) = obj.get("property")
+                    && !expression_only_uses_params(&Expression::Value(prop.clone()), param_names)
+                {
+                    return false;
+                }
+                true
+            }
+
+            // Binary/Logical expressions - check both sides
+            Some("BinaryExpression") | Some("LogicalExpression") => {
+                if let Some(left) = obj.get("left")
+                    && !expression_only_uses_params(&Expression::Value(left.clone()), param_names)
+                {
+                    return false;
+                }
+                if let Some(right) = obj.get("right")
+                    && !expression_only_uses_params(&Expression::Value(right.clone()), param_names)
+                {
+                    return false;
+                }
+                true
+            }
+
+            // Conditional expressions
+            Some("ConditionalExpression") => {
+                for key in &["test", "consequent", "alternate"] {
+                    if let Some(e) = obj.get(*key)
+                        && !expression_only_uses_params(&Expression::Value(e.clone()), param_names)
+                    {
+                        return false;
+                    }
+                }
+                true
+            }
+
+            // Template literal - check expressions
+            Some("TemplateLiteral") => {
+                if let Some(exprs) = obj.get("expressions").and_then(|e| e.as_array()) {
+                    for e in exprs {
+                        if !expression_only_uses_params(&Expression::Value(e.clone()), param_names)
+                        {
+                            return false;
+                        }
+                    }
+                }
+                true
+            }
+
+            // Array/Object expressions - check elements/properties
+            Some("ArrayExpression") => {
+                if let Some(elements) = obj.get("elements").and_then(|e| e.as_array()) {
+                    for elem in elements {
+                        if !elem.is_null()
+                            && !expression_only_uses_params(
+                                &Expression::Value(elem.clone()),
+                                param_names,
+                            )
+                        {
+                            return false;
+                        }
+                    }
+                }
+                true
+            }
+
+            // Arrow/function expressions are self-contained - always safe
+            Some("ArrowFunctionExpression") | Some("FunctionExpression") => true,
+
+            // Unknown expression type - be conservative
+            _ => false,
+        }
+    } else {
+        // Not an object - probably a primitive
+        true
+    }
 }
 
 /// Visit a fragment and return its statements.

@@ -138,6 +138,7 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
         preserve_whitespace: context.state.preserve_whitespace,
         instance_level_snippets: Vec::new(),
         module_level_snippets: Vec::new(),
+        snippet_names: context.state.snippet_names.clone(),
         in_direct_assignment_lhs: false,
     };
 

@@ -504,9 +504,15 @@ fn process_regular_attribute(
         build_expression(context, &result.value, &metadata)
     };
 
+    // Check if this is a reference to a snippet
+    // Snippet references should always use getters because snippets are treated as having state
+    // (even though they're hoisted to module level, their binding.is_function() returns false
+    // because their initial type is SnippetBlock, not FunctionExpression)
+    let is_snippet_reference = is_snippet_identifier(&attr.value, context);
+
     // Add to props
-    if result.has_state {
-        // Use getter for reactive values
+    if result.has_state || is_snippet_reference {
+        // Use getter for reactive values and snippet references
         push_prop_immediate(
             props_and_spreads,
             b::getter(attr.name.as_str(), vec![b::return_value(transformed_value)]),
@@ -518,6 +524,22 @@ fn process_regular_attribute(
             b::prop(attr.name.as_str(), transformed_value),
         );
     }
+}
+
+/// Check if an attribute value is a simple identifier that references a snippet.
+fn is_snippet_identifier(value: &AttributeValue, context: &ComponentContext) -> bool {
+    use crate::ast::js::Expression;
+
+    // Only check for Expression type (shorthand like {foo})
+    if let AttributeValue::Expression(expr_tag) = value
+        && let Expression::Value(val) = &expr_tag.expression
+        && let serde_json::Value::Object(obj) = val
+        && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
+        && let Some(name) = obj.get("name").and_then(|v| v.as_str())
+    {
+        return context.state.snippet_names.contains(name);
+    }
+    false
 }
 
 /// Process a bind directive.
