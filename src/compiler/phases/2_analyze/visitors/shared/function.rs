@@ -73,15 +73,21 @@ pub fn is_rune(name: &str) -> bool {
         name,
         "$state"
             | "$state.raw"
+            | "$state.eager"
+            | "$state.snapshot"
             | "$derived"
             | "$derived.by"
+            | "$props"
+            | "$props.id"
+            | "$bindable"
             | "$effect"
             | "$effect.pre"
             | "$effect.tracking"
             | "$effect.root"
-            | "$props"
-            | "$bindable"
+            | "$effect.pending"
             | "$inspect"
+            | "$inspect().with"
+            | "$inspect.trace"
             | "$host"
     )
 }
@@ -91,15 +97,21 @@ pub fn get_rune_type(name: &str) -> Option<RuneType> {
     match name {
         "$state" => Some(RuneType::State),
         "$state.raw" => Some(RuneType::StateRaw),
+        "$state.eager" => Some(RuneType::StateEager),
+        "$state.snapshot" => Some(RuneType::StateSnapshot),
         "$derived" => Some(RuneType::Derived),
         "$derived.by" => Some(RuneType::DerivedBy),
+        "$props" => Some(RuneType::Props),
+        "$props.id" => Some(RuneType::PropsId),
+        "$bindable" => Some(RuneType::Bindable),
         "$effect" => Some(RuneType::Effect),
         "$effect.pre" => Some(RuneType::EffectPre),
         "$effect.tracking" => Some(RuneType::EffectTracking),
         "$effect.root" => Some(RuneType::EffectRoot),
-        "$props" => Some(RuneType::Props),
-        "$bindable" => Some(RuneType::Bindable),
+        "$effect.pending" => Some(RuneType::EffectPending),
         "$inspect" => Some(RuneType::Inspect),
+        "$inspect().with" => Some(RuneType::InspectWith),
+        "$inspect.trace" => Some(RuneType::InspectTrace),
         "$host" => Some(RuneType::Host),
         _ => None,
     }
@@ -110,15 +122,21 @@ pub fn get_rune_type(name: &str) -> Option<RuneType> {
 pub enum RuneType {
     State,
     StateRaw,
+    StateEager,
+    StateSnapshot,
     Derived,
     DerivedBy,
+    Props,
+    PropsId,
+    Bindable,
     Effect,
     EffectPre,
     EffectTracking,
     EffectRoot,
-    Props,
-    Bindable,
+    EffectPending,
     Inspect,
+    InspectWith,
+    InspectTrace,
     Host,
 }
 
@@ -127,7 +145,11 @@ impl RuneType {
     pub fn is_reactive_state(&self) -> bool {
         matches!(
             self,
-            RuneType::State | RuneType::StateRaw | RuneType::Derived | RuneType::DerivedBy
+            RuneType::State
+                | RuneType::StateRaw
+                | RuneType::StateEager
+                | RuneType::Derived
+                | RuneType::DerivedBy
         )
     }
 
