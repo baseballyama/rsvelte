@@ -1006,7 +1006,8 @@ fn transform_state_assignments(
             if let Some(pos) = result.find(&assignment_pattern) {
                 // Check that it's not part of a comparison (==, ===)
                 let before = &result[..pos];
-                if !before.ends_with('=') && !before.ends_with('!') {
+                // Skip if preceded by dot (property access like foo.count = ...)
+                if !before.ends_with('=') && !before.ends_with('!') && !before.ends_with('.') {
                     let after = &result[pos + assignment_pattern.len()..];
                     // Find the expression (until ; or end of line)
                     let expr_end = after.find(';').unwrap_or(after.len());
@@ -1144,6 +1145,9 @@ fn transform_state_in_expr(
 }
 
 /// Replace a pattern with a replacement, respecting word boundaries.
+/// This function handles increment/decrement operators for state variables.
+/// It avoids matching property accesses like `foo.count++` when `count` is a state var,
+/// or `++foo.count` when `foo` is a state var.
 fn replace_with_word_boundary(
     input: &str,
     pattern: &str,
@@ -1159,10 +1163,23 @@ fn replace_with_word_boundary(
         if i + pattern_chars.len() <= chars.len() {
             let potential_match: String = chars[i..i + pattern_chars.len()].iter().collect();
             if potential_match == pattern {
-                let before_ok =
-                    !check_before || i == 0 || !is_identifier_char(chars[i - 1]) || chars[i] == '+';
-                let after_ok = i + pattern_chars.len() >= chars.len()
-                    || !is_identifier_char(chars[i + pattern_chars.len()]);
+                // Always check that we're not preceded by a dot (property access)
+                // e.g., don't match `count++` in `foo.count++` since `count` is a property, not the state variable
+                let preceded_by_dot = i > 0 && chars[i - 1] == '.';
+
+                // Also check that we're not followed by a dot (property access)
+                // e.g., don't match `++foo` in `++foo.count` since we're incrementing foo.count, not foo
+                let followed_by_dot =
+                    i + pattern_chars.len() < chars.len() && chars[i + pattern_chars.len()] == '.';
+
+                let before_ok = !preceded_by_dot
+                    && (!check_before
+                        || i == 0
+                        || !is_identifier_char(chars[i - 1])
+                        || chars[i] == '+');
+                let after_ok = !followed_by_dot
+                    && (i + pattern_chars.len() >= chars.len()
+                        || !is_identifier_char(chars[i + pattern_chars.len()]));
 
                 if before_ok && after_ok {
                     result.push_str(replacement);
