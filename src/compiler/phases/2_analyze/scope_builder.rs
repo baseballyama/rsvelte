@@ -23,6 +23,8 @@ struct Update {
     name: String,
     /// Whether this is a direct assignment (true) or member mutation (false)
     is_direct_assignment: bool,
+    /// The scope index where the update occurred
+    scope_idx: usize,
 }
 
 /// Builds a scope tree from an AST.
@@ -87,12 +89,23 @@ impl<'a> ScopeBuilder<'a> {
         // Process all tracked updates to mark bindings as reassigned/mutated
         // This must happen after all declarations are collected
         for update in &self.updates {
-            // Look up the binding in the root scope
-            if let Some(&binding_idx) = self.scopes[0].declarations.get(&update.name) {
-                if update.is_direct_assignment {
-                    self.bindings[binding_idx].reassigned = true;
+            // Look up the binding starting from the scope where the update occurred
+            // and traverse up the parent chain (closure semantics)
+            let mut scope_idx = update.scope_idx;
+            loop {
+                let scope = &self.scopes[scope_idx];
+                if let Some(&binding_idx) = scope.declarations.get(&update.name) {
+                    if update.is_direct_assignment {
+                        self.bindings[binding_idx].reassigned = true;
+                    } else {
+                        self.bindings[binding_idx].mutated = true;
+                    }
+                    break;
+                }
+                if let Some(parent) = scope.parent {
+                    scope_idx = parent;
                 } else {
-                    self.bindings[binding_idx].mutated = true;
+                    break;
                 }
             }
         }
@@ -198,8 +211,18 @@ impl<'a> ScopeBuilder<'a> {
                     let name = id.name.to_string();
                     self.declare_binding(name, BindingKind::Normal, DeclarationKind::Const);
                 }
+                // Create a new scope for the function body
+                let old_scope = self.push_scope();
+
+                // Declare function parameters in the new scope
+                for param in &func_decl.params.items {
+                    self.process_binding_pattern(&param.pattern, &None, DeclarationKind::Param);
+                }
+
                 // Process function body for assignments
                 self.process_function_body(&func_decl.body);
+
+                self.pop_scope(old_scope);
             }
             Statement::ClassDeclaration(class_decl) => {
                 if let Some(id) = &class_decl.id {
@@ -312,14 +335,34 @@ impl<'a> ScopeBuilder<'a> {
                 }
             }
             Expression::ArrowFunctionExpression(arrow_func) => {
+                // Create a new scope for the arrow function body
+                let old_scope = self.push_scope();
+
+                // Declare function parameters in the new scope
+                for param in &arrow_func.params.items {
+                    self.process_binding_pattern(&param.pattern, &None, DeclarationKind::Param);
+                }
+
                 // Track updates in arrow function body
                 for stmt in &arrow_func.body.statements {
                     self.process_statement(stmt);
                 }
+
+                self.pop_scope(old_scope);
             }
             Expression::FunctionExpression(func_expr) => {
+                // Create a new scope for the function body
+                let old_scope = self.push_scope();
+
+                // Declare function parameters in the new scope
+                for param in &func_expr.params.items {
+                    self.process_binding_pattern(&param.pattern, &None, DeclarationKind::Param);
+                }
+
                 // Track updates in function body
                 self.process_function_body(&func_expr.body);
+
+                self.pop_scope(old_scope);
             }
             Expression::ConditionalExpression(cond_expr) => {
                 self.track_expression_updates(&cond_expr.test);
@@ -437,6 +480,7 @@ impl<'a> ScopeBuilder<'a> {
                 self.updates.push(Update {
                     name: ident.name.to_string(),
                     is_direct_assignment: true,
+                    scope_idx: self.current_scope,
                 });
             }
             oxc_ast::ast::AssignmentTarget::StaticMemberExpression(member) => {
@@ -445,6 +489,7 @@ impl<'a> ScopeBuilder<'a> {
                     self.updates.push(Update {
                         name,
                         is_direct_assignment: false,
+                        scope_idx: self.current_scope,
                     });
                 }
             }
@@ -454,6 +499,7 @@ impl<'a> ScopeBuilder<'a> {
                     self.updates.push(Update {
                         name,
                         is_direct_assignment: false,
+                        scope_idx: self.current_scope,
                     });
                 }
             }
@@ -482,6 +528,7 @@ impl<'a> ScopeBuilder<'a> {
                             self.updates.push(Update {
                                 name: ident_prop.binding.name.to_string(),
                                 is_direct_assignment: true,
+                                scope_idx: self.current_scope,
                             });
                         }
                         oxc_ast::ast::AssignmentTargetProperty::AssignmentTargetPropertyProperty(prop_prop) => {
@@ -510,6 +557,7 @@ impl<'a> ScopeBuilder<'a> {
                 self.updates.push(Update {
                     name: ident.name.to_string(),
                     is_direct_assignment: true,
+                    scope_idx: self.current_scope,
                 });
             }
             oxc_ast::ast::SimpleAssignmentTarget::StaticMemberExpression(member) => {
@@ -517,6 +565,7 @@ impl<'a> ScopeBuilder<'a> {
                     self.updates.push(Update {
                         name,
                         is_direct_assignment: false,
+                        scope_idx: self.current_scope,
                     });
                 }
             }
@@ -525,6 +574,7 @@ impl<'a> ScopeBuilder<'a> {
                     self.updates.push(Update {
                         name,
                         is_direct_assignment: false,
+                        scope_idx: self.current_scope,
                     });
                 }
             }
@@ -767,6 +817,7 @@ impl<'a> ScopeBuilder<'a> {
             self.updates.push(Update {
                 name: name.clone(),
                 is_direct_assignment: true,
+                scope_idx: self.current_scope,
             });
         }
     }
