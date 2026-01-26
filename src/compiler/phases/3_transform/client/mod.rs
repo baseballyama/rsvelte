@@ -624,8 +624,30 @@ fn transform_client_runes_with_skip_and_state(
         }
     }
 
+    // Transform $derived.by() to $.derived() - must be processed BEFORE $derived()
+    // $derived.by() already has a callback, so pass it directly
+    // But we need to wrap state variable references inside the callback with $.get()
+    if let Some(pos) = result.find("$derived.by(") {
+        let derived_start = pos + 12; // after "$derived.by("
+        if let Some(content_end) = find_matching_paren(&result[derived_start..]) {
+            let content = &result[derived_start..derived_start + content_end];
+            // Wrap state variables inside the callback with $.get()
+            let wrapped_content = wrap_state_vars_in_expr(content, state_vars, non_reactive_vars);
+            let new_derived = format!("$.derived({})", wrapped_content);
+            result = format!(
+                "{}{}{}",
+                &result[..pos],
+                new_derived,
+                &result[derived_start + content_end + 1..]
+            );
+        } else {
+            result = result.replace("$derived.by(", "$.derived(");
+        }
+    }
+
     // Transform $derived(x) to $.derived(() => x)
     if let Some(pos) = result.find("$derived(")
+        && !result[..pos].ends_with("$") // Skip if already transformed to $.derived()
         && (result[..pos].contains("let ") || result[..pos].contains("const "))
     {
         // Find the content inside $derived(...)
