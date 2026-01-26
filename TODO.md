@@ -1519,11 +1519,19 @@ $.template_effect(() => {
 | メトリック | セッション開始 | 現在 | 差分 |
 |-----------|--------------|------|------|
 | Runtime Runes Total | 45/724 | **48/724** | **+3** |
-| Runtime Runes Client | 82/724 | **84/724** | **+2** |
+| Runtime Runes Client | 82/724 | **85/724** | **+3** |
 | Runtime Runes Server | 131/724 | **135/724** | **+4** |
 | Compiler Snapshot | 19/19 | 19/19 | 100% ✅ |
 
+**完了タスク（続き）:**
+
+- [x] `$.init()` 呼び出し実装
+  - Legacy (非 runes) コンポーネントで `needs_context` の場合に追加
+  - **結果**: Runtime Runes Client +1 (84 → 85)
+  - **コミット**: `feat(transform): Add $.init() call for legacy components needing context`
+
 **次のアクション:**
-1. `$.init()` 呼び出しの実装
-2. `is` 属性のテンプレート内処理
-3. `$.bind_props()` の実装（export 文の代替）
+1. `is` 属性のテンプレート内処理
+2. `$.bind_props()` の実装（export 文の代替）
+3. Store handling 実装（`$.store_get`, `$.setup_stores`, etc.）
+4. Class state transformation 改善
