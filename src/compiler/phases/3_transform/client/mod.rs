@@ -381,6 +381,40 @@ fn extract_local_reactive_vars(script: &str) -> Vec<String> {
     vars
 }
 
+/// Extract variable names that are initialized with $state() containing an object or array.
+/// These variables will be transformed to $.proxy() and should NOT have $.get() wrapping
+/// when accessing their properties.
+fn extract_proxy_vars(script: &str) -> Vec<String> {
+    let mut proxy_vars = Vec::new();
+
+    for line in script.lines() {
+        let trimmed = line.trim();
+
+        // Look for patterns like: let/const varname = $state({ ... }) or $state([ ... ])
+        if let Some(state_pos) = trimmed.find("$state(") {
+            // Check if this is a declaration
+            if trimmed.starts_with("let ") || trimmed.starts_with("const ") {
+                // Extract variable name (before the = sign)
+                if let Some(eq_pos) = trimmed.find('=') {
+                    let decl_part = trimmed[..eq_pos].trim();
+                    let var_name = decl_part.split_whitespace().last().unwrap_or("").trim();
+
+                    // Check if the $state() argument starts with { or [
+                    let state_start = state_pos + 7; // after "$state("
+                    if state_start < trimmed.len() {
+                        let after_state = trimmed[state_start..].trim();
+                        if after_state.starts_with('{') || after_state.starts_with('[') {
+                            proxy_vars.push(var_name.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    proxy_vars
+}
+
 /// Transform instance script content for the visitor-based code generation.
 /// Handles $state, $derived, $effect, $props transformations.
 fn transform_instance_script_for_visitors(script: &str, analysis: &ComponentAnalysis) -> String {
@@ -414,6 +448,10 @@ fn transform_instance_script_for_visitors(script: &str, analysis: &ComponentAnal
     let local_reactive_vars = extract_local_reactive_vars(&script_rest);
     state_vars.extend(local_reactive_vars);
 
+    // Collect proxy vars - variables initialized with $state({ ... }) or $state([ ... ])
+    // These are converted to $.proxy() and don't need $.get() wrapping for property access
+    let proxy_vars = extract_proxy_vars(&script_rest);
+
     // Collect rest_prop variable names (from `let props = $props()`)
     let rest_prop_vars: Vec<String> = analysis
         .root
@@ -427,18 +465,17 @@ fn transform_instance_script_for_visitors(script: &str, analysis: &ComponentAnal
     // Note: We only consider BindingKind::State here, NOT RawState.
     // RawState ($state.raw) always needs $.get() because its purpose is to track
     // value changes without deep reactivity - it still needs reactivity at the top level.
-    // TODO: Fix Phase 2 to properly track assignments inside arrow functions
-    // so that b.reassigned is correctly set for all cases.
+    //
+    // This matches the official Svelte compiler's is_state_source logic:
+    // (!analysis.immutable || binding.reassigned || analysis.accessors)
+    // We do NOT check b.mutated here - mutation doesn't require $.get() wrapping.
     let non_reactive_state_vars: Vec<String> = if analysis.immutable {
         analysis
             .root
             .bindings
             .iter()
             .filter(|b| {
-                matches!(b.kind, BindingKind::State)
-                    && !b.reassigned
-                    && !b.mutated
-                    && !analysis.accessors
+                matches!(b.kind, BindingKind::State) && !b.reassigned && !analysis.accessors
             })
             .map(|b| b.name.clone())
             .collect()
@@ -517,6 +554,7 @@ fn transform_instance_script_for_visitors(script: &str, analysis: &ComponentAnal
             &non_reactive_state_vars,
             &prop_source_vars,
             &exported_names,
+            &proxy_vars,
         );
 
         // Skip empty transformations (e.g., read-only $props() with no defaults)
@@ -525,8 +563,12 @@ fn transform_instance_script_for_visitors(script: &str, analysis: &ComponentAnal
         }
 
         // Transform state variable assignments to $.set()
-        let transformed =
-            transform_state_assignments(&transformed, &state_vars, &non_reactive_state_vars);
+        let transformed = transform_state_assignments(
+            &transformed,
+            &state_vars,
+            &non_reactive_state_vars,
+            &proxy_vars,
+        );
 
         // Wrap state variable reads in $.get() for general expressions
         // This handles cases like: console.log('init ' + double)
@@ -537,7 +579,12 @@ fn transform_instance_script_for_visitors(script: &str, analysis: &ComponentAnal
             && !transformed.trim_start().starts_with("const ")
             && !transformed.trim_start().starts_with("var ")
         {
-            wrap_state_vars_in_expr(&transformed, &state_vars, &non_reactive_state_vars)
+            wrap_state_vars_in_expr(
+                &transformed,
+                &state_vars,
+                &non_reactive_state_vars,
+                &proxy_vars,
+            )
         } else {
             transformed
         };
@@ -568,6 +615,7 @@ fn transform_client_runes_with_skip_and_state(
     non_reactive_vars: &[String],
     prop_source_vars: &[String],
     exported_names: &[String],
+    proxy_vars: &[String],
 ) -> String {
     let mut result = line.to_string();
 
@@ -632,7 +680,8 @@ fn transform_client_runes_with_skip_and_state(
         if let Some(content_end) = find_matching_paren(&result[derived_start..]) {
             let content = &result[derived_start..derived_start + content_end];
             // Wrap state variables inside the callback with $.get()
-            let wrapped_content = wrap_state_vars_in_expr(content, state_vars, non_reactive_vars);
+            let wrapped_content =
+                wrap_state_vars_in_expr(content, state_vars, non_reactive_vars, proxy_vars);
             let new_derived = format!("$.derived({})", wrapped_content);
             result = format!(
                 "{}{}{}",
@@ -659,7 +708,7 @@ fn transform_client_runes_with_skip_and_state(
             if !trimmed.starts_with("()") && !trimmed.starts_with("function") {
                 // Wrap state variables inside the derived expression with $.get()
                 let wrapped_content =
-                    wrap_state_vars_in_expr(content, state_vars, non_reactive_vars);
+                    wrap_state_vars_in_expr(content, state_vars, non_reactive_vars, proxy_vars);
                 let new_derived = format!("$.derived(() => {})", wrapped_content);
                 result = format!(
                     "{}{}{}",
@@ -870,6 +919,7 @@ fn transform_state_assignments(
     line: &str,
     state_vars: &[String],
     non_reactive_vars: &[String],
+    proxy_vars: &[String],
 ) -> String {
     let mut result = line.to_string();
 
@@ -927,7 +977,8 @@ fn transform_state_assignments(
                     let expr_end = after.find(';').unwrap_or(after.len());
                     let expr = after[..expr_end].trim();
                     // Wrap state variables in the expression with $.get()
-                    let wrapped_expr = wrap_state_vars_in_expr(expr, state_vars, non_reactive_vars);
+                    let wrapped_expr =
+                        wrap_state_vars_in_expr(expr, state_vars, non_reactive_vars, proxy_vars);
                     let replacement = format!(
                         "$.set({}, $.get({}) {} ({}))",
                         var, var, op_char, wrapped_expr
@@ -964,8 +1015,12 @@ fn transform_state_assignments(
                     // Check it's not already wrapped
                     if !expr.starts_with("$.") {
                         // Wrap state variables in the expression with $.get()
-                        let wrapped_expr =
-                            wrap_state_vars_in_expr(expr, state_vars, non_reactive_vars);
+                        let wrapped_expr = wrap_state_vars_in_expr(
+                            expr,
+                            state_vars,
+                            non_reactive_vars,
+                            proxy_vars,
+                        );
                         let replacement = format!("$.set({}, {})", var, wrapped_expr);
                         result = format!(
                             "{}{}{}",
@@ -987,15 +1042,20 @@ fn wrap_state_vars_in_expr(
     expr: &str,
     state_vars: &[String],
     non_reactive_vars: &[String],
+    proxy_vars: &[String],
 ) -> String {
-    transform_state_in_expr(expr, state_vars, non_reactive_vars)
+    transform_state_in_expr(expr, state_vars, non_reactive_vars, proxy_vars)
 }
 
 /// Transform state variable references to $.get() calls.
+/// Proxy variables (initialized with $state({ ... }) or $state([ ... ])) are NOT wrapped
+/// with $.get() when they have property access (e.g., counter.count stays as counter.count,
+/// NOT $.get(counter).count).
 fn transform_state_in_expr(
     expr: &str,
     state_vars: &[String],
     non_reactive_vars: &[String],
+    proxy_vars: &[String],
 ) -> String {
     // Filter out non-reactive state vars - they don't need $.get() wrapping
     let effective_state_vars: Vec<&String> = state_vars
@@ -1011,6 +1071,9 @@ fn transform_state_in_expr(
         let var_chars: Vec<char> = var.chars().collect();
         let mut i = 0;
 
+        // Check if this var is a proxy var (initialized with object/array)
+        let is_proxy_var = proxy_vars.contains(var);
+
         while i < chars.len() {
             if i + var_chars.len() <= chars.len() {
                 let potential_match: String = chars[i..i + var_chars.len()].iter().collect();
@@ -1020,9 +1083,8 @@ fn transform_state_in_expr(
                         || !is_identifier_char(chars[i + var_chars.len()]);
 
                     if before_ok && after_ok {
-                        // Note: followed_by_dot is intentionally not used now.
-                        // We DO wrap member access (e.g., items.length -> $.get(items).length)
-                        let _followed_by_dot =
+                        // Check if followed by dot (property access)
+                        let followed_by_dot =
                             i + var_chars.len() < chars.len() && chars[i + var_chars.len()] == '.';
                         // Check if preceded by dot, but NOT if it's a spread operator (...)
                         let preceded_by_dot = i > 0
@@ -1053,13 +1115,16 @@ fn transform_state_in_expr(
                             false
                         };
 
-                        // Note: We wrap member access (followed_by_dot) because
-                        // $.get(items).length is correct, not items.length
+                        // For proxy vars, skip $.get() wrapping when followed by property access
+                        // e.g., counter.count stays as counter.count, not $.get(counter).count
+                        let skip_for_proxy_property = is_proxy_var && followed_by_dot;
+
                         if !already_wrapped
                             && !preceded_by_dot
                             && !in_set_first_arg
                             && !in_update_arg
                             && !in_update_pre_arg
+                            && !skip_for_proxy_property
                         {
                             new_result.push_str(&format!("$.get({})", var));
                             i += var_chars.len();

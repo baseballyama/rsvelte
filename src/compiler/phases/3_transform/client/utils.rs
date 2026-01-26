@@ -95,13 +95,18 @@ pub fn transform_state_write(var_name: &str, value: &str) -> String {
 pub fn is_state_source(binding: &Binding, analysis: &ComponentAnalysis) -> bool {
     // RawState ($state.raw) always needs $.get() because its purpose is to track
     // value changes at the top level (without deep reactivity).
-    // TODO: Fix Phase 2 to properly track assignments inside arrow functions
-    // so that binding.reassigned is correctly set for all cases.
     if matches!(binding.kind, BindingKind::RawState) {
         return true;
     }
+    // Match the official Svelte compiler's is_state_source implementation:
+    // (binding.kind === 'state' || binding.kind === 'raw_state') &&
+    // (!analysis.immutable || binding.reassigned || analysis.accessors)
+    //
+    // Note: We do NOT check binding.mutated here. Mutation (like counter.count += 1)
+    // doesn't require $.get() wrapping - only reassignment (counter = newValue) does.
+    // Proxy objects handle deep reactivity internally.
     matches!(binding.kind, BindingKind::State)
-        && (!analysis.immutable || binding.reassigned || binding.mutated || analysis.accessors)
+        && (!analysis.immutable || binding.reassigned || analysis.accessors)
 }
 
 /// Check if a prop binding is a "prop source" that needs to be tracked via `$.prop()`.
