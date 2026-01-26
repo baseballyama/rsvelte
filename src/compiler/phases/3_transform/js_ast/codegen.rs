@@ -116,7 +116,7 @@ fn add_blank_line_after_imports(code: String) -> String {
 /// Collapse short arrays from multi-line to single-line format.
 ///
 /// oxc's codegen always formats arrays with multiple elements on separate lines.
-/// This function collapses arrays that contain only simple literals (strings, numbers, etc.)
+/// This function collapses arrays that contain only simple literals (strings, numbers, BigInts)
 /// to a single line format to match Svelte's esrap output.
 ///
 /// Example:
@@ -128,13 +128,30 @@ fn add_blank_line_after_imports(code: String) -> String {
 /// ]
 /// // Output:
 /// ['foo', 'bar', 'baz']
+///
+/// // Input:
+/// [0,
+///     1,
+///     2
+/// ]
+/// // Output:
+/// [0, 1, 2]
 /// ```
 fn collapse_short_arrays(code: String) -> String {
     use regex::Regex;
 
     // Match arrays that span multiple lines with only simple literals
     // Pattern: [ followed by newline+indent+items, ending with newline+indent+]
-    let re = Regex::new(r"(?s)\[(\s*\n\t*'[^']*'(?:,\s*\n\t*'[^']*')*)\s*\n\t*\]").unwrap();
+    // Supports:
+    // - Single-quoted strings: 'foo'
+    // - Numeric literals: 123, -45.67, .5, 1e10
+    // - BigInt literals: 123n
+    let literal_pattern = r"(?:'[^']*'|-?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?n?)";
+    let pattern = format!(
+        r"(?s)\[(\s*\n\t*{literal}(?:,\s*\n\t*{literal})*)\s*\n\t*\]",
+        literal = literal_pattern
+    );
+    let re = Regex::new(&pattern).unwrap();
 
     let result = re.replace_all(&code, |caps: &regex::Captures| {
         // Extract the content between [ and ]
@@ -1094,5 +1111,45 @@ mod tests {
             "Apostrophe should be escaped or double quotes should be used: {}",
             code
         );
+    }
+
+    #[test]
+    fn test_collapse_short_arrays_strings() {
+        // Test that string arrays are collapsed
+        let input = "const arr = [\n\t'a',\n\t'b',\n\t'c'\n];".to_string();
+        let result = collapse_short_arrays(input);
+        assert_eq!(result, "const arr = ['a', 'b', 'c'];");
+    }
+
+    #[test]
+    fn test_collapse_short_arrays_numbers() {
+        // Test that numeric arrays are collapsed
+        let input = "const arr = [\n\t0,\n\t1,\n\t2\n];".to_string();
+        let result = collapse_short_arrays(input);
+        assert_eq!(result, "const arr = [0, 1, 2];");
+    }
+
+    #[test]
+    fn test_collapse_short_arrays_decimals() {
+        // Test that decimal arrays are collapsed
+        let input = "const arr = [\n\t1.5,\n\t2.7,\n\t3.14\n];".to_string();
+        let result = collapse_short_arrays(input);
+        assert_eq!(result, "const arr = [1.5, 2.7, 3.14];");
+    }
+
+    #[test]
+    fn test_collapse_short_arrays_bigint() {
+        // Test that BigInt arrays are collapsed
+        let input = "const arr = [\n\t0n,\n\t1n,\n\t2n\n];".to_string();
+        let result = collapse_short_arrays(input);
+        assert_eq!(result, "const arr = [0n, 1n, 2n];");
+    }
+
+    #[test]
+    fn test_collapse_short_arrays_negative_numbers() {
+        // Test that negative number arrays are collapsed
+        let input = "const arr = [\n\t-1,\n\t-2,\n\t-3\n];".to_string();
+        let result = collapse_short_arrays(input);
+        assert_eq!(result, "const arr = [-1, -2, -3];");
     }
 }
