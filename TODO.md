@@ -1442,15 +1442,23 @@ $.template_effect(() => {
   - **結果**: Runtime Runes Server 128/724 → 131/724 (+3)
   - **コミット**: `feat(transform): Add spread attribute compilation for server-side rendering`
 
+- [x] `$.proxy()` オブジェクトへの `$.get()` 不正ラップ修正
+  - **問題**: `$state({ count: 0 })` で初期化された変数へのプロパティアクセスで不要な `$.get()` ラップ
+  - **結果**:
+    - **Compiler Snapshot: 18/19 → 19/19 (100%)** ✅
+    - Runtime Runes Total 42/724 → 44/724 (+2)
+    - Runtime Runes Client 75/724 → 80/724 (+5)
+  - **コミット**: `fix(transform): Remove incorrect $.get() wrapping for $.proxy() variables`
+
 **テスト状況（セッション2最終）:**
 | メトリック | セッション開始 | 現在 | 差分 |
 |-----------|--------------|------|------|
-| Runtime Runes Total | 33/724 | 42/724 | **+9** |
-| Runtime Runes Client | 61/724 | 75/724 | **+14** |
-| Runtime Runes Server | 127/724 | 131/724 | **+4** |
-| Compiler Snapshot | 18/19 | 18/19 | 維持 |
+| Runtime Runes Total | 33/724 | **44/724** | **+11** |
+| Runtime Runes Client | 61/724 | **80/724** | **+19** |
+| Runtime Runes Server | 127/724 | **131/724** | **+4** |
+| **Compiler Snapshot** | 18/19 | **19/19** | **+1 (100%)** ✅ |
 
 **次のアクション:**
-1. Total 改善のため Client と Server の両方が通過するテストを増やす
-2. Server コンポーネントラッパー修正
-3. テキストコンテンツ処理の改善
+1. Server コンポーネントラッパー修正
+2. テキストコンテンツ処理の改善
+3. Template whitespace 正規化
