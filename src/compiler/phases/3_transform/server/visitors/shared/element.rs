@@ -5,8 +5,8 @@
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/server/visitors/shared/element.js`.
 
 use crate::ast::template::{
-    Attribute, AttributeNode, AttributeValue, ClassDirective, RegularElement, StyleDirective,
-    SvelteDynamicElement,
+    Attribute, AttributeNode, AttributeValue, ClassDirective, RegularElement, SpreadAttribute,
+    StyleDirective, SvelteDynamicElement,
 };
 use crate::compiler::constants::{
     ELEMENT_IS_INPUT, ELEMENT_IS_NAMESPACED, ELEMENT_PRESERVE_ATTRIBUTE_CASE,
@@ -19,7 +19,14 @@ use crate::compiler::phases::phase3_transform::shared::{
     escape_attr, is_boolean_attribute, is_custom_element_node,
 };
 
-use super::utils::build_attribute_value;
+use super::utils::{build_attribute_value, convert_expression_simple};
+
+/// Represents either a regular attribute or a spread attribute.
+/// Used when processing attributes that may contain spreads.
+enum AttributeOrSpread<'a> {
+    Attribute(&'a AttributeNode),
+    Spread(&'a SpreadAttribute),
+}
 
 /// Whitespace-insensitive attributes (can be normalized).
 const WHITESPACE_INSENSITIVE_ATTRIBUTES: &[&str] = &["class", "style"];
@@ -56,7 +63,7 @@ pub fn build_element_attributes<F>(
 where
     F: Fn(JsExpr) -> JsExpr + Clone,
 {
-    let mut attributes: Vec<&AttributeNode> = Vec::new();
+    let mut attributes: Vec<AttributeOrSpread> = Vec::new();
     let mut class_directives: Vec<&ClassDirective> = Vec::new();
     let mut style_directives: Vec<&StyleDirective> = Vec::new();
     let mut content: Option<JsExpr> = None;
@@ -85,7 +92,7 @@ where
                         }));
                     } else if node.get_name() != "select" {
                         // For select, value attribute is omitted
-                        attributes.push(attr);
+                        attributes.push(AttributeOrSpread::Attribute(attr));
                     }
                 } else if is_event_attribute(&attr.name) {
                     // Event handlers are generally omitted in SSR
@@ -97,7 +104,7 @@ where
                     }
                 } else if attr.name != "defaultValue" && attr.name != "defaultChecked" {
                     // Regular attributes
-                    attributes.push(attr);
+                    attributes.push(AttributeOrSpread::Attribute(attr));
                 }
             }
             Attribute::BindDirective(bind) => {
@@ -118,8 +125,9 @@ where
                 // TODO: Handle bind directives properly
                 // For now, just extract the expression
             }
-            Attribute::SpreadAttribute(_) => {
+            Attribute::SpreadAttribute(spread) => {
                 has_spread = true;
+                attributes.push(AttributeOrSpread::Spread(spread));
                 if is_load_error_element(node.get_name()) {
                     events_to_capture.insert("onload".to_string());
                     events_to_capture.insert("onerror".to_string());
@@ -159,7 +167,12 @@ where
             None
         };
 
-        for attr in attributes {
+        for attr_or_spread in attributes {
+            // In non-spread path, we should only have regular attributes
+            let attr = match attr_or_spread {
+                AttributeOrSpread::Attribute(a) => a,
+                AttributeOrSpread::Spread(_) => continue, // Should not happen in this path
+            };
             let name = get_attribute_name(node, &attr.name);
             let can_use_literal = (name != "class" || class_directives.is_empty())
                 && (name != "style" || style_directives.is_empty());
@@ -301,7 +314,7 @@ where
 /// runtime merging of attributes.
 fn build_element_spread_attributes<F>(
     element: &dyn ElementNode,
-    attributes: &[&AttributeNode],
+    attributes: &[AttributeOrSpread],
     style_directives: &[&StyleDirective],
     class_directives: &[&ClassDirective],
     state: &mut ComponentServerTransformState,
@@ -337,7 +350,7 @@ fn build_element_spread_attributes<F>(
 /// Returns: [object, css_hash, classes, styles, flags]
 fn prepare_element_spread<F>(
     element: &dyn ElementNode,
-    attributes: &[&AttributeNode],
+    attributes: &[AttributeOrSpread],
     style_directives: &[&StyleDirective],
     class_directives: &[&ClassDirective],
     state: &ComponentServerTransformState,
@@ -357,24 +370,34 @@ where
         flags |= ELEMENT_IS_INPUT;
     }
 
-    // Build attribute object
+    // Build attribute object with spread support
     let mut properties: Vec<JsObjectMember> = Vec::new();
-    for attr in attributes {
-        let name = get_attribute_name(element, &attr.name);
-        let value = build_attribute_value(
-            &attr.value,
-            transform.clone(),
-            WHITESPACE_INSENSITIVE_ATTRIBUTES.contains(&name.as_str()),
-            false,
-        );
+    for attr_or_spread in attributes {
+        match attr_or_spread {
+            AttributeOrSpread::Attribute(attr) => {
+                let name = get_attribute_name(element, &attr.name);
+                let value = build_attribute_value(
+                    &attr.value,
+                    transform.clone(),
+                    WHITESPACE_INSENSITIVE_ATTRIBUTES.contains(&name.as_str()),
+                    false,
+                );
 
-        properties.push(JsObjectMember::Property(JsProperty {
-            key: JsPropertyKey::Identifier(name.clone()),
-            value: Box::new(value),
-            kind: JsPropertyKind::Init,
-            computed: false,
-            shorthand: false,
-        }));
+                properties.push(JsObjectMember::Property(JsProperty {
+                    key: make_property_key(name),
+                    value: Box::new(value),
+                    kind: JsPropertyKind::Init,
+                    computed: false,
+                    shorthand: false,
+                }));
+            }
+            AttributeOrSpread::Spread(spread) => {
+                // Convert the spread expression to JsExpr and add as spread element
+                let spread_expr = convert_expression_simple(&spread.expression);
+                let transformed_expr = transform(spread_expr);
+                properties.push(JsObjectMember::SpreadElement(Box::new(transformed_expr)));
+            }
+        }
     }
 
     let object = JsExpr::Object(JsObjectExpression { properties });

@@ -77,6 +77,8 @@ struct ServerCodeGenerator<'a> {
 enum OutputPart {
     Html(String),
     Expression(String),
+    /// Raw expression that doesn't need escaping (e.g., $.attributes())
+    RawExpression(String),
     /// Raw HTML expression - {@html expr}
     HtmlExpression(String),
     Component {
@@ -233,6 +235,17 @@ impl<'a> ServerCodeGenerator<'a> {
             return self.generate_option_element(element);
         }
 
+        // Check if we have spread attributes
+        let has_spread = element
+            .attributes
+            .iter()
+            .any(|attr| matches!(attr, Attribute::SpreadAttribute(_)));
+
+        // If we have spread attributes, use $.attributes() for the whole thing
+        if has_spread {
+            return self.generate_element_with_spread(element);
+        }
+
         // Collect directives and base attributes
         let mut class_directives: Vec<&ClassDirective> = Vec::new();
         let mut style_directives: Vec<&StyleDirective> = Vec::new();
@@ -368,6 +381,130 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         Ok(())
+    }
+
+    /// Generate an element with spread attributes using $.attributes().
+    fn generate_element_with_spread(
+        &mut self,
+        element: &RegularElement,
+    ) -> Result<(), TransformError> {
+        let name = element.name.as_str();
+
+        // Build the object literal for $.attributes()
+        let mut object_parts: Vec<String> = Vec::new();
+
+        for attr in &element.attributes {
+            match attr {
+                Attribute::SpreadAttribute(spread) => {
+                    // Get the spread expression from source
+                    let expr_start = spread.expression.start().unwrap_or(0) as usize;
+                    let expr_end = spread.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let expr = self.source[expr_start..expr_end].trim().to_string();
+                        object_parts.push(format!("...{}", expr));
+                    }
+                }
+                Attribute::Attribute(node) => {
+                    // Skip event handlers
+                    if node.name.starts_with("on") {
+                        continue;
+                    }
+                    let attr_name = node.name.as_str();
+                    let value = self.extract_attribute_value_as_string(node)?;
+                    object_parts.push(format!("{}: {}", attr_name, value));
+                }
+                Attribute::BindDirective(bind) => {
+                    let bind_name = bind.name.as_str();
+                    let expr_start = bind.expression.start().unwrap_or(0) as usize;
+                    let expr_end = bind.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let expr = self.source[expr_start..expr_end].trim().to_string();
+                        object_parts.push(format!("{}: {}", bind_name, expr));
+                    }
+                }
+                // Skip class/style directives and event handlers for now
+                Attribute::ClassDirective(_) | Attribute::StyleDirective(_) => {}
+                Attribute::OnDirective(_) => {}
+                _ => {}
+            }
+        }
+
+        let object_literal = format!("{{ {} }}", object_parts.join(", "));
+
+        // Start tag with $.attributes() call
+        let tag = format!("<{}", name);
+        self.output_parts.push(OutputPart::Html(tag));
+
+        // Add $.attributes() expression (raw, no escaping needed)
+        self.output_parts.push(OutputPart::RawExpression(format!(
+            "$.attributes({})",
+            object_literal
+        )));
+
+        if is_void_element(name) {
+            self.output_parts.push(OutputPart::Html("/>".to_string()));
+        } else {
+            self.output_parts.push(OutputPart::Html(">".to_string()));
+
+            // Generate children
+            for child in &element.fragment.nodes {
+                if matches!(child, TemplateNode::Comment(_)) {
+                    continue;
+                }
+                self.generate_node(child, false)?;
+            }
+
+            // End tag
+            self.output_parts
+                .push(OutputPart::Html(format!("</{}>", name)));
+        }
+
+        Ok(())
+    }
+
+    /// Extract attribute value as a string representation for code generation.
+    fn extract_attribute_value_as_string(
+        &self,
+        node: &AttributeNode,
+    ) -> Result<String, TransformError> {
+        match &node.value {
+            AttributeValue::True(_) => Ok("true".to_string()),
+            AttributeValue::Sequence(parts) => {
+                let mut value = String::new();
+                for part in parts {
+                    match part {
+                        AttributeValuePart::Text(text) => {
+                            value.push_str(&text.data);
+                        }
+                        AttributeValuePart::ExpressionTag(expr_tag) => {
+                            // Extract expression from source
+                            let start = expr_tag.expression.start().unwrap_or(0) as usize;
+                            let end = expr_tag.expression.end().unwrap_or(0) as usize;
+                            if end > start && end <= self.source.len() {
+                                let expr = self.source[start..end].trim();
+                                // If mixed with text, we need template literal, but for simple case just return
+                                value.push_str(&format!("${{{}}}", expr));
+                            }
+                        }
+                    }
+                }
+                // If it looks like it needs to be a template literal (has ${...})
+                if value.contains("${") {
+                    Ok(format!("`{}`", value))
+                } else {
+                    Ok(format!("'{}'", value))
+                }
+            }
+            AttributeValue::Expression(expr_tag) => {
+                let start = expr_tag.expression.start().unwrap_or(0) as usize;
+                let end = expr_tag.expression.end().unwrap_or(0) as usize;
+                if end > start && end <= self.source.len() {
+                    Ok(self.source[start..end].trim().to_string())
+                } else {
+                    Ok("undefined".to_string())
+                }
+            }
+        }
     }
 
     fn generate_option_element(&mut self, element: &RegularElement) -> Result<(), TransformError> {
@@ -702,6 +839,7 @@ impl<'a> ServerCodeGenerator<'a> {
         let has_prior_content = self.output_parts.iter().any(|part| {
             matches!(part, OutputPart::Html(s) if !s.trim().is_empty())
                 || matches!(part, OutputPart::Expression(_))
+                || matches!(part, OutputPart::RawExpression(_))
         });
 
         // Extract props and bindings
@@ -1464,6 +1602,10 @@ export default function {component_name}($$renderer{props_param}) {{}}"#,
                 OutputPart::Expression(expr) => {
                     current_html.push_str(&format!("${{$.escape({})}}", expr));
                 }
+                OutputPart::RawExpression(expr) => {
+                    // Raw expressions don't need escaping (e.g., $.attributes())
+                    current_html.push_str(&format!("${{{}}}", expr));
+                }
                 OutputPart::HtmlExpression(expr) => {
                     current_html.push_str(&format!("${{$.html({})}}", expr));
                 }
@@ -1815,6 +1957,10 @@ export default function {component_name}($$renderer{props_param}) {{}}"#,
                 }
                 OutputPart::Expression(expr) => {
                     current_html.push_str(&format!("${{$.escape({})}}", expr));
+                }
+                OutputPart::RawExpression(expr) => {
+                    // Raw expressions don't need escaping (e.g., $.attributes())
+                    current_html.push_str(&format!("${{{}}}", expr));
                 }
                 _ => {
                     // For other parts, flush and delegate to build_parts

@@ -571,3 +571,485 @@ fn extract_expression_string(expr: &crate::ast::js::Expression) -> String {
         }
     }
 }
+
+/// Converts an AST Expression to a JsExpr for server-side rendering.
+///
+/// This is a simplified version of the client-side expression converter
+/// that doesn't need context for basic expression types.
+pub fn convert_expression_simple(expr: &crate::ast::js::Expression) -> JsExpr {
+    let json = expr.as_json();
+    convert_json_value_simple(json)
+}
+
+/// Convert a JSON value to JsExpr without context.
+fn convert_json_value_simple(value: &serde_json::Value) -> JsExpr {
+    match value {
+        serde_json::Value::Object(obj) => {
+            let node_type = obj
+                .get("type")
+                .and_then(|t| t.as_str())
+                .unwrap_or("Unknown");
+
+            match node_type {
+                "Identifier" => {
+                    let name = obj
+                        .get("name")
+                        .and_then(|n| n.as_str())
+                        .unwrap_or("unknown")
+                        .to_string();
+                    JsExpr::Identifier(name)
+                }
+                "Literal" => convert_literal_simple(obj),
+                "MemberExpression" => convert_member_expression_simple(obj),
+                "CallExpression" => convert_call_expression_simple(obj),
+                "ObjectExpression" => convert_object_expression_simple(obj),
+                "ArrayExpression" => convert_array_expression_simple(obj),
+                "BinaryExpression" => convert_binary_expression_simple(obj),
+                "UnaryExpression" => convert_unary_expression_simple(obj),
+                "LogicalExpression" => convert_logical_expression_simple(obj),
+                "ConditionalExpression" => convert_conditional_expression_simple(obj),
+                "ArrowFunctionExpression" => convert_arrow_function_simple(obj),
+                "ThisExpression" => JsExpr::This,
+                "SpreadElement" => {
+                    let argument = obj
+                        .get("argument")
+                        .map(convert_json_value_simple)
+                        .unwrap_or(JsExpr::Literal(JsLiteral::Null));
+                    JsExpr::Spread(Box::new(argument))
+                }
+                "TemplateLiteral" => convert_template_literal_simple(obj),
+                _ => {
+                    // For unknown types, try to extract the raw source or use placeholder
+                    JsExpr::Raw(format!("/* Unknown: {} */", node_type))
+                }
+            }
+        }
+        serde_json::Value::String(s) => JsExpr::Literal(JsLiteral::String(s.clone())),
+        serde_json::Value::Number(n) => {
+            JsExpr::Literal(JsLiteral::Number(n.as_f64().unwrap_or(0.0)))
+        }
+        serde_json::Value::Bool(b) => JsExpr::Literal(JsLiteral::Boolean(*b)),
+        serde_json::Value::Null => JsExpr::Literal(JsLiteral::Null),
+        serde_json::Value::Array(_) => JsExpr::Raw("/* Array */".to_string()),
+    }
+}
+
+fn convert_literal_simple(obj: &serde_json::Map<String, serde_json::Value>) -> JsExpr {
+    let value = obj.get("value");
+
+    match value {
+        Some(serde_json::Value::String(s)) => JsExpr::Literal(JsLiteral::String(s.clone())),
+        Some(serde_json::Value::Number(n)) => {
+            JsExpr::Literal(JsLiteral::Number(n.as_f64().unwrap_or(0.0)))
+        }
+        Some(serde_json::Value::Bool(b)) => JsExpr::Literal(JsLiteral::Boolean(*b)),
+        Some(serde_json::Value::Null) | None => {
+            // Check for regex
+            if let Some(regex_obj) = obj.get("regex").and_then(|r| r.as_object()) {
+                let pattern = regex_obj
+                    .get("pattern")
+                    .and_then(|p| p.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let flags = regex_obj
+                    .get("flags")
+                    .and_then(|f| f.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                return JsExpr::Literal(JsLiteral::Regex { pattern, flags });
+            }
+            JsExpr::Literal(JsLiteral::Null)
+        }
+        _ => JsExpr::Literal(JsLiteral::Null),
+    }
+}
+
+fn convert_member_expression_simple(obj: &serde_json::Map<String, serde_json::Value>) -> JsExpr {
+    let object = obj
+        .get("object")
+        .map(convert_json_value_simple)
+        .unwrap_or(JsExpr::Identifier("unknown".to_string()));
+
+    let computed = obj
+        .get("computed")
+        .and_then(|c| c.as_bool())
+        .unwrap_or(false);
+
+    let optional = obj
+        .get("optional")
+        .and_then(|o| o.as_bool())
+        .unwrap_or(false);
+
+    let property = if let Some(prop) = obj.get("property") {
+        if computed {
+            JsMemberProperty::Expression(Box::new(convert_json_value_simple(prop)))
+        } else if let Some(prop_obj) = prop.as_object()
+            && let Some(name) = prop_obj.get("name").and_then(|n| n.as_str())
+        {
+            JsMemberProperty::Identifier(name.to_string())
+        } else {
+            JsMemberProperty::Identifier("unknown".to_string())
+        }
+    } else {
+        JsMemberProperty::Identifier("unknown".to_string())
+    };
+
+    JsExpr::Member(JsMemberExpression {
+        object: Box::new(object),
+        property,
+        computed,
+        optional,
+    })
+}
+
+fn convert_call_expression_simple(obj: &serde_json::Map<String, serde_json::Value>) -> JsExpr {
+    let callee = obj
+        .get("callee")
+        .map(convert_json_value_simple)
+        .unwrap_or(JsExpr::Identifier("unknown".to_string()));
+
+    let arguments = obj
+        .get("arguments")
+        .and_then(|a| a.as_array())
+        .map(|args| args.iter().map(convert_json_value_simple).collect())
+        .unwrap_or_default();
+
+    let optional = obj
+        .get("optional")
+        .and_then(|o| o.as_bool())
+        .unwrap_or(false);
+
+    JsExpr::Call(JsCallExpression {
+        callee: Box::new(callee),
+        arguments,
+        optional,
+    })
+}
+
+fn convert_object_expression_simple(obj: &serde_json::Map<String, serde_json::Value>) -> JsExpr {
+    let properties = obj
+        .get("properties")
+        .and_then(|p| p.as_array())
+        .map(|props| {
+            props
+                .iter()
+                .filter_map(|prop| {
+                    let prop_obj = prop.as_object()?;
+                    let prop_type = prop_obj.get("type")?.as_str()?;
+
+                    match prop_type {
+                        "Property" => {
+                            let key = convert_property_key_simple(prop_obj);
+                            let value = prop_obj
+                                .get("value")
+                                .map(|v| Box::new(convert_json_value_simple(v)))
+                                .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+
+                            let computed = prop_obj
+                                .get("computed")
+                                .and_then(|c| c.as_bool())
+                                .unwrap_or(false);
+
+                            let shorthand = prop_obj
+                                .get("shorthand")
+                                .and_then(|s| s.as_bool())
+                                .unwrap_or(false);
+
+                            let kind = match prop_obj.get("kind").and_then(|k| k.as_str()) {
+                                Some("init") | None => JsPropertyKind::Init,
+                                Some("get") => JsPropertyKind::Get,
+                                Some("set") => JsPropertyKind::Set,
+                                _ => JsPropertyKind::Init,
+                            };
+
+                            Some(JsObjectMember::Property(JsProperty {
+                                key,
+                                value,
+                                kind,
+                                computed,
+                                shorthand,
+                            }))
+                        }
+                        "SpreadElement" => {
+                            let argument = prop_obj
+                                .get("argument")
+                                .map(|a| Box::new(convert_json_value_simple(a)))
+                                .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
+
+                            Some(JsObjectMember::SpreadElement(argument))
+                        }
+                        _ => None,
+                    }
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    JsExpr::Object(JsObjectExpression { properties })
+}
+
+fn convert_property_key_simple(obj: &serde_json::Map<String, serde_json::Value>) -> JsPropertyKey {
+    let key = obj.get("key");
+    let computed = obj
+        .get("computed")
+        .and_then(|c| c.as_bool())
+        .unwrap_or(false);
+
+    if computed && let Some(k) = key {
+        return JsPropertyKey::Computed(Box::new(convert_json_value_simple(k)));
+    }
+
+    if let Some(key_obj) = key.and_then(|k| k.as_object()) {
+        if let Some("Identifier") = key_obj.get("type").and_then(|t| t.as_str())
+            && let Some(name) = key_obj.get("name").and_then(|n| n.as_str())
+        {
+            return JsPropertyKey::Identifier(name.to_string());
+        }
+        if let Some("Literal") = key_obj.get("type").and_then(|t| t.as_str()) {
+            let literal = convert_literal_simple(key_obj);
+            if let JsExpr::Literal(lit) = literal {
+                return JsPropertyKey::Literal(lit);
+            }
+        }
+    }
+
+    JsPropertyKey::Identifier("unknown".to_string())
+}
+
+fn convert_array_expression_simple(obj: &serde_json::Map<String, serde_json::Value>) -> JsExpr {
+    let elements = obj
+        .get("elements")
+        .and_then(|e| e.as_array())
+        .map(|elems| {
+            elems
+                .iter()
+                .map(|elem| {
+                    if elem.is_null() {
+                        None
+                    } else {
+                        Some(convert_json_value_simple(elem))
+                    }
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    JsExpr::Array(JsArrayExpression { elements })
+}
+
+fn convert_binary_expression_simple(obj: &serde_json::Map<String, serde_json::Value>) -> JsExpr {
+    let operator_str = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("+");
+
+    let operator = match operator_str {
+        "+" => JsBinaryOp::Add,
+        "-" => JsBinaryOp::Sub,
+        "*" => JsBinaryOp::Mul,
+        "/" => JsBinaryOp::Div,
+        "%" => JsBinaryOp::Mod,
+        "**" => JsBinaryOp::Pow,
+        "==" => JsBinaryOp::Eq,
+        "!=" => JsBinaryOp::Ne,
+        "===" => JsBinaryOp::StrictEq,
+        "!==" => JsBinaryOp::StrictNe,
+        "<" => JsBinaryOp::Lt,
+        "<=" => JsBinaryOp::Le,
+        ">" => JsBinaryOp::Gt,
+        ">=" => JsBinaryOp::Ge,
+        "&" => JsBinaryOp::BitAnd,
+        "|" => JsBinaryOp::BitOr,
+        "^" => JsBinaryOp::BitXor,
+        "<<" => JsBinaryOp::Shl,
+        ">>" => JsBinaryOp::Shr,
+        ">>>" => JsBinaryOp::UShr,
+        "in" => JsBinaryOp::In,
+        "instanceof" => JsBinaryOp::InstanceOf,
+        _ => JsBinaryOp::Add,
+    };
+
+    let left = obj
+        .get("left")
+        .map(convert_json_value_simple)
+        .unwrap_or(JsExpr::Literal(JsLiteral::Null));
+
+    let right = obj
+        .get("right")
+        .map(convert_json_value_simple)
+        .unwrap_or(JsExpr::Literal(JsLiteral::Null));
+
+    JsExpr::Binary(JsBinaryExpression {
+        operator,
+        left: Box::new(left),
+        right: Box::new(right),
+    })
+}
+
+fn convert_unary_expression_simple(obj: &serde_json::Map<String, serde_json::Value>) -> JsExpr {
+    let operator_str = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("!");
+
+    let operator = match operator_str {
+        "-" => JsUnaryOp::Minus,
+        "+" => JsUnaryOp::Plus,
+        "!" => JsUnaryOp::Not,
+        "~" => JsUnaryOp::BitNot,
+        "typeof" => JsUnaryOp::TypeOf,
+        "void" => JsUnaryOp::Void,
+        "delete" => JsUnaryOp::Delete,
+        _ => JsUnaryOp::Not,
+    };
+
+    let prefix = obj.get("prefix").and_then(|p| p.as_bool()).unwrap_or(true);
+
+    let argument = obj
+        .get("argument")
+        .map(convert_json_value_simple)
+        .unwrap_or(JsExpr::Literal(JsLiteral::Null));
+
+    JsExpr::Unary(JsUnaryExpression {
+        operator,
+        argument: Box::new(argument),
+        prefix,
+    })
+}
+
+fn convert_logical_expression_simple(obj: &serde_json::Map<String, serde_json::Value>) -> JsExpr {
+    let operator_str = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("&&");
+
+    let operator = match operator_str {
+        "&&" => JsLogicalOp::And,
+        "||" => JsLogicalOp::Or,
+        "??" => JsLogicalOp::NullishCoalescing,
+        _ => JsLogicalOp::And,
+    };
+
+    let left = obj
+        .get("left")
+        .map(convert_json_value_simple)
+        .unwrap_or(JsExpr::Literal(JsLiteral::Null));
+
+    let right = obj
+        .get("right")
+        .map(convert_json_value_simple)
+        .unwrap_or(JsExpr::Literal(JsLiteral::Null));
+
+    JsExpr::Logical(JsLogicalExpression {
+        operator,
+        left: Box::new(left),
+        right: Box::new(right),
+    })
+}
+
+fn convert_conditional_expression_simple(
+    obj: &serde_json::Map<String, serde_json::Value>,
+) -> JsExpr {
+    let test = obj
+        .get("test")
+        .map(convert_json_value_simple)
+        .unwrap_or(JsExpr::Literal(JsLiteral::Null));
+
+    let consequent = obj
+        .get("consequent")
+        .map(convert_json_value_simple)
+        .unwrap_or(JsExpr::Literal(JsLiteral::Null));
+
+    let alternate = obj
+        .get("alternate")
+        .map(convert_json_value_simple)
+        .unwrap_or(JsExpr::Literal(JsLiteral::Null));
+
+    JsExpr::Conditional(JsConditionalExpression {
+        test: Box::new(test),
+        consequent: Box::new(consequent),
+        alternate: Box::new(alternate),
+    })
+}
+
+fn convert_arrow_function_simple(obj: &serde_json::Map<String, serde_json::Value>) -> JsExpr {
+    let is_async = obj.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
+
+    let params = obj
+        .get("params")
+        .and_then(|p| p.as_array())
+        .map(|params| {
+            params
+                .iter()
+                .filter_map(|param| {
+                    let param_obj = param.as_object()?;
+                    let param_type = param_obj.get("type")?.as_str()?;
+                    match param_type {
+                        "Identifier" => {
+                            let name = param_obj
+                                .get("name")
+                                .and_then(|n| n.as_str())
+                                .unwrap_or("_")
+                                .to_string();
+                            Some(JsPattern::Identifier(name))
+                        }
+                        _ => None,
+                    }
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let body = if let Some(body_val) = obj.get("body") {
+        if let Some(body_obj) = body_val.as_object()
+            && body_obj.get("type").and_then(|t| t.as_str()) == Some("BlockStatement")
+        {
+            // Block body - for now, just return an empty block
+            JsArrowBody::Block(JsBlockStatement { body: vec![] })
+        } else {
+            JsArrowBody::Expression(Box::new(convert_json_value_simple(body_val)))
+        }
+    } else {
+        JsArrowBody::Expression(Box::new(JsExpr::Literal(JsLiteral::Null)))
+    };
+
+    JsExpr::Arrow(JsArrowFunction {
+        params,
+        body,
+        is_async,
+    })
+}
+
+fn convert_template_literal_simple(obj: &serde_json::Map<String, serde_json::Value>) -> JsExpr {
+    let quasis = obj
+        .get("quasis")
+        .and_then(|q| q.as_array())
+        .map(|quasis| {
+            quasis
+                .iter()
+                .filter_map(|quasi| {
+                    let quasi_obj = quasi.as_object()?;
+                    let value_obj = quasi_obj.get("value")?.as_object()?;
+                    let raw = value_obj
+                        .get("raw")
+                        .and_then(|r| r.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let cooked = value_obj
+                        .get("cooked")
+                        .and_then(|c| c.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let tail = quasi_obj
+                        .get("tail")
+                        .and_then(|t| t.as_bool())
+                        .unwrap_or(false);
+
+                    Some(JsTemplateElement { raw, cooked, tail })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let expressions = obj
+        .get("expressions")
+        .and_then(|e| e.as_array())
+        .map(|exprs| exprs.iter().map(convert_json_value_simple).collect())
+        .unwrap_or_default();
+
+    JsExpr::TemplateLiteral(JsTemplateLiteral {
+        quasis,
+        expressions,
+    })
+}
