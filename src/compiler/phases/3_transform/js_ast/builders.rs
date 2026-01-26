@@ -119,11 +119,32 @@ pub fn empty_object() -> JsExpr {
     object(vec![])
 }
 
+/// Check if a string is a valid JavaScript identifier.
+fn is_valid_js_identifier(s: &str) -> bool {
+    if s.is_empty() {
+        return false;
+    }
+    let mut chars = s.chars();
+    // First character must be a letter, underscore, or dollar sign
+    let first = chars.next().unwrap();
+    if !first.is_alphabetic() && first != '_' && first != '$' {
+        return false;
+    }
+    // Rest can also include digits
+    chars.all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+}
+
 /// Create an object property (init).
+/// If the key contains invalid characters (like hyphens), it will be quoted.
 pub fn prop(key: impl Into<String>, value: JsExpr) -> JsObjectMember {
     let key_str = key.into();
+    let property_key = if is_valid_js_identifier(&key_str) {
+        JsPropertyKey::Identifier(key_str)
+    } else {
+        JsPropertyKey::Literal(JsLiteral::String(key_str))
+    };
     JsObjectMember::Property(JsProperty {
-        key: JsPropertyKey::Identifier(key_str),
+        key: property_key,
         value: Box::new(value),
         kind: JsPropertyKind::Init,
         computed: false,

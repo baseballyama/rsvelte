@@ -423,7 +423,7 @@ where
                 };
 
                 JsObjectMember::Property(JsProperty {
-                    key: JsPropertyKey::Identifier(dir.name.to_string()),
+                    key: make_property_key(dir.name.to_string()),
                     value: Box::new(value),
                     kind: JsPropertyKind::Init,
                     computed: false,
@@ -519,7 +519,7 @@ where
             }
 
             let property = JsObjectMember::Property(JsProperty {
-                key: JsPropertyKey::Identifier(name),
+                key: make_property_key(name),
                 value: Box::new(value),
                 kind: JsPropertyKind::Init,
                 computed: false,
@@ -571,6 +571,30 @@ where
 // =============================================================================
 // Helper functions
 // =============================================================================
+
+/// Check if a string is a valid JavaScript identifier.
+fn is_valid_js_identifier(s: &str) -> bool {
+    if s.is_empty() {
+        return false;
+    }
+    let mut chars = s.chars();
+    // First character must be a letter, underscore, or dollar sign
+    let first = chars.next().unwrap();
+    if !first.is_alphabetic() && first != '_' && first != '$' {
+        return false;
+    }
+    // Rest can also include digits
+    chars.all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+}
+
+/// Creates a JsPropertyKey, using Literal for invalid identifiers (e.g., kebab-case).
+fn make_property_key(name: String) -> JsPropertyKey {
+    if is_valid_js_identifier(&name) {
+        JsPropertyKey::Identifier(name)
+    } else {
+        JsPropertyKey::Literal(JsLiteral::String(name))
+    }
+}
 
 /// Gets the normalized attribute name for an element.
 fn get_attribute_name(element: &dyn ElementNode, name: &str) -> String {
