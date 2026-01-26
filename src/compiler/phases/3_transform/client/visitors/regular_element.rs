@@ -31,7 +31,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::use_directive::
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::{JsExpr, JsStatement};
 use crate::compiler::phases::phase3_transform::utils::clean_nodes;
-use crate::compiler::utils::{can_delegate_event, is_capture_event};
+// Note: can_delegate_event and is_capture_event are used in attribute.rs for event delegation
 use std::collections::HashMap;
 
 /// Visit a regular element node.
@@ -79,7 +79,6 @@ pub fn visit_regular_element(
     let mut class_directives = Vec::new();
     let mut style_directives = Vec::new();
     let mut on_directives: Vec<OnDirective> = Vec::new();
-    let mut event_attributes: Vec<AttributeNode> = Vec::new(); // onclick={...} style event attributes
     let mut transition_directives: Vec<TransitionDirective> = Vec::new();
     let mut use_directives: Vec<UseDirective> = Vec::new();
     let mut bindings: HashMap<String, BindDirective> = HashMap::new();
@@ -94,13 +93,11 @@ pub fn visit_regular_element(
 
     for attribute in &node.attributes {
         match attribute {
-            Attribute::Attribute(attr) => {
-                // Check if this is an event attribute (onclick={...})
-                if is_event_attribute(attribute).is_some() {
-                    event_attributes.push(attr.clone());
-                } else {
-                    attributes.push(attribute.clone());
-                }
+            Attribute::Attribute(_) => {
+                // All attributes (including event attributes like onclick={...}) go into attributes
+                // When has_spread is true, they're processed by build_attribute_effect
+                // When has_spread is false, event attributes are handled via visit_event_attribute in the loop
+                attributes.push(attribute.clone());
             }
             Attribute::ClassDirective(dir) => {
                 class_directives.push(dir.clone());
@@ -238,10 +235,16 @@ pub fn visit_regular_element(
             &css_hash,
         );
     } else {
-        // Process regular attributes first (before event handlers)
-        // This matches the official JS implementation which processes in source order
+        // Process attributes in source order (like official JS implementation)
+        // Event attributes are handled by visit_event_attribute and continue
         for attribute in &attributes {
             if let Attribute::Attribute(attr) = attribute {
+                // Handle event attributes (onclick={...}) first, then continue
+                if is_event_attribute(attribute).is_some() {
+                    visit_event_attribute(attr, context);
+                    continue;
+                }
+
                 let name = get_attribute_name(node, attr);
 
                 // Skip value attribute if it needs special handling (for option/select)
@@ -380,19 +383,8 @@ pub fn visit_regular_element(
             context.state.init.push(b::stmt(set_style));
         }
 
-        // Process delegated event attributes AFTER regular attributes
-        // Delegated events use element.__eventname = handler pattern
-        // This matches the official JS implementation source order
-        if !has_spread {
-            for event_attr in &event_attributes {
-                let event_name = &event_attr.name[2..]; // Remove "on" prefix
-                let is_delegated = !is_capture_event(event_name) && can_delegate_event(event_name);
-
-                if is_delegated {
-                    visit_event_attribute(event_attr, context);
-                }
-            }
-        }
+        // Event attributes are now handled in the main attribute loop above
+        // (via visit_event_attribute when is_event_attribute is true)
     }
 
     // Handle special value attribute for option/select
@@ -515,19 +507,6 @@ pub fn visit_regular_element(
                 b::member_path("$.reset"),
                 vec![context.state.node.clone()],
             )));
-        }
-    }
-
-    // Process non-delegated event attributes AFTER child nodes but BEFORE element_state
-    // Non-delegated events use $.event() pattern
-    if !has_spread {
-        for event_attr in &event_attributes {
-            let event_name = &event_attr.name[2..]; // Remove "on" prefix
-            let is_delegated = !is_capture_event(event_name) && can_delegate_event(event_name);
-
-            if !is_delegated {
-                visit_event_attribute(event_attr, context);
-            }
         }
     }
 

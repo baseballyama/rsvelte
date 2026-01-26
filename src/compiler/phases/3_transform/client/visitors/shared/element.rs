@@ -461,14 +461,18 @@ pub fn build_attribute_effect(
 
                 // Check if this is an event attribute
                 if is_event_attribute_node(attr) {
+                    // Apply state transforms to event handler (converts `changed = 'a'` to `$.set(changed, 'a')`)
+                    let transformed_value =
+                        super::utils::apply_transforms_to_expression(&result.value, context);
+
                     // Check if the value is an arrow function or function expression
-                    if is_function_expression(&result.value) {
+                    if is_function_expression(&transformed_value) {
                         // Give the event handler a stable ID so it isn't removed and readded on every update
                         let id = context.state.memoizer.generate_id("event_handler");
-                        event_handler_decls.push(b::var_decl(&id, Some(result.value)));
+                        event_handler_decls.push(b::var_decl(&id, Some(transformed_value)));
                         properties.push(b::prop(attr.name.to_string(), b::id(&id)));
                     } else {
-                        properties.push(b::prop(attr.name.to_string(), result.value));
+                        properties.push(b::prop(attr.name.to_string(), transformed_value));
                     }
                 } else {
                     properties.push(b::prop(attr.name.to_string(), result.value));
