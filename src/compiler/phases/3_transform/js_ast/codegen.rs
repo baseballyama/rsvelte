@@ -49,7 +49,68 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
         .with_options(options)
         .build(&result.program)
         .code;
-    Ok(collapse_short_arrays(code))
+    let code = collapse_short_arrays(code);
+    let code = add_blank_line_after_imports(code);
+    Ok(code)
+}
+
+/// Add a blank line after the last import statement.
+///
+/// oxc's codegen doesn't add a blank line between imports and other statements.
+/// This function finds the last import line and inserts a blank line after it.
+///
+/// Example:
+/// ```js
+/// // Input:
+/// import * as $ from "svelte/internal/client";
+/// export default function Main($$anchor) {
+///
+/// // Output:
+/// import * as $ from "svelte/internal/client";
+///
+/// export default function Main($$anchor) {
+/// ```
+fn add_blank_line_after_imports(code: String) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    if lines.is_empty() {
+        return code;
+    }
+
+    // Find the index of the last import line
+    let mut last_import_idx: Option<usize> = None;
+    for (i, line) in lines.iter().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("import ") {
+            last_import_idx = Some(i);
+        }
+    }
+
+    // If no imports found or import is the last line, return as-is
+    let Some(idx) = last_import_idx else {
+        return code;
+    };
+
+    // If import is the last line, no need to add blank line
+    if idx + 1 >= lines.len() {
+        return code;
+    }
+
+    // Check if the next line is already blank
+    if lines[idx + 1].trim().is_empty() {
+        return code;
+    }
+
+    // Insert a blank line after the last import
+    let mut result = String::with_capacity(code.len() + 1);
+    for (i, line) in lines.iter().enumerate() {
+        result.push_str(line);
+        result.push('\n');
+        if i == idx {
+            result.push('\n');
+        }
+    }
+
+    result
 }
 
 /// Collapse short arrays from multi-line to single-line format.
