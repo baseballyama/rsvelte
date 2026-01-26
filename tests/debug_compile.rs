@@ -51,4 +51,66 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn debug_action_context() {
+        let source = std::fs::read_to_string(
+            "svelte/packages/svelte/tests/runtime-runes/samples/action-context/main.svelte",
+        )
+        .unwrap();
+
+        let options = CompileOptions {
+            dev: false,
+            ..Default::default()
+        };
+
+        match compile(&source, options) {
+            Ok(result) => {
+                println!(
+                    "\n=== COMPILED CLIENT OUTPUT ===\n{}\n=== END ===\n",
+                    result.js.code
+                );
+            }
+            Err(e) => match e {
+                svelte_compiler_rust::compiler::CompileError::Transform(ref transform_err) => {
+                    println!(
+                        "\n=== TRANSFORM ERROR ===\n{:?}\n=== END ===\n",
+                        transform_err
+                    );
+                }
+                _ => println!("\n=== ERROR ===\n{:?}\n=== END ===\n", e),
+            },
+        }
+    }
+
+    #[test]
+    fn debug_action_void_element() {
+        let source = std::fs::read_to_string(
+            "svelte/packages/svelte/tests/runtime-runes/samples/action-void-element/main.svelte",
+        )
+        .unwrap();
+
+        let options = CompileOptions {
+            dev: false,
+            ..Default::default()
+        };
+
+        match compile(&source, options) {
+            Ok(result) => {
+                println!(
+                    "\n=== COMPILED CLIENT OUTPUT ===\n{}\n=== END ===\n",
+                    result.js.code
+                );
+            }
+            Err(e) => match e {
+                svelte_compiler_rust::compiler::CompileError::Transform(ref transform_err) => {
+                    println!(
+                        "\n=== TRANSFORM ERROR ===\n{:?}\n=== END ===\n",
+                        transform_err
+                    );
+                }
+                _ => println!("\n=== ERROR ===\n{:?}\n=== END ===\n", e),
+            },
+        }
+    }
 }

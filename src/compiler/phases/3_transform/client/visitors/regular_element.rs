@@ -10,7 +10,7 @@
 
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, BindDirective, OnDirective,
-    RegularElement as RegularElementNode, TemplateNode, TransitionDirective,
+    RegularElement as RegularElementNode, TemplateNode, TransitionDirective, UseDirective,
 };
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::attribute::{
@@ -27,6 +27,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::
     build_template_chunk, expression_has_reactive_state,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
+use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::{JsExpr, JsStatement};
 use crate::compiler::phases::phase3_transform::utils::clean_nodes;
@@ -80,6 +81,7 @@ pub fn visit_regular_element(
     let mut on_directives: Vec<OnDirective> = Vec::new();
     let mut event_attributes: Vec<AttributeNode> = Vec::new(); // onclick={...} style event attributes
     let mut transition_directives: Vec<TransitionDirective> = Vec::new();
+    let mut use_directives: Vec<UseDirective> = Vec::new();
     let mut bindings: HashMap<String, BindDirective> = HashMap::new();
     let has_spread = node
         .attributes
@@ -117,6 +119,9 @@ pub fn visit_regular_element(
             }
             Attribute::SpreadAttribute(_) => {
                 attributes.push(attribute.clone());
+            }
+            Attribute::UseDirective(dir) => {
+                use_directives.push(dir.clone());
             }
             _ => {}
         }
@@ -191,6 +196,14 @@ pub fn visit_regular_element(
                 element_state_after_update.insert(0, stmt);
             }
         }
+    }
+
+    // Process use directives into element_state
+    // According to the official Svelte implementation, actions need to run after
+    // attribute updates in order with bindings/events
+    for use_dir in &use_directives {
+        let stmt = use_directive(use_dir, context);
+        element_state_init.push(stmt);
     }
 
     // For input elements with bind:value, bind:checked, or bind:group,

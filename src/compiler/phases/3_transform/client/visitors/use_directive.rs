@@ -1,0 +1,113 @@
+//! UseDirective visitor for client-side transformation.
+//!
+//! Corresponds to `UseDirective.js` in
+//! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/UseDirective.js`.
+//!
+//! This visitor handles `use:action={expression}` directives.
+
+use crate::ast::template::UseDirective;
+use crate::compiler::phases::phase3_transform::client::types::ExpressionMetadata;
+use crate::compiler::phases::phase3_transform::client::types::*;
+use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
+    build_expression, expression_has_reactive_state, parse_directive_name,
+};
+use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+use crate::compiler::phases::phase3_transform::js_ast::nodes::{JsExpr, JsPattern, JsStatement};
+
+/// Visit a UseDirective node and generate action code.
+///
+/// Corresponds to `UseDirective` in
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/UseDirective.js`:
+///
+/// ```javascript
+/// export function UseDirective(node, context) {
+///     const params = [b.id('$$node')];
+///
+///     if (node.expression) {
+///         params.push(b.id('$$action_arg'));
+///     }
+///
+///     const args = [
+///         context.state.node,
+///         b.arrow(
+///             params,
+///             b.maybe_call(
+///                 context.visit(parse_directive_name(node.name)),
+///                 ...params
+///             )
+///         )
+///     ];
+///
+///     if (node.expression) {
+///         args.push(b.thunk(context.visit(node.expression)));
+///     }
+///
+///     // actions need to run after attribute updates in order with bindings/events
+///     let statement = b.stmt(b.call('$.action', ...args));
+///
+///     if (node.metadata.expression.is_async()) {
+///         statement = b.stmt(
+///             b.call(
+///                 '$.run_after_blockers',
+///                 node.metadata.expression.blockers(),
+///                 b.thunk(b.block([statement]))
+///             )
+///         );
+///     }
+///
+///     context.state.init.push(statement);
+///     context.next();
+/// }
+/// ```
+pub fn use_directive(node: &UseDirective, context: &mut ComponentContext) -> JsStatement {
+    // Build arrow function parameters: [$$node] or [$$node, $$action_arg]
+    let mut params: Vec<JsPattern> = vec![b::id_pattern("$$node")];
+    let mut arrow_args: Vec<JsExpr> = vec![b::id("$$node")];
+
+    if node.expression.is_some() {
+        params.push(b::id_pattern("$$action_arg"));
+        arrow_args.push(b::id("$$action_arg"));
+    }
+
+    // Parse the directive name to get the action function reference
+    // For example, "action" becomes `action`, "custom.action" becomes `custom.action`
+    let action_name = parse_directive_name(&node.name);
+
+    // Build the maybe_call: action?.($$node) or action?.($$node, $$action_arg)
+    // This is equivalent to b.maybe_call() in the JS builder
+    let maybe_call = b::optional_call(action_name, arrow_args);
+
+    // Build the arrow function: ($$node, $$action_arg) => action?.($$node, $$action_arg)
+    let action_callback = b::arrow(params, maybe_call);
+
+    // Build the arguments for $.action()
+    let mut action_args = vec![context.state.node.clone(), action_callback];
+
+    // If there's an expression argument, add the thunk
+    if let Some(ref expr) = node.expression {
+        // Convert the expression and apply transforms (e.g., $.get() for state variables)
+        let converted = convert_expression(expr, context);
+
+        // Check if expression has reactive state
+        let has_state = expression_has_reactive_state(expr, context);
+
+        let metadata = ExpressionMetadata {
+            has_state,
+            ..Default::default()
+        };
+
+        // Build the expression with transforms applied
+        let built_expr = build_expression(context, &converted, &metadata);
+
+        // Wrap in a thunk: () => expression
+        action_args.push(b::thunk(built_expr));
+    }
+
+    // Build the $.action() call
+    let action_call = b::call(b::member_path("$.action"), action_args);
+
+    // Return the statement
+    // TODO: Handle async case with $.run_after_blockers when metadata is available
+    b::stmt(action_call)
+}
