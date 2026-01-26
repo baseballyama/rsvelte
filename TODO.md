@@ -1430,15 +1430,27 @@ $.template_effect(() => {
   - **結果**: Runtime Runes Client 71/724 → 73/724 (+2)
   - **コミット**: `fix(transform): Fix event handler processing with spread attributes`
 
-**テスト状況（セッション2終了時）:**
-| メトリック | 開始時 | 終了時 | 差分 |
-|-----------|--------|--------|------|
+- [x] `$derived.by()` 変換
+  - **結果**: Runtime Runes Client 73/724 → 75/724 (+2)
+  - **コミット**: `feat(transform): Add $derived.by() transformation support`
+
+- [x] Server module script サポート
+  - **結果**: Runtime Runes Client +2, Server +1
+  - **コミット**: `feat(transform): Add module script support for server-side rendering`
+
+- [x] Server spread 属性コンパイル
+  - **結果**: Runtime Runes Server 128/724 → 131/724 (+3)
+  - **コミット**: `feat(transform): Add spread attribute compilation for server-side rendering`
+
+**テスト状況（セッション2最終）:**
+| メトリック | セッション開始 | 現在 | 差分 |
+|-----------|--------------|------|------|
 | Runtime Runes Total | 33/724 | 42/724 | **+9** |
-| Runtime Runes Client | 61/724 | 73/724 | **+12** |
-| Runtime Runes Server | 127/724 | 127/724 | 維持 |
+| Runtime Runes Client | 61/724 | 75/724 | **+14** |
+| Runtime Runes Server | 127/724 | 131/724 | **+4** |
 | Compiler Snapshot | 18/19 | 18/19 | 維持 |
 
 **次のアクション:**
-1. `$.derived()` 呼び出し欠落の修正（高難度、+58 テスト見込み）
-2. Server サイドの改善（whitespace handling 等）
+1. Total 改善のため Client と Server の両方が通過するテストを増やす
+2. Server コンポーネントラッパー修正
 3. テキストコンテンツ処理の改善
