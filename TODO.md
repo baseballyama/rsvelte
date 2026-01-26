@@ -1411,4 +1411,34 @@ $.template_effect(() => {
 
 **Note**: Compiler Snapshot は 18/19（`await-block-scope` 失敗）が正しい状態であることを確認。TODO.md の以前の記録（19/19）は不正確だった。
 
-**着手中タスク:**
+- [x] `$derived` 変数の `$.get()` ラッピング
+  - **結果**: Runtime Runes Total 33/724 → 41/724 (+8)
+  - **コミット**: `fix(transform): Wrap $derived variables in $.get() for general expressions`
+
+- [x] Snippet ホイスティングと getter 形式
+  - **コミット**: `fix(transform): Improve snippet hoisting and getter form`
+
+- [x] `$.push()/$pop()` コンテキスト注入
+  - **結果**: Runtime Runes Client 61/724 → 70/724 (+9)
+  - **コミット**: `fix(analyze): Walk JS expressions in template for needs_context detection`
+
+- [x] `$.action()` 生成（use: ディレクティブ）
+  - **結果**: Runtime Runes Total 41/724 → 42/724 (+1), Client 70/724 → 71/724 (+1)
+  - **コミット**: `feat(transform): Add use:directive support for $.action() generation`
+
+- [x] イベントハンドラとスプレッド属性の修正
+  - **結果**: Runtime Runes Client 71/724 → 73/724 (+2)
+  - **コミット**: `fix(transform): Fix event handler processing with spread attributes`
+
+**テスト状況（セッション2終了時）:**
+| メトリック | 開始時 | 終了時 | 差分 |
+|-----------|--------|--------|------|
+| Runtime Runes Total | 33/724 | 42/724 | **+9** |
+| Runtime Runes Client | 61/724 | 73/724 | **+12** |
+| Runtime Runes Server | 127/724 | 127/724 | 維持 |
+| Compiler Snapshot | 18/19 | 18/19 | 維持 |
+
+**次のアクション:**
+1. `$.derived()` 呼び出し欠落の修正（高難度、+58 テスト見込み）
+2. Server サイドの改善（whitespace handling 等）
+3. テキストコンテンツ処理の改善
