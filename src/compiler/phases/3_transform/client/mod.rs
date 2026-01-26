@@ -528,6 +528,20 @@ fn transform_instance_script_for_visitors(script: &str, analysis: &ComponentAnal
         let transformed =
             transform_state_assignments(&transformed, &state_vars, &non_reactive_state_vars);
 
+        // Wrap state variable reads in $.get() for general expressions
+        // This handles cases like: console.log('init ' + double)
+        // where `double` is a $derived variable that needs to be read with $.get()
+        // BUT only if this is NOT a declaration line (let/const/var) - those are already
+        // handled by transform_client_runes_with_skip_and_state
+        let transformed = if !transformed.trim_start().starts_with("let ")
+            && !transformed.trim_start().starts_with("const ")
+            && !transformed.trim_start().starts_with("var ")
+        {
+            wrap_state_vars_in_expr(&transformed, &state_vars, &non_reactive_state_vars)
+        } else {
+            transformed
+        };
+
         // Transform rest_prop member access to $$props (only in runes mode)
         let transformed = if analysis.runes && !rest_prop_vars.is_empty() {
             transform_rest_prop_member_access(&transformed, &rest_prop_vars)

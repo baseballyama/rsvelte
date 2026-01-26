@@ -1396,6 +1396,19 @@ $.template_effect(() => {
 | Runtime Runes Total | 33/724 |
 | Runtime Runes Client | 61/724 |
 | Runtime Runes Server | 127/724 |
-| Compiler Snapshot | 19/19 ✅ |
+| Compiler Snapshot | 18/19 |
 
-**着手タスク:**
+**完了タスク:**
+
+- [x] Phase 2 アロー関数内代入追跡修正
+  - **問題**: アロー関数内の代入（`const f = () => { x = value; }`）が `binding.reassigned` フラグを設定しない
+  - **根本原因**: スコープ管理の欠落（関数処理時にスコープを変更していない、Update にスコープ情報を保存していない）
+  - **修正内容**:
+    1. `Update` 構造体に `scope_idx` フィールドを追加
+    2. `FunctionDeclaration`, `FunctionExpression`, `ArrowFunctionExpression` で push/pop スコープ
+    3. `build()` 関数で親スコープチェーンを辿って binding を lookup
+  - **コミット**: `fix(analyze): Track assignments in arrow functions for binding.reassigned flag`
+
+**Note**: Compiler Snapshot は 18/19（`await-block-scope` 失敗）が正しい状態であることを確認。TODO.md の以前の記録（19/19）は不正確だった。
+
+**着手中タスク:**
