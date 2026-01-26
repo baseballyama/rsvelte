@@ -141,6 +141,17 @@ fn transform_client_with_visitors(
         component_body.push(b::stmt(b::call(b::member_path("$.push"), push_args)));
     }
 
+    // Add $.init() for legacy (non-runes) components that need context
+    // Reference: transform-client.js line 381-382
+    if !analysis.runes && analysis.needs_context {
+        let init_args = if analysis.immutable {
+            vec![b::literal(super::js_ast::nodes::JsLiteral::Boolean(true))]
+        } else {
+            vec![]
+        };
+        component_body.push(b::stmt(b::call(b::member_path("$.init"), init_args)));
+    }
+
     // Add CSS styles injection if needed
     if analysis.css.has_css && analysis.inject_styles {
         // $.append_styles($$anchor, $$css)

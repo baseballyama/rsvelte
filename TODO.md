@@ -1479,3 +1479,51 @@ $.template_effect(() => {
 1. Module script transformation の慎重な再実装
 2. Server コンポーネントラッパー修正
 3. Fragment visitor の改善
+
+### 2026-01-27 セッション3
+
+**セッション再開 (2026-01-27):**
+
+現在地: Phase C - Rust 実装
+目標: Runtime Runes 改善継続
+
+**テスト状況（セッション開始時）:**
+| メトリック | 値 |
+|-----------|-----|
+| Runtime Runes Total | 45/724 |
+| Runtime Runes Client | 82/724 |
+| Runtime Runes Server | 131/724 |
+| Compiler Snapshot | 19/19 (100%) |
+
+**完了タスク:**
+
+- [x] 数値配列の折り畳み（codegen）
+  - OXC が出力する複数行配列を単一行に変換
+  - `collapse_short_arrays()` を数値/BigInt に対応
+  - **結果**: Runtime Runes Total +3
+  - **コミット**: `fix(codegen): Collapse numeric and BigInt arrays to single line`
+
+- [x] Spread 属性の thunk ラッピング
+  - `$.spread_props()` の引数を常に関数でラップ
+  - 公式 Svelte コンパイラの動作に合致
+  - **結果**: Runtime Runes Client +1
+  - **コミット**: `fix(transform): Always wrap spread attributes in thunk for spread_props`
+
+**発見事項:**
+- `$state({...})` → `$.proxy({...})` 変換は正しい（`$.state($.proxy(...))` ではない）
+- テスト比較では空行・フォーマット差分は正規化される
+- `custom-element-attributes` テスト: `$.init()` 欠落、`is` 属性のテンプレート処理が異なる
+- `accessors-props` テスト: `$.bind_props()` の代わりに `export` 文を生成している
+
+**テスト状況（現在）:**
+| メトリック | セッション開始 | 現在 | 差分 |
+|-----------|--------------|------|------|
+| Runtime Runes Total | 45/724 | **48/724** | **+3** |
+| Runtime Runes Client | 82/724 | **84/724** | **+2** |
+| Runtime Runes Server | 131/724 | **135/724** | **+4** |
+| Compiler Snapshot | 19/19 | 19/19 | 100% ✅ |
+
+**次のアクション:**
+1. `$.init()` 呼び出しの実装
+2. `is` 属性のテンプレート内処理
+3. `$.bind_props()` の実装（export 文の代替）
