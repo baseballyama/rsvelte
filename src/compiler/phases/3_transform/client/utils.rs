@@ -93,8 +93,15 @@ pub fn transform_state_write(var_name: &str, value: &str) -> String {
 ///
 /// `true` if the binding needs reactive tracking as a state source
 pub fn is_state_source(binding: &Binding, analysis: &ComponentAnalysis) -> bool {
-    matches!(binding.kind, BindingKind::State | BindingKind::RawState)
-        && (!analysis.immutable || binding.reassigned || analysis.accessors)
+    // RawState ($state.raw) always needs $.get() because its purpose is to track
+    // value changes at the top level (without deep reactivity).
+    // TODO: Fix Phase 2 to properly track assignments inside arrow functions
+    // so that binding.reassigned is correctly set for all cases.
+    if matches!(binding.kind, BindingKind::RawState) {
+        return true;
+    }
+    matches!(binding.kind, BindingKind::State)
+        && (!analysis.immutable || binding.reassigned || binding.mutated || analysis.accessors)
 }
 
 /// Check if a prop binding is a "prop source" that needs to be tracked via `$.prop()`.

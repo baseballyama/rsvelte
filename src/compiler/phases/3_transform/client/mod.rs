@@ -424,14 +424,20 @@ fn transform_instance_script_for_visitors(script: &str, analysis: &ComponentAnal
         .collect();
 
     // Collect non-reactive state vars (never reassigned - don't need $.get/$.set)
+    // Note: We only consider BindingKind::State here, NOT RawState.
+    // RawState ($state.raw) always needs $.get() because its purpose is to track
+    // value changes without deep reactivity - it still needs reactivity at the top level.
+    // TODO: Fix Phase 2 to properly track assignments inside arrow functions
+    // so that b.reassigned is correctly set for all cases.
     let non_reactive_state_vars: Vec<String> = if analysis.immutable {
         analysis
             .root
             .bindings
             .iter()
             .filter(|b| {
-                matches!(b.kind, BindingKind::State | BindingKind::RawState)
+                matches!(b.kind, BindingKind::State)
                     && !b.reassigned
+                    && !b.mutated
                     && !analysis.accessors
             })
             .map(|b| b.name.clone())
@@ -519,7 +525,8 @@ fn transform_instance_script_for_visitors(script: &str, analysis: &ComponentAnal
         }
 
         // Transform state variable assignments to $.set()
-        let transformed = transform_state_assignments(&transformed, &state_vars);
+        let transformed =
+            transform_state_assignments(&transformed, &state_vars, &non_reactive_state_vars);
 
         // Transform rest_prop member access to $$props (only in runes mode)
         let transformed = if analysis.runes && !rest_prop_vars.is_empty() {
@@ -823,7 +830,11 @@ fn transform_rest_prop_member_access(line: &str, rest_prop_vars: &[String]) -> S
 // ============================================================================
 
 /// Transform state variable assignments to $.set() calls.
-fn transform_state_assignments(line: &str, state_vars: &[String]) -> String {
+fn transform_state_assignments(
+    line: &str,
+    state_vars: &[String],
+    non_reactive_vars: &[String],
+) -> String {
     let mut result = line.to_string();
 
     for var in state_vars {
@@ -869,12 +880,22 @@ fn transform_state_assignments(line: &str, state_vars: &[String]) -> String {
             if result.contains(&pattern) {
                 let op_char = &op[..op.len() - 1]; // Remove the '='
                 if let Some(pos) = result.find(&pattern) {
+                    // Skip if this is a member expression (e.g., this.count +=, obj.prop +=)
+                    let before = &result[..pos];
+                    if before.ends_with('.') {
+                        continue;
+                    }
+
                     let after = &result[pos + pattern.len()..];
                     // Find the expression (until ; or end)
                     let expr_end = after.find(';').unwrap_or(after.len());
                     let expr = after[..expr_end].trim();
-                    let replacement =
-                        format!("$.set({}, $.get({}) {} ({}))", var, var, op_char, expr);
+                    // Wrap state variables in the expression with $.get()
+                    let wrapped_expr = wrap_state_vars_in_expr(expr, state_vars, non_reactive_vars);
+                    let replacement = format!(
+                        "$.set({}, $.get({}) {} ({}))",
+                        var, var, op_char, wrapped_expr
+                    );
                     result = format!(
                         "{}{}{}",
                         &result[..pos],
@@ -906,7 +927,10 @@ fn transform_state_assignments(line: &str, state_vars: &[String]) -> String {
 
                     // Check it's not already wrapped
                     if !expr.starts_with("$.") {
-                        let replacement = format!("$.set({}, {})", var, expr);
+                        // Wrap state variables in the expression with $.get()
+                        let wrapped_expr =
+                            wrap_state_vars_in_expr(expr, state_vars, non_reactive_vars);
+                        let replacement = format!("$.set({}, {})", var, wrapped_expr);
                         result = format!(
                             "{}{}{}",
                             &result[..pos],
@@ -960,9 +984,14 @@ fn transform_state_in_expr(
                         || !is_identifier_char(chars[i + var_chars.len()]);
 
                     if before_ok && after_ok {
-                        let followed_by_dot =
+                        // Note: followed_by_dot is intentionally not used now.
+                        // We DO wrap member access (e.g., items.length -> $.get(items).length)
+                        let _followed_by_dot =
                             i + var_chars.len() < chars.len() && chars[i + var_chars.len()] == '.';
-                        let preceded_by_dot = i > 0 && chars[i - 1] == '.';
+                        // Check if preceded by dot, but NOT if it's a spread operator (...)
+                        let preceded_by_dot = i > 0
+                            && chars[i - 1] == '.'
+                            && !(i >= 3 && chars[i - 3..i].iter().collect::<String>() == "...");
                         let already_wrapped = if i >= 6 {
                             let prefix: String = chars[i - 6..i].iter().collect();
                             prefix == "$.get("
@@ -988,8 +1017,9 @@ fn transform_state_in_expr(
                             false
                         };
 
+                        // Note: We wrap member access (followed_by_dot) because
+                        // $.get(items).length is correct, not items.length
                         if !already_wrapped
-                            && !followed_by_dot
                             && !preceded_by_dot
                             && !in_set_first_arg
                             && !in_update_arg
