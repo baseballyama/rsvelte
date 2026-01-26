@@ -455,16 +455,10 @@ fn process_spread_attribute(
 ) {
     let expression = convert_expression(&spread.expression, context);
 
-    // Check if expression has state (would need memoization)
-    // For now, wrap in thunk if it might be reactive
-    let has_state = expression_might_have_state(&spread.expression);
-
-    if has_state {
-        // Wrap in thunk for reactive spread
-        props_and_spreads.push(PropsEntry::Spread(b::thunk(expression)));
-    } else {
-        props_and_spreads.push(PropsEntry::Spread(expression));
-    }
+    // Always wrap spread in thunk for reactivity tracking
+    // When used with $.spread_props, the spread arguments need to be getter functions
+    // This matches the official Svelte compiler behavior
+    props_and_spreads.push(PropsEntry::Spread(b::thunk(expression)));
 }
 
 /// Process a regular attribute.
