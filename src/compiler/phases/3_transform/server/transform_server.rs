@@ -34,11 +34,14 @@ pub fn transform_server(
 
     // Use the AST's instance script directly (no re-parsing needed)
     let instance_script = ast.instance.as_ref().map(|s| s.as_ref());
+    // Use the AST's module script (context="module")
+    let module_script = ast.module.as_ref().map(|s| s.as_ref());
 
     let mut generator = ServerCodeGenerator::new(
         component_name.clone(),
         analysis.source.clone(),
         instance_script,
+        module_script,
     );
 
     // Use the AST fragment directly (no re-parsing needed)
@@ -61,6 +64,8 @@ struct ServerCodeGenerator<'a> {
     source: String,
     output_parts: Vec<OutputPart>,
     instance_script: Option<&'a Script>,
+    /// Module script (context="module") - executed at module level outside component
+    module_script: Option<&'a Script>,
     /// Map of constant variable names to their values
     constant_vars: HashMap<String, String>,
     /// Snippet definitions to be generated at module level
@@ -126,7 +131,12 @@ enum OutputPart {
 }
 
 impl<'a> ServerCodeGenerator<'a> {
-    fn new(component_name: String, source: String, instance_script: Option<&'a Script>) -> Self {
+    fn new(
+        component_name: String,
+        source: String,
+        instance_script: Option<&'a Script>,
+        module_script: Option<&'a Script>,
+    ) -> Self {
         // Extract constant variables from script
         let constant_vars = if let Some(script) = instance_script {
             let start = script.content.start().unwrap_or(0) as usize;
@@ -145,6 +155,7 @@ impl<'a> ServerCodeGenerator<'a> {
             source,
             output_parts: Vec::new(),
             instance_script,
+            module_script,
             constant_vars,
             snippets: Vec::new(),
         }
@@ -385,7 +396,7 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Generate body parts
         let mut body_generator =
-            ServerCodeGenerator::new(self.component_name.clone(), self.source.clone(), None);
+            ServerCodeGenerator::new(self.component_name.clone(), self.source.clone(), None, None);
 
         // Process children (skip leading/trailing whitespace)
         let children: Vec<_> = element.fragment.nodes.iter().collect();
@@ -804,7 +815,7 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Generate body parts
         let mut body_generator =
-            ServerCodeGenerator::new(self.component_name.clone(), self.source.clone(), None);
+            ServerCodeGenerator::new(self.component_name.clone(), self.source.clone(), None, None);
 
         // Add comment marker at start for proper placement
         body_generator.output_parts.push(OutputPart::Comment);
@@ -938,7 +949,7 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Generate body parts
         let mut body_generator =
-            ServerCodeGenerator::new(self.component_name.clone(), self.source.clone(), None);
+            ServerCodeGenerator::new(self.component_name.clone(), self.source.clone(), None, None);
 
         for node in nodes.iter().take(end_idx).skip(start_idx) {
             body_generator.generate_node(node, false)?;
@@ -1005,7 +1016,7 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Generate body parts
         let mut body_generator =
-            ServerCodeGenerator::new(self.component_name.clone(), self.source.clone(), None);
+            ServerCodeGenerator::new(self.component_name.clone(), self.source.clone(), None, None);
 
         // Check if first node is an expression - if so, add comment marker
         if start_idx < end_idx
@@ -1070,6 +1081,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.component_name.clone(),
                 self.source.clone(),
                 self.instance_script,
+                None,
             );
             for node in &pending.nodes {
                 pending_generator.generate_node(node, false)?;
@@ -1085,6 +1097,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.component_name.clone(),
                 self.source.clone(),
                 self.instance_script,
+                None,
             );
             for node in &then.nodes {
                 then_generator.generate_node(node, false)?;
@@ -1100,6 +1113,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.component_name.clone(),
                 self.source.clone(),
                 self.instance_script,
+                None,
             );
             for node in &catch.nodes {
                 catch_generator.generate_node(node, false)?;
@@ -1154,7 +1168,7 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Generate body parts
         let mut body_generator =
-            ServerCodeGenerator::new(self.component_name.clone(), self.source.clone(), None);
+            ServerCodeGenerator::new(self.component_name.clone(), self.source.clone(), None, None);
 
         // Add comment marker at start
         body_generator.output_parts.push(OutputPart::Comment);
@@ -1260,7 +1274,27 @@ impl<'a> ServerCodeGenerator<'a> {
     fn build(self) -> String {
         let body_code = Self::build_parts(&self.output_parts, 1);
 
-        // Process script content if present
+        // Process module script content (context="module") if present
+        // Module script runs at module level, outside the component function
+        let (module_imports, module_code) = if let Some(script) = self.module_script {
+            let start = script.content.start().unwrap_or(0) as usize;
+            let end = script.content.end().unwrap_or(0) as usize;
+            let raw_script = if end > start && end <= self.source.len() {
+                self.source[start..end].to_string()
+            } else {
+                String::new()
+            };
+
+            // Extract imports and transform the rest
+            let (imports, rest) = extract_imports(&raw_script);
+            let transformed = transform_script_content(&rest);
+
+            (imports, transformed)
+        } else {
+            (Vec::new(), String::new())
+        };
+
+        // Process instance script content if present
         let (props_param, script_code, hoisted_imports, needs_component_wrapper) =
             if let Some(script) = self.instance_script {
                 let start = script.content.start().unwrap_or(0) as usize;
@@ -1328,11 +1362,21 @@ impl<'a> ServerCodeGenerator<'a> {
                 ("", String::new(), Vec::new(), false)
             };
 
+        // Combine module imports and instance imports (module imports first)
+        let all_imports: Vec<String> = module_imports.into_iter().chain(hoisted_imports).collect();
+
         // Build hoisted imports section
-        let imports_section = if hoisted_imports.is_empty() {
+        let imports_section = if all_imports.is_empty() {
             String::new()
         } else {
-            hoisted_imports.join("\n") + "\n"
+            all_imports.join("\n") + "\n"
+        };
+
+        // Build module script section (placed after imports, before component function)
+        let module_section = if module_code.trim().is_empty() {
+            String::new()
+        } else {
+            format!("{}\n", module_code)
         };
 
         // Build snippet functions
@@ -1349,13 +1393,14 @@ impl<'a> ServerCodeGenerator<'a> {
 
                 format!(
                     r#"import * as $ from 'svelte/internal/server';
-{imports_section}{snippets_section}
+{imports_section}{module_section}{snippets_section}
 export default function {component_name}($$renderer{props_param}) {{
 	$$renderer.component(($$renderer) => {{
 {inner_script}
 {inner_body}	}});
 }}"#,
                     imports_section = imports_section,
+                    module_section = module_section,
                     snippets_section = snippets_section,
                     component_name = self.component_name,
                     props_param = props_param,
@@ -1371,10 +1416,11 @@ export default function {component_name}($$renderer{props_param}) {{
 
                 format!(
                     r#"import * as $ from 'svelte/internal/server';
-{imports_section}{snippets_section}
+{imports_section}{module_section}{snippets_section}
 export default function {component_name}($$renderer{props_param}) {{
 {script_section}{body_code}}}"#,
                     imports_section = imports_section,
+                    module_section = module_section,
                     snippets_section = snippets_section,
                     component_name = self.component_name,
                     props_param = props_param,
@@ -1386,9 +1432,10 @@ export default function {component_name}($$renderer{props_param}) {{
             // Empty body - use single line braces
             format!(
                 r#"import * as $ from 'svelte/internal/server';
-{imports_section}{snippets_section}
+{imports_section}{module_section}{snippets_section}
 export default function {component_name}($$renderer{props_param}) {{}}"#,
                 imports_section = imports_section,
+                module_section = module_section,
                 snippets_section = snippets_section,
                 component_name = self.component_name,
                 props_param = props_param,
