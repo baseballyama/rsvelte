@@ -271,15 +271,10 @@ fn transform_client_with_visitors(
 
     // Add module script content (imports and module-level declarations)
     // This comes from <script context="module"> and includes component imports
-    // Module script needs transformation for runes ($state, $derived, etc.)
     if let Some(ref module_content) = analysis.module_script_content {
         let trimmed = module_content.raw.trim();
         if !trimmed.is_empty() {
-            // Transform module script content (similar to instance script but without $props)
-            let transformed = transform_module_script_for_visitors(trimmed, analysis);
-            if !transformed.trim().is_empty() {
-                body.push(JsStatement::Raw(transformed));
-            }
+            body.push(JsStatement::Raw(trimmed.to_string()));
         }
     }
 
@@ -603,116 +598,6 @@ fn transform_instance_script_for_visitors(script: &str, analysis: &ComponentAnal
 
         result.push_str(&transformed);
         result.push('\n');
-    }
-
-    result
-}
-
-/// Transform module script content for the visitor-based code generation.
-/// Module scripts are at module level (not inside the component function)
-/// and can contain classes with $state/$derived fields.
-fn transform_module_script_for_visitors(script: &str, _analysis: &ComponentAnalysis) -> String {
-    if script.is_empty() {
-        return String::new();
-    }
-
-    // First, transform class fields with $state and $derived
-    // This handles classes defined at module level
-    let script = transform_class_fields_client(script);
-
-    // Collect state variables from module scope
-    // Module-level state variables declared outside classes
-    let state_vars = extract_local_reactive_vars(&script);
-
-    // Collect proxy vars - variables initialized with $state({ ... }) or $state([ ... ])
-    let proxy_vars = extract_proxy_vars(&script);
-
-    let mut result = String::new();
-
-    // Process script lines
-    for line in script.lines() {
-        let trimmed = line.trim();
-
-        // Skip empty lines
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        // Transform runes ($state, $derived) for module-level code
-        // Note: $props, $effect are not allowed in module scripts
-        let transformed = transform_module_level_runes(trimmed, &state_vars, &proxy_vars);
-
-        result.push_str(&transformed);
-        result.push('\n');
-    }
-
-    result
-}
-
-/// Transform runes for module-level code (not inside component function).
-/// Module scripts can have $state, $derived but not $props, $effect.
-fn transform_module_level_runes(
-    line: &str,
-    state_vars: &[String],
-    proxy_vars: &[String],
-) -> String {
-    let mut result = line.to_string();
-
-    // Transform $state.raw(x) to $.state(x)
-    if result.contains("$state.raw(") {
-        result = result.replace("$state.raw(", "$.state(");
-    }
-
-    // Transform $state.frozen(x) to $.state(x)
-    if result.contains("$state.frozen(") {
-        result = result.replace("$state.frozen(", "$.state(");
-    }
-
-    // Transform $state(x) to $.state(x) for primitives or $.proxy(x) for objects/arrays
-    if let Some(pos) = result.find("$state(") {
-        let state_start = pos + 7; // after "$state("
-        if let Some(content_end) = find_matching_paren(&result[state_start..]) {
-            let content = &result[state_start..state_start + content_end];
-            let trimmed_content = content.trim();
-            let is_object_or_array =
-                trimmed_content.starts_with('{') || trimmed_content.starts_with('[');
-
-            if is_object_or_array {
-                result = format!(
-                    "{}$.proxy({}){}",
-                    &result[..pos],
-                    content,
-                    &result[state_start + content_end + 1..]
-                );
-            } else {
-                result = format!(
-                    "{}$.state({}){}",
-                    &result[..pos],
-                    content,
-                    &result[state_start + content_end + 1..]
-                );
-            }
-        }
-    }
-
-    // Transform $derived(x) to $.derived(() => x)
-    if let Some(pos) = result.find("$derived(") {
-        let derived_start = pos + 9; // after "$derived("
-        if let Some(content_end) = find_matching_paren(&result[derived_start..]) {
-            let content = &result[derived_start..derived_start + content_end];
-            result = format!(
-                "{}$.derived(() => {}){}",
-                &result[..pos],
-                content,
-                &result[derived_start + content_end + 1..]
-            );
-        }
-    }
-
-    // Wrap state variable reads in $.get()
-    // This only applies to module-level state variables
-    if !state_vars.is_empty() {
-        result = wrap_state_vars_in_expr(&result, state_vars, &[], proxy_vars);
     }
 
     result
@@ -1427,14 +1312,14 @@ fn transform_class_fields_client(script: &str) -> String {
         }
     }
 
-    // Parse field definitions (before constructor) - class property definitions
+    // Parse field definitions (before constructor)
     let fields_section = if let Some(ctor_start) = constructor_start {
         &class_body[..ctor_start]
     } else {
         class_body
     };
 
-    // Parse each line for field definitions (class properties)
+    // Parse each line for field definitions
     for line in fields_section.lines() {
         let trimmed = line.trim();
         if trimmed.is_empty() {
@@ -1455,165 +1340,65 @@ fn transform_class_fields_client(script: &str) -> String {
         }
     }
 
-    // Also check for state fields declared in constructor (this.xxx = $state(...))
-    // This is a pattern used in some Svelte components
-    for line in constructor_content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        // Check for this.xxx = $state(...) pattern
-        if trimmed.starts_with("this.") {
-            if trimmed.contains("= $state(") || trimmed.contains("=$state(") {
-                if let Some(field) = parse_constructor_state_field(trimmed, "$state") {
-                    // Only add if not already present
-                    if !fields.iter().any(|f| f.name == field.name) {
-                        fields.push(field);
-                    }
-                }
-            } else if (trimmed.contains("= $derived(") || trimmed.contains("=$derived("))
-                && let Some(field) = parse_constructor_state_field(trimmed, "$derived")
-            {
-                // Only add if not already present
-                if !fields.iter().any(|f| f.name == field.name) {
-                    fields.push(field);
-                }
-            }
-        }
-    }
-
     if fields.is_empty() {
         return script.to_string();
     }
 
-    // Track which fields are declared in constructor (vs class property)
-    let constructor_fields: Vec<&ClassStateField> = fields
-        .iter()
-        .filter(|f| {
-            // Field is from constructor if it was found in constructor_content
-            constructor_content.contains(&format!("this.{} =", f.name))
-                || constructor_content.contains(&format!("this.{}=", f.name))
-        })
-        .collect();
-
-    let property_fields: Vec<&ClassStateField> = fields
-        .iter()
-        .filter(|f| !constructor_fields.iter().any(|cf| cf.name == f.name))
-        .collect();
-
     // Build transformed class body
     let mut new_class_body = String::new();
 
-    // 1. Add private field declarations for constructor-initialized fields
-    for field in &constructor_fields {
-        let private_name = format!("#{}", field.name);
-        new_class_body.push_str(&format!("\t{};\n", private_name));
-    }
-
-    // 2. Add property fields with getters/setters
-    for field in &property_fields {
+    for field in &fields {
+        // All fields become private with # prefix
         let private_name = format!("#{}", field.name);
 
         if field.rune_type == "$state" {
-            new_class_body.push_str(&format!("\t{} = $.state({});\n", private_name, field.value));
+            // Transform $state: #name = $.state(value)
+            new_class_body.push_str(&format!(
+                "\t\t{} = $.state({});\n",
+                private_name, field.value
+            ));
+
+            // Add getter/setter only for public fields
+            if !field.is_private {
+                new_class_body.push('\n');
+                new_class_body.push_str(&format!(
+                    "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
+                    field.name, private_name
+                ));
+                new_class_body.push('\n');
+                new_class_body.push_str(&format!(
+                    "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value, true);\n\t\t}}\n",
+                    field.name, private_name
+                ));
+            }
         } else if field.rune_type == "$derived" {
+            // Transform $derived: #name = $.derived(() => (value))
             let wrapped_value = format!("() => ({})", field.value);
             new_class_body.push_str(&format!(
-                "\t{} = $.derived({});\n",
+                "\t\t{} = $.derived({});\n",
                 private_name, wrapped_value
             ));
-        }
 
-        // Add getter/setter for public fields
-        if !field.is_private {
-            new_class_body.push('\n');
-            new_class_body.push_str(&format!(
-                "\tget {}() {{\n\t\treturn $.get(this.{});\n\t}}\n",
-                field.name, private_name
-            ));
-            new_class_body.push('\n');
-            if field.rune_type == "$state" {
+            // Add getter/setter only for public fields
+            if !field.is_private {
+                new_class_body.push('\n');
                 new_class_body.push_str(&format!(
-                    "\tset {}(value) {{\n\t\t$.set(this.{}, value, true);\n\t}}\n",
+                    "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
                     field.name, private_name
                 ));
-            } else {
+                new_class_body.push('\n');
                 new_class_body.push_str(&format!(
-                    "\tset {}(value) {{\n\t\t$.set(this.{}, value);\n\t}}\n",
+                    "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}\n",
                     field.name, private_name
                 ));
             }
         }
     }
 
-    // 3. Add getters/setters for constructor-initialized fields
-    for field in &constructor_fields {
-        let private_name = format!("#{}", field.name);
-
-        new_class_body.push('\n');
-        new_class_body.push_str(&format!(
-            "\tget {}() {{\n\t\treturn $.get(this.{});\n\t}}\n",
-            field.name, private_name
-        ));
-        new_class_body.push('\n');
-        if field.rune_type == "$state" {
-            new_class_body.push_str(&format!(
-                "\tset {}(value) {{\n\t\t$.set(this.{}, value, true);\n\t}}\n",
-                field.name, private_name
-            ));
-        } else {
-            new_class_body.push_str(&format!(
-                "\tset {}(value) {{\n\t\t$.set(this.{}, value);\n\t}}\n",
-                field.name, private_name
-            ));
-        }
-    }
-
-    // 4. Add other methods that aren't constructor or state field definitions
-    // Parse class body to find methods (before constructor or not state-related)
-    let _constructor_end = if let Some(start) = constructor_start {
-        // Find end of constructor
-        let after_ctor = &class_body[start..];
-        if let Some(brace_pos) = after_ctor.find('{') {
-            let body_start = start + brace_pos + 1;
-            let mut depth = 1;
-            let mut end = body_start;
-            for (i, c) in class_body[body_start..].char_indices() {
-                match c {
-                    '{' => depth += 1,
-                    '}' => {
-                        depth -= 1;
-                        if depth == 0 {
-                            end = body_start + i + 1;
-                            break;
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            Some(end)
-        } else {
-            None
-        }
-    } else {
-        None
-    };
-
-    // Get non-constructor methods from the part before constructor
-    if let Some(ctor_start) = constructor_start {
-        let before_ctor = &class_body[..ctor_start];
-        for method in extract_methods_simple(before_ctor) {
-            new_class_body.push('\n');
-            new_class_body.push_str(&method);
-            new_class_body.push('\n');
-        }
-    }
-
-    // 5. Add constructor with transformed assignments
+    // Add constructor with transformed assignments
     if constructor_start.is_some() {
         new_class_body.push('\n');
-        new_class_body.push_str("\tconstructor() {\n");
+        new_class_body.push_str("\t\tconstructor() {\n");
 
         // Transform constructor content
         for line in constructor_content.lines() {
@@ -1622,13 +1407,11 @@ fn transform_class_fields_client(script: &str) -> String {
                 continue;
             }
 
-            // Check if this line initializes a state field
-            let transformed_line =
-                transform_constructor_state_init(trimmed, &constructor_fields, &fields);
-            new_class_body.push_str(&format!("\t\t{}\n", transformed_line));
+            let transformed_line = transform_constructor_assignment(trimmed, &fields);
+            new_class_body.push_str(&format!("\t\t\t{}\n", transformed_line));
         }
 
-        new_class_body.push_str("\t}\n");
+        new_class_body.push_str("\t\t}\n");
     }
 
     // Build the final result
@@ -1636,99 +1419,9 @@ fn transform_class_fields_client(script: &str) -> String {
     let after_class_body = &script[class_body_end + 1..]; // Skip closing brace
 
     format!(
-        "{}{}\n{}}}{}",
+        "{}{}\n{}\t}}{}",
         before_class, class_header, new_class_body, after_class_body
     )
-}
-
-/// Extract methods from class body section using simple parsing.
-/// This handles methods like: methodName() { ... }
-fn extract_methods_simple(section: &str) -> Vec<String> {
-    let mut methods = Vec::new();
-    let mut i = 0;
-    let chars: Vec<char> = section.chars().collect();
-    let len = chars.len();
-
-    while i < len {
-        // Skip whitespace
-        while i < len && chars[i].is_whitespace() {
-            i += 1;
-        }
-        if i >= len {
-            break;
-        }
-
-        // Check if this looks like a method: starts with identifier
-        if !chars[i].is_alphabetic() && chars[i] != '_' && chars[i] != '#' {
-            i += 1;
-            continue;
-        }
-
-        // Find the start of what might be a method
-        let method_start = i;
-
-        // Read the identifier
-        while i < len && (chars[i].is_alphanumeric() || chars[i] == '_') {
-            i += 1;
-        }
-
-        // Skip whitespace
-        while i < len && chars[i].is_whitespace() {
-            i += 1;
-        }
-
-        // Check if followed by ( - this indicates a method
-        if i < len && chars[i] == '(' {
-            // Find matching )
-            let mut paren_depth = 1;
-            i += 1;
-            while i < len && paren_depth > 0 {
-                match chars[i] {
-                    '(' => paren_depth += 1,
-                    ')' => paren_depth -= 1,
-                    _ => {}
-                }
-                i += 1;
-            }
-
-            // Skip whitespace
-            while i < len && chars[i].is_whitespace() {
-                i += 1;
-            }
-
-            // Check for {
-            if i < len && chars[i] == '{' {
-                // Find matching }
-                let mut brace_depth = 1;
-                // let brace_start = i; // Unused but kept for clarity
-                i += 1;
-                while i < len && brace_depth > 0 {
-                    match chars[i] {
-                        '{' => brace_depth += 1,
-                        '}' => brace_depth -= 1,
-                        _ => {}
-                    }
-                    i += 1;
-                }
-
-                // Extract the method
-                let method_text: String = chars[method_start..i].iter().collect();
-                let method_trimmed = method_text.trim();
-
-                // Skip if this contains $state or $derived (it's a field definition not a method)
-                if !method_trimmed.contains("$state") && !method_trimmed.contains("$derived") {
-                    methods.push(format!("\t{}", method_trimmed));
-                }
-            }
-        } else if i < len && chars[i] == '=' {
-            // This is a field definition, skip to next line
-            while i < len && chars[i] != '\n' {
-                i += 1;
-            }
-        }
-    }
-
-    methods
 }
 
 /// Parse a state field definition.
@@ -1763,196 +1456,7 @@ fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStateField> {
     })
 }
 
-/// Parse a state field definition from constructor assignment: this.xxx = $state(...)
-fn parse_constructor_state_field(line: &str, rune_type: &str) -> Option<ClassStateField> {
-    let trimmed = line.trim().trim_end_matches(';');
-
-    // Must start with "this."
-    if !trimmed.starts_with("this.") {
-        return None;
-    }
-
-    // Find the field name between "this." and "="
-    let after_this = &trimmed[5..]; // After "this."
-    let name_end = after_this.find('=')?;
-    let name = after_this[..name_end].trim().to_string();
-
-    // Skip if it's a private field (will be handled differently)
-    if name.starts_with('#') {
-        return None;
-    }
-
-    // Find the rune call
-    let rune_pattern = format!("{}(", rune_type);
-    let rune_start = trimmed.find(&rune_pattern)?;
-    let value_start = rune_start + rune_pattern.len();
-
-    // Find matching closing paren
-    let after_paren = &trimmed[value_start..];
-    let value_end = find_matching_paren(after_paren)?;
-    let value = after_paren[..value_end].to_string();
-
-    Some(ClassStateField {
-        name,
-        is_private: false, // Constructor assignments are public fields
-        rune_type: rune_type.to_string(),
-        value,
-    })
-}
-
-/// Extract methods from class body that are not constructor or state field definitions.
-#[allow(dead_code)]
-fn extract_other_class_methods(class_body: &str, _constructor_start: Option<usize>) -> Vec<String> {
-    let mut methods = Vec::new();
-
-    // Simple regex-like parsing for methods
-    // Look for patterns like: methodName(...) { ... } or async methodName(...) { ... }
-    let mut i = 0;
-    let chars: Vec<char> = class_body.chars().collect();
-    let len = chars.len();
-
-    while i < len {
-        // Skip whitespace
-        while i < len && chars[i].is_whitespace() {
-            i += 1;
-        }
-
-        if i >= len {
-            break;
-        }
-
-        // Check for method patterns (but not constructor)
-        let remaining = &class_body[i..];
-
-        // Skip field definitions with $state or $derived
-        if remaining.contains("= $state(") || remaining.contains("= $derived(") {
-            // Skip this line
-            while i < len && chars[i] != '\n' {
-                i += 1;
-            }
-            i += 1;
-            continue;
-        }
-
-        // Check if this is a method definition (not constructor)
-        // Methods start with identifier followed by ( or async/static keywords
-        if remaining.starts_with("constructor(") {
-            // Skip constructor - we handle it separately
-            // Find the matching closing brace
-            if let Some(brace_pos) = remaining.find('{') {
-                let mut depth = 1;
-                let mut end = i + brace_pos + 1;
-                while end < class_body.len() && depth > 0 {
-                    match class_body.chars().nth(end) {
-                        Some('{') => depth += 1,
-                        Some('}') => depth -= 1,
-                        _ => {}
-                    }
-                    end += 1;
-                }
-                i = end;
-                continue;
-            }
-        }
-
-        // Check for regular method: name(...) { ... }
-        // Find identifier followed by (
-        let method_match = is_method_start(remaining);
-        if method_match {
-            // Find the method body
-            if let Some(brace_pos) = remaining.find('{') {
-                let method_start = i;
-                let mut depth = 1;
-                let mut end = brace_pos + 1;
-
-                while end < remaining.len() && depth > 0 {
-                    match remaining.chars().nth(end) {
-                        Some('{') => depth += 1,
-                        Some('}') => depth -= 1,
-                        _ => {}
-                    }
-                    end += 1;
-                }
-
-                let method_code = remaining[..end].trim();
-                methods.push(format!("\t{}", method_code));
-                i = method_start + end;
-                continue;
-            }
-        }
-
-        // Skip other content
-        i += 1;
-    }
-
-    methods
-}
-
-/// Check if the string starts with a method definition pattern.
-#[allow(dead_code)]
-fn is_method_start(s: &str) -> bool {
-    let trimmed = s.trim_start();
-
-    // Check for async/static keywords
-    let s = if let Some(rest) = trimmed.strip_prefix("async ") {
-        rest
-    } else if let Some(rest) = trimmed.strip_prefix("static ") {
-        rest
-    } else {
-        trimmed
-    };
-
-    // Now check for identifier followed by (
-    let mut chars = s.chars().peekable();
-
-    // First char must be a letter or _
-    match chars.next() {
-        Some(c) if c.is_alphabetic() || c == '_' => {}
-        _ => return false,
-    }
-
-    // Subsequent chars can be alphanumeric or _
-    while let Some(&c) = chars.peek() {
-        if c.is_alphanumeric() || c == '_' {
-            chars.next();
-        } else {
-            break;
-        }
-    }
-
-    // Must be followed by (
-    chars.next() == Some('(')
-}
-
-/// Transform constructor state initialization: this.xxx = $state(...) -> this.#xxx = $.state(...)
-fn transform_constructor_state_init(
-    line: &str,
-    constructor_fields: &[&ClassStateField],
-    _all_fields: &[ClassStateField],
-) -> String {
-    let trimmed = line.trim();
-
-    // Check for this.xxx = $state(...) or this.xxx = $derived(...)
-    for field in constructor_fields {
-        let pattern = format!("this.{} =", field.name);
-        let pattern_nospace = format!("this.{}=", field.name);
-
-        if trimmed.starts_with(&pattern) || trimmed.starts_with(&pattern_nospace) {
-            let private_name = format!("#{}", field.name);
-
-            if field.rune_type == "$state" {
-                return format!("this.{} = $.state({});", private_name, field.value);
-            } else if field.rune_type == "$derived" {
-                return format!("this.{} = $.derived(() => {});", private_name, field.value);
-            }
-        }
-    }
-
-    trimmed.to_string()
-}
-
 /// Transform constructor assignments for private state fields.
-#[allow(dead_code)]
 fn transform_constructor_assignment(line: &str, fields: &[ClassStateField]) -> String {
     let trimmed = line.trim();
 
