@@ -3,7 +3,7 @@
 このファイルはプロジェクトの**Single Source of Truth（単一の正）**です。
 すべての作業はここに記載され、進捗・発見・判断が逐次更新されます。
 
-**最終更新**: 2026-01-25
+**最終更新**: 2026-01-26
 **現在のフェーズ**: Phase C - Rust 実装
 
 ---
@@ -1328,3 +1328,57 @@ $.template_effect(() => {
 | 複雑な要素処理 | skip-static-subtree | 中（autofocus, muted, option.value 等）|
 
 **着手タスク:**
+
+### 2026-01-26 セッション1
+
+**セッション再開 (2026-01-26):**
+
+現在地: Phase C - Rust 実装
+目標: `$state.raw` の `$.get()` ラッピング修正
+
+**完了タスク:**
+
+- [x] `$state.raw` 変数への `$.get()` ラッピング修正
+  - **問題**: `readonly-state-replace` テストで `$state.raw([0])` の変数 `items` が正しく変換されていなかった
+  - **期待値**: `$.set(items, [...$.get(items), $.get(items).length])`
+  - **実際**: `$.set(items, [...items, items.length])`（`$.get()` が欠落）
+
+  **根本原因分析:**
+  - `items` が `non_reactive_state_vars` に含まれていた
+  - Phase 2 でアロー関数内の代入（`items = [...items]`）が `binding.reassigned` フラグを設定していない
+  - `analysis.immutable = true`（Runes モード）と組み合わさり、`items` が非リアクティブと誤判定
+
+  **修正内容:**
+  1. `is_state_source()` in `utils.rs`:
+     - `RawState` (`$state.raw`) は常に `true` を返すように変更
+     - `$state.raw` の目的は深いリアクティビティなしでトップレベルの値変更を追跡すること
+  2. `non_reactive_state_vars` フィルタ in `mod.rs`:
+     - `RawState` を除外するよう修正
+     - `binding.mutated` チェックも追加
+  3. スプレッド演算子のハンドリング in `transform_state_in_expr()`:
+     - `...items` が `...$.get(items)` に正しく変換されるように修正
+     - スプレッド演算子 `...` とプロパティアクセス `.` を区別
+  4. メンバーアクセスのハンドリング:
+     - `items.length` → `$.get(items).length` に正しく変換
+     - `followed_by_dot` チェックを削除
+
+- [x] コミット作成
+  - メッセージ: "fix(transform): Fix $.get() wrapping for $state.raw variables"
+
+**発見事項:**
+- Phase 2 にバグあり: アロー関数内の代入（`const f = () => { x = value; }`）が `binding.reassigned` フラグを設定しない
+- TODO コメントとして文書化（将来の修正対象）
+
+**テスト結果:**
+| メトリック | セッション開始 | セッション終了 | 差分 |
+|-----------|--------------|---------------|-----|
+| Runtime Runes Total | 32/724 | 32/724 | 維持 |
+| Runtime Runes Client | 61/724 | 61/724 | 維持 |
+| Runtime Runes Server | 124/724 | 124/724 | 維持 |
+| `readonly-state-replace` Client | ❌ | ✅ | 修正 |
+| Compiler Snapshot | 19/19 | 19/19 | 維持 |
+
+**次のアクション:**
+1. Phase 2 のアロー関数内代入追跡修正（`binding.reassigned` 問題）
+2. `readonly-state-replace` Server の修正
+3. C-052 継続: 新しいビジターシステムの改善
