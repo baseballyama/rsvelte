@@ -5,16 +5,26 @@
 //! Corresponds to Svelte's `2-analyze/visitors/ExpressionTag.js`.
 
 use super::VisitorContext;
+use crate::ast::js::Expression;
 use crate::ast::template::ExpressionTag;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
 /// Visit an expression tag.
-pub fn visit(_tag: &ExpressionTag, _context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    // Analyze the expression for references
-    // In a full implementation, we would:
-    // - Track variable references
-    // - Mark bindings as used
-    // - Detect reactive dependencies
+///
+/// Analyzes the JavaScript expression within the tag to:
+/// - Track variable references
+/// - Mark bindings as used
+/// - Detect reactive dependencies
+/// - Set needs_context when non-safe identifiers are accessed
+pub fn visit(tag: &ExpressionTag, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    // Extract the JSON value from the expression
+    let Expression::Value(expr_value) = &tag.expression;
+
+    // Walk the JavaScript AST to analyze it
+    // This will trigger CallExpression, MemberExpression, etc. visitors
+    // which set needs_context when appropriate
+    super::script::walk_js_node(expr_value, context)?;
+
     Ok(())
 }
 

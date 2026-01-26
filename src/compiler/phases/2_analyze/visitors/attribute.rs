@@ -8,7 +8,8 @@ use super::VisitorContext;
 use super::shared::attribute::{AttributeChunk, get_attribute_chunks, is_event_attribute};
 use super::shared::fragment::mark_subtree_dynamic;
 use super::shared::utils::{is_invalid_attribute_name, validate_attribute_name};
-use crate::ast::template::{AttributeNode, TemplateNode};
+use crate::ast::js::Expression;
+use crate::ast::template::{AttributeNode, AttributeValue, AttributeValuePart, TemplateNode};
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use crate::compiler::phases::phase2_analyze::errors;
 use crate::compiler::utils::{can_delegate_event, cannot_be_set_statically};
@@ -19,9 +20,10 @@ use crate::compiler::utils::{can_delegate_event, cannot_be_set_statically};
 ///
 /// Analyzes attributes and marks subtrees as dynamic when necessary.
 pub fn visit(attribute: &AttributeNode, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    // TODO: Visit children (expressions in attribute value)
+    // Visit children (expressions in attribute value)
     // In JS: context.next();
-    // This requires traversing expression nodes in the attribute value
+    // Walk through all expressions in the attribute value
+    visit_attribute_value_expressions(&attribute.value, context)?;
 
     // Validate attribute name for invalid characters
     if is_invalid_attribute_name(&attribute.name) {
@@ -121,5 +123,36 @@ pub fn visit(attribute: &AttributeNode, context: &mut VisitorContext) -> Result<
         }
     }
 
+    Ok(())
+}
+
+/// Visit all JavaScript expressions within an attribute value.
+///
+/// This walks through the JS AST of expressions in the attribute value,
+/// triggering visitors for CallExpression, MemberExpression, etc.
+/// which set `needs_context` when appropriate.
+fn visit_attribute_value_expressions(
+    value: &AttributeValue,
+    context: &mut VisitorContext,
+) -> Result<(), AnalysisError> {
+    match value {
+        AttributeValue::True(_) => {
+            // No expressions to visit
+        }
+        AttributeValue::Expression(expr_tag) => {
+            // Visit the expression
+            let Expression::Value(v) = &expr_tag.expression;
+            super::script::walk_js_node(v, context)?;
+        }
+        AttributeValue::Sequence(parts) => {
+            // Visit each expression tag in the sequence
+            for part in parts {
+                if let AttributeValuePart::ExpressionTag(expr_tag) = part {
+                    let Expression::Value(v) = &expr_tag.expression;
+                    super::script::walk_js_node(v, context)?;
+                }
+            }
+        }
+    }
     Ok(())
 }

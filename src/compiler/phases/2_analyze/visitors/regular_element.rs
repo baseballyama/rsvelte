@@ -12,6 +12,7 @@ use super::on_directive;
 use super::shared::a11y::check_element as a11y_check;
 use super::shared::element::validate_element;
 use super::shared::fragment::{analyze, mark_subtree_dynamic};
+use super::use_directive;
 use crate::ast::template::{
     Attribute, AttributeValue, AttributeValuePart, RegularElement, TemplateNode,
 };
@@ -696,6 +697,12 @@ pub fn visit(
             Attribute::OnDirective(_) => {
                 // Visit on: directive to track event_directive_node for mixed syntax detection
                 // Need mutable borrow so use a different approach
+            }
+            Attribute::UseDirective(_) => {
+                // Re-borrow the use directive for the visit call
+                if let Attribute::UseDirective(use_dir) = &element.attributes[i] {
+                    use_directive::visit(use_dir, context)?;
+                }
             }
             _ => {}
         }
