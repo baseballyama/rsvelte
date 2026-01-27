@@ -1654,3 +1654,53 @@ $.template_effect(() => {
 1. Server 側の `svelte:boundary` 対応
 2. 追加の境界テストケース修正
 3. フォーマット正規化の継続改善
+
+### 2026-01-27 セッション6
+
+**セッション再開 (2026-01-27 セッション6):**
+
+現在地: Phase C - Rust 実装
+目標: Server 側の `svelte:boundary` 対応
+
+**テスト状況（セッション開始時）:**
+| メトリック | 値 |
+|-----------|-----|
+| Runtime Runes Total | 53/724 |
+| Runtime Runes Client | 125/724 |
+| Runtime Runes Server | 136/724 |
+
+**完了タスク:**
+- [x] C-060: Server 側 `<svelte:boundary>` 実装 ✅
+  - `OutputPart::SvelteBoundary` 変種を追加
+  - `generate_node()` に `TemplateNode::SvelteBoundary` ディスパッチ追加
+  - `generate_svelte_boundary()` メソッド実装
+    - pending スニペットの検出と抽出
+    - `block_open_else` (`<!--[!-->`) / `block_close` (`<!--]-->`) マーカー生成
+  - `generate_fragment_body_parts()` ヘルパー（空白トリミング機能付き）
+  - `build_parts()` に `SvelteBoundary` ハンドリング追加
+  - **結果**: Runtime Runes Server +5 (136 → 141)
+  - **コミット**: `feat(transform): Add server-side svelte:boundary support`
+
+- [x] フォーマット修正
+  - 境界出力のフォーマット改善（空行追加）
+  - テスト正規化により async-derived-unchanging が Server で通過
+  - **コミット**: `fix(transform): Improve server-side boundary formatting`
+
+**テスト状況（セッション6最終）:**
+| メトリック | セッション開始 | セッション終了 | 差分 |
+|-----------|--------------|---------------|------|
+| Runtime Runes Total | 53/724 | **55/724** | **+2** |
+| Runtime Runes Client | 125/724 | **124/724** | -1 |
+| Runtime Runes Server | 136/724 | **141/724** | **+5** |
+| Compiler Snapshot | 19/19 | **19/19** | 100% ✅ |
+
+**技術詳細:**
+- Server 側の `svelte:boundary` は pending 状態をレンダリング（SSR では非同期境界は常に pending を表示）
+- `pending` スニペットまたは `pending` 属性を検出して適切な出力生成
+- 空白トリミングにより snippet 本体の前後の空白ノードをスキップ
+- `normalize_js()` によるテスト比較でフォーマット差異を吸収
+
+**次のアクション:**
+1. 追加の境界関連テストケース調査
+2. 他の async 関連機能の実装
+3. Client/Server の両方で失敗しているテストの調査
