@@ -708,6 +708,12 @@ impl<'a> ServerCodeGenerator<'a> {
         bind: &BindDirective,
     ) -> Result<Option<String>, TransformError> {
         let name = bind.name.as_str();
+
+        // Skip bind:this - it's a client-only binding with no server representation
+        if name == "this" {
+            return Ok(None);
+        }
+
         let expr_start = bind.expression.start().unwrap_or(0) as usize;
         let expr_end = bind.expression.end().unwrap_or(0) as usize;
 
@@ -1000,18 +1006,60 @@ impl<'a> ServerCodeGenerator<'a> {
             match attr {
                 Attribute::Attribute(node) => {
                     let name = node.name.as_str();
-                    if let AttributeValue::Expression(expr_tag) = &node.value {
-                        // Get expression from ExpressionTag's expression field
-                        let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
-                        let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
-                        if expr_end > expr_start && expr_end <= self.source.len() {
-                            let expr_source = self.source[expr_start..expr_end].trim().to_string();
-                            // Check if it's a shorthand property (name equals expression)
-                            if expr_source == name {
-                                props.push(name.to_string());
-                            } else {
-                                props.push(format!("{}: {}", name, expr_source));
+                    match &node.value {
+                        AttributeValue::Expression(expr_tag) => {
+                            // Get expression from ExpressionTag's expression field
+                            let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                            let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                            if expr_end > expr_start && expr_end <= self.source.len() {
+                                let expr_source =
+                                    self.source[expr_start..expr_end].trim().to_string();
+                                // Check if it's a shorthand property (name equals expression)
+                                if expr_source == name {
+                                    props.push(name.to_string());
+                                } else {
+                                    props.push(format!("{}: {}", name, expr_source));
+                                }
                             }
+                        }
+                        AttributeValue::Sequence(parts) => {
+                            // Handle text or mixed values like name="world"
+                            let mut value_str = String::new();
+                            for part in parts {
+                                match part {
+                                    crate::ast::template::AttributeValuePart::Text(text) => {
+                                        value_str.push_str(&text.data);
+                                    }
+                                    crate::ast::template::AttributeValuePart::ExpressionTag(
+                                        expr_tag,
+                                    ) => {
+                                        // For mixed values with expressions, extract from source
+                                        let expr_start =
+                                            expr_tag.expression.start().unwrap_or(0) as usize;
+                                        let expr_end =
+                                            expr_tag.expression.end().unwrap_or(0) as usize;
+                                        if expr_end > expr_start && expr_end <= self.source.len() {
+                                            value_str.push_str("${");
+                                            value_str
+                                                .push_str(self.source[expr_start..expr_end].trim());
+                                            value_str.push('}');
+                                        }
+                                    }
+                                }
+                            }
+                            if !value_str.is_empty() {
+                                // Check if the value contains expressions
+                                if value_str.contains("${") {
+                                    props.push(format!("{}: `{}`", name, value_str));
+                                } else {
+                                    // Simple string value
+                                    props.push(format!("{}: '{}'", name, value_str));
+                                }
+                            }
+                        }
+                        AttributeValue::True(_) => {
+                            // Boolean attribute (e.g., disabled)
+                            props.push(format!("{}: true", name));
                         }
                     }
                 }
@@ -1693,7 +1741,9 @@ impl<'a> ServerCodeGenerator<'a> {
                 .push(OutputPart::Html("<!---->".to_string()));
         }
 
-        // Generate body content, trimming first text node
+        // Generate body content, trimming whitespace properly
+        // Track previous non-output nodes (like ConstTag) to skip whitespace after them
+        let mut prev_was_const_tag = false;
         for (i, node) in body_nodes
             .iter()
             .enumerate()
@@ -1709,9 +1759,22 @@ impl<'a> ServerCodeGenerator<'a> {
                             .output_parts
                             .push(OutputPart::Html(escape_html(trimmed)));
                     }
+                    prev_was_const_tag = false;
                     continue;
                 }
             }
+
+            // Skip whitespace-only text nodes after ConstTag
+            if prev_was_const_tag
+                && let TemplateNode::Text(text) = node
+                && text.data.trim().is_empty()
+            {
+                continue;
+            }
+
+            // Track if current node is a ConstTag
+            prev_was_const_tag = matches!(node, TemplateNode::ConstTag(_));
+
             body_generator.generate_node(node, false)?;
         }
 

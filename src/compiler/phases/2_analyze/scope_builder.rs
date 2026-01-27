@@ -688,12 +688,13 @@ impl<'a> ScopeBuilder<'a> {
                     _ => {}
                 }
             } else if let Expression::StaticMemberExpression(member) = &call.callee {
-                // Handle $state.raw()
-                if let Expression::Identifier(obj) = &member.object
-                    && obj.name.as_str() == "$state"
-                    && member.property.name.as_str() == "raw"
-                {
-                    return BindingKind::RawState;
+                // Handle $state.raw() and $derived.by()
+                if let Expression::Identifier(obj) = &member.object {
+                    match (obj.name.as_str(), member.property.name.as_str()) {
+                        ("$state", "raw") => return BindingKind::RawState,
+                        ("$derived", "by") => return BindingKind::Derived,
+                        _ => {}
+                    }
                 }
             }
         }
