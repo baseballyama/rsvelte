@@ -1813,3 +1813,59 @@ $.template_effect(() => {
 1. さらなる Total 向上（目標: 150+）
 2. Component visitor の改善
 3. async 関連機能の完成
+
+### 2026-01-27 セッション8
+
+**セッション再開 (2026-01-27 セッション8):**
+
+現在地: Phase C - Rust 実装
+目標: Runtime Runes Total 150+ への改善
+
+**テスト状況（セッション開始時）:**
+| メトリック | 値 |
+|-----------|-----|
+| Runtime Runes Total | 120/724 |
+| Runtime Runes Client | 170/724 |
+| Runtime Runes Server | 311/724 |
+| Compiler Snapshot | 19/19 (100%) |
+
+**失敗パターン分析結果（2026-01-28）:**
+| パターン | 影響テスト数 | 優先度 |
+|----------|-------------|--------|
+| Server vs Client API 混在 | 466 テスト (77%) | 🔴 CRITICAL |
+| State/Derived Rune 欠落 | 101 テスト (17%) | 🔴 CRITICAL |
+| $$renderer.component() 欠落 | 166+ テスト | 🟠 HIGH |
+| 構文/パース エラー | 95 テスト | 🟠 HIGH |
+
+**着手タスク:**
+
+- [ ] **C-078**: Server 出力から Client API を除去
+  - 対象: `src/compiler/phases/3_transform/server/transform_server.rs`
+  - 問題: Server 出力に `$.state()`, `$.derived()`, `$.update()` などの Client API が混在
+  - 影響: 466 テスト
+
+- [ ] **C-079**: State/Derived Rune の正確な生成
+  - 対象: `src/compiler/phases/3_transform/client/` (expression_converter, mod.rs)
+  - 問題: `let aborted = $.state(0)` が `let aborted = 0` に
+  - 影響: 101 テスト
+
+**完了タスク:**
+
+- [x] **C-078-partial**: Server クラスフィールド変換改善
+  - store subscription サポート追加
+  - 結果: Server +10 (301→311)
+
+- [x] **C-080**: $state() 引数なし時の undefined 出力
+  - 対象: `src/compiler/phases/3_transform/client/mod.rs`
+  - 問題: `let value = $state();` が `let value = ;` に変換されパースエラー
+  - 修正: 空の引数は `undefined` を出力
+  - 結果: `form-default-value-spread` がコンパイル可能に
+
+**現在のテスト状況（セッション8進行中）:**
+| メトリック | 開始時 | 現在 | 差分 |
+|-----------|--------|------|------|
+| Total | 117/724 | 118/724 | +1 |
+| Client | 167/724 | 168/724 | +1 |
+| Server | 301/724 | 310/724 | +9 |
+
+**次のアクション:**
