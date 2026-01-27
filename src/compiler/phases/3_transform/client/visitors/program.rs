@@ -251,6 +251,7 @@ mod tests {
     use crate::compiler::CompileOptions;
     use crate::compiler::phases::phase2_analyze::scope::{Binding, Scope, ScopeRoot};
     use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
+    use std::rc::Rc;
 
     #[test]
     fn test_visit_program() {
@@ -259,12 +260,14 @@ mod tests {
         let options = CompileOptions::default();
         let analysis = ComponentAnalysis::new(source, &options);
         let scope_root = ScopeRoot::new();
+        let transform_options = Rc::new(TransformOptions::default());
 
         let state = ComponentClientTransformState::new(
             &scope_root.scope,
             &scope_root,
             &analysis,
             crate::compiler::phases::phase3_transform::js_ast::builders::id("root"),
+            transform_options,
         );
 
         let visit_fn = |_ctx: &mut ComponentContext,

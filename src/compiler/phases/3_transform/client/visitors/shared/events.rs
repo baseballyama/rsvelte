@@ -241,6 +241,7 @@ pub fn build_delegated_event(event_name: &str) -> JsStatement {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::rc::Rc;
 
     fn create_test_on_directive() -> crate::ast::template::OnDirective {
         use compact_str::CompactString;
@@ -263,8 +264,14 @@ mod tests {
         );
         let scope = crate::compiler::phases::phase2_analyze::scope::Scope::new(None);
         let scope_root = crate::compiler::phases::phase2_analyze::scope::ScopeRoot::new();
-        let state =
-            ComponentClientTransformState::new(&scope, &scope_root, &analysis, b::id("node"));
+        let options = Rc::new(TransformOptions::default());
+        let state = ComponentClientTransformState::new(
+            &scope,
+            &scope_root,
+            &analysis,
+            b::id("node"),
+            options,
+        );
         let mut context = ComponentContext::new(state, |_, _, _| TransformResult::None);
 
         let handler = build_event_handler(None, &on_directive, &mut context);

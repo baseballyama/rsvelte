@@ -602,6 +602,7 @@ mod tests {
     use super::*;
     use crate::ast::template::Text;
     use crate::compiler::ComponentAnalysis;
+    use std::rc::Rc;
 
     #[test]
     fn test_build_attribute_value_true() {
@@ -609,8 +610,14 @@ mod tests {
         let analysis = ComponentAnalysis::new("", &Default::default());
         let scope = crate::compiler::phases::phase2_analyze::scope::Scope::new(None);
         let scope_root = crate::compiler::phases::phase2_analyze::scope::ScopeRoot::new();
-        let state =
-            ComponentClientTransformState::new(&scope, &scope_root, &analysis, b::id("node"));
+        let options = Rc::new(TransformOptions::default());
+        let state = ComponentClientTransformState::new(
+            &scope,
+            &scope_root,
+            &analysis,
+            b::id("node"),
+            options,
+        );
         let mut context = ComponentContext::new(state, |_, _, _| TransformResult::None);
 
         let value = AttributeValue::True(true);
@@ -628,8 +635,14 @@ mod tests {
         let analysis = ComponentAnalysis::new("", &Default::default());
         let scope = crate::compiler::phases::phase2_analyze::scope::Scope::new(None);
         let scope_root = crate::compiler::phases::phase2_analyze::scope::ScopeRoot::new();
-        let state =
-            ComponentClientTransformState::new(&scope, &scope_root, &analysis, b::id("node"));
+        let options = Rc::new(TransformOptions::default());
+        let state = ComponentClientTransformState::new(
+            &scope,
+            &scope_root,
+            &analysis,
+            b::id("node"),
+            options,
+        );
         let mut context = ComponentContext::new(state, |_, _, _| TransformResult::None);
 
         let value = AttributeValue::Sequence(vec![AttributeValuePart::Text(Text {

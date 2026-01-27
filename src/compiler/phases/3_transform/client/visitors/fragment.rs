@@ -6,6 +6,8 @@
 //! The Fragment visitor handles the transformation of Fragment nodes into client-side
 //! JavaScript code. It creates a template block and processes its children.
 
+use std::rc::Rc;
+
 use crate::ast::template::{Fragment, TemplateNode};
 use crate::compiler::phases::phase3_transform::client::transform_template::{
     Namespace, Template, transform_template,
@@ -125,7 +127,7 @@ pub fn fragment(
         scopes: HashMap::with_capacity(4),
         analysis: context.state.analysis,
         scope_root: context.state.scope_root,
-        options: context.state.options.clone(),
+        options: Rc::clone(&context.state.options),
         hoisted: Vec::with_capacity(4),
         template: Template::new(),
         init: Vec::with_capacity(8),

@@ -12,6 +12,7 @@ use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::client::transform_template::Template;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 /// Component transformation context.
 ///
@@ -364,7 +365,7 @@ pub struct ComponentClientTransformState<'a> {
     pub scope_root: &'a ScopeRoot,
 
     /// Compile options
-    pub options: TransformOptions,
+    pub options: Rc<TransformOptions>,
 
     /// Hoisted statements (declarations that go at the top level)
     pub hoisted: Vec<JsStatement>,
@@ -456,13 +457,16 @@ impl<'a> ComponentClientTransformState<'a> {
         scope_root: &'a ScopeRoot,
         analysis: &'a ComponentAnalysis,
         node: JsExpr,
+        options: Rc<TransformOptions>,
     ) -> Self {
+        let dev = options.dev;
+        let preserve_whitespace = options.preserve_whitespace;
         Self {
             scope,
             scopes: HashMap::new(),
             analysis,
             scope_root,
-            options: TransformOptions::default(),
+            options,
             hoisted: Vec::new(),
             template: Template::new(),
             init: Vec::new(),
@@ -472,17 +476,18 @@ impl<'a> ComponentClientTransformState<'a> {
             async_consts: None,
             let_directives: Vec::new(),
             node,
-            memoizer: Memoizer::new(),
+            // Use memoizer with scope declarations to avoid variable name collisions
+            memoizer: Memoizer::with_scope_declarations(scope, scope_root),
             transform: HashMap::new(),
             events: HashSet::new(),
             metadata: ComponentMetadata::default(),
             in_constructor: false,
             in_derived: false,
-            dev: false,
+            dev,
             state_fields: HashMap::new(),
             is_instance: false,
             legacy_reactive_imports: Vec::new(),
-            preserve_whitespace: false,
+            preserve_whitespace,
             instance_level_snippets: Vec::new(),
             module_level_snippets: Vec::new(),
             snippet_names: HashSet::new(),
@@ -649,6 +654,45 @@ impl Memoizer {
             counter: 0,
             memos: HashMap::new(),
             conflicts: HashSet::new(),
+            sync: Vec::new(),
+            async_entries: Vec::new(),
+        }
+    }
+
+    /// Create a new memoizer with scope declarations pre-registered as conflicts.
+    ///
+    /// This ensures that generated variable names don't collide with existing
+    /// declarations in the scope.
+    ///
+    /// # Arguments
+    ///
+    /// * `scope` - The scope to extract declarations from
+    /// * `scope_root` - The scope root containing all bindings
+    ///
+    /// # Returns
+    ///
+    /// A new memoizer with scope declarations added to conflicts.
+    pub fn with_scope_declarations(
+        scope: &crate::compiler::phases::phase2_analyze::scope::Scope,
+        scope_root: &crate::compiler::phases::phase2_analyze::scope::ScopeRoot,
+    ) -> Self {
+        let mut conflicts = HashSet::new();
+
+        // Add all declarations from the scope to conflicts
+        for name in scope.declarations.keys() {
+            conflicts.insert(name.clone());
+        }
+
+        // Also add all binding names from the scope root
+        // This ensures we don't collide with any variable in the component
+        for binding in &scope_root.bindings {
+            conflicts.insert(binding.name.clone());
+        }
+
+        Self {
+            counter: 0,
+            memos: HashMap::new(),
+            conflicts,
             sync: Vec::new(),
             async_entries: Vec::new(),
         }

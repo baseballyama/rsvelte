@@ -385,6 +385,7 @@ mod tests {
     use crate::compiler::CompileOptions;
     use crate::compiler::phases::phase2_analyze::scope::{Binding, Scope, ScopeRoot};
     use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
+    use std::rc::Rc;
 
     #[test]
     fn test_get_value() {
@@ -516,12 +517,16 @@ mod tests {
         let mut scope = Scope::new(None);
         scope.declarations.insert("count".to_string(), binding_idx);
 
+        let transform_options = Rc::new(
+            crate::compiler::phases::phase3_transform::client::types::TransformOptions::default(),
+        );
         let state =
             crate::compiler::phases::phase3_transform::client::types::ComponentClientTransformState::new(
                 &scope,
                 &scope_root,
                 &analysis,
                 b::id("anchor"),
+                transform_options,
             );
 
         let mut context =

@@ -13,6 +13,7 @@ pub mod utils;
 mod visitor;
 pub mod visitors;
 
+use std::rc::Rc;
 use std::sync::LazyLock;
 
 use regex::Regex;
@@ -32,7 +33,7 @@ use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
 // Import new visitor system types
-use types::{ComponentClientTransformState, ComponentContext, TransformResult};
+use types::{ComponentClientTransformState, ComponentContext, TransformOptions, TransformResult};
 
 // Cached regular expressions for performance
 static REGEX_STATE_DERIVED_VAR: LazyLock<Regex> =
@@ -84,12 +85,21 @@ fn transform_client_with_visitors(
     // Create initial node (anchor) for the transformation
     let initial_node = b::id("$$anchor");
 
+    // Create transform options as Rc for efficient sharing
+    let transform_options = Rc::new(TransformOptions {
+        dev: options.dev,
+        preserve_whitespace: options.preserve_whitespace,
+        preserve_comments: options.preserve_comments,
+        ..Default::default()
+    });
+
     // Create the component client transform state
     let state = ComponentClientTransformState::new(
         &analysis.root.scope,
         &analysis.root,
         analysis,
         initial_node,
+        Rc::clone(&transform_options),
     );
 
     // Create the component context with a dummy visit function
@@ -102,13 +112,6 @@ fn transform_client_with_visitors(
     // references in event handlers get properly transformed
     use crate::compiler::phases::phase3_transform::client::visitors::shared::declarations::add_state_transformers;
     add_state_transformers(&mut context);
-
-    // Set up transform options from compile options
-    context.state.options.dev = options.dev;
-    context.state.options.preserve_whitespace = options.preserve_whitespace;
-    context.state.options.preserve_comments = options.preserve_comments;
-    context.state.preserve_whitespace = options.preserve_whitespace;
-    context.state.dev = options.dev;
 
     // Call the fragment visitor to transform the template
     // This is the root fragment of the component, so is_root_fragment=true
