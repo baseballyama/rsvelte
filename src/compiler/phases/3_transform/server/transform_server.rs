@@ -113,6 +113,8 @@ struct ServerCodeGenerator<'a> {
     snippets: Vec<SnippetDef>,
     /// Component analysis from Phase 2
     analysis: Option<&'a ComponentAnalysis>,
+    /// Whether the component uses store subscriptions (requires $$store_subs variable)
+    uses_store_subs: bool,
 }
 
 /// A part of the output - either static HTML or dynamic code.
@@ -210,16 +212,75 @@ impl<'a> ServerCodeGenerator<'a> {
             HashMap::new()
         };
 
+        // Check if the analysis has any StoreSub bindings
+        let uses_store_subs = analysis
+            .map(|a| {
+                a.root
+                    .bindings
+                    .iter()
+                    .any(|b| matches!(b.kind, BindingKind::StoreSub))
+            })
+            .unwrap_or(false);
+
         Self {
             component_name,
             source,
-            output_parts: Vec::new(),
+            // Pre-allocate capacity based on typical component sizes
+            // Average component has ~50-100 output parts
+            output_parts: Vec::with_capacity(64),
             instance_script,
             module_script,
             constant_vars,
-            snippets: Vec::new(),
+            // Most components have 0-5 snippets
+            snippets: Vec::with_capacity(4),
             analysis,
+            uses_store_subs,
         }
+    }
+
+    /// Transform store subscriptions in an expression.
+    /// Converts `$store` to `$.store_get($$store_subs ??= {}, '$store', store)`.
+    fn transform_store_refs(&self, expr: &str) -> String {
+        if !self.uses_store_subs {
+            return expr.to_string();
+        }
+
+        let analysis = match self.analysis {
+            Some(a) => a,
+            None => return expr.to_string(),
+        };
+
+        // Collect store subscription names from the analysis
+        let store_sub_names: Vec<&str> = analysis
+            .root
+            .bindings
+            .iter()
+            .filter(|b| matches!(b.kind, BindingKind::StoreSub))
+            .map(|b| b.name.as_str())
+            .collect();
+
+        if store_sub_names.is_empty() {
+            return expr.to_string();
+        }
+
+        let mut result = expr.to_string();
+
+        // Transform each store subscription
+        for name in store_sub_names {
+            // Skip if it doesn't start with $
+            if !name.starts_with('$') {
+                continue;
+            }
+
+            // Get the store variable name (without $)
+            let store_name = &name[1..];
+
+            // Replace $store with $.store_get($$store_subs ??= {}, '$store', store)
+            // We need to be careful to only replace complete identifiers, not substrings
+            result = replace_store_identifier(&result, name, store_name);
+        }
+
+        result
     }
 
     fn generate_component(&mut self, fragment: &Fragment) -> Result<(), TransformError> {
@@ -945,7 +1006,9 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
                 ConstantFoldResult::Dynamic => {
                     // Dynamic expression - needs escaping
-                    self.output_parts.push(OutputPart::Expression(expr_source));
+                    // Transform store subscriptions ($store -> $.store_get())
+                    let transformed = self.transform_store_refs(&expr_source);
+                    self.output_parts.push(OutputPart::Expression(transformed));
                 }
             }
         }
@@ -998,9 +1061,11 @@ impl<'a> ServerCodeGenerator<'a> {
         });
 
         // Extract props, spreads, and bindings
-        let mut props = Vec::new();
-        let mut spreads = Vec::new();
-        let mut bindings = Vec::new();
+        // Pre-allocate based on typical attribute counts
+        let attr_count = component.attributes.len();
+        let mut props = Vec::with_capacity(attr_count);
+        let mut spreads = Vec::with_capacity(2);
+        let mut bindings = Vec::with_capacity(2);
 
         for attr in &component.attributes {
             match attr {
@@ -1135,9 +1200,11 @@ impl<'a> ServerCodeGenerator<'a> {
         ),
         TransformError,
     > {
-        let mut snippets: Vec<(String, Vec<String>, Vec<OutputPart>)> = Vec::new();
-        let mut slot_names: Vec<String> = Vec::new();
-        let mut non_snippet_nodes: Vec<&TemplateNode> = Vec::new();
+        // Pre-allocate based on typical usage patterns
+        let node_count = fragment.nodes.len();
+        let mut snippets: Vec<(String, Vec<String>, Vec<OutputPart>)> = Vec::with_capacity(4);
+        let mut slot_names: Vec<String> = Vec::with_capacity(4);
+        let mut non_snippet_nodes: Vec<&TemplateNode> = Vec::with_capacity(node_count);
 
         // Separate snippets from other children
         for node in &fragment.nodes {
@@ -2069,13 +2136,14 @@ impl<'a> ServerCodeGenerator<'a> {
                 // - Member expression on unsafe identifier
                 let needs_context = self.analysis.map(|a| a.needs_context).unwrap_or(false);
 
-                if uses_props || has_class_state_fields || needs_context {
-                    (
-                        ", $$props",
-                        transformed,
-                        imports,
-                        uses_props_spread || has_class_state_fields || needs_context,
-                    )
+                // Store subscriptions require $$renderer.component() wrapper
+                let needs_wrapper = uses_props_spread
+                    || has_class_state_fields
+                    || needs_context
+                    || self.uses_store_subs;
+
+                if uses_props || has_class_state_fields || needs_context || self.uses_store_subs {
+                    (", $$props", transformed, imports, needs_wrapper)
                 } else {
                     ("", transformed, imports, false)
                 }
@@ -2116,23 +2184,37 @@ impl<'a> ServerCodeGenerator<'a> {
                 // Build $.bind_props() call (inside $$renderer.component())
                 let bind_props_code = self.build_bind_props(2);
 
+                // Add store subscription variable declaration and cleanup if needed
+                let store_subs_decl = if self.uses_store_subs {
+                    "\t\tvar $$store_subs;\n"
+                } else {
+                    ""
+                };
+                let store_subs_cleanup = if self.uses_store_subs {
+                    "\n\t\tif ($$store_subs) $.unsubscribe_stores($$store_subs);\n"
+                } else {
+                    ""
+                };
+
                 format!(
                     r#"import * as $ from 'svelte/internal/server';
 {imports_section}{module_section}{snippets_section}
 export default function {component_name}($$renderer{props_param}) {{
 	$$renderer.component(($$renderer) => {{
-{inner_script}
-{instance_snippets}{inner_body}{bind_props_code}	}});
+{store_subs_decl}{inner_script}
+{instance_snippets}{inner_body}{bind_props_code}{store_subs_cleanup}	}});
 }}"#,
                     imports_section = imports_section,
                     module_section = module_section,
                     snippets_section = snippets_section,
                     component_name = self.component_name,
                     props_param = props_param,
+                    store_subs_decl = store_subs_decl,
                     inner_script = inner_script,
                     instance_snippets = instance_snippets,
                     inner_body = inner_body,
-                    bind_props_code = bind_props_code
+                    bind_props_code = bind_props_code,
+                    store_subs_cleanup = store_subs_cleanup
                 )
             } else {
                 let script_section = if script_code.is_empty() {
@@ -3757,6 +3839,10 @@ fn add_statement_semicolon(line: &str) -> String {
 }
 
 /// Transform class fields with $derived runes for server-side.
+/// Output order matches official Svelte compiler:
+/// 1. Non-$derived fields ($state, etc.)
+/// 2. $derived fields (private field + getter/setter)
+/// 3. Methods
 fn transform_class_fields_server(script: &str) -> String {
     if !script.contains("class ") || !script.contains("$derived") {
         return script.to_string();
@@ -3801,14 +3887,19 @@ fn transform_class_fields_server(script: &str) -> String {
     }
 
     let mut derived_fields: Vec<DerivedField> = Vec::new();
-    let mut other_lines: Vec<String> = Vec::new();
+    let mut field_lines: Vec<String> = Vec::new(); // Non-$derived fields
+    let mut method_lines: Vec<String> = Vec::new(); // Methods
     let mut constructor_lines: Vec<String> = Vec::new();
     let mut in_constructor = false;
     let mut constructor_depth = 0;
+    let mut in_method = false;
+    let mut method_depth = 0;
+    let mut current_method: Vec<String> = Vec::new();
 
     for line in class_body.lines() {
         let trimmed = line.trim();
 
+        // Handle constructor
         if trimmed.contains("constructor(") {
             in_constructor = true;
             constructor_lines.push(trimmed.to_string());
@@ -3835,6 +3926,53 @@ fn transform_class_fields_server(script: &str) -> String {
             continue;
         }
 
+        // Handle methods (including getters and setters)
+        if in_method {
+            current_method.push(trimmed.to_string());
+            for c in trimmed.chars() {
+                match c {
+                    '{' => method_depth += 1,
+                    '}' => {
+                        method_depth -= 1;
+                        if method_depth == 0 {
+                            in_method = false;
+                            method_lines.append(&mut current_method);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            continue;
+        }
+
+        // Detect method start: name(...) { or get name() { or set name(...)
+        let is_method_start = (trimmed.contains('(') && trimmed.contains('{'))
+            && !trimmed.contains('=')
+            && !trimmed.starts_with("//")
+            && !trimmed.starts_with("/*");
+
+        if is_method_start {
+            in_method = true;
+            method_depth = 0;
+            current_method.clear();
+            current_method.push(trimmed.to_string());
+            for c in trimmed.chars() {
+                match c {
+                    '{' => method_depth += 1,
+                    '}' => {
+                        method_depth -= 1;
+                        if method_depth == 0 {
+                            in_method = false;
+                            method_lines.append(&mut current_method);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            continue;
+        }
+
+        // Handle $derived fields
         if trimmed.contains("= $derived(") || trimmed.contains("=$derived(") {
             let is_private = trimmed.starts_with('#');
             if let Some(eq_pos) = trimmed.find('=') {
@@ -3858,8 +3996,9 @@ fn transform_class_fields_server(script: &str) -> String {
             }
         }
 
+        // Non-$derived fields (like $state fields or regular fields)
         if !trimmed.is_empty() {
-            other_lines.push(trimmed.to_string());
+            field_lines.push(trimmed.to_string());
         }
     }
 
@@ -3869,15 +4008,17 @@ fn transform_class_fields_server(script: &str) -> String {
 
     let mut new_class_body = String::new();
 
-    for line in &other_lines {
+    // 1. Output non-$derived fields first
+    for line in &field_lines {
         new_class_body.push_str(&format!("\t\t{}\n", line));
     }
 
+    // 2. Output $derived fields (private field + getter/setter)
     for field in &derived_fields {
         let private_name = format!("#{}", field.name);
 
         new_class_body.push_str(&format!(
-            "\t\t{} = $.derived(() => ({}));\n",
+            "\t\t{} = $.derived(() => {});\n",
             private_name, field.value
         ));
 
@@ -3895,6 +4036,13 @@ fn transform_class_fields_server(script: &str) -> String {
         }
     }
 
+    // 3. Output methods
+    for line in &method_lines {
+        new_class_body.push('\n');
+        new_class_body.push_str(&format!("\t\t{}\n", line));
+    }
+
+    // 4. Output constructor if present
     if !constructor_lines.is_empty() {
         new_class_body.push('\n');
         for line in &constructor_lines {
@@ -4089,4 +4237,63 @@ fn is_statement_start(preceding: &str) -> bool {
         // Start of file/string - check if all preceding is whitespace
         preceding.chars().all(|c| c.is_whitespace())
     }
+}
+
+/// Replace store identifier in an expression with $.store_get() call.
+/// For example: `$store` becomes `$.store_get($$store_subs ??= {}, '$store', store)`.
+/// This handles the identifier carefully to avoid replacing substrings.
+fn replace_store_identifier(expr: &str, store_ref: &str, store_name: &str) -> String {
+    let mut result = String::with_capacity(expr.len() * 2);
+    let chars: Vec<char> = expr.chars().collect();
+    let store_ref_chars: Vec<char> = store_ref.chars().collect();
+    let store_ref_len = store_ref_chars.len();
+    let mut i = 0;
+
+    while i < chars.len() {
+        // Check if we're at the start of the store reference
+        if i + store_ref_len <= chars.len() {
+            let mut matches = true;
+            for (j, ref_char) in store_ref_chars.iter().enumerate() {
+                if chars[i + j] != *ref_char {
+                    matches = false;
+                    break;
+                }
+            }
+
+            if matches {
+                // Check if this is a complete identifier (not part of a larger identifier)
+                let prev_is_ident = if i > 0 {
+                    is_js_identifier_char(chars[i - 1])
+                } else {
+                    false
+                };
+                let next_is_ident = if i + store_ref_len < chars.len() {
+                    is_js_identifier_char(chars[i + store_ref_len])
+                } else {
+                    false
+                };
+
+                // Only replace if it's a standalone identifier
+                if !prev_is_ident && !next_is_ident {
+                    // Replace with $.store_get() call
+                    result.push_str(&format!(
+                        "$.store_get($$store_subs ??= {{}}, '{}', {})",
+                        store_ref, store_name
+                    ));
+                    i += store_ref_len;
+                    continue;
+                }
+            }
+        }
+
+        result.push(chars[i]);
+        i += 1;
+    }
+
+    result
+}
+
+/// Check if a character is a valid JavaScript identifier character.
+fn is_js_identifier_char(c: char) -> bool {
+    c.is_alphanumeric() || c == '_' || c == '$'
 }

@@ -319,4 +319,51 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn debug_class_state_derived_server() {
+        use svelte_compiler_rust::compiler::GenerateMode;
+
+        let source = std::fs::read_to_string(
+            "svelte/packages/svelte/tests/runtime-runes/samples/class-state-derived/main.svelte",
+        )
+        .unwrap();
+
+        let options = CompileOptions {
+            dev: false,
+            generate: GenerateMode::Server,
+            filename: Some("Main.svelte".to_string()),
+            ..Default::default()
+        };
+
+        match compile(&source, options) {
+            Ok(result) => {
+                // Verify the class field transformation is correct
+                // Expected output should contain $.derived() and getter/setter
+                assert!(
+                    result.js.code.contains("$.derived("),
+                    "Output should contain $.derived()"
+                );
+                assert!(
+                    result.js.code.contains("#doubled = $.derived("),
+                    "Output should have private #doubled field with $.derived()"
+                );
+                assert!(
+                    result.js.code.contains("get doubled()"),
+                    "Output should have getter for doubled"
+                );
+                assert!(
+                    result.js.code.contains("set doubled("),
+                    "Output should have setter for doubled"
+                );
+                assert!(
+                    result.js.code.contains("count = 0;"),
+                    "Output should transform $state(0) to 0"
+                );
+            }
+            Err(e) => {
+                panic!("Compilation failed: {:?}", e);
+            }
+        }
+    }
 }
