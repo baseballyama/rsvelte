@@ -42,6 +42,9 @@ miette = "7.4"
 # Regex
 regex = "1.11"
 
+# SIMD-accelerated string search
+memchr = "2.7"
+
 # Source map handling
 sourcemap = "9.0"
 

@@ -30,6 +30,7 @@
 //! ```
 
 use compact_str::CompactString;
+use memchr::memchr2;
 
 use crate::ast::template::{TemplateNode, Text};
 use crate::error::ParseResult;
@@ -44,16 +45,21 @@ impl Parser<'_> {
     ///
     /// This function:
     /// 1. Records the start position
-    /// 2. Collects characters until `<` or `{` is encountered
+    /// 2. Collects characters until `<` or `{` is encountered (using SIMD-accelerated search)
     /// 3. Decodes HTML character references with `decode_character_references(data, false)`
     /// 4. Creates a Text node with both raw and decoded data
     pub fn parse_text(&mut self) -> ParseResult<Option<TemplateNode>> {
         let start = self.index as u32;
         let start_pos = self.index;
 
-        // Collect text data until we hit '<' or '{'
-        while self.index < self.source.len() && !self.match_str("<") && !self.match_str("{") {
-            self.advance();
+        // Use SIMD-accelerated search to find '<' or '{' quickly
+        // This is much faster than character-by-character scanning
+        let remaining = &self.source.as_bytes()[self.index..];
+        if let Some(pos) = memchr2(b'<', b'{', remaining) {
+            self.index += pos;
+        } else {
+            // No '<' or '{' found, consume rest of source
+            self.index = self.source.len();
         }
 
         // If no data was collected, return None
