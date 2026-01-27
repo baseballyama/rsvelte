@@ -90,7 +90,7 @@ impl Template {
         let element = Element {
             node_type: "element",
             name,
-            attributes: indexmap::IndexMap::new(),
+            attributes: im::OrdMap::new(),
             children: Vec::new(),
             start,
         };

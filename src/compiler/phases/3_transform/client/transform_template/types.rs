@@ -1,12 +1,13 @@
 use crate::ast::template::Text;
-use indexmap::IndexMap;
+use im::OrdMap;
 
 /// Element node in the template
 #[derive(Debug, Clone)]
 pub struct Element {
     pub node_type: &'static str, // Always "element"
     pub name: String,
-    pub attributes: IndexMap<String, Option<String>>,
+    /// Using im::OrdMap for O(1) clone operations
+    pub attributes: OrdMap<String, Option<String>>,
     pub children: Vec<Node>,
     /// Used for populating __svelte_meta
     pub start: u32,
