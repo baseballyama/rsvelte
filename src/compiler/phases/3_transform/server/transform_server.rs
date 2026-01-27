@@ -17,6 +17,43 @@ use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
 use std::collections::HashMap;
 
+/// Collapse whitespace sequences (including newlines) to single spaces.
+/// This matches the behavior of clean_nodes in the official compiler.
+fn collapse_whitespace(s: &str) -> String {
+    let trimmed = s.trim();
+    let has_leading_ws = s.chars().next().is_some_and(|c| c.is_whitespace());
+    let has_trailing_ws = s.chars().last().is_some_and(|c| c.is_whitespace());
+
+    // Collapse internal whitespace sequences to single spaces
+    let mut result = String::new();
+    let mut in_whitespace = false;
+
+    if has_leading_ws {
+        result.push(' ');
+    }
+
+    for c in trimmed.chars() {
+        if c.is_whitespace() {
+            if !in_whitespace {
+                result.push(' ');
+                in_whitespace = true;
+            }
+        } else {
+            result.push(c);
+            in_whitespace = false;
+        }
+    }
+
+    // Remove trailing space that was added if content ended with whitespace
+    if in_whitespace && !has_trailing_ws {
+        result.pop();
+    } else if has_trailing_ws && !result.ends_with(' ') {
+        result.push(' ');
+    }
+
+    result
+}
+
 /// Transform a component analysis into server-side JavaScript.
 ///
 /// # Arguments
@@ -187,13 +224,38 @@ impl<'a> ServerCodeGenerator<'a> {
         let nodes: Vec<_> = fragment.nodes.iter().collect();
         let len = nodes.len();
 
+        // Find indices of first and last non-whitespace nodes
+        let first_meaningful_idx = nodes
+            .iter()
+            .position(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()));
+        let last_meaningful_idx = nodes
+            .iter()
+            .rposition(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()));
+
+        // If the first meaningful node is a Text or ExpressionTag, add <!---->
+        // to prevent text fusion during hydration
+        let first_meaningful_node = first_meaningful_idx.map(|i| &nodes[i]);
+        let needs_anchor = matches!(
+            first_meaningful_node,
+            Some(TemplateNode::Text(_)) | Some(TemplateNode::ExpressionTag(_))
+        );
+
+        if needs_anchor {
+            self.output_parts
+                .push(OutputPart::Html("<!---->".to_string()));
+        }
+
         for (i, node) in nodes.iter().enumerate() {
-            // Skip leading/trailing whitespace-only text nodes at root level
+            // Skip whitespace-only text at root level
             if let TemplateNode::Text(text) = node
                 && text.data.trim().is_empty()
             {
-                // Skip if it's the first or last node
-                if i == 0 || i == len - 1 {
+                // Skip if before first meaningful content
+                if first_meaningful_idx.is_some() && i < first_meaningful_idx.unwrap() {
+                    continue;
+                }
+                // Skip if after last meaningful content
+                if last_meaningful_idx.is_some() && i > last_meaningful_idx.unwrap() {
                     continue;
                 }
                 // Skip whitespace between snippets and other elements at root level
@@ -244,20 +306,11 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.output_parts.push(OutputPart::Html(" ".to_string()));
             }
         } else {
-            // Normalize leading/trailing whitespace (newlines -> spaces)
-            let trimmed = data.trim();
-            let has_leading_ws = data.chars().next().is_some_and(|c| c.is_whitespace());
-            let has_trailing_ws = data.chars().last().is_some_and(|c| c.is_whitespace());
-
-            let mut result = String::new();
-            if has_leading_ws {
-                result.push(' ');
-            }
-            result.push_str(&escape_html(trimmed));
-            if has_trailing_ws {
-                result.push(' ');
-            }
-            self.output_parts.push(OutputPart::Html(result));
+            // Collapse all whitespace sequences (including newlines) to single spaces
+            // This matches the behavior of clean_nodes in the official compiler
+            let collapsed = collapse_whitespace(data);
+            self.output_parts
+                .push(OutputPart::Html(escape_html(&collapsed)));
         }
         Ok(())
     }
@@ -392,15 +445,37 @@ impl<'a> ServerCodeGenerator<'a> {
                         continue;
                     }
 
-                    // For first text node with content, strip leading whitespace
+                    // For text nodes, strip leading/trailing whitespace and collapse internal whitespace
                     if is_first_content {
-                        let trimmed = data.trim_start();
+                        // First content: trim leading whitespace
+                        // If this is also the last content, trim trailing too
+                        let is_last = last_content.is_some() && i == last_content.unwrap();
+                        let trimmed = if is_last {
+                            // Both first and last - trim both sides
+                            data.trim()
+                        } else {
+                            data.trim_start()
+                        };
                         if !trimmed.is_empty() {
+                            // Collapse internal whitespace
+                            let collapsed = collapse_whitespace(trimmed);
                             self.output_parts
-                                .push(OutputPart::Html(escape_html(trimmed)));
+                                .push(OutputPart::Html(escape_html(&collapsed)));
                         }
                         has_output_content = true;
                         is_first_content = false;
+                        continue;
+                    }
+
+                    // Check if this is the last content - trim trailing
+                    if last_content.is_some() && i == last_content.unwrap() {
+                        let trimmed = data.trim_end();
+                        if !trimmed.is_empty() {
+                            let collapsed = collapse_whitespace(trimmed);
+                            self.output_parts
+                                .push(OutputPart::Html(escape_html(&collapsed)));
+                        }
+                        has_output_content = true;
                         continue;
                     }
                 }
@@ -670,7 +745,18 @@ impl<'a> ServerCodeGenerator<'a> {
                 if name.starts_with("on") {
                     return Ok(None);
                 }
-                // Generate $.attr() call for expression attributes
+
+                // Check if the expression is a literal - if so, inline it directly
+                if let Some(literal_value) = self.extract_literal_value(&expr_tag.expression) {
+                    // Inline literal values directly: href="#" instead of ${$.attr('href', '#')}
+                    return Ok(Some(format!(
+                        " {}=\"{}\"",
+                        name,
+                        escape_attr(&literal_value)
+                    )));
+                }
+
+                // Generate $.attr() call for non-literal expression attributes
                 let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
                 let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
                 if expr_end > expr_start && expr_end <= self.source.len() {
@@ -681,6 +767,27 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
             }
         }
+    }
+
+    /// Extract a literal string or number value from an Expression.
+    /// Returns Some(string_value) if the expression is a Literal, None otherwise.
+    fn extract_literal_value(&self, expr: &crate::ast::js::Expression) -> Option<String> {
+        let json = expr.as_json();
+        let expr_type = json.get("type").and_then(|t| t.as_str())?;
+
+        if expr_type == "Literal" {
+            // Check if it has a string value
+            if let Some(value) = json.get("value") {
+                match value {
+                    serde_json::Value::String(s) => return Some(s.clone()),
+                    serde_json::Value::Number(n) => return Some(n.to_string()),
+                    serde_json::Value::Bool(b) => return Some(b.to_string()),
+                    _ => {}
+                }
+            }
+        }
+
+        None
     }
 
     /// Extract a plain text value from an attribute.
@@ -1137,8 +1244,17 @@ impl<'a> ServerCodeGenerator<'a> {
             None,
         );
 
-        // Add comment marker at start for proper placement
-        body_generator.output_parts.push(OutputPart::Comment);
+        // Check if first meaningful content is text/expression
+        // If so, add <!---> anchor to prevent text fusion during hydration
+        let first_content = nodes.get(start_idx);
+        let needs_anchor = matches!(
+            first_content,
+            Some(TemplateNode::Text(_)) | Some(TemplateNode::ExpressionTag(_))
+        );
+
+        if needs_anchor {
+            body_generator.output_parts.push(OutputPart::Comment);
+        }
 
         let mut is_first = true;
         for node in nodes.iter().take(end_idx).skip(start_idx) {
@@ -1546,6 +1662,22 @@ impl<'a> ServerCodeGenerator<'a> {
                 continue;
             }
             break;
+        }
+
+        // Check if first node is text or expression tag - if so, we need hydration marker
+        // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/utils.js clean_nodes()
+        // This prevents text from being fused with its surroundings during hydration
+        let first_node = body_nodes.get(start_idx);
+        let is_text_first = matches!(
+            first_node,
+            Some(TemplateNode::Text(_)) | Some(TemplateNode::ExpressionTag(_))
+        );
+
+        // Add hydration marker if first content is text
+        if is_text_first {
+            body_generator
+                .output_parts
+                .push(OutputPart::Html("<!---->".to_string()));
         }
 
         // Generate body content, trimming first text node
@@ -3455,6 +3587,9 @@ fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
     let prefix_len = prefix_chars.len();
     let mut i = 0;
 
+    // Check if this is $derived.by - needs special handling (IIFE)
+    let is_derived_by = prefix == "$derived.by(";
+
     while i < chars.len() {
         if i + prefix_len <= chars.len() {
             let potential: String = chars[i..i + prefix_len].iter().collect();
@@ -3499,6 +3634,11 @@ fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
                             result.pop();
                         }
                     }
+                } else if is_derived_by {
+                    // $derived.by(fn) -> (fn)() - wrap in IIFE to call the function
+                    result.push('(');
+                    result.push_str(&inner);
+                    result.push_str(")()");
                 } else {
                     result.push_str(&inner);
                 }

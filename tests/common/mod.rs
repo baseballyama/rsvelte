@@ -542,8 +542,10 @@ fn normalize_single_if_brace(code: &str) -> String {
     let code_len = code.len();
 
     while i < code_len {
-        // Check for "if " or "if("
-        if i + 3 <= code_len && (&code[i..i + 3] == "if " || &code[i..i + 3] == "if(") {
+        // Check for "if " or "if(" - must check character boundary first
+        let can_check_if =
+            i + 3 <= code_len && code.is_char_boundary(i) && code.is_char_boundary(i + 3);
+        if can_check_if && (&code[i..i + 3] == "if " || &code[i..i + 3] == "if(") {
             // Check if preceded by word character (to avoid matching "else if" incorrectly)
             // Also check for '.' to avoid matching method calls like $.if()
             let prev_char = if i > 0 { code_bytes[i - 1] } else { b' ' };
@@ -587,8 +589,14 @@ fn normalize_single_if_brace(code: &str) -> String {
                 }
                 i += 1;
             }
-            let condition = &code[cond_start..i];
-            result.push_str(condition);
+            // Ensure we're on character boundaries before slicing
+            if code.is_char_boundary(cond_start) && code.is_char_boundary(i) {
+                let condition = &code[cond_start..i];
+                result.push_str(condition);
+            } else {
+                // If boundaries are invalid, skip this "if" pattern
+                continue;
+            }
 
             // Skip whitespace after condition (but remember if there was any)
             let whitespace_start = i;
@@ -599,7 +607,9 @@ fn normalize_single_if_brace(code: &str) -> String {
             // Check if followed by opening brace
             if i >= code_len || code_bytes[i] != b'{' {
                 // Not followed by brace, restore the whitespace and continue
-                result.push_str(&code[whitespace_start..i]);
+                if code.is_char_boundary(whitespace_start) && code.is_char_boundary(i) {
+                    result.push_str(&code[whitespace_start..i]);
+                }
                 continue;
             }
 
@@ -627,7 +637,20 @@ fn normalize_single_if_brace(code: &str) -> String {
                 i += 1;
             }
 
-            let block_content = &code[brace_start + 1..i - 1]; // content between { and }
+            // Ensure we're on character boundaries before slicing
+            let content_start = brace_start + 1;
+            let content_end = if i > 0 { i - 1 } else { 0 };
+            if !code.is_char_boundary(content_start)
+                || !code.is_char_boundary(content_end)
+                || !code.is_char_boundary(brace_start)
+                || !code.is_char_boundary(i)
+            {
+                // Skip this block if boundaries are invalid
+                result.push('{');
+                continue;
+            }
+
+            let block_content = &code[content_start..content_end]; // content between { and }
 
             // Only remove braces if:
             // 1. Single statement (one semicolon or none for expression statements)
@@ -665,10 +688,14 @@ fn normalize_single_else_brace(code: &str) -> String {
 
     while i < code_len {
         // Check for "} else" or "; else" or just " else" patterns
+        // Must check character boundaries first
         let is_else_pattern = i + 6 <= code_len
+            && code.is_char_boundary(i)
             && (code[i..].starts_with("} else") || code[i..].starts_with("; else"))
             || (i > 0
                 && i + 5 <= code_len
+                && code.is_char_boundary(i)
+                && code.is_char_boundary(i + 1)
                 && code_bytes[i] == b' '
                 && code[i + 1..].starts_with("else"));
 
@@ -684,7 +711,9 @@ fn normalize_single_else_brace(code: &str) -> String {
             }
 
             // Match "else"
-            if i + 4 <= code_len && &code[i..i + 4] == "else" {
+            let can_check_else =
+                i + 4 <= code_len && code.is_char_boundary(i) && code.is_char_boundary(i + 4);
+            if can_check_else && &code[i..i + 4] == "else" {
                 result.push_str("else");
                 i += 4;
 
@@ -695,15 +724,21 @@ fn normalize_single_else_brace(code: &str) -> String {
                 }
 
                 // Check if followed by "if" (else if) - restore whitespace and don't process further
-                if i + 2 <= code_len && &code[i..i + 2] == "if" {
-                    result.push_str(&code[whitespace_start..i]);
+                let can_check_if =
+                    i + 2 <= code_len && code.is_char_boundary(i) && code.is_char_boundary(i + 2);
+                if can_check_if && &code[i..i + 2] == "if" {
+                    if code.is_char_boundary(whitespace_start) && code.is_char_boundary(i) {
+                        result.push_str(&code[whitespace_start..i]);
+                    }
                     continue;
                 }
 
                 // Check if followed by opening brace
                 if i >= code_len || code_bytes[i] != b'{' {
                     // Not followed by brace, restore the whitespace and continue
-                    result.push_str(&code[whitespace_start..i]);
+                    if code.is_char_boundary(whitespace_start) && code.is_char_boundary(i) {
+                        result.push_str(&code[whitespace_start..i]);
+                    }
                     continue;
                 }
 
@@ -731,7 +766,20 @@ fn normalize_single_else_brace(code: &str) -> String {
                     i += 1;
                 }
 
-                let block_content = &code[brace_start + 1..i - 1];
+                // Ensure we're on character boundaries before slicing
+                let content_start = brace_start + 1;
+                let content_end = if i > 0 { i - 1 } else { 0 };
+                if !code.is_char_boundary(content_start)
+                    || !code.is_char_boundary(content_end)
+                    || !code.is_char_boundary(brace_start)
+                    || !code.is_char_boundary(i)
+                {
+                    // Skip if boundaries invalid
+                    result.push('{');
+                    continue;
+                }
+
+                let block_content = &code[content_start..content_end];
 
                 let should_remove_braces = semicolon_count <= 1
                     && inner_brace_count == 0
@@ -792,14 +840,14 @@ fn convert_scientific_to_decimal(mantissa: &str, exponent: &str) -> String {
     }
 }
 
-/// Normalize string quotes: convert double-quoted strings to single-quoted,
-/// but preserve the content exactly as-is.
+/// Normalize string quotes: convert double-quoted strings and simple template literals
+/// (those without expressions) to single-quoted strings.
 fn normalize_string_quotes(s: &str) -> String {
     if s.is_empty() {
         return s.to_string();
     }
 
-    let mut chars = s.chars();
+    let mut chars = s.chars().peekable();
     let first = chars.next().unwrap();
 
     if first == '"' {
@@ -816,8 +864,19 @@ fn normalize_string_quotes(s: &str) -> String {
             result.push_str(&rest);
         }
         result
+    } else if first == '`' {
+        // Template literal - convert to single quotes if no expressions (${...})
+        let rest: String = chars.collect();
+        if rest.ends_with('`') && !rest.contains("${") {
+            // Simple template literal without expressions - convert to single quotes
+            let content = &rest[..rest.len() - 1];
+            format!("'{}'", content)
+        } else {
+            // Has expressions or malformed - keep as-is
+            s.to_string()
+        }
     } else {
-        // Single quote or template literal - keep as-is
+        // Single quote - keep as-is
         s.to_string()
     }
 }
@@ -1570,4 +1629,45 @@ export default function Main($$renderer, $$props) {
             "Actual and expected should normalize to the same output"
         );
     }
+
+    #[test]
+    fn test_normalize_js_trailing_newline() {
+        // Test that trailing newline difference is normalized away
+        let without_newline = "function foo() {\n\treturn 1;\n}";
+        let with_newline = "function foo() {\n\treturn 1;\n}\n";
+        let normalized_without = normalize_js(without_newline);
+        let normalized_with = normalize_js(with_newline);
+        assert_eq!(
+            normalized_without, normalized_with,
+            "Trailing newline should be ignored"
+        );
+    }
+}
+
+#[test]
+fn test_normalize_js_template_vs_single_quotes() {
+    let a = r#"$$renderer.push('<!--[-->');"#;
+    let b = r#"$$renderer.push(`<!--[-->`);"#;
+    let norm_a = normalize_js(a);
+    let norm_b = normalize_js(b);
+    println!("a normalized: {}", norm_a);
+    println!("b normalized: {}", norm_b);
+    assert_eq!(
+        norm_a, norm_b,
+        "Template and single quote strings should normalize the same"
+    );
+}
+
+#[test]
+fn test_normalize_js_import_double_quotes() {
+    let a = r#"import Component from "./Component.svelte";"#;
+    let b = r#"import Component from './Component.svelte';"#;
+    let norm_a = normalize_js(a);
+    let norm_b = normalize_js(b);
+    println!("a normalized: {}", norm_a);
+    println!("b normalized: {}", norm_b);
+    assert_eq!(
+        norm_a, norm_b,
+        "Double and single quote imports should normalize the same"
+    );
 }
