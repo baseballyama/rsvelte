@@ -140,6 +140,64 @@ pub fn is_prop_source(binding: &Binding, analysis: &ComponentAnalysis) -> bool {
             || binding.mutated)
 }
 
+/// Build a getter expression for a binding.
+///
+/// This function creates an expression to access a binding value, applying any
+/// necessary transforms (e.g., wrapping in `$.get()` for state sources).
+///
+/// Corresponds to `build_getter` in
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/client/utils.js`.
+///
+/// # Arguments
+///
+/// * `name` - The binding name
+/// * `transform` - Optional transform map to check for read transforms
+///
+/// # Returns
+///
+/// Returns an expression that reads the binding's current value.
+///
+/// # Example
+///
+/// For a state source:
+/// ```javascript
+/// // Input: count (state source)
+/// // Output: $.get(count)
+/// ```
+///
+/// For a prop that's not a prop source:
+/// ```javascript
+/// // Input: value (prop)
+/// // Output: $$props.value
+/// ```
+///
+/// For a simple binding:
+/// ```javascript
+/// // Input: constant
+/// // Output: constant
+/// ```
+pub fn build_getter(
+    name: &str,
+    transform: &std::collections::HashMap<
+        String,
+        crate::compiler::phases::phase3_transform::client::types::IdentifierTransform,
+    >,
+) -> crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr {
+    use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+    use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
+
+    // Check if there's a transform registered for this identifier
+    if let Some(t) = transform.get(name)
+        && let Some(read_fn) = t.read
+    {
+        // Apply the transform
+        return read_fn(JsExpr::Identifier(name.to_string()));
+    }
+
+    // No transform - return the identifier as-is
+    b::id(name)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

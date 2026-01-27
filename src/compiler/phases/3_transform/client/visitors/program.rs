@@ -19,6 +19,7 @@
 use crate::compiler::phases::phase2_analyze::scope::{BindingKind, DeclarationKind};
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::declarations::add_state_transformers;
+use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 
 /// Visit a Program node and set up transformations.
@@ -67,13 +68,32 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
     add_state_transformers(context);
 
     // Handle store subscriptions, props, and state bindings for all modes
-    for (_name, binding_idx) in &context.state.scope.declarations {
-        if let Some(binding) = context.state.scope_root.bindings.get(*binding_idx) {
+    for (name, binding_idx) in context.state.scope.declarations.clone() {
+        if let Some(binding) = context.state.scope_root.bindings.get(binding_idx) {
             // Mark different binding types for transformation
             match binding.kind {
                 BindingKind::StoreSub => {
-                    // Store subscriptions need special handling
-                    // Will be transformed during visitor traversal
+                    // Store subscriptions need special transformation
+                    // Corresponds to the store_sub handling in Program.js:
+                    //
+                    // context.state.transform[name] = {
+                    //     read: b.call,                           // $store → $store()
+                    //     assign: (_, value) => b.call('$.store_set', get_store(), value),
+                    //     mutate: (node, mutation) => b.call('$.store_mutate', ...),
+                    //     update: (node) => b.call(node.prefix ? '$.update_pre_store' : '$.update_store', ...)
+                    // };
+                    //
+                    // The store variable name starts with '$', e.g., '$count'
+                    // The underlying store is 'count' (without the '$')
+
+                    let transform = IdentifierTransform {
+                        read: Some(store_sub_read),
+                        assign: Some(store_sub_assign),
+                        mutate: Some(store_sub_mutate),
+                        update: Some(store_sub_update),
+                    };
+
+                    context.state.transform.insert(name.clone(), transform);
                 }
                 BindingKind::Prop | BindingKind::BindableProp => {
                     // Props need special handling based on whether they're sources
@@ -118,6 +138,111 @@ fn is_prop_source_binding(
 
     // In legacy mode, props are sources if they're reassigned or mutated
     binding.reassigned || binding.mutated
+}
+
+// ============================================================================
+// Store subscription transform functions
+// ============================================================================
+
+/// Transform a store subscription read.
+///
+/// Transforms `$store` → `$store()` (function call).
+///
+/// In the generated code, `$store` is a function that returns the store value:
+/// ```javascript
+/// const $store = () => $.store_get(store, '$store', $$stores);
+/// ```
+/// So reading `$store` becomes `$store()`.
+fn store_sub_read(node: JsExpr) -> JsExpr {
+    b::call(node, vec![])
+}
+
+/// Transform a store subscription assignment.
+///
+/// Transforms `$store = value` → `$.store_set(store, value)`.
+///
+/// # Arguments
+///
+/// * `node` - The store subscription identifier (e.g., `$store`)
+/// * `value` - The value being assigned
+/// * `_needs_proxy` - Whether the value needs to be proxified (not used for stores)
+fn store_sub_assign(node: JsExpr, value: JsExpr, _needs_proxy: bool) -> JsExpr {
+    // Extract store name from $store → store
+    let store_name = if let JsExpr::Identifier(ref name) = node {
+        name.strip_prefix('$').unwrap_or(name).to_string()
+    } else {
+        "unknown".to_string()
+    };
+
+    b::call(
+        b::member_path("$.store_set"),
+        vec![b::id(&store_name), value],
+    )
+}
+
+/// Transform a store subscription mutation.
+///
+/// Transforms mutations like `$store.prop = value` to:
+/// ```javascript
+/// $.store_mutate(store, $store.prop = value, $.untrack($store))
+/// ```
+///
+/// # Arguments
+///
+/// * `node` - The store subscription identifier (e.g., `$store`)
+/// * `mutation` - The mutation expression (e.g., `$store.prop = value`)
+fn store_sub_mutate(node: JsExpr, mutation: JsExpr) -> JsExpr {
+    // Extract store name from $store → store
+    let store_name = if let JsExpr::Identifier(ref name) = node {
+        name.strip_prefix('$').unwrap_or(name).to_string()
+    } else {
+        "unknown".to_string()
+    };
+
+    // We need to untrack the store read, for consistency with Svelte 4
+    let untracked = b::call(b::member_path("$.untrack"), vec![node.clone()]);
+
+    b::call(
+        b::member_path("$.store_mutate"),
+        vec![b::id(&store_name), mutation, untracked],
+    )
+}
+
+/// Transform a store subscription update expression (++ or --).
+///
+/// Transforms `$store++` to `$.update_store(store, $store(), 1)` or
+/// `++$store` to `$.update_pre_store(store, $store(), 1)`.
+///
+/// # Arguments
+///
+/// * `operator` - The update operator (++ or --)
+/// * `argument` - The store subscription identifier (e.g., `$store`)
+/// * `prefix` - Whether the operator is prefix (++$store) or postfix ($store++)
+fn store_sub_update(operator: JsUpdateOp, argument: JsExpr, prefix: bool) -> JsExpr {
+    // Extract store name from $store → store
+    let store_name = if let JsExpr::Identifier(ref name) = argument {
+        name.strip_prefix('$').unwrap_or(name).to_string()
+    } else {
+        "unknown".to_string()
+    };
+
+    let method = if prefix {
+        "$.update_pre_store"
+    } else {
+        "$.update_store"
+    };
+
+    // Build the current value accessor: $store()
+    let current_value = b::call(argument, vec![]);
+
+    let mut args = vec![b::id(&store_name), current_value];
+
+    // For decrement, pass -1 as the delta
+    if operator == JsUpdateOp::Decrement {
+        args.push(b::number(-1.0));
+    }
+
+    b::call(b::member_path(method), args)
 }
 
 #[cfg(test)]

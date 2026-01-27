@@ -22,6 +22,7 @@ pub mod css;
 pub mod errors;
 pub mod scope;
 mod scope_builder;
+mod store_subscriptions;
 pub mod types;
 pub mod utils;
 pub mod visitors;
@@ -67,6 +68,11 @@ pub fn analyze_component(
 
     // Create scopes for the component
     analysis.create_scopes(ast)?;
+
+    // Detect store subscriptions and create synthetic bindings
+    // This must happen after scopes are created but before template analysis
+    // Corresponds to Svelte's store subscription logic in 2-analyze/index.js L348-444
+    store_subscriptions::detect_store_subscriptions(ast, &mut analysis);
 
     // Analyze scripts (JavaScript AST)
     if let Some(ref instance) = ast.instance {
