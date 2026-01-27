@@ -127,6 +127,8 @@ enum OutputPart {
     Component {
         name: String,
         props: Vec<String>,
+        /// Spread expressions (e.g., `attrs` from `{...attrs}`)
+        spreads: Vec<String>,
         has_prior_content: bool,
         children: Option<Vec<OutputPart>>,
         /// Snippets defined inside the component (name, params, body)
@@ -989,8 +991,9 @@ impl<'a> ServerCodeGenerator<'a> {
                 || matches!(part, OutputPart::RawExpression(_))
         });
 
-        // Extract props and bindings
+        // Extract props, spreads, and bindings
         let mut props = Vec::new();
+        let mut spreads = Vec::new();
         let mut bindings = Vec::new();
 
         for attr in &component.attributes {
@@ -1010,6 +1013,15 @@ impl<'a> ServerCodeGenerator<'a> {
                                 props.push(format!("{}: {}", name, expr_source));
                             }
                         }
+                    }
+                }
+                Attribute::SpreadAttribute(spread) => {
+                    // Get the spread expression from source
+                    let expr_start = spread.expression.start().unwrap_or(0) as usize;
+                    let expr_end = spread.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let expr = self.source[expr_start..expr_end].trim().to_string();
+                        spreads.push(expr);
                     }
                 }
                 Attribute::BindDirective(bind) => {
@@ -1042,6 +1054,7 @@ impl<'a> ServerCodeGenerator<'a> {
             self.output_parts.push(OutputPart::Component {
                 name: comp_name,
                 props,
+                spreads,
                 has_prior_content,
                 children,
                 snippets,
@@ -2236,6 +2249,7 @@ export default function {component_name}($$renderer{props_param}) {{
                 OutputPart::Component {
                     name,
                     props,
+                    spreads,
                     has_prior_content,
                     children,
                     snippets,
@@ -2251,6 +2265,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     // Check if we have snippets or children
                     let has_snippets = !snippets.is_empty();
                     let has_children = children.is_some();
+                    let has_spreads = !spreads.is_empty();
 
                     if has_snippets || has_children {
                         // Wrap in a block if we have snippets
@@ -2322,8 +2337,17 @@ export default function {component_name}($$renderer{props_param}) {{
                                 .push_str(&format!("{}\t$$slots: {{ default: true }}\n", indent));
                             body_code.push_str(&format!("{}}});\n", indent));
                         }
+                    } else if has_spreads {
+                        // Has spread attributes - use $.spread_props
+                        let spread_args: Vec<String> = spreads.clone();
+                        body_code.push_str(&format!(
+                            "{}{}($$renderer, $.spread_props([{}]));\n",
+                            indent,
+                            name,
+                            spread_args.join(", ")
+                        ));
                     } else {
-                        // No children and no snippets - simple call
+                        // No children, no snippets, no spreads - simple call
                         if props.is_empty() {
                             body_code.push_str(&format!("{}{}($$renderer, {{}});\n", indent, name));
                         } else {

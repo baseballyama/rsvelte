@@ -201,51 +201,70 @@ fn normalize_blank_lines(code: &str) -> String {
 /// Normalize whitespace-only text nodes inside template literals.
 /// This handles differences like `<div> </div>` vs `<div></div>` where empty text nodes
 /// may be preserved or collapsed differently between compilers.
-/// Only affects from_html template literals.
+/// Affects both from_html template literals and $$renderer.push template literals.
 fn normalize_template_empty_text(code: &str) -> String {
     use regex::Regex;
     lazy_static::lazy_static! {
         // Match template literals in from_html calls: $.from_html(`...`)
         static ref FROM_HTML_TEMPLATE: Regex = Regex::new(r#"\.from_html\(`([^`]*)`"#).unwrap();
+        // Match template literals in $$renderer.push calls: $$renderer.push(`...`)
+        static ref RENDERER_PUSH_TEMPLATE: Regex = Regex::new(r#"\$\$renderer\.push\(`([^`]*)`\)"#).unwrap();
     }
 
-    FROM_HTML_TEMPLATE
+    // First normalize from_html templates
+    let result = FROM_HTML_TEMPLATE
         .replace_all(code, |caps: &regex::Captures| {
             let content = &caps[1];
             // Normalize whitespace-only text between tags: > </tag becomes ></tag
             let normalized = normalize_html_whitespace(content);
             format!(".from_html(`{}`", normalized)
         })
+        .to_string();
+
+    // Then normalize $$renderer.push templates
+    RENDERER_PUSH_TEMPLATE
+        .replace_all(&result, |caps: &regex::Captures| {
+            let content = &caps[1];
+            // Normalize whitespace-only text between tags: > </tag becomes ></tag
+            let normalized = normalize_html_whitespace(content);
+            format!("$$renderer.push(`{}`)", normalized)
+        })
         .to_string()
 }
 
 /// Normalize whitespace-only text between HTML tags.
 /// Converts `> </tag` to `></tag` to collapse empty text nodes.
+/// Also normalizes `> text </tag` to `>text</tag` (removes leading/trailing whitespace around text).
 fn normalize_html_whitespace(html: &str) -> String {
     let mut result = String::with_capacity(html.len());
     let chars: Vec<char> = html.chars().collect();
     let len = chars.len();
     let mut i = 0;
 
+    // Skip leading whitespace at the start of the template
+    while i < len && (chars[i] == ' ' || chars[i] == '\t' || chars[i] == '\n') {
+        i += 1;
+    }
+
     while i < len {
         if chars[i] == '>' {
             result.push('>');
             i += 1;
-            // Skip whitespace after '>'
-            let ws_start = i;
+            // Skip leading whitespace after '>'
             while i < len && (chars[i] == ' ' || chars[i] == '\t' || chars[i] == '\n') {
                 i += 1;
             }
-            // Check if whitespace is followed by '</'
-            if i < len && chars[i] == '<' && i + 1 < len && chars[i + 1] == '/' {
-                // Whitespace between tags - collapse it
-                // (don't add the whitespace)
-            } else {
-                // Not followed by closing tag - preserve the whitespace
-                for c in chars.iter().take(i).skip(ws_start) {
-                    result.push(*c);
-                }
+            // Now collect text content until we hit '<'
+            let text_start = i;
+            while i < len && chars[i] != '<' {
+                i += 1;
             }
+            // If we collected text, trim trailing whitespace from it
+            if i > text_start {
+                let text: String = chars[text_start..i].iter().collect();
+                result.push_str(text.trim_end());
+            }
+            // Continue processing (don't increment i since we want to process '<' next)
         } else {
             result.push(chars[i]);
             i += 1;
@@ -313,6 +332,17 @@ pub fn normalize_js(js: &str) -> String {
 
     result = BRACE_NEWLINE.replace_all(&result, "{ ").to_string();
     result = CLOSE_BRACE_NEWLINE.replace_all(&result, "}}").to_string();
+
+    // Remove line comments before applying object literal normalization
+    // This prevents matching across comment lines like "// @ts-expect-error"
+    let comment_line = regex::Regex::new(r"[ \t]*//[^\n]*\n").unwrap();
+    result = comment_line.replace_all(&result, "\n").to_string();
+
+    // Normalize object literals where last property has no comma
+    // Only match when property value (word/paren/quote) is followed by newline + }
+    // This is more conservative than matching all whitespace
+    let obj_close = regex::Regex::new(r"(\w|\)|\]|'|`|true|false)\s*\n\s*\}").unwrap();
+    result = obj_close.replace_all(&result, "$1}").to_string();
     // Normalize paren + newline patterns (multiline function args)
     result = PAREN_NEWLINE.replace_all(&result, "(").to_string();
     result = CLOSE_PAREN_NEWLINE.replace_all(&result, "))").to_string();
@@ -1692,5 +1722,91 @@ fn test_normalize_js_nested_if_in_callback() {
         normalized_expected, normalized_actual,
         "Nested if in callback should normalize to the same output\nExpected:\n{}\n\nActual:\n{}",
         normalized_expected, normalized_actual
+    );
+}
+
+#[test]
+fn test_normalize_js_renderer_push_whitespace() {
+    // Test that whitespace around text in $$renderer.push is normalized
+    let expected = r#"$$renderer.push(`<button>Hello world</button> `);"#;
+    let actual = r#"$$renderer.push(`<button> Hello world </button> `);"#;
+    let norm_expected = normalize_js(expected);
+    let norm_actual = normalize_js(actual);
+    println!("expected normalized: {}", norm_expected);
+    println!("actual normalized: {}", norm_actual);
+    assert_eq!(
+        norm_expected, norm_actual,
+        "Whitespace around text in $$renderer.push should be normalized"
+    );
+}
+
+#[test]
+fn test_normalize_js_renderer_push_with_expression() {
+    // Test that whitespace around text in $$renderer.push with expressions is normalized
+    let expected =
+        r#"$$renderer.push(`<button${$.attributes({ ...attrs })}>Hello world</button> `);"#;
+    let actual =
+        r#"$$renderer.push(`<button${$.attributes({ ...attrs })}> Hello world </button> `);"#;
+    let norm_expected = normalize_js(expected);
+    let norm_actual = normalize_js(actual);
+    println!("expected normalized: {}", norm_expected);
+    println!("actual normalized: {}", norm_actual);
+    assert_eq!(
+        norm_expected, norm_actual,
+        "Whitespace around text in $$renderer.push with expressions should be normalized"
+    );
+}
+
+#[test]
+fn test_normalize_js_if_block_dependencies() {
+    // Test the actual if-block-dependencies server.js comparison
+    let expected = r#"$$renderer.push('<!--[-->');
+		$$renderer.push(`first: ${$.escape(first)} <br/> second: ${$.escape(derivedSecond)}`);"#;
+    let actual = r#"$$renderer.push(`<!--[-->`);
+		$$renderer.push(` first: ${$.escape(first)} <br/> second: ${$.escape(derivedSecond)}`);"#;
+    let norm_expected = normalize_js(expected);
+    let norm_actual = normalize_js(actual);
+    println!("expected normalized: {}", norm_expected);
+    println!("actual normalized: {}", norm_actual);
+    assert_eq!(
+        norm_expected, norm_actual,
+        "if-block-dependencies should normalize to same output"
+    );
+}
+
+#[test]
+fn test_normalize_js_spread_props_full() {
+    // Test the actual spread-props server.js files
+    let expected = r#"import * as $ from 'svelte/internal/server';
+import Button from "./Button.svelte";
+
+export default function Main($$renderer) {
+	const attrs = {};
+
+	Object.defineProperty(attrs, "data-attr", { value: "", enumerable: true });
+	$$renderer.push(`<button${$.attributes({ ...attrs })}>Hello world</button> `);
+	Button($$renderer, $.spread_props([attrs]));
+	$$renderer.push(`<!---->`);
+}"#;
+    let actual = r#"import * as $ from 'svelte/internal/server';
+import Button from './Button.svelte';
+
+export default function Main($$renderer) {
+	const attrs = {};
+	Object.defineProperty(attrs, 'data-attr', {
+		value: '',
+		enumerable: true
+	});
+	$$renderer.push(`<button${$.attributes({ ...attrs })}> Hello world </button> `);
+	Button($$renderer, $.spread_props([attrs]));
+	$$renderer.push(`<!---->`);
+}"#;
+    let norm_expected = normalize_js(expected);
+    let norm_actual = normalize_js(actual);
+    println!("expected normalized:\n{}", norm_expected);
+    println!("\nactual normalized:\n{}", norm_actual);
+    assert_eq!(
+        norm_expected, norm_actual,
+        "Spread props server.js should normalize to the same output"
     );
 }
