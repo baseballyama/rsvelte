@@ -74,14 +74,15 @@ pub fn visit_regular_element(
         context.state.template.contains_script_tag = true;
     }
 
-    // Categorize attributes
-    let mut attributes = Vec::new();
-    let mut class_directives = Vec::new();
-    let mut style_directives = Vec::new();
-    let mut on_directives: Vec<OnDirective> = Vec::new();
-    let mut transition_directives: Vec<TransitionDirective> = Vec::new();
-    let mut use_directives: Vec<UseDirective> = Vec::new();
-    let mut bindings: HashMap<String, BindDirective> = HashMap::new();
+    // Categorize attributes - pre-allocate based on total attribute count
+    let attr_count = node.attributes.len();
+    let mut attributes = Vec::with_capacity(attr_count);
+    let mut class_directives = Vec::with_capacity(4);
+    let mut style_directives = Vec::with_capacity(4);
+    let mut on_directives: Vec<OnDirective> = Vec::with_capacity(4);
+    let mut transition_directives: Vec<TransitionDirective> = Vec::with_capacity(2);
+    let mut use_directives: Vec<UseDirective> = Vec::with_capacity(2);
+    let mut bindings: HashMap<String, BindDirective> = HashMap::with_capacity(4);
     let has_spread = node
         .attributes
         .iter()
@@ -149,8 +150,8 @@ pub fn visit_regular_element(
     // Create separate vectors for element-level state (directives that apply to this element)
     // Following JS implementation: element_state = { ...context.state, init: [], after_update: [] }
     // These will be merged AFTER child processing to ensure correct statement order.
-    let mut element_state_init: Vec<JsStatement> = Vec::new();
-    let mut element_state_after_update: Vec<JsStatement> = Vec::new();
+    let mut element_state_init: Vec<JsStatement> = Vec::with_capacity(8);
+    let mut element_state_after_update: Vec<JsStatement> = Vec::with_capacity(4);
 
     // Process other_directives (OnDirective, TransitionDirective) into element_state
     // This matches JS: for (const attribute of other_directives) { ... element_state.init/after_update }

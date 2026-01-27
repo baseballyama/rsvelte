@@ -109,10 +109,11 @@ fn build_template_chunk<F>(
 where
     F: Fn(JsExpr, &ExpressionMetadata) -> JsExpr,
 {
-    let mut quasis = Vec::new();
-    let mut expressions = Vec::new();
+    // Pre-allocate for typical attribute value complexity
+    let mut quasis = Vec::with_capacity(4);
+    let mut expressions = Vec::with_capacity(4);
     let mut has_state = false;
-    let mut current_text = String::new();
+    let mut current_text = String::with_capacity(64);
 
     for part in values {
         match part {
@@ -277,7 +278,7 @@ pub fn build_class_directives_object(
     class_directives: &[ClassDirective],
     _context: &mut ComponentContext,
 ) -> JsExpr {
-    let mut properties = Vec::new();
+    let mut properties = Vec::with_capacity(class_directives.len());
 
     for directive in class_directives {
         // Extract expression from directive
@@ -298,8 +299,8 @@ pub fn build_style_directives_object(
     style_directives: &[StyleDirective],
     context: &mut ComponentContext,
 ) -> JsExpr {
-    let mut normal_properties = Vec::new();
-    let mut important_properties = Vec::new();
+    let mut normal_properties = Vec::with_capacity(style_directives.len());
+    let mut important_properties = Vec::with_capacity(2);
 
     for directive in style_directives {
         // Build the expression for this directive
@@ -450,8 +451,9 @@ pub fn build_attribute_effect(
     use crate::ast::template::Attribute;
     use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
 
-    let mut properties: Vec<JsObjectMember> = Vec::new();
-    let mut event_handler_decls: Vec<JsStatement> = Vec::new();
+    // Pre-allocate based on number of attributes
+    let mut properties: Vec<JsObjectMember> = Vec::with_capacity(attributes.len());
+    let mut event_handler_decls: Vec<JsStatement> = Vec::with_capacity(4);
 
     for attribute in attributes {
         match attribute {
