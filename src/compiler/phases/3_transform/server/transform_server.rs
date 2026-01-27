@@ -3875,7 +3875,7 @@ fn find_matching_paren_server(s: &str) -> Option<usize> {
     None
 }
 
-/// Remove $effect, $effect.pre, $effect.root, and $inspect.trace blocks from script.
+/// Remove $effect, $effect.pre, $effect.root, $inspect, and $inspect.trace blocks from script.
 /// These are client-side only runes and should not appear in SSR output.
 fn remove_effect_blocks(script: &str) -> String {
     let mut result = script.to_string();
@@ -3886,6 +3886,7 @@ fn remove_effect_blocks(script: &str) -> String {
         "$effect.pre(",
         "$effect(",
         "$inspect.trace(",
+        "$inspect(",
     ];
 
     for rune in effect_runes {
@@ -3950,6 +3951,52 @@ fn remove_rune_statement(script: &str, rune_prefix: &str) -> String {
 
                     // Skip past the closing paren
                     end += 1;
+
+                    // Handle method chaining like $inspect(...).with(...)
+                    // If followed by .with(, skip that too
+                    if end + 5 <= chars.len() {
+                        let potential_with: String = chars[end..end + 5].iter().collect();
+                        if potential_with == ".with" {
+                            end += 5; // Skip ".with"
+                            // Skip optional whitespace but not newlines
+                            while end < chars.len() && (chars[end] == ' ' || chars[end] == '\t') {
+                                end += 1;
+                            }
+                            // If there's an opening paren, find matching close
+                            if end < chars.len() && chars[end] == '(' {
+                                end += 1;
+                                let mut with_depth = 1;
+                                let mut with_in_string = false;
+                                let mut with_string_char = ' ';
+
+                                while end < chars.len() && with_depth > 0 {
+                                    let c = chars[end];
+                                    if (c == '"' || c == '\'' || c == '`')
+                                        && (end == 0 || chars[end - 1] != '\\')
+                                    {
+                                        if !with_in_string {
+                                            with_in_string = true;
+                                            with_string_char = c;
+                                        } else if c == with_string_char {
+                                            with_in_string = false;
+                                        }
+                                    }
+                                    if !with_in_string {
+                                        match c {
+                                            '(' => with_depth += 1,
+                                            ')' => with_depth -= 1,
+                                            _ => {}
+                                        }
+                                    }
+                                    if with_depth > 0 {
+                                        end += 1;
+                                    }
+                                }
+                                // Skip past the closing paren of .with()
+                                end += 1;
+                            }
+                        }
+                    }
 
                     // Skip optional semicolon and trailing whitespace on the same line
                     while end < chars.len() && (chars[end] == ';' || chars[end] == ' ') {
