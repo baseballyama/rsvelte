@@ -817,6 +817,9 @@ fn visit_slot_children(
     // The slot function signature is ($$anchor, $$slotProps) => { ... }
     context.state.node = b::id("$$anchor");
 
+    // Track whether we need to auto-append at the end
+    let mut needs_auto_append = false;
+
     // Handle standalone case: single component/render tag doesn't need template processing
     if cleaned.is_standalone {
         // For standalone components, just visit them directly
@@ -840,6 +843,38 @@ fn visit_slot_children(
                 }
                 _ => {}
             }
+        }
+    } else if cleaned.trimmed.len() == 1 && matches!(cleaned.trimmed[0], TemplateNode::Text(_)) {
+        // Special case: single text node
+        // This mirrors the official Fragment.js behavior (lines 100-103):
+        // const id = b.id(context.state.scope.generate('text'));
+        // state.init.unshift(b.var(id, b.call('$.text', b.literal(trimmed[0].data))));
+        // close = b.stmt(b.call('$.append', b.id('$$anchor'), id));
+        if let TemplateNode::Text(text) = &cleaned.trimmed[0] {
+            // Add $.next() to skip the comment marker
+            // This is because is_text_first is true for single text nodes in slot context
+            context
+                .state
+                .init
+                .push(b::stmt(b::call(b::member_path("$.next"), vec![])));
+
+            // Generate unique id for the text node
+            let id_name = context.state.memoizer.generate_id("text");
+
+            // Create: var text = $.text('data')
+            context.state.init.push(b::var_decl(
+                &id_name,
+                Some(b::call(
+                    b::member_path("$.text"),
+                    vec![b::string(text.data.to_string())],
+                )),
+            ));
+
+            // Create: $.append($$anchor, text)
+            context.state.init.push(b::stmt(b::call(
+                b::member_path("$.append"),
+                vec![b::id("$$anchor"), b::id(&id_name)],
+            )));
         }
     } else {
         // For non-standalone cases, use process_children to handle text+expression sequences
@@ -870,6 +905,7 @@ fn visit_slot_children(
         // We need to find the variable that was created
         // For now, add a generic append using the last created text id
         // This is a simplified approach - full implementation would track the ID properly
+        needs_auto_append = true;
     }
 
     // Collect the generated init statements
@@ -902,23 +938,27 @@ fn visit_slot_children(
 
     // Find any text variable from the init statements and add $.append at the end
     // This ensures append happens after template_effect
-    let mut text_var_name: Option<String> = None;
-    for stmt in result.iter() {
-        if let JsStatement::VariableDeclaration(var_decl) = stmt
-            && let Some(first_decl) = var_decl.declarations.first()
-            && let JsPattern::Identifier(name) = &first_decl.id
-            && name.starts_with("text")
-        {
-            text_var_name = Some(name.clone());
+    // Only do this for cases where process_children was used, not for single text nodes
+    // (single text nodes already include their own append)
+    if needs_auto_append {
+        let mut text_var_name: Option<String> = None;
+        for stmt in result.iter() {
+            if let JsStatement::VariableDeclaration(var_decl) = stmt
+                && let Some(first_decl) = var_decl.declarations.first()
+                && let JsPattern::Identifier(name) = &first_decl.id
+                && name.starts_with("text")
+            {
+                text_var_name = Some(name.clone());
+            }
         }
-    }
 
-    // Add $.append($$anchor, text) at the end if we found a text variable
-    if let Some(name) = text_var_name {
-        result.push(b::stmt(b::call(
-            b::member_path("$.append"),
-            vec![b::id("$$anchor"), b::id(&name)],
-        )));
+        // Add $.append($$anchor, text) at the end if we found a text variable
+        if let Some(name) = text_var_name {
+            result.push(b::stmt(b::call(
+                b::member_path("$.append"),
+                vec![b::id("$$anchor"), b::id(&name)],
+            )));
+        }
     }
 
     // Restore the template and node

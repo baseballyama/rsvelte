@@ -1428,10 +1428,18 @@ pub fn expression_has_reactive_state(
                                 }
                                 return false;
                             }
-                            // Check if it's a binding - if not a known pure function, assume reactive
-                            // User-defined functions may return reactive values
-                            if context.state.get_binding(name).is_none() {
-                                // Unknown identifier - could be a global, check arguments only
+                            // Check if it's a binding or has a transform registered
+                            // (snippet parameters have transforms but not bindings)
+                            if let Some(binding) = context.state.get_binding(name) {
+                                // Binding exists - check if reactive
+                                if binding.kind.is_reactive() {
+                                    return true;
+                                }
+                            } else if context.state.transform.contains_key(name) {
+                                // Has a transform (e.g., snippet parameter) - treat as reactive
+                                return true;
+                            } else {
+                                // Unknown identifier without transform - could be a global, check arguments only
                                 if let Some(args) = obj.get("arguments").and_then(|v| v.as_array())
                                 {
                                     for arg in args {
