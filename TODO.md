@@ -1782,15 +1782,34 @@ $.template_effect(() => {
   - ネストされたフラグメントの $.next() 制御
   - each ブロックコールバックの修正
 
+**追加完了タスク（セッション7終盤）:**
+
+- [x] C-073: $inspect rune SSR 削除
+  - `$inspect` を `remove_effect_blocks` に追加
+  - `.with()` メソッドチェーンも処理
+
+- [x] C-074: $derived.by() スコープ検出
+  - `scope_builder.rs` で `$derived.by()` を正しく検出
+
+- [x] C-075: Server コンポーネント prop リテラル対応
+  - `AttributeValue::Sequence` (テキスト値) を props に変換
+  - `AttributeValue::True` (ブール属性) も対応
+
+- [x] C-076: Server bind:this スキップ
+  - `bind:this` はクライアント専用のためサーバー側でスキップ
+
+- [x] C-077: @const 後の空白処理
+  - スニペット本体で `@const` 後の空白ノードをスキップ
+
 **テスト状況（セッション7最終）:**
 | メトリック | セッション開始 | セッション終了 | 差分 |
 |-----------|--------------|---------------|------|
-| Runtime Runes Total | 55/724 | **96/724** | **+41 (+74%)** |
-| Runtime Runes Client | 124/724 | **161/724** | **+37** |
-| Runtime Runes Server | 141/724 | **230/724** | **+89** |
+| Runtime Runes Total | 55/724 | **103/724** | **+48 (+87%)** |
+| Runtime Runes Client | 124/724 | **161/724** | **+37 (+30%)** |
+| Runtime Runes Server | 141/724 | **244/724** | **+103 (+73%)** |
 | Compiler Snapshot | 19/19 | **19/19** | 100% ✅ |
 
 **次のアクション:**
-1. さらなる Server 側改善（Total 向上）
-2. async 関連機能の完成
-3. Component visitor の改善
+1. さらなる Total 向上（目標: 150+）
+2. Component visitor の改善
+3. async 関連機能の完成
