@@ -1535,3 +1535,55 @@ $.template_effect(() => {
 2. `$.bind_props()` の実装（export 文の代替）
 3. Store handling 実装（`$.store_get`, `$.setup_stores`, etc.）
 4. Class state transformation 改善
+
+### 2026-01-27 セッション4
+
+**セッション再開 (2026-01-27 セッション4):**
+
+現在地: Phase C - Rust 実装
+目標: Runtime Runes 改善継続
+
+**テスト状況（セッション開始時）:**
+| メトリック | 値 |
+|-----------|-----|
+| Runtime Runes Total | 48/724 |
+| Runtime Runes Client | 85/724 |
+| Runtime Runes Server | 135/724 |
+| Compiler Snapshot | 19/19 (100%) |
+
+**完了タスク:**
+- [x] C-056: `is` 属性のテンプレート内処理 ✅
+  - クライアント側で静的な `is` 属性をテンプレートに直接埋め込み
+  - `ComponentMetadata` のデフォルト namespace を `"html"` に修正
+  - **結果**: Runtime Runes Client +1 (85 → 86)
+  - **コミット**: `feat(transform): Add 'is' attribute template handling for custom elements`
+
+- [x] C-057: `$.bind_props()` の実装 ✅
+  - サーバー側で `$.bind_props($$props, { ... })` を生成
+  - `export { name }` 文をサーバー出力から削除
+  - `build_bind_props()` メソッドを追加
+  - export 処理（関数、クラス、const）を runes モードで追加
+  - **結果**: Runtime Runes Total +1 (48 → 49), Server +1 (135 → 136)
+  - **コミット**: `feat(transform): Add $.bind_props() generation for server-side rendering`
+
+- [x] C-058: Store handling 実装 ✅
+  - Phase 2: `store_subscriptions.rs` 追加（自動ストア購読検出）
+  - Phase 3: `$.setup_stores()` と `$$cleanup()` 生成
+  - ストアゲッター関数: `const $store = () => $.store_get(...)`
+  - ストア変換ルール: read, assign, mutate, update
+  - **修正**: runes モードでは Rune 名をスキップ（$props 退行修正）
+  - **結果**: Runtime Runes Client +1 (85 → 86), Compiler Snapshot 19/19 維持
+  - **コミット**: `feat(transform): Add store subscription support for client-side rendering`
+
+**テスト状況（セッション4終了時）:**
+| メトリック | セッション開始 | セッション終了 | 差分 |
+|-----------|--------------|---------------|------|
+| Runtime Runes Total | 48/724 | **49/724** | **+1** |
+| Runtime Runes Client | 85/724 | **86/724** | **+1** |
+| Runtime Runes Server | 135/724 | **136/724** | **+1** |
+| Compiler Snapshot | 19/19 | **19/19** | 100% ✅ |
+
+**次のアクション:**
+1. Store の残り機能（サーバー側 `$$store_subs` など）
+2. Class state transformation 改善
+3. `{#if}` ブロックの改善
