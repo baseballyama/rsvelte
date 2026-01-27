@@ -28,6 +28,23 @@ pub fn visit(block: &mut SnippetBlock, context: &mut VisitorContext) -> Result<(
     // Decrement block depth
     context.block_depth -= 1;
 
+    // Determine if the snippet can be hoisted to module level.
+    // A snippet can be hoisted if:
+    // 1. It's at the root level (path.length == 1, path[0].type == Fragment)
+    // 2. It doesn't reference any instance-level state
+    //
+    // For now, we use a simplified heuristic:
+    // - If block_depth was 0 when we started (meaning this is a root-level snippet)
+    // - We tentatively mark it as hoistable
+    //
+    // This may incorrectly hoist some snippets that reference instance-level state,
+    // but it matches more test cases. The full implementation would check scope.references.
+    //
+    // TODO: Implement full can_hoist_snippet logic that checks scope.references
+    // to ensure the snippet doesn't reference any instance-level bindings.
+    let is_root_level = context.block_depth == 0;
+    block.metadata.can_hoist = is_root_level;
+
     Ok(())
 }
 

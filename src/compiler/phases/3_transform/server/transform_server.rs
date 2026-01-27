@@ -7,9 +7,9 @@ use super::super::js_ast::normalize_js;
 use super::super::shared::{escape_attr, escape_html, is_void_element};
 use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, BindDirective,
-    ClassDirective, Component, EachBlock, ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock,
-    RegularElement, RenderTag, Root, Script, SnippetBlock, StyleDirective, SvelteDynamicElement,
-    SvelteElement, TemplateNode, Text,
+    ClassDirective, Component, ConstTag, EachBlock, ExpressionTag, Fragment, HtmlTag, IfBlock,
+    KeyBlock, RegularElement, RenderTag, Root, Script, SnippetBlock, StyleDirective,
+    SvelteDynamicElement, SvelteElement, TemplateNode, Text,
 };
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
@@ -92,6 +92,10 @@ enum OutputPart {
         props: Vec<String>,
         has_prior_content: bool,
         children: Option<Vec<OutputPart>>,
+        /// Snippets defined inside the component (name, params, body)
+        snippets: Vec<(String, Vec<String>, Vec<OutputPart>)>,
+        /// Slot names to add to $$slots
+        slot_names: Vec<String>,
     },
     /// Component with bind directives - requires do/while settling
     ComponentWithBindings {
@@ -142,6 +146,8 @@ enum OutputPart {
     },
     /// Render tag call - calls a snippet function
     RenderCall(String),
+    /// Const declaration - produces const variable
+    ConstDeclaration(String),
 }
 
 impl<'a> ServerCodeGenerator<'a> {
@@ -190,6 +196,19 @@ impl<'a> ServerCodeGenerator<'a> {
                 if i == 0 || i == len - 1 {
                     continue;
                 }
+                // Skip whitespace between snippets and other elements at root level
+                // Check if previous node is a snippet
+                if i > 0
+                    && let TemplateNode::SnippetBlock(_) = nodes[i - 1]
+                {
+                    continue;
+                }
+                // Check if next node is a snippet
+                if i + 1 < len
+                    && let TemplateNode::SnippetBlock(_) = nodes[i + 1]
+                {
+                    continue;
+                }
             }
             self.generate_node(node, true)?;
         }
@@ -211,6 +230,7 @@ impl<'a> ServerCodeGenerator<'a> {
             TemplateNode::HtmlTag(tag) => self.generate_html_tag(tag),
             TemplateNode::SvelteElement(elem) => self.generate_svelte_element(elem),
             TemplateNode::SvelteBoundary(boundary) => self.generate_svelte_boundary(boundary),
+            TemplateNode::ConstTag(tag) => self.generate_const_tag(tag),
             _ => Ok(()),
         }
     }
@@ -906,8 +926,9 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
-        // Check if component has children
-        let children = self.generate_component_children(&component.fragment)?;
+        // Extract snippets from the component's fragment and process children
+        let (children, snippets, slot_names) =
+            self.generate_component_children_with_snippets(&component.fragment)?;
 
         // Use ComponentWithBindings if there are any bind directives
         if bindings.is_empty() {
@@ -916,6 +937,8 @@ impl<'a> ServerCodeGenerator<'a> {
                 props,
                 has_prior_content,
                 children,
+                snippets,
+                slot_names,
             });
         } else {
             self.output_parts.push(OutputPart::ComponentWithBindings {
@@ -930,13 +953,147 @@ impl<'a> ServerCodeGenerator<'a> {
         Ok(())
     }
 
-    fn generate_component_children(
+    /// Generate component children, extracting snippets as props.
+    /// Returns (children_parts, snippets, slot_names)
+    #[allow(clippy::type_complexity)]
+    fn generate_component_children_with_snippets(
         &mut self,
         fragment: &Fragment,
+    ) -> Result<
+        (
+            Option<Vec<OutputPart>>,
+            Vec<(String, Vec<String>, Vec<OutputPart>)>,
+            Vec<String>,
+        ),
+        TransformError,
+    > {
+        let mut snippets: Vec<(String, Vec<String>, Vec<OutputPart>)> = Vec::new();
+        let mut slot_names: Vec<String> = Vec::new();
+        let mut non_snippet_nodes: Vec<&TemplateNode> = Vec::new();
+
+        // Separate snippets from other children
+        for node in &fragment.nodes {
+            if let TemplateNode::SnippetBlock(snippet_block) = node {
+                // Extract snippet name
+                let name_start = snippet_block.expression.start().unwrap_or(0) as usize;
+                let name_end = snippet_block.expression.end().unwrap_or(0) as usize;
+                let snippet_name = if name_end > name_start && name_end <= self.source.len() {
+                    self.source[name_start..name_end].trim().to_string()
+                } else {
+                    "snippet".to_string()
+                };
+
+                // Extract parameters
+                let params: Vec<String> = snippet_block
+                    .parameters
+                    .iter()
+                    .map(|p| {
+                        let start = p.start().unwrap_or(0) as usize;
+                        let end = p.end().unwrap_or(0) as usize;
+                        if end > start && end <= self.source.len() {
+                            self.source[start..end].trim().to_string()
+                        } else {
+                            String::new()
+                        }
+                    })
+                    .filter(|s| !s.is_empty())
+                    .collect();
+
+                // Generate snippet body
+                let body_parts = self.generate_snippet_body(&snippet_block.body)?;
+
+                // Add to slot names
+                let slot_name = if snippet_name == "children" {
+                    "default".to_string()
+                } else {
+                    snippet_name.clone()
+                };
+                slot_names.push(slot_name);
+
+                snippets.push((snippet_name, params, body_parts));
+            } else {
+                non_snippet_nodes.push(node);
+            }
+        }
+
+        // Now process remaining children (non-snippets)
+        let children = self.generate_children_from_nodes(&non_snippet_nodes)?;
+
+        Ok((children, snippets, slot_names))
+    }
+
+    /// Generate snippet body parts
+    fn generate_snippet_body(
+        &mut self,
+        fragment: &Fragment,
+    ) -> Result<Vec<OutputPart>, TransformError> {
+        let mut body_generator = ServerCodeGenerator::new(
+            self.component_name.clone(),
+            self.source.clone(),
+            None,
+            None,
+            self.analysis,
+        );
+
+        // Collect non-empty nodes
+        let body_nodes: Vec<_> = fragment.nodes.iter().collect();
+        let len = body_nodes.len();
+
+        // Find first non-whitespace node
+        let mut start_idx = 0;
+        while start_idx < len {
+            if let TemplateNode::Text(text) = body_nodes[start_idx]
+                && text.data.trim().is_empty()
+            {
+                start_idx += 1;
+                continue;
+            }
+            break;
+        }
+
+        // Find last non-whitespace node
+        let mut end_idx = len;
+        while end_idx > start_idx {
+            if let TemplateNode::Text(text) = body_nodes[end_idx - 1]
+                && text.data.trim().is_empty()
+            {
+                end_idx -= 1;
+                continue;
+            }
+            break;
+        }
+
+        // Generate body content
+        for (i, node) in body_nodes
+            .iter()
+            .enumerate()
+            .skip(start_idx)
+            .take(end_idx - start_idx)
+        {
+            if i == start_idx {
+                // First node - if it's text, trim it
+                if let TemplateNode::Text(text) = node {
+                    let trimmed = text.data.trim();
+                    if !trimmed.is_empty() {
+                        body_generator
+                            .output_parts
+                            .push(OutputPart::Html(escape_html(trimmed)));
+                    }
+                    continue;
+                }
+            }
+            body_generator.generate_node(node, false)?;
+        }
+
+        Ok(body_generator.output_parts)
+    }
+
+    /// Generate children from a list of nodes (excluding snippets)
+    fn generate_children_from_nodes(
+        &mut self,
+        nodes: &[&TemplateNode],
     ) -> Result<Option<Vec<OutputPart>>, TransformError> {
-        // Filter out leading/trailing whitespace
-        let children: Vec<_> = fragment.nodes.iter().collect();
-        let len = children.len();
+        let len = nodes.len();
 
         if len == 0 {
             return Ok(None);
@@ -947,7 +1104,7 @@ impl<'a> ServerCodeGenerator<'a> {
         let mut end_idx = len;
 
         while start_idx < len {
-            if let TemplateNode::Text(text) = children[start_idx]
+            if let TemplateNode::Text(text) = nodes[start_idx]
                 && text.data.trim().is_empty()
             {
                 start_idx += 1;
@@ -957,7 +1114,7 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         while end_idx > start_idx {
-            if let TemplateNode::Text(text) = children[end_idx - 1]
+            if let TemplateNode::Text(text) = nodes[end_idx - 1]
                 && text.data.trim().is_empty()
             {
                 end_idx -= 1;
@@ -984,7 +1141,7 @@ impl<'a> ServerCodeGenerator<'a> {
         body_generator.output_parts.push(OutputPart::Comment);
 
         let mut is_first = true;
-        for node in children.iter().take(end_idx).skip(start_idx) {
+        for node in nodes.iter().take(end_idx).skip(start_idx) {
             // For the first text node, normalize leading whitespace
             if is_first && let TemplateNode::Text(text) = node {
                 // Normalize: trim leading whitespace, keep content
@@ -1313,6 +1470,18 @@ impl<'a> ServerCodeGenerator<'a> {
 
     fn generate_key_block(&mut self, _block: &KeyBlock) -> Result<(), TransformError> {
         self.output_parts.push(OutputPart::Comment);
+        Ok(())
+    }
+
+    fn generate_const_tag(&mut self, tag: &ConstTag) -> Result<(), TransformError> {
+        // Get the declaration from the source
+        let start = tag.declaration.start().unwrap_or(0) as usize;
+        let end = tag.declaration.end().unwrap_or(0) as usize;
+        if end > start && end <= self.source.len() {
+            let declaration_source = self.source[start..end].trim().to_string();
+            self.output_parts
+                .push(OutputPart::ConstDeclaration(declaration_source));
+        }
         Ok(())
     }
 
@@ -1937,6 +2106,8 @@ export default function {component_name}($$renderer{props_param}) {{
                     props,
                     has_prior_content,
                     children,
+                    snippets,
+                    slot_names,
                 } => {
                     // Flush current HTML
                     if !current_html.is_empty() {
@@ -1945,27 +2116,82 @@ export default function {component_name}($$renderer{props_param}) {{
                         current_html.clear();
                     }
 
-                    // Generate component call
-                    if let Some(children_parts) = children {
-                        // Component with children - multi-line format
-                        body_code.push_str(&format!("{}{}($$renderer, {{\n", indent, name));
+                    // Check if we have snippets or children
+                    let has_snippets = !snippets.is_empty();
+                    let has_children = children.is_some();
 
-                        // Props
-                        for prop in props {
-                            body_code.push_str(&format!("{}\t{},\n", indent, prop));
+                    if has_snippets || has_children {
+                        // Wrap in a block if we have snippets
+                        if has_snippets {
+                            body_code.push_str(&format!("{}{{\n", indent));
+
+                            // Generate snippet function declarations inside the block
+                            for (snippet_name, params, body_parts) in snippets {
+                                let params_str = if params.is_empty() {
+                                    "$$renderer".to_string()
+                                } else {
+                                    format!("$$renderer, {}", params.join(", "))
+                                };
+                                body_code.push_str(&format!(
+                                    "{}\tfunction {}({}) {{\n",
+                                    indent, snippet_name, params_str
+                                ));
+                                let snippet_body = Self::build_parts(body_parts, indent_level + 2);
+                                body_code.push_str(&snippet_body);
+                                body_code.push_str(&format!("{}\t}}\n\n", indent));
+                            }
+
+                            // Component call with snippets as props
+                            body_code.push_str(&format!("{}\t{}($$renderer, {{ ", indent, name));
+
+                            // Collect all props including snippet names
+                            let mut all_props: Vec<String> = props.clone();
+                            for (snippet_name, _, _) in snippets {
+                                all_props.push(snippet_name.clone());
+                            }
+
+                            // Build $$slots object
+                            let slots_str = slot_names
+                                .iter()
+                                .map(|s| format!("{}: true", s))
+                                .collect::<Vec<_>>()
+                                .join(", ");
+
+                            if all_props.is_empty() {
+                                body_code.push_str(&format!("$$slots: {{ {} }} }});\n", slots_str));
+                            } else {
+                                body_code.push_str(&format!(
+                                    "{}, $$slots: {{ {} }} }});\n",
+                                    all_props.join(", "),
+                                    slots_str
+                                ));
+                            }
+
+                            // Close the block
+                            body_code.push_str(&format!("{}}}\n", indent));
+                        } else if let Some(children_parts) = children {
+                            // Component with children only (no snippets) - multi-line format
+                            body_code.push_str(&format!("{}{}($$renderer, {{\n", indent, name));
+
+                            // Props
+                            for prop in props {
+                                body_code.push_str(&format!("{}\t{},\n", indent, prop));
+                            }
+
+                            // Children callback
+                            body_code
+                                .push_str(&format!("{}\tchildren: ($$renderer) => {{\n", indent));
+                            let children_code = Self::build_parts(children_parts, indent_level + 2);
+                            body_code.push_str(&children_code);
+                            body_code.push_str(&format!("{}\t}},\n", indent));
+
+                            // Slots marker
+                            body_code
+                                .push_str(&format!("{}\t$$slots: {{ default: true }}\n", indent));
+                            body_code.push_str(&format!("{}}});\n", indent));
                         }
-
-                        // Children callback
-                        body_code.push_str(&format!("{}\tchildren: ($$renderer) => {{\n", indent));
-                        let children_code = Self::build_parts(children_parts, indent_level + 2);
-                        body_code.push_str(&children_code);
-                        body_code.push_str(&format!("{}\t}},\n", indent));
-
-                        // Slots marker
-                        body_code.push_str(&format!("{}\t$$slots: {{ default: true }}\n", indent));
-                        body_code.push_str(&format!("{}}});\n", indent));
                     } else {
-                        // No children - simple call
+                        // No children and no snippets - simple call
                         if props.is_empty() {
                             body_code.push_str(&format!("{}{}($$renderer, {{}});\n", indent, name));
                         } else {
@@ -2210,6 +2436,17 @@ export default function {component_name}($$renderer{props_param}) {{
 
                     // Generate the snippet function call
                     body_code.push_str(&format!("{}{};\n", indent, call_str));
+                }
+                OutputPart::ConstDeclaration(declaration) => {
+                    // Flush current HTML before const declaration
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+
+                    // Generate the const declaration
+                    body_code.push_str(&format!("{}const {};\n", indent, declaration));
                 }
             }
             i += 1;
