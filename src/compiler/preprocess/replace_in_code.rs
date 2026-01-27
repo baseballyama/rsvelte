@@ -2,10 +2,16 @@
 //!
 //! Corresponds to `replace_in_code.js` from the official Svelte compiler.
 
+use std::future::Future;
+use std::sync::LazyLock;
+
+use regex::Regex;
+
 #[allow(unused_imports)]
 use super::types::{Location, MappedCode, PreprocessError, Replacement, SimpleDecodedMap, Source};
-use regex::Regex;
-use std::future::Future;
+
+// Cached regex for tokenizing lines (for source map generation)
+static REGEX_LINE_TOKEN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"([^\w\s]|\s+)").unwrap());
 
 /// Create a slice of a Source at a given offset.
 ///
@@ -152,7 +158,6 @@ impl MappedCode {
 
         // Create high-resolution identity map
         // Split on token boundaries for better resolution
-        let regex_line_token = Regex::new(r"([^\w\s]|\s+)").unwrap();
         let line_list: Vec<&str> = source.source.split('\n').collect();
 
         for (line_idx, line) in line_list.iter().enumerate() {
@@ -161,7 +166,7 @@ impl MappedCode {
 
             // Split line into tokens
             let mut last_end = 0;
-            for token_match in regex_line_token.find_iter(line) {
+            for token_match in REGEX_LINE_TOKEN.find_iter(line) {
                 // Add token before this match
                 if token_match.start() > last_end {
                     let token_len = (token_match.start() - last_end) as u32;

@@ -10,6 +10,10 @@ use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 use crate::compiler::phases::phase3_transform::shared::template::{escape_attr, is_void_element};
 use regex::Regex;
+use std::sync::LazyLock;
+
+// Cached regex for stripping leading newline from pre/textarea content
+static REGEX_LEADING_NEWLINE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\r?\n").unwrap());
 
 /// Path to a node in the tree, represented as indices at each level.
 /// An empty path means the root nodes vector.
@@ -386,8 +390,7 @@ fn objectify(item: &Node) -> Option<JsExpr> {
                     && let Some(first) = children.first()
                         && let JsExpr::Literal(lit) = first
                             && let crate::compiler::phases::phase3_transform::js_ast::nodes::JsLiteral::String(s) = lit {
-                                let regex = Regex::new(r"^\r?\n").unwrap();
-                                let new_value = regex.replace(s, "").to_string();
+                                let new_value = REGEX_LEADING_NEWLINE.replace(s, "").to_string();
                                 let mut modified_children = children.clone();
                                 modified_children[0] = b::string(new_value);
                                 element_array.extend(modified_children);

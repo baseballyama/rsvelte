@@ -75,8 +75,16 @@ path = "src/bin/test_reporter.rs"
 name = "benchmark_runner"
 path = "src/bin/benchmark_runner.rs"
 
+[[bin]]
+name = "profiler"
+path = "src/bin/profiler.rs"
+
 [[bench]]
 name = "parser"
+harness = false
+
+[[bench]]
+name = "compiler"
 harness = false
 
 [profile.release]

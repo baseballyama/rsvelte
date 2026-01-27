@@ -13,6 +13,10 @@ pub mod utils;
 mod visitor;
 pub mod visitors;
 
+use std::sync::LazyLock;
+
+use regex::Regex;
+
 use super::TransformError;
 use super::js_ast::{
     builders::{self as b},
@@ -29,6 +33,10 @@ use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
 // Import new visitor system types
 use types::{ComponentClientTransformState, ComponentContext, TransformResult};
+
+// Cached regular expressions for performance
+static REGEX_STATE_DERIVED_VAR: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?:let|const)\s+(\w+)\s*=\s*\$(?:state|derived)\s*\(").unwrap());
 
 /// Transform a component analysis into client-side JavaScript.
 ///
@@ -440,9 +448,8 @@ fn extract_local_reactive_vars(script: &str) -> Vec<String> {
     let mut vars = Vec::new();
 
     // Pattern: let/const varname = $state(...) or let/const varname = $derived(...)
-    let re = regex::Regex::new(r"(?:let|const)\s+(\w+)\s*=\s*\$(?:state|derived)\s*\(").unwrap();
-
-    for cap in re.captures_iter(script) {
+    // Uses cached regex for performance
+    for cap in REGEX_STATE_DERIVED_VAR.captures_iter(script) {
         if let Some(name) = cap.get(1) {
             vars.push(name.as_str().to_string());
         }

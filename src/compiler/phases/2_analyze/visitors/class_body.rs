@@ -4,12 +4,20 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/ClassBody.js`.
 
+use std::collections::HashMap;
+use std::sync::LazyLock;
+
+use regex::Regex;
+use serde_json::Value;
+
 use super::super::errors;
 use super::super::types::StateField;
 use super::VisitorContext;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
-use serde_json::Value;
-use std::collections::HashMap;
+
+// Cached regex for sanitizing identifier names
+static REGEX_INVALID_IDENTIFIER_CHARS: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(^[^a-zA-Z_$]|[^a-zA-Z0-9_$])").unwrap());
 
 /// Visit a class body.
 ///
@@ -355,7 +363,6 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     }
 
     // Generate deconflicted private identifiers for public state fields
-    let regex = regex::Regex::new(r"(^[^a-zA-Z_$]|[^a-zA-Z0-9_$])").unwrap();
     for (name, field) in state_fields.iter_mut() {
         // Skip private identifiers (already have keys)
         if name.starts_with('#') {
@@ -363,7 +370,9 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         }
 
         // Replace invalid identifier characters with underscores
-        let mut deconflicted = regex.replace_all(name, "_").to_string();
+        let mut deconflicted = REGEX_INVALID_IDENTIFIER_CHARS
+            .replace_all(name, "_")
+            .to_string();
 
         // Ensure it doesn't conflict with existing private identifiers
         while private_ids.contains(&deconflicted) {

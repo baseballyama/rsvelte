@@ -4,11 +4,21 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/AwaitBlock.js`.
 
+use std::sync::LazyLock;
+
+use regex::Regex;
+
 use super::VisitorContext;
 use super::shared::fragment;
 use super::shared::utils::{validate_block_not_empty, validate_opening_tag};
 use crate::ast::template::AwaitBlock;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
+
+// Cached regular expressions for block syntax validation
+static REGEX_THEN_BLOCK: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\{(\s*):then\s+$").unwrap());
+static REGEX_CATCH_BLOCK: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\{(\s*):catch\s+$").unwrap());
 
 /// Visit an await block.
 ///
@@ -35,9 +45,7 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
             if start >= 10 {
                 let substr = &context.analysis.source[start.saturating_sub(10)..start];
                 // Match pattern: `{` followed by optional whitespace, `:then` followed by space
-                if let Some(captures) = regex::Regex::new(r"\{(\s*):then\s+$")
-                    .unwrap()
-                    .captures(substr)
+                if let Some(captures) = REGEX_THEN_BLOCK.captures(substr)
                     && let Some(whitespace) = captures.get(1)
                     && !whitespace.as_str().is_empty()
                 {
@@ -55,9 +63,7 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
             if start >= 10 {
                 let substr = &context.analysis.source[start.saturating_sub(10)..start];
                 // Match pattern: `{` followed by optional whitespace, `:catch` followed by space
-                if let Some(captures) = regex::Regex::new(r"\{(\s*):catch\s+$")
-                    .unwrap()
-                    .captures(substr)
+                if let Some(captures) = REGEX_CATCH_BLOCK.captures(substr)
                     && let Some(whitespace) = captures.get(1)
                     && !whitespace.as_str().is_empty()
                 {
