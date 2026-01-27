@@ -111,6 +111,8 @@ impl<'a> ComponentContext<'a> {
 
             TemplateNode::HtmlTag(html) => self.visit_html_tag(html),
 
+            TemplateNode::ConstTag(const_tag) => self.visit_const_tag(const_tag),
+
             // Other node types - TODO: implement
             _ => TransformResult::None,
         };
@@ -246,6 +248,12 @@ impl<'a> ComponentContext<'a> {
         use crate::compiler::phases::phase3_transform::client::visitors::html_tag::html_tag as visit_html_tag_impl;
         let stmt = visit_html_tag_impl(html, self);
         TransformResult::Statement(stmt)
+    }
+
+    fn visit_const_tag(&mut self, const_tag: &crate::ast::template::ConstTag) -> TransformResult {
+        use crate::compiler::phases::phase3_transform::client::visitors::const_tag::const_tag as visit_const_tag_impl;
+        visit_const_tag_impl(const_tag, self);
+        TransformResult::None
     }
 
     pub fn visit_on_directive(

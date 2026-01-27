@@ -58,6 +58,7 @@ pub mod shared;
 pub mod animate_directive;
 pub mod arrow_function_expression;
 pub mod assignment_expression;
+pub mod const_tag;
 pub mod expression_converter;
 
 // Additional visitor modules will be added here as they are extracted.
