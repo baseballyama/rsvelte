@@ -1672,3 +1672,25 @@ fn test_normalize_js_import_double_quotes() {
         "Double and single quote imports should normalize the same"
     );
 }
+
+#[test]
+fn test_normalize_js_nested_if_in_callback() {
+    // Test case from store-from-state-2
+    let expected = r#"$.if(node, ($$render) => {
+        if (true) $$render(consequent);
+    });"#;
+
+    let actual = r#"$.if(node, ($$render) => {
+        if (true) {
+            $$render(consequent);
+        }
+    });"#;
+
+    let normalized_expected = normalize_js(expected);
+    let normalized_actual = normalize_js(actual);
+    assert_eq!(
+        normalized_expected, normalized_actual,
+        "Nested if in callback should normalize to the same output\nExpected:\n{}\n\nActual:\n{}",
+        normalized_expected, normalized_actual
+    );
+}
