@@ -56,7 +56,7 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
 
     // Visit the consequent fragment using the Fragment visitor
     // The Fragment visitor handles template creation and hoisting
-    let consequent_block = visit_fragment(&node.consequent, context);
+    let consequent_block = visit_fragment(&node.consequent, context, false);
     let consequent_id_name = context.state.memoizer.generate_id("consequent");
     let consequent_id = b::id(&consequent_id_name);
 
@@ -71,7 +71,7 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
 
     // Handle the alternate branch if present
     let alternate_id = if let Some(ref alternate_fragment) = node.alternate {
-        let alternate_block = visit_fragment(alternate_fragment, context);
+        let alternate_block = visit_fragment(alternate_fragment, context, false);
         let alternate_id_name = context.state.memoizer.generate_id("alternate");
         let alt_id = b::id(&alternate_id_name);
 
@@ -197,12 +197,20 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
 /// This is a helper function that uses the Fragment visitor to process
 /// a fragment and returns the generated block statement with template
 /// creation, hoisting, and content rendering.
-fn visit_fragment(fragment: &Fragment, context: &mut ComponentContext<'_>) -> JsBlockStatement {
+///
+/// `is_root_fragment` controls whether `$.next()` can be generated for
+/// text-first content. For IfBlock consequent/alternate, this should be `false`
+/// because they handle their own templates independently.
+fn visit_fragment(
+    fragment: &Fragment,
+    context: &mut ComponentContext<'_>,
+    is_root_fragment: bool,
+) -> JsBlockStatement {
     // Use the Fragment visitor which handles:
     // - Template creation (root_x = $.from_html(...))
     // - Hoisting template declarations to context.state.hoisted
     // - Creating fragment instance (var fragment = root_x())
     // - Processing child nodes
     // - Appending to anchor ($.append($$anchor, fragment))
-    visit_fragment_impl(fragment, context)
+    visit_fragment_impl(fragment, context, is_root_fragment)
 }

@@ -53,10 +53,22 @@ fn parse_namespace(namespace: &str) -> Namespace {
 /// * `node` - The Fragment node to transform
 /// * `context` - The component transformation context
 ///
+/// # Arguments
+///
+/// * `node` - The Fragment node to transform
+/// * `context` - The component transformation context
+/// * `is_root_fragment` - Whether this is a root-level fragment (e.g., component body)
+///   that may need `$.next()` for text-first content. Nested fragments like IfBlock
+///   consequent/alternate should pass `false`.
+///
 /// # Returns
 ///
 /// Returns a block statement containing the transformed code.
-pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockStatement {
+pub fn fragment(
+    node: &Fragment,
+    context: &mut ComponentContext,
+    is_root_fragment: bool,
+) -> JsBlockStatement {
     // Get parent node from path or use the fragment itself
     let parent = context.path.last().copied();
 
@@ -353,8 +365,10 @@ pub fn fragment(node: &Fragment, context: &mut ComponentContext) -> JsBlockState
         ));
     }
 
-    // Skip over inserted comment if text_first
-    if cleaned.is_text_first {
+    // Skip over inserted comment if text_first (only for root fragments)
+    // Nested fragments like IfBlock consequent/alternate don't need $.next()
+    // because they handle their own templates independently.
+    if is_root_fragment && cleaned.is_text_first {
         body.push(b::stmt(b::call(b::member_path("$.next"), vec![])));
     }
 

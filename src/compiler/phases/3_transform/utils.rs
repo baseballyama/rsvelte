@@ -115,12 +115,18 @@ pub fn clean_nodes(
         };
 
     // Determine is_text_first
+    // This is true when the first child is a text or expression tag, for certain parent types.
+    // The Fragment visitor will use this in conjunction with is_root_fragment to determine
+    // whether to generate $.next() to skip over inserted comment markers.
     let is_text_first = match parent {
-        Some(TemplateNode::SnippetBlock(_))
+        // Root fragment (None parent) or specific parent types that need $.next()
+        None
+        | Some(TemplateNode::SnippetBlock(_))
         | Some(TemplateNode::EachBlock(_))
         | Some(TemplateNode::SvelteComponent(_))
+        | Some(TemplateNode::SvelteBoundary(_))
         | Some(TemplateNode::Component(_))
-        | None => {
+        | Some(TemplateNode::SvelteSelf(_)) => {
             if let Some(first) = trimmed.first() {
                 matches!(
                     first,

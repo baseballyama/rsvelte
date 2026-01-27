@@ -103,7 +103,8 @@ fn transform_client_with_visitors(
     context.state.dev = options.dev;
 
     // Call the fragment visitor to transform the template
-    let template_body = fragment(&ast.fragment, &mut context);
+    // This is the root fragment of the component, so is_root_fragment=true
+    let template_body = fragment(&ast.fragment, &mut context, true);
 
     // Collect results from state
     let hoisted_statements = std::mem::take(&mut context.state.hoisted);
@@ -729,7 +730,21 @@ fn transform_client_runes_with_skip_and_state(
                     );
                 } else if is_object_or_array {
                     // Objects/arrays need $.proxy() for deep reactivity
-                    result = result.replacen("$state(", "$.proxy(", 1);
+                    // If the variable is not a skip_state_var (i.e., it IS reactive),
+                    // we also need to wrap with $.state() for the reactivity tracking
+                    // Expected: $.state($.proxy([...]))
+                    if skip_state_vars.contains(&var_name.to_string()) {
+                        // Skip state wrapping - just use proxy
+                        result = result.replacen("$state(", "$.proxy(", 1);
+                    } else {
+                        // Wrap with both $.state and $.proxy for full reactivity
+                        result = format!(
+                            "{}$.state($.proxy({})){}",
+                            &result[..pos],
+                            content,
+                            &result[state_start + content_end + 1..]
+                        );
+                    }
                 } else {
                     // Primitives that ARE reassigned need $.state()
                     result = result.replacen("$state(", "$.state(", 1);

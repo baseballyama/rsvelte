@@ -130,7 +130,8 @@ pub fn svelte_boundary(node: &SvelteElement, context: &mut ComponentContext) {
     };
 
     // Visit the content fragment
-    let content_block = fragment(&content_fragment, context);
+    // Boundary content is a nested fragment, not root
+    let content_block = fragment(&content_fragment, context, false);
 
     // Build the boundary call: $.boundary(node, props, ($$anchor) => { ... })
     let props_obj = b::object(props);

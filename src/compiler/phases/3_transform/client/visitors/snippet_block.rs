@@ -736,7 +736,8 @@ fn visit_fragment(frag: &Fragment, context: &mut ComponentContext) -> Vec<JsStat
     // Use the proper fragment visitor to handle all cases correctly
     use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment as fragment_visitor;
 
-    let block = fragment_visitor(frag, context);
+    // Snippet body needs is_root_fragment=true to get $.next() when text-first
+    let block = fragment_visitor(frag, context, true);
     block.body
 }
 

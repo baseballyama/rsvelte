@@ -722,7 +722,8 @@ fn build_render_args(
 /// - Render effect generation
 /// - Append statement generation
 fn visit_fragment(fragment: &Fragment, context: &mut ComponentContext) -> JsBlockStatement {
-    visit_fragment_impl(fragment, context)
+    // EachBlock body is not a root fragment, so pass false
+    visit_fragment_impl(fragment, context, false)
 }
 
 /// Convert an AST Expression to a JsPattern.

@@ -1173,6 +1173,24 @@ fn build_props_expression(props_and_spreads: Vec<PropsEntry>) -> JsExpr {
         return b::object(vec![]);
     }
 
+    // Check if we only have props (no spreads)
+    let all_props = props_and_spreads
+        .iter()
+        .all(|entry| matches!(entry, PropsEntry::Prop(_)));
+
+    if all_props {
+        // All entries are props, just build an object
+        let props: Vec<JsObjectMember> = props_and_spreads
+            .into_iter()
+            .filter_map(|entry| match entry {
+                PropsEntry::Prop(prop) => Some(prop),
+                PropsEntry::Spread(_) => None,
+            })
+            .collect();
+        return b::object(props);
+    }
+
+    // We have spreads, need to use $.spread_props
     // Collect consecutive props into objects, spreads stay separate
     let mut groups: Vec<JsExpr> = Vec::new();
     let mut current_props: Vec<JsObjectMember> = Vec::new();
@@ -1198,12 +1216,7 @@ fn build_props_expression(props_and_spreads: Vec<PropsEntry>) -> JsExpr {
         groups.push(b::object(current_props));
     }
 
-    // If only one element, return it directly
-    if groups.len() == 1 {
-        return groups.into_iter().next().unwrap();
-    }
-
-    // Multiple groups - use $.spread_props
+    // Always use $.spread_props when spreads are involved
     b::call(b::member_path("$.spread_props"), groups)
 }
 
