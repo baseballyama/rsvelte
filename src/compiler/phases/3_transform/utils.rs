@@ -161,17 +161,49 @@ fn trim_whitespace(
     nodes: &[TemplateNode],
     namespace: &str,
 ) -> Vec<TemplateNode> {
-    let mut regular: Vec<TemplateNode> = nodes.to_vec();
+    if nodes.is_empty() {
+        return Vec::new();
+    }
 
-    // Remove leading whitespace-only text nodes
-    while !regular.is_empty() {
-        if let TemplateNode::Text(text) = &regular[0]
-            && !REGEX_NOT_WHITESPACE.is_match(&text.data)
-        {
-            regular.remove(0);
-            continue;
-        }
-        break;
+    // Find start index (skip leading whitespace-only text nodes)
+    let start_idx = nodes
+        .iter()
+        .position(|node| {
+            if let TemplateNode::Text(text) = node {
+                REGEX_NOT_WHITESPACE.is_match(&text.data)
+            } else {
+                true
+            }
+        })
+        .unwrap_or(nodes.len());
+
+    // Find end index (skip trailing whitespace-only text nodes)
+    let end_idx = nodes
+        .iter()
+        .rposition(|node| {
+            if let TemplateNode::Text(text) = node {
+                REGEX_NOT_WHITESPACE.is_match(&text.data)
+            } else {
+                true
+            }
+        })
+        .map(|i| i + 1)
+        .unwrap_or(0);
+
+    // If nothing remains, return empty
+    if start_idx >= end_idx {
+        return Vec::new();
+    }
+
+    // Work with the trimmed slice
+    let trimmed_slice = &nodes[start_idx..end_idx];
+
+    // Pre-allocate result vector
+    let mut regular: Vec<TemplateNode> = Vec::with_capacity(trimmed_slice.len());
+
+    // Clone the nodes in range
+    for node in trimmed_slice {
+        regular.push(node.clone());
     }
 
     // Trim leading whitespace from first text node
@@ -180,17 +212,6 @@ fn trim_whitespace(
         let new_data = REGEX_STARTS_WITH_WHITESPACES.replace(&first.data, "");
         first.raw = CompactString::new(&new_raw);
         first.data = CompactString::new(&new_data);
-    }
-
-    // Remove trailing whitespace-only text nodes
-    while !regular.is_empty() {
-        if let TemplateNode::Text(text) = regular.last().unwrap()
-            && !REGEX_NOT_WHITESPACE.is_match(&text.data)
-        {
-            regular.pop();
-            continue;
-        }
-        break;
     }
 
     // Trim trailing whitespace from last text node
