@@ -11,6 +11,7 @@ use crate::compiler::phases::phase2_analyze::scope::{Binding, Scope, ScopeRoot};
 use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::client::transform_template::Template;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+use im::{HashMap as ImHashMap, HashSet as ImHashSet};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
@@ -397,8 +398,8 @@ pub struct ComponentClientTransformState<'a> {
     /// Memoizer for expressions
     pub memoizer: Memoizer,
 
-    /// Transform rules for identifiers
-    pub transform: HashMap<String, IdentifierTransform>,
+    /// Transform rules for identifiers (uses im::HashMap for O(1) clone)
+    pub transform: ImHashMap<String, IdentifierTransform>,
 
     /// Delegated events
     pub events: HashSet<String>,
@@ -438,7 +439,8 @@ pub struct ComponentClientTransformState<'a> {
     /// Names of snippets declared in this component.
     /// Used to determine if an identifier reference should be treated as having state
     /// (snippet references need to be wrapped in getters when passed as props).
-    pub snippet_names: HashSet<String>,
+    /// Uses im::HashSet for O(1) clone.
+    pub snippet_names: ImHashSet<String>,
 
     /// Flag indicating if we're in a direct assignment LHS (props.X = ...).
     /// This is used to skip rest_prop → $$props transformation for direct property assignments.
@@ -478,7 +480,7 @@ impl<'a> ComponentClientTransformState<'a> {
             node,
             // Use memoizer with scope declarations to avoid variable name collisions
             memoizer: Memoizer::with_scope_declarations(scope, scope_root),
-            transform: HashMap::new(),
+            transform: ImHashMap::new(),
             events: HashSet::new(),
             metadata: ComponentMetadata::default(),
             in_constructor: false,
@@ -490,7 +492,7 @@ impl<'a> ComponentClientTransformState<'a> {
             preserve_whitespace,
             instance_level_snippets: Vec::new(),
             module_level_snippets: Vec::new(),
-            snippet_names: HashSet::new(),
+            snippet_names: ImHashSet::new(),
             in_direct_assignment_lhs: false,
             is_controlled_each: false,
         }

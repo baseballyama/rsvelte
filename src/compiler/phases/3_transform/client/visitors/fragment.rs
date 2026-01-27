@@ -20,7 +20,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use crate::compiler::phases::phase3_transform::utils::{clean_nodes, infer_namespace};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 // Constants from svelte/src/constants.js
 const TEMPLATE_FRAGMENT: u32 = 1;
@@ -139,7 +139,7 @@ pub fn fragment(
         node: context.state.node.clone(),
         memoizer: Memoizer::with_parent_conflicts(&context.state.memoizer),
         transform: context.state.transform.clone(),
-        events: context.state.events.clone(),
+        events: HashSet::with_capacity(4), // Start empty, merge back later
         metadata: ComponentMetadata {
             namespace: namespace.clone(),
             scoped: context.state.metadata.scoped,
@@ -147,9 +147,9 @@ pub fn fragment(
         in_constructor: false,
         in_derived: false,
         dev: context.state.options.dev,
-        state_fields: context.state.state_fields.clone(),
+        state_fields: HashMap::new(), // Not populated in client transform
         is_instance: context.state.is_instance,
-        legacy_reactive_imports: context.state.legacy_reactive_imports.clone(),
+        legacy_reactive_imports: Vec::new(), // Not currently used
         preserve_whitespace: context.state.preserve_whitespace,
         instance_level_snippets: Vec::with_capacity(2),
         module_level_snippets: Vec::with_capacity(2),

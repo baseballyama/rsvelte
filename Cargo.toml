@@ -42,6 +42,9 @@ miette = "7.4"
 # Regex
 regex = "1.11"
 
+# Immutable data structures for efficient cloning
+im = "15.1"
+
 # SIMD-accelerated string search
 memchr = "2.7"
 

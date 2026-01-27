@@ -1774,8 +1774,12 @@ impl Parser<'_> {
             let mut temp_idx = self.index;
             while temp_idx < self.source.len() {
                 let c = self.source[temp_idx..].chars().next().unwrap_or('\0');
-                // Unquoted values end at whitespace or > (but NOT / alone)
+                // Unquoted values end at whitespace or > or />
                 if c.is_whitespace() || c == '>' {
+                    break;
+                }
+                // Check for self-closing tag />
+                if c == '/' && self.source.get(temp_idx + 1..temp_idx + 2) == Some(">") {
                     break;
                 }
                 if c == '}' {
@@ -1815,7 +1819,7 @@ impl Parser<'_> {
                     break;
                 }
             } else {
-                // Unquoted value ends at whitespace or > (but NOT / alone)
+                // Unquoted value ends at whitespace or > (but NOT / alone - it can be part of the value like href=/)
                 let c = self.current_char();
                 if c.is_whitespace() || c == '>' {
                     break;
