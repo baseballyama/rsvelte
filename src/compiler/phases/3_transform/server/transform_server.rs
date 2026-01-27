@@ -2092,14 +2092,14 @@ export default function {component_name}($$renderer{props_param}) {{
                     // On server, we render the pending state (using block_open_else marker)
                     // block_open_else = <!--[!-->
                     // block_close = <!--]-->
-                    body_code.push_str(&format!("{}$$renderer.push(`<!--[!-->`);\n", indent));
+                    body_code.push_str(&format!("{}$$renderer.push(`<!--[!-->`);\n\n", indent));
 
                     // Render the pending body in a block
                     if !pending_body.is_empty() {
                         body_code.push_str(&format!("{}{{\n", indent));
                         let pending_code = Self::build_parts(pending_body, indent_level + 1);
                         body_code.push_str(&pending_code);
-                        body_code.push_str(&format!("{}}}\n", indent));
+                        body_code.push_str(&format!("{}}}\n\n", indent));
                     }
 
                     // Add closing marker

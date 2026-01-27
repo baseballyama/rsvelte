@@ -126,6 +126,7 @@ mod tests {
         let options = CompileOptions {
             dev: false,
             generate: GenerateMode::Server,
+            filename: Some("main.svelte".to_string()),
             ..Default::default()
         };
 
