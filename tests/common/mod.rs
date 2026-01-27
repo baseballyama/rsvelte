@@ -296,6 +296,9 @@ pub fn normalize_js(js: &str) -> String {
         // Normalize closing brace/paren followed by newline and closing paren
         // This handles multiline function call endings like "}\n\t);" vs "});"
         static ref CLOSE_BRACE_PAREN: Regex = Regex::new(r"\}\s*\n\s*\)").unwrap();
+        // Normalize semicolon followed by }) to add newline, so line processing handles it consistently
+        // This handles cases like "statement;});" -> "statement;\n});" so both forms normalize the same
+        static ref SEMICOLON_CLOSE: Regex = Regex::new(r";\}\)").unwrap();
         // Match scientific notation like 1e3, 2.5e4, 1e-2 (but not in string literals - handled separately)
         static ref SCIENTIFIC_NOTATION: Regex = Regex::new(r"\b(\d+(?:\.\d+)?)[eE]([+-]?\d+)\b").unwrap();
     }
@@ -317,6 +320,16 @@ pub fn normalize_js(js: &str) -> String {
     result = COMMA_NEWLINE.replace_all(&result, ", ").to_string();
     // Normalize closing brace + newline + closing paren patterns
     result = CLOSE_BRACE_PAREN.replace_all(&result, "})").to_string();
+
+    // Normalize if/else braces at the full-source level
+    // This handles multiline cases like:
+    //   if (cond) { stmt;\n} -> if (cond) stmt;
+    result = normalize_if_else_braces(&result);
+
+    // Normalize ;}) to ;\n}) so line processing handles it consistently
+    // This handles the case where if-block brace removal results in "statement;});"
+    // which should match the expected "statement;\n});"
+    result = SEMICOLON_CLOSE.replace_all(&result, ";\n})").to_string();
 
     result
         .lines()
@@ -479,10 +492,7 @@ fn normalize_line_preserving_strings(
         })
         .to_string();
 
-    // Normalize if/else single-statement braces
-    // Convert: if (cond) {stmt;} -> if (cond) stmt;
-    // This handles differences between compilers that may or may not use braces for single statements
-    normalized = normalize_if_else_braces(&normalized);
+    // Note: if/else brace normalization is done at the full-source level before line processing
 
     // Restore string literals with normalized quotes (double -> single for outer quotes only)
     for (idx, string_content) in strings.iter().enumerate() {
@@ -535,7 +545,10 @@ fn normalize_single_if_brace(code: &str) -> String {
         // Check for "if " or "if("
         if i + 3 <= code_len && (&code[i..i + 3] == "if " || &code[i..i + 3] == "if(") {
             // Check if preceded by word character (to avoid matching "else if" incorrectly)
-            let is_word_boundary = i == 0 || !code_bytes[i - 1].is_ascii_alphanumeric();
+            // Also check for '.' to avoid matching method calls like $.if()
+            let prev_char = if i > 0 { code_bytes[i - 1] } else { b' ' };
+            let is_word_boundary =
+                i == 0 || (!prev_char.is_ascii_alphanumeric() && prev_char != b'.');
             if !is_word_boundary {
                 result.push(code_bytes[i] as char);
                 i += 1;
@@ -1505,6 +1518,27 @@ mod tests {
         let normalized = normalize_js(input);
         // Should have "else if" preserved
         assert!(normalized.contains("else if"));
+    }
+
+    #[test]
+    fn test_normalize_js_multiline_if_brace() {
+        // Test the actual multiline case from the transition-if-nested-static test
+        let expected = r#"$.if(node_1, ($$render) => {
+    if (show) $$render(consequent);
+});"#;
+
+        let actual = r#"$.if(node_1, ($$render) => {
+    if (show) {
+        $$render(consequent);
+    }
+});"#;
+
+        let normalized_expected = normalize_js(expected);
+        let normalized_actual = normalize_js(actual);
+        assert_eq!(
+            normalized_expected, normalized_actual,
+            "Multiline if braces should normalize to the same output"
+        );
     }
 
     #[test]
