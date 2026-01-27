@@ -58,6 +58,8 @@ struct SnippetDef {
     name: String,
     params: Vec<String>,
     body_parts: Vec<OutputPart>,
+    /// Whether this snippet can be hoisted to module level
+    can_hoist: bool,
 }
 
 /// Server-side code generator.
@@ -138,6 +140,8 @@ enum OutputPart {
     SvelteBoundary {
         pending_body: Vec<OutputPart>,
     },
+    /// Render tag call - calls a snippet function
+    RenderCall(String),
 }
 
 impl<'a> ServerCodeGenerator<'a> {
@@ -1347,9 +1351,6 @@ impl<'a> ServerCodeGenerator<'a> {
             None,
         );
 
-        // Add comment marker at start
-        body_generator.output_parts.push(OutputPart::Comment);
-
         // Collect non-empty nodes
         let body_nodes: Vec<_> = block.body.nodes.iter().collect();
         let len = body_nodes.len();
@@ -1400,18 +1401,106 @@ impl<'a> ServerCodeGenerator<'a> {
             body_generator.generate_node(node, false)?;
         }
 
+        // Determine if the snippet can be hoisted to module level
+        // Use metadata.can_hoist from the analyze phase
+        let can_hoist = block.metadata.can_hoist;
+
         // Store the snippet definition
         self.snippets.push(SnippetDef {
             name,
             params,
             body_parts: body_generator.output_parts,
+            can_hoist,
         });
 
         Ok(())
     }
 
-    fn generate_render_tag(&mut self, _tag: &RenderTag) -> Result<(), TransformError> {
-        self.output_parts.push(OutputPart::Comment);
+    fn generate_render_tag(&mut self, tag: &RenderTag) -> Result<(), TransformError> {
+        use serde_json::Value;
+
+        // Get the expression JSON
+        let expr_json = tag.expression.as_json();
+        let expr_type = expr_json
+            .get("type")
+            .and_then(|t: &Value| t.as_str())
+            .unwrap_or("");
+
+        let is_optional = expr_type == "ChainExpression";
+
+        // Get the inner call for ChainExpression - clone to avoid lifetime issues
+        let call_json: Value = if is_optional {
+            match expr_json.get("expression") {
+                Some(v) => v.clone(),
+                None => return Ok(()),
+            }
+        } else {
+            expr_json.clone()
+        };
+
+        let call_type = call_json
+            .get("type")
+            .and_then(|t: &Value| t.as_str())
+            .unwrap_or("");
+        if call_type != "CallExpression" {
+            return Ok(());
+        }
+
+        // Get callee position
+        let callee = match call_json.get("callee") {
+            Some(c) => c,
+            None => return Ok(()),
+        };
+
+        let c_start = callee
+            .get("start")
+            .and_then(|s: &Value| s.as_u64())
+            .unwrap_or(0) as usize;
+        let c_end = callee
+            .get("end")
+            .and_then(|s: &Value| s.as_u64())
+            .unwrap_or(0) as usize;
+
+        if c_end <= c_start || c_end > self.source.len() {
+            return Ok(());
+        }
+
+        let callee_str = self.source[c_start..c_end].trim().to_string();
+
+        // Get arguments
+        let mut arg_strs = Vec::new();
+        if let Some(args) = call_json
+            .get("arguments")
+            .and_then(|a: &Value| a.as_array())
+        {
+            for arg in args {
+                let a_start = arg
+                    .get("start")
+                    .and_then(|s: &Value| s.as_u64())
+                    .unwrap_or(0) as usize;
+                let a_end = arg.get("end").and_then(|s: &Value| s.as_u64()).unwrap_or(0) as usize;
+                if a_end > a_start && a_end <= self.source.len() {
+                    arg_strs.push(self.source[a_start..a_end].trim().to_string());
+                }
+            }
+        }
+
+        // Build the call: snippet($$renderer, ...args) or snippet?.($$renderer, ...args)
+        let call_str = if is_optional {
+            if arg_strs.is_empty() {
+                format!("{}?.($$renderer)", callee_str)
+            } else {
+                format!("{}?.($$renderer, {})", callee_str, arg_strs.join(", "))
+            }
+        } else if arg_strs.is_empty() {
+            format!("{}($$renderer)", callee_str)
+        } else {
+            format!("{}($$renderer, {})", callee_str, arg_strs.join(", "))
+        };
+
+        // Add the render call
+        self.output_parts.push(OutputPart::RenderCall(call_str));
+
         Ok(())
     }
 
@@ -1655,6 +1744,8 @@ impl<'a> ServerCodeGenerator<'a> {
                 // Wrap in $$renderer.component() with proper destructuring
                 let inner_script = transform_props_spread(&script_code);
                 let inner_body = Self::build_parts(&self.output_parts, 2);
+                // Build instance-level snippets (cannot be hoisted)
+                let instance_snippets = self.build_instance_snippets(2);
                 // Build $.bind_props() call (inside $$renderer.component())
                 let bind_props_code = self.build_bind_props(2);
 
@@ -1664,7 +1755,7 @@ impl<'a> ServerCodeGenerator<'a> {
 export default function {component_name}($$renderer{props_param}) {{
 	$$renderer.component(($$renderer) => {{
 {inner_script}
-{inner_body}{bind_props_code}	}});
+{instance_snippets}{inner_body}{bind_props_code}	}});
 }}"#,
                     imports_section = imports_section,
                     module_section = module_section,
@@ -1672,6 +1763,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     component_name = self.component_name,
                     props_param = props_param,
                     inner_script = inner_script,
+                    instance_snippets = instance_snippets,
                     inner_body = inner_body,
                     bind_props_code = bind_props_code
                 )
@@ -1681,6 +1773,8 @@ export default function {component_name}($$renderer{props_param}) {{
                 } else {
                     format!("{}\n", script_code)
                 };
+                // Build instance-level snippets (cannot be hoisted)
+                let instance_snippets = self.build_instance_snippets(1);
                 // Build $.bind_props() call (at top level of component function)
                 let bind_props_code = self.build_bind_props(1);
 
@@ -1688,13 +1782,14 @@ export default function {component_name}($$renderer{props_param}) {{
                     r#"import * as $ from 'svelte/internal/server';
 {imports_section}{module_section}{snippets_section}
 export default function {component_name}($$renderer{props_param}) {{
-{script_section}{body_code}{bind_props_code}}}"#,
+{script_section}{instance_snippets}{body_code}{bind_props_code}}}"#,
                     imports_section = imports_section,
                     module_section = module_section,
                     snippets_section = snippets_section,
                     component_name = self.component_name,
                     props_param = props_param,
                     script_section = script_section,
+                    instance_snippets = instance_snippets,
                     body_code = body_code,
                     bind_props_code = bind_props_code
                 )
@@ -2105,6 +2200,17 @@ export default function {component_name}($$renderer{props_param}) {{
                     // Add closing marker
                     body_code.push_str(&format!("{}$$renderer.push(`<!--]-->`);\n", indent));
                 }
+                OutputPart::RenderCall(call_str) => {
+                    // Flush current HTML before render call
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+
+                    // Generate the snippet function call
+                    body_code.push_str(&format!("{}{};\n", indent, call_str));
+                }
             }
             i += 1;
         }
@@ -2290,15 +2396,16 @@ export default function {component_name}($$renderer{props_param}) {{
         code
     }
 
-    /// Build snippet function definitions.
+    /// Build snippet function definitions that can be hoisted to module level.
     fn build_snippets(&self) -> String {
-        if self.snippets.is_empty() {
+        let hoisted: Vec<_> = self.snippets.iter().filter(|s| s.can_hoist).collect();
+        if hoisted.is_empty() {
             return String::new();
         }
 
         let mut result = String::new();
 
-        for snippet in &self.snippets {
+        for snippet in hoisted {
             // Generate function signature
             let params = if snippet.params.is_empty() {
                 "$$renderer".to_string()
@@ -2313,6 +2420,39 @@ export default function {component_name}($$renderer{props_param}) {{
             result.push_str(&body);
 
             result.push_str("}\n\n");
+        }
+
+        result
+    }
+
+    /// Build snippet function definitions that cannot be hoisted (instance-level).
+    fn build_instance_snippets(&self, indent_level: usize) -> String {
+        let instance: Vec<_> = self.snippets.iter().filter(|s| !s.can_hoist).collect();
+        if instance.is_empty() {
+            return String::new();
+        }
+
+        let indent = "\t".repeat(indent_level);
+        let mut result = String::new();
+
+        for snippet in instance {
+            // Generate function signature
+            let params = if snippet.params.is_empty() {
+                "$$renderer".to_string()
+            } else {
+                format!("$$renderer, {}", snippet.params.join(", "))
+            };
+
+            result.push_str(&format!(
+                "{}function {}({}) {{\n",
+                indent, snippet.name, params
+            ));
+
+            // Generate body
+            let body = Self::build_parts(&snippet.body_parts, indent_level + 1);
+            result.push_str(&body);
+
+            result.push_str(&format!("{}}}\n\n", indent));
         }
 
         result

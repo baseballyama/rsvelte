@@ -148,4 +148,39 @@ mod tests {
             },
         }
     }
+
+    #[test]
+    fn debug_snippet_hoisting_server() {
+        use svelte_compiler_rust::compiler::GenerateMode;
+
+        let source = std::fs::read_to_string(
+            "svelte/packages/svelte/tests/runtime-runes/samples/snippet-hoisting-4/main.svelte",
+        )
+        .unwrap();
+
+        let options = CompileOptions {
+            dev: false,
+            generate: GenerateMode::Server,
+            filename: Some("Main.svelte".to_string()),
+            ..Default::default()
+        };
+
+        match compile(&source, options) {
+            Ok(result) => {
+                println!(
+                    "\n=== COMPILED SERVER OUTPUT ===\n{}\n=== END ===\n",
+                    result.js.code
+                );
+            }
+            Err(e) => match e {
+                svelte_compiler_rust::compiler::CompileError::Transform(ref transform_err) => {
+                    println!(
+                        "\n=== TRANSFORM ERROR ===\n{:?}\n=== END ===\n",
+                        transform_err
+                    );
+                }
+                _ => println!("\n=== ERROR ===\n{:?}\n=== END ===\n", e),
+            },
+        }
+    }
 }
