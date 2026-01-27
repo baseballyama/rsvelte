@@ -3,11 +3,9 @@
 //! Corresponds to utilities in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/utils.js`.
 
-use crate::ast::template::TemplateNode;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
-use std::collections::HashMap;
 
 /// Apply registered transforms to an expression recursively.
 ///
@@ -570,17 +568,13 @@ pub fn validate_binding(
 ///
 /// Wraps an expression with metadata about its source location
 /// for better debugging in development mode.
-pub fn add_svelte_meta(
-    expression: JsExpr,
-    _node: &TemplateNode,
-    _block_type: &str,
-    _additional: Option<HashMap<String, String>>,
-) -> JsStatement {
-    // TODO: Check if in dev mode
-    // TODO: Get location from node
-    // TODO: Wrap in $.add_svelte_meta call
-
-    // For now, just return the expression as a statement
+///
+/// Note: Currently a no-op that just wraps the expression in a statement.
+/// The dev mode metadata parameters have been removed to avoid unnecessary
+/// template node cloning. These will be re-added when dev mode is implemented.
+#[inline]
+pub fn add_svelte_meta(expression: JsExpr) -> JsStatement {
+    // TODO: Check if in dev mode and add source location metadata
     b::stmt(expression)
 }
 

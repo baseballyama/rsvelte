@@ -3,7 +3,7 @@
 //! Corresponds to `IfBlock` in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/IfBlock.js`.
 
-use crate::ast::template::{Fragment, IfBlock, TemplateNode};
+use crate::ast::template::{Fragment, IfBlock};
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
 use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment as visit_fragment_impl;
@@ -147,7 +147,7 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
     let if_call = b::call(b::member_path("$.if"), args);
 
     // Add metadata (for dev mode source location tracking)
-    let if_statement = add_svelte_meta(if_call, &TemplateNode::IfBlock(node.clone()), "if", None);
+    let if_statement = add_svelte_meta(if_call);
     statements.push(if_statement);
 
     // If async, wrap in $.async()

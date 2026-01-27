@@ -349,20 +349,10 @@ pub fn build_component(
                 ],
             );
 
-            statements.push(add_svelte_meta(
-                dynamic_call,
-                &node,
-                "component",
-                &component_name,
-            ));
+            statements.push(add_svelte_meta(dynamic_call));
         } else {
             statements.extend(binding_initializers);
-            statements.push(add_svelte_meta(
-                component_call,
-                &node,
-                "component",
-                &component_name,
-            ));
+            statements.push(add_svelte_meta(component_call));
         }
     }
 
@@ -1221,14 +1211,12 @@ fn build_props_expression(props_and_spreads: Vec<PropsEntry>) -> JsExpr {
 }
 
 /// Add Svelte metadata wrapper for dev mode.
-fn add_svelte_meta(
-    expression: JsExpr,
-    _node: &ComponentNode,
-    _block_type: &str,
-    _component_tag: &str,
-) -> JsStatement {
+///
+/// Note: Parameters removed to avoid unnecessary cloning.
+/// Will be re-added when dev mode is implemented.
+#[inline]
+fn add_svelte_meta(expression: JsExpr) -> JsStatement {
     // TODO: Implement dev mode metadata wrapping
-    // For now, just return the expression as a statement
     b::stmt(expression)
 }
 

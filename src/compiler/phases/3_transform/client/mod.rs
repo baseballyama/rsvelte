@@ -1124,7 +1124,13 @@ fn transform_state_assignments(
                             non_reactive_vars,
                             proxy_vars,
                         );
-                        let replacement = format!("$.set({}, {})", var, wrapped_expr);
+                        // Check if the value needs proxying (could be an object/array)
+                        let needs_proxy = expression_needs_proxy(expr.trim());
+                        let replacement = if needs_proxy {
+                            format!("$.set({}, {}, true)", var, wrapped_expr)
+                        } else {
+                            format!("$.set({}, {})", var, wrapped_expr)
+                        };
                         result = format!(
                             "{}{}{}",
                             &result[..pos],
@@ -1151,14 +1157,13 @@ fn wrap_state_vars_in_expr(
 }
 
 /// Transform state variable references to $.get() calls.
-/// Proxy variables (initialized with $state({ ... }) or $state([ ... ])) are NOT wrapped
-/// with $.get() when they have property access (e.g., counter.count stays as counter.count,
-/// NOT $.get(counter).count).
+/// All state variables (including those initialized with objects/arrays) need $.get() wrapping
+/// when reading their values, including when accessing properties.
 fn transform_state_in_expr(
     expr: &str,
     state_vars: &[String],
     non_reactive_vars: &[String],
-    proxy_vars: &[String],
+    _proxy_vars: &[String],
 ) -> String {
     // Filter out non-reactive state vars - they don't need $.get() wrapping
     let effective_state_vars: Vec<&String> = state_vars
@@ -1174,9 +1179,6 @@ fn transform_state_in_expr(
         let var_chars: Vec<char> = var.chars().collect();
         let mut i = 0;
 
-        // Check if this var is a proxy var (initialized with object/array)
-        let is_proxy_var = proxy_vars.contains(var);
-
         while i < chars.len() {
             if i + var_chars.len() <= chars.len() {
                 let potential_match: String = chars[i..i + var_chars.len()].iter().collect();
@@ -1186,9 +1188,6 @@ fn transform_state_in_expr(
                         || !is_identifier_char(chars[i + var_chars.len()]);
 
                     if before_ok && after_ok {
-                        // Check if followed by dot (property access)
-                        let followed_by_dot =
-                            i + var_chars.len() < chars.len() && chars[i + var_chars.len()] == '.';
                         // Check if preceded by dot, but NOT if it's a spread operator (...)
                         let preceded_by_dot = i > 0
                             && chars[i - 1] == '.'
@@ -1218,16 +1217,11 @@ fn transform_state_in_expr(
                             false
                         };
 
-                        // For proxy vars, skip $.get() wrapping when followed by property access
-                        // e.g., counter.count stays as counter.count, not $.get(counter).count
-                        let skip_for_proxy_property = is_proxy_var && followed_by_dot;
-
                         if !already_wrapped
                             && !preceded_by_dot
                             && !in_set_first_arg
                             && !in_update_arg
                             && !in_update_pre_arg
-                            && !skip_for_proxy_property
                         {
                             new_result.push_str(&format!("$.get({})", var));
                             i += var_chars.len();
@@ -1322,6 +1316,108 @@ fn find_matching_paren(s: &str) -> Option<usize> {
         }
     }
     None
+}
+
+/// Determine if an expression needs proxying (could return an object/array).
+///
+/// Returns `true` for:
+/// - Object literals `{}`
+/// - Array literals `[]`
+/// - `new` expressions
+/// - Function calls (could return objects)
+///
+/// Returns `false` for:
+/// - Primitives (numbers, strings, booleans, null, undefined)
+/// - Arithmetic/binary operations
+/// - Unary operations
+/// - Identifier references
+fn expression_needs_proxy(expr: &str) -> bool {
+    let trimmed = expr.trim();
+
+    // Object literal
+    if trimmed.starts_with('{') {
+        return true;
+    }
+
+    // Array literal
+    if trimmed.starts_with('[') {
+        return true;
+    }
+
+    // new expression
+    if trimmed.starts_with("new ") {
+        return true;
+    }
+
+    // Check for function call pattern: identifier followed by (
+    // But not operators like !, -, etc.
+    // Also check for method calls like foo.bar()
+    if contains_function_call(trimmed) {
+        return true;
+    }
+
+    false
+}
+
+/// Check if an expression contains a function call.
+fn contains_function_call(expr: &str) -> bool {
+    let chars: Vec<char> = expr.chars().collect();
+    let mut i = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    while i < chars.len() {
+        let c = chars[i];
+
+        // Track string literals
+        if !in_string && (c == '"' || c == '\'' || c == '`') {
+            in_string = true;
+            string_char = c;
+            i += 1;
+            continue;
+        }
+        if in_string && c == string_char && (i == 0 || chars[i - 1] != '\\') {
+            in_string = false;
+            i += 1;
+            continue;
+        }
+        if in_string {
+            i += 1;
+            continue;
+        }
+
+        // Look for identifier followed by (
+        // Skip operators like !foo or ++foo
+        if c == '(' && i > 0 {
+            let prev = chars[i - 1];
+            // Previous char should be an identifier char or )
+            if prev.is_alphanumeric() || prev == '_' || prev == '$' || prev == ')' || prev == ']' {
+                // Check it's not a keyword followed by (
+                // like if(, while(, for(, etc.
+                let mut start = i - 1;
+                while start > 0
+                    && (chars[start - 1].is_alphanumeric()
+                        || chars[start - 1] == '_'
+                        || chars[start - 1] == '$'
+                        || chars[start - 1] == '.')
+                {
+                    start -= 1;
+                }
+                let ident: String = chars[start..i].iter().collect();
+                let ident_last = ident.split('.').next_back().unwrap_or(&ident);
+
+                // Keywords that are NOT function calls
+                let keywords = ["if", "while", "for", "switch", "catch", "with"];
+                if !keywords.contains(&ident_last) {
+                    return true;
+                }
+            }
+        }
+
+        i += 1;
+    }
+
+    false
 }
 
 // ============================================================================

@@ -223,12 +223,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     let each_call = b::call(b::member_path("$.each"), each_args);
 
     // Add svelte metadata
-    let each_statement = add_svelte_meta(
-        each_call,
-        &TemplateNode::EachBlock(node.clone()),
-        "each",
-        None,
-    );
+    let each_statement = add_svelte_meta(each_call);
 
     // Build statements to add to init
     let mut statements = vec![each_statement];

@@ -10,31 +10,37 @@ use super::nodes::*;
 // ============================================================================
 
 /// Create an identifier expression.
+#[inline]
 pub fn id(name: impl Into<String>) -> JsExpr {
     JsExpr::Identifier(name.into())
 }
 
 /// Create an identifier pattern.
+#[inline]
 pub fn id_pattern(name: impl Into<String>) -> JsPattern {
     JsPattern::Identifier(name.into())
 }
 
 /// Create a string literal.
+#[inline]
 pub fn string(value: impl Into<String>) -> JsExpr {
     JsExpr::Literal(JsLiteral::String(value.into()))
 }
 
 /// Create a number literal.
+#[inline]
 pub fn number(value: f64) -> JsExpr {
     JsExpr::Literal(JsLiteral::Number(value))
 }
 
 /// Create a boolean literal.
+#[inline]
 pub fn boolean(value: bool) -> JsExpr {
     JsExpr::Literal(JsLiteral::Boolean(value))
 }
 
 /// Create a null literal.
+#[inline]
 pub fn null() -> JsExpr {
     JsExpr::Literal(JsLiteral::Null)
 }
@@ -228,6 +234,7 @@ pub fn spread_expr(expr: JsExpr) -> JsExpr {
 // ============================================================================
 
 /// Create an arrow function with expression body.
+#[inline]
 pub fn arrow(params: Vec<JsPattern>, body: JsExpr) -> JsExpr {
     JsExpr::Arrow(JsArrowFunction {
         params,
@@ -237,6 +244,7 @@ pub fn arrow(params: Vec<JsPattern>, body: JsExpr) -> JsExpr {
 }
 
 /// Create an arrow function with block body.
+#[inline]
 pub fn arrow_block(params: Vec<JsPattern>, body: Vec<JsStatement>) -> JsExpr {
     JsExpr::Arrow(JsArrowFunction {
         params,
@@ -382,6 +390,7 @@ pub fn async_function_decl(
 // ============================================================================
 
 /// Create a call expression.
+#[inline]
 pub fn call(callee: JsExpr, arguments: Vec<JsExpr>) -> JsExpr {
     JsExpr::Call(JsCallExpression {
         callee: Box::new(callee),
@@ -408,6 +417,7 @@ pub fn new_expr(callee: JsExpr, arguments: Vec<JsExpr>) -> JsExpr {
 }
 
 /// Create a member expression with identifier property.
+#[inline]
 pub fn member(object: JsExpr, property: impl Into<String>) -> JsExpr {
     JsExpr::Member(JsMemberExpression {
         object: Box::new(object),
@@ -438,6 +448,7 @@ pub fn optional_member(object: JsExpr, property: impl Into<String>) -> JsExpr {
 }
 
 /// Create a member path from a dot-separated string (e.g., "$.template").
+#[inline]
 pub fn member_path(path: &str) -> JsExpr {
     let parts: Vec<&str> = path.split('.').collect();
     let mut expr = id(parts[0]);
@@ -625,6 +636,7 @@ pub fn await_expr(argument: JsExpr) -> JsExpr {
 // ============================================================================
 
 /// Create an expression statement.
+#[inline]
 pub fn stmt(expression: JsExpr) -> JsStatement {
     JsStatement::Expression(JsExpressionStatement {
         expression: Box::new(expression),
@@ -767,6 +779,7 @@ pub fn let_decl(name: impl Into<String>, init: Option<JsExpr>) -> JsStatement {
 }
 
 /// Create a var declaration.
+#[inline]
 pub fn var_decl(name: impl Into<String>, init: Option<JsExpr>) -> JsStatement {
     JsStatement::VariableDeclaration(JsVariableDeclaration {
         kind: JsVariableKind::Var,

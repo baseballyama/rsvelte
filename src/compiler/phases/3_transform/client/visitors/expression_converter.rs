@@ -16,6 +16,7 @@ use serde_json::Value;
 ///
 /// This is the main entry point for converting parsed JavaScript expressions
 /// into the transform-phase AST format.
+#[inline]
 pub fn convert_expression(expr: &Expression, context: &mut ComponentContext) -> JsExpr {
     match expr {
         Expression::Value(val) => convert_json_value(val, context),
@@ -25,6 +26,7 @@ pub fn convert_expression(expr: &Expression, context: &mut ComponentContext) -> 
 /// Convert a JSON value to JsExpr.
 ///
 /// This handles all ESTree node types by examining the "type" field.
+#[inline]
 fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
     match value {
         Value::Object(obj) => {
@@ -83,6 +85,7 @@ fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
 /// - Read-only props (not a "prop source"): access directly via `$$props.propName`
 /// - Exported props: call as function `propName()` because `$.prop()` returns a getter
 /// - Non-exported prop sources (with default value but not exported): access directly `propName`
+#[inline]
 fn convert_identifier(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
@@ -137,6 +140,7 @@ fn convert_identifier(
 }
 
 /// Convert a Literal node.
+#[inline]
 fn convert_literal(
     obj: &serde_json::Map<String, Value>,
     _context: &mut ComponentContext,
@@ -174,6 +178,7 @@ fn convert_literal(
 /// When accessing a property on a rest_prop binding (e.g., `props.a` where `let props = $props()`),
 /// we transform the object to `$$props` for read access, but NOT for direct property assignments
 /// (e.g., `props.a = true` stays as-is, but `props.a.b = true` becomes `$$props.a.b = true`).
+#[inline]
 fn convert_member_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
@@ -243,6 +248,7 @@ fn convert_member_expression(
 /// This handles rune transformations like `$state()`, `$derived()`, etc.
 /// The transformation logic mirrors the official Svelte compiler's
 /// `CallExpression.js` visitor.
+#[inline]
 fn convert_call_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,

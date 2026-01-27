@@ -41,7 +41,7 @@
 //! ```
 
 use crate::ast::js::Expression;
-use crate::ast::template::{AwaitBlock, Fragment, TemplateNode};
+use crate::ast::template::{AwaitBlock, Fragment};
 use crate::compiler::phases::phase3_transform::client::types::{
     ComponentContext, ExpressionMetadata,
 };
@@ -130,12 +130,7 @@ pub fn await_block(node: &AwaitBlock, context: &mut ComponentContext) {
     let await_call = b::call(b::member_path("$.await"), await_args);
 
     // Add svelte metadata
-    let stmt = add_svelte_meta(
-        await_call,
-        &TemplateNode::AwaitBlock(node.clone()),
-        "await",
-        None,
-    );
+    let stmt = add_svelte_meta(await_call);
 
     // Check if expression has blockers (async dependencies)
     // Note: has_blockers() currently returns false as blocker tracking is not yet implemented
