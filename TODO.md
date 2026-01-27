@@ -1575,15 +1575,44 @@ $.template_effect(() => {
   - **結果**: Runtime Runes Client +1 (85 → 86), Compiler Snapshot 19/19 維持
   - **コミット**: `feat(transform): Add store subscription support for client-side rendering`
 
-**テスト状況（セッション4終了時）:**
+**追加完了タスク（セッション4継続）:**
+- [x] Store 購読コード生成順序修正
+  - ストアゲッター → setup_stores → ユーザーコード → init の順序に修正
+  - `$$cleanup()` をコンポーネント末尾に追加
+  - **結果**: Runtime Runes Client +5
+  - **コミット**: `feat(transform): Fix store subscriptions and slot content generation`
+
+- [x] スニペットパラメータのリアクティブ検出修正
+  - `SnippetParam` を `is_reactive()` に追加
+  - `expression_has_reactive_state()` で transform マップをチェック
+  - **結果**: Runtime Runes Client +2
+
+- [x] スロット内テキストノード生成修正
+  - 単一テキストノードの特別処理を追加
+  - `$.text()` + `$.append()` を children コールバック内で生成
+  - **結果**: Runtime Runes Client +9
+
+- [x] `@const` ディレクティブ実装
+  - `const_tag.rs` ビジター追加
+  - `$.derived()` / `$.derived_safe_equal()` 生成
+  - **コミット**: `feat(transform): Add ConstTag visitor for {@const} directive`
+
+**テスト状況（セッション4最終）:**
 | メトリック | セッション開始 | セッション終了 | 差分 |
 |-----------|--------------|---------------|------|
-| Runtime Runes Total | 48/724 | **49/724** | **+1** |
-| Runtime Runes Client | 85/724 | **86/724** | **+1** |
+| Runtime Runes Total | 48/724 | **53/724** | **+5** |
+| Runtime Runes Client | 85/724 | **102/724** | **+17** |
 | Runtime Runes Server | 135/724 | **136/724** | **+1** |
 | Compiler Snapshot | 19/19 | **19/19** | 100% ✅ |
 
+**ボトルネック分析結果:**
+| パターン | 影響テスト数 | 優先度 |
+|---------|------------|-------|
+| フォーマット差異（空行、波括弧） | ~150 | 高 |
+| `$.boundary()` / 非同期コンポーネント | ~100 | 中 |
+| サーバー側の差異 | ~100 | 中 |
+
 **次のアクション:**
-1. Store の残り機能（サーバー側 `$$store_subs` など）
-2. Class state transformation 改善
-3. `{#if}` ブロックの改善
+1. フォーマット正規化の改善（空行、波括弧スタイル）
+2. `$.boundary()` / 非同期コンポーネント対応
+3. Server 側の改善
