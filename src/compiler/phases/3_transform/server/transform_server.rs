@@ -2036,13 +2036,6 @@ impl<'a> ServerCodeGenerator<'a> {
                     String::new()
                 };
 
-                // Check if $effect is used BEFORE removing it
-                // $effect, $effect.pre, $effect.root trigger needs_context in the JS compiler
-                // which requires $$props parameter and $$renderer.component() wrapper
-                let has_effect = raw_script.contains("$effect(")
-                    || raw_script.contains("$effect.pre(")
-                    || raw_script.contains("$effect.root(");
-
                 // First, remove $effect, $effect.pre, $effect.root, and $inspect.trace blocks
                 // These are client-side only and should not appear in SSR output
                 let raw_script = remove_effect_blocks(&raw_script);
@@ -2062,22 +2055,19 @@ impl<'a> ServerCodeGenerator<'a> {
                 // Extract imports and transform the rest
                 let (imports, rest) = extract_imports(&raw_script);
 
-                // TODO: C-049 detection is currently disabled to avoid regressions
-                // The string-based detection (check_calls_imported_function, check_uses_new_operator)
-                // caused false positives. A proper AST-based approach is needed.
-                // For now, only use has_effect as the needs_context trigger.
-                let _calls_imported_function = false; // check_calls_imported_function(&raw_script, &imports);
-                let _uses_new_operator = false; // check_uses_new_operator(&raw_script);
-
                 // Apply class field transformation for $derived fields
                 let rest = transform_class_fields_server(&rest);
 
                 let transformed = transform_script_content(&rest);
 
-                // needs_context is set when:
-                // - $effect is used (even though it's removed for SSR)
-                // This triggers both $$props parameter and $$renderer.component() wrapper
-                let needs_context = has_effect;
+                // Use needs_context from Phase 2 analysis
+                // This is set when:
+                // - Call to imported function (callee is not a "safe identifier")
+                // - $bindable is used
+                // - $effect or $effect.pre is used
+                // - new expression is used (any constructor call)
+                // - Member expression on unsafe identifier
+                let needs_context = self.analysis.map(|a| a.needs_context).unwrap_or(false);
 
                 if uses_props || has_class_state_fields || needs_context {
                     (

@@ -55,5 +55,15 @@ pub fn visit(
         expression.has_assignment = true;
     }
 
+    // Visit children (left and right)
+    // This is equivalent to context.next() in the JavaScript implementation
+    if let Some(left) = node.get("left") {
+        super::script::walk_js_node(left, context)?;
+    }
+
+    if let Some(right) = node.get("right") {
+        super::script::walk_js_node(right, context)?;
+    }
+
     Ok(())
 }

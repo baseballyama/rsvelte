@@ -3283,6 +3283,9 @@ fn convert_expression_for_program(
 
             Expression::Value(Value::Object(obj))
         }
+        OxcExpression::FunctionExpression(func) => Expression::Value(
+            convert_function_expression_for_program(func, offset, line_offsets),
+        ),
         OxcExpression::StaticMemberExpression(member) => {
             let start = offset + member.span.start as usize;
             let end = offset + member.span.end as usize;

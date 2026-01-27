@@ -288,4 +288,35 @@ mod tests {
             },
         }
     }
+
+    #[test]
+    fn debug_needs_context() {
+        let source = r#"<script>
+    let count = $state(0);
+    const obj = {
+        update() {
+            this.count = 1;
+        }
+    };
+</script>
+<div>{count}</div>"#;
+
+        let options = CompileOptions {
+            generate: svelte_compiler_rust::compiler::GenerateMode::Server,
+            dev: false,
+            ..Default::default()
+        };
+
+        match compile(source, options) {
+            Ok(result) => {
+                println!(
+                    "\n=== COMPILED SERVER OUTPUT ===\n{}\n=== END ===\n",
+                    result.js.code
+                );
+            }
+            Err(e) => {
+                println!("\n=== ERROR ===\n{:?}\n=== END ===\n", e);
+            }
+        }
+    }
 }
