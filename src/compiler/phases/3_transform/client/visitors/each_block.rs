@@ -532,7 +532,7 @@ fn build_declarations(
     context: &mut ComponentContext,
     _item: &JsExpr,
     index: &JsExpr,
-    _flags: i32,
+    flags: i32,
     _collection: &JsExpr,
     collection_id: &Option<String>,
     store_to_invalidate: &Option<String>,
@@ -593,15 +593,56 @@ fn build_declarations(
         sequence.push(inv_store);
     }
 
+    use crate::compiler::phases::phase3_transform::client::types::IdentifierTransform;
+
+    // Handle index transform
+    // When EACH_INDEX_REACTIVE flag is set, wrap index reads with $.get()
+    if let Some(index_name) = &node.index {
+        let index_reactive = (flags & EACH_INDEX_REACTIVE) != 0;
+        if index_reactive {
+            context.state.transform.insert(
+                index_name.to_string(),
+                IdentifierTransform {
+                    read: Some(|node| {
+                        // Wrap with $.get(node)
+                        b::call(b::member_path("$.get"), vec![node])
+                    }),
+                    assign: None,
+                    mutate: None,
+                    update: None,
+                },
+            );
+        }
+    }
+
     // Handle simple identifier context
     if let Some(context_expr) = &node.context {
         let Expression::Value(val) = context_expr;
         if let serde_json::Value::Object(obj) = val
             && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
+            && let Some(name) = obj.get("name").and_then(|v| v.as_str())
         {
             // Simple identifier - set up read/assign/mutate transforms
-            // The transform setup would go here in a full implementation
-            // For now, we generate the declarations needed
+            // Register transform for the each item
+            // When EACH_ITEM_REACTIVE flag is set, wrap reads with $.get()
+            let item_reactive = (flags & EACH_ITEM_REACTIVE) != 0;
+
+            // Register the transform for this identifier
+            // The read function wraps with $.get() if item is reactive
+            if item_reactive {
+                context.state.transform.insert(
+                    name.to_string(),
+                    IdentifierTransform {
+                        read: Some(|node| {
+                            // Wrap with $.get(node)
+                            b::call(b::member_path("$.get"), vec![node])
+                        }),
+                        assign: None,
+                        mutate: None,
+                        update: None,
+                    },
+                );
+            }
 
             // If there's a group binding, we need to create an alias for the index
             if node.index.is_some()

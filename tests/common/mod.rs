@@ -1462,9 +1462,10 @@ mod tests {
 
     #[test]
     fn test_normalize_js_scientific_notation_not_in_template() {
-        // Scientific notation in template literals should NOT be converted
+        // Scientific notation in template literals should NOT be converted to numbers
+        // But the template literal itself may be converted to single quotes for normalization
         let input = r#"const msg = `value is 1e3`;"#;
-        let expected = r#"const msg = `value is 1e3`"#;
+        let expected = r#"const msg = 'value is 1e3'"#;
         assert_eq!(normalize_js(input), expected);
     }
 

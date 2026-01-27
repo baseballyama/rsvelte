@@ -168,41 +168,65 @@ fn add_const_declaration(
     }
 }
 
-/// Parse a VariableDeclaration from an Expression to extract the id and init.
+/// Parse a VariableDeclaration or AssignmentExpression from an Expression to extract the id and init.
 ///
 /// Returns (id_name, init_expression, is_identifier) where is_identifier is true
 /// if the id is a simple identifier (not destructuring).
+///
+/// This handles two formats:
+/// 1. VariableDeclaration (official Svelte parser format):
+///    `{ type: "VariableDeclaration", declarations: [{ id, init }] }`
+/// 2. AssignmentExpression (our Rust parser format):
+///    `{ type: "AssignmentExpression", left: id, right: init }`
 fn parse_variable_declaration(expr: &Expression) -> Option<(String, Expression, bool)> {
     match expr {
         Expression::Value(json_value) => {
             let obj = json_value.as_object()?;
             let expr_type = obj.get("type")?.as_str()?;
 
-            if expr_type != "VariableDeclaration" {
-                return None;
-            }
+            match expr_type {
+                "VariableDeclaration" => {
+                    let declarations = obj.get("declarations")?.as_array()?;
+                    if declarations.is_empty() {
+                        return None;
+                    }
 
-            let declarations = obj.get("declarations")?.as_array()?;
-            if declarations.is_empty() {
-                return None;
-            }
+                    let first_decl = declarations[0].as_object()?;
+                    let id = first_decl.get("id")?;
+                    let init = first_decl.get("init")?;
 
-            let first_decl = declarations[0].as_object()?;
-            let id = first_decl.get("id")?;
-            let init = first_decl.get("init")?;
+                    let id_obj = id.as_object()?;
+                    let id_type = id_obj.get("type")?.as_str()?;
 
-            let id_obj = id.as_object()?;
-            let id_type = id_obj.get("type")?.as_str()?;
+                    if id_type == "Identifier" {
+                        let name = id_obj.get("name")?.as_str()?.to_string();
+                        let init_expr = Expression::Value(init.clone());
+                        Some((name, init_expr, true))
+                    } else {
+                        // Destructuring pattern
+                        let init_expr = Expression::Value(init.clone());
+                        Some(("".to_string(), init_expr, false))
+                    }
+                }
+                "AssignmentExpression" => {
+                    // Our Rust parser format: { type: "AssignmentExpression", left: id, right: init }
+                    let left = obj.get("left")?;
+                    let right = obj.get("right")?;
 
-            if id_type == "Identifier" {
-                let name = id_obj.get("name")?.as_str()?.to_string();
-                let init_expr = Expression::Value(init.clone());
-                Some((name, init_expr, true))
-            } else {
-                // Destructuring pattern
-                // For destructuring, we use a placeholder name
-                let init_expr = Expression::Value(init.clone());
-                Some(("".to_string(), init_expr, false))
+                    let left_obj = left.as_object()?;
+                    let left_type = left_obj.get("type")?.as_str()?;
+
+                    if left_type == "Identifier" {
+                        let name = left_obj.get("name")?.as_str()?.to_string();
+                        let init_expr = Expression::Value(right.clone());
+                        Some((name, init_expr, true))
+                    } else {
+                        // Destructuring pattern
+                        let init_expr = Expression::Value(right.clone());
+                        Some(("".to_string(), init_expr, false))
+                    }
+                }
+                _ => None,
             }
         }
     }

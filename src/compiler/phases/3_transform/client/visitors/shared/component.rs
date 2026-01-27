@@ -694,26 +694,52 @@ fn process_attach_tag(
 /// Process a snippet block.
 fn process_snippet_block(
     snippet: &SnippetBlock,
-    _context: &mut ComponentContext,
+    context: &mut ComponentContext,
     snippet_declarations: &mut Vec<JsStatement>,
-    _props_and_spreads: &mut Vec<PropsEntry>,
+    props_and_spreads: &mut Vec<PropsEntry>,
     serialized_slots: &mut Vec<JsObjectMember>,
 ) {
-    // Visit the snippet to generate its declaration
+    // Use the snippet_block visitor to generate the full snippet function
+    // This properly handles the snippet body, parameters, and placement
+    use crate::compiler::phases::phase3_transform::client::visitors::snippet_block::snippet_block;
+
+    // Visit the snippet - this will add the snippet declaration to the appropriate
+    // collection (module_level_snippets, instance_level_snippets, or init)
+    snippet_block(snippet, context);
+
     // Extract name from expression (should be an Identifier)
     let snippet_name =
         extract_identifier_name(&snippet.expression).unwrap_or_else(|| "snippet".to_string());
 
-    // Create snippet function
-    let snippet_fn = b::arrow_block(
-        vec![b::id_pattern("$$anchor"), b::id_pattern("$$slotProps")],
-        vec![], // TODO: Visit snippet body
+    // The snippet_block visitor has already added the declaration to the context.
+    // For component children snippets, we need to:
+    // 1. Pop the declaration from wherever it was placed (since we're inside a component)
+    // 2. Add it to our snippet_declarations instead
+    // 3. Add the snippet as a prop to the component
+
+    // Pop the declaration from the appropriate collection
+    let declaration = if snippet.metadata.can_hoist {
+        context.state.module_level_snippets.pop()
+    } else {
+        // Try instance_level_snippets first, then init
+        context
+            .state
+            .instance_level_snippets
+            .pop()
+            .or_else(|| context.state.init.pop())
+    };
+
+    if let Some(decl) = declaration {
+        snippet_declarations.push(decl);
+    }
+
+    // Add the snippet as a prop to the component
+    push_prop_immediate(
+        props_and_spreads,
+        b::prop(&snippet_name, b::id(&snippet_name)),
     );
 
-    // Add to declarations
-    snippet_declarations.push(b::const_decl(&snippet_name, snippet_fn.clone()));
-
-    // Add to serialized slots for interop
+    // Add to serialized slots for $$slots object
     let slot_name = if snippet_name == "children" {
         "default".to_string()
     } else {

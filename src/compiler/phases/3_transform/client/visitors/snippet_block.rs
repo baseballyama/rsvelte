@@ -402,9 +402,9 @@ fn place_snippet_declaration(
     let is_at_root = context.path.is_empty() || context.path.len() == 1;
 
     if is_at_root {
-        // Use metadata.can_hoist if set, otherwise use a simple heuristic:
-        // snippets with only static content (no dynamic children) can be hoisted
-        let can_hoist = node.metadata.can_hoist || can_hoist_snippet(node);
+        // Use metadata.can_hoist from the analyze phase - this is authoritative
+        // The analyze phase checks if the snippet references any instance-level state
+        let can_hoist = node.metadata.can_hoist;
 
         if can_hoist {
             context.state.module_level_snippets.push(declaration);
@@ -429,6 +429,10 @@ fn place_snippet_declaration(
 ///
 /// This is a simplified heuristic. The proper implementation should check
 /// scope references during Phase 2 analysis.
+///
+/// NOTE: This function is currently unused because we determine can_hoist
+/// in Phase 2 analysis. Keeping it for potential future use.
+#[allow(dead_code)]
 fn can_hoist_snippet(node: &SnippetBlock) -> bool {
     use crate::ast::template::TemplateNode;
 
@@ -535,6 +539,10 @@ fn can_hoist_snippet(node: &SnippetBlock) -> bool {
 }
 
 /// Extract parameter name from a parameter expression.
+///
+/// NOTE: This function is currently unused because we determine can_hoist
+/// in Phase 2 analysis. Keeping it for potential future use.
+#[allow(dead_code)]
 fn extract_param_name(param: &crate::ast::js::Expression) -> Option<String> {
     let Expression::Value(val) = param;
     if let serde_json::Value::Object(obj) = val
@@ -552,6 +560,10 @@ fn extract_param_name(param: &crate::ast::js::Expression) -> Option<String> {
 
 /// Check if an expression only uses the given parameter names.
 /// Returns true if the expression only references parameters (can be hoisted).
+///
+/// NOTE: This function is currently unused because we determine can_hoist
+/// in Phase 2 analysis. Keeping it for potential future use.
+#[allow(dead_code)]
 fn expression_only_uses_params(
     expr: &crate::ast::js::Expression,
     param_names: &std::collections::HashSet<String>,

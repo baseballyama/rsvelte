@@ -1704,3 +1704,60 @@ $.template_effect(() => {
 1. 追加の境界関連テストケース調査
 2. 他の async 関連機能の実装
 3. Client/Server の両方で失敗しているテストの調査
+
+### 2026-01-27 セッション7
+
+**セッション再開 (2026-01-27 セッション7):**
+
+現在地: Phase C - Rust 実装
+目標: Runtime Runes 継続改善
+
+**テスト状況（セッション開始時）:**
+| メトリック | 値 |
+|-----------|-----|
+| Runtime Runes Total | 55/724 |
+| Compiler Snapshot | 19/19 (100%) |
+
+**完了タスク:**
+
+- [x] C-061: Snippet コンポーネントプロップ処理
+  - `generate_component_children_with_snippets()` でスニペットをプロパティとして渡す
+  - `$$slots` オブジェクト生成
+  - **結果**: Runtime Runes Total +4
+
+- [x] C-062: ConstTag (`{@const}`) サーバー側処理
+  - `OutputPart::ConstDeclaration` 追加
+  - `generate_const_tag()` 関数実装
+
+- [x] C-063: RenderTag 完全実装
+  - Phase 2: `can_hoist` メタデータ改善
+  - Phase 3: `process_snippet_block()` でスニペット本体を正しく生成
+  - **結果**: Runtime Runes Client +6
+
+- [x] C-064: each ブロック アイテムリアクティブアクセス
+  - `EACH_ITEM_REACTIVE` フラグ時に `$.get()` ラッピング
+  - `build_declarations()` に識別子トランスフォーム追加
+  - **結果**: Runtime Runes Client +4
+
+- [x] C-065: リテラル属性のインライン化
+  - `extract_literal_value()` ヘルパー追加
+  - `href={'#'}` → `href="#"` のインライン化
+  - **結果**: Runtime Runes Total +3
+
+- [x] C-066: スニペットモジュールレベルホイスティング修正
+  - Phase 2: `can_hoist_snippet()` でスニペット本体の参照をチェック
+  - Server: 水和マーカー (`<!---->`) 追加
+  - **結果**: Compiler Snapshot 18/19 → 19/19 (100% 復帰)
+
+**テスト状況（セッション7最終）:**
+| メトリック | セッション開始 | セッション終了 | 差分 |
+|-----------|--------------|---------------|------|
+| Runtime Runes Total | 55/724 | **64/724** | **+9** |
+| Runtime Runes Client | 124/724 | **133/724** | **+9** |
+| Runtime Runes Server | 141/724 | **149/724** | **+8** |
+| Compiler Snapshot | 19/19 | **19/19** | 100% ✅ |
+
+**次のアクション:**
+1. 追加のスニペット関連テスト修正
+2. Store 関連テストの改善
+3. Server 側のさらなる改善
