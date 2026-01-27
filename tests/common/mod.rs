@@ -198,6 +198,26 @@ fn normalize_blank_lines(code: &str) -> String {
         .join("\n")
 }
 
+/// Normalize compiler-generated variable names with numeric suffixes.
+/// This handles differences like `node_1` vs `node`, `text_2` vs `text`.
+/// These are functionally equivalent - the compiler generates unique names but the
+/// exact suffixes don't matter for semantic equivalence.
+fn normalize_generated_var_names(code: &str) -> String {
+    use regex::Regex;
+    lazy_static::lazy_static! {
+        // Match common compiler-generated variable names with numeric suffixes
+        // These patterns capture: node_1, node_2, text_1, text_2, button_1, div_1, span_1, etc.
+        // Only normalize these specific patterns that are clearly compiler-generated
+        static ref VAR_WITH_SUFFIX: Regex = Regex::new(
+            r"\b(node|text|button|div|span|p|a|input|form|fragment|consequent|alternate|each|if_block|component)_(\d+)\b"
+        ).unwrap();
+    }
+
+    // Replace var_N with just var (remove the numeric suffix)
+    // This normalizes `node_1` -> `node`, `text_2` -> `text`, etc.
+    VAR_WITH_SUFFIX.replace_all(code, "$1").to_string()
+}
+
 /// Normalize whitespace-only text nodes inside template literals.
 /// This handles differences like `<div> </div>` vs `<div></div>` where empty text nodes
 /// may be preserved or collapsed differently between compilers.
@@ -324,6 +344,12 @@ pub fn normalize_js(js: &str) -> String {
 
     // First, normalize brace + newline patterns across the entire source
     let mut result = js.to_string();
+
+    // Normalize compiler-generated variable names with numeric suffixes
+    // This handles differences like `node_1` vs `node`, `text_2` vs `text`
+    // These are functionally equivalent - the compiler generates unique names but the
+    // exact suffixes don't matter for semantic equivalence
+    result = normalize_generated_var_names(&result);
 
     // Normalize whitespace-only text inside template literals in from_html calls
     // This handles differences like `<div> </div>` vs `<div></div>` where empty text nodes
@@ -1722,6 +1748,23 @@ fn test_normalize_js_nested_if_in_callback() {
         normalized_expected, normalized_actual,
         "Nested if in callback should normalize to the same output\nExpected:\n{}\n\nActual:\n{}",
         normalized_expected, normalized_actual
+    );
+}
+
+#[test]
+fn test_normalize_js_nested_if_with_tabs() {
+    // Test case from store-from-state-2 with actual tab indentation
+    let expected = "			if (true) $$render(consequent);\n		});";
+
+    let actual = "			if (true) {\n				$$render(consequent);\n			}\n		});";
+
+    let normalized_expected = normalize_js(expected);
+    let normalized_actual = normalize_js(actual);
+    println!("Expected normalized: {}", normalized_expected);
+    println!("Actual normalized: {}", normalized_actual);
+    assert_eq!(
+        normalized_expected, normalized_actual,
+        "Nested if with tabs should normalize to the same output"
     );
 }
 

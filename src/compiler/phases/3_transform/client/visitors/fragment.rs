@@ -152,6 +152,7 @@ pub fn fragment(
         module_level_snippets: Vec::new(),
         snippet_names: context.state.snippet_names.clone(),
         in_direct_assignment_lhs: false,
+        is_controlled_each: false,
     };
 
     // Swap context.state with our local state so that process_children uses it

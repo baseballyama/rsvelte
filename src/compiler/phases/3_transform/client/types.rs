@@ -441,6 +441,11 @@ pub struct ComponentClientTransformState<'a> {
     /// Flag indicating if we're in a direct assignment LHS (props.X = ...).
     /// This is used to skip rest_prop → $$props transformation for direct property assignments.
     pub in_direct_assignment_lhs: bool,
+
+    /// Flag indicating if the current EachBlock should be treated as "controlled".
+    /// A controlled each block is one that is the only child of a static element.
+    /// This flag is set in fragment.rs process_children and checked in each_block.rs.
+    pub is_controlled_each: bool,
 }
 
 impl<'a> ComponentClientTransformState<'a> {
@@ -481,6 +486,7 @@ impl<'a> ComponentClientTransformState<'a> {
             module_level_snippets: Vec::new(),
             snippet_names: HashSet::new(),
             in_direct_assignment_lhs: false,
+            is_controlled_each: false,
         }
     }
 

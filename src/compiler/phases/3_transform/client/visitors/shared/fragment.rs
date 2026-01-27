@@ -332,9 +332,9 @@ pub fn process_children<F>(
                 } else if let TemplateNode::EachBlock(each) = node {
                     // Special case: single EachBlock in element can be controlled
                     if nodes.len() == 1 && is_element && !each.metadata.expression.is_async() {
-                        // Mark as controlled (would need to modify node, skipping for now)
-                        // each.metadata.is_controlled = true;
-                        // Visit without changing node
+                        // Mark as controlled via state flag (since we can't mutate the node)
+                        context.state.is_controlled_each = true;
+                        // Visit without changing node - the each_block visitor will check the flag
                         let result = context.visit_node(node, None);
                         // Add the result to init if it's a statement or block
                         match result {

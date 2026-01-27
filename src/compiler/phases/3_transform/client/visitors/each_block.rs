@@ -74,13 +74,22 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     let each_node_meta = &node.metadata;
 
+    // Check if this each block should be treated as "controlled".
+    // A controlled each block is one that is the only child of a static element.
+    // This can be set either in the metadata (by analysis phase) or via the state flag
+    // (set by fragment.rs process_children when it detects a single EachBlock child).
+    let is_controlled = each_node_meta.is_controlled || context.state.is_controlled_each;
+
+    // Reset the state flag after reading it
+    context.state.is_controlled_each = false;
+
     // Expression should be evaluated in the parent scope, not the scope
     // created by the each block itself
     // Build the collection expression
     let collection = build_collection_expression(node, context);
 
     // Add comment placeholder for uncontrolled blocks
-    if !each_node_meta.is_controlled {
+    if !is_controlled {
         context.state.template.push_comment(None);
     }
 
@@ -117,7 +126,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     }
 
     // Controlled flag
-    if each_node_meta.is_controlled {
+    if is_controlled {
         flags |= EACH_IS_CONTROLLED;
     }
 
