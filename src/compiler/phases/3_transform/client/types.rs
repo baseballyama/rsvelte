@@ -113,6 +113,8 @@ impl<'a> ComponentContext<'a> {
 
             TemplateNode::ConstTag(const_tag) => self.visit_const_tag(const_tag),
 
+            TemplateNode::SvelteBoundary(boundary) => self.visit_svelte_boundary(boundary),
+
             // Other node types - TODO: implement
             _ => TransformResult::None,
         };
@@ -253,6 +255,15 @@ impl<'a> ComponentContext<'a> {
     fn visit_const_tag(&mut self, const_tag: &crate::ast::template::ConstTag) -> TransformResult {
         use crate::compiler::phases::phase3_transform::client::visitors::const_tag::const_tag as visit_const_tag_impl;
         visit_const_tag_impl(const_tag, self);
+        TransformResult::None
+    }
+
+    fn visit_svelte_boundary(
+        &mut self,
+        boundary: &crate::ast::template::SvelteElement,
+    ) -> TransformResult {
+        use crate::compiler::phases::phase3_transform::client::visitors::svelte_boundary::svelte_boundary as visit_svelte_boundary_impl;
+        visit_svelte_boundary_impl(boundary, self);
         TransformResult::None
     }
 
