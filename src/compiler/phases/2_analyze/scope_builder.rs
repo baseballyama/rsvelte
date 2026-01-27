@@ -229,6 +229,8 @@ impl<'a> ScopeBuilder<'a> {
                     let name = id.name.to_string();
                     self.declare_binding(name, BindingKind::Normal, DeclarationKind::Const);
                 }
+                // Process class body to find assignments in methods, getters, setters, etc.
+                self.process_class_body(&class_decl.body);
             }
             Statement::ExportNamedDeclaration(export_decl) => {
                 if let Some(ref declaration) = export_decl.declaration {
@@ -301,6 +303,51 @@ impl<'a> ScopeBuilder<'a> {
         if let Some(body) = body {
             for stmt in &body.statements {
                 self.process_statement(stmt);
+            }
+        }
+    }
+
+    /// Process a class body to look for assignments in methods, getters, setters, etc.
+    fn process_class_body(&mut self, body: &oxc_ast::ast::ClassBody) {
+        for element in &body.body {
+            match element {
+                oxc_ast::ast::ClassElement::MethodDefinition(method_def) => {
+                    // Create a new scope for the method
+                    let old_scope = self.push_scope();
+
+                    // Declare function parameters in the new scope
+                    for param in &method_def.value.params.items {
+                        self.process_binding_pattern(&param.pattern, &None, DeclarationKind::Param);
+                    }
+
+                    // Process method body for assignments
+                    self.process_function_body(&method_def.value.body);
+
+                    self.pop_scope(old_scope);
+                }
+                oxc_ast::ast::ClassElement::PropertyDefinition(prop_def) => {
+                    // Process property initializer if it exists
+                    if let Some(ref value) = prop_def.value {
+                        self.track_expression_updates(value);
+                    }
+                }
+                oxc_ast::ast::ClassElement::AccessorProperty(accessor_prop) => {
+                    // Process accessor property value if it exists
+                    if let Some(ref value) = accessor_prop.value {
+                        self.track_expression_updates(value);
+                    }
+                }
+                oxc_ast::ast::ClassElement::StaticBlock(static_block) => {
+                    // Process static block statements
+                    let old_scope = self.push_scope();
+                    for stmt in &static_block.body {
+                        self.process_statement(stmt);
+                    }
+                    self.pop_scope(old_scope);
+                }
+                oxc_ast::ast::ClassElement::TSIndexSignature(_) => {
+                    // TypeScript index signatures don't have assignments
+                }
             }
         }
     }
@@ -456,6 +503,10 @@ impl<'a> ScopeBuilder<'a> {
             }
             Expression::ParenthesizedExpression(paren_expr) => {
                 self.track_expression_updates(&paren_expr.expression);
+            }
+            Expression::ClassExpression(class_expr) => {
+                // Process class body to find assignments in methods, getters, setters, etc.
+                self.process_class_body(&class_expr.body);
             }
             // Leaf expressions that don't contain assignments
             Expression::Identifier(_)
@@ -616,6 +667,8 @@ impl<'a> ScopeBuilder<'a> {
                     let name = id.name.to_string();
                     self.declare_binding(name, BindingKind::Normal, DeclarationKind::Const);
                 }
+                // Process class body to find assignments in methods, getters, setters, etc.
+                self.process_class_body(&class_decl.body);
             }
             _ => {}
         }

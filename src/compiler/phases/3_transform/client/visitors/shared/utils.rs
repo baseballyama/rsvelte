@@ -1343,6 +1343,7 @@ fn is_expression_defined(expr: &crate::ast::js::Expression, context: &ComponentC
 ///
 /// Returns true if the expression contains identifiers that reference
 /// reactive bindings ($state, $derived, props, stores, etc.).
+#[inline]
 pub fn expression_has_reactive_state(
     expr: &crate::ast::js::Expression,
     context: &ComponentContext,
@@ -1350,218 +1351,199 @@ pub fn expression_has_reactive_state(
     use crate::ast::js::Expression;
 
     match expr {
-        Expression::Value(json_value) => {
-            let Some(obj) = json_value.as_object() else {
+        Expression::Value(json_value) => has_reactive_state_json(json_value, context),
+    }
+}
+
+/// Internal helper that processes JSON values directly, avoiding serde_json::from_value overhead.
+/// This eliminates expensive cloning and deserialization in recursive calls.
+#[inline]
+fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentContext) -> bool {
+    let Some(obj) = json_value.as_object() else {
+        return false;
+    };
+    let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
+        return false;
+    };
+
+    match expr_type {
+        "Identifier" => {
+            // Check if identifier is a reactive binding
+            if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+                // Check if identifier has a transform registered (e.g., @const, snippet parameter)
+                // Identifiers with transforms are derived values that need reactive tracking
+                // This check comes FIRST because @const creates both a binding (Normal) and a transform,
+                // but the transform indicates it's a derived value needing reactive tracking.
+                if context.state.transform.contains_key(name) {
+                    return true;
+                }
+                if let Some(binding) = context.state.get_binding(name) {
+                    return binding.kind.is_reactive();
+                }
+                // Unknown identifier - conservatively assume non-reactive
+                // (could be a global or module-level binding)
                 return false;
-            };
-            let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
-                return false;
-            };
-
-            match expr_type {
-                "Identifier" => {
-                    // Check if identifier is a reactive binding
-                    if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
-                        // Check if identifier has a transform registered (e.g., @const, snippet parameter)
-                        // Identifiers with transforms are derived values that need reactive tracking
-                        // This check comes FIRST because @const creates both a binding (Normal) and a transform,
-                        // but the transform indicates it's a derived value needing reactive tracking.
-                        if context.state.transform.contains_key(name) {
-                            return true;
-                        }
-                        if let Some(binding) = context.state.get_binding(name) {
-                            return binding.kind.is_reactive();
-                        }
-                        // Unknown identifier - conservatively assume non-reactive
-                        // (could be a global or module-level binding)
-                        return false;
-                    }
-                    false
+            }
+            false
+        }
+        "MemberExpression" => {
+            // Check the object part - recurse directly with JSON reference
+            if let Some(object) = obj.get("object") {
+                // First check if the object itself references reactive state
+                if has_reactive_state_json(object, context) {
+                    return true;
                 }
-                "MemberExpression" => {
-                    // Check the object part
-                    if let Some(object) = obj.get("object")
-                        && let Ok(inner_expr) = serde_json::from_value::<Expression>(object.clone())
-                    {
-                        // First check if the object itself references reactive state
-                        if expression_has_reactive_state(&inner_expr, context) {
-                            return true;
-                        }
 
-                        // If the object is an identifier that's a local variable (not a reactive binding),
-                        // the property access might still be reactive (e.g., `obj.value` where `value` is $state).
-                        // Since we can't statically determine if the property is reactive,
-                        // conservatively treat all member expressions on local variables as potentially reactive.
-                        if let Some(obj_inner) = object.as_object()
-                            && obj_inner.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                            && let Some(name) = obj_inner.get("name").and_then(|n| n.as_str())
-                        {
-                            // Check if this is a local binding (not a global)
-                            if context.state.get_binding(name).is_some() {
-                                // Local variable - property might be reactive (e.g., class instance with $state fields)
-                                return true;
-                            }
-                        }
-                    }
-                    false
-                }
-                "CallExpression" => {
-                    // Check if callee is a pure global function that doesn't depend on reactive state
-                    // Pure functions like Math.*, encodeURIComponent, etc. are not reactive
-                    if let Some(callee) = obj.get("callee").and_then(|v| v.as_object()) {
-                        let callee_type = callee.get("type").and_then(|t| t.as_str());
-
-                        // Check for pure global functions like Math.max, encodeURIComponent, etc.
-                        if callee_type == Some("Identifier")
-                            && let Some(name) = callee.get("name").and_then(|n| n.as_str())
-                        {
-                            // List of known pure global functions
-                            const PURE_GLOBALS: &[&str] = &[
-                                "encodeURIComponent",
-                                "decodeURIComponent",
-                                "encodeURI",
-                                "decodeURI",
-                                "parseInt",
-                                "parseFloat",
-                                "isNaN",
-                                "isFinite",
-                                "String",
-                                "Number",
-                                "Boolean",
-                                "Array",
-                                "Object",
-                                "JSON",
-                            ];
-                            if PURE_GLOBALS.contains(&name) {
-                                // Check if any arguments are reactive
-                                if let Some(args) = obj.get("arguments").and_then(|v| v.as_array())
-                                {
-                                    for arg in args {
-                                        if let Ok(inner_expr) =
-                                            serde_json::from_value::<Expression>(arg.clone())
-                                            && expression_has_reactive_state(&inner_expr, context)
-                                        {
-                                            return true;
-                                        }
-                                    }
-                                }
-                                return false;
-                            }
-                            // Check if it's a binding or has a transform registered
-                            // (snippet parameters have transforms but not bindings)
-                            if let Some(binding) = context.state.get_binding(name) {
-                                // Binding exists - check if reactive
-                                if binding.kind.is_reactive() {
-                                    return true;
-                                }
-                            } else if context.state.transform.contains_key(name) {
-                                // Has a transform (e.g., snippet parameter) - treat as reactive
-                                return true;
-                            } else {
-                                // Unknown identifier without transform - could be a global, check arguments only
-                                if let Some(args) = obj.get("arguments").and_then(|v| v.as_array())
-                                {
-                                    for arg in args {
-                                        if let Ok(inner_expr) =
-                                            serde_json::from_value::<Expression>(arg.clone())
-                                            && expression_has_reactive_state(&inner_expr, context)
-                                        {
-                                            return true;
-                                        }
-                                    }
-                                }
-                                return false;
-                            }
-                        }
-                        // Check for pure member expressions like Math.max, Math.min, etc.
-                        if callee_type == Some("MemberExpression")
-                            && let Some(object) = callee.get("object").and_then(|o| o.as_object())
-                            && let Some("Identifier") = object.get("type").and_then(|t| t.as_str())
-                            && let Some(obj_name) = object.get("name").and_then(|n| n.as_str())
-                        {
-                            const PURE_OBJECTS: &[&str] =
-                                &["Math", "JSON", "Object", "Array", "String", "Number"];
-                            if PURE_OBJECTS.contains(&obj_name) {
-                                // Check if any arguments are reactive
-                                if let Some(args) = obj.get("arguments").and_then(|v| v.as_array())
-                                {
-                                    for arg in args {
-                                        if let Ok(inner_expr) =
-                                            serde_json::from_value::<Expression>(arg.clone())
-                                            && expression_has_reactive_state(&inner_expr, context)
-                                        {
-                                            return true;
-                                        }
-                                    }
-                                }
-                                return false;
-                            }
-                        }
-                    }
-
-                    // For non-pure functions (user-defined), assume the result could be reactive
-                    // because the function may return values derived from reactive state
-                    true
-                }
-                "BinaryExpression" | "LogicalExpression" => {
-                    // Check left and right
-                    if let Some(left) = obj.get("left")
-                        && let Ok(inner_expr) = serde_json::from_value::<Expression>(left.clone())
-                        && expression_has_reactive_state(&inner_expr, context)
-                    {
+                // If the object is an identifier that's a local variable (not a reactive binding),
+                // the property access might still be reactive (e.g., `obj.value` where `value` is $state).
+                // Since we can't statically determine if the property is reactive,
+                // conservatively treat all member expressions on local variables as potentially reactive.
+                if let Some(obj_inner) = object.as_object()
+                    && obj_inner.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                    && let Some(name) = obj_inner.get("name").and_then(|n| n.as_str())
+                {
+                    // Check if this is a local binding (not a global)
+                    if context.state.get_binding(name).is_some() {
+                        // Local variable - property might be reactive (e.g., class instance with $state fields)
                         return true;
                     }
-                    if let Some(right) = obj.get("right")
-                        && let Ok(inner_expr) = serde_json::from_value::<Expression>(right.clone())
-                        && expression_has_reactive_state(&inner_expr, context)
-                    {
-                        return true;
-                    }
-                    false
-                }
-                "UnaryExpression" => {
-                    if let Some(argument) = obj.get("argument")
-                        && let Ok(inner_expr) =
-                            serde_json::from_value::<Expression>(argument.clone())
-                    {
-                        return expression_has_reactive_state(&inner_expr, context);
-                    }
-                    false
-                }
-                "ConditionalExpression" => {
-                    for field in ["test", "consequent", "alternate"] {
-                        if let Some(val) = obj.get(field)
-                            && let Ok(inner_expr) =
-                                serde_json::from_value::<Expression>(val.clone())
-                            && expression_has_reactive_state(&inner_expr, context)
-                        {
-                            return true;
-                        }
-                    }
-                    false
-                }
-                "TemplateLiteral" => {
-                    if let Some(exprs) = obj.get("expressions").and_then(|v| v.as_array()) {
-                        for expr_val in exprs {
-                            if let Ok(inner_expr) =
-                                serde_json::from_value::<Expression>(expr_val.clone())
-                                && expression_has_reactive_state(&inner_expr, context)
-                            {
-                                return true;
-                            }
-                        }
-                    }
-                    false
-                }
-                "Literal" => {
-                    // Literals are never reactive
-                    false
-                }
-                _ => {
-                    // Unknown expression type - conservatively assume non-reactive
-                    false
                 }
             }
+            false
+        }
+        "CallExpression" => {
+            // Check if callee is a pure global function that doesn't depend on reactive state
+            // Pure functions like Math.*, encodeURIComponent, etc. are not reactive
+            if let Some(callee) = obj.get("callee").and_then(|v| v.as_object()) {
+                let callee_type = callee.get("type").and_then(|t| t.as_str());
+
+                // Check for pure global functions like Math.max, encodeURIComponent, etc.
+                if callee_type == Some("Identifier")
+                    && let Some(name) = callee.get("name").and_then(|n| n.as_str())
+                {
+                    // List of known pure global functions
+                    const PURE_GLOBALS: &[&str] = &[
+                        "encodeURIComponent",
+                        "decodeURIComponent",
+                        "encodeURI",
+                        "decodeURI",
+                        "parseInt",
+                        "parseFloat",
+                        "isNaN",
+                        "isFinite",
+                        "String",
+                        "Number",
+                        "Boolean",
+                        "Array",
+                        "Object",
+                        "JSON",
+                    ];
+                    if PURE_GLOBALS.contains(&name) {
+                        // Check if any arguments are reactive - recurse with JSON reference
+                        if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+                            for arg in args {
+                                if has_reactive_state_json(arg, context) {
+                                    return true;
+                                }
+                            }
+                        }
+                        return false;
+                    }
+                    // Check if it's a binding or has a transform registered
+                    // (snippet parameters have transforms but not bindings)
+                    if let Some(binding) = context.state.get_binding(name) {
+                        // Binding exists - check if reactive
+                        if binding.kind.is_reactive() {
+                            return true;
+                        }
+                    } else if context.state.transform.contains_key(name) {
+                        // Has a transform (e.g., snippet parameter) - treat as reactive
+                        return true;
+                    } else {
+                        // Unknown identifier without transform - could be a global, check arguments only
+                        if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+                            for arg in args {
+                                if has_reactive_state_json(arg, context) {
+                                    return true;
+                                }
+                            }
+                        }
+                        return false;
+                    }
+                }
+                // Check for pure member expressions like Math.max, Math.min, etc.
+                if callee_type == Some("MemberExpression")
+                    && let Some(object) = callee.get("object").and_then(|o| o.as_object())
+                    && let Some("Identifier") = object.get("type").and_then(|t| t.as_str())
+                    && let Some(obj_name) = object.get("name").and_then(|n| n.as_str())
+                {
+                    const PURE_OBJECTS: &[&str] =
+                        &["Math", "JSON", "Object", "Array", "String", "Number"];
+                    if PURE_OBJECTS.contains(&obj_name) {
+                        // Check if any arguments are reactive - recurse with JSON reference
+                        if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+                            for arg in args {
+                                if has_reactive_state_json(arg, context) {
+                                    return true;
+                                }
+                            }
+                        }
+                        return false;
+                    }
+                }
+            }
+
+            // For non-pure functions (user-defined), assume the result could be reactive
+            // because the function may return values derived from reactive state
+            true
+        }
+        "BinaryExpression" | "LogicalExpression" => {
+            // Check left and right - recurse with JSON reference
+            if let Some(left) = obj.get("left")
+                && has_reactive_state_json(left, context)
+            {
+                return true;
+            }
+            if let Some(right) = obj.get("right")
+                && has_reactive_state_json(right, context)
+            {
+                return true;
+            }
+            false
+        }
+        "UnaryExpression" => {
+            if let Some(argument) = obj.get("argument") {
+                return has_reactive_state_json(argument, context);
+            }
+            false
+        }
+        "ConditionalExpression" => {
+            for field in ["test", "consequent", "alternate"] {
+                if let Some(val) = obj.get(field)
+                    && has_reactive_state_json(val, context)
+                {
+                    return true;
+                }
+            }
+            false
+        }
+        "TemplateLiteral" => {
+            if let Some(exprs) = obj.get("expressions").and_then(|v| v.as_array()) {
+                for expr_val in exprs {
+                    if has_reactive_state_json(expr_val, context) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        "Literal" => {
+            // Literals are never reactive
+            false
+        }
+        _ => {
+            // Unknown expression type - conservatively assume non-reactive
+            false
         }
     }
 }
@@ -1569,107 +1551,95 @@ pub fn expression_has_reactive_state(
 /// Check if an expression contains a function call.
 ///
 /// Returns true if the expression contains a CallExpression at any level.
+#[inline]
 pub fn expression_has_call(expr: &crate::ast::js::Expression) -> bool {
     use crate::ast::js::Expression;
 
     match expr {
-        Expression::Value(json_value) => {
-            let Some(obj) = json_value.as_object() else {
-                return false;
-            };
-            let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
-                return false;
-            };
+        Expression::Value(json_value) => has_call_json(json_value),
+    }
+}
 
-            match expr_type {
-                "CallExpression" => true,
-                "MemberExpression" => {
-                    if let Some(object) = obj.get("object")
-                        && let Ok(inner_expr) = serde_json::from_value::<Expression>(object.clone())
-                    {
-                        return expression_has_call(&inner_expr);
-                    }
-                    false
-                }
-                "BinaryExpression" | "LogicalExpression" => {
-                    if let Some(left) = obj.get("left")
-                        && let Ok(inner_expr) = serde_json::from_value::<Expression>(left.clone())
-                        && expression_has_call(&inner_expr)
-                    {
-                        return true;
-                    }
-                    if let Some(right) = obj.get("right")
-                        && let Ok(inner_expr) = serde_json::from_value::<Expression>(right.clone())
-                        && expression_has_call(&inner_expr)
-                    {
-                        return true;
-                    }
-                    false
-                }
-                "UnaryExpression" => {
-                    if let Some(argument) = obj.get("argument")
-                        && let Ok(inner_expr) =
-                            serde_json::from_value::<Expression>(argument.clone())
-                    {
-                        return expression_has_call(&inner_expr);
-                    }
-                    false
-                }
-                "ConditionalExpression" => {
-                    for field in ["test", "consequent", "alternate"] {
-                        if let Some(val) = obj.get(field)
-                            && let Ok(inner_expr) =
-                                serde_json::from_value::<Expression>(val.clone())
-                            && expression_has_call(&inner_expr)
-                        {
-                            return true;
-                        }
-                    }
-                    false
-                }
-                "TemplateLiteral" => {
-                    if let Some(exprs) = obj.get("expressions").and_then(|v| v.as_array()) {
-                        for expr_val in exprs {
-                            if let Ok(inner_expr) =
-                                serde_json::from_value::<Expression>(expr_val.clone())
-                                && expression_has_call(&inner_expr)
-                            {
-                                return true;
-                            }
-                        }
-                    }
-                    false
-                }
-                "ArrayExpression" => {
-                    if let Some(elements) = obj.get("elements").and_then(|v| v.as_array()) {
-                        for elem in elements {
-                            if let Ok(inner_expr) =
-                                serde_json::from_value::<Expression>(elem.clone())
-                                && expression_has_call(&inner_expr)
-                            {
-                                return true;
-                            }
-                        }
-                    }
-                    false
-                }
-                "ObjectExpression" => {
-                    if let Some(properties) = obj.get("properties").and_then(|v| v.as_array()) {
-                        for prop in properties {
-                            if let Some(value) = prop.as_object().and_then(|p| p.get("value"))
-                                && let Ok(inner_expr) =
-                                    serde_json::from_value::<Expression>(value.clone())
-                                && expression_has_call(&inner_expr)
-                            {
-                                return true;
-                            }
-                        }
-                    }
-                    false
-                }
-                _ => false,
+/// Internal helper that processes JSON values directly, avoiding serde_json::from_value overhead.
+#[inline]
+fn has_call_json(json_value: &serde_json::Value) -> bool {
+    let Some(obj) = json_value.as_object() else {
+        return false;
+    };
+    let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
+        return false;
+    };
+
+    match expr_type {
+        "CallExpression" => true,
+        "MemberExpression" => {
+            if let Some(object) = obj.get("object") {
+                return has_call_json(object);
             }
+            false
         }
+        "BinaryExpression" | "LogicalExpression" => {
+            if let Some(left) = obj.get("left")
+                && has_call_json(left)
+            {
+                return true;
+            }
+            if let Some(right) = obj.get("right")
+                && has_call_json(right)
+            {
+                return true;
+            }
+            false
+        }
+        "UnaryExpression" => {
+            if let Some(argument) = obj.get("argument") {
+                return has_call_json(argument);
+            }
+            false
+        }
+        "ConditionalExpression" => {
+            for field in ["test", "consequent", "alternate"] {
+                if let Some(val) = obj.get(field)
+                    && has_call_json(val)
+                {
+                    return true;
+                }
+            }
+            false
+        }
+        "TemplateLiteral" => {
+            if let Some(exprs) = obj.get("expressions").and_then(|v| v.as_array()) {
+                for expr_val in exprs {
+                    if has_call_json(expr_val) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        "ArrayExpression" => {
+            if let Some(elements) = obj.get("elements").and_then(|v| v.as_array()) {
+                for elem in elements {
+                    if has_call_json(elem) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        "ObjectExpression" => {
+            if let Some(properties) = obj.get("properties").and_then(|v| v.as_array()) {
+                for prop in properties {
+                    if let Some(value) = prop.as_object().and_then(|p| p.get("value"))
+                        && has_call_json(value)
+                    {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        _ => false,
     }
 }
 
