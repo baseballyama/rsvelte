@@ -43,15 +43,63 @@ Cached patterns:
 - `src/compiler/phases/3_transform/client/mod.rs`: REGEX_STATE_DERIVED_VAR
 - `src/compiler/phases/3_transform/client/transform_template/template.rs`: REGEX_LEADING_NEWLINE
 - `src/compiler/preprocess/replace_in_code.rs`: REGEX_LINE_TOKEN
+- `src/compiler/phases/3_transform/js_ast/codegen.rs`: REGEX_COLLAPSE_ARRAYS
+- `src/compiler/phases/1_parse/parser.rs`: REGEX_TYPESCRIPT_LANG
 
-### 2. Vec Pre-allocation (Minor Impact)
+### 2. SIMD Text Scanning (Committed)
 
-Added capacity pre-allocation to transform_server.rs:
+Added `memchr` crate for SIMD-accelerated text scanning in parser:
+- `src/compiler/phases/1_parse/state/text.rs`: Uses `memchr2` to find '<' or '{' quickly
+
+### 3. Vec/HashMap Pre-allocation (Committed)
+
+Added capacity pre-allocation across the transform phase:
+
+**transform_server.rs:**
 - `output_parts: Vec::with_capacity(64)`
 - `snippets: Vec::with_capacity(4)`
 - Component attribute vectors
 
-Impact: Minimal measurable improvement (already efficient).
+**fragment.rs (client):**
+- `scopes: HashMap::with_capacity(4)`
+- `hoisted: Vec::with_capacity(4)`
+- `init: Vec::with_capacity(8)`
+- `update: Vec::with_capacity(4)`
+- `after_update: Vec::with_capacity(2)`
+- `consts: Vec::with_capacity(4)`
+- `let_directives: Vec::with_capacity(2)`
+- `instance_level_snippets: Vec::with_capacity(2)`
+- `module_level_snippets: Vec::with_capacity(2)`
+
+**types.rs:**
+- `path: Vec::with_capacity(16)` in ComponentContext
+
+**mod.rs (client):**
+- `component_body: Vec::with_capacity(32)`
+- `body: Vec::with_capacity(16)`
+
+**regular_element.rs:**
+- Attribute categorization vectors pre-allocated based on attribute count
+- `element_state_init: Vec::with_capacity(8)`
+- `element_state_after_update: Vec::with_capacity(4)`
+
+**element.rs (shared):**
+- `quasis: Vec::with_capacity(4)`
+- `expressions: Vec::with_capacity(4)`
+- `current_text: String::with_capacity(64)`
+- Property vectors sized based on directive count
+
+### Current Performance (After Optimizations)
+
+| File | Transform (Mean) | Total (Mean) |
+|------|-----------------|--------------|
+| small (75B) | ~165µs | ~210µs |
+| medium (1.7KB) | ~840µs | ~1.1ms |
+| large (38KB) | **~31ms** | ~37ms |
+
+**Improvement from baseline:**
+- Transform phase: 32.7ms → 31ms (~5% improvement)
+- Overall: Consistent improvements across file sizes
 
 ## Identified Optimization Opportunities
 
@@ -98,25 +146,17 @@ Top offenders:
 
 ### Medium Priority
 
-#### 4. SIMD Text Scanning
+#### 4. SIMD Text Scanning - DONE
 
-**Location**: `src/compiler/phases/1_parse/`
+Implemented using `memchr` crate. See "Completed Optimizations" section.
 
-Parser scans text character-by-character:
-```rust
-while self.index < self.source.len() && !self.match_str("<") && !self.match_str("{") {
-    self.advance();
-}
-```
+#### 5. Dynamic Regex Caching
 
-**Potential Fix**: Use `memchr` crate for SIMD-accelerated character search.
+**Locations** (dynamic patterns that cannot be easily cached):
+- `src/compiler/phases/3_transform/client/mod.rs:962` (dynamic variable name pattern)
 
-#### 5. More Regex Caching
-
-**Locations** (still using `Regex::new()` inline):
-- `src/compiler/phases/1_parse/parser.rs:181`
-- `src/compiler/phases/3_transform/js_ast/codegen.rs:154` (dynamic pattern)
-- `src/compiler/phases/3_transform/client/mod.rs:949` (dynamic pattern)
+These patterns use runtime-generated strings so traditional static caching doesn't work.
+Consider LRU cache for frequently-used patterns.
 
 ### Low Priority
 
@@ -136,11 +176,12 @@ Dynamic regex patterns (e.g., variable name matching) cannot be cached tradition
 
 ## Recommended Implementation Order
 
-1. **Regex caching** - DONE
-2. **Quadratic algorithm fix** - Highest ROI for large templates
-3. **Client state allocation** - Reduces per-fragment overhead
-4. **SIMD text scanning** - Improves parse phase
-5. **String allocation reduction** - Gradual refactoring
+1. **Regex caching** - ✅ DONE
+2. **SIMD text scanning** - ✅ DONE
+3. **Vec/HashMap pre-allocation** - ✅ DONE
+4. **Quadratic algorithm fix** - Highest ROI for large templates (pending)
+5. **Client state allocation** - Reduces per-fragment overhead (pending)
+6. **String allocation reduction** - Gradual refactoring (pending)
 
 ## Benchmarking Commands
 
@@ -163,7 +204,14 @@ cargo run --release --bin profiler -- --output json > baseline.json
 
 ## Next Steps
 
-1. Fix quadratic algorithm in control_flow.rs (estimated 10-100x improvement for large templates)
-2. Profile Client Transform to identify specific bottlenecks
-3. Implement state pooling/arena allocation for fragment processing
-4. Add memchr for SIMD text scanning in parser
+1. **Quadratic algorithm fix** in control_flow.rs (estimated 10-100x improvement for large templates)
+   - Pre-index elements by fragment_path using HashMap
+   - Sort elements by position within each fragment
+   - Use binary search or direct indexing for sibling lookup
+
+2. **Client state cloning overhead** - Use Rc/Arc for shared immutable data in ComponentClientTransformState
+   - `options`, `transform`, `events`, `state_fields`, `snippet_names` could be shared
+
+3. **String allocation reduction** - Profile-guided optimization
+   - Replace `.to_string()` with `Cow<str>` where possible
+   - Consider string interning for repeated identifier names
