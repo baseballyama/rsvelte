@@ -503,13 +503,22 @@ pub struct IdentifierTransform {
 }
 
 /// Component metadata.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct ComponentMetadata {
     /// Namespace (html, svg, mathml)
     pub namespace: String,
 
     /// Whether the element is scoped
     pub scoped: bool,
+}
+
+impl Default for ComponentMetadata {
+    fn default() -> Self {
+        Self {
+            namespace: "html".to_string(),
+            scoped: false,
+        }
+    }
 }
 
 /// Template builder.

@@ -93,7 +93,23 @@ pub fn visit_regular_element(
 
     for attribute in &node.attributes {
         match attribute {
-            Attribute::Attribute(_) => {
+            Attribute::Attribute(attr) => {
+                // `is` attributes need to be part of the template, otherwise they break
+                // See: svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/RegularElement.js
+                if attr.name == "is"
+                    && context.state.metadata.namespace == "html"
+                    && is_text_attribute(attr)
+                    && let AttributeValue::Sequence(parts) = &attr.value
+                    && let Some(crate::ast::template::AttributeValuePart::Text(text)) =
+                        parts.first()
+                {
+                    context
+                        .state
+                        .template
+                        .set_prop("is".to_string(), Some(text.data.to_string()));
+                    continue;
+                }
+
                 // All attributes (including event attributes like onclick={...}) go into attributes
                 // When has_spread is true, they're processed by build_attribute_effect
                 // When has_spread is false, event attributes are handled via visit_event_attribute in the loop
