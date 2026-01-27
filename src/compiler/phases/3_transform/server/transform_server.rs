@@ -4017,9 +4017,18 @@ fn transform_class_fields_server(script: &str) -> String {
     for field in &derived_fields {
         let private_name = format!("#{}", field.name);
 
+        // If the value starts with '{', wrap it in parentheses to avoid
+        // it being interpreted as a block statement instead of an object literal
+        let value_str = field.value.trim();
+        let wrapped_value = if value_str.starts_with('{') {
+            format!("({})", value_str)
+        } else {
+            value_str.to_string()
+        };
+
         new_class_body.push_str(&format!(
             "\t\t{} = $.derived(() => {});\n",
-            private_name, field.value
+            private_name, wrapped_value
         ));
 
         if !field.is_private {

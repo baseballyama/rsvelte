@@ -1389,7 +1389,25 @@ pub fn expression_has_reactive_state(
                     if let Some(object) = obj.get("object")
                         && let Ok(inner_expr) = serde_json::from_value::<Expression>(object.clone())
                     {
-                        return expression_has_reactive_state(&inner_expr, context);
+                        // First check if the object itself references reactive state
+                        if expression_has_reactive_state(&inner_expr, context) {
+                            return true;
+                        }
+
+                        // If the object is an identifier that's a local variable (not a reactive binding),
+                        // the property access might still be reactive (e.g., `obj.value` where `value` is $state).
+                        // Since we can't statically determine if the property is reactive,
+                        // conservatively treat all member expressions on local variables as potentially reactive.
+                        if let Some(obj_inner) = object.as_object()
+                            && obj_inner.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                            && let Some(name) = obj_inner.get("name").and_then(|n| n.as_str())
+                        {
+                            // Check if this is a local binding (not a global)
+                            if context.state.get_binding(name).is_some() {
+                                // Local variable - property might be reactive (e.g., class instance with $state fields)
+                                return true;
+                            }
+                        }
                     }
                     false
                 }

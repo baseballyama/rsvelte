@@ -72,8 +72,9 @@ pub fn clean_nodes(
     preserve_whitespace: bool,
     preserve_comments: bool,
 ) -> CleanedNodes {
-    let mut hoisted = Vec::new();
-    let mut regular = Vec::new();
+    // Pre-allocate based on input size
+    let mut hoisted = Vec::with_capacity(nodes.len().min(8));
+    let mut regular = Vec::with_capacity(nodes.len());
 
     // Separate hoisted nodes from regular nodes
     for node in nodes {

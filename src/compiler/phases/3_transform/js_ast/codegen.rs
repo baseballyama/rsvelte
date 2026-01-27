@@ -16,6 +16,14 @@ pub fn generate(program: &JsProgram) -> Result<String, String> {
     normalize_js(&raw)
 }
 
+/// Generate JavaScript source code without OXC normalization.
+/// This is faster but may produce less well-formatted output.
+pub fn generate_fast(program: &JsProgram) -> String {
+    let mut codegen = JsCodegen::new();
+    codegen.emit_program(program);
+    codegen.output
+}
+
 /// Generate raw JavaScript source code without normalization.
 pub fn generate_raw(program: &JsProgram) -> String {
     let mut codegen = JsCodegen::new();
