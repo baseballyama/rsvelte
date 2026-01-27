@@ -111,12 +111,42 @@ fn transform_client_with_visitors(
     let instance_level_snippets = std::mem::take(&mut context.state.instance_level_snippets);
     let events = std::mem::take(&mut context.state.events);
 
+    // Collect store subscription bindings and generate setup code
+    // Reference: transform-client.js lines 211-254
+    let mut store_setup: Vec<JsStatement> = Vec::new();
+    let mut needs_store_cleanup = false;
+
+    for binding in &analysis.root.bindings {
+        if matches!(binding.kind, BindingKind::StoreSub) {
+            let store_sub_name = &binding.name; // e.g., "$store"
+            let store_name = &store_sub_name[1..]; // e.g., "store"
+
+            // First store_sub binding - add setup_stores call
+            if store_setup.is_empty() {
+                needs_store_cleanup = true;
+                // const [$$stores, $$cleanup] = $.setup_stores();
+                store_setup.push(JsStatement::Raw(
+                    "const [$$stores, $$cleanup] = $.setup_stores();".to_string(),
+                ));
+            }
+
+            // Generate: const $store = () => $.store_get(store, "$store", $$stores);
+            let getter_code = format!(
+                "const {} = () => $.store_get({}, \"{}\", $$stores);",
+                store_sub_name, store_name, store_sub_name
+            );
+            // Insert getter BEFORE setup_stores (reverse order, will be unshifted)
+            store_setup.insert(0, JsStatement::Raw(getter_code));
+        }
+    }
+
     // Determine if we need context injection ($.push/$.pop)
     let component_returned_object_length = analysis.exports.len();
     let should_inject_context = options.dev
         || analysis.needs_context
         || !analysis.reactive_statements.is_empty()
-        || component_returned_object_length > 0;
+        || component_returned_object_length > 0
+        || needs_store_cleanup; // Store subscriptions need context
 
     // Determine if we need $$props parameter
     let should_inject_props = should_inject_context
@@ -141,16 +171,9 @@ fn transform_client_with_visitors(
         component_body.push(b::stmt(b::call(b::member_path("$.push"), push_args)));
     }
 
-    // Add $.init() for legacy (non-runes) components that need context
-    // Reference: transform-client.js line 381-382
-    if !analysis.runes && analysis.needs_context {
-        let init_args = if analysis.immutable {
-            vec![b::literal(super::js_ast::nodes::JsLiteral::Boolean(true))]
-        } else {
-            vec![]
-        };
-        component_body.push(b::stmt(b::call(b::member_path("$.init"), init_args)));
-    }
+    // Add store setup (getters and setup_stores) right after $.push
+    // Reference: transform-client.js line 379
+    component_body.extend(store_setup);
 
     // Add CSS styles injection if needed
     if analysis.css.has_css && analysis.inject_styles {
@@ -174,6 +197,18 @@ fn transform_client_with_visitors(
             // Parse transformed script as raw JavaScript statement
             component_body.push(JsStatement::Raw(trimmed.to_string()));
         }
+    }
+
+    // Add $.init() for legacy (non-runes) components that need context
+    // Reference: transform-client.js line 381-382
+    // IMPORTANT: This must come AFTER instance script content, not before
+    if !analysis.runes && analysis.needs_context {
+        let init_args = if analysis.immutable {
+            vec![b::literal(super::js_ast::nodes::JsLiteral::Boolean(true))]
+        } else {
+            vec![]
+        };
+        component_body.push(b::stmt(b::call(b::member_path("$.init"), init_args)));
     }
 
     // Generate $$exports object if there are exports
@@ -206,19 +241,42 @@ fn transform_client_with_visitors(
     component_body.extend(template_body.body);
 
     // Add $.pop at the end if injecting context
+    // Reference: transform-client.js lines 433-454
     if should_inject_context {
         if component_returned_object_length > 0 {
-            // return $.pop($$exports)
-            component_body.push(JsStatement::Return(
-                super::js_ast::nodes::JsReturnStatement {
-                    argument: Some(Box::new(b::call(
-                        b::member_path("$.pop"),
-                        vec![b::id("$$exports")],
-                    ))),
-                },
-            ));
+            if needs_store_cleanup {
+                // var $$pop = $.pop($$exports);
+                component_body.push(JsStatement::Raw(
+                    "var $$pop = $.pop($$exports);".to_string(),
+                ));
+            } else {
+                // return $.pop($$exports)
+                component_body.push(JsStatement::Return(
+                    super::js_ast::nodes::JsReturnStatement {
+                        argument: Some(Box::new(b::call(
+                            b::member_path("$.pop"),
+                            vec![b::id("$$exports")],
+                        ))),
+                    },
+                ));
+            }
         } else {
             component_body.push(b::stmt(b::call(b::member_path("$.pop"), vec![])));
+        }
+    }
+
+    // Add $$cleanup() at the very end if store subscriptions exist
+    // Reference: transform-client.js lines 448-454
+    if needs_store_cleanup {
+        component_body.push(b::stmt(b::call(b::id("$$cleanup"), vec![])));
+
+        if component_returned_object_length > 0 {
+            // return $$pop;
+            component_body.push(JsStatement::Return(
+                super::js_ast::nodes::JsReturnStatement {
+                    argument: Some(Box::new(b::id("$$pop"))),
+                },
+            ));
         }
     }
 

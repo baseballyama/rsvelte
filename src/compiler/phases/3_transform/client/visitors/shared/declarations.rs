@@ -86,6 +86,21 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
     for (name, binding_idx) in context.state.scope.declarations.iter() {
         // Get the binding from the root scope
         if let Some(binding) = context.state.scope_root.bindings.get(*binding_idx) {
+            // Handle store subscriptions ($store)
+            // Reference: Program.js lines 45-102
+            if matches!(binding.kind, BindingKind::StoreSub) {
+                // For store_sub bindings, the read transform just calls the getter
+                // $store -> $store()
+                let transform = IdentifierTransform {
+                    read: Some(store_sub_read),
+                    assign: Some(store_sub_assign),
+                    mutate: None,
+                    update: Some(store_sub_update),
+                };
+                context.state.transform.insert(name.clone(), transform);
+                continue;
+            }
+
             // Check if this binding needs reactive transformations
             if is_state_source(binding, context.state.analysis)
                 || matches!(binding.kind, BindingKind::Derived)
@@ -122,6 +137,88 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
             }
         }
     }
+}
+
+/// Transform a store subscription read.
+///
+/// This transforms `$store` into `$store()` by calling the getter function.
+///
+/// # Arguments
+///
+/// * `node` - The store subscription identifier (e.g., `$store`)
+///
+/// # Returns
+///
+/// A call expression: `$store()`
+fn store_sub_read(node: JsExpr) -> JsExpr {
+    b::call(node, vec![])
+}
+
+/// Transform a store subscription assignment.
+///
+/// This transforms `$store = value` into `$.store_set(store, value)`.
+///
+/// # Arguments
+///
+/// * `node` - The store subscription identifier (e.g., `$store`)
+/// * `value` - The value being assigned
+/// * `_needs_proxy` - Unused for store subscriptions
+///
+/// # Returns
+///
+/// A call expression: `$.store_set(store, value)`
+fn store_sub_assign(node: JsExpr, value: JsExpr, _needs_proxy: bool) -> JsExpr {
+    // Extract the store name from the $store identifier
+    let store_name = if let JsExpr::Identifier(ref name) = node {
+        // Remove the $ prefix
+        name.strip_prefix('$').unwrap_or(name).to_string()
+    } else {
+        "unknown".to_string()
+    };
+
+    b::svelte_call("store_set", vec![b::id(&store_name), value])
+}
+
+/// Transform a store subscription update expression.
+///
+/// This transforms `$store++` into `$.update_store(store, $store())`.
+///
+/// # Arguments
+///
+/// * `operator` - The update operator (++ or --)
+/// * `argument` - The store subscription identifier being updated
+/// * `prefix` - Whether the operator is prefix (++$store) or postfix ($store++)
+///
+/// # Returns
+///
+/// A call to `$.update_pre_store()` (prefix) or `$.update_store()` (postfix)
+fn store_sub_update(operator: JsUpdateOp, argument: JsExpr, prefix: bool) -> JsExpr {
+    let method = if prefix {
+        "update_pre_store"
+    } else {
+        "update_store"
+    };
+
+    // Extract the store name from the $store identifier
+    let store_name = if let JsExpr::Identifier(ref name) = argument {
+        // Remove the $ prefix
+        name.strip_prefix('$').unwrap_or(name).to_string()
+    } else {
+        "unknown".to_string()
+    };
+
+    // Build args: store, $store()
+    let mut args = vec![
+        b::id(&store_name),                // store
+        b::call(argument.clone(), vec![]), // $store()
+    ];
+
+    // For decrement, pass -1 as the third argument
+    if operator == JsUpdateOp::Decrement {
+        args.push(b::number(-1.0));
+    }
+
+    b::svelte_call(method, args)
 }
 
 /// Create an assign function for a binding, with store subscription handling if needed.
