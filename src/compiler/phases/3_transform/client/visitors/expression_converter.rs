@@ -239,10 +239,19 @@ fn convert_member_expression(
 }
 
 /// Convert a CallExpression node.
+///
+/// This handles rune transformations like `$state()`, `$derived()`, etc.
+/// The transformation logic mirrors the official Svelte compiler's
+/// `CallExpression.js` visitor.
 fn convert_call_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
 ) -> JsExpr {
+    // Check if this is a rune call
+    if let Some(rune) = get_rune_from_call(obj, context) {
+        return transform_rune_call(&rune, obj, context);
+    }
+
     let callee = obj
         .get("callee")
         .map(|c| Box::new(convert_json_value(c, context)))
@@ -268,6 +277,328 @@ fn convert_call_expression(
         arguments,
         optional,
     })
+}
+
+/// List of all Svelte runes.
+const RUNES: &[&str] = &[
+    "$state",
+    "$state.raw",
+    "$state.snapshot",
+    "$derived",
+    "$derived.by",
+    "$props",
+    "$effect",
+    "$effect.pre",
+    "$effect.tracking",
+    "$effect.root",
+    "$inspect",
+    "$inspect().with",
+    "$host",
+];
+
+/// Get the rune name from a CallExpression if it's a rune call.
+fn get_rune_from_call(
+    obj: &serde_json::Map<String, Value>,
+    context: &ComponentContext,
+) -> Option<String> {
+    let callee = obj.get("callee")?;
+    let callee_obj = callee.as_object()?;
+    let callee_type = callee_obj.get("type")?.as_str()?;
+
+    let rune_name = match callee_type {
+        "Identifier" => {
+            // Simple rune like $state, $derived, $effect
+            callee_obj.get("name")?.as_str()?.to_string()
+        }
+        "MemberExpression" => {
+            // Rune with method like $state.raw, $derived.by
+            let object = callee_obj.get("object")?.as_object()?;
+            let property = callee_obj.get("property")?.as_object()?;
+
+            let object_name = object.get("name")?.as_str()?;
+            let property_name = property.get("name")?.as_str()?;
+
+            format!("{}.{}", object_name, property_name)
+        }
+        _ => return None,
+    };
+
+    // Check if it's a valid rune
+    if !RUNES.contains(&rune_name.as_str()) {
+        return None;
+    }
+
+    // Check if the rune is shadowed by a local variable
+    let base_name = rune_name.split('.').next()?;
+    // Note: We check if the rune name is declared as a local variable.
+    // If it is, it's not a rune (e.g., `const $state = something`).
+    // However, for template-level code (event handlers), we don't have full scope
+    // tracking, so we skip this check if the binding lookup fails.
+    // The key insight is that rune names like $state, $derived, etc. are
+    // special globals that should never be shadowed in normal usage.
+    if let Some(_binding) = context.state.get_binding(base_name) {
+        // Only shadow if the binding is NOT in the module scope
+        // (module-level rune declarations should still work)
+        return None; // Shadowed by a local variable
+    }
+
+    Some(rune_name)
+}
+
+/// Determines if a value should be wrapped in $.proxy() for deep reactivity.
+///
+/// Returns `true` for objects, arrays, and other reference types.
+/// Returns `false` for primitives, functions, and literals.
+fn should_proxy_json(value: &Value) -> bool {
+    let obj = match value.as_object() {
+        Some(o) => o,
+        None => return false,
+    };
+
+    let node_type = match obj.get("type").and_then(|t| t.as_str()) {
+        Some(t) => t,
+        None => return true, // Unknown type, assume proxy needed
+    };
+
+    match node_type {
+        // Primitives don't need proxy
+        "Literal" => false,
+        // Functions don't need proxy
+        "ArrowFunctionExpression" | "FunctionExpression" => false,
+        // Unary and binary expressions result in primitives
+        "UnaryExpression" | "BinaryExpression" => false,
+        // Template literals are strings
+        "TemplateLiteral" => false,
+        // `undefined` identifier doesn't need proxy
+        "Identifier" => {
+            if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
+                name == "undefined"
+            } else {
+                true
+            }
+        }
+        // Objects and arrays need proxy
+        "ObjectExpression" | "ArrayExpression" => true,
+        // Other expressions might need proxy (e.g., function calls that return objects)
+        _ => true,
+    }
+}
+
+/// Transform a rune call expression.
+///
+/// This mirrors the official Svelte compiler's CallExpression.js visitor.
+fn transform_rune_call(
+    rune: &str,
+    obj: &serde_json::Map<String, Value>,
+    context: &mut ComponentContext,
+) -> JsExpr {
+    let arguments = obj
+        .get("arguments")
+        .and_then(|a| a.as_array())
+        .cloned()
+        .unwrap_or_default();
+
+    match rune {
+        "$host" => {
+            // $host() -> $$props.$$host
+            JsExpr::Member(JsMemberExpression {
+                object: Box::new(JsExpr::Identifier("$$props".to_string())),
+                property: JsMemberProperty::Identifier("$$host".to_string()),
+                computed: false,
+                optional: false,
+            })
+        }
+
+        "$effect.tracking" => {
+            // $effect.tracking() -> $.effect_tracking()
+            JsExpr::Call(JsCallExpression {
+                callee: Box::new(JsExpr::Member(JsMemberExpression {
+                    object: Box::new(JsExpr::Identifier("$".to_string())),
+                    property: JsMemberProperty::Identifier("effect_tracking".to_string()),
+                    computed: false,
+                    optional: false,
+                })),
+                arguments: vec![],
+                optional: false,
+            })
+        }
+
+        "$state" | "$state.raw" => {
+            // In template context (event handlers, etc.), $state() is used for local variables
+            // that don't need reactive tracking. We only need $.proxy() for deep reactivity.
+            //
+            // For script-level $state declarations, the transformation is handled by
+            // `transform_client_runes_with_skip_and_state` in mod.rs, which uses $.state()
+            // for reactive tracking when needed.
+            //
+            // $state(value) -> $.proxy(value) for objects/arrays, or just value for primitives
+            // $state.raw(value) -> value (no proxy needed)
+            let arg = arguments.first();
+
+            if let Some(arg_value) = arg {
+                let converted = convert_json_value(arg_value, context);
+
+                // For $state (not $state.raw), wrap with $.proxy() if the value is an object/array
+                if rune == "$state" && should_proxy_json(arg_value) {
+                    JsExpr::Call(JsCallExpression {
+                        callee: Box::new(JsExpr::Member(JsMemberExpression {
+                            object: Box::new(JsExpr::Identifier("$".to_string())),
+                            property: JsMemberProperty::Identifier("proxy".to_string()),
+                            computed: false,
+                            optional: false,
+                        })),
+                        arguments: vec![converted],
+                        optional: false,
+                    })
+                } else {
+                    // Primitives or $state.raw: just return the value as-is
+                    converted
+                }
+            } else {
+                // No argument - use undefined
+                JsExpr::Identifier("undefined".to_string())
+            }
+        }
+
+        "$state.snapshot" => {
+            // $state.snapshot(value) -> $.snapshot(value)
+            let converted_args: Vec<JsExpr> = arguments
+                .iter()
+                .map(|arg| convert_json_value(arg, context))
+                .collect();
+
+            JsExpr::Call(JsCallExpression {
+                callee: Box::new(JsExpr::Member(JsMemberExpression {
+                    object: Box::new(JsExpr::Identifier("$".to_string())),
+                    property: JsMemberProperty::Identifier("snapshot".to_string()),
+                    computed: false,
+                    optional: false,
+                })),
+                arguments: converted_args,
+                optional: false,
+            })
+        }
+
+        "$derived" => {
+            // $derived(expr) -> $.derived(() => expr)
+            if let Some(arg) = arguments.first() {
+                let converted = convert_json_value(arg, context);
+
+                // Wrap in thunk: () => expr
+                let thunk = JsExpr::Arrow(JsArrowFunction {
+                    params: vec![],
+                    body: JsArrowBody::Expression(Box::new(converted)),
+                    is_async: false,
+                });
+
+                JsExpr::Call(JsCallExpression {
+                    callee: Box::new(JsExpr::Member(JsMemberExpression {
+                        object: Box::new(JsExpr::Identifier("$".to_string())),
+                        property: JsMemberProperty::Identifier("derived".to_string()),
+                        computed: false,
+                        optional: false,
+                    })),
+                    arguments: vec![thunk],
+                    optional: false,
+                })
+            } else {
+                // No argument - just call $.derived()
+                JsExpr::Call(JsCallExpression {
+                    callee: Box::new(JsExpr::Member(JsMemberExpression {
+                        object: Box::new(JsExpr::Identifier("$".to_string())),
+                        property: JsMemberProperty::Identifier("derived".to_string()),
+                        computed: false,
+                        optional: false,
+                    })),
+                    arguments: vec![],
+                    optional: false,
+                })
+            }
+        }
+
+        "$derived.by" => {
+            // $derived.by(fn) -> $.derived(fn)
+            let converted_args: Vec<JsExpr> = arguments
+                .iter()
+                .map(|arg| convert_json_value(arg, context))
+                .collect();
+
+            JsExpr::Call(JsCallExpression {
+                callee: Box::new(JsExpr::Member(JsMemberExpression {
+                    object: Box::new(JsExpr::Identifier("$".to_string())),
+                    property: JsMemberProperty::Identifier("derived".to_string()),
+                    computed: false,
+                    optional: false,
+                })),
+                arguments: converted_args,
+                optional: false,
+            })
+        }
+
+        "$effect" | "$effect.pre" => {
+            // $effect(fn) -> $.user_effect(fn)
+            // $effect.pre(fn) -> $.user_pre_effect(fn)
+            let callee_name = if rune == "$effect" {
+                "user_effect"
+            } else {
+                "user_pre_effect"
+            };
+
+            let converted_args: Vec<JsExpr> = arguments
+                .iter()
+                .map(|arg| convert_json_value(arg, context))
+                .collect();
+
+            JsExpr::Call(JsCallExpression {
+                callee: Box::new(JsExpr::Member(JsMemberExpression {
+                    object: Box::new(JsExpr::Identifier("$".to_string())),
+                    property: JsMemberProperty::Identifier(callee_name.to_string()),
+                    computed: false,
+                    optional: false,
+                })),
+                arguments: converted_args,
+                optional: false,
+            })
+        }
+
+        "$effect.root" => {
+            // $effect.root(fn) -> $.effect_root(fn)
+            let converted_args: Vec<JsExpr> = arguments
+                .iter()
+                .map(|arg| convert_json_value(arg, context))
+                .collect();
+
+            JsExpr::Call(JsCallExpression {
+                callee: Box::new(JsExpr::Member(JsMemberExpression {
+                    object: Box::new(JsExpr::Identifier("$".to_string())),
+                    property: JsMemberProperty::Identifier("effect_root".to_string()),
+                    computed: false,
+                    optional: false,
+                })),
+                arguments: converted_args,
+                optional: false,
+            })
+        }
+
+        _ => {
+            // Unknown rune - pass through as regular call
+            let callee = obj
+                .get("callee")
+                .map(|c| Box::new(convert_json_value(c, context)))
+                .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".to_string())));
+
+            let converted_args: Vec<JsExpr> = arguments
+                .iter()
+                .map(|arg| convert_json_value(arg, context))
+                .collect();
+
+            JsExpr::Call(JsCallExpression {
+                callee,
+                arguments: converted_args,
+                optional: false,
+            })
+        }
+    }
 }
 
 /// Convert a BinaryExpression node.
