@@ -43,7 +43,8 @@ impl<'a> ComponentContext<'a> {
     ) -> Self {
         Self {
             state,
-            path: Vec::new(),
+            // Pre-allocate path for typical template depth
+            path: Vec::with_capacity(16),
             visit,
         }
     }

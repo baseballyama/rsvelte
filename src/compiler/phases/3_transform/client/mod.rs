@@ -166,7 +166,8 @@ fn transform_client_with_visitors(
         || !analysis.slot_names.is_empty();
 
     // Build component function body
-    let mut component_body: Vec<JsStatement> = Vec::new();
+    // Pre-allocate for typical component body size
+    let mut component_body: Vec<JsStatement> = Vec::with_capacity(32);
 
     // Add $.push at the start if injecting context
     if should_inject_context {
@@ -311,7 +312,8 @@ fn transform_client_with_visitors(
     };
 
     // Build program body
-    let mut body: Vec<JsStatement> = Vec::new();
+    // Pre-allocate for typical program structure
+    let mut body: Vec<JsStatement> = Vec::with_capacity(16);
 
     // Add disclose-version import (always first)
     body.push(JsStatement::Import(JsImportDeclaration {
