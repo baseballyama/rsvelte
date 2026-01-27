@@ -729,10 +729,16 @@ fn transform_client_runes_with_skip_and_state(
 
                 if skip_state_vars.contains(&var_name.to_string()) && !is_object_or_array {
                     // Just extract the value from $state(value)
+                    // If content is empty (e.g., $state()), use "undefined" as the value
+                    let extracted_value = if trimmed_content.is_empty() {
+                        "undefined"
+                    } else {
+                        content
+                    };
                     result = format!(
                         "{}{}{}",
                         &result[..pos],
-                        content,
+                        extracted_value,
                         &result[state_start + content_end + 1..]
                     );
                 } else if is_object_or_array {

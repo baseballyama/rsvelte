@@ -20,8 +20,28 @@
 use compact_str::CompactString;
 use regex::Regex;
 use std::collections::HashMap;
+use std::sync::LazyLock;
 
 use crate::ast::css::StyleSheet;
+
+/// Cached regex for TypeScript detection in script tags.
+#[allow(dead_code)]
+static REGEX_TYPESCRIPT_LANG: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r#"(?x)
+        <!--[\s\S]*?-->       # Skip HTML comments ([\s\S] matches any char including newline)
+        |
+        <script\s+            # <script with whitespace
+        (?:[^>]*?)            # Any attributes before lang
+        lang=                 # lang attribute
+        (?:["'])?             # Optional quote
+        (ts)                  # Capture "ts"
+        (?:["'])?             # Optional quote
+        [^>]*>                # Rest of tag
+        "#,
+    )
+    .expect("Failed to compile TypeScript lang regex")
+});
 use crate::ast::span::{LineColumn, SourceLocation};
 use crate::ast::template::{Script, SvelteOptions};
 use crate::error::{ParseError, ParseResult};
@@ -167,33 +187,10 @@ impl<'a> Parser<'a> {
     /// Detect TypeScript mode by looking for `lang="ts"` or `lang='ts'` in script tags.
     ///
     /// Corresponds to the regex-based TypeScript detection in JavaScript Parser constructor.
+    #[allow(dead_code)]
     fn detect_typescript_mode(source: &str) -> bool {
-        // regex_lang_attribute from JavaScript:
-        // /<!--[^]*?-->|<script\s+(?:[^>]*|(?:[^=>'"/]+=(?:"[^"]*"|'[^']*'|[^>\s]+)\s+)*)lang=(["'])?([^"' >]+)\1[^>]*>/g
-        //
-        // This regex:
-        // 1. Skips HTML comments: <!--[\s\S]*?--> ([\s\S] is equivalent to [^] in JS)
-        // 2. Matches script tags with lang attribute
-        // 3. Captures the lang value
-        //
-        // For simplicity and performance, we use a simpler approach:
-        // Look for <script with lang="ts" or lang='ts'
-        let re = Regex::new(
-            r#"(?x)
-            <!--[\s\S]*?-->       # Skip HTML comments ([\s\S] matches any char including newline)
-            |
-            <script\s+            # <script with whitespace
-            (?:[^>]*?)            # Any attributes before lang
-            lang=                 # lang attribute
-            (?:["'])?             # Optional quote
-            (ts)                  # Capture "ts"
-            (?:["'])?             # Optional quote
-            [^>]*>                # Rest of tag
-            "#,
-        )
-        .unwrap();
-
-        if let Some(captures) = re.captures(source)
+        // Use cached regex for better performance
+        if let Some(captures) = REGEX_TYPESCRIPT_LANG.captures(source)
             && let Some(lang) = captures.get(1)
         {
             return lang.as_str() == "ts";

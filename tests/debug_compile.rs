@@ -2,6 +2,66 @@
 mod tests {
     use svelte_compiler_rust::compiler::{CompileOptions, compile};
 
+    /// Test that $state() without arguments compiles correctly.
+    /// Previously this would generate invalid JavaScript like `let value = ;`
+    #[test]
+    fn test_state_without_args_compiles() {
+        let source = r#"<script>
+let value1 = $state();
+let value2 = $state(null);
+let value3 = $state('test');
+</script>
+<p>{value1} {value2} {value3}</p>"#;
+
+        let options = CompileOptions {
+            dev: false,
+            ..Default::default()
+        };
+
+        let result = compile(source, options);
+        assert!(
+            result.is_ok(),
+            "Compilation should succeed: {:?}",
+            result.err()
+        );
+
+        let code = result.unwrap().js.code;
+        // value1 has no bind:, so it should be undefined (skip_state_vars)
+        // value2 and value3 have no bind:, so they should also use their values directly
+        assert!(
+            !code.contains("let value1 = ;"),
+            "Should not generate invalid JavaScript"
+        );
+    }
+
+    /// Test that $state() with bind: compiles correctly.
+    #[test]
+    fn test_state_with_bind_compiles() {
+        let source = r#"<script>
+let value = $state();
+</script>
+<input bind:value />"#;
+
+        let options = CompileOptions {
+            dev: false,
+            ..Default::default()
+        };
+
+        let result = compile(source, options);
+        assert!(
+            result.is_ok(),
+            "Compilation should succeed: {:?}",
+            result.err()
+        );
+
+        let code = result.unwrap().js.code;
+        // value has bind:, so it should be $.state()
+        assert!(
+            code.contains("$.state()"),
+            "Should generate $.state() for bound variables"
+        );
+    }
+
     #[test]
     fn debug_accessors_props() {
         let source = std::fs::read_to_string(
