@@ -9,7 +9,7 @@ use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, BindDirective,
     ClassDirective, Component, EachBlock, ExpressionTag, Fragment, HtmlTag, IfBlock, KeyBlock,
     RegularElement, RenderTag, Root, Script, SnippetBlock, StyleDirective, SvelteDynamicElement,
-    TemplateNode, Text,
+    SvelteElement, TemplateNode, Text,
 };
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
@@ -134,6 +134,10 @@ enum OutputPart {
         catch_param: String,
         catch_body: Vec<OutputPart>,
     },
+    /// svelte:boundary - async error boundary
+    SvelteBoundary {
+        pending_body: Vec<OutputPart>,
+    },
 }
 
 impl<'a> ServerCodeGenerator<'a> {
@@ -202,6 +206,7 @@ impl<'a> ServerCodeGenerator<'a> {
             TemplateNode::RenderTag(tag) => self.generate_render_tag(tag),
             TemplateNode::HtmlTag(tag) => self.generate_html_tag(tag),
             TemplateNode::SvelteElement(elem) => self.generate_svelte_element(elem),
+            TemplateNode::SvelteBoundary(boundary) => self.generate_svelte_boundary(boundary),
             _ => Ok(()),
         }
     }
@@ -1443,6 +1448,94 @@ impl<'a> ServerCodeGenerator<'a> {
         Ok(())
     }
 
+    fn generate_svelte_boundary(&mut self, boundary: &SvelteElement) -> Result<(), TransformError> {
+        // Look for pending attribute or pending snippet
+        let pending_attribute = boundary
+            .attributes
+            .iter()
+            .find(|attr| matches!(attr, Attribute::Attribute(a) if a.name == "pending"));
+
+        let pending_snippet = boundary.fragment.nodes.iter().find_map(|node| {
+            if let TemplateNode::SnippetBlock(snippet) = node {
+                // Check if the snippet expression is named "pending"
+                let json = snippet.expression.as_json();
+                if json.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                    && json.get("name").and_then(|n| n.as_str()) == Some("pending")
+                {
+                    return Some(snippet);
+                }
+            }
+            None
+        });
+
+        // Generate pending body if we have a pending snippet or attribute
+        let pending_body = if let Some(snippet) = pending_snippet {
+            // Generate body from the pending snippet
+            self.generate_fragment_body_parts(&snippet.body)?
+        } else if pending_attribute.is_some() {
+            // For pending attribute, we would need to call the attribute value as a function
+            // For now, just generate empty body (the attribute case is less common)
+            Vec::new()
+        } else {
+            // No pending - generate the main fragment content
+            // But on server, we still wrap it in boundary markers
+            self.generate_fragment_body_parts(&boundary.fragment)?
+        };
+
+        self.output_parts
+            .push(OutputPart::SvelteBoundary { pending_body });
+        Ok(())
+    }
+
+    /// Generate body parts from a fragment.
+    fn generate_fragment_body_parts(
+        &mut self,
+        fragment: &Fragment,
+    ) -> Result<Vec<OutputPart>, TransformError> {
+        let mut body_generator = ServerCodeGenerator::new(
+            self.component_name.clone(),
+            self.source.clone(),
+            None,
+            None,
+            self.analysis,
+        );
+
+        // Get the nodes and find meaningful content bounds
+        let nodes: Vec<_> = fragment.nodes.iter().collect();
+        let len = nodes.len();
+
+        // Find first non-whitespace node
+        let mut start_idx = 0;
+        while start_idx < len {
+            if let TemplateNode::Text(text) = nodes[start_idx]
+                && text.data.trim().is_empty()
+            {
+                start_idx += 1;
+                continue;
+            }
+            break;
+        }
+
+        // Find last non-whitespace node
+        let mut end_idx = len;
+        while end_idx > start_idx {
+            if let TemplateNode::Text(text) = nodes[end_idx - 1]
+                && text.data.trim().is_empty()
+            {
+                end_idx -= 1;
+                continue;
+            }
+            break;
+        }
+
+        // Generate only the meaningful nodes
+        for node in &nodes[start_idx..end_idx] {
+            body_generator.generate_node(node, false)?;
+        }
+
+        Ok(body_generator.output_parts)
+    }
+
     fn build(self) -> String {
         let body_code = Self::build_parts(&self.output_parts, 1);
 
@@ -1986,6 +2079,31 @@ export default function {component_name}($$renderer{props_param}) {{
 
                     // Add closing marker to the next push
                     current_html.push_str("<!--]-->");
+                }
+                OutputPart::SvelteBoundary { pending_body } => {
+                    // Flush current HTML before boundary
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+
+                    // Generate boundary output with pending content
+                    // On server, we render the pending state (using block_open_else marker)
+                    // block_open_else = <!--[!-->
+                    // block_close = <!--]-->
+                    body_code.push_str(&format!("{}$$renderer.push(`<!--[!-->`);\n", indent));
+
+                    // Render the pending body in a block
+                    if !pending_body.is_empty() {
+                        body_code.push_str(&format!("{}{{\n", indent));
+                        let pending_code = Self::build_parts(pending_body, indent_level + 1);
+                        body_code.push_str(&pending_code);
+                        body_code.push_str(&format!("{}}}\n", indent));
+                    }
+
+                    // Add closing marker
+                    body_code.push_str(&format!("{}$$renderer.push(`<!--]-->`);\n", indent));
                 }
             }
             i += 1;
