@@ -58,10 +58,103 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         }
     }
 
-    // TODO: In legacy mode, exports become props
-    // TODO: Check for export let in runes mode
-    // TODO: Check for derived state exports
-    // TODO: Check for reassigned state exports
+    // In runes mode, handle export declarations
+    if context.analysis.runes
+        && let Some(declaration) = node.get("declaration")
+    {
+        let decl_type = declaration.get("type").and_then(|t| t.as_str());
+
+        match decl_type {
+            // export function foo() { ... }
+            Some("FunctionDeclaration") => {
+                if let Some(id) = declaration.get("id")
+                    && let Some(name) = id.get("name").and_then(|n| n.as_str())
+                {
+                    context.analysis.exports.push(Export {
+                        name: name.to_string(),
+                        alias: None,
+                    });
+                }
+            }
+            // export class Foo { ... }
+            Some("ClassDeclaration") => {
+                if let Some(id) = declaration.get("id")
+                    && let Some(name) = id.get("name").and_then(|n| n.as_str())
+                {
+                    context.analysis.exports.push(Export {
+                        name: name.to_string(),
+                        alias: None,
+                    });
+                }
+            }
+            // export const x = ...; or export let x = ...;
+            Some("VariableDeclaration") => {
+                let kind = declaration.get("kind").and_then(|k| k.as_str());
+                // Only export const in runes mode
+                if kind == Some("const")
+                    && let Some(declarators) =
+                        declaration.get("declarations").and_then(|d| d.as_array())
+                {
+                    for declarator in declarators {
+                        // Extract identifiers from the pattern
+                        extract_identifiers_and_add_exports(declarator.get("id"), context);
+                    }
+                }
+                // export let is forbidden in runes mode (error is thrown elsewhere)
+            }
+            _ => {}
+        }
+    }
 
     Ok(())
+}
+
+/// Extract identifiers from a pattern (Identifier, ObjectPattern, ArrayPattern)
+/// and add them to exports.
+fn extract_identifiers_and_add_exports(pattern: Option<&Value>, context: &mut VisitorContext) {
+    let pattern = match pattern {
+        Some(p) => p,
+        None => return,
+    };
+
+    let pattern_type = pattern.get("type").and_then(|t| t.as_str());
+
+    match pattern_type {
+        Some("Identifier") => {
+            if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
+                context.analysis.exports.push(Export {
+                    name: name.to_string(),
+                    alias: None,
+                });
+            }
+        }
+        Some("ObjectPattern") => {
+            if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
+                for prop in properties {
+                    let prop_type = prop.get("type").and_then(|t| t.as_str());
+                    if prop_type == Some("Property") {
+                        extract_identifiers_and_add_exports(prop.get("value"), context);
+                    } else if prop_type == Some("RestElement") {
+                        extract_identifiers_and_add_exports(prop.get("argument"), context);
+                    }
+                }
+            }
+        }
+        Some("ArrayPattern") => {
+            if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
+                for elem in elements {
+                    if !elem.is_null() {
+                        extract_identifiers_and_add_exports(Some(elem), context);
+                    }
+                }
+            }
+        }
+        Some("RestElement") => {
+            extract_identifiers_and_add_exports(pattern.get("argument"), context);
+        }
+        Some("AssignmentPattern") => {
+            extract_identifiers_and_add_exports(pattern.get("left"), context);
+        }
+        _ => {}
+    }
 }

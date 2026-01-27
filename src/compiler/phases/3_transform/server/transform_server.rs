@@ -13,6 +13,7 @@ use crate::ast::template::{
 };
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
+use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
 use std::collections::HashMap;
 
@@ -42,6 +43,7 @@ pub fn transform_server(
         analysis.source.clone(),
         instance_script,
         module_script,
+        Some(analysis),
     );
 
     // Use the AST fragment directly (no re-parsing needed)
@@ -70,6 +72,8 @@ struct ServerCodeGenerator<'a> {
     constant_vars: HashMap<String, String>,
     /// Snippet definitions to be generated at module level
     snippets: Vec<SnippetDef>,
+    /// Component analysis from Phase 2
+    analysis: Option<&'a ComponentAnalysis>,
 }
 
 /// A part of the output - either static HTML or dynamic code.
@@ -138,6 +142,7 @@ impl<'a> ServerCodeGenerator<'a> {
         source: String,
         instance_script: Option<&'a Script>,
         module_script: Option<&'a Script>,
+        analysis: Option<&'a ComponentAnalysis>,
     ) -> Self {
         // Extract constant variables from script
         let constant_vars = if let Some(script) = instance_script {
@@ -160,6 +165,7 @@ impl<'a> ServerCodeGenerator<'a> {
             module_script,
             constant_vars,
             snippets: Vec::new(),
+            analysis,
         }
     }
 
@@ -532,8 +538,13 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         // Generate body parts
-        let mut body_generator =
-            ServerCodeGenerator::new(self.component_name.clone(), self.source.clone(), None, None);
+        let mut body_generator = ServerCodeGenerator::new(
+            self.component_name.clone(),
+            self.source.clone(),
+            None,
+            None,
+            None,
+        );
 
         // Process children (skip leading/trailing whitespace)
         let children: Vec<_> = element.fragment.nodes.iter().collect();
@@ -952,8 +963,13 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         // Generate body parts
-        let mut body_generator =
-            ServerCodeGenerator::new(self.component_name.clone(), self.source.clone(), None, None);
+        let mut body_generator = ServerCodeGenerator::new(
+            self.component_name.clone(),
+            self.source.clone(),
+            None,
+            None,
+            None,
+        );
 
         // Add comment marker at start for proper placement
         body_generator.output_parts.push(OutputPart::Comment);
@@ -1086,8 +1102,13 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         // Generate body parts
-        let mut body_generator =
-            ServerCodeGenerator::new(self.component_name.clone(), self.source.clone(), None, None);
+        let mut body_generator = ServerCodeGenerator::new(
+            self.component_name.clone(),
+            self.source.clone(),
+            None,
+            None,
+            None,
+        );
 
         for node in nodes.iter().take(end_idx).skip(start_idx) {
             body_generator.generate_node(node, false)?;
@@ -1153,8 +1174,13 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         // Generate body parts
-        let mut body_generator =
-            ServerCodeGenerator::new(self.component_name.clone(), self.source.clone(), None, None);
+        let mut body_generator = ServerCodeGenerator::new(
+            self.component_name.clone(),
+            self.source.clone(),
+            None,
+            None,
+            None,
+        );
 
         // Check if first node is an expression - if so, add comment marker
         if start_idx < end_idx
@@ -1220,6 +1246,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.source.clone(),
                 self.instance_script,
                 None,
+                None,
             );
             for node in &pending.nodes {
                 pending_generator.generate_node(node, false)?;
@@ -1236,6 +1263,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.source.clone(),
                 self.instance_script,
                 None,
+                None,
             );
             for node in &then.nodes {
                 then_generator.generate_node(node, false)?;
@@ -1251,6 +1279,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.component_name.clone(),
                 self.source.clone(),
                 self.instance_script,
+                None,
                 None,
             );
             for node in &catch.nodes {
@@ -1305,8 +1334,13 @@ impl<'a> ServerCodeGenerator<'a> {
             .collect();
 
         // Generate body parts
-        let mut body_generator =
-            ServerCodeGenerator::new(self.component_name.clone(), self.source.clone(), None, None);
+        let mut body_generator = ServerCodeGenerator::new(
+            self.component_name.clone(),
+            self.source.clone(),
+            None,
+            None,
+            None,
+        );
 
         // Add comment marker at start
         body_generator.output_parts.push(OutputPart::Comment);
@@ -1528,6 +1562,8 @@ impl<'a> ServerCodeGenerator<'a> {
                 // Wrap in $$renderer.component() with proper destructuring
                 let inner_script = transform_props_spread(&script_code);
                 let inner_body = Self::build_parts(&self.output_parts, 2);
+                // Build $.bind_props() call (inside $$renderer.component())
+                let bind_props_code = self.build_bind_props(2);
 
                 format!(
                     r#"import * as $ from 'svelte/internal/server';
@@ -1535,7 +1571,7 @@ impl<'a> ServerCodeGenerator<'a> {
 export default function {component_name}($$renderer{props_param}) {{
 	$$renderer.component(($$renderer) => {{
 {inner_script}
-{inner_body}	}});
+{inner_body}{bind_props_code}	}});
 }}"#,
                     imports_section = imports_section,
                     module_section = module_section,
@@ -1543,7 +1579,8 @@ export default function {component_name}($$renderer{props_param}) {{
                     component_name = self.component_name,
                     props_param = props_param,
                     inner_script = inner_script,
-                    inner_body = inner_body
+                    inner_body = inner_body,
+                    bind_props_code = bind_props_code
                 )
             } else {
                 let script_section = if script_code.is_empty() {
@@ -1551,33 +1588,53 @@ export default function {component_name}($$renderer{props_param}) {{
                 } else {
                     format!("{}\n", script_code)
                 };
+                // Build $.bind_props() call (at top level of component function)
+                let bind_props_code = self.build_bind_props(1);
 
                 format!(
                     r#"import * as $ from 'svelte/internal/server';
 {imports_section}{module_section}{snippets_section}
 export default function {component_name}($$renderer{props_param}) {{
-{script_section}{body_code}}}"#,
+{script_section}{body_code}{bind_props_code}}}"#,
                     imports_section = imports_section,
                     module_section = module_section,
                     snippets_section = snippets_section,
                     component_name = self.component_name,
                     props_param = props_param,
                     script_section = script_section,
-                    body_code = body_code
+                    body_code = body_code,
+                    bind_props_code = bind_props_code
                 )
             }
         } else {
             // Empty body - use single line braces
-            format!(
-                r#"import * as $ from 'svelte/internal/server';
+            // Build $.bind_props() call even for empty body
+            let bind_props_code = self.build_bind_props(1);
+            if bind_props_code.is_empty() {
+                format!(
+                    r#"import * as $ from 'svelte/internal/server';
 {imports_section}{module_section}{snippets_section}
 export default function {component_name}($$renderer{props_param}) {{}}"#,
-                imports_section = imports_section,
-                module_section = module_section,
-                snippets_section = snippets_section,
-                component_name = self.component_name,
-                props_param = props_param,
-            )
+                    imports_section = imports_section,
+                    module_section = module_section,
+                    snippets_section = snippets_section,
+                    component_name = self.component_name,
+                    props_param = props_param,
+                )
+            } else {
+                format!(
+                    r#"import * as $ from 'svelte/internal/server';
+{imports_section}{module_section}{snippets_section}
+export default function {component_name}($$renderer{props_param}) {{
+{bind_props_code}}}"#,
+                    imports_section = imports_section,
+                    module_section = module_section,
+                    snippets_section = snippets_section,
+                    component_name = self.component_name,
+                    props_param = props_param,
+                    bind_props_code = bind_props_code
+                )
+            }
         };
 
         // Normalize the output through oxc parser/codegen
@@ -2142,6 +2199,63 @@ export default function {component_name}($$renderer{props_param}) {{}}"#,
 
         result
     }
+
+    /// Build the $.bind_props() call if there are bindable props or exports.
+    /// This propagates values of bound props upwards if they're undefined in the parent and have a value.
+    fn build_bind_props(&self, indent_level: usize) -> String {
+        let analysis = match self.analysis {
+            Some(a) => a,
+            None => return String::new(),
+        };
+
+        let indent = "\t".repeat(indent_level);
+        let mut props: Vec<String> = Vec::new();
+
+        // Collect bindable props from the instance scope
+        // binding.kind === 'bindable_prop' && !name.startsWith('$$')
+        for binding in &analysis.root.bindings {
+            if binding.kind == BindingKind::BindableProp && !binding.name.starts_with("$$") {
+                // Use prop_alias if available, otherwise use name
+                // b.init(binding.prop_alias ?? name, b.id(name))
+                let prop_entry = if let Some(ref alias) = binding.prop_alias {
+                    if alias != &binding.name {
+                        format!("{}: {}", alias, binding.name)
+                    } else {
+                        binding.name.clone()
+                    }
+                } else {
+                    binding.name.clone()
+                };
+                props.push(prop_entry);
+            }
+        }
+
+        // Collect exports
+        // for (const { name, alias } of analysis.exports)
+        for export in &analysis.exports {
+            let prop_entry = if let Some(ref alias) = export.alias {
+                if alias != &export.name {
+                    format!("{}: {}", alias, export.name)
+                } else {
+                    export.name.clone()
+                }
+            } else {
+                export.name.clone()
+            };
+            props.push(prop_entry);
+        }
+
+        if props.is_empty() {
+            return String::new();
+        }
+
+        // Generate: $.bind_props($$props, { name1, name2, ... });
+        format!(
+            "{}$.bind_props($$props, {{ {} }});\n",
+            indent,
+            props.join(", ")
+        )
+    }
 }
 
 /// Detect if script uses patterns that require $$renderer.component() wrapper with $$slots/$$events exclusion.
@@ -2638,7 +2752,82 @@ fn extract_imports(script: &str) -> (Vec<String>, String) {
         rest.pop();
     }
 
+    // Strip export statements without declarations (e.g., `export { name }`)
+    // These should be removed in server-side rendering
+    let rest = strip_export_specifiers(&rest);
+
     (imports, rest)
+}
+
+/// Strip `export { ... }` statements (exports without declarations) from script content.
+/// These are handled by the compiler via analysis.exports and should not appear in the output.
+///
+/// Handles:
+/// - Single-line: `export { name }`
+/// - Multi-line: `export {\n  name\n}`
+/// - With aliases: `export { name as alias }`
+fn strip_export_specifiers(script: &str) -> String {
+    let mut result = String::new();
+    let chars: Vec<char> = script.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+
+    while i < len {
+        // Look for "export" keyword
+        if i + 6 <= len {
+            let potential: String = chars[i..i + 6].iter().collect();
+            if potential == "export" {
+                // Check if this is followed by whitespace/newline and then `{`
+                // (not `export let`, `export const`, `export function`, etc.)
+                let mut j = i + 6;
+
+                // Skip whitespace
+                while j < len && (chars[j] == ' ' || chars[j] == '\t' || chars[j] == '\n') {
+                    j += 1;
+                }
+
+                if j < len && chars[j] == '{' {
+                    // This is `export { ... }` - find the closing brace
+                    let mut depth = 1;
+                    let start = j + 1;
+                    let mut end = start;
+
+                    while end < len && depth > 0 {
+                        match chars[end] {
+                            '{' => depth += 1,
+                            '}' => depth -= 1,
+                            _ => {}
+                        }
+                        if depth > 0 {
+                            end += 1;
+                        }
+                    }
+
+                    // Skip past the closing brace and any trailing whitespace/newline
+                    if end < len {
+                        end += 1; // skip '}'
+                    }
+
+                    // Skip trailing whitespace and newline
+                    while end < len && (chars[end] == ' ' || chars[end] == '\t') {
+                        end += 1;
+                    }
+                    if end < len && chars[end] == '\n' {
+                        end += 1;
+                    }
+
+                    // Skip this entire export block
+                    i = end;
+                    continue;
+                }
+            }
+        }
+
+        result.push(chars[i]);
+        i += 1;
+    }
+
+    result
 }
 
 /// Transform script content for server-side rendering.

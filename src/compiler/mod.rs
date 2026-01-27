@@ -761,4 +761,73 @@ let promise = Promise.resolve(42);
         // Should contain BLOCK_CLOSE marker
         assert!(code.contains("<!--]-->"), "Should have BLOCK_CLOSE marker");
     }
+
+    #[test]
+    fn test_compile_bind_props_server() {
+        // Test case for $.bind_props() generation with export const (Svelte 5/runes mode)
+        let source = r#"<script>
+export const message = "Hello";
+</script>
+
+<p>{message}</p>"#;
+        let options = CompileOptions {
+            generate: GenerateMode::Server,
+            runes: Some(true),
+            ..Default::default()
+        };
+        let result = compile(source, options).unwrap();
+        let code = &result.js.code;
+
+        // Print for debugging
+        println!("Generated bind_props code:\n{}", code);
+
+        // Should contain $.bind_props() call with message
+        assert!(
+            code.contains("$.bind_props("),
+            "Should have $.bind_props call"
+        );
+        // Should contain $$props as first argument
+        assert!(
+            code.contains("$.bind_props($$props,"),
+            "Should have $$props as first argument"
+        );
+        // Should contain message in the object
+        assert!(
+            code.contains("message") && code.contains("$.bind_props"),
+            "Should have message in bind_props"
+        );
+    }
+
+    #[test]
+    fn test_compile_bind_props_with_function_exports_server() {
+        // Test case for $.bind_props() generation with export function
+        let source = r#"<script>
+export function greet(name) {
+    return "Hello " + name;
+}
+</script>
+
+<p>{greet("World")}</p>"#;
+        let options = CompileOptions {
+            generate: GenerateMode::Server,
+            runes: Some(true),
+            ..Default::default()
+        };
+        let result = compile(source, options).unwrap();
+        let code = &result.js.code;
+
+        // Print for debugging
+        println!("Generated bind_props with function export code:\n{}", code);
+
+        // Should contain $.bind_props() call
+        assert!(
+            code.contains("$.bind_props("),
+            "Should have $.bind_props call"
+        );
+        // Should contain greet in the object
+        assert!(
+            code.contains("greet") && code.contains("$.bind_props"),
+            "Should have greet in bind_props"
+        );
+    }
 }
