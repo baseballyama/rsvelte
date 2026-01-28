@@ -2710,18 +2710,16 @@ export default function {component_name}($$renderer{props_param}) {{
                     current_html.push_str("<!--]-->");
                 }
                 OutputPart::SvelteBoundary { pending_body } => {
-                    // Flush current HTML before boundary
-                    if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
-                        current_html.clear();
-                    }
-
-                    // Generate boundary output with pending content
+                    // Add boundary marker to current HTML and flush together
                     // On server, we render the pending state (using block_open_else marker)
                     // block_open_else = <!--[!-->
                     // block_close = <!--]-->
-                    body_code.push_str(&format!("{}$$renderer.push(`<!--[!-->`);\n\n", indent));
+                    current_html.push_str("<!--[!-->");
+                    body_code.push_str(&format!(
+                        "{}$$renderer.push(`{}`);\n\n",
+                        indent, current_html
+                    ));
+                    current_html.clear();
 
                     // Render the pending body in a block
                     if !pending_body.is_empty() {
