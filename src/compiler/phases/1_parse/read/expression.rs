@@ -2757,6 +2757,28 @@ fn convert_statement_for_program(
 
             Some(Value::Object(obj))
         }
+        oxc_ast::ast::Statement::ReturnStatement(ret_stmt) => {
+            let start = offset + ret_stmt.span.start as usize;
+            let end = offset + ret_stmt.span.end as usize;
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("ReturnStatement".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+            // argument
+            if let Some(arg) = &ret_stmt.argument {
+                let arg_value = convert_expression_for_program(arg, offset, line_offsets);
+                obj.insert("argument".to_string(), arg_value.as_json().clone());
+            } else {
+                obj.insert("argument".to_string(), Value::Null);
+            }
+
+            Some(Value::Object(obj))
+        }
         // Add more statement types as needed
         _ => None,
     }
