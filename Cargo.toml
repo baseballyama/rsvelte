@@ -112,3 +112,4 @@ panic = "abort"
 [profile.bench]
 inherits = "release"
 debug = true
+panic = "unwind"  # Criterion requires unwind for catching panics
