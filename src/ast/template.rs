@@ -984,19 +984,19 @@ pub enum ShadowMode {
 // Component Metadata (populated during analysis)
 // =============================================================================
 
+// Bit flags for ExpressionMetadata
+const FLAG_HAS_STATE: u8 = 1 << 0;
+const FLAG_HAS_CALL: u8 = 1 << 1;
+const FLAG_HAS_AWAIT: u8 = 1 << 2;
+const FLAG_HAS_MEMBER_EXPRESSION: u8 = 1 << 3;
+const FLAG_HAS_ASSIGNMENT: u8 = 1 << 4;
+
 /// Metadata for JavaScript expressions, tracking dependencies and state.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+/// Uses bit-packing for boolean flags to reduce memory footprint.
+#[derive(Debug, Clone, Default)]
 pub struct ExpressionMetadata {
-    /// Whether the expression contains state ($state, $derived, etc.)
-    pub has_state: bool,
-    /// Whether the expression involves a call expression
-    pub has_call: bool,
-    /// Whether the expression contains `await`
-    pub has_await: bool,
-    /// Whether the expression includes a member expression
-    pub has_member_expression: bool,
-    /// Whether the expression includes an assignment or an update
-    pub has_assignment: bool,
+    /// Bit-packed flags for has_state, has_call, has_await, has_member_expression, has_assignment
+    flags: u8,
     /// Bindings that this expression depends on (indices into analysis bindings)
     pub dependencies: FxHashSet<usize>,
     /// Bindings that this expression references (indices into analysis bindings)
@@ -1004,9 +1004,89 @@ pub struct ExpressionMetadata {
 }
 
 impl ExpressionMetadata {
+    /// Whether the expression contains state ($state, $derived, etc.)
+    #[inline]
+    pub fn has_state(&self) -> bool {
+        self.flags & FLAG_HAS_STATE != 0
+    }
+
+    /// Set whether the expression contains state
+    #[inline]
+    pub fn set_has_state(&mut self, v: bool) {
+        if v {
+            self.flags |= FLAG_HAS_STATE;
+        } else {
+            self.flags &= !FLAG_HAS_STATE;
+        }
+    }
+
+    /// Whether the expression involves a call expression
+    #[inline]
+    pub fn has_call(&self) -> bool {
+        self.flags & FLAG_HAS_CALL != 0
+    }
+
+    /// Set whether the expression involves a call expression
+    #[inline]
+    pub fn set_has_call(&mut self, v: bool) {
+        if v {
+            self.flags |= FLAG_HAS_CALL;
+        } else {
+            self.flags &= !FLAG_HAS_CALL;
+        }
+    }
+
+    /// Whether the expression contains `await`
+    #[inline]
+    pub fn has_await(&self) -> bool {
+        self.flags & FLAG_HAS_AWAIT != 0
+    }
+
+    /// Set whether the expression contains `await`
+    #[inline]
+    pub fn set_has_await(&mut self, v: bool) {
+        if v {
+            self.flags |= FLAG_HAS_AWAIT;
+        } else {
+            self.flags &= !FLAG_HAS_AWAIT;
+        }
+    }
+
+    /// Whether the expression includes a member expression
+    #[inline]
+    pub fn has_member_expression(&self) -> bool {
+        self.flags & FLAG_HAS_MEMBER_EXPRESSION != 0
+    }
+
+    /// Set whether the expression includes a member expression
+    #[inline]
+    pub fn set_has_member_expression(&mut self, v: bool) {
+        if v {
+            self.flags |= FLAG_HAS_MEMBER_EXPRESSION;
+        } else {
+            self.flags &= !FLAG_HAS_MEMBER_EXPRESSION;
+        }
+    }
+
+    /// Whether the expression includes an assignment or an update
+    #[inline]
+    pub fn has_assignment(&self) -> bool {
+        self.flags & FLAG_HAS_ASSIGNMENT != 0
+    }
+
+    /// Set whether the expression includes an assignment or an update
+    #[inline]
+    pub fn set_has_assignment(&mut self, v: bool) {
+        if v {
+            self.flags |= FLAG_HAS_ASSIGNMENT;
+        } else {
+            self.flags &= !FLAG_HAS_ASSIGNMENT;
+        }
+    }
+
     /// Returns true if the expression is async (contains await or has blockers).
     pub fn is_async(&self) -> bool {
-        self.has_await
+        self.has_await()
         // TODO: also check for blockers when binding blocker support is added
         // For now, just check has_await
     }
@@ -1016,6 +1096,64 @@ impl ExpressionMetadata {
         // TODO: check if any dependencies have blockers
         // For now, return false
         false
+    }
+}
+
+// Custom Serialize implementation for backward compatibility
+impl Serialize for ExpressionMetadata {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut state = serializer.serialize_struct("ExpressionMetadata", 7)?;
+        state.serialize_field("has_state", &self.has_state())?;
+        state.serialize_field("has_call", &self.has_call())?;
+        state.serialize_field("has_await", &self.has_await())?;
+        state.serialize_field("has_member_expression", &self.has_member_expression())?;
+        state.serialize_field("has_assignment", &self.has_assignment())?;
+        state.serialize_field("dependencies", &self.dependencies)?;
+        state.serialize_field("references", &self.references)?;
+        state.end()
+    }
+}
+
+// Custom Deserialize implementation for backward compatibility
+impl<'de> Deserialize<'de> for ExpressionMetadata {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct ExpressionMetadataHelper {
+            #[serde(default)]
+            has_state: bool,
+            #[serde(default)]
+            has_call: bool,
+            #[serde(default)]
+            has_await: bool,
+            #[serde(default)]
+            has_member_expression: bool,
+            #[serde(default)]
+            has_assignment: bool,
+            #[serde(default)]
+            dependencies: FxHashSet<usize>,
+            #[serde(default)]
+            references: FxHashSet<usize>,
+        }
+
+        let helper = ExpressionMetadataHelper::deserialize(deserializer)?;
+        let mut result = ExpressionMetadata {
+            flags: 0,
+            dependencies: helper.dependencies,
+            references: helper.references,
+        };
+        result.set_has_state(helper.has_state);
+        result.set_has_call(helper.has_call);
+        result.set_has_await(helper.has_await);
+        result.set_has_member_expression(helper.has_member_expression);
+        result.set_has_assignment(helper.has_assignment);
+        Ok(result)
     }
 }
 

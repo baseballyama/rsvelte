@@ -97,14 +97,7 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
 
     // Build the expression with proper reactivity handling
     // This corresponds to: const expression = build_expression(context, node.test, node.metadata.expression);
-    let expr_metadata = ExpressionMetadata {
-        has_call: node.metadata.expression.has_call,
-        has_await: node.metadata.expression.has_await,
-        has_state: node.metadata.expression.has_state,
-        has_member_expression: node.metadata.expression.has_member_expression,
-        has_assignment: node.metadata.expression.has_assignment,
-        ..Default::default()
-    };
+    let expr_metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
     let expression = build_expression(context, &converted_expr, &expr_metadata);
 
     // If async, wrap in $.get($$condition), otherwise use the expression directly
@@ -159,7 +152,7 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
 
         // Create the thunk array
         // In JS: b.array([b.thunk(expression, node.metadata.expression.has_await)])
-        let has_await = node.metadata.expression.has_await;
+        let has_await = node.metadata.expression.has_await();
         let expression_array = if has_await {
             // For async expressions with await, mark the thunk as async
             b::array(vec![b::async_thunk(expression.clone())])

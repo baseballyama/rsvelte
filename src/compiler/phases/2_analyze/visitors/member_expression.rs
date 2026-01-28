@@ -61,11 +61,11 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     let is_not_pure = !is_pure(node, context);
 
     if let Some(expression) = context.current_expression() {
-        expression.has_member_expression = true;
+        expression.set_has_member_expression(true);
 
         // If the member expression is not pure, mark the expression as having state
         if is_not_pure {
-            expression.has_state = true;
+            expression.set_has_state(true);
         }
     }
 

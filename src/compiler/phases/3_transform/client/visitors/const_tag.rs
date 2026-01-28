@@ -65,18 +65,14 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
         let converted_init = convert_expression(&init_expr, context);
 
         // Build the expression with transforms applied
-        let expr_metadata = ExpressionMetadata {
-            has_state: node.metadata.expression.has_state,
-            has_call: node.metadata.expression.has_call,
-            has_await: node.metadata.expression.has_await,
-            ..Default::default()
-        };
+        let expr_metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
         let built_expr = build_expression(context, &converted_init, &expr_metadata);
 
         // Create derived expression
         // In legacy mode: $.derived_safe_equal(() => expr)
         // In runes mode: $.derived(() => expr)
-        let derived_expr = create_derived(context, built_expr, node.metadata.expression.has_await);
+        let derived_expr =
+            create_derived(context, built_expr, node.metadata.expression.has_await());
 
         // Register a transform for this identifier so reads become $.get(id)
         context.state.transform.insert(
@@ -134,7 +130,7 @@ fn add_const_declaration(
     expression: JsExpr,
     metadata: &crate::ast::template::ExpressionMetadata,
 ) {
-    let has_await = metadata.has_await;
+    let has_await = metadata.has_await();
     let has_blockers = metadata.has_blockers();
 
     if has_await || context.state.async_consts.is_some() || has_blockers {

@@ -80,19 +80,12 @@ pub fn await_block(node: &AwaitBlock, context: &mut ComponentContext) {
     let converted_expr = convert_expression(&node.expression, context);
 
     // Build expression with metadata
-    let expr_metadata = ExpressionMetadata {
-        has_call: node.metadata.expression.has_call,
-        has_await: node.metadata.expression.has_await,
-        has_state: node.metadata.expression.has_state,
-        has_member_expression: node.metadata.expression.has_member_expression,
-        has_assignment: node.metadata.expression.has_assignment,
-        ..Default::default()
-    };
+    let expr_metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
 
     let built_expr = build_expression(context, &converted_expr, &expr_metadata);
 
     // Wrap in thunk (async if has_await)
-    let expression = if node.metadata.expression.has_await {
+    let expression = if node.metadata.expression.has_await() {
         b::async_thunk(built_expr)
     } else {
         b::thunk(built_expr)

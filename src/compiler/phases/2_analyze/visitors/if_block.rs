@@ -71,10 +71,10 @@ fn analyze_test_expression(
         // - references: Track all identifier references
 
         // For now, just set defaults
-        metadata.has_await = false;
-        metadata.has_call = false;
-        metadata.has_member_expression = false;
-        metadata.has_assignment = false;
+        metadata.set_has_await(false);
+        metadata.set_has_call(false);
+        metadata.set_has_member_expression(false);
+        metadata.set_has_assignment(false);
     }
 
     Ok(())

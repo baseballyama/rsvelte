@@ -481,10 +481,8 @@ fn process_regular_attribute(
     // Apply state transforms to the value AFTER extraction
     // This handles cases like event handlers: onmousedown={() => count += 1}
     let transformed_value = {
-        let metadata = ExpressionMetadata {
-            has_state: result.has_state,
-            ..Default::default()
-        };
+        let mut metadata = ExpressionMetadata::default();
+        metadata.set_has_state(result.has_state);
         build_expression(context, &result.value, &metadata)
     };
 

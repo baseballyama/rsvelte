@@ -92,10 +92,8 @@ pub fn use_directive(node: &UseDirective, context: &mut ComponentContext) -> JsS
         // Check if expression has reactive state
         let has_state = expression_has_reactive_state(expr, context);
 
-        let metadata = ExpressionMetadata {
-            has_state,
-            ..Default::default()
-        };
+        let mut metadata = ExpressionMetadata::default();
+        metadata.set_has_state(has_state);
 
         // Build the expression with transforms applied
         let built_expr = build_expression(context, &converted, &metadata);

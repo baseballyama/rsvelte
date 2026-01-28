@@ -326,8 +326,8 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         let has_dependencies = !expression.dependencies.is_empty();
 
         if !is_pure_call || has_dependencies {
-            expression.has_call = true;
-            expression.has_state = true;
+            expression.set_has_call(true);
+            expression.set_has_state(true);
         }
     }
 

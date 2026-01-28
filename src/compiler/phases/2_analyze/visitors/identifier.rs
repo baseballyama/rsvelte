@@ -128,7 +128,7 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
                 || !binding.is_function());
 
         if involves_state {
-            expression.has_state = true;
+            expression.set_has_state(true);
         }
     }
 

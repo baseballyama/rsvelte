@@ -184,7 +184,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
 
     // Handle async expressions
     let is_async = node.metadata.expression.is_async();
-    let has_await = node.metadata.expression.has_await;
+    let has_await = node.metadata.expression.has_await();
 
     // Build the collection thunk
     let get_collection = if has_await {
@@ -290,14 +290,7 @@ fn build_collection_expression(node: &EachBlock, context: &mut ComponentContext)
     let converted = convert_expression(&node.expression, context);
 
     // Build expression with proper reactivity handling
-    let expr_metadata = ExpressionMetadata {
-        has_call: node.metadata.expression.has_call,
-        has_await: node.metadata.expression.has_await,
-        has_state: node.metadata.expression.has_state,
-        has_member_expression: node.metadata.expression.has_member_expression,
-        has_assignment: node.metadata.expression.has_assignment,
-        ..Default::default()
-    };
+    let expr_metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
 
     build_expression(context, &converted, &expr_metadata)
 }

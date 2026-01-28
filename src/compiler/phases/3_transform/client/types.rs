@@ -961,29 +961,23 @@ fn sanitize_identifier(name: &str) -> String {
     result
 }
 
+// Bit flags for ExpressionMetadata
+const FLAG_HAS_CALL: u8 = 1 << 0;
+const FLAG_HAS_AWAIT: u8 = 1 << 1;
+const FLAG_HAS_STATE: u8 = 1 << 2;
+const FLAG_HAS_MEMBER_EXPRESSION: u8 = 1 << 3;
+const FLAG_HAS_ASSIGNMENT: u8 = 1 << 4;
+const FLAG_DYNAMIC: u8 = 1 << 5;
+
 /// Expression metadata for analysis.
 ///
 /// Tracks dependencies, side effects, and other properties
 /// needed for transformation.
+/// Uses bit-packing for boolean flags to reduce memory footprint.
 #[derive(Debug, Clone, Default)]
 pub struct ExpressionMetadata {
-    /// Whether the expression contains a call
-    pub has_call: bool,
-
-    /// Whether the expression contains await
-    pub has_await: bool,
-
-    /// Whether the expression references reactive state
-    pub has_state: bool,
-
-    /// Whether the expression contains a member expression
-    pub has_member_expression: bool,
-
-    /// Whether the expression contains an assignment
-    pub has_assignment: bool,
-
-    /// Whether the expression is dynamic (needs reactive tracking)
-    pub dynamic: bool,
+    /// Bit-packed flags for has_call, has_await, has_state, has_member_expression, has_assignment, dynamic
+    flags: u8,
 
     /// Blocking dependencies (for async expressions)
     pub blockers: Vec<JsExpr>,
@@ -995,6 +989,114 @@ impl ExpressionMetadata {
         Self::default()
     }
 
+    /// Create ExpressionMetadata from the template's ExpressionMetadata.
+    /// This is a helper to convert from phase 2 metadata to phase 3 metadata.
+    pub fn from_template_metadata(meta: &crate::ast::template::ExpressionMetadata) -> Self {
+        let mut result = Self::default();
+        result.set_has_call(meta.has_call());
+        result.set_has_await(meta.has_await());
+        result.set_has_state(meta.has_state());
+        result.set_has_member_expression(meta.has_member_expression());
+        result.set_has_assignment(meta.has_assignment());
+        result
+    }
+
+    /// Whether the expression contains a call
+    #[inline]
+    pub fn has_call(&self) -> bool {
+        self.flags & FLAG_HAS_CALL != 0
+    }
+
+    /// Set whether the expression contains a call
+    #[inline]
+    pub fn set_has_call(&mut self, v: bool) {
+        if v {
+            self.flags |= FLAG_HAS_CALL;
+        } else {
+            self.flags &= !FLAG_HAS_CALL;
+        }
+    }
+
+    /// Whether the expression contains await
+    #[inline]
+    pub fn has_await(&self) -> bool {
+        self.flags & FLAG_HAS_AWAIT != 0
+    }
+
+    /// Set whether the expression contains await
+    #[inline]
+    pub fn set_has_await(&mut self, v: bool) {
+        if v {
+            self.flags |= FLAG_HAS_AWAIT;
+        } else {
+            self.flags &= !FLAG_HAS_AWAIT;
+        }
+    }
+
+    /// Whether the expression references reactive state
+    #[inline]
+    pub fn has_state(&self) -> bool {
+        self.flags & FLAG_HAS_STATE != 0
+    }
+
+    /// Set whether the expression references reactive state
+    #[inline]
+    pub fn set_has_state(&mut self, v: bool) {
+        if v {
+            self.flags |= FLAG_HAS_STATE;
+        } else {
+            self.flags &= !FLAG_HAS_STATE;
+        }
+    }
+
+    /// Whether the expression contains a member expression
+    #[inline]
+    pub fn has_member_expression(&self) -> bool {
+        self.flags & FLAG_HAS_MEMBER_EXPRESSION != 0
+    }
+
+    /// Set whether the expression contains a member expression
+    #[inline]
+    pub fn set_has_member_expression(&mut self, v: bool) {
+        if v {
+            self.flags |= FLAG_HAS_MEMBER_EXPRESSION;
+        } else {
+            self.flags &= !FLAG_HAS_MEMBER_EXPRESSION;
+        }
+    }
+
+    /// Whether the expression contains an assignment
+    #[inline]
+    pub fn has_assignment(&self) -> bool {
+        self.flags & FLAG_HAS_ASSIGNMENT != 0
+    }
+
+    /// Set whether the expression contains an assignment
+    #[inline]
+    pub fn set_has_assignment(&mut self, v: bool) {
+        if v {
+            self.flags |= FLAG_HAS_ASSIGNMENT;
+        } else {
+            self.flags &= !FLAG_HAS_ASSIGNMENT;
+        }
+    }
+
+    /// Whether the expression is dynamic (needs reactive tracking)
+    #[inline]
+    pub fn dynamic(&self) -> bool {
+        self.flags & FLAG_DYNAMIC != 0
+    }
+
+    /// Set whether the expression is dynamic
+    #[inline]
+    pub fn set_dynamic(&mut self, v: bool) {
+        if v {
+            self.flags |= FLAG_DYNAMIC;
+        } else {
+            self.flags &= !FLAG_DYNAMIC;
+        }
+    }
+
     /// Check if the expression has any blocking dependencies.
     pub fn has_blockers(&self) -> bool {
         !self.blockers.is_empty()
@@ -1002,7 +1104,7 @@ impl ExpressionMetadata {
 
     /// Check if the expression is async (has await or blockers).
     pub fn is_async(&self) -> bool {
-        self.has_await || self.has_blockers()
+        self.has_await() || self.has_blockers()
     }
 
     /// Get the blocking dependencies as a JS array expression.

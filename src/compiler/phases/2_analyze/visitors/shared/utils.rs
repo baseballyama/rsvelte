@@ -1138,7 +1138,7 @@ pub fn walk_js_expression(
                         binding.kind,
                         BindingKind::State | BindingKind::RawState | BindingKind::Derived
                     ) {
-                        metadata.has_state = true;
+                        metadata.set_has_state(true);
                     }
 
                     // Add to dependencies

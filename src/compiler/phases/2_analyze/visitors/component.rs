@@ -49,7 +49,7 @@ pub fn visit(component: &mut Component, context: &mut VisitorContext) -> Result<
         let binding = &context.analysis.root.bindings[binding_idx];
 
         // Update expression metadata
-        component.metadata.expression.has_state = is_dynamic;
+        component.metadata.expression.set_has_state(is_dynamic);
         component
             .metadata
             .expression
@@ -64,7 +64,7 @@ pub fn visit(component: &mut Component, context: &mut VisitorContext) -> Result<
                 | super::super::BindingKind::RawState
                 | super::super::BindingKind::Derived
         ) {
-            component.metadata.expression.has_state = true;
+            component.metadata.expression.set_has_state(true);
         }
     }
 

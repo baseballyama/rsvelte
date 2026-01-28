@@ -52,7 +52,7 @@ pub fn visit(
 
     // Mark expression as having assignment
     if let Some(expression) = context.current_expression() {
-        expression.has_assignment = true;
+        expression.set_has_assignment(true);
     }
 
     // Visit children (left and right)

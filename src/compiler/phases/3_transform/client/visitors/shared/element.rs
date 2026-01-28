@@ -55,7 +55,7 @@ where
 
             AttributeValueResult {
                 value: memoized,
-                has_state: metadata.has_state,
+                has_state: metadata.has_state(),
             }
         }
 
@@ -75,7 +75,7 @@ where
 
                     AttributeValueResult {
                         value: memoized,
-                        has_state: metadata.has_state,
+                        has_state: metadata.has_state(),
                     }
                 }
             }
@@ -135,7 +135,7 @@ where
 
                 expressions.push(memoized);
 
-                if metadata.has_state {
+                if metadata.has_state() {
                     has_state = true;
                 }
             }
@@ -220,15 +220,15 @@ fn extract_metadata_from_tag(expr_tag: &ExpressionTag) -> ExpressionMetadata {
         }
     };
 
-    ExpressionMetadata {
-        has_call,
-        has_await: false, // TODO: Detect await
-        has_state,
-        has_member_expression: has_member,
-        has_assignment: false, // TODO: Detect assignment
-        dynamic: false,
-        blockers: Vec::new(), // TODO: Detect blockers
-    }
+    let mut metadata = ExpressionMetadata::default();
+    metadata.set_has_call(has_call);
+    metadata.set_has_await(false); // TODO: Detect await
+    metadata.set_has_state(has_state);
+    metadata.set_has_member_expression(has_member);
+    metadata.set_has_assignment(false); // TODO: Detect assignment
+    metadata.set_dynamic(false);
+    // blockers defaults to empty Vec
+    metadata
 }
 
 /// Check if a JSON value represents a literal (non-reactive) value.
@@ -728,7 +728,7 @@ mod tests {
 
                             // Metadata should have has_state = false
                             let metadata = extract_metadata_from_tag(expr_tag);
-                            assert!(!metadata.has_state, "Literal value should not have state");
+                            assert!(!metadata.has_state(), "Literal value should not have state");
                         } else {
                             panic!("Expected Expression attribute value");
                         }

@@ -498,7 +498,7 @@ pub fn build_expression(
     }
 
     // Legacy mode: wrap in reactivity tracking if the expression references state
-    if metadata.has_state {
+    if metadata.has_state() {
         // TODO: Implement legacy reactivity wrapping
         // For now, return the transformed expression as-is
         return value;
@@ -1063,11 +1063,9 @@ pub fn build_template_chunk(
                     let expr_has_call = expression_has_call(&expr_tag.expression);
 
                     // Build the expression with transforms applied (e.g., $.get() wrapping)
-                    let expr_metadata = ExpressionMetadata {
-                        has_state: expr_has_state,
-                        has_call: expr_has_call,
-                        ..Default::default()
-                    };
+                    let mut expr_metadata = ExpressionMetadata::default();
+                    expr_metadata.set_has_state(expr_has_state);
+                    expr_metadata.set_has_call(expr_has_call);
 
                     let built_expr = build_expression(context, &converted_expr, &expr_metadata);
 
