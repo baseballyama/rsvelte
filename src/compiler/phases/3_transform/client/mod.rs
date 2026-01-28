@@ -770,8 +770,7 @@ fn transform_client_runes_with_skip_and_state(
                 if skip_state_vars.contains(&var_name.to_string()) {
                     // Variable is not reassigned, so doesn't need $.state() wrapping
                     // But we still need $.proxy() if the value might return an object
-                    let needs_proxy =
-                        is_object_or_array || expression_needs_proxy(trimmed_content);
+                    let needs_proxy = is_object_or_array || expression_needs_proxy(trimmed_content);
 
                     if needs_proxy {
                         // Wrap with $.proxy() for deep reactivity
@@ -1780,6 +1779,10 @@ struct ClassStateField {
     rune_type: String,
     /// The initial value/expression
     value: String,
+    /// The deconflicted private backing field name (without # prefix)
+    /// For private fields, this is the same as name.
+    /// For public fields, this may have _ prefix if it conflicts with existing private fields.
+    private_backing_name: String,
 }
 
 /// Transform class fields with $state and $derived runes for client-side.
@@ -1862,6 +1865,25 @@ fn transform_class_fields_client(script: &str) -> String {
         class_body
     };
 
+    // Collect existing private identifiers to avoid conflicts
+    // This includes #name fields and private methods
+    let mut existing_private_ids: Vec<String> = Vec::new();
+    for line in class_body.lines() {
+        let trimmed = line.trim();
+        // Match private field definitions: #name = ... or #name;
+        if trimmed.starts_with('#')
+            && let Some(end) = trimmed
+                .find('=')
+                .or_else(|| trimmed.find(';'))
+                .or_else(|| trimmed.find('('))
+        {
+            let name = trimmed[1..end].trim();
+            if !name.is_empty() && !existing_private_ids.contains(&name.to_string()) {
+                existing_private_ids.push(name.to_string());
+            }
+        }
+    }
+
     // Parse each line for field definitions
     for line in fields_section.lines() {
         let trimmed = line.trim();
@@ -1887,12 +1909,26 @@ fn transform_class_fields_client(script: &str) -> String {
         return script.to_string();
     }
 
+    // Deconflict private backing names for public fields
+    // If a public field "count" exists and there's already a "#count" private field,
+    // rename the backing field to "#_count" (prepend _ until unique)
+    for field in &mut fields {
+        if !field.is_private {
+            let mut deconflicted = field.name.clone();
+            while existing_private_ids.contains(&deconflicted) {
+                deconflicted = format!("_{}", deconflicted);
+            }
+            existing_private_ids.push(deconflicted.clone());
+            field.private_backing_name = deconflicted;
+        }
+    }
+
     // Build transformed class body
     let mut new_class_body = String::new();
 
     for field in &fields {
-        // All fields become private with # prefix
-        let private_name = format!("#{}", field.name);
+        // Use the deconflicted private backing name (may have _ prefix for public fields)
+        let private_name = format!("#{}", field.private_backing_name);
 
         if field.rune_type == "$state" {
             // Transform $state: #name = $.state(value)
@@ -1992,10 +2028,11 @@ fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStateField> {
     let value = after_paren[..value_end].to_string();
 
     Some(ClassStateField {
-        name,
+        name: name.clone(),
         is_private,
         rune_type: rune_type.to_string(),
         value,
+        private_backing_name: name, // Will be deconflicted later if needed
     })
 }
 
@@ -2013,7 +2050,8 @@ fn transform_constructor_assignment(line: &str, fields: &[ClassStateField]) -> S
                 if trimmed.starts_with(&pattern) || trimmed.starts_with(&pattern_nospace) {
                     let eq_pos = trimmed.find('=').unwrap();
                     let value = trimmed[eq_pos + 1..].trim().trim_end_matches(';');
-                    return format!("$.set(this.#{}, {});", field.name, value);
+                    // Use private_backing_name for the output
+                    return format!("$.set(this.#{}, {});", field.private_backing_name, value);
                 }
             }
         }
