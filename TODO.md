@@ -2089,7 +2089,7 @@ $.template_effect(() => {
 | Compiler Snapshot | 20/20 (100%) | 維持 ✅ |
 | Runtime Runes Total | 194/737 (26.3%) | **+65 (+50%)** |
 | Runtime Runes Client | 229/737 (31.1%) | **+82 (+56%)** |
-| Runtime Runes Server | 453/737 (61.5%) | **+76 (+20%)** |
+| Runtime Runes Server | 454/737 (61.6%) | **+77 (+20%)** |
 
 **次のアクション:**
 1. さらなるテスト正規化の改善
