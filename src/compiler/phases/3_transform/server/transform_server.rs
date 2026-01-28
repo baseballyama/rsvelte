@@ -3781,6 +3781,8 @@ fn transform_script_content(script: &str) -> String {
     let script = transform_rune_call_multiline(&script, "$state(");
     let script = transform_rune_call_multiline(&script, "$derived.by(");
     let script = transform_rune_call_multiline(&script, "$derived(");
+    // Transform store assignments: $count += 1 → $.store_set(count, ... + 1)
+    let script = transform_store_assignments(&script);
 
     let mut result = String::new();
     let lines: Vec<&str> = script.lines().collect();
@@ -3860,6 +3862,8 @@ fn format_js_line(line: &str) -> String {
                 || prev == Some('&')
                 || prev == Some('|')
                 || prev == Some('^')
+                || prev == Some('?')
+            // Handle ??= operator
             {
                 result.push(c);
             } else {
@@ -4509,4 +4513,141 @@ fn replace_store_identifier(expr: &str, store_ref: &str, store_name: &str) -> St
 /// Check if a character is a valid JavaScript identifier character.
 fn is_js_identifier_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_' || c == '$'
+}
+
+/// Transform store assignments in script content for server-side rendering.
+/// Handles patterns like:
+/// - `$count = value` → `$.store_set(count, value)`
+/// - `$count += 1` → `$.store_set(count, $.store_get(...) + 1)`
+/// - `$count++` → `$.store_set(count, $.store_get(...) + 1)`
+fn transform_store_assignments(script: &str) -> String {
+    use regex::Regex;
+    use std::sync::LazyLock;
+
+    // Match store assignment patterns: $store = value, $store += value, etc.
+    static STORE_ASSIGN_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"\$([a-zA-Z_][a-zA-Z0-9_]*)\s*(\+\+|--|\+=|-=|\*=|/=|%=|&=|\|=|\^=|<<=|>>=|>>>=|\?\?=|&&=|\|\|=|=)\s*").unwrap()
+    });
+
+    // Match prefix increment/decrement: ++$store, --$store
+    static PREFIX_OP_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"(\+\+|--)\$([a-zA-Z_][a-zA-Z0-9_]*)").unwrap());
+
+    let mut result = script.to_string();
+
+    // Handle prefix increment/decrement: ++$store, --$store
+    result = PREFIX_OP_RE
+        .replace_all(&result, |caps: &regex::Captures| {
+            let op = &caps[1];
+            let store_name = &caps[2];
+            let operator = if op == "++" { "+" } else { "-" };
+            format!(
+                "$.store_set({}, $.store_get($$store_subs ??= {{}}, '${0}', {0}) {} 1)",
+                store_name, operator
+            )
+        })
+        .to_string();
+
+    // Handle postfix increment/decrement and compound assignments
+    // We need to be careful not to match inside $.store_set calls we just created
+    let mut new_result = String::new();
+    let mut last_end = 0;
+
+    for cap in STORE_ASSIGN_RE.captures_iter(&result) {
+        let full_match = cap.get(0).unwrap();
+        let start = full_match.start();
+        let end = full_match.end();
+
+        // Skip if we're inside a $.store_set call
+        let preceding = &result[..start];
+        if preceding.ends_with("$.store_set(") || preceding.ends_with("$.store_get(") {
+            continue;
+        }
+
+        // Append everything before this match
+        new_result.push_str(&result[last_end..start]);
+
+        let store_name = &cap[1];
+        let operator = &cap[2];
+
+        match operator {
+            "++" | "--" => {
+                // Postfix: $count++ or $count--
+                let op = if operator == "++" { "+" } else { "-" };
+                new_result.push_str(&format!(
+                    "$.store_set({}, $.store_get($$store_subs ??= {{}}, '${0}', {0}) {} 1)",
+                    store_name, op
+                ));
+            }
+            "=" => {
+                // Simple assignment: $count = value
+                // We need to find the value after the = and before ; or end of statement
+                let rest = &result[end..];
+                let value_end = find_statement_end(rest);
+                let value = rest[..value_end].trim();
+                new_result.push_str(&format!("$.store_set({}, {})", store_name, value));
+                last_end = end + value_end;
+                continue;
+            }
+            _ => {
+                // Compound assignment: $count += value, $count -= value, etc.
+                // Extract the base operator (remove =)
+                let base_op = &operator[..operator.len() - 1];
+                let rest = &result[end..];
+                let value_end = find_statement_end(rest);
+                let value = rest[..value_end].trim();
+                new_result.push_str(&format!(
+                    "$.store_set({}, $.store_get($$store_subs ??= {{}}, '${0}', {0}) {} {})",
+                    store_name, base_op, value
+                ));
+                last_end = end + value_end;
+                continue;
+            }
+        }
+
+        last_end = end;
+    }
+
+    // Append remaining content
+    new_result.push_str(&result[last_end..]);
+
+    new_result
+}
+
+/// Find the end of a statement value (before ; or end of line).
+fn find_statement_end(s: &str) -> usize {
+    let mut depth = 0;
+    let chars: Vec<char> = s.chars().collect();
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    for (i, &c) in chars.iter().enumerate() {
+        // Handle string literals
+        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char {
+                in_string = false;
+            }
+            continue;
+        }
+
+        if in_string {
+            continue;
+        }
+
+        match c {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => {
+                if depth > 0 {
+                    depth -= 1;
+                }
+            }
+            ';' | '\n' if depth == 0 => return i,
+            _ => {}
+        }
+    }
+
+    s.len()
 }

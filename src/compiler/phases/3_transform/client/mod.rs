@@ -579,6 +579,15 @@ fn transform_instance_script_for_visitors(
         .map(|b| b.name.clone())
         .collect();
 
+    // Collect store subscription variable names ($count, $store, etc.)
+    let store_sub_vars: Vec<String> = analysis
+        .root
+        .bindings
+        .iter()
+        .filter(|b| matches!(b.kind, BindingKind::StoreSub))
+        .map(|b| b.name.clone())
+        .collect();
+
     // Check for legacy mode (export let)
     let has_legacy_export_let = script_rest.lines().any(|line| {
         let trimmed = line.trim();
@@ -668,6 +677,9 @@ fn transform_instance_script_for_visitors(
             &raw_state_vars,
         );
 
+        // Transform store subscription assignments to $.store_set()
+        let transformed = transform_store_assignments_client(&transformed, &store_sub_vars);
+
         // Wrap state variable reads in $.get() for general expressions
         // This handles cases like: console.log('init ' + double)
         // where `double` is a $derived variable that needs to be read with $.get()
@@ -706,6 +718,7 @@ fn transform_instance_script_for_visitors(
 // ============================================================================
 
 /// Transform runes for client-side usage with skip and state variable handling.
+#[allow(clippy::too_many_arguments)]
 fn transform_client_runes_with_skip_and_state(
     line: &str,
     skip_state_vars: &[String],
@@ -1200,6 +1213,136 @@ fn transform_state_assignments(
     }
 
     result
+}
+
+/// Transform store subscription assignments to $.store_set() calls.
+/// For client-side rendering, transforms:
+/// - `$count = value` → `$.store_set(count, value)`
+/// - `$count += 1` → `$.store_set(count, $count() + 1)`
+/// - `$count++` → `$.store_set(count, $count() + 1)`
+fn transform_store_assignments_client(line: &str, store_sub_vars: &[String]) -> String {
+    if store_sub_vars.is_empty() {
+        return line.to_string();
+    }
+
+    let mut result = line.to_string();
+
+    for store_sub in store_sub_vars {
+        // store_sub is like "$count", store_name is "count"
+        let store_name = &store_sub[1..];
+
+        // Transform prefix increment: ++$count
+        let pre_inc_pattern = format!("++{}", store_sub);
+        if result.contains(&pre_inc_pattern) {
+            let replacement = format!("$.store_set({}, {}() + 1)", store_name, store_sub);
+            result = result.replace(&pre_inc_pattern, &replacement);
+        }
+
+        // Transform prefix decrement: --$count
+        let pre_dec_pattern = format!("--{}", store_sub);
+        if result.contains(&pre_dec_pattern) {
+            let replacement = format!("$.store_set({}, {}() - 1)", store_name, store_sub);
+            result = result.replace(&pre_dec_pattern, &replacement);
+        }
+
+        // Transform postfix increment: $count++
+        let post_inc_pattern = format!("{}++", store_sub);
+        if result.contains(&post_inc_pattern) {
+            let replacement = format!("$.store_set({}, {}() + 1)", store_name, store_sub);
+            result = result.replace(&post_inc_pattern, &replacement);
+        }
+
+        // Transform postfix decrement: $count--
+        let post_dec_pattern = format!("{}--", store_sub);
+        if result.contains(&post_dec_pattern) {
+            let replacement = format!("$.store_set({}, {}() - 1)", store_name, store_sub);
+            result = result.replace(&post_dec_pattern, &replacement);
+        }
+
+        // Transform compound assignments: $count += expr
+        for op in &["+=", "-=", "*=", "/=", "%=", "??=", "&&=", "||="] {
+            let pattern = format!("{} {}", store_sub, op);
+            if let Some(pos) = result.find(&pattern) {
+                let op_char = &op[..op.len() - 1]; // Remove the '='
+                let after = &result[pos + pattern.len()..];
+                // Find the expression (until ; or end)
+                let expr_end = find_statement_end_client(after);
+                let expr = after[..expr_end].trim();
+                let replacement = format!(
+                    "$.store_set({}, {}() {} {})",
+                    store_name, store_sub, op_char, expr
+                );
+                result = format!(
+                    "{}{}{}",
+                    &result[..pos],
+                    replacement,
+                    &result[pos + pattern.len() + expr_end..]
+                );
+            }
+        }
+
+        // Transform simple assignment: $count = expr
+        let assignment_pattern = format!("{} = ", store_sub);
+        if !result.contains(&format!("$.store_set({}", store_name))
+            && let Some(pos) = result.find(&assignment_pattern)
+        {
+            // Check that it's not part of a comparison (==, ===)
+            let before = &result[..pos];
+            if !before.ends_with('=') && !before.ends_with('!') {
+                let after = &result[pos + assignment_pattern.len()..];
+                // Find the expression (until ; or end of line)
+                let expr_end = find_statement_end_client(after);
+                let expr = after[..expr_end].trim();
+                let replacement = format!("$.store_set({}, {})", store_name, expr);
+                result = format!(
+                    "{}{}{}",
+                    &result[..pos],
+                    replacement,
+                    &result[pos + assignment_pattern.len() + expr_end..]
+                );
+            }
+        }
+    }
+
+    result
+}
+
+/// Find the end of a statement value for client-side transformations.
+fn find_statement_end_client(s: &str) -> usize {
+    let mut depth = 0;
+    let chars: Vec<char> = s.chars().collect();
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    for (i, &c) in chars.iter().enumerate() {
+        // Handle string literals
+        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char {
+                in_string = false;
+            }
+            continue;
+        }
+
+        if in_string {
+            continue;
+        }
+
+        match c {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => {
+                if depth > 0 {
+                    depth -= 1;
+                }
+            }
+            ';' if depth == 0 => return i,
+            _ => {}
+        }
+    }
+
+    s.len()
 }
 
 /// Wrap state variable references with $.get() in an expression.
