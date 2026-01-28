@@ -305,185 +305,37 @@ fn normalize_html_whitespace(html: &str) -> String {
     result
 }
 
-/// Normalize JavaScript code for comparison (optimized for performance).
-/// This function performs lightweight normalization to compare the essential structure
-/// of JavaScript code, ignoring formatting differences like quotes, whitespace, and semicolons.
+/// Normalize JavaScript code for comparison (fast version).
+/// This function performs minimal normalization to compare the essential structure
+/// of JavaScript code, ignoring formatting differences.
 ///
-/// IMPORTANT: String literals (single/double quotes and template literals) are preserved
-/// exactly as-is, except for quote style normalization to single quotes.
-///
-/// This function handles:
-/// - Whitespace normalization (multiple spaces to single, trim lines)
-/// - Empty line removal (consecutive blank lines collapsed)
-/// - Quote normalization (double -> single quotes)
-/// - Semicolon removal (trailing semicolons stripped)
-/// - Scientific notation normalization (1e3 -> 1000)
-/// - Brace/newline normalization ({ followed by newline -> { space)
-/// - If/else brace normalization (single-statement braces removed for consistency)
+/// This is a simplified version that avoids potentially slow regex operations.
 pub fn normalize_js(js: &str) -> String {
     use regex::Regex;
     lazy_static::lazy_static! {
-        // Normalize multiple spaces to single space
+        // Simple patterns only - avoid complex patterns that can cause backtracking
         static ref MULTI_SPACE: Regex = Regex::new(r"[ \t]+").unwrap();
-        // Normalize space around operators and punctuation
-        static ref SPACE_BEFORE_PUNC: Regex = Regex::new(r"\s+([,;:)\]}])").unwrap();
-        static ref SPACE_AFTER_PUNC: Regex = Regex::new(r"([(\[{])\s+").unwrap();
-        // Normalize "function ()" vs "function()" - remove space before opening paren after "function"
-        static ref FUNCTION_SPACE_PAREN: Regex = Regex::new(r"function\s+\(").unwrap();
-        // Normalize "catch (e)" vs "catch(e)" - remove space before opening paren after "catch"
-        static ref CATCH_SPACE_PAREN: Regex = Regex::new(r"catch\s*\(").unwrap();
-        // Normalize opening brace followed by newline to brace followed by space
-        // This handles differences like "Counter($$anchor, {\n\tget foo()" vs "Counter($$anchor, { get foo()"
-        static ref BRACE_NEWLINE: Regex = Regex::new(r"\{\s*\n\s*").unwrap();
-        // Normalize closing braces across newlines: "}\n\t}" -> "}}"
-        static ref CLOSE_BRACE_NEWLINE: Regex = Regex::new(r"\}\s*\n\s*\}").unwrap();
-        // Normalize opening paren followed by newline to paren (handles multiline function call args)
-        // This handles differences like "customElements.define(\n\t'value-builtin'," vs "customElements.define('value-builtin',"
-        static ref PAREN_NEWLINE: Regex = Regex::new(r"\(\s*\n\s*").unwrap();
-        // Normalize closing paren across newlines: ")\n\t)" -> "))"
-        static ref CLOSE_PAREN_NEWLINE: Regex = Regex::new(r"\)\s*\n\s*\)").unwrap();
-        // Normalize comma followed by newline to just comma (handles multiline function call arguments)
-        // This handles differences like "'value-builtin',\n\t\tclass" vs "'value-builtin', class"
-        static ref COMMA_NEWLINE: Regex = Regex::new(r",\s*\n\s*").unwrap();
-        // Normalize closing brace/paren followed by newline and closing paren
-        // This handles multiline function call endings like "}\n\t);" vs "});"
-        static ref CLOSE_BRACE_PAREN: Regex = Regex::new(r"\}\s*\n\s*\)").unwrap();
-        // Normalize word/value followed by newline and closing paren
-        // This handles patterns like "true\n);" vs "true);" in multiline function calls
-        static ref VALUE_NEWLINE_PAREN: Regex = Regex::new(r"(\w+)\s*\n\s*\)").unwrap();
-        // Normalize semicolon followed by }) to add newline, so line processing handles it consistently
-        // This handles cases like "statement;});" -> "statement;\n});" so both forms normalize the same
-        static ref SEMICOLON_CLOSE: Regex = Regex::new(r";\}\)").unwrap();
-        // Match scientific notation like 1e3, 2.5e4, 1e-2 (but not in string literals - handled separately)
-        static ref SCIENTIFIC_NOTATION: Regex = Regex::new(r"\b(\d+(?:\.\d+)?)[eE]([+-]?\d+)\b").unwrap();
+        static ref VAR_SUFFIX: Regex = Regex::new(r"\b(node|text|button|div|span|p|a|input|form|fragment|consequent|alternate|each|if_block|component|each_array|snippets|spread_props)_(\d+)\b").unwrap();
     }
 
-    // First, normalize brace + newline patterns across the entire source
-    let mut result = js.to_string();
+    // Normalize variable suffixes
+    let result = VAR_SUFFIX.replace_all(js, "$1").to_string();
 
-    // Normalize compiler-generated variable names with numeric suffixes
-    // This handles differences like `node_1` vs `node`, `text_2` vs `text`
-    // These are functionally equivalent - the compiler generates unique names but the
-    // exact suffixes don't matter for semantic equivalence
-    result = normalize_generated_var_names(&result);
-
-    // Normalize whitespace-only text inside template literals in from_html calls
-    // This handles differences like `<div> </div>` vs `<div></div>` where empty text nodes
-    // may be preserved or collapsed differently between compilers
-    result = normalize_template_empty_text(&result);
-
-    // IMPORTANT: Normalize if/else braces BEFORE arrow function patterns
-    // This removes braces from single-statement if/else blocks, which allows
-    // the arrow function patterns to then match and simplify arrow function bodies
-    // that contain if statements.
-    // e.g., `=> {\n\tif (show) {\n\t\t$$render(consequent);\n\t}\n}`
-    //    -> `=> {\n\tif (show) $$render(consequent);\n}`
-    //    -> (then arrow pattern) `=> if (show) $$render(consequent);`
-    result = normalize_if_else_braces(&result);
-
-    // Normalize arrow function block body to expression body BEFORE BRACE_NEWLINE
-    // Match pattern: `=> {\n\texpr;\n}` followed by ) for multiline single-statement
-    // This handles patterns like:
-    // `$.template_effect(() => {\n\t$.set_text(...);\n})`
-    let arrow_block_multiline_with_semi =
-        regex::Regex::new(r"=>\s*\{\s*\n\s*([^{}\n]+?);\s*\n\s*\}(\s*\))").unwrap();
-    loop {
-        let new_result = arrow_block_multiline_with_semi
-            .replace_all(&result, "=> $1$2")
-            .to_string();
-        if new_result == result {
-            break;
-        }
-        result = new_result;
-    }
-    // Match pattern: `=> {if (cond) stmt;\n}` - single if statement in arrow function
-    let arrow_block_if =
-        regex::Regex::new(r"=>\s*\{(if\s*\([^)]+\)\s*[^;]+;)\s*\n\s*\}(\s*\))").unwrap();
-    loop {
-        let new_result = arrow_block_if.replace_all(&result, "=> $1$2").to_string();
-        if new_result == result {
-            break;
-        }
-        result = new_result;
-    }
-    // Match pattern: `=> {if (cond) stmt\n}` - single if statement without semicolon
-    let arrow_block_if_nosemi =
-        regex::Regex::new(r"=>\s*\{(if\s*\([^)]+\)\s*[^;\n{}]+)\s*\n\s*\}(\s*\))").unwrap();
-    loop {
-        let new_result = arrow_block_if_nosemi
-            .replace_all(&result, "=> $1$2")
-            .to_string();
-        if new_result == result {
-            break;
-        }
-        result = new_result;
-    }
-    // Match pattern: `=> {expr\n}` followed by ) or ; (without semicolon in expr)
-    let arrow_block_multiline = regex::Regex::new(r"=>\s*\{([^{};]+?)\n\s*\}(\s*\))").unwrap();
-    loop {
-        let new_result = arrow_block_multiline
-            .replace_all(&result, "=> $1$2")
-            .to_string();
-        if new_result == result {
-            break;
-        }
-        result = new_result;
-    }
-    // Then handle single-line `=> { expr }` patterns
-    let arrow_block = regex::Regex::new(r"=>\s*\{\s*([^{};]+?)\s*\}(\s*\))").unwrap();
-    result = arrow_block.replace_all(&result, "=> $1$2").to_string();
-
-    // Now apply brace+newline normalization after arrow function normalization
-    result = BRACE_NEWLINE.replace_all(&result, "{ ").to_string();
-    result = CLOSE_BRACE_NEWLINE.replace_all(&result, "}}").to_string();
-
-    // Remove line comments before applying object literal normalization
-    // This prevents matching across comment lines like "// @ts-expect-error"
-    let comment_line = regex::Regex::new(r"[ \t]*//[^\n]*\n").unwrap();
-    result = comment_line.replace_all(&result, "\n").to_string();
-
-    // Normalize object literals where last property has no comma
-    // Only match when property value (word/paren/quote) is followed by newline + }
-    // This is more conservative than matching all whitespace
-    let obj_close = regex::Regex::new(r"(\w|\)|\]|'|`|true|false)\s*\n\s*\}").unwrap();
-    result = obj_close.replace_all(&result, "$1}").to_string();
-    // Normalize paren + newline patterns (multiline function args)
-    result = PAREN_NEWLINE.replace_all(&result, "(").to_string();
-    result = CLOSE_PAREN_NEWLINE.replace_all(&result, "))").to_string();
-    // Normalize comma + newline patterns (multiline function args between parameters)
-    result = COMMA_NEWLINE.replace_all(&result, ", ").to_string();
-    // Normalize closing brace + newline + closing paren patterns
-    result = CLOSE_BRACE_PAREN.replace_all(&result, "})").to_string();
-    // Normalize value + newline + closing paren patterns (e.g., "true\n);" -> "true)")
-    result = VALUE_NEWLINE_PAREN.replace_all(&result, "$1)").to_string();
-
-    // Normalize ;}) to ;\n}) so line processing handles it consistently
-    // This handles the case where if-block brace removal results in "statement;});"
-    // which should match the expected "statement;\n});"
-    result = SEMICOLON_CLOSE.replace_all(&result, ";\n})").to_string();
-
+    // Process line by line for simple normalization
     result
         .lines()
         .filter(|line| !line.trim().is_empty())
+        .filter(|line| !line.trim().starts_with("//")) // Remove comment lines
         .map(|line| {
             let trimmed = line.trim();
-
-            // Extract string literals, normalize outside of strings, then restore
-            let (normalized, _) = normalize_line_preserving_strings(
-                trimmed,
-                &MULTI_SPACE,
-                &SPACE_BEFORE_PUNC,
-                &SPACE_AFTER_PUNC,
-                &FUNCTION_SPACE_PAREN,
-                &CATCH_SPACE_PAREN,
-                &SCIENTIFIC_NOTATION,
-            );
-
-            // Remove trailing semicolons for comparison (optional based on style)
-            normalized.trim_end_matches(';').to_string()
+            // Normalize multiple spaces/tabs to single space
+            let normalized = MULTI_SPACE.replace_all(trimmed, " ").to_string();
+            // Remove trailing semicolons
+            let normalized = normalized.trim_end_matches(';');
+            // Normalize quotes (simple replacement for non-escaped quotes)
+            normalized.replace('"', "'")
         })
-        // Filter again after normalization to remove comment-only lines that became empty
-        .filter(|line| !line.trim().is_empty())
+        .filter(|line| !line.is_empty())
         .collect::<Vec<_>>()
         .join("\n")
         .trim()
@@ -658,8 +510,10 @@ fn normalize_if_else_braces(code: &str) -> String {
     // 1. Nested parentheses in condition
     // 2. Nested braces in statement (callbacks, objects)
     // 3. Multiple statements
+    // Note: Loop has iteration limit to prevent infinite loops on malformed input
+    const MAX_ITERATIONS: usize = 100;
 
-    loop {
+    for _ in 0..MAX_ITERATIONS {
         let before = result.clone();
         result = normalize_single_if_brace(&result);
         result = normalize_single_else_brace(&result);

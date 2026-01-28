@@ -241,8 +241,16 @@ fn run_runtime_tests(category: &str) {
         return;
     }
 
+    // Limit parallelism to avoid memory explosion
+    // (845 tests * many parallel threads can consume excessive memory)
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(4)
+        .build()
+        .expect("Failed to build thread pool");
+
+    // Load fixtures sequentially (fast, low memory)
     let fixtures: Vec<RuntimeFixture> = samples
-        .par_iter()
+        .iter()
         .filter_map(|sample_dir| load_runtime_fixture(category, sample_dir.as_path()))
         .collect();
 
@@ -251,11 +259,13 @@ fn run_runtime_tests(category: &str) {
         return;
     }
 
-    // Run tests in parallel for better performance
-    let results: Vec<TestResult> = fixtures
-        .par_iter()
-        .map(|f| run_runtime_fixture_test(category, f))
-        .collect();
+    // Run tests with limited parallelism (4 threads max)
+    let results: Vec<TestResult> = pool.install(|| {
+        fixtures
+            .par_iter()
+            .map(|f| run_runtime_fixture_test(category, f))
+            .collect()
+    });
 
     let total = results.len();
     let skipped = results.iter().filter(|r| r.skipped).count();
