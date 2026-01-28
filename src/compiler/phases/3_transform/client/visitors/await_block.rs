@@ -46,6 +46,7 @@ use crate::compiler::phases::phase3_transform::client::types::{
     ComponentContext, ExpressionMetadata,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::declarations::get_value;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
     add_svelte_meta, build_expression,
@@ -481,23 +482,15 @@ fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
 }
 
 /// Visit a fragment and return its statements.
-fn visit_fragment(fragment: &Fragment, context: &mut ComponentContext) -> Vec<JsStatement> {
-    // Save the current state
-    let saved_init = std::mem::take(&mut context.state.init);
-    let saved_update = std::mem::take(&mut context.state.update);
-
-    // Visit each node in the fragment
-    for node in &fragment.nodes {
-        let _ = context.visit_node(node, None);
-    }
-
-    // Collect the generated init statements
-    let result = std::mem::replace(&mut context.state.init, saved_init);
-
-    // Restore the update statements
-    context.state.update = saved_update;
-
-    result
+///
+/// This function uses the fragment visitor to properly process the fragment,
+/// which handles template generation, render effects, and append statements.
+fn visit_fragment(frag: &Fragment, context: &mut ComponentContext) -> Vec<JsStatement> {
+    // Use the fragment visitor which returns a BlockStatement containing
+    // all the generated code (init, template_effect, append, etc.)
+    // Pass is_root_fragment=false because await block fragments are nested
+    let block = fragment(frag, context, false);
+    block.body
 }
 
 /// Extract a pattern from a JsExpr (for the node parameter).

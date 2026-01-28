@@ -565,4 +565,79 @@ let value = $state();
             },
         }
     }
+
+    #[test]
+    fn debug_await_block_client() {
+        use svelte_compiler_rust::compiler::GenerateMode;
+
+        let source = r#"<script>
+  const promise = Promise.resolve(42);
+</script>
+{#await promise}
+  <p>pending</p>
+{:then value}
+  <p>then {value}</p>
+{/await}"#;
+
+        let options = CompileOptions {
+            dev: false,
+            generate: GenerateMode::Client,
+            filename: Some("main.svelte".to_string()),
+            ..Default::default()
+        };
+
+        match compile(source, options) {
+            Ok(result) => {
+                println!(
+                    "\n=== COMPILED CLIENT OUTPUT ===\n{}\n=== END ===\n",
+                    result.js.code
+                );
+            }
+            Err(e) => match e {
+                svelte_compiler_rust::compiler::CompileError::Transform(ref transform_err) => {
+                    println!(
+                        "\n=== TRANSFORM ERROR ===\n{:?}\n=== END ===\n",
+                        transform_err
+                    );
+                }
+                _ => println!("\n=== ERROR ===\n{:?}\n=== END ===\n", e),
+            },
+        }
+    }
+
+    #[test]
+    fn debug_await_shorthand_client() {
+        use svelte_compiler_rust::compiler::GenerateMode;
+
+        // Test the shorthand await syntax: {#await promise then}...{/await}
+        let source = std::fs::read_to_string(
+            "svelte/packages/svelte/tests/runtime-runes/samples/await-render-error-restore-reaction/main.svelte",
+        )
+        .unwrap();
+
+        let options = CompileOptions {
+            dev: false,
+            generate: GenerateMode::Client,
+            filename: Some("main.svelte".to_string()),
+            ..Default::default()
+        };
+
+        match compile(&source, options) {
+            Ok(result) => {
+                println!(
+                    "\n=== COMPILED CLIENT OUTPUT ===\n{}\n=== END ===\n",
+                    result.js.code
+                );
+            }
+            Err(e) => match e {
+                svelte_compiler_rust::compiler::CompileError::Transform(ref transform_err) => {
+                    println!(
+                        "\n=== TRANSFORM ERROR ===\n{:?}\n=== END ===\n",
+                        transform_err
+                    );
+                }
+                _ => println!("\n=== ERROR ===\n{:?}\n=== END ===\n", e),
+            },
+        }
+    }
 }
