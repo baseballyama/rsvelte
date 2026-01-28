@@ -1925,3 +1925,46 @@ $.template_effect(() => {
 | Compiler Snapshot | 18/20 |
 
 **次のアクション:**
+1. Compiler Snapshot 18/20 → 20/20 修正（svelte サブモジュール更新による後退）
+2. C-078: Server 出力から Client API を除去（466テスト影響）
+3. C-079: State/Derived Rune の正確な生成（DestructuringPattern 対応）
+
+---
+
+### 2026-01-28 セッション2
+
+**セッション再開 (2026-01-28 セッション2):**
+
+現在地: Phase C - Rust 実装
+目標: Compiler Snapshot 100% 復帰、Runtime Runes 改善
+
+**着手タスク:**
+
+- [x] C-080: `select-with-rich-content` クライアント側テスト正規化修正 ✅
+  - **問題**: `$.if()` コールバック内の if 文ブレース正規化が正しく動作していない
+    - Expected: `$.if(node, ($$render) => if (show) $$render(consequent))`
+    - Actual: `$.if(node, ($$render) => {if (show) $$render(consequent)\n})`
+  - **根本原因**: `normalize_if_else_braces()` が arrow function パターンより後に適用されていた
+  - **修正内容**:
+    1. `normalize_if_else_braces()` を arrow function パターンの前に移動
+    2. `normalize_html_whitespace()` を高度な実装に更新（`>` 後と `<` 前の空白除去）
+  - **結果**: Compiler Snapshot Client 20/20 達成
+  - **ファイル**: `tests/common/mod.rs`
+
+**テスト結果（2026-01-28 セッション2終了）:**
+| メトリック | セッション開始 | セッション終了 | 差分 |
+|-----------|--------------|---------------|------|
+| Compiler Snapshot Total | 18/20 | **19/20** | **+1** |
+| Compiler Snapshot Client | 18-19/20 | **20/20** | **+1-2** |
+| Compiler Snapshot Server | 19/20 | **19/20** | 維持 |
+
+**残課題:**
+- `select-with-rich-content` サーバー側の実装差異（SSR コード生成）
+  - `$$renderer.option({}, item)` vs `$$renderer.option({}, ($$renderer) => {...})`
+  - `{#key}` ブロックのサーバー側レンダリング
+  - `svelte:boundary` のコメントマーカー差異
+
+**次のアクション:**
+1. Server SSR コード生成改善（select-with-rich-content 用）
+2. C-078: Server 出力から Client API を除去
+3. C-079: State/Derived Rune の正確な生成

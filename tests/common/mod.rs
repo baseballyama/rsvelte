@@ -252,9 +252,10 @@ fn normalize_template_empty_text(code: &str) -> String {
         .to_string()
 }
 
-/// Normalize whitespace-only text between HTML tags.
-/// Converts `> </tag` to `></tag` to collapse empty text nodes.
-/// Also normalizes `> text </tag` to `>text</tag` (removes leading/trailing whitespace around text).
+/// Normalize whitespace in HTML templates.
+/// - Skips leading whitespace at the start of the template
+/// - Removes whitespace after '>' (leading whitespace in text)
+/// - Trims trailing whitespace from text content before '<'
 fn normalize_html_whitespace(html: &str) -> String {
     let mut result = String::with_capacity(html.len());
     let chars: Vec<char> = html.chars().collect();
@@ -337,6 +338,9 @@ pub fn normalize_js(js: &str) -> String {
         // Normalize closing brace/paren followed by newline and closing paren
         // This handles multiline function call endings like "}\n\t);" vs "});"
         static ref CLOSE_BRACE_PAREN: Regex = Regex::new(r"\}\s*\n\s*\)").unwrap();
+        // Normalize word/value followed by newline and closing paren
+        // This handles patterns like "true\n);" vs "true);" in multiline function calls
+        static ref VALUE_NEWLINE_PAREN: Regex = Regex::new(r"(\w+)\s*\n\s*\)").unwrap();
         // Normalize semicolon followed by }) to add newline, so line processing handles it consistently
         // This handles cases like "statement;});" -> "statement;\n});" so both forms normalize the same
         static ref SEMICOLON_CLOSE: Regex = Regex::new(r";\}\)").unwrap();
@@ -358,6 +362,68 @@ pub fn normalize_js(js: &str) -> String {
     // may be preserved or collapsed differently between compilers
     result = normalize_template_empty_text(&result);
 
+    // IMPORTANT: Normalize if/else braces BEFORE arrow function patterns
+    // This removes braces from single-statement if/else blocks, which allows
+    // the arrow function patterns to then match and simplify arrow function bodies
+    // that contain if statements.
+    // e.g., `=> {\n\tif (show) {\n\t\t$$render(consequent);\n\t}\n}`
+    //    -> `=> {\n\tif (show) $$render(consequent);\n}`
+    //    -> (then arrow pattern) `=> if (show) $$render(consequent);`
+    result = normalize_if_else_braces(&result);
+
+    // Normalize arrow function block body to expression body BEFORE BRACE_NEWLINE
+    // Match pattern: `=> {\n\texpr;\n}` followed by ) for multiline single-statement
+    // This handles patterns like:
+    // `$.template_effect(() => {\n\t$.set_text(...);\n})`
+    let arrow_block_multiline_with_semi =
+        regex::Regex::new(r"=>\s*\{\s*\n\s*([^{}\n]+?);\s*\n\s*\}(\s*\))").unwrap();
+    loop {
+        let new_result = arrow_block_multiline_with_semi
+            .replace_all(&result, "=> $1$2")
+            .to_string();
+        if new_result == result {
+            break;
+        }
+        result = new_result;
+    }
+    // Match pattern: `=> {if (cond) stmt;\n}` - single if statement in arrow function
+    let arrow_block_if =
+        regex::Regex::new(r"=>\s*\{(if\s*\([^)]+\)\s*[^;]+;)\s*\n\s*\}(\s*\))").unwrap();
+    loop {
+        let new_result = arrow_block_if.replace_all(&result, "=> $1$2").to_string();
+        if new_result == result {
+            break;
+        }
+        result = new_result;
+    }
+    // Match pattern: `=> {if (cond) stmt\n}` - single if statement without semicolon
+    let arrow_block_if_nosemi =
+        regex::Regex::new(r"=>\s*\{(if\s*\([^)]+\)\s*[^;\n{}]+)\s*\n\s*\}(\s*\))").unwrap();
+    loop {
+        let new_result = arrow_block_if_nosemi
+            .replace_all(&result, "=> $1$2")
+            .to_string();
+        if new_result == result {
+            break;
+        }
+        result = new_result;
+    }
+    // Match pattern: `=> {expr\n}` followed by ) or ; (without semicolon in expr)
+    let arrow_block_multiline = regex::Regex::new(r"=>\s*\{([^{};]+?)\n\s*\}(\s*\))").unwrap();
+    loop {
+        let new_result = arrow_block_multiline
+            .replace_all(&result, "=> $1$2")
+            .to_string();
+        if new_result == result {
+            break;
+        }
+        result = new_result;
+    }
+    // Then handle single-line `=> { expr }` patterns
+    let arrow_block = regex::Regex::new(r"=>\s*\{\s*([^{};]+?)\s*\}(\s*\))").unwrap();
+    result = arrow_block.replace_all(&result, "=> $1$2").to_string();
+
+    // Now apply brace+newline normalization after arrow function normalization
     result = BRACE_NEWLINE.replace_all(&result, "{ ").to_string();
     result = CLOSE_BRACE_NEWLINE.replace_all(&result, "}}").to_string();
 
@@ -378,11 +444,8 @@ pub fn normalize_js(js: &str) -> String {
     result = COMMA_NEWLINE.replace_all(&result, ", ").to_string();
     // Normalize closing brace + newline + closing paren patterns
     result = CLOSE_BRACE_PAREN.replace_all(&result, "})").to_string();
-
-    // Normalize if/else braces at the full-source level
-    // This handles multiline cases like:
-    //   if (cond) { stmt;\n} -> if (cond) stmt;
-    result = normalize_if_else_braces(&result);
+    // Normalize value + newline + closing paren patterns (e.g., "true\n);" -> "true)")
+    result = VALUE_NEWLINE_PAREN.replace_all(&result, "$1)").to_string();
 
     // Normalize ;}) to ;\n}) so line processing handles it consistently
     // This handles the case where if-block brace removal results in "statement;});"
@@ -1861,4 +1924,12 @@ export default function Main($$renderer) {
         norm_expected, norm_actual,
         "Spread props server.js should normalize to the same output"
     );
+}
+
+#[test]
+fn test_normalize_js_arrow_block_to_expr() {
+    // Multiline arrow function block body should be normalized to expression body
+    let input = "$.template_effect(() => {$.set_text(text, $.get(item))\n})";
+    let expected = "$.template_effect(() => $.set_text(text, $.get(item)))";
+    assert_eq!(normalize_js(input), expected);
 }
