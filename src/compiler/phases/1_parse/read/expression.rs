@@ -937,6 +937,26 @@ fn create_identifier(name: &str, start: usize, end: usize, line_offsets: &[usize
     Expression::Value(Value::Object(obj))
 }
 
+/// Create a PrivateIdentifier node (for class private fields like #count).
+fn create_private_identifier(
+    name: &str,
+    start: usize,
+    end: usize,
+    line_offsets: &[usize],
+) -> Expression {
+    let mut obj = Map::new();
+    obj.insert(
+        "type".to_string(),
+        Value::String("PrivateIdentifier".to_string()),
+    );
+    obj.insert("start".to_string(), Value::Number((start as i64).into()));
+    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+    obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+    // Note: name should NOT include the # prefix, just the identifier name
+    obj.insert("name".to_string(), Value::String(name.to_string()));
+    Expression::Value(Value::Object(obj))
+}
+
 /// Create an identifier for binding patterns (uses adjusted column calculation).
 fn create_identifier_for_binding(
     name: &str,
@@ -946,6 +966,28 @@ fn create_identifier_for_binding(
 ) -> Value {
     let mut obj = Map::new();
     obj.insert("type".to_string(), Value::String("Identifier".to_string()));
+    obj.insert("start".to_string(), Value::Number((start as i64).into()));
+    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+    obj.insert(
+        "loc".to_string(),
+        create_loc_for_binding(start, end, line_offsets),
+    );
+    obj.insert("name".to_string(), Value::String(name.to_string()));
+    Value::Object(obj)
+}
+
+/// Create a PrivateIdentifier for binding patterns.
+fn create_private_identifier_for_binding(
+    name: &str,
+    start: usize,
+    end: usize,
+    line_offsets: &[usize],
+) -> Value {
+    let mut obj = Map::new();
+    obj.insert(
+        "type".to_string(),
+        Value::String("PrivateIdentifier".to_string()),
+    );
     obj.insert("start".to_string(), Value::Number((start as i64).into()));
     obj.insert("end".to_string(), Value::Number((end as i64).into()));
     obj.insert(
@@ -1477,7 +1519,7 @@ fn convert_property_key_for_expr(
         oxc_ast::ast::PropertyKey::PrivateIdentifier(id) => {
             let start = offset + id.span.start as usize - 1;
             let end = offset + id.span.end as usize - 1;
-            create_identifier(&id.name, start, end, line_offsets)
+            create_private_identifier(&id.name, start, end, line_offsets)
                 .as_json()
                 .clone()
         }
@@ -4074,7 +4116,7 @@ fn convert_property_key(
         oxc_ast::ast::PropertyKey::PrivateIdentifier(id) => {
             let start = offset + id.span.start as usize;
             let end = offset + id.span.end as usize;
-            create_identifier(&id.name, start, end, line_offsets)
+            create_private_identifier(&id.name, start, end, line_offsets)
                 .as_json()
                 .clone()
         }
@@ -4356,7 +4398,7 @@ fn convert_property_key_with_adjustment(
         oxc_ast::ast::PropertyKey::PrivateIdentifier(id) => {
             let start = doc_offset + id.span.start as usize - prefix_len;
             let end = doc_offset + id.span.end as usize - prefix_len;
-            create_identifier_for_binding(&id.name, start, end, line_offsets)
+            create_private_identifier_for_binding(&id.name, start, end, line_offsets)
         }
         _ => {
             if let Some(expr) = key.as_expression() {

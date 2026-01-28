@@ -218,12 +218,17 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
                 handle_field(child, key, value, &mut state_fields, &mut fields, false)?;
 
                 // Track the field for duplicate detection
+                // Note: For private identifiers like #count, get_name returns "#count"
+                // So they won't conflict with public identifiers like "count"
                 if let Some(field_name) = get_name(key) {
                     let has_value = value.is_some() && !value.unwrap().is_null();
                     let kind = if has_value { "assigned_prop" } else { "prop" };
 
+                    // Only error if there's an existing field AND it's not a state field
+                    // State fields are allowed to have corresponding props
                     if let Some(existing) = fields.get(&field_name)
                         && !existing.is_empty()
+                        && !state_fields.contains_key(&field_name)
                     {
                         return Err(errors::duplicate_class_field(&field_name));
                     }
