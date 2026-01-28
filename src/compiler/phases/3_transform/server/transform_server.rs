@@ -1110,11 +1110,13 @@ impl<'a> ServerCodeGenerator<'a> {
     fn generate_component_usage(&mut self, component: &Component) -> Result<(), TransformError> {
         let comp_name = component.name.to_string();
 
-        // Check if there's any prior content (HTML or expressions)
+        // Check if there's any prior content (HTML, expressions, or other components)
         let has_prior_content = self.output_parts.iter().any(|part| {
             matches!(part, OutputPart::Html(s) if !s.trim().is_empty())
                 || matches!(part, OutputPart::Expression(_))
                 || matches!(part, OutputPart::RawExpression(_))
+                || matches!(part, OutputPart::Component { .. })
+                || matches!(part, OutputPart::ComponentWithBindings { .. })
         });
 
         // Extract props, spreads, and bindings
