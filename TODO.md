@@ -1962,9 +1962,69 @@ $.template_effect(() => {
 - `select-with-rich-content` サーバー側の実装差異（SSR コード生成）
   - `$$renderer.option({}, item)` vs `$$renderer.option({}, ($$renderer) => {...})`
   - `{#key}` ブロックのサーバー側レンダリング
-  - `svelte:boundary` のコメントマーカー差異
+
+**追加完了タスク（セッション2継続）:**
+
+- [x] C-081: サーバー側マーカー引用スタイル修正 ✅
+  - **問題**: `\`<!--[-->\`` vs `'<!--[-->'` - テンプレートリテラルではなくシングルクオートが必要
+  - **修正**: 静的マーカー文字列をシングルクオートに変更
+  - **結果**: Server +50 テスト
+
+- [x] C-082: svelte:boundary のマーカー選択修正 ✅
+  - **問題**: pending 状態と通常コンテンツで同じマーカーを使用
+  - **修正**: `is_pending` フラグを追加し、正しいマーカーを選択
+    - `<!--[-->`: メインコンテンツ（pending なし）
+    - `<!--[!-->`: pending 状態（pending snippet/attribute あり）
+  - **結果**: Server +13 テスト
+
+**テスト結果（2026-01-28 セッション2継続）:**
+| メトリック | セッション開始 | 現在 | 差分 |
+|-----------|--------------|------|------|
+| Runtime Runes Server (簡易比較) | 290/727 (39.9%) | **353/727 (48.6%)** | **+63 (+8.7%)** |
+| Compiler Snapshot Total | 18/20 | **19/20** | **+1** |
+| Compiler Snapshot Client | 18-19/20 | **20/20** | **+1-2** |
+| Compiler Snapshot Server | 19/20 | **19/20** | 維持 |
 
 **次のアクション:**
-1. Server SSR コード生成改善（select-with-rich-content 用）
-2. C-078: Server 出力から Client API を除去
+1. PUSH_CONTENT_DIFF 残り 94 テストの分析・修正
+2. PROPS_HANDLING 18 テストの修正
+3. C-079: State/Derived Rune の正確な生成
+
+### 2026-01-28 セッション3
+
+**セッション再開 (2026-01-28 セッション3):**
+
+現在地: Phase C - Rust 実装
+目標: Compiler Snapshot 100%、Runtime Runes 改善
+
+**完了タスク:**
+
+- [x] **C-083**: select-with-rich-content サーバー側実装 ✅
+  - **問題**: Compiler Snapshot Server 19/20（`select-with-rich-content` 失敗）
+  - **修正内容**:
+    1. KeyBlock サーバーサイドレンダリング: `<!---->{ content }<!---->` 形式
+       - `OutputPart::BlockScope` を追加
+       - 空白テキストノードをスキップ
+    2. Option 要素の synthetic_value_node 処理
+       - `direct_value` フラグを追加（コールバックラップ不要のケース）
+    3. select/optgroup の Hydration Anchor マーカー
+       - Component, RenderTag, HtmlTag を含む場合に `<!>` マーカー追加
+       - `OutputPart::HydrationAnchor` 追加
+    4. RenderCall 後のコメントマーカー
+       - 後続コンテンツがある場合のみ `<!---->` マーカー追加
+    5. EachBlock 内の ConstTag 後の空白処理
+    6. 変数名サフィックスの正規化（`$$index_1`, `$$length_1` 等）
+  - **結果**: **Compiler Snapshot Server 19/20 → 20/20 (100%)** ✅
+  - **コミット**: 作成予定
+
+**テスト結果（セッション3）:**
+| メトリック | セッション開始 | 現在 | 差分 |
+|-----------|--------------|------|------|
+| **Compiler Snapshot Server** | 19/20 | **20/20** | **+1 (100%)** |
+| Compiler Snapshot Total | 19/20 | **20/20** | **+1 (100%)** |
+| Compiler Snapshot Client | 20/20 | 20/20 | 維持 |
+
+**次のアクション:**
+1. Runtime Runes 改善（テスト失敗パターン分析）
+2. PUSH_CONTENT_DIFF 残り 94 テストの分析・修正
 3. C-079: State/Derived Rune の正確な生成
