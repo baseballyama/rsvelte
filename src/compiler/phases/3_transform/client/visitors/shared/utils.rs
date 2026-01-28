@@ -260,10 +260,12 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
                 // - Array literals
                 // - Function calls (could return objects)
                 // This is because $.set() needs to know if it should proxify the value
-                let needs_proxy = matches!(
-                    assign.right.as_ref(),
-                    JsExpr::Object(_) | JsExpr::Array(_) | JsExpr::Call(_)
-                );
+                // However, if skip_proxy is set (e.g., for $state.raw), never use proxy
+                let needs_proxy = !transform.skip_proxy
+                    && matches!(
+                        assign.right.as_ref(),
+                        JsExpr::Object(_) | JsExpr::Array(_) | JsExpr::Call(_)
+                    );
 
                 return assign_fn(JsExpr::Identifier(name.clone()), final_value, needs_proxy);
             }

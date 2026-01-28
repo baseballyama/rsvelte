@@ -91,6 +91,7 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
                         assign: Some(store_sub_assign),
                         mutate: Some(store_sub_mutate),
                         update: Some(store_sub_update),
+                        skip_proxy: false,
                     };
 
                     context.state.transform.insert(name.clone(), transform);

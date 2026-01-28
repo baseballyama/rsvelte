@@ -533,6 +533,10 @@ pub struct IdentifierTransform {
     /// - argument: The identifier being updated
     /// - prefix: Whether the operator is prefix (++x) or postfix (x++)
     pub update: Option<fn(JsUpdateOp, JsExpr, bool) -> JsExpr>,
+
+    /// Whether to skip proxy wrapping for this variable (e.g., $state.raw)
+    /// When true, needs_proxy will always be false for assignments
+    pub skip_proxy: bool,
 }
 
 /// Component metadata.

@@ -607,6 +607,7 @@ fn build_declarations(
                     assign: None,
                     mutate: None,
                     update: None,
+                    skip_proxy: false,
                 },
             );
         }
@@ -637,6 +638,7 @@ fn build_declarations(
                         assign: None,
                         mutate: None,
                         update: None,
+                        skip_proxy: false,
                     },
                 );
             }

@@ -222,6 +222,7 @@ fn create_derived_block_argument(
                 assign: None,
                 mutate: None,
                 update: None,
+                skip_proxy: false,
             },
         );
         return (Some(JsPattern::Identifier(name)), vec![]);
@@ -284,6 +285,7 @@ fn create_derived_block_argument(
                 assign: None,
                 mutate: None,
                 update: None,
+                skip_proxy: false,
             },
         );
 

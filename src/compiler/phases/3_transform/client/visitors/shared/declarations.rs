@@ -96,6 +96,7 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
                     assign: Some(store_sub_assign),
                     mutate: None,
                     update: Some(store_sub_update),
+                    skip_proxy: false,
                 };
                 context.state.transform.insert(name.clone(), transform);
                 continue;
@@ -125,11 +126,14 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
                 let assign_fn = create_assign_fn(name, context);
 
                 // Create the transform rule for this binding
+                // $state.raw() variables should never use proxy (skip_proxy: true)
+                let skip_proxy = matches!(binding.kind, BindingKind::RawState);
                 let transform = IdentifierTransform {
                     read: Some(read_fn),
                     assign: Some(assign_fn),
                     mutate: Some(mutate_fn),
                     update: Some(update_value),
+                    skip_proxy,
                 };
 
                 // Register the transform in the state

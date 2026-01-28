@@ -565,6 +565,15 @@ fn transform_instance_script_for_visitors(script: &str, analysis: &ComponentAnal
         Vec::new()
     };
 
+    // Collect $state.raw() variables - these never need proxy wrapping
+    let raw_state_vars: Vec<String> = analysis
+        .root
+        .bindings
+        .iter()
+        .filter(|b| matches!(b.kind, BindingKind::RawState))
+        .map(|b| b.name.clone())
+        .collect();
+
     // Check for legacy mode (export let)
     let has_legacy_export_let = script_rest.lines().any(|line| {
         let trimmed = line.trim();
@@ -650,6 +659,7 @@ fn transform_instance_script_for_visitors(script: &str, analysis: &ComponentAnal
             &state_vars,
             &non_reactive_state_vars,
             &proxy_vars,
+            &raw_state_vars,
         );
 
         // Wrap state variable reads in $.get() for general expressions
@@ -1022,6 +1032,7 @@ fn transform_state_assignments(
     state_vars: &[String],
     non_reactive_vars: &[String],
     proxy_vars: &[String],
+    raw_state_vars: &[String],
 ) -> String {
     let mut result = line.to_string();
 
@@ -1125,12 +1136,16 @@ fn transform_state_assignments(
                             proxy_vars,
                         );
                         // Check if the value needs proxying (could be an object/array)
-                        let needs_proxy = expression_needs_proxy(expr.trim());
+                        // $state.raw() variables never need proxy wrapping
+                        let is_raw_state = raw_state_vars.contains(var);
+                        let needs_proxy = !is_raw_state && expression_needs_proxy(expr.trim());
+
                         let replacement = if needs_proxy {
                             format!("$.set({}, {}, true)", var, wrapped_expr)
                         } else {
                             format!("$.set({}, {})", var, wrapped_expr)
                         };
+
                         result = format!(
                             "{}{}{}",
                             &result[..pos],
