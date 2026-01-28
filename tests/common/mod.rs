@@ -319,6 +319,8 @@ pub fn normalize_js(js: &str) -> String {
         static ref SPACE_AFTER_PUNC: Regex = Regex::new(r"([(\[{])\s+").unwrap();
         // Normalize "function ()" vs "function()" - remove space before opening paren after "function"
         static ref FUNCTION_SPACE_PAREN: Regex = Regex::new(r"function\s+\(").unwrap();
+        // Normalize "catch (e)" vs "catch(e)" - remove space before opening paren after "catch"
+        static ref CATCH_SPACE_PAREN: Regex = Regex::new(r"catch\s*\(").unwrap();
         // Normalize opening brace followed by newline to brace followed by space
         // This handles differences like "Counter($$anchor, {\n\tget foo()" vs "Counter($$anchor, { get foo()"
         static ref BRACE_NEWLINE: Regex = Regex::new(r"\{\s*\n\s*").unwrap();
@@ -400,6 +402,7 @@ pub fn normalize_js(js: &str) -> String {
                 &SPACE_BEFORE_PUNC,
                 &SPACE_AFTER_PUNC,
                 &FUNCTION_SPACE_PAREN,
+                &CATCH_SPACE_PAREN,
                 &SCIENTIFIC_NOTATION,
             );
 
@@ -422,6 +425,7 @@ fn normalize_line_preserving_strings(
     space_before_punc: &Regex,
     space_after_punc: &Regex,
     function_space_paren: &Regex,
+    catch_space_paren: &Regex,
     scientific_notation: &Regex,
 ) -> (String, Vec<String>) {
     let mut strings: Vec<String> = Vec::new();
@@ -538,6 +542,11 @@ fn normalize_line_preserving_strings(
     // Normalize "function ()" to "function()"
     normalized = function_space_paren
         .replace_all(&normalized, "function(")
+        .to_string();
+
+    // Normalize "catch (e)" to "catch(e)" (handle space variations)
+    normalized = catch_space_paren
+        .replace_all(&normalized, "catch(")
         .to_string();
 
     // Normalize scientific notation to decimal (1e3 -> 1000, 2.5e2 -> 250)
