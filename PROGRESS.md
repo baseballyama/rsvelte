@@ -1,43 +1,60 @@
-# Test Compatibility Progress
+# Svelte Compiler Rust - Progress Report
 
-## Current Status (2026-01-28)
+## Current Test Status (2026-01-28)
 
-### Runtime Runes Tests
-- **Server**: ~394/710 (55.5%) with improved normalization
-- **Client**: 189/737 (25.6%)
-- **Total**: 165/737 (22.4%)
+### Runtime-Runes Tests
+| Metric | Count | Percentage |
+|--------|-------|------------|
+| Total Passed | 173/737 | 23.5% |
+| Client Passed | 196/737 | 26.6% |
+| Server Passed | 432/737 | 58.6% |
+| Skipped | 14 | - |
 
-Note: Server count varies based on normalization stringency.
+### Recent Improvements
 
-## Session Work Log
+#### Session 2026-01-28
+1. **Fixed ReturnStatement handling in AST conversion** (Server: 421→422)
+   - `convert_statement_for_program` was missing ReturnStatement
+   - Function bodies containing return statements now properly converted
 
-### Completed Fixes
-1. ✅ Property name quoting for hyphenated attributes (`data-count` → `'data-count'`)
-2. ✅ Spread props with component bindings (`$.spread_props([...])`)
-3. ✅ Await block whitespace trimming
-4. ✅ $derived.by() class field support
-5. ✅ $state() class field transformation (`0 = $state();` → `0;`)
+2. **Added $state.snapshot and $inspect transformations** (Client: 189→196)
+   - Client: `$state.snapshot()` → `$.snapshot()`
+   - Client: `$inspect()` → removed in non-dev mode, `$.inspect()` in dev mode
+   - Server: `$state.snapshot()` → `$.snapshot()`
 
-### Remaining Issues by Category
-| Category | Count | Description |
-|----------|-------|-------------|
-| unknown | ~250 | Various differences needing investigation |
-| missing_props_param | 32 | Missing $$props and wrapper for some $state uses |
-| missing_select | 10 | Missing $$renderer.select() for select elements |
-| await_signature_diff | 7 | $.await() formatting differences |
-| missing_derived | 7 | Constructor-based $derived transformation |
-| push_vs_code | 4 | Output type differences |
-| function_signature | 3 | Wrapper not needed in some cases |
-| missing_svelte_head | 3 | Missing $.head() for svelte:head |
+3. **Added TaggedTemplateExpression and ChainExpression support**
+   - New JsTaggedTemplate struct for tagged template expressions
+   - Proper code generation for tagged templates
+   - ChainExpression handling for optional chaining
 
-### Key Missing Features
-1. **$$renderer.select()** - Special handling for `<select>` elements with value binding
-2. **$.head()** - Support for `<svelte:head>` elements
-3. **Constructor $derived** - `this.property = $derived(...)` in class constructors
-4. **Wrapper detection** - Better logic for when $$renderer.component() is needed
+4. **Fixed PrivateIdentifier parsing in class fields** (Server: 422→432)
+   - Parser now correctly generates PrivateIdentifier AST nodes
+   - Fixed duplicate_class_field validation for classes with private fields
+   - Classes with `#count = $state(0)` and getter/setter for `count` now compile
 
-## Next Steps
-- [ ] Implement $$renderer.select() for select elements
-- [ ] Implement $.head() for svelte:head
-- [ ] Improve constructor $derived transformation
-- [ ] Refine $$renderer.component() wrapper logic
+### Known Issues / Next Steps
+
+1. **$derived destructuring** - Not properly expanded into individual derived signals
+   - Currently generates: `let { foo, bar } = $.derived(() => stuff)`
+   - Should generate: `let foo = $.derived(() => stuff.foo), bar = $.derived(() => stuff.bar)`
+
+2. **Missing statement types in AST conversion**
+   - ForStatement, WhileStatement, TryStatement, SwitchStatement not fully handled
+
+3. **Store subscription assignments**
+   - `$count += 1` not transforming to `$.store_set()`
+
+4. **Missing $.push/$.pop generation** in some cases
+
+5. **Missing $.delegate for events**
+
+### Test Categories Status
+| Category | Status |
+|----------|--------|
+| Parser Modern | ✅ 100% |
+| Parser Legacy | ✅ 100% |
+| CSS | ⚠️ 62% |
+| Runtime Runes | 🔄 23.5% |
+| Runtime Legacy | ❌ Low |
+| SSR | 🔄 12.5% |
+| Hydration | ❌ 5.7% |
