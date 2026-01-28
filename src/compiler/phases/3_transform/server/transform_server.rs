@@ -2061,6 +2061,21 @@ impl<'a> ServerCodeGenerator<'a> {
             break;
         }
 
+        // Check if first meaningful content needs an anchor
+        // If the first node is Text or ExpressionTag, add <!----> to prevent text fusion
+        if start_idx < end_idx {
+            let first_node = &nodes[start_idx];
+            let needs_anchor = matches!(
+                first_node,
+                TemplateNode::Text(_) | TemplateNode::ExpressionTag(_)
+            );
+            if needs_anchor {
+                body_generator
+                    .output_parts
+                    .push(OutputPart::Html("<!---->".to_string()));
+            }
+        }
+
         // Generate only the meaningful nodes
         for node in &nodes[start_idx..end_idx] {
             body_generator.generate_node(node, false)?;
