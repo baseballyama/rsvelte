@@ -3179,6 +3179,155 @@ fn convert_statement_for_program(
 
             Some(Value::Object(obj))
         }
+        oxc_ast::ast::Statement::SwitchStatement(switch_stmt) => {
+            let start = offset + switch_stmt.span.start as usize;
+            let end = offset + switch_stmt.span.end as usize;
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("SwitchStatement".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+            // Convert discriminant
+            let discriminant_value =
+                convert_expression(&switch_stmt.discriminant, offset, line_offsets);
+            obj.insert(
+                "discriminant".to_string(),
+                discriminant_value.as_json().clone(),
+            );
+
+            // Convert cases
+            let cases: Vec<Value> = switch_stmt
+                .cases
+                .iter()
+                .map(|case| {
+                    let case_start = offset + case.span.start as usize;
+                    let case_end = offset + case.span.end as usize;
+                    let mut case_obj = Map::new();
+                    case_obj.insert("type".to_string(), Value::String("SwitchCase".to_string()));
+                    case_obj.insert(
+                        "start".to_string(),
+                        Value::Number((case_start as i64).into()),
+                    );
+                    case_obj.insert("end".to_string(), Value::Number((case_end as i64).into()));
+                    case_obj.insert(
+                        "loc".to_string(),
+                        create_loc(case_start, case_end, line_offsets),
+                    );
+
+                    // test is null for default case
+                    if let Some(test) = &case.test {
+                        let test_value = convert_expression(test, offset, line_offsets);
+                        case_obj.insert("test".to_string(), test_value.as_json().clone());
+                    } else {
+                        case_obj.insert("test".to_string(), Value::Null);
+                    }
+
+                    // Convert consequent statements
+                    let consequent: Vec<Value> = case
+                        .consequent
+                        .iter()
+                        .filter_map(|stmt| {
+                            convert_statement_for_program(stmt, offset, line_offsets)
+                        })
+                        .collect();
+                    case_obj.insert("consequent".to_string(), Value::Array(consequent));
+
+                    Value::Object(case_obj)
+                })
+                .collect();
+            obj.insert("cases".to_string(), Value::Array(cases));
+
+            Some(Value::Object(obj))
+        }
+        oxc_ast::ast::Statement::DoWhileStatement(do_while_stmt) => {
+            let start = offset + do_while_stmt.span.start as usize;
+            let end = offset + do_while_stmt.span.end as usize;
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("DoWhileStatement".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+            // Convert test
+            let test_value = convert_expression(&do_while_stmt.test, offset, line_offsets);
+            obj.insert("test".to_string(), test_value.as_json().clone());
+
+            // Convert body
+            if let Some(body_value) =
+                convert_statement_for_program(&do_while_stmt.body, offset, line_offsets)
+            {
+                obj.insert("body".to_string(), body_value);
+            }
+
+            Some(Value::Object(obj))
+        }
+        oxc_ast::ast::Statement::LabeledStatement(labeled_stmt) => {
+            let start = offset + labeled_stmt.span.start as usize;
+            let end = offset + labeled_stmt.span.end as usize;
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("LabeledStatement".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+            // Convert label
+            let label_start = offset + labeled_stmt.label.span.start as usize;
+            let label_end = offset + labeled_stmt.label.span.end as usize;
+            let label_expr = create_identifier(
+                &labeled_stmt.label.name,
+                label_start,
+                label_end,
+                line_offsets,
+            );
+            obj.insert("label".to_string(), label_expr.as_json().clone());
+
+            // Convert body
+            if let Some(body_value) =
+                convert_statement_for_program(&labeled_stmt.body, offset, line_offsets)
+            {
+                obj.insert("body".to_string(), body_value);
+            }
+
+            Some(Value::Object(obj))
+        }
+        oxc_ast::ast::Statement::EmptyStatement(empty_stmt) => {
+            let start = offset + empty_stmt.span.start as usize;
+            let end = offset + empty_stmt.span.end as usize;
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("EmptyStatement".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+            Some(Value::Object(obj))
+        }
+        oxc_ast::ast::Statement::DebuggerStatement(debugger_stmt) => {
+            let start = offset + debugger_stmt.span.start as usize;
+            let end = offset + debugger_stmt.span.end as usize;
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("DebuggerStatement".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+            Some(Value::Object(obj))
+        }
         // Add more statement types as needed
         _ => None,
     }
