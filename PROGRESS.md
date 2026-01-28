@@ -5,14 +5,29 @@
 ### Runtime-Runes Tests
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| Total Passed | 177/737 | 24.0% |
-| Client Passed | 202/737 | 27.4% |
-| Server Passed | 438/737 | 59.4% |
+| Total Passed | 179/737 | 24.3% |
+| Client Passed | 205/737 | 27.8% |
+| Server Passed | 440/737 | 59.7% |
 | Skipped | 14 | - |
 
 ### Recent Improvements
 
-#### Session 2026-01-28
+#### Session 2026-01-28 (Continued)
+
+7. **Added missing expression types to convert_expression** (Total: 177→179)
+   - Added `NewExpression` handling - `new FormData(e.target)` now correctly parsed
+   - Added `ThisExpression`, `Super`, `FunctionExpression`, `ClassExpression`
+   - Added `ImportExpression`, `AwaitExpression`, `YieldExpression`
+   - Added `ChainExpression` with full inner element support
+   - Added `PrivateFieldExpression`, `TaggedTemplateExpression`
+   - Added `MetaProperty`, `RegExpLiteral`
+   - Fixed "unknown" fallback issue in event handler arrow function bodies
+
+8. **Fixed store assignment transformation panic**
+   - Added check for overlapping matches to prevent `begin <= end` panic
+   - Fixed handling of multiple `$store` assignments in same line
+
+#### Earlier in Session 2026-01-28
 1. **Fixed ReturnStatement handling in AST conversion** (Server: 421→422)
    - `convert_statement_for_program` was missing ReturnStatement
    - Function bodies containing return statements now properly converted
@@ -41,6 +56,8 @@
    - ForStatement, ForOfStatement, ForInStatement
    - WhileStatement, TryStatement, ThrowStatement
    - BreakStatement, ContinueStatement
+   - SwitchStatement, DoWhileStatement, LabeledStatement
+   - EmptyStatement, DebuggerStatement
 
 ### Known Issues / Next Steps
 
@@ -60,7 +77,7 @@
 | Parser Modern | ✅ 100% |
 | Parser Legacy | ✅ 100% |
 | CSS | ⚠️ 62% |
-| Runtime Runes | 🔄 23.5% |
+| Runtime Runes | 🔄 24.3% |
 | Runtime Legacy | ❌ Low |
 | SSR | 🔄 12.5% |
 | Hydration | ❌ 5.7% |

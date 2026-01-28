@@ -4558,6 +4558,11 @@ fn transform_store_assignments(script: &str) -> String {
         let start = full_match.start();
         let end = full_match.end();
 
+        // Skip if this match overlaps with a previous replacement
+        if start < last_end {
+            continue;
+        }
+
         // Skip if we're inside a $.store_set call
         let preceding = &result[..start];
         if preceding.ends_with("$.store_set(") || preceding.ends_with("$.store_get(") {

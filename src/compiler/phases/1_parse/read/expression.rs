@@ -916,6 +916,220 @@ fn convert_expression(expr: &OxcExpression, offset: usize, line_offsets: &[usize
         OxcExpression::TSInstantiationExpression(ts_inst) => {
             convert_expression(&ts_inst.expression, offset, line_offsets)
         }
+        OxcExpression::NewExpression(new_expr) => {
+            let start = offset + new_expr.span.start as usize - 1;
+            let end = offset + new_expr.span.end as usize - 1;
+            create_new_expression(new_expr, start, end, offset, line_offsets)
+        }
+        OxcExpression::ThisExpression(this_expr) => {
+            let start = offset + this_expr.span.start as usize - 1;
+            let end = offset + this_expr.span.end as usize - 1;
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("ThisExpression".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            Expression::Value(Value::Object(obj))
+        }
+        OxcExpression::Super(super_expr) => {
+            let start = offset + super_expr.span.start as usize - 1;
+            let end = offset + super_expr.span.end as usize - 1;
+            let mut obj = Map::new();
+            obj.insert("type".to_string(), Value::String("Super".to_string()));
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            Expression::Value(Value::Object(obj))
+        }
+        OxcExpression::FunctionExpression(func) => {
+            let start = offset + func.span.start as usize - 1;
+            let end = offset + func.span.end as usize - 1;
+            create_function_expression(func, start, end, offset, line_offsets)
+        }
+        OxcExpression::ClassExpression(class_expr) => {
+            let start = offset + class_expr.span.start as usize - 1;
+            let end = offset + class_expr.span.end as usize - 1;
+            create_class_expression(class_expr, start, end, offset, line_offsets)
+        }
+        OxcExpression::ImportExpression(import_expr) => {
+            let start = offset + import_expr.span.start as usize - 1;
+            let end = offset + import_expr.span.end as usize - 1;
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("ImportExpression".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            obj.insert(
+                "source".to_string(),
+                convert_expression(&import_expr.source, offset, line_offsets)
+                    .as_json()
+                    .clone(),
+            );
+            Expression::Value(Value::Object(obj))
+        }
+        OxcExpression::AwaitExpression(await_expr) => {
+            let start = offset + await_expr.span.start as usize - 1;
+            let end = offset + await_expr.span.end as usize - 1;
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("AwaitExpression".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            obj.insert(
+                "argument".to_string(),
+                convert_expression(&await_expr.argument, offset, line_offsets)
+                    .as_json()
+                    .clone(),
+            );
+            Expression::Value(Value::Object(obj))
+        }
+        OxcExpression::YieldExpression(yield_expr) => {
+            let start = offset + yield_expr.span.start as usize - 1;
+            let end = offset + yield_expr.span.end as usize - 1;
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("YieldExpression".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            obj.insert("delegate".to_string(), Value::Bool(yield_expr.delegate));
+            if let Some(ref arg) = yield_expr.argument {
+                obj.insert(
+                    "argument".to_string(),
+                    convert_expression(arg, offset, line_offsets)
+                        .as_json()
+                        .clone(),
+                );
+            } else {
+                obj.insert("argument".to_string(), Value::Null);
+            }
+            Expression::Value(Value::Object(obj))
+        }
+        OxcExpression::ChainExpression(chain_expr) => {
+            let start = offset + chain_expr.span.start as usize - 1;
+            let end = offset + chain_expr.span.end as usize - 1;
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("ChainExpression".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            // Convert the chain expression's expression
+            let chain_inner = match &chain_expr.expression {
+                oxc_ast::ast::ChainElement::CallExpression(call) => {
+                    let inner_start = offset + call.span.start as usize - 1;
+                    let inner_end = offset + call.span.end as usize - 1;
+                    create_call_expression(call, inner_start, inner_end, offset, line_offsets)
+                        .as_json()
+                        .clone()
+                }
+                oxc_ast::ast::ChainElement::TSNonNullExpression(ts_non_null) => {
+                    convert_expression(&ts_non_null.expression, offset, line_offsets)
+                        .as_json()
+                        .clone()
+                }
+                oxc_ast::ast::ChainElement::StaticMemberExpression(member) => {
+                    let inner_start = offset + member.span.start as usize - 1;
+                    let inner_end = offset + member.span.end as usize - 1;
+                    create_static_member_expression(
+                        member,
+                        inner_start,
+                        inner_end,
+                        offset,
+                        line_offsets,
+                    )
+                    .as_json()
+                    .clone()
+                }
+                oxc_ast::ast::ChainElement::ComputedMemberExpression(member) => {
+                    let inner_start = offset + member.span.start as usize - 1;
+                    let inner_end = offset + member.span.end as usize - 1;
+                    create_computed_member_expression(
+                        member,
+                        inner_start,
+                        inner_end,
+                        offset,
+                        line_offsets,
+                    )
+                    .as_json()
+                    .clone()
+                }
+                oxc_ast::ast::ChainElement::PrivateFieldExpression(private_member) => {
+                    let inner_start = offset + private_member.span.start as usize - 1;
+                    let inner_end = offset + private_member.span.end as usize - 1;
+                    create_private_member_expression(
+                        private_member,
+                        inner_start,
+                        inner_end,
+                        offset,
+                        line_offsets,
+                    )
+                    .as_json()
+                    .clone()
+                }
+            };
+            obj.insert("expression".to_string(), chain_inner);
+            Expression::Value(Value::Object(obj))
+        }
+        OxcExpression::PrivateFieldExpression(private_member) => {
+            let start = offset + private_member.span.start as usize - 1;
+            let end = offset + private_member.span.end as usize - 1;
+            create_private_member_expression(private_member, start, end, offset, line_offsets)
+        }
+        OxcExpression::TaggedTemplateExpression(tagged) => {
+            let start = offset + tagged.span.start as usize - 1;
+            let end = offset + tagged.span.end as usize - 1;
+            create_tagged_template_expression(tagged, start, end, offset, line_offsets)
+        }
+        OxcExpression::MetaProperty(meta) => {
+            let start = offset + meta.span.start as usize - 1;
+            let end = offset + meta.span.end as usize - 1;
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("MetaProperty".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            // meta
+            let meta_start = offset + meta.meta.span.start as usize - 1;
+            let meta_end = offset + meta.meta.span.end as usize - 1;
+            obj.insert(
+                "meta".to_string(),
+                create_identifier(&meta.meta.name, meta_start, meta_end, line_offsets)
+                    .as_json()
+                    .clone(),
+            );
+            // property
+            let prop_start = offset + meta.property.span.start as usize - 1;
+            let prop_end = offset + meta.property.span.end as usize - 1;
+            obj.insert(
+                "property".to_string(),
+                create_identifier(&meta.property.name, prop_start, prop_end, line_offsets)
+                    .as_json()
+                    .clone(),
+            );
+            Expression::Value(Value::Object(obj))
+        }
+        OxcExpression::RegExpLiteral(regex) => {
+            let start = offset + regex.span.start as usize - 1;
+            let end = offset + regex.span.end as usize - 1;
+            create_regex_literal(regex, start, end, line_offsets)
+        }
         // Add more expression types as needed
         _ => {
             // Fallback for unsupported expression types
@@ -1375,6 +1589,405 @@ fn create_computed_member_expression(
     obj.insert("optional".to_string(), Value::Bool(member.optional));
 
     Expression::Value(Value::Object(obj))
+}
+
+fn create_private_member_expression(
+    member: &oxc_ast::ast::PrivateFieldExpression,
+    start: usize,
+    end: usize,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Expression {
+    let mut obj = Map::new();
+    obj.insert(
+        "type".to_string(),
+        Value::String("MemberExpression".to_string()),
+    );
+    obj.insert("start".to_string(), Value::Number((start as i64).into()));
+    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+    obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+    let object = convert_expression(&member.object, offset, line_offsets);
+    obj.insert("object".to_string(), object.as_json().clone());
+
+    // Create PrivateIdentifier for the property
+    let prop_start = offset + member.field.span.start as usize - 1;
+    let prop_end = offset + member.field.span.end as usize - 1;
+    let property =
+        create_private_identifier(&member.field.name, prop_start, prop_end, line_offsets);
+    obj.insert("property".to_string(), property.as_json().clone());
+    obj.insert("computed".to_string(), Value::Bool(false));
+    obj.insert("optional".to_string(), Value::Bool(member.optional));
+
+    Expression::Value(Value::Object(obj))
+}
+
+fn create_new_expression(
+    new_expr: &oxc_ast::ast::NewExpression,
+    start: usize,
+    end: usize,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Expression {
+    let mut obj = Map::new();
+    obj.insert(
+        "type".to_string(),
+        Value::String("NewExpression".to_string()),
+    );
+    obj.insert("start".to_string(), Value::Number((start as i64).into()));
+    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+    obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+    let callee = convert_expression(&new_expr.callee, offset, line_offsets);
+    obj.insert("callee".to_string(), callee.as_json().clone());
+
+    let args: Vec<Value> = new_expr
+        .arguments
+        .iter()
+        .map(|arg| match arg {
+            oxc_ast::ast::Argument::SpreadElement(spread) => {
+                let spread_start = offset + spread.span.start as usize - 1;
+                let spread_end = offset + spread.span.end as usize - 1;
+                let mut spread_obj = Map::new();
+                spread_obj.insert(
+                    "type".to_string(),
+                    Value::String("SpreadElement".to_string()),
+                );
+                spread_obj.insert(
+                    "start".to_string(),
+                    Value::Number((spread_start as i64).into()),
+                );
+                spread_obj.insert("end".to_string(), Value::Number((spread_end as i64).into()));
+                spread_obj.insert(
+                    "loc".to_string(),
+                    create_loc(spread_start, spread_end, line_offsets),
+                );
+                spread_obj.insert(
+                    "argument".to_string(),
+                    convert_expression(&spread.argument, offset, line_offsets)
+                        .as_json()
+                        .clone(),
+                );
+                Value::Object(spread_obj)
+            }
+            _ => {
+                let expr = arg.to_expression();
+                convert_expression(expr, offset, line_offsets)
+                    .as_json()
+                    .clone()
+            }
+        })
+        .collect();
+    obj.insert("arguments".to_string(), Value::Array(args));
+
+    Expression::Value(Value::Object(obj))
+}
+
+fn create_function_expression(
+    func: &oxc_ast::ast::Function,
+    start: usize,
+    end: usize,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Expression {
+    let mut obj = Map::new();
+    obj.insert(
+        "type".to_string(),
+        Value::String("FunctionExpression".to_string()),
+    );
+    obj.insert("start".to_string(), Value::Number((start as i64).into()));
+    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+    obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+    // id
+    if let Some(ref id) = func.id {
+        let id_start = offset + id.span.start as usize - 1;
+        let id_end = offset + id.span.end as usize - 1;
+        obj.insert(
+            "id".to_string(),
+            create_identifier(&id.name, id_start, id_end, line_offsets)
+                .as_json()
+                .clone(),
+        );
+    } else {
+        obj.insert("id".to_string(), Value::Null);
+    }
+
+    obj.insert("generator".to_string(), Value::Bool(func.generator));
+    obj.insert("async".to_string(), Value::Bool(func.r#async));
+    obj.insert("expression".to_string(), Value::Bool(false));
+
+    // params
+    let params: Vec<Value> = func
+        .params
+        .items
+        .iter()
+        .map(|param| convert_binding_pattern(&param.pattern, offset, line_offsets))
+        .collect();
+    obj.insert("params".to_string(), Value::Array(params));
+
+    // body
+    if let Some(ref body) = func.body {
+        let body_start = offset + body.span.start as usize - 1;
+        let body_end = offset + body.span.end as usize - 1;
+        let mut body_obj = Map::new();
+        body_obj.insert(
+            "type".to_string(),
+            Value::String("BlockStatement".to_string()),
+        );
+        body_obj.insert(
+            "start".to_string(),
+            Value::Number((body_start as i64).into()),
+        );
+        body_obj.insert("end".to_string(), Value::Number((body_end as i64).into()));
+        body_obj.insert(
+            "loc".to_string(),
+            create_loc(body_start, body_end, line_offsets),
+        );
+
+        let statements: Vec<Value> = body
+            .statements
+            .iter()
+            .filter_map(|stmt| convert_statement(stmt, offset, line_offsets))
+            .collect();
+        body_obj.insert("body".to_string(), Value::Array(statements));
+
+        obj.insert("body".to_string(), Value::Object(body_obj));
+    } else {
+        obj.insert("body".to_string(), Value::Null);
+    }
+
+    Expression::Value(Value::Object(obj))
+}
+
+fn create_class_expression(
+    class_expr: &oxc_ast::ast::Class,
+    start: usize,
+    end: usize,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Expression {
+    let mut obj = Map::new();
+    obj.insert(
+        "type".to_string(),
+        Value::String("ClassExpression".to_string()),
+    );
+    obj.insert("start".to_string(), Value::Number((start as i64).into()));
+    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+    obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+    // id
+    if let Some(ref id) = class_expr.id {
+        let id_start = offset + id.span.start as usize - 1;
+        let id_end = offset + id.span.end as usize - 1;
+        obj.insert(
+            "id".to_string(),
+            create_identifier(&id.name, id_start, id_end, line_offsets)
+                .as_json()
+                .clone(),
+        );
+    } else {
+        obj.insert("id".to_string(), Value::Null);
+    }
+
+    // superClass
+    if let Some(ref super_class) = class_expr.super_class {
+        let super_expr = convert_expression(super_class, offset, line_offsets);
+        obj.insert("superClass".to_string(), super_expr.as_json().clone());
+    } else {
+        obj.insert("superClass".to_string(), Value::Null);
+    }
+
+    // body - use convert_class_body_for_expr
+    let body = convert_class_body_for_expr(&class_expr.body, offset, line_offsets);
+    obj.insert("body".to_string(), body);
+
+    Expression::Value(Value::Object(obj))
+}
+
+fn create_tagged_template_expression(
+    tagged: &oxc_ast::ast::TaggedTemplateExpression,
+    start: usize,
+    end: usize,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Expression {
+    let mut obj = Map::new();
+    obj.insert(
+        "type".to_string(),
+        Value::String("TaggedTemplateExpression".to_string()),
+    );
+    obj.insert("start".to_string(), Value::Number((start as i64).into()));
+    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+    obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+    // tag
+    let tag = convert_expression(&tagged.tag, offset, line_offsets);
+    obj.insert("tag".to_string(), tag.as_json().clone());
+
+    // quasi
+    let quasi_start = offset + tagged.quasi.span.start as usize - 1;
+    let quasi_end = offset + tagged.quasi.span.end as usize - 1;
+    let quasi =
+        create_template_literal(&tagged.quasi, quasi_start, quasi_end, offset, line_offsets);
+    obj.insert("quasi".to_string(), quasi.as_json().clone());
+
+    Expression::Value(Value::Object(obj))
+}
+
+fn create_regex_literal(
+    regex: &oxc_ast::ast::RegExpLiteral,
+    start: usize,
+    end: usize,
+    line_offsets: &[usize],
+) -> Expression {
+    let mut obj = Map::new();
+    obj.insert("type".to_string(), Value::String("Literal".to_string()));
+    obj.insert("start".to_string(), Value::Number((start as i64).into()));
+    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+    obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+    // regex property
+    let mut regex_obj = Map::new();
+    let pattern_str = regex.regex.pattern.text.to_string();
+    let flags_str = regex.regex.flags.to_string();
+    regex_obj.insert("pattern".to_string(), Value::String(pattern_str.clone()));
+    regex_obj.insert("flags".to_string(), Value::String(flags_str.clone()));
+    obj.insert("regex".to_string(), Value::Object(regex_obj));
+
+    // raw
+    let raw = if let Some(ref raw_str) = regex.raw {
+        raw_str.to_string()
+    } else {
+        format!("/{}/{}", pattern_str, flags_str)
+    };
+    obj.insert("raw".to_string(), Value::String(raw));
+    obj.insert("value".to_string(), Value::Object(Map::new())); // Regex value is stored in regex property
+
+    Expression::Value(Value::Object(obj))
+}
+
+/// Convert a class body to JSON value (for expression context, with -1 offset adjustment).
+fn convert_class_body_for_expr(
+    body: &oxc_ast::ast::ClassBody,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    let start = offset + body.span.start as usize - 1;
+    let end = offset + body.span.end as usize - 1;
+
+    let mut obj = Map::new();
+    obj.insert("type".to_string(), Value::String("ClassBody".to_string()));
+    obj.insert("start".to_string(), Value::Number((start as i64).into()));
+    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+    obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+    let body_elements: Vec<Value> = body
+        .body
+        .iter()
+        .filter_map(|element| convert_class_element_for_expr(element, offset, line_offsets))
+        .collect();
+    obj.insert("body".to_string(), Value::Array(body_elements));
+
+    Value::Object(obj)
+}
+
+/// Convert a class element to JSON value (for expression context, with -1 offset adjustment).
+fn convert_class_element_for_expr(
+    element: &oxc_ast::ast::ClassElement,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Option<Value> {
+    match element {
+        oxc_ast::ast::ClassElement::MethodDefinition(method) => {
+            let start = offset + method.span.start as usize - 1;
+            let end = offset + method.span.end as usize - 1;
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("MethodDefinition".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            obj.insert("static".to_string(), Value::Bool(method.r#static));
+            obj.insert("computed".to_string(), Value::Bool(method.computed));
+
+            // kind
+            let kind = match method.kind {
+                oxc_ast::ast::MethodDefinitionKind::Constructor => "constructor",
+                oxc_ast::ast::MethodDefinitionKind::Method => "method",
+                oxc_ast::ast::MethodDefinitionKind::Get => "get",
+                oxc_ast::ast::MethodDefinitionKind::Set => "set",
+            };
+            obj.insert("kind".to_string(), Value::String(kind.to_string()));
+
+            // key
+            let key = convert_property_key_for_expr(&method.key, offset, line_offsets);
+            obj.insert("key".to_string(), key);
+
+            // value (function expression)
+            let value_start = offset + method.value.span.start as usize - 1;
+            let value_end = offset + method.value.span.end as usize - 1;
+            let value = create_function_expression(
+                &method.value,
+                value_start,
+                value_end,
+                offset,
+                line_offsets,
+            );
+            obj.insert("value".to_string(), value.as_json().clone());
+
+            Some(Value::Object(obj))
+        }
+        oxc_ast::ast::ClassElement::PropertyDefinition(prop) => {
+            let start = offset + prop.span.start as usize - 1;
+            let end = offset + prop.span.end as usize - 1;
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("PropertyDefinition".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            obj.insert("static".to_string(), Value::Bool(prop.r#static));
+            obj.insert("computed".to_string(), Value::Bool(prop.computed));
+
+            // key
+            let key = convert_property_key_for_expr(&prop.key, offset, line_offsets);
+            obj.insert("key".to_string(), key);
+
+            // value
+            if let Some(ref value) = prop.value {
+                let val = convert_expression(value, offset, line_offsets);
+                obj.insert("value".to_string(), val.as_json().clone());
+            } else {
+                obj.insert("value".to_string(), Value::Null);
+            }
+
+            Some(Value::Object(obj))
+        }
+        oxc_ast::ast::ClassElement::StaticBlock(static_block) => {
+            let start = offset + static_block.span.start as usize - 1;
+            let end = offset + static_block.span.end as usize - 1;
+            let mut obj = Map::new();
+            obj.insert("type".to_string(), Value::String("StaticBlock".to_string()));
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+            let body_statements: Vec<Value> = static_block
+                .body
+                .iter()
+                .filter_map(|stmt| convert_statement(stmt, offset, line_offsets))
+                .collect();
+            obj.insert("body".to_string(), Value::Array(body_statements));
+
+            Some(Value::Object(obj))
+        }
+        _ => None,
+    }
 }
 
 fn create_array_expression(
