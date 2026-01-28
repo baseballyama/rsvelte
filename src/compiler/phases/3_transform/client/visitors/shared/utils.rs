@@ -389,6 +389,25 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
             })
         }
 
+        JsExpr::TaggedTemplate(tagged) => {
+            // Transform both the tag and the expressions in the quasi
+            let transformed_tag = apply_transforms_to_expression(&tagged.tag, context);
+            let transformed_exprs: Vec<JsExpr> = tagged
+                .quasi
+                .expressions
+                .iter()
+                .map(|e| apply_transforms_to_expression(e, context))
+                .collect();
+
+            JsExpr::TaggedTemplate(JsTaggedTemplate {
+                tag: Box::new(transformed_tag),
+                quasi: JsTemplateLiteral {
+                    quasis: tagged.quasi.quasis.clone(),
+                    expressions: transformed_exprs,
+                },
+            })
+        }
+
         // Expressions that don't need transformation
         JsExpr::Literal(_)
         | JsExpr::This

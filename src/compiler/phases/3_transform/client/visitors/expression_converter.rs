@@ -58,6 +58,8 @@ fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
                 "YieldExpression" => convert_yield_expression(obj, context),
                 "SpreadElement" => convert_spread_element(obj, context),
                 "TemplateLiteral" => convert_template_literal(obj, context),
+                "TaggedTemplateExpression" => convert_tagged_template_expression(obj, context),
+                "ChainExpression" => convert_chain_expression(obj, context),
                 _ => {
                     // Unknown node type - return as raw comment
                     JsExpr::Raw(format!("/* Unknown: {} */", node_type))
@@ -1343,6 +1345,57 @@ fn convert_template_literal(
         quasis,
         expressions,
     })
+}
+
+/// Convert a TaggedTemplateExpression node.
+///
+/// Structure: tag`template`
+/// Example: css`color: red;`
+fn convert_tagged_template_expression(
+    obj: &serde_json::Map<String, Value>,
+    context: &mut ComponentContext,
+) -> JsExpr {
+    // Convert the tag expression
+    let tag = obj
+        .get("tag")
+        .map(|t| Box::new(convert_json_value(t, context)))
+        .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".to_string())));
+
+    // Convert the quasi (template literal)
+    let quasi = obj
+        .get("quasi")
+        .and_then(|q| q.as_object())
+        .map(|q| {
+            // Convert the quasi which is a TemplateLiteral
+            match convert_template_literal(q, context) {
+                JsExpr::TemplateLiteral(tl) => tl,
+                _ => JsTemplateLiteral {
+                    quasis: vec![],
+                    expressions: vec![],
+                },
+            }
+        })
+        .unwrap_or_else(|| JsTemplateLiteral {
+            quasis: vec![],
+            expressions: vec![],
+        });
+
+    JsExpr::TaggedTemplate(JsTaggedTemplate { tag, quasi })
+}
+
+/// Convert a ChainExpression node.
+///
+/// Handles optional chaining: a?.b, a?.[b], a?.()
+fn convert_chain_expression(
+    obj: &serde_json::Map<String, Value>,
+    context: &mut ComponentContext,
+) -> JsExpr {
+    // The expression inside a ChainExpression
+    if let Some(expression) = obj.get("expression") {
+        convert_json_value(expression, context)
+    } else {
+        JsExpr::Raw("/* ChainExpression: missing expression */".to_string())
+    }
 }
 
 // Helper trait to convert JsExpr into JsLiteral for property keys

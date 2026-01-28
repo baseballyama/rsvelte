@@ -290,6 +290,8 @@ pub enum JsExpr {
     Literal(JsLiteral),
     /// Template literal
     TemplateLiteral(JsTemplateLiteral),
+    /// Tagged template expression
+    TaggedTemplate(JsTaggedTemplate),
     /// Array expression
     Array(JsArrayExpression),
     /// Object expression
@@ -352,6 +354,14 @@ pub enum JsLiteral {
 pub struct JsTemplateLiteral {
     pub quasis: Vec<JsTemplateElement>,
     pub expressions: Vec<JsExpr>,
+}
+
+/// Tagged template expression.
+/// Example: css`color: red;`
+#[derive(Debug, Clone)]
+pub struct JsTaggedTemplate {
+    pub tag: Box<JsExpr>,
+    pub quasi: JsTemplateLiteral,
 }
 
 /// Template literal element.

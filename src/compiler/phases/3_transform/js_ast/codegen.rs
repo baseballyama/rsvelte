@@ -574,6 +574,7 @@ impl JsCodegen {
             JsExpr::Identifier(name) => self.output.push_str(name),
             JsExpr::Literal(lit) => self.emit_literal(lit),
             JsExpr::TemplateLiteral(template) => self.emit_template_literal(template),
+            JsExpr::TaggedTemplate(tagged) => self.emit_tagged_template(tagged),
             JsExpr::Array(arr) => self.emit_array_expression(arr),
             JsExpr::Object(obj) => self.emit_object_expression(obj),
             JsExpr::Function(func) => self.emit_function_expression(func),
@@ -652,6 +653,11 @@ impl JsCodegen {
             }
         }
         self.output.push('`');
+    }
+
+    fn emit_tagged_template(&mut self, tagged: &JsTaggedTemplate) {
+        self.emit_expression(&tagged.tag);
+        self.emit_template_literal(&tagged.quasi);
     }
 
     fn emit_array_expression(&mut self, arr: &JsArrayExpression) {
