@@ -381,6 +381,40 @@ let value = $state();
     }
 
     #[test]
+    fn debug_bind_and_spread_server() {
+        use svelte_compiler_rust::compiler::GenerateMode;
+
+        let source = std::fs::read_to_string(
+            "svelte/packages/svelte/tests/runtime-runes/samples/bind-and-spread/main.svelte",
+        )
+        .unwrap();
+
+        let options = CompileOptions {
+            dev: false,
+            generate: GenerateMode::Server,
+            filename: Some("Main.svelte".to_string()),
+            ..Default::default()
+        };
+
+        match compile(&source, options) {
+            Ok(result) => {
+                println!(
+                    "\n=== COMPILED SERVER OUTPUT ===\n{}\n=== END ===\n",
+                    result.js.code
+                );
+                // Check if spread_props is present
+                assert!(
+                    result.js.code.contains("spread_props"),
+                    "Output should contain $.spread_props when there are spreads with bindings"
+                );
+            }
+            Err(e) => {
+                panic!("Compilation failed: {:?}", e);
+            }
+        }
+    }
+
+    #[test]
     fn debug_class_state_derived_server() {
         use svelte_compiler_rust::compiler::GenerateMode;
 

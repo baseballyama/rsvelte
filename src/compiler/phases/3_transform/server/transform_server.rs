@@ -177,6 +177,8 @@ enum OutputPart {
     ComponentWithBindings {
         name: String,
         props: Vec<String>,
+        /// Spread expressions (e.g., `attrs` from `{...attrs}`)
+        spreads: Vec<String>,
         bindings: Vec<(String, String)>, // (prop_name, variable_name)
         #[allow(dead_code)]
         // Always true for component bindings - comment marker added via build_parts_with_prefix
@@ -1224,6 +1226,7 @@ impl<'a> ServerCodeGenerator<'a> {
             self.output_parts.push(OutputPart::ComponentWithBindings {
                 name: comp_name,
                 props,
+                spreads,
                 bindings,
                 has_prior_content,
                 children,
@@ -2368,6 +2371,7 @@ export default function {component_name}($$renderer{props_param}) {{
                 OutputPart::ComponentWithBindings {
                     name,
                     props,
+                    spreads,
                     bindings,
                     has_prior_content: _,
                     children: _, // TODO: Handle children for components with bindings
@@ -2386,27 +2390,69 @@ export default function {component_name}($$renderer{props_param}) {{
                         indent
                     ));
 
-                    // Generate component call with getter/setter props
-                    body_code.push_str(&format!("{}\t{}($$renderer, {{\n", indent, name));
+                    // Generate component call - use $.spread_props if spreads exist
+                    if !spreads.is_empty() {
+                        body_code.push_str(&format!(
+                            "{}\t{}($$renderer, $.spread_props([\n",
+                            indent, name
+                        ));
 
-                    // Regular props first
-                    for prop in props {
-                        body_code.push_str(&format!("{}\t\t{},\n", indent, prop));
-                    }
+                        // Add spread expressions first
+                        for spread in spreads {
+                            body_code.push_str(&format!("{}\t\t{},\n", indent, spread));
+                        }
 
-                    // Generate getter/setter for each binding
-                    for (prop_name, var_name) in bindings {
-                        body_code.push_str(&format!("{}\t\tget {}() {{\n", indent, prop_name));
-                        body_code.push_str(&format!("{}\t\t\treturn {};\n", indent, var_name));
-                        body_code.push_str(&format!("{}\t\t}},\n\n", indent));
-                        body_code
-                            .push_str(&format!("{}\t\tset {}($$value) {{\n", indent, prop_name));
-                        body_code.push_str(&format!("{}\t\t\t{} = $$value;\n", indent, var_name));
-                        body_code.push_str(&format!("{}\t\t\t$$settled = false;\n", indent));
+                        // Then add explicit props and bindings as an object
+                        body_code.push_str(&format!("{}\t\t{{\n", indent));
+
+                        for prop in props {
+                            body_code.push_str(&format!("{}\t\t\t{},\n", indent, prop));
+                        }
+
+                        for (prop_name, var_name) in bindings {
+                            body_code
+                                .push_str(&format!("{}\t\t\tget {}() {{\n", indent, prop_name));
+                            body_code
+                                .push_str(&format!("{}\t\t\t\treturn {};\n", indent, var_name));
+                            body_code.push_str(&format!("{}\t\t\t}},\n\n", indent));
+                            body_code.push_str(&format!(
+                                "{}\t\t\tset {}($$value) {{\n",
+                                indent, prop_name
+                            ));
+                            body_code
+                                .push_str(&format!("{}\t\t\t\t{} = $$value;\n", indent, var_name));
+                            body_code.push_str(&format!("{}\t\t\t\t$$settled = false;\n", indent));
+                            body_code.push_str(&format!("{}\t\t\t}}\n", indent));
+                        }
+
                         body_code.push_str(&format!("{}\t\t}}\n", indent));
-                    }
+                        body_code.push_str(&format!("{}\t]));\n", indent));
+                    } else {
+                        // No spreads, use simple object literal
+                        body_code.push_str(&format!("{}\t{}($$renderer, {{\n", indent, name));
 
-                    body_code.push_str(&format!("{}\t}});\n", indent));
+                        // Regular props first
+                        for prop in props {
+                            body_code.push_str(&format!("{}\t\t{},\n", indent, prop));
+                        }
+
+                        // Generate getter/setter for each binding
+                        for (prop_name, var_name) in bindings {
+                            body_code.push_str(&format!("{}\t\tget {}() {{\n", indent, prop_name));
+                            body_code.push_str(&format!("{}\t\t\treturn {};\n", indent, var_name));
+                            body_code.push_str(&format!("{}\t\t}},\n\n", indent));
+                            body_code.push_str(&format!(
+                                "{}\t\tset {}($$value) {{\n",
+                                indent, prop_name
+                            ));
+                            body_code
+                                .push_str(&format!("{}\t\t\t{} = $$value;\n", indent, var_name));
+                            body_code.push_str(&format!("{}\t\t\t$$settled = false;\n", indent));
+                            body_code.push_str(&format!("{}\t\t}}\n", indent));
+                        }
+
+                        body_code.push_str(&format!("{}\t}});\n", indent));
+                    }
 
                     // Process remaining parts inside $$render_inner with comment marker
                     let remaining_parts = &parts[i + 1..];

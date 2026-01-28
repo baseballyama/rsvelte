@@ -186,6 +186,7 @@ pub fn build_parts(parts: &[OutputPart], indent_level: usize) -> String {
             OutputPart::ComponentWithBindings {
                 name,
                 props,
+                spreads,
                 bindings,
                 has_prior_content: _,
                 children: _,
@@ -199,23 +200,58 @@ pub fn build_parts(parts: &[OutputPart], indent_level: usize) -> String {
                     indent
                 ));
 
-                body_code.push_str(&format!("{}\t{}($$renderer, {{\n", indent, name));
+                // If there are spreads, use $.spread_props([...])
+                if !spreads.is_empty() {
+                    body_code.push_str(&format!(
+                        "{}\t{}($$renderer, $.spread_props([\n",
+                        indent, name
+                    ));
 
-                for prop in props {
-                    body_code.push_str(&format!("{}\t\t{},\n", indent, prop));
-                }
+                    // Add spread expressions first
+                    for spread in spreads {
+                        body_code.push_str(&format!("{}\t\t{},\n", indent, spread));
+                    }
 
-                for (prop_name, var_name) in bindings {
-                    body_code.push_str(&format!("{}\t\tget {}() {{\n", indent, prop_name));
-                    body_code.push_str(&format!("{}\t\t\treturn {};\n", indent, var_name));
-                    body_code.push_str(&format!("{}\t\t}},\n\n", indent));
-                    body_code.push_str(&format!("{}\t\tset {}($$value) {{\n", indent, prop_name));
-                    body_code.push_str(&format!("{}\t\t\t{} = $$value;\n", indent, var_name));
-                    body_code.push_str(&format!("{}\t\t\t$$settled = false;\n", indent));
+                    // Then add explicit props and bindings as an object
+                    body_code.push_str(&format!("{}\t\t{{\n", indent));
+                    for prop in props {
+                        body_code.push_str(&format!("{}\t\t\t{},\n", indent, prop));
+                    }
+
+                    for (prop_name, var_name) in bindings {
+                        body_code.push_str(&format!("{}\t\t\tget {}() {{\n", indent, prop_name));
+                        body_code.push_str(&format!("{}\t\t\t\treturn {};\n", indent, var_name));
+                        body_code.push_str(&format!("{}\t\t\t}},\n\n", indent));
+                        body_code
+                            .push_str(&format!("{}\t\t\tset {}($$value) {{\n", indent, prop_name));
+                        body_code.push_str(&format!("{}\t\t\t\t{} = $$value;\n", indent, var_name));
+                        body_code.push_str(&format!("{}\t\t\t\t$$settled = false;\n", indent));
+                        body_code.push_str(&format!("{}\t\t\t}}\n", indent));
+                    }
+
                     body_code.push_str(&format!("{}\t\t}}\n", indent));
-                }
+                    body_code.push_str(&format!("{}\t]));\n", indent));
+                } else {
+                    // No spreads, just use an object literal
+                    body_code.push_str(&format!("{}\t{}($$renderer, {{\n", indent, name));
 
-                body_code.push_str(&format!("{}\t}});\n", indent));
+                    for prop in props {
+                        body_code.push_str(&format!("{}\t\t{},\n", indent, prop));
+                    }
+
+                    for (prop_name, var_name) in bindings {
+                        body_code.push_str(&format!("{}\t\tget {}() {{\n", indent, prop_name));
+                        body_code.push_str(&format!("{}\t\t\treturn {};\n", indent, var_name));
+                        body_code.push_str(&format!("{}\t\t}},\n\n", indent));
+                        body_code
+                            .push_str(&format!("{}\t\tset {}($$value) {{\n", indent, prop_name));
+                        body_code.push_str(&format!("{}\t\t\t{} = $$value;\n", indent, var_name));
+                        body_code.push_str(&format!("{}\t\t\t$$settled = false;\n", indent));
+                        body_code.push_str(&format!("{}\t\t}}\n", indent));
+                    }
+
+                    body_code.push_str(&format!("{}\t}});\n", indent));
+                }
 
                 let remaining_parts = &parts[i + 1..];
                 if !remaining_parts.is_empty() {

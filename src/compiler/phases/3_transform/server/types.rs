@@ -185,6 +185,7 @@ pub enum OutputPart {
     ComponentWithBindings {
         name: String,
         props: Vec<String>,
+        spreads: Vec<String>,
         bindings: Vec<(String, String)>, // (prop_name, variable_name)
         has_prior_content: bool,
         children: Option<Vec<OutputPart>>,
