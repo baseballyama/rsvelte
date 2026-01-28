@@ -767,37 +767,44 @@ fn transform_client_runes_with_skip_and_state(
                 let is_object_or_array =
                     trimmed_content.starts_with('{') || trimmed_content.starts_with('[');
 
-                if skip_state_vars.contains(&var_name.to_string()) && !is_object_or_array {
-                    // Just extract the value from $state(value)
-                    // If content is empty (e.g., $state()), use "undefined" as the value
-                    let extracted_value = if trimmed_content.is_empty() {
-                        "undefined"
-                    } else {
-                        content
-                    };
-                    result = format!(
-                        "{}{}{}",
-                        &result[..pos],
-                        extracted_value,
-                        &result[state_start + content_end + 1..]
-                    );
-                } else if is_object_or_array {
-                    // Objects/arrays need $.proxy() for deep reactivity
-                    // If the variable is not a skip_state_var (i.e., it IS reactive),
-                    // we also need to wrap with $.state() for the reactivity tracking
-                    // Expected: $.state($.proxy([...]))
-                    if skip_state_vars.contains(&var_name.to_string()) {
-                        // Skip state wrapping - just use proxy
-                        result = result.replacen("$state(", "$.proxy(", 1);
-                    } else {
-                        // Wrap with both $.state and $.proxy for full reactivity
+                if skip_state_vars.contains(&var_name.to_string()) {
+                    // Variable is not reassigned, so doesn't need $.state() wrapping
+                    // But we still need $.proxy() if the value might return an object
+                    let needs_proxy =
+                        is_object_or_array || expression_needs_proxy(trimmed_content);
+
+                    if needs_proxy {
+                        // Wrap with $.proxy() for deep reactivity
                         result = format!(
-                            "{}$.state($.proxy({})){}",
+                            "{}$.proxy({}){}",
                             &result[..pos],
                             content,
                             &result[state_start + content_end + 1..]
                         );
+                    } else {
+                        // Primitives - just extract the value
+                        let extracted_value = if trimmed_content.is_empty() {
+                            "undefined"
+                        } else {
+                            content
+                        };
+                        result = format!(
+                            "{}{}{}",
+                            &result[..pos],
+                            extracted_value,
+                            &result[state_start + content_end + 1..]
+                        );
                     }
+                } else if is_object_or_array || expression_needs_proxy(trimmed_content) {
+                    // Objects/arrays or function calls need $.proxy() for deep reactivity
+                    // AND we need $.state() for the reactivity tracking (since variable is reassigned)
+                    // Expected: $.state($.proxy([...]))
+                    result = format!(
+                        "{}$.state($.proxy({})){}",
+                        &result[..pos],
+                        content,
+                        &result[state_start + content_end + 1..]
+                    );
                 } else {
                     // Primitives that ARE reassigned need $.state()
                     result = result.replacen("$state(", "$.state(", 1);
@@ -1355,6 +1362,140 @@ fn wrap_state_vars_in_expr(
     transform_state_in_expr(expr, state_vars, non_reactive_vars, proxy_vars)
 }
 
+/// Check if a variable at position `var_end_idx` is in a function parameter position.
+/// This detects patterns like:
+/// - `name(param)` - method shorthand
+/// - `function name(param)` - function declaration
+/// - `(param) =>` - arrow function
+/// - `(param1, param2)` - multiple parameters
+fn is_in_function_param_position(chars: &[char], var_start_idx: usize, var_end_idx: usize) -> bool {
+    // Find the opening parenthesis before this variable
+    let mut paren_depth = 0;
+    let mut found_open_paren = false;
+    let mut open_paren_idx = 0;
+
+    // Scan backwards to find the opening paren
+    let mut j = var_start_idx;
+    while j > 0 {
+        j -= 1;
+        let c = chars[j];
+        if c == ')' {
+            paren_depth += 1;
+        } else if c == '(' {
+            if paren_depth == 0 {
+                found_open_paren = true;
+                open_paren_idx = j;
+                break;
+            }
+            paren_depth -= 1;
+        }
+    }
+
+    if !found_open_paren {
+        return false;
+    }
+
+    // Check what's before the opening paren - should be an identifier (function/method name)
+    // or nothing (for arrow functions)
+    let mut before_paren_idx = open_paren_idx;
+    while before_paren_idx > 0 && chars[before_paren_idx - 1].is_whitespace() {
+        before_paren_idx -= 1;
+    }
+
+    // Check if it's preceded by "function " keyword
+    if before_paren_idx >= 8 {
+        let prefix: String = chars[before_paren_idx - 8..before_paren_idx]
+            .iter()
+            .collect();
+        if prefix == "function" {
+            return true;
+        }
+    }
+
+    // Check what comes after the closing paren
+    // For function params, it should be `) {` or `) =>` or `, param` pattern
+    let mut k = var_end_idx;
+
+    // Skip whitespace
+    while k < chars.len() && chars[k].is_whitespace() {
+        k += 1;
+    }
+
+    if k >= chars.len() {
+        return false;
+    }
+
+    // Check if next char is `)` followed by ` {` or ` =>`
+    // Or if it's `,` (part of parameter list)
+    // Or if it's `=` (default parameter value)
+    let next_char = chars[k];
+
+    if next_char == '=' {
+        // Default parameter like `param = default`
+        // But not for arrow function body `param => body`
+        // Check if it's `=>` vs just `=`
+        if k + 1 < chars.len() && chars[k + 1] == '>' {
+            // It's `param =>` - this is the whole param for arrow function
+            // But we need to check if we're at the param, not the body
+            return true;
+        }
+        // It's `param = default`, likely a default parameter
+        // Need to check if we're inside param parens
+        // For now, trust context
+        return true;
+    }
+
+    if next_char == ')' {
+        // Skip the closing paren and whitespace
+        k += 1;
+        while k < chars.len() && chars[k].is_whitespace() {
+            k += 1;
+        }
+
+        if k >= chars.len() {
+            return false;
+        }
+
+        // Check for `{` (function body) or `=>` (arrow function)
+        if chars[k] == '{' {
+            return true;
+        }
+        if k + 1 < chars.len() && chars[k] == '=' && chars[k + 1] == '>' {
+            return true;
+        }
+    }
+
+    if next_char == ',' {
+        // This could be a parameter in a list
+        // Need to verify there's a closing `) {` or `) =>` eventually
+        let mut depth = 1;
+        let mut m = k + 1;
+        while m < chars.len() && depth > 0 {
+            if chars[m] == '(' {
+                depth += 1;
+            } else if chars[m] == ')' {
+                depth -= 1;
+                if depth == 0 {
+                    // Found closing paren, check what follows
+                    m += 1;
+                    while m < chars.len() && chars[m].is_whitespace() {
+                        m += 1;
+                    }
+                    if m < chars.len() && chars[m] == '{' {
+                        return true;
+                    }
+                    if m + 1 < chars.len() && chars[m] == '=' && chars[m + 1] == '>' {
+                        return true;
+                    }
+                }
+            }
+            m += 1;
+        }
+    }
+
+    false
+}
+
 /// Transform state variable references to $.get() calls.
 /// All state variables (including those initialized with objects/arrays) need $.get() wrapping
 /// when reading their values, including when accessing properties.
@@ -1416,11 +1557,16 @@ fn transform_state_in_expr(
                             false
                         };
 
+                        // Check if this variable is in a function parameter position
+                        let in_param_position =
+                            is_in_function_param_position(&chars, i, i + var_chars.len());
+
                         if !already_wrapped
                             && !preceded_by_dot
                             && !in_set_first_arg
                             && !in_update_arg
                             && !in_update_pre_arg
+                            && !in_param_position
                         {
                             new_result.push_str(&format!("$.get({})", var));
                             i += var_chars.len();
