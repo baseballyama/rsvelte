@@ -48,6 +48,9 @@ pub mod utils;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+#[cfg(feature = "native")]
+use rayon::prelude::*;
+
 // Re-export phase types
 pub use phases::phase2_analyze::{AnalysisError, ComponentAnalysis};
 pub use phases::phase3_transform::{TransformError, TransformResult};
@@ -181,6 +184,7 @@ pub struct ExperimentalOptions {
 }
 
 /// Options for the Svelte compiler.
+#[derive(Clone)]
 pub struct CompileOptions {
     // === ModuleCompileOptions fields ===
     /// Enable development mode (additional runtime checks).
@@ -447,6 +451,47 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
         metadata: CompileMetadata { runes: runes_mode },
         ast: None, // TODO: Return AST if options.modern_ast is true
     })
+}
+
+/// Compile multiple Svelte components in parallel.
+///
+/// This function uses Rayon to compile multiple components concurrently,
+/// taking advantage of multiple CPU cores for better performance.
+///
+/// # Arguments
+///
+/// * `inputs` - A slice of tuples containing (source, options) pairs
+///
+/// # Returns
+///
+/// A vector of `Result<CompileResult, CompileError>` in the same order as the inputs.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use svelte_compiler_rust::{compile_batch, CompileOptions, GenerateMode};
+///
+/// let sources = vec![
+///     ("<h1>Hello</h1>", CompileOptions { generate: GenerateMode::Client, ..Default::default() }),
+///     ("<p>World</p>", CompileOptions { generate: GenerateMode::Client, ..Default::default() }),
+/// ];
+///
+/// let results = compile_batch(&sources);
+/// for result in results {
+///     match result {
+///         Ok(output) => println!("{}", output.js.code),
+///         Err(e) => eprintln!("Error: {:?}", e),
+///     }
+/// }
+/// ```
+#[cfg(feature = "native")]
+pub fn compile_batch(
+    inputs: &[(&str, CompileOptions)],
+) -> Vec<Result<CompileResult, CompileError>> {
+    inputs
+        .par_iter()
+        .map(|(source, options)| compile(source, options.clone()))
+        .collect()
 }
 
 /// Error type for compilation failures.
