@@ -86,13 +86,45 @@ pub fn client_component(
     options: &CompileOptions,
 ) -> Result<JsProgram, TransformError> {
     // Determine if we need to inject context ($.push/$.pop)
-    // Reference: transform-client.js lines 365-369
-    // In production, we check: needs_context || reactive_statements.size > 0 || component_returned_object.length > 0
-    // In dev mode, always inject context. Since we don't have dev mode flag yet, use conservative approach.
-    let component_returned_object_length = analysis.exports.len();
+    // Reference: transform-client.js lines 280-306, 366-370
+    // Only count exports that need getter/setter (reactive exports)
+    // This includes: $state, $derived, prop, bindable_prop, or let/var declarations
+    // Snippets and other non-reactive exports should NOT be counted
+    let reactive_export_count = analysis
+        .exports
+        .iter()
+        .filter(|export| {
+            // Find the binding for this export
+            if let Some(binding) = analysis
+                .root
+                .bindings
+                .iter()
+                .find(|b| b.name == export.name)
+            {
+                // Check if the binding is reactive (needs getter/setter in $$exports)
+                matches!(
+                    binding.kind,
+                    BindingKind::State
+                        | BindingKind::RawState
+                        | BindingKind::Derived
+                        | BindingKind::Prop
+                        | BindingKind::BindableProp
+                ) || matches!(
+                    binding.declaration_kind,
+                    crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Let
+                        | crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Var
+                )
+            } else {
+                // No binding found - this could be a module-level export (like a snippet)
+                // These don't need context injection
+                false
+            }
+        })
+        .count();
+
     let should_inject_context = analysis.needs_context
         || !analysis.reactive_statements.is_empty()
-        || component_returned_object_length > 0;
+        || reactive_export_count > 0;
 
     // Determine if we need $$props parameter
     // Reference: transform-client.js lines 393-399
@@ -138,7 +170,7 @@ pub fn client_component(
     // Note: store cleanup ($$cleanup()) must come AFTER $.pop() if there are exports,
     // otherwise just call $.pop() directly
     if should_inject_context {
-        if component_returned_object_length > 0 && needs_store_cleanup {
+        if reactive_export_count > 0 && needs_store_cleanup {
             // var $$pop = $.pop($$exports)
             // Then later return $$pop after cleanup
             component_body.push(b::stmt(b::call(b::member_path("$.pop"), vec![])));

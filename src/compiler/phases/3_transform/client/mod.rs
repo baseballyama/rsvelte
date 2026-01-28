@@ -153,11 +153,46 @@ fn transform_client_with_visitors(
     }
 
     // Determine if we need context injection ($.push/$.pop)
-    let component_returned_object_length = analysis.exports.len();
+    // Reference: transform-client.js lines 280-306, 366-370
+    // Only count exports that need getter/setter (reactive exports)
+    // This includes: $state, $derived, prop, bindable_prop, or let/var declarations
+    // Snippets and other non-reactive exports should NOT be counted
+    let reactive_export_count = analysis
+        .exports
+        .iter()
+        .filter(|export| {
+            // Find the binding for this export
+            if let Some(binding) = analysis
+                .root
+                .bindings
+                .iter()
+                .find(|b| b.name == export.name)
+            {
+                // Check if the binding is reactive (needs getter/setter in $$exports)
+                matches!(
+                    binding.kind,
+                    BindingKind::State
+                        | BindingKind::RawState
+                        | BindingKind::Derived
+                        | BindingKind::Prop
+                        | BindingKind::BindableProp
+                ) || matches!(
+                    binding.declaration_kind,
+                    crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Let
+                        | crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Var
+                )
+            } else {
+                // No binding found - this could be a module-level export (like a snippet)
+                // These don't need context injection
+                false
+            }
+        })
+        .count();
+
     let should_inject_context = options.dev
         || analysis.needs_context
         || !analysis.reactive_statements.is_empty()
-        || component_returned_object_length > 0
+        || reactive_export_count > 0
         || needs_store_cleanup; // Store subscriptions need context
 
     // Determine if we need $$props parameter
@@ -225,10 +260,40 @@ fn transform_client_with_visitors(
         component_body.push(b::stmt(b::call(b::member_path("$.init"), init_args)));
     }
 
-    // Generate $$exports object if there are exports
-    if !analysis.exports.is_empty() {
+    // Generate $$exports object if there are reactive exports
+    // Only include exports that need getter/setter (reactive exports)
+    // Reference: transform-client.js lines 280-306
+    if reactive_export_count > 0 {
+        let reactive_exports: Vec<_> = analysis
+            .exports
+            .iter()
+            .filter(|export| {
+                if let Some(binding) = analysis
+                    .root
+                    .bindings
+                    .iter()
+                    .find(|b| b.name == export.name)
+                {
+                    matches!(
+                        binding.kind,
+                        BindingKind::State
+                            | BindingKind::RawState
+                            | BindingKind::Derived
+                            | BindingKind::Prop
+                            | BindingKind::BindableProp
+                    ) || matches!(
+                        binding.declaration_kind,
+                        crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Let
+                            | crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Var
+                    )
+                } else {
+                    false
+                }
+            })
+            .collect();
+
         let mut exports_code = String::from("var $$exports = {\n");
-        for (i, export) in analysis.exports.iter().enumerate() {
+        for (i, export) in reactive_exports.iter().enumerate() {
             let name = &export.name;
             // Getter: return propName()
             exports_code.push_str(&format!(
@@ -241,7 +306,7 @@ fn transform_client_with_visitors(
                 "\tset {}($$value) {{\n\t\t{}($$value);\n\t}}",
                 name, name
             ));
-            if i < analysis.exports.len() - 1 {
+            if i < reactive_exports.len() - 1 {
                 exports_code.push_str(",\n");
             } else {
                 exports_code.push('\n');
@@ -257,7 +322,7 @@ fn transform_client_with_visitors(
     // Add $.pop at the end if injecting context
     // Reference: transform-client.js lines 433-454
     if should_inject_context {
-        if component_returned_object_length > 0 {
+        if reactive_export_count > 0 {
             if needs_store_cleanup {
                 // var $$pop = $.pop($$exports);
                 component_body.push(JsStatement::Raw(
@@ -284,7 +349,7 @@ fn transform_client_with_visitors(
     if needs_store_cleanup {
         component_body.push(b::stmt(b::call(b::id("$$cleanup"), vec![])));
 
-        if component_returned_object_length > 0 {
+        if reactive_export_count > 0 {
             // return $$pop;
             component_body.push(JsStatement::Return(
                 super::js_ast::nodes::JsReturnStatement {
