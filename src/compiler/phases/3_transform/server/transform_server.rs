@@ -3263,7 +3263,8 @@ export default function {component_name}($$renderer{props_param}) {{
     }
 
     /// Build an if statement with proper block markers.
-    /// Handles nested IfBlocks for else-if chains.
+    /// Following the official Svelte compiler, else-if chains are generated as nested if statements
+    /// inside the else branch, each with their own block markers.
     fn build_if_statement(
         test_expr: &str,
         consequent_body: &[OutputPart],
@@ -3296,29 +3297,27 @@ export default function {component_name}($$renderer{props_param}) {{
                     alternate_body: nested_alternate,
                 } = &alt_body[0]
             {
-                // else-if case
-                code.push_str(&format!(" else if ({}) {{\n", nested_test));
+                // else-if case: wrap in else block with block_open_else marker and nested if
+                code.push_str(" else {\n");
 
-                // Add opening marker for else-if (still BLOCK_OPEN = <!--[-->)
-                code.push_str(&format!("{}\t$$renderer.push('<!--[-->');\n", indent));
+                // Add opening marker for else (BLOCK_OPEN_ELSE = <!--[!-->)
+                code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n\n", indent));
 
-                // Generate nested consequent body
-                let nested_code = Self::build_parts(nested_consequent, indent_level + 1);
-                code.push_str(&nested_code);
+                // Generate nested if statement with increased indentation
+                let nested_if_code = Self::build_if_statement(
+                    nested_test,
+                    nested_consequent,
+                    nested_alternate,
+                    indent_level + 1,
+                );
+                code.push_str(&nested_if_code);
+                code.push('\n');
 
-                // Close nested block and handle deeper nesting
+                // Add closing marker for nested if
+                code.push_str(&format!("\n{}\t$$renderer.push(`<!--]-->`);\n", indent));
+
+                // Close else block
                 code.push_str(&format!("{}}}", indent));
-
-                // Recursively handle the rest of the else-if chain
-                if let Some(deeper_alt) = nested_alternate {
-                    let deeper_code = Self::build_alternate_chain(deeper_alt, indent_level);
-                    code.push_str(&deeper_code);
-                } else {
-                    // No more alternates, add the final else with BLOCK_OPEN_ELSE
-                    code.push_str(" else {\n");
-                    code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n", indent));
-                    code.push_str(&format!("{}}}", indent));
-                }
 
                 return code;
             }
@@ -3342,52 +3341,6 @@ export default function {component_name}($$renderer{props_param}) {{
             code.push_str(&format!("{}}}", indent));
         }
 
-        code
-    }
-
-    /// Build the alternate chain for else-if/else.
-    fn build_alternate_chain(alt_body: &[OutputPart], indent_level: usize) -> String {
-        let mut code = String::new();
-        let indent = "\t".repeat(indent_level);
-
-        // Check if this is another IfBlock
-        if alt_body.len() == 1
-            && let OutputPart::IfBlock {
-                test_expr: nested_test,
-                consequent_body: nested_consequent,
-                alternate_body: nested_alternate,
-            } = &alt_body[0]
-        {
-            // else-if case
-            code.push_str(&format!(" else if ({}) {{\n", nested_test));
-            code.push_str(&format!("{}\t$$renderer.push('<!--[-->');\n", indent));
-
-            let nested_code = Self::build_parts(nested_consequent, indent_level + 1);
-            code.push_str(&nested_code);
-            code.push_str(&format!("{}}}", indent));
-
-            // Handle deeper nesting
-            if let Some(deeper_alt) = nested_alternate {
-                let deeper_code = Self::build_alternate_chain(deeper_alt, indent_level);
-                code.push_str(&deeper_code);
-            } else {
-                // Final else
-                code.push_str(" else {\n");
-                code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n", indent));
-                code.push_str(&format!("{}}}", indent));
-            }
-
-            return code;
-        }
-
-        // Regular else case
-        code.push_str(" else {\n");
-        code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n", indent));
-
-        let alternate_code = Self::build_parts(alt_body, indent_level + 1);
-        code.push_str(&alternate_code);
-
-        code.push_str(&format!("{}}}", indent));
         code
     }
 

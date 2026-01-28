@@ -647,16 +647,28 @@ mod tests {
         let result = compile(source, options).unwrap();
         let code = &result.js.code;
 
-        // Should contain if, else if, and else
+        // Print for debugging
+        println!("Generated else-if code:\n{}", code);
+
+        // Following official Svelte compiler, else-if is rendered as nested if inside else block
+        // Structure:
+        // if (value === 1) { <!--[--> ... } else { <!--[!--> if (value === 2) { <!--[--> ... } else { <!--[!--> ... } <!--]--> } <!--]-->
         assert!(
             code.contains("if (value === 1)"),
-            "Should have if statement"
+            "Should have outer if statement"
         );
         assert!(
-            code.contains("else if (value === 2)"),
-            "Should have else if statement"
+            code.contains("if (value === 2)"),
+            "Should have nested if statement for else-if"
         );
         assert!(code.contains("else"), "Should have else branch");
+        // Verify block markers
+        assert!(code.contains("<!--[-->"), "Should have BLOCK_OPEN markers");
+        assert!(
+            code.contains("<!--[!-->"),
+            "Should have BLOCK_OPEN_ELSE markers"
+        );
+        assert!(code.contains("<!--]-->"), "Should have BLOCK_CLOSE markers");
     }
 
     #[test]
