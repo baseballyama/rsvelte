@@ -14,6 +14,7 @@
 //! - **Declaration/rule parsing**: Handles CSS rules, at-rules, and declarations
 //!   with position tracking for source maps.
 
+use memchr::memmem;
 use serde_json::{Map, Value};
 
 use crate::ast::css::{StyleSheet, StyleSheetContent, StyleSheetType};
@@ -1081,75 +1082,77 @@ impl<'a> SelectorParser<'a> {
                 let nth_start = args_start + leading_ws;
 
                 // Check for 'of ' keyword to split An+B from selector
-                let (nth_value, selector_part, nth_end_pos) =
-                    if let Some(of_pos) = trimmed.find(" of ") {
-                        // Split at ' of ' - include the ' of ' in the Nth value
-                        let nth_val = &trimmed[..of_pos + 4]; // Include ' of '
-                        let sel_part = &trimmed[of_pos + 4..];
-                        let end_pos = nth_start + of_pos + 4;
-                        (nth_val, Some((sel_part, end_pos)), end_pos)
+                let (nth_value, selector_part, nth_end_pos) = if let Some(of_pos) =
+                    memmem::find(trimmed.as_bytes(), b" of ")
+                {
+                    // Split at ' of ' - include the ' of ' in the Nth value
+                    let nth_val = &trimmed[..of_pos + 4]; // Include ' of '
+                    let sel_part = &trimmed[of_pos + 4..];
+                    let end_pos = nth_start + of_pos + 4;
+                    (nth_val, Some((sel_part, end_pos)), end_pos)
+                } else {
+                    // Check if it's a valid An+B expression or just a selector
+                    // An+B patterns: contains n, digits, +/-, or is even/odd
+                    let is_nth_pattern = trimmed == "even"
+                        || trimmed == "odd"
+                        || trimmed.contains('n')
+                        || trimmed.chars().any(|c| c.is_ascii_digit())
+                        || trimmed.starts_with('+')
+                        || trimmed.starts_with('-');
+
+                    if is_nth_pattern {
+                        let trailing_ws = content.len() - content.trim_end().len();
+                        let end_pos = self.offset + content_end - trailing_ws;
+                        (trimmed, None, end_pos)
                     } else {
-                        // Check if it's a valid An+B expression or just a selector
-                        // An+B patterns: contains n, digits, +/-, or is even/odd
-                        let is_nth_pattern = trimmed == "even"
-                            || trimmed == "odd"
-                            || trimmed.contains('n')
-                            || trimmed.chars().any(|c| c.is_ascii_digit())
-                            || trimmed.starts_with('+')
-                            || trimmed.starts_with('-');
+                        // Not an An+B pattern, treat as regular selector
+                        // Fall through to the non-nth parsing below
+                        let mut trimmed_inner = content.trim();
+                        let mut leading_skip = content.len() - content.trim_start().len();
 
-                        if is_nth_pattern {
-                            let trailing_ws = content.len() - content.trim_end().len();
-                            let end_pos = self.offset + content_end - trailing_ws;
-                            (trimmed, None, end_pos)
-                        } else {
-                            // Not an An+B pattern, treat as regular selector
-                            // Fall through to the non-nth parsing below
-                            let mut trimmed_inner = content.trim();
-                            let mut leading_skip = content.len() - content.trim_start().len();
-
-                            loop {
-                                if trimmed_inner.starts_with("/*") {
-                                    if let Some(end_pos) = trimmed_inner.find("*/") {
-                                        leading_skip += end_pos + 2;
-                                        trimmed_inner = &trimmed_inner[end_pos + 2..];
-                                        let ws_skip =
-                                            trimmed_inner.len() - trimmed_inner.trim_start().len();
-                                        leading_skip += ws_skip;
-                                        trimmed_inner = trimmed_inner.trim_start();
-                                    } else {
-                                        break;
-                                    }
+                        loop {
+                            if trimmed_inner.starts_with("/*") {
+                                if let Some(end_pos) = memmem::find(trimmed_inner.as_bytes(), b"*/")
+                                {
+                                    leading_skip += end_pos + 2;
+                                    trimmed_inner = &trimmed_inner[end_pos + 2..];
+                                    let ws_skip =
+                                        trimmed_inner.len() - trimmed_inner.trim_start().len();
+                                    leading_skip += ws_skip;
+                                    trimmed_inner = trimmed_inner.trim_start();
                                 } else {
                                     break;
                                 }
+                            } else {
+                                break;
                             }
-
-                            let trailing_ws = content.len() - content.trim_end().len();
-                            let trimmed_start = args_start + leading_skip;
-                            let trimmed_end = self.offset + content_end - trailing_ws;
-
-                            // Parse as regular selector list and set as args for the PseudoClassSelector
-                            let args = self.parse_args_selector_list(
-                                trimmed_inner,
-                                trimmed_start,
-                                trimmed_end,
-                            );
-                            let end = self.offset + self.index;
-
-                            let mut obj = Map::new();
-                            obj.insert(
-                                "type".to_string(),
-                                Value::String("PseudoClassSelector".to_string()),
-                            );
-                            obj.insert("name".to_string(), Value::String(name));
-                            obj.insert("args".to_string(), args);
-                            obj.insert("start".to_string(), Value::Number((start as i64).into()));
-                            obj.insert("end".to_string(), Value::Number((end as i64).into()));
-
-                            return Some(Value::Object(obj));
                         }
-                    };
+
+                        let trailing_ws = content.len() - content.trim_end().len();
+                        let trimmed_start = args_start + leading_skip;
+                        let trimmed_end = self.offset + content_end - trailing_ws;
+
+                        // Parse as regular selector list and set as args for the PseudoClassSelector
+                        let args = self.parse_args_selector_list(
+                            trimmed_inner,
+                            trimmed_start,
+                            trimmed_end,
+                        );
+                        let end = self.offset + self.index;
+
+                        let mut obj = Map::new();
+                        obj.insert(
+                            "type".to_string(),
+                            Value::String("PseudoClassSelector".to_string()),
+                        );
+                        obj.insert("name".to_string(), Value::String(name));
+                        obj.insert("args".to_string(), args);
+                        obj.insert("start".to_string(), Value::Number((start as i64).into()));
+                        obj.insert("end".to_string(), Value::Number((end as i64).into()));
+
+                        return Some(Value::Object(obj));
+                    }
+                };
 
                 // Build the selectors array
                 let mut selectors = Vec::new();
@@ -1235,7 +1238,7 @@ impl<'a> SelectorParser<'a> {
                 // And update `trimmed` to not include the leading comment
                 loop {
                     if trimmed.starts_with("/*") {
-                        if let Some(end_pos) = trimmed.find("*/") {
+                        if let Some(end_pos) = memmem::find(trimmed.as_bytes(), b"*/") {
                             leading_skip += end_pos + 2;
                             trimmed = &trimmed[end_pos + 2..];
                             let ws_skip = trimmed.len() - trimmed.trim_start().len();
@@ -1367,7 +1370,7 @@ impl<'a> SelectorParser<'a> {
 
             // Strip leading comment
             if current.starts_with("/*") {
-                if let Some(end_pos) = current.find("*/") {
+                if let Some(end_pos) = memmem::find(current.as_bytes(), b"*/") {
                     current_offset += end_pos + 2;
                     current = &current[end_pos + 2..];
                 } else {

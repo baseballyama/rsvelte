@@ -10,6 +10,7 @@
 //! `class:`, `style:`, `transition:`, `animate:`, `let:`).
 
 use compact_str::CompactString;
+use memchr::memchr;
 
 use crate::ast::js::Expression;
 use crate::ast::template::{
@@ -898,7 +899,7 @@ impl Parser<'_> {
     ) -> ParseResult<Option<crate::ast::Attribute>> {
         // Extract event name and modifiers from "on:click|preventDefault"
         let after_on = &full_name[3..]; // Skip "on:"
-        let (event_name, modifiers) = if let Some(pipe_pos) = after_on.find('|') {
+        let (event_name, modifiers) = if let Some(pipe_pos) = memchr(b'|', after_on.as_bytes()) {
             let name = &after_on[..pipe_pos];
             let mods: Vec<CompactString> = after_on[pipe_pos + 1..]
                 .split('|')
@@ -1004,7 +1005,7 @@ impl Parser<'_> {
     ) -> ParseResult<Option<crate::ast::Attribute>> {
         // Extract property name and modifiers from "bind:value|modifier"
         let after_bind = &full_name[5..]; // Skip "bind:"
-        let (prop_name, modifiers) = if let Some(pipe_pos) = after_bind.find('|') {
+        let (prop_name, modifiers) = if let Some(pipe_pos) = memchr(b'|', after_bind.as_bytes()) {
             let name = &after_bind[..pipe_pos];
             let mods: Vec<CompactString> = after_bind[pipe_pos + 1..]
                 .split('|')
@@ -1294,7 +1295,7 @@ impl Parser<'_> {
     ) -> ParseResult<Option<crate::ast::Attribute>> {
         // Extract property name and modifiers from "style:color|important"
         let after_style = &full_name[6..]; // Skip "style:"
-        let (prop_name, modifiers) = if let Some(pipe_pos) = after_style.find('|') {
+        let (prop_name, modifiers) = if let Some(pipe_pos) = memchr(b'|', after_style.as_bytes()) {
             let name = &after_style[..pipe_pos];
             let mods: Vec<CompactString> = after_style[pipe_pos + 1..]
                 .split('|')
@@ -1593,7 +1594,7 @@ impl Parser<'_> {
 
     /// Helper to extract name and modifiers from "name|mod1|mod2".
     pub fn extract_name_and_modifiers(s: &str) -> (String, Vec<CompactString>) {
-        if let Some(pipe_pos) = s.find('|') {
+        if let Some(pipe_pos) = memchr(b'|', s.as_bytes()) {
             let name = &s[..pipe_pos];
             let mods: Vec<CompactString> = s[pipe_pos + 1..]
                 .split('|')

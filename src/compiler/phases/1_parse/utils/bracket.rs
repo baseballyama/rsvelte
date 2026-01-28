@@ -4,6 +4,8 @@
 //!
 //! This module corresponds to `svelte/packages/svelte/src/compiler/phases/1-parse/utils/bracket.js`
 
+use memchr::{memchr, memmem};
+
 use crate::error::{ParseError, ParseResult};
 use rustc_hash::FxHashMap;
 
@@ -31,8 +33,7 @@ fn find_string_end(string: &str, search_start_index: usize, string_start_char: c
         string
     } else {
         // we could slice at the search start index, but this way the index remains valid
-        let newline_pos = string[search_start_index..]
-            .find('\n')
+        let newline_pos = memchr(b'\n', &string.as_bytes()[search_start_index..])
             .map(|p| search_start_index + p)
             .unwrap_or(-1i32 as usize); // Will become usize::MAX
         &string[0..infinity_if_negative(newline_pos as i32)]
@@ -151,8 +152,7 @@ pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option
 
                 if next_char == '/' {
                     // Line comment
-                    let newline_pos = template[i + 1..]
-                        .find('\n')
+                    let newline_pos = memchr(b'\n', &template.as_bytes()[i + 1..])
                         .map(|p| i + 1 + p)
                         .unwrap_or(-1i32 as usize);
                     i = infinity_if_negative(newline_pos as i32) + "\n".len();
@@ -161,8 +161,7 @@ pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option
 
                 if next_char == '*' {
                     // Block comment
-                    let end_pos = template[i + 1..]
-                        .find("*/")
+                    let end_pos = memmem::find(&template.as_bytes()[i + 1..], b"*/")
                         .map(|p| i + 1 + p)
                         .unwrap_or(-1i32 as usize);
                     i = infinity_if_negative(end_pos as i32) + "*/".len();

@@ -3,6 +3,8 @@
 //! Generates scoped CSS stylesheets with selector scoping.
 //! Preserves original whitespace from source using AST positions.
 
+use memchr::{memchr, memmem};
+
 use super::super::phase1_parse::parse_css;
 use super::{CssOutput, TransformError};
 use crate::compiler::CompileOptions;
@@ -155,9 +157,9 @@ fn replace_animation_keyframes(css: &str, hash: &str, keyframes: &FxHashSet<Stri
 /// Extract CSS content from source (finds the <style> block)
 /// Returns (css_content, start_position_in_source)
 fn extract_css_content(source: &str) -> Option<(String, usize)> {
-    let style_start = source.find("<style")?;
-    let content_start = source[style_start..].find('>')? + style_start + 1;
-    let style_end = source.find("</style>")?;
+    let style_start = memmem::find(source.as_bytes(), b"<style")?;
+    let content_start = memchr(b'>', &source.as_bytes()[style_start..])? + style_start + 1;
+    let style_end = memmem::find(source.as_bytes(), b"</style>")?;
 
     if content_start >= style_end {
         return None;
