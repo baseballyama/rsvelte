@@ -17,6 +17,41 @@ use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
 use rustc_hash::FxHashMap;
 
+/// Check if a property name is a valid JavaScript identifier.
+/// If not, it needs to be quoted in object literals.
+fn is_valid_js_identifier(name: &str) -> bool {
+    if name.is_empty() {
+        return false;
+    }
+
+    let mut chars = name.chars();
+
+    // First character must be a letter, underscore, or dollar sign
+    let first = chars.next().unwrap();
+    if !first.is_alphabetic() && first != '_' && first != '$' {
+        return false;
+    }
+
+    // Subsequent characters can also include digits
+    for c in chars {
+        if !c.is_alphanumeric() && c != '_' && c != '$' {
+            return false;
+        }
+    }
+
+    true
+}
+
+/// Quote a property name if needed for JavaScript object literal syntax.
+/// Returns the name as-is if it's a valid identifier, or quoted if it contains special characters.
+fn quote_prop_name(name: &str) -> String {
+    if is_valid_js_identifier(name) {
+        name.to_string()
+    } else {
+        format!("'{}'", name)
+    }
+}
+
 /// Collapse whitespace sequences (including newlines) to single spaces.
 /// This matches the behavior of clean_nodes in the official compiler.
 fn collapse_whitespace(s: &str) -> String {
@@ -1080,10 +1115,14 @@ impl<'a> ServerCodeGenerator<'a> {
                                 let expr_source =
                                     self.source[expr_start..expr_end].trim().to_string();
                                 // Check if it's a shorthand property (name equals expression)
-                                if expr_source == name {
+                                if expr_source == name && is_valid_js_identifier(name) {
                                     props.push(name.to_string());
                                 } else {
-                                    props.push(format!("{}: {}", name, expr_source));
+                                    props.push(format!(
+                                        "{}: {}",
+                                        quote_prop_name(name),
+                                        expr_source
+                                    ));
                                 }
                             }
                         }
@@ -1115,16 +1154,24 @@ impl<'a> ServerCodeGenerator<'a> {
                             if !value_str.is_empty() {
                                 // Check if the value contains expressions
                                 if value_str.contains("${") {
-                                    props.push(format!("{}: `{}`", name, value_str));
+                                    props.push(format!(
+                                        "{}: `{}`",
+                                        quote_prop_name(name),
+                                        value_str
+                                    ));
                                 } else {
                                     // Simple string value
-                                    props.push(format!("{}: '{}'", name, value_str));
+                                    props.push(format!(
+                                        "{}: '{}'",
+                                        quote_prop_name(name),
+                                        value_str
+                                    ));
                                 }
                             }
                         }
                         AttributeValue::True(_) => {
                             // Boolean attribute (e.g., disabled)
-                            props.push(format!("{}: true", name));
+                            props.push(format!("{}: true", quote_prop_name(name)));
                         }
                     }
                 }
