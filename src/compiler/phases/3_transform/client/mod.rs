@@ -837,7 +837,7 @@ fn transform_client_runes_with_skip_and_state(
         }
     }
 
-    // Transform $derived(x) to $.derived(() => x)
+    // Transform $derived(x) to $.derived(() => x) or $.async_derived() for async
     if let Some(pos) = result.find("$derived(")
         && !result[..pos].ends_with("$") // Skip if already transformed to $.derived()
         && (result[..pos].contains("let ") || result[..pos].contains("const "))
@@ -849,10 +849,22 @@ fn transform_client_runes_with_skip_and_state(
             // Wrap in arrow function if not already a function
             let trimmed = content.trim();
             if !trimmed.starts_with("()") && !trimmed.starts_with("function") {
+                // Check if the derived expression contains await (async derived)
+                // Note: We need to check for await NOT inside an inner async function
+                let contains_direct_await = contains_direct_await_in_expression(trimmed);
+
                 // Wrap state variables inside the derived expression with $.get()
                 let wrapped_content =
                     wrap_state_vars_in_expr(content, state_vars, non_reactive_vars, proxy_vars);
-                let new_derived = format!("$.derived(() => {})", wrapped_content);
+
+                let new_derived = if contains_direct_await {
+                    // For async derived: $.async_derived(async () => expr)
+                    // The expression may have await calls that need to be preserved
+                    format!("$.async_derived(async () => {})", wrapped_content)
+                } else {
+                    format!("$.derived(() => {})", wrapped_content)
+                };
+
                 result = format!(
                     "{}{}{}",
                     &result[..pos],
@@ -860,7 +872,23 @@ fn transform_client_runes_with_skip_and_state(
                     &result[derived_start + content_end + 1..]
                 );
             } else {
-                result = result.replacen("$derived(", "$.derived(", 1);
+                // The content is already a function - check if it's async
+                // $derived(async () => { ... }) should become $.derived(() => async () => { ... })
+                // Note: returns the async function, NOT invokes it
+                if trimmed.starts_with("async ") {
+                    // Wrap: $.derived(() => async () => {...})
+                    let wrapped_content =
+                        wrap_state_vars_in_expr(content, state_vars, non_reactive_vars, proxy_vars);
+                    let new_derived = format!("$.derived(() => {})", wrapped_content);
+                    result = format!(
+                        "{}{}{}",
+                        &result[..pos],
+                        new_derived,
+                        &result[derived_start + content_end + 1..]
+                    );
+                } else {
+                    result = result.replacen("$derived(", "$.derived(", 1);
+                }
             }
         } else {
             result = result.replacen("$derived(", "$.derived(", 1);
@@ -1756,6 +1784,123 @@ fn contains_function_call(expr: &str) -> bool {
                     return true;
                 }
             }
+        }
+
+        i += 1;
+    }
+
+    false
+}
+
+/// Check if an expression contains a direct `await` keyword (not inside a nested async function).
+///
+/// This is used to detect async derived patterns like `$derived(await expr)`.
+/// We need to be careful not to match `await` that's inside a nested async function.
+///
+/// Examples:
+/// - `await 1` → true
+/// - `foo(await 1)` → true
+/// - `async () => { return await 1; }` → false (await is inside async function)
+fn contains_direct_await_in_expression(expr: &str) -> bool {
+    let chars: Vec<char> = expr.chars().collect();
+    let mut i = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    // Track nested function depth (async functions)
+    // We only count await at depth 0
+    let mut async_fn_depth = 0;
+
+    while i < chars.len() {
+        let c = chars[i];
+
+        // Handle string literals
+        if !in_string && (c == '"' || c == '\'' || c == '`') {
+            in_string = true;
+            string_char = c;
+            i += 1;
+            continue;
+        }
+        if in_string && c == string_char && (i == 0 || chars[i - 1] != '\\') {
+            in_string = false;
+            i += 1;
+            continue;
+        }
+        if in_string {
+            i += 1;
+            continue;
+        }
+
+        // Check for 'async' keyword followed by function definition
+        if i + 5 <= chars.len() {
+            let word: String = chars[i..i + 5].iter().collect();
+            if word == "async" {
+                // Check if this is followed by function or arrow syntax
+                let rest: String = chars[i + 5..].iter().collect();
+                let rest_trimmed = rest.trim_start();
+                if rest_trimmed.starts_with("(")
+                    || rest_trimmed.starts_with("function")
+                    || chars[i + 5..]
+                        .iter()
+                        .collect::<String>()
+                        .trim_start()
+                        .starts_with("=>")
+                {
+                    // We found an async function, track depth when we see '{'
+                    // For now, just note we're in async context
+                }
+            }
+        }
+
+        // Check for 'await' keyword at top level
+        if i + 5 <= chars.len() && async_fn_depth == 0 {
+            let word: String = chars[i..i + 5].iter().collect();
+            if word == "await" {
+                // Make sure it's a word boundary
+                let before_ok = i == 0 || !is_identifier_char(chars[i - 1]);
+                let after_ok = i + 5 >= chars.len() || !is_identifier_char(chars[i + 5]);
+                if before_ok && after_ok {
+                    return true;
+                }
+            }
+        }
+
+        // Track nested async arrow functions: async () => or async x =>
+        // Simplified: just check for 'async' followed by ')' and then '=>'
+        // This is a heuristic - we check for `async` followed by arrow function patterns
+
+        // Track braces for nested scopes
+        if c == '{' {
+            // Check if this brace follows an arrow function context
+            // Look back for '=>'
+            let before: String = chars[..i].iter().collect();
+            if before.trim_end().ends_with("=>") {
+                // Check if async was before the params
+                let before_trimmed = before.trim_end();
+                // Find the '('
+                if let Some(paren_pos) = before_trimmed.rfind('(') {
+                    let before_paren = &before_trimmed[..paren_pos];
+                    if before_paren.trim_end().ends_with("async") {
+                        async_fn_depth += 1;
+                    }
+                } else {
+                    // Single param arrow: async x =>
+                    // Look for 'async' before the identifier
+                    if let Some(async_pos) = before_trimmed.rfind("async") {
+                        let between = &before_trimmed[async_pos + 5..];
+                        // Should be: "async x =>" pattern
+                        if between
+                            .trim()
+                            .chars()
+                            .all(|c| is_identifier_char(c) || c == ' ')
+                        {
+                            async_fn_depth += 1;
+                        }
+                    }
+                }
+            }
+        } else if c == '}' && async_fn_depth > 0 {
+            async_fn_depth -= 1;
         }
 
         i += 1;
