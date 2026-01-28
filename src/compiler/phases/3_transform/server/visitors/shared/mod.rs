@@ -125,7 +125,8 @@ pub fn build_parts(parts: &[OutputPart], indent_level: usize) -> String {
                 let body_code_inner = build_parts(body, indent_level + 1);
                 body_code.push_str(&body_code_inner);
                 body_code.push_str(&format!("{}}}\n\n", indent));
-                body_code.push_str(&format!("{}$$renderer.push(`<!--]-->`);\n", indent));
+                // Add closing marker to current_html to combine with subsequent content
+                current_html.push_str("<!--]-->");
             }
             OutputPart::SvelteElement { tag_expr } => {
                 if !current_html.is_empty() {

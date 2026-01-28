@@ -2579,8 +2579,8 @@ export default function {component_name}($$renderer{props_param}) {{
                     // Close for loop
                     body_code.push_str(&format!("{}}}\n\n", indent));
 
-                    // Closing marker
-                    body_code.push_str(&format!("{}$$renderer.push(`<!--]-->`);\n", indent));
+                    // Add closing marker to current_html to combine with subsequent content
+                    current_html.push_str("<!--]-->");
                 }
                 OutputPart::IfBlock {
                     test_expr,
@@ -2603,8 +2603,8 @@ export default function {component_name}($$renderer{props_param}) {{
                     );
                     body_code.push_str(&if_code);
 
-                    // Add closing marker after the if statement
-                    body_code.push_str(&format!("\n{}$$renderer.push(`<!--]-->`);\n", indent));
+                    // Add closing marker to current_html to combine with subsequent content
+                    current_html.push_str("<!--]-->");
                 }
                 OutputPart::SvelteElement { tag_expr } => {
                     // Flush current HTML before svelte:element
@@ -2744,8 +2744,8 @@ export default function {component_name}($$renderer{props_param}) {{
                     }
                     body_code.push_str(&format!("{}}}\n\n", indent));
 
-                    // Add closing marker
-                    body_code.push_str(&format!("{}$$renderer.push(`<!--]-->`);\n", indent));
+                    // Add closing marker to current_html to combine with subsequent content
+                    current_html.push_str("<!--]-->");
                 }
                 OutputPart::RenderCall(call_str) => {
                     // Flush current HTML before render call

@@ -209,7 +209,7 @@ fn normalize_generated_var_names(code: &str) -> String {
         // These patterns capture: node_1, node_2, text_1, text_2, button_1, div_1, span_1, etc.
         // Only normalize these specific patterns that are clearly compiler-generated
         static ref VAR_WITH_SUFFIX: Regex = Regex::new(
-            r"\b(node|text|button|div|span|p|a|input|form|fragment|consequent|alternate|each|if_block|component)_(\d+)\b"
+            r"\b(node|text|button|div|span|p|a|input|form|fragment|consequent|alternate|each|if_block|component|each_array|\$\$index|\$\$length|snippets|spread_props)_(\d+)\b"
         ).unwrap();
     }
 
