@@ -6,10 +6,10 @@
 use super::fix_attribute_casing::fix_attribute_casing;
 use super::types::{Comment, Element, Node, TextNode};
 use crate::ast::template::Text;
-use indexmap::IndexMap;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 use crate::compiler::phases::phase3_transform::shared::template::{escape_attr, is_void_element};
+use indexmap::IndexMap;
 use regex::Regex;
 use std::sync::LazyLock;
 
