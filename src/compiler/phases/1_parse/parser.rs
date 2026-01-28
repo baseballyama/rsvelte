@@ -19,7 +19,7 @@
 
 use compact_str::CompactString;
 use regex::Regex;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::sync::LazyLock;
 
 use crate::ast::css::StyleSheet;
@@ -95,7 +95,7 @@ pub struct Parser<'a> {
     ///
     /// Corresponds to `meta_tags` field in JavaScript Parser.
     #[allow(dead_code)]
-    pub(crate) meta_tags: HashMap<String, bool>,
+    pub(crate) meta_tags: FxHashMap<String, bool>,
     /// Last auto-closed tag.
     ///
     /// Corresponds to `last_auto_closed_tag` field in JavaScript Parser.
@@ -179,7 +179,7 @@ impl<'a> Parser<'a> {
             svelte_options: None,
             pending_leading_comments: Vec::new(),
             ts,
-            meta_tags: HashMap::new(),
+            meta_tags: FxHashMap::default(),
             last_auto_closed_tag: None,
         }
     }

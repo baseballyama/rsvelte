@@ -20,7 +20,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use crate::compiler::phases::phase3_transform::utils::{clean_nodes, infer_namespace};
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 // Constants from svelte/src/constants.js
 const TEMPLATE_FRAGMENT: u32 = 1;
@@ -124,7 +124,7 @@ pub fn fragment(
     // Pre-allocate vectors with typical capacities to reduce allocations
     let state = ComponentClientTransformState {
         scope: context.state.scope,
-        scopes: HashMap::with_capacity(4),
+        scopes: FxHashMap::default(),
         analysis: context.state.analysis,
         scope_root: context.state.scope_root,
         options: Rc::clone(&context.state.options),
@@ -139,7 +139,7 @@ pub fn fragment(
         node: context.state.node.clone(),
         memoizer: Memoizer::with_parent_conflicts(&context.state.memoizer),
         transform: context.state.transform.clone(),
-        events: HashSet::with_capacity(4), // Start empty, merge back later
+        events: FxHashSet::default(), // Start empty, merge back later
         metadata: ComponentMetadata {
             namespace: namespace.clone(),
             scoped: context.state.metadata.scoped,
@@ -147,7 +147,7 @@ pub fn fragment(
         in_constructor: false,
         in_derived: false,
         dev: context.state.options.dev,
-        state_fields: HashMap::new(), // Not populated in client transform
+        state_fields: FxHashMap::default(), // Not populated in client transform
         is_instance: context.state.is_instance,
         legacy_reactive_imports: Vec::new(), // Not currently used
         preserve_whitespace: context.state.preserve_whitespace,

@@ -12,7 +12,7 @@ use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::client::transform_template::Template;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use im::{HashMap as ImHashMap, HashSet as ImHashSet};
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::rc::Rc;
 
 /// Component transformation context.
@@ -357,7 +357,7 @@ pub struct ComponentClientTransformState<'a> {
     pub scope: &'a Scope,
 
     /// Scopes mapped to their corresponding nodes (for each blocks, etc.)
-    pub scopes: HashMap<String, &'a Scope>,
+    pub scopes: FxHashMap<String, &'a Scope>,
 
     /// Analysis results
     pub analysis: &'a ComponentAnalysis,
@@ -402,7 +402,7 @@ pub struct ComponentClientTransformState<'a> {
     pub transform: ImHashMap<String, IdentifierTransform>,
 
     /// Delegated events
-    pub events: HashSet<String>,
+    pub events: FxHashSet<String>,
 
     /// Metadata about the component
     pub metadata: ComponentMetadata,
@@ -417,7 +417,7 @@ pub struct ComponentClientTransformState<'a> {
     pub dev: bool,
 
     /// State fields in class components (maps field name to field info)
-    pub state_fields: HashMap<String, StateField>,
+    pub state_fields: FxHashMap<String, StateField>,
 
     /// Whether the current context belongs to the instance scope
     pub is_instance: bool,
@@ -465,7 +465,7 @@ impl<'a> ComponentClientTransformState<'a> {
         let preserve_whitespace = options.preserve_whitespace;
         Self {
             scope,
-            scopes: HashMap::new(),
+            scopes: FxHashMap::default(),
             analysis,
             scope_root,
             options,
@@ -481,12 +481,12 @@ impl<'a> ComponentClientTransformState<'a> {
             // Use memoizer with scope declarations to avoid variable name collisions
             memoizer: Memoizer::with_scope_declarations(scope, scope_root),
             transform: ImHashMap::new(),
-            events: HashSet::new(),
+            events: FxHashSet::default(),
             metadata: ComponentMetadata::default(),
             in_constructor: false,
             in_derived: false,
             dev,
-            state_fields: HashMap::new(),
+            state_fields: FxHashMap::default(),
             is_instance: false,
             legacy_reactive_imports: Vec::new(),
             preserve_whitespace,
@@ -637,10 +637,10 @@ pub struct Memoizer {
     counter: usize,
 
     /// Map from expression hash to memoized variable name
-    memos: HashMap<String, String>,
+    memos: FxHashMap<String, String>,
 
     /// Set of conflicting names to avoid collisions in nested blocks
-    conflicts: HashSet<String>,
+    conflicts: FxHashSet<String>,
 
     /// Synchronous memoized expressions
     sync: Vec<MemoEntry>,
@@ -654,8 +654,8 @@ impl Memoizer {
     pub fn new() -> Self {
         Self {
             counter: 0,
-            memos: HashMap::new(),
-            conflicts: HashSet::new(),
+            memos: FxHashMap::default(),
+            conflicts: FxHashSet::default(),
             sync: Vec::new(),
             async_entries: Vec::new(),
         }
@@ -678,7 +678,7 @@ impl Memoizer {
         scope: &crate::compiler::phases::phase2_analyze::scope::Scope,
         scope_root: &crate::compiler::phases::phase2_analyze::scope::ScopeRoot,
     ) -> Self {
-        let mut conflicts = HashSet::new();
+        let mut conflicts = FxHashSet::default();
 
         // Add all declarations from the scope to conflicts
         for name in scope.declarations.keys() {
@@ -693,7 +693,7 @@ impl Memoizer {
 
         Self {
             counter: 0,
-            memos: HashMap::new(),
+            memos: FxHashMap::default(),
             conflicts,
             sync: Vec::new(),
             async_entries: Vec::new(),
@@ -715,7 +715,7 @@ impl Memoizer {
     pub fn with_parent_conflicts(parent: &Memoizer) -> Self {
         Self {
             counter: 0,
-            memos: HashMap::new(),
+            memos: FxHashMap::default(),
             conflicts: parent.conflicts.clone(),
             sync: Vec::new(),
             async_entries: Vec::new(),

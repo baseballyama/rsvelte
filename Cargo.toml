@@ -11,7 +11,8 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 default = ["native"]
-native = ["rayon", "miette/fancy"]
+native = ["rayon", "miette/fancy", "jemalloc"]
+jemalloc = ["dep:tikv-jemallocator"]
 wasm = ["wasm-bindgen", "console_error_panic_hook", "getrandom/js"]
 
 [dependencies]
@@ -25,6 +26,10 @@ rayon = { version = "1.10", optional = true }
 # Memory efficiency
 bumpalo = { version = "3.16", features = ["collections"] }
 compact_str = { version = "0.8", features = ["serde"] }
+smallvec = { version = "1.13", features = ["serde"] }
+
+# Fast hashing (5-10x faster than std HashMap/HashSet)
+rustc-hash = "2.0"
 
 # JavaScript parsing and code generation
 oxc_allocator = "0.107"
@@ -64,6 +69,10 @@ getrandom = { version = "0.2", optional = true }
 lazy_static = "1.5.0"
 indexmap = "2.13.0"
 
+# Better multi-threaded memory allocator (optional, Unix/Mac only)
+[target.'cfg(all(not(windows), not(target_arch = "wasm32")))'.dependencies]
+tikv-jemallocator = { version = "0.6", optional = true }
+
 [dev-dependencies]
 # Testing
 insta = { version = "1.42", features = ["json", "glob"] }
@@ -94,8 +103,11 @@ name = "compiler"
 harness = false
 
 [profile.release]
-lto = true
+lto = "fat"
 codegen-units = 1
+opt-level = 3
+strip = "symbols"
+panic = "abort"
 
 [profile.bench]
 inherits = "release"

@@ -291,6 +291,52 @@ impl<'a> ScopeBuilder<'a> {
                     self.track_expression_updates(argument);
                 }
             }
+            Statement::TryStatement(try_stmt) => {
+                // Process try block
+                for stmt in &try_stmt.block.body {
+                    self.process_statement(stmt);
+                }
+                // Process catch clause if present
+                if let Some(ref handler) = try_stmt.handler {
+                    // Create a new scope for catch block (to handle catch parameter)
+                    let old_scope = self.push_scope();
+                    // Declare catch parameter if present
+                    if let Some(ref param) = handler.param {
+                        self.process_binding_pattern(&param.pattern, &None, DeclarationKind::Param);
+                    }
+                    for stmt in &handler.body.body {
+                        self.process_statement(stmt);
+                    }
+                    self.pop_scope(old_scope);
+                }
+                // Process finally block if present
+                if let Some(ref finalizer) = try_stmt.finalizer {
+                    for stmt in &finalizer.body {
+                        self.process_statement(stmt);
+                    }
+                }
+            }
+            Statement::ThrowStatement(throw_stmt) => {
+                self.track_expression_updates(&throw_stmt.argument);
+            }
+            Statement::SwitchStatement(switch_stmt) => {
+                self.track_expression_updates(&switch_stmt.discriminant);
+                for case in &switch_stmt.cases {
+                    if let Some(ref test) = case.test {
+                        self.track_expression_updates(test);
+                    }
+                    for stmt in &case.consequent {
+                        self.process_statement(stmt);
+                    }
+                }
+            }
+            Statement::LabeledStatement(labeled_stmt) => {
+                self.process_statement(&labeled_stmt.body);
+            }
+            Statement::WithStatement(with_stmt) => {
+                self.track_expression_updates(&with_stmt.object);
+                self.process_statement(&with_stmt.body);
+            }
             _ => {}
         }
     }
@@ -687,6 +733,10 @@ impl<'a> ScopeBuilder<'a> {
 
         for declarator in &var_decl.declarations {
             self.process_binding_pattern(&declarator.id, &declarator.init, decl_kind);
+            // Also track updates in the initializer expression (e.g., assignments in callbacks)
+            if let Some(ref init) = declarator.init {
+                self.track_expression_updates(init);
+            }
         }
     }
 

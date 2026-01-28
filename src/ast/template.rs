@@ -4,8 +4,8 @@
 //! Field ordering follows the principle of largest-first for optimal memory layout.
 
 use compact_str::CompactString;
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 
 use super::css::StyleSheet;
 use super::js::Expression;
@@ -215,7 +215,7 @@ pub struct RenderTagMetadata {
     /// Whether this render tag is dynamic (callee is not a simple identifier or resolved snippet)
     pub dynamic: bool,
     /// Snippets that this render tag might call (indices into snippet blocks)
-    pub snippets: HashSet<usize>,
+    pub snippets: FxHashSet<usize>,
     /// Expression metadata for the callee
     pub expression: ExpressionMetadata,
     /// Expression metadata for each argument
@@ -289,7 +289,7 @@ pub struct EachBlockMetadata {
     /// Expression metadata for the iterable expression
     pub expression: ExpressionMetadata,
     /// Transitive dependencies (for legacy reactivity)
-    pub transitive_deps: HashSet<usize>,
+    pub transitive_deps: FxHashSet<usize>,
     /// Whether the each block is controlled (has explicit key tracking)
     #[serde(default)]
     pub is_controlled: bool,
@@ -371,7 +371,7 @@ pub struct SnippetBlockMetadata {
     pub can_hoist: bool,
     /// The set of components/render tags that could render this snippet,
     /// used for CSS pruning (stored as indices into component/render tag arrays).
-    pub sites: HashSet<usize>,
+    pub sites: FxHashSet<usize>,
 }
 
 /// A snippet block: `{#snippet name(params)}...{/snippet}`.
@@ -998,9 +998,9 @@ pub struct ExpressionMetadata {
     /// Whether the expression includes an assignment or an update
     pub has_assignment: bool,
     /// Bindings that this expression depends on (indices into analysis bindings)
-    pub dependencies: HashSet<usize>,
+    pub dependencies: FxHashSet<usize>,
     /// Bindings that this expression references (indices into analysis bindings)
-    pub references: HashSet<usize>,
+    pub references: FxHashSet<usize>,
 }
 
 impl ExpressionMetadata {
@@ -1027,7 +1027,7 @@ pub struct ComponentNodeMetadata {
     /// Path from root to this node (for error reporting)
     pub path: Vec<String>,
     /// Snippets that this component might render (indices into snippet blocks)
-    pub snippets: HashSet<usize>,
+    pub snippets: FxHashSet<usize>,
     /// Expression metadata for component name resolution
     pub expression: ExpressionMetadata,
 }

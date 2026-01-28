@@ -16,6 +16,11 @@
 //! let ast = parse(source, ParseOptions::default()).unwrap();
 //! ```
 
+// Use jemalloc as the global allocator for better multi-threaded performance
+#[cfg(all(feature = "jemalloc", not(target_arch = "wasm32")))]
+#[global_allocator]
+static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 pub mod ast;
 pub mod compiler;
 pub mod error;

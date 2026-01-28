@@ -2,7 +2,8 @@
 //!
 //! Tracks variable bindings, declarations, and references across scopes.
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
+use smallvec::SmallVec;
 
 /// The root scope container for a component.
 #[derive(Debug, Default)]
@@ -29,7 +30,8 @@ pub struct Scope {
     /// Parent scope index (None for root)
     pub parent: Option<usize>,
     /// Bindings declared in this scope (name -> binding index)
-    pub declarations: HashMap<String, usize>,
+    /// Using FxHashMap for 5-10x faster lookups than std HashMap
+    pub declarations: FxHashMap<String, usize>,
     /// References to bindings in this scope
     pub references: Vec<Reference>,
     /// Child scopes
@@ -41,7 +43,7 @@ impl Scope {
     pub fn new(parent: Option<usize>) -> Self {
         Self {
             parent,
-            declarations: HashMap::new(),
+            declarations: FxHashMap::default(),
             references: Vec::new(),
             children: Vec::new(),
         }
@@ -124,10 +126,10 @@ pub struct Binding {
     pub scope_index: usize,
     /// Initial value expression (if any)
     pub initial: Option<String>,
-    /// All references to this binding
-    pub references: Vec<BindingReference>,
-    /// All mutations to this binding
-    pub mutations: Vec<Mutation>,
+    /// All references to this binding (SmallVec avoids heap allocation for ≤4 refs)
+    pub references: SmallVec<[BindingReference; 4]>,
+    /// All mutations to this binding (SmallVec avoids heap allocation for ≤2 mutations)
+    pub mutations: SmallVec<[Mutation; 2]>,
     /// Prop alias (for exported props with different names)
     pub prop_alias: Option<String>,
     /// Instance-level declarations may follow (or contain) a top-level `await`. In these cases,
@@ -166,8 +168,8 @@ impl Binding {
             mutated: false,
             scope_index,
             initial: None,
-            references: Vec::new(),
-            mutations: Vec::new(),
+            references: SmallVec::new(),
+            mutations: SmallVec::new(),
             prop_alias: None,
             blocker: None,
         }
@@ -188,8 +190,8 @@ impl Binding {
             mutated: false,
             scope_index,
             initial: None,
-            references: Vec::new(),
-            mutations: Vec::new(),
+            references: SmallVec::new(),
+            mutations: SmallVec::new(),
             prop_alias: None,
             blocker: None,
         }
