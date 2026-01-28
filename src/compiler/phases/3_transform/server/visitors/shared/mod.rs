@@ -70,7 +70,23 @@ pub fn build_parts(parts: &[OutputPart], indent_level: usize) -> String {
                     ));
                 }
 
-                if *has_prior_content {
+                // Check if there's content after this component
+                let has_content_after = parts[i + 1..].iter().any(|p| {
+                    matches!(
+                        p,
+                        OutputPart::Html(h) if !h.trim().is_empty()
+                    ) || matches!(
+                        p,
+                        OutputPart::Expression(_)
+                            | OutputPart::HtmlExpression(_)
+                            | OutputPart::Component { .. }
+                            | OutputPart::EachBlock { .. }
+                            | OutputPart::AwaitBlock { .. }
+                    )
+                });
+
+                // Add marker if there's content either before or after the component
+                if *has_prior_content || has_content_after {
                     current_html.push_str("<!---->");
                 }
             }
@@ -80,14 +96,13 @@ pub fn build_parts(parts: &[OutputPart], indent_level: usize) -> String {
                 index_name,
                 body,
             } => {
-                // Flush current HTML before block
-                if !current_html.is_empty() {
-                    body_code
-                        .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
-                    current_html.clear();
-                }
-
-                body_code.push_str(&format!("{}$$renderer.push(`<!--[-->`);\n\n", indent));
+                // Add block marker to current HTML and flush together
+                current_html.push_str("<!--[-->");
+                body_code.push_str(&format!(
+                    "{}$$renderer.push(`{}`);\n\n",
+                    indent, current_html
+                ));
+                current_html.clear();
 
                 let index_var = index_name.as_deref().unwrap_or("$$index");
                 body_code.push_str(&format!(

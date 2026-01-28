@@ -2495,8 +2495,27 @@ export default function {component_name}($$renderer{props_param}) {{
                         }
                     }
 
-                    // Add comment marker only if there was prior HTML content
-                    if *has_prior_content {
+                    // Check if there's content after this component
+                    let has_content_after = parts[i + 1..].iter().any(|p| {
+                        matches!(
+                            p,
+                            OutputPart::Html(h) if !h.trim().is_empty()
+                        ) || matches!(
+                            p,
+                            OutputPart::Expression(_)
+                                | OutputPart::RawExpression(_)
+                                | OutputPart::HtmlExpression(_)
+                                | OutputPart::Component { .. }
+                                | OutputPart::EachBlock { .. }
+                                | OutputPart::IfBlock { .. }
+                                | OutputPart::AwaitBlock { .. }
+                                | OutputPart::SvelteBoundary { .. }
+                                | OutputPart::RenderCall(_)
+                        )
+                    });
+
+                    // Add marker if there's content either before or after the component
+                    if *has_prior_content || has_content_after {
                         current_html.push_str("<!---->");
                     }
                 }
@@ -2509,15 +2528,13 @@ export default function {component_name}($$renderer{props_param}) {{
                     index_name,
                     body,
                 } => {
-                    // Flush current HTML before block
-                    if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
-                        current_html.clear();
-                    }
-
-                    // Opening marker
-                    body_code.push_str(&format!("{}$$renderer.push(`<!--[-->`);\n\n", indent));
+                    // Add block marker to current HTML and flush together
+                    current_html.push_str("<!--[-->");
+                    body_code.push_str(&format!(
+                        "{}$$renderer.push(`{}`);\n\n",
+                        indent, current_html
+                    ));
+                    current_html.clear();
 
                     // Array variable
                     let index_var = index_name.as_deref().unwrap_or("$$index");
