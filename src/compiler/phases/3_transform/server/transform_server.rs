@@ -89,6 +89,26 @@ fn collapse_whitespace(s: &str) -> String {
     result
 }
 
+/// Trim leading and trailing whitespace from output parts.
+/// This trims whitespace from the first and last Html parts if they exist.
+fn trim_output_parts(parts: &mut Vec<OutputPart>) {
+    // Trim leading whitespace from first Html part
+    if let Some(OutputPart::Html(html)) = parts.first_mut() {
+        *html = html.trim_start().to_string();
+        if html.is_empty() {
+            parts.remove(0);
+        }
+    }
+
+    // Trim trailing whitespace from last Html part
+    if let Some(OutputPart::Html(html)) = parts.last_mut() {
+        *html = html.trim_end().to_string();
+        if html.is_empty() {
+            parts.pop();
+        }
+    }
+}
+
 /// Transform a component analysis into server-side JavaScript.
 ///
 /// # Arguments
@@ -1700,7 +1720,7 @@ impl<'a> ServerCodeGenerator<'a> {
         };
 
         // Generate pending body
-        let pending_body = if let Some(ref pending) = block.pending {
+        let mut pending_body = if let Some(ref pending) = block.pending {
             let mut pending_generator = ServerCodeGenerator::new(
                 self.component_name.clone(),
                 self.source.clone(),
@@ -1715,9 +1735,11 @@ impl<'a> ServerCodeGenerator<'a> {
         } else {
             Vec::new()
         };
+        // Trim leading/trailing whitespace from await block bodies
+        trim_output_parts(&mut pending_body);
 
         // Generate then body
-        let then_body = if let Some(ref then) = block.then {
+        let mut then_body = if let Some(ref then) = block.then {
             let mut then_generator = ServerCodeGenerator::new(
                 self.component_name.clone(),
                 self.source.clone(),
@@ -1732,9 +1754,10 @@ impl<'a> ServerCodeGenerator<'a> {
         } else {
             Vec::new()
         };
+        trim_output_parts(&mut then_body);
 
         // Generate catch body
-        let catch_body = if let Some(ref catch) = block.catch {
+        let mut catch_body = if let Some(ref catch) = block.catch {
             let mut catch_generator = ServerCodeGenerator::new(
                 self.component_name.clone(),
                 self.source.clone(),
@@ -1749,6 +1772,7 @@ impl<'a> ServerCodeGenerator<'a> {
         } else {
             Vec::new()
         };
+        trim_output_parts(&mut catch_body);
 
         self.output_parts.push(OutputPart::AwaitBlock {
             promise: promise_expr,
