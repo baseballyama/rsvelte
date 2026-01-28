@@ -3987,7 +3987,10 @@ fn add_statement_semicolon(line: &str) -> String {
 /// 2. $derived fields (private field + getter/setter)
 /// 3. Methods
 fn transform_class_fields_server(script: &str) -> String {
-    if !script.contains("class ") || !script.contains("$derived") {
+    // Check for $derived or $derived.by patterns
+    if !script.contains("class ")
+        || (!script.contains("$derived(") && !script.contains("$derived.by("))
+    {
         return script.to_string();
     }
 
@@ -4027,6 +4030,7 @@ fn transform_class_fields_server(script: &str) -> String {
         name: String,
         is_private: bool,
         value: String,
+        is_derived_by: bool,
     }
 
     let mut derived_fields: Vec<DerivedField> = Vec::new();
@@ -4115,13 +4119,23 @@ fn transform_class_fields_server(script: &str) -> String {
             continue;
         }
 
-        // Handle $derived fields
-        if trimmed.contains("= $derived(") || trimmed.contains("=$derived(") {
+        // Handle $derived and $derived.by fields
+        let is_derived_field = trimmed.contains("= $derived(")
+            || trimmed.contains("=$derived(")
+            || trimmed.contains("= $derived.by(")
+            || trimmed.contains("=$derived.by(");
+        if is_derived_field {
             let is_private = trimmed.starts_with('#');
             if let Some(eq_pos) = trimmed.find('=') {
                 let name = trimmed[..eq_pos].trim().trim_start_matches('#').to_string();
 
-                let derived_pattern = "$derived(";
+                // Try $derived.by first (more specific pattern), then $derived
+                let (derived_pattern, is_derived_by) = if trimmed.contains("$derived.by(") {
+                    ("$derived.by(", true)
+                } else {
+                    ("$derived(", false)
+                };
+
                 if let Some(derived_pos) = trimmed.find(derived_pattern) {
                     let value_start = derived_pos + derived_pattern.len();
                     let after_paren = &trimmed[value_start..];
@@ -4132,6 +4146,7 @@ fn transform_class_fields_server(script: &str) -> String {
                             name,
                             is_private,
                             value,
+                            is_derived_by,
                         });
                         continue;
                     }
@@ -4169,10 +4184,19 @@ fn transform_class_fields_server(script: &str) -> String {
             value_str.to_string()
         };
 
-        new_class_body.push_str(&format!(
-            "\t\t{} = $.derived(() => {});\n",
-            private_name, wrapped_value
-        ));
+        // For $derived.by, the value is already a function
+        // For $derived, we wrap it in an arrow function
+        if field.is_derived_by {
+            new_class_body.push_str(&format!(
+                "\t\t{} = $.derived({});\n",
+                private_name, wrapped_value
+            ));
+        } else {
+            new_class_body.push_str(&format!(
+                "\t\t{} = $.derived(() => {});\n",
+                private_name, wrapped_value
+            ));
+        }
 
         if !field.is_private {
             new_class_body.push('\n');
