@@ -3787,12 +3787,8 @@ fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
                 let trimmed_inner = inner.trim();
 
                 if trimmed_inner.is_empty() {
-                    let result_trimmed = result.trim_end();
-                    if result_trimmed.ends_with('=') {
-                        while result.ends_with('=') || result.ends_with(' ') {
-                            result.pop();
-                        }
-                    }
+                    // $state() with no arguments -> void 0
+                    result.push_str("void 0");
                 } else if is_derived_by {
                     // $derived.by(fn) -> (fn)() - wrap in IIFE to call the function
                     result.push('(');
