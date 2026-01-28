@@ -228,6 +228,8 @@ enum OutputPart {
     OptionElement {
         attrs: Vec<(String, String)>,
         body: Vec<OutputPart>,
+        /// Whether this option has rich content (requires 7th argument `true`)
+        is_rich: bool,
     },
     /// Await block - produces $.await() call
     AwaitBlock {
@@ -240,7 +242,10 @@ enum OutputPart {
     },
     /// svelte:boundary - async error boundary
     SvelteBoundary {
-        pending_body: Vec<OutputPart>,
+        body: Vec<OutputPart>,
+        /// True if this is rendering the pending state (use <!--[!-->) marker)
+        /// False if rendering main content (use <!--[--> marker)
+        is_pending: bool,
     },
     /// Render tag call - calls a snippet function
     RenderCall(String),
@@ -803,12 +808,81 @@ impl<'a> ServerCodeGenerator<'a> {
             body_generator.generate_node(node, false)?;
         }
 
+        // Check if this option has rich content (non-option elements, components, etc.)
+        let is_rich = Self::is_rich_option_content(&element.fragment.nodes);
+
         self.output_parts.push(OutputPart::OptionElement {
             attrs,
             body: body_generator.output_parts,
+            is_rich,
         });
 
         Ok(())
+    }
+
+    /// Check if option content is "rich" (contains elements other than text, or components/render tags)
+    fn is_rich_option_content(nodes: &[TemplateNode]) -> bool {
+        for node in nodes {
+            match node {
+                // Regular elements in option are rich content
+                TemplateNode::RegularElement(_) => return true,
+                // Components are rich content
+                TemplateNode::Component(_) => return true,
+                TemplateNode::SvelteComponent(_) => return true,
+                // Render tags and HTML tags are rich content
+                TemplateNode::RenderTag(_) => return true,
+                TemplateNode::HtmlTag(_) => return true,
+                // Blocks that may contain rich content need recursive check
+                TemplateNode::IfBlock(if_block) => {
+                    if Self::is_rich_option_content(&if_block.consequent.nodes) {
+                        return true;
+                    }
+                    if let Some(alt) = &if_block.alternate
+                        && Self::is_rich_option_content(&alt.nodes)
+                    {
+                        return true;
+                    }
+                }
+                TemplateNode::EachBlock(each) => {
+                    if Self::is_rich_option_content(&each.body.nodes) {
+                        return true;
+                    }
+                }
+                TemplateNode::KeyBlock(key) => {
+                    if Self::is_rich_option_content(&key.fragment.nodes) {
+                        return true;
+                    }
+                }
+                TemplateNode::AwaitBlock(await_block) => {
+                    if let Some(pending) = &await_block.pending
+                        && Self::is_rich_option_content(&pending.nodes)
+                    {
+                        return true;
+                    }
+                    if let Some(then) = &await_block.then
+                        && Self::is_rich_option_content(&then.nodes)
+                    {
+                        return true;
+                    }
+                    if let Some(catch) = &await_block.catch
+                        && Self::is_rich_option_content(&catch.nodes)
+                    {
+                        return true;
+                    }
+                }
+                TemplateNode::SvelteBoundary(boundary) => {
+                    if Self::is_rich_option_content(&boundary.fragment.nodes) {
+                        return true;
+                    }
+                }
+                // Text and expression tags are not rich content
+                TemplateNode::Text(_) => {}
+                TemplateNode::ExpressionTag(_) => {}
+                // Other nodes
+                _ => {}
+            }
+        }
+        false
     }
 
     fn generate_attribute(&mut self, attr: &Attribute) -> Result<Option<String>, TransformError> {
@@ -2077,22 +2151,25 @@ impl<'a> ServerCodeGenerator<'a> {
             None
         });
 
-        // Generate pending body if we have a pending snippet or attribute
-        let pending_body = if let Some(snippet) = pending_snippet {
-            // Generate body from the pending snippet
-            self.generate_fragment_body_parts(&snippet.body)?
+        // Generate body based on whether we have a pending snippet or attribute
+        let (body, is_pending) = if let Some(snippet) = pending_snippet {
+            // Generate body from the pending snippet - this is the pending state
+            (self.generate_fragment_body_parts(&snippet.body)?, true)
         } else if pending_attribute.is_some() {
             // For pending attribute, we would need to call the attribute value as a function
             // For now, just generate empty body (the attribute case is less common)
-            Vec::new()
+            (Vec::new(), true)
         } else {
             // No pending - generate the main fragment content
-            // But on server, we still wrap it in boundary markers
-            self.generate_fragment_body_parts(&boundary.fragment)?
+            // This is not a pending state
+            (
+                self.generate_fragment_body_parts(&boundary.fragment)?,
+                false,
+            )
         };
 
         self.output_parts
-            .push(OutputPart::SvelteBoundary { pending_body });
+            .push(OutputPart::SvelteBoundary { body, is_pending });
         Ok(())
     }
 
@@ -2740,7 +2817,11 @@ export default function {component_name}($$renderer{props_param}) {{
                     body_code
                         .push_str(&format!("{}$.element($$renderer, {});\n", indent, tag_expr));
                 }
-                OutputPart::OptionElement { attrs, body } => {
+                OutputPart::OptionElement {
+                    attrs,
+                    body,
+                    is_rich,
+                } => {
                     // Flush current HTML before option element
                     if !current_html.is_empty() {
                         body_code.push_str(&format!(
@@ -2757,17 +2838,36 @@ export default function {component_name}($$renderer{props_param}) {{
                         .collect::<Vec<_>>()
                         .join(", ");
 
-                    body_code.push_str(&format!(
-                        "{}$$renderer.option({{ {} }}, ($$renderer) => {{\n",
-                        indent, attrs_str
-                    ));
+                    // Build the $$renderer.option() call
+                    // If is_rich, we need to pass 7 arguments: attrs, body, void 0, void 0, void 0, void 0, true
+                    if *is_rich {
+                        body_code.push_str(&format!(
+                            "{}$$renderer.option(\n{}\t{{ {} }},\n{}\t($$renderer) => {{\n",
+                            indent, indent, attrs_str, indent
+                        ));
 
-                    // Body
-                    let body_code_inner = Self::build_parts(body, indent_level + 1);
-                    body_code.push_str(&body_code_inner);
+                        // Body
+                        let body_code_inner = Self::build_parts(body, indent_level + 2);
+                        body_code.push_str(&body_code_inner);
 
-                    // Close callback
-                    body_code.push_str(&format!("{}}});\n", indent));
+                        // Close callback with remaining args
+                        body_code.push_str(&format!(
+                            "{}\t}},\n{}\tvoid 0,\n{}\tvoid 0,\n{}\tvoid 0,\n{}\tvoid 0,\n{}\ttrue\n{});\n",
+                            indent, indent, indent, indent, indent, indent, indent
+                        ));
+                    } else {
+                        body_code.push_str(&format!(
+                            "{}$$renderer.option({{ {} }}, ($$renderer) => {{\n",
+                            indent, attrs_str
+                        ));
+
+                        // Body
+                        let body_code_inner = Self::build_parts(body, indent_level + 1);
+                        body_code.push_str(&body_code_inner);
+
+                        // Close callback
+                        body_code.push_str(&format!("{}}});\n", indent));
+                    }
                 }
                 OutputPart::AwaitBlock {
                     promise,
@@ -2846,23 +2946,28 @@ export default function {component_name}($$renderer{props_param}) {{
                     // Add closing marker to the next push
                     current_html.push_str("<!--]-->");
                 }
-                OutputPart::SvelteBoundary { pending_body } => {
+                OutputPart::SvelteBoundary { body, is_pending } => {
                     // Add boundary marker to current HTML and flush together
-                    // On server, we render the pending state (using block_open_else marker)
+                    // Use <!--[!--> for pending state, <!--[--> for main content
+                    // block_open = <!--[-->
                     // block_open_else = <!--[!-->
                     // block_close = <!--]-->
-                    current_html.push_str("<!--[!-->");
+                    if *is_pending {
+                        current_html.push_str("<!--[!-->");
+                    } else {
+                        current_html.push_str("<!--[-->");
+                    }
                     body_code.push_str(&format!(
                         "{}$$renderer.push(`{}`);\n\n",
                         indent, current_html
                     ));
                     current_html.clear();
 
-                    // Render the pending body in a block (always add block even if empty)
+                    // Render the body in a block (always add block even if empty)
                     body_code.push_str(&format!("{}{{\n", indent));
-                    if !pending_body.is_empty() {
-                        let pending_code = Self::build_parts(pending_body, indent_level + 1);
-                        body_code.push_str(&pending_code);
+                    if !body.is_empty() {
+                        let body_code_inner = Self::build_parts(body, indent_level + 1);
+                        body_code.push_str(&body_code_inner);
                     }
                     body_code.push_str(&format!("{}}}\n\n", indent));
 
@@ -2965,7 +3070,7 @@ export default function {component_name}($$renderer{props_param}) {{
         code.push_str(&format!("{}if ({}) {{\n", indent, test_expr));
 
         // Add opening marker for consequent (BLOCK_OPEN = <!--[-->)
-        code.push_str(&format!("{}\t$$renderer.push(`<!--[-->`);\n", indent));
+        code.push_str(&format!("{}\t$$renderer.push('<!--[-->');\n", indent));
 
         // Generate consequent body
         let consequent_code = Self::build_parts(consequent_body, indent_level + 1);
@@ -2988,7 +3093,7 @@ export default function {component_name}($$renderer{props_param}) {{
                 code.push_str(&format!(" else if ({}) {{\n", nested_test));
 
                 // Add opening marker for else-if (still BLOCK_OPEN = <!--[-->)
-                code.push_str(&format!("{}\t$$renderer.push(`<!--[-->`);\n", indent));
+                code.push_str(&format!("{}\t$$renderer.push('<!--[-->');\n", indent));
 
                 // Generate nested consequent body
                 let nested_code = Self::build_parts(nested_consequent, indent_level + 1);
@@ -3004,7 +3109,7 @@ export default function {component_name}($$renderer{props_param}) {{
                 } else {
                     // No more alternates, add the final else with BLOCK_OPEN_ELSE
                     code.push_str(" else {\n");
-                    code.push_str(&format!("{}\t$$renderer.push(`<!--[!-->`);\n", indent));
+                    code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n", indent));
                     code.push_str(&format!("{}}}", indent));
                 }
 
@@ -3015,7 +3120,7 @@ export default function {component_name}($$renderer{props_param}) {{
             code.push_str(" else {\n");
 
             // Add opening marker for else (BLOCK_OPEN_ELSE = <!--[!-->)
-            code.push_str(&format!("{}\t$$renderer.push(`<!--[!-->`);\n", indent));
+            code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n", indent));
 
             // Generate alternate body
             let alternate_code = Self::build_parts(alt_body, indent_level + 1);
@@ -3026,7 +3131,7 @@ export default function {component_name}($$renderer{props_param}) {{
         } else {
             // No alternate - add empty else with BLOCK_OPEN_ELSE
             code.push_str(" else {\n");
-            code.push_str(&format!("{}\t$$renderer.push(`<!--[!-->`);\n", indent));
+            code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n", indent));
             code.push_str(&format!("{}}}", indent));
         }
 
@@ -3048,7 +3153,7 @@ export default function {component_name}($$renderer{props_param}) {{
         {
             // else-if case
             code.push_str(&format!(" else if ({}) {{\n", nested_test));
-            code.push_str(&format!("{}\t$$renderer.push(`<!--[-->`);\n", indent));
+            code.push_str(&format!("{}\t$$renderer.push('<!--[-->');\n", indent));
 
             let nested_code = Self::build_parts(nested_consequent, indent_level + 1);
             code.push_str(&nested_code);
@@ -3061,7 +3166,7 @@ export default function {component_name}($$renderer{props_param}) {{
             } else {
                 // Final else
                 code.push_str(" else {\n");
-                code.push_str(&format!("{}\t$$renderer.push(`<!--[!-->`);\n", indent));
+                code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n", indent));
                 code.push_str(&format!("{}}}", indent));
             }
 
@@ -3070,7 +3175,7 @@ export default function {component_name}($$renderer{props_param}) {{
 
         // Regular else case
         code.push_str(" else {\n");
-        code.push_str(&format!("{}\t$$renderer.push(`<!--[!-->`);\n", indent));
+        code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n", indent));
 
         let alternate_code = Self::build_parts(alt_body, indent_level + 1);
         code.push_str(&alternate_code);
