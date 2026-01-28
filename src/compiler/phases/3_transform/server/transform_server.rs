@@ -2736,13 +2736,13 @@ export default function {component_name}($$renderer{props_param}) {{
                     ));
                     current_html.clear();
 
-                    // Render the pending body in a block
+                    // Render the pending body in a block (always add block even if empty)
+                    body_code.push_str(&format!("{}{{\n", indent));
                     if !pending_body.is_empty() {
-                        body_code.push_str(&format!("{}{{\n", indent));
                         let pending_code = Self::build_parts(pending_body, indent_level + 1);
                         body_code.push_str(&pending_code);
-                        body_code.push_str(&format!("{}}}\n\n", indent));
                     }
+                    body_code.push_str(&format!("{}}}\n\n", indent));
 
                     // Add closing marker
                     body_code.push_str(&format!("{}$$renderer.push(`<!--]-->`);\n", indent));
