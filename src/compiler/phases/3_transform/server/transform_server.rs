@@ -2382,7 +2382,10 @@ export default function {component_name}($$renderer{props_param}) {{
             let part = &parts[i];
             match part {
                 OutputPart::Html(html) => {
-                    current_html.push_str(html);
+                    // Collapse consecutive spaces: if current_html ends with space and html is just a space
+                    if !(current_html.ends_with(' ') && html == " ") {
+                        current_html.push_str(html);
+                    }
                 }
                 OutputPart::Expression(expr) => {
                     current_html.push_str(&format!("${{$.escape({})}}", expr));
@@ -2911,7 +2914,10 @@ export default function {component_name}($$renderer{props_param}) {{
             let part = &parts[i];
             match part {
                 OutputPart::Html(html) => {
-                    current_html.push_str(html);
+                    // Collapse consecutive spaces: if current_html ends with space and html is just a space
+                    if !(current_html.ends_with(' ') && html == " ") {
+                        current_html.push_str(html);
+                    }
                 }
                 OutputPart::Expression(expr) => {
                     current_html.push_str(&format!("${{$.escape({})}}", expr));
