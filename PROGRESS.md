@@ -5,9 +5,9 @@
 ### Runtime-Runes Tests
 | Metric | Count | Percentage |
 |--------|-------|------------|
-| Total Passed | 173/737 | 23.5% |
-| Client Passed | 196/737 | 26.6% |
-| Server Passed | 432/737 | 58.6% |
+| Total Passed | 177/737 | 24.0% |
+| Client Passed | 202/737 | 27.4% |
+| Server Passed | 438/737 | 59.4% |
 | Skipped | 14 | - |
 
 ### Recent Improvements
@@ -32,21 +32,27 @@
    - Fixed duplicate_class_field validation for classes with private fields
    - Classes with `#count = $state(0)` and getter/setter for `count` now compile
 
+5. **Added store subscription assignment transformation** (Total: 175→177)
+   - Server: `$count += 1` → `$.store_set(count, $.store_get($$store_subs ??= {}, '$count', count) + 1)`
+   - Client: `$count += 1` → `$.store_set(count, $count() + 1)`
+   - Handles all compound operators (+=, -=, *=, etc.) and increment/decrement (++, --)
+
+6. **Added statement types to AST conversion**
+   - ForStatement, ForOfStatement, ForInStatement
+   - WhileStatement, TryStatement, ThrowStatement
+   - BreakStatement, ContinueStatement
+
 ### Known Issues / Next Steps
 
 1. **$derived destructuring** - Not properly expanded into individual derived signals
    - Currently generates: `let { foo, bar } = $.derived(() => stuff)`
    - Should generate: `let foo = $.derived(() => stuff.foo), bar = $.derived(() => stuff.bar)`
 
-2. **Missing statement types in AST conversion**
-   - ForStatement, WhileStatement, TryStatement, SwitchStatement not fully handled
+2. **Missing $.push/$.pop generation** in some cases
 
-3. **Store subscription assignments**
-   - `$count += 1` not transforming to `$.store_set()`
+3. **Missing $.delegate for events**
 
-4. **Missing $.push/$.pop generation** in some cases
-
-5. **Missing $.delegate for events**
+4. **Module-level snippet export ordering** - `export { foo }` placed before snippet declaration
 
 ### Test Categories Status
 | Category | Status |
