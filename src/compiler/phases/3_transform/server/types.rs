@@ -9,7 +9,7 @@ use super::super::types::TransformState;
 use crate::compiler::phases::phase2_analyze::scope::Scope;
 use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 /// Base server-side transformation state.
 ///
@@ -27,7 +27,7 @@ pub struct ServerTransformState<'a> {
     /// Maps the original labeled statement to its transformed output.
     /// These are reactive statements that need to be topologically sorted
     /// based on their dependencies.
-    pub legacy_reactive_statements: HashMap<JsLabeledStatement, JsStatement>,
+    pub legacy_reactive_statements: FxHashMap<JsLabeledStatement, JsStatement>,
 }
 
 impl<'a> ServerTransformState<'a> {
@@ -35,7 +35,7 @@ impl<'a> ServerTransformState<'a> {
     pub fn new(base: &'a TransformState<'a>) -> Self {
         Self {
             base,
-            legacy_reactive_statements: HashMap::new(),
+            legacy_reactive_statements: FxHashMap::default(),
         }
     }
 }
@@ -85,7 +85,7 @@ pub struct ComponentServerTransformState<'a> {
     pub async_consts: Option<AsyncConsts>,
 
     /// The $: calls, which will be ordered in the end
-    pub legacy_reactive_statements: HashMap<JsLabeledStatement, JsStatement>,
+    pub legacy_reactive_statements: FxHashMap<JsLabeledStatement, JsStatement>,
 }
 
 impl<'a> ComponentServerTransformState<'a> {
@@ -106,7 +106,7 @@ impl<'a> ComponentServerTransformState<'a> {
             preserve_whitespace: false,
             skip_hydration_boundaries: false,
             async_consts: None,
-            legacy_reactive_statements: HashMap::new(),
+            legacy_reactive_statements: FxHashMap::default(),
         }
     }
 }

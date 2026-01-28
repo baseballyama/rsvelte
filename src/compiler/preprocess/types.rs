@@ -2,8 +2,8 @@
 //!
 //! Corresponds to the TypeScript definitions in `public.d.ts` and `private.d.ts`.
 
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// The result of a preprocessor run.
 ///
@@ -20,7 +20,7 @@ pub struct Processed {
     pub dependencies: Vec<String>,
     /// Only for script/style preprocessors: The updated attributes to set on the tag.
     /// If None, attributes stay unchanged.
-    pub attributes: Option<HashMap<String, AttributeValue>>,
+    pub attributes: Option<FxHashMap<String, AttributeValue>>,
 }
 
 /// Attribute values can be boolean (for valueless attributes) or strings.
@@ -97,7 +97,7 @@ pub struct PreprocessorOptions {
     /// The script/style tag content
     pub content: String,
     /// The attributes on the script/style tag
-    pub attributes: HashMap<String, AttributeValue>,
+    pub attributes: FxHashMap<String, AttributeValue>,
     /// The whole Svelte file content
     pub markup: String,
     /// The filename of the Svelte file

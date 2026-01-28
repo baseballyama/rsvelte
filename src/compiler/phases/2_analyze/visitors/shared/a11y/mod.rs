@@ -15,7 +15,7 @@ use crate::ast::template::{
     Attribute as AttributeNode, AttributeValue, Fragment, RegularElement, TemplateNode,
 };
 use regex::Regex;
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::LazyLock;
 
 // Regex patterns
@@ -43,8 +43,8 @@ use crate::compiler::phases::phase2_analyze::warnings as w;
 /// A vector of warnings detected for this element.
 pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::AnalysisWarning> {
     let mut warnings = Vec::new();
-    let mut attribute_map: HashMap<String, &AttributeNode> = HashMap::new();
-    let mut handlers: HashSet<String> = HashSet::new();
+    let mut attribute_map: FxHashMap<String, &AttributeNode> = FxHashMap::default();
+    let mut handlers: FxHashSet<String> = FxHashSet::default();
     let mut attributes: Vec<&AttributeNode> = Vec::new();
 
     let is_dynamic_element = false; // SvelteElement check would go here
@@ -530,7 +530,7 @@ fn is_presentation_role(role: &str) -> bool {
 
 fn is_hidden_from_screen_reader(
     tag_name: &str,
-    attribute_map: &HashMap<String, &AttributeNode>,
+    attribute_map: &FxHashMap<String, &AttributeNode>,
 ) -> bool {
     if tag_name == "input"
         && let Some(type_attr) = attribute_map.get("type")
@@ -549,7 +549,7 @@ fn is_hidden_from_screen_reader(
     false
 }
 
-fn has_disabled_attribute(attribute_map: &HashMap<String, &AttributeNode>) -> bool {
+fn has_disabled_attribute(attribute_map: &FxHashMap<String, &AttributeNode>) -> bool {
     if let Some(disabled) = attribute_map.get("disabled")
         && get_static_value(disabled).is_some()
     {
@@ -567,7 +567,7 @@ fn has_disabled_attribute(attribute_map: &HashMap<String, &AttributeNode>) -> bo
 
 fn element_interactivity(
     tag_name: &str,
-    attribute_map: &HashMap<String, &AttributeNode>,
+    attribute_map: &FxHashMap<String, &AttributeNode>,
 ) -> &'static str {
     if INTERACTIVE_ELEMENT_ROLE_SCHEMAS
         .iter()
@@ -601,24 +601,27 @@ fn element_interactivity(
     element_interactivity::STATIC
 }
 
-fn is_interactive_element(tag_name: &str, attribute_map: &HashMap<String, &AttributeNode>) -> bool {
+fn is_interactive_element(
+    tag_name: &str,
+    attribute_map: &FxHashMap<String, &AttributeNode>,
+) -> bool {
     element_interactivity(tag_name, attribute_map) == element_interactivity::INTERACTIVE
 }
 
 fn is_non_interactive_element(
     tag_name: &str,
-    attribute_map: &HashMap<String, &AttributeNode>,
+    attribute_map: &FxHashMap<String, &AttributeNode>,
 ) -> bool {
     element_interactivity(tag_name, attribute_map) == element_interactivity::NON_INTERACTIVE
 }
 
-fn is_static_element(tag_name: &str, attribute_map: &HashMap<String, &AttributeNode>) -> bool {
+fn is_static_element(tag_name: &str, attribute_map: &FxHashMap<String, &AttributeNode>) -> bool {
     element_interactivity(tag_name, attribute_map) == element_interactivity::STATIC
 }
 
 fn get_implicit_role(
     name: &str,
-    attribute_map: &HashMap<String, &AttributeNode>,
+    attribute_map: &FxHashMap<String, &AttributeNode>,
 ) -> Option<&'static str> {
     if name == "menuitem" {
         return menuitem_implicit_role(attribute_map);
@@ -628,7 +631,7 @@ fn get_implicit_role(
     A11Y_IMPLICIT_SEMANTICS.get(name).copied()
 }
 
-fn input_implicit_role(attribute_map: &HashMap<String, &AttributeNode>) -> Option<&'static str> {
+fn input_implicit_role(attribute_map: &FxHashMap<String, &AttributeNode>) -> Option<&'static str> {
     let type_value = attribute_map
         .get("type")
         .and_then(|t| get_static_value(t))?;
@@ -639,7 +642,9 @@ fn input_implicit_role(attribute_map: &HashMap<String, &AttributeNode>) -> Optio
     INPUT_TYPE_TO_IMPLICIT_ROLE.get(type_value).copied()
 }
 
-fn menuitem_implicit_role(attribute_map: &HashMap<String, &AttributeNode>) -> Option<&'static str> {
+fn menuitem_implicit_role(
+    attribute_map: &FxHashMap<String, &AttributeNode>,
+) -> Option<&'static str> {
     let type_value = attribute_map
         .get("type")
         .and_then(|t| get_static_value(t))?;
@@ -706,7 +711,7 @@ fn has_content(element: &RegularElement) -> bool {
 fn match_schema(
     schema: &RoleRelationConcept,
     tag_name: &str,
-    attribute_map: &HashMap<String, &AttributeNode>,
+    attribute_map: &FxHashMap<String, &AttributeNode>,
 ) -> bool {
     if schema.name != tag_name {
         return false;

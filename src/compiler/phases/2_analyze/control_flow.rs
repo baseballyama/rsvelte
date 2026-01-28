@@ -7,7 +7,7 @@
 
 use super::types::{DomStructure, SiblingCertainty};
 use crate::ast::template::{Fragment, IfBlock, TemplateNode};
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 /// Check if an if block is "exhaustive" (always renders something).
 /// An if block is exhaustive if it has a final else branch that is not another if.
@@ -66,7 +66,7 @@ struct ElementInfo {
     /// non-exhaustive blocks vs elements after the block)
     sub_position: usize,
     /// Set of branch identifiers this element belongs to
-    branches: HashSet<BranchId>,
+    branches: FxHashSet<BranchId>,
 }
 
 /// Identifies a specific branch in a control flow block.
@@ -100,11 +100,12 @@ type SiblingPair = (
 
 /// Context for template traversal.
 struct TraversalContext {
-    element_info: HashMap<usize, ElementInfo>,
+    element_info: FxHashMap<usize, ElementInfo>,
     current_dom_idx: usize,
     /// Map from (fragment_path, position) to elements in each branch
     #[allow(clippy::type_complexity)]
-    position_to_elements: HashMap<(Vec<FragmentSegment>, usize), Vec<(usize, HashSet<BranchId>)>>,
+    position_to_elements:
+        FxHashMap<(Vec<FragmentSegment>, usize), Vec<(usize, FxHashSet<BranchId>)>>,
     /// Track the position within each fragment level
     fragment_positions: Vec<usize>,
 }
@@ -112,9 +113,9 @@ struct TraversalContext {
 impl TraversalContext {
     fn new() -> Self {
         Self {
-            element_info: HashMap::new(),
+            element_info: FxHashMap::default(),
             current_dom_idx: 0,
-            position_to_elements: HashMap::new(),
+            position_to_elements: FxHashMap::default(),
             fragment_positions: vec![0],
         }
     }
@@ -147,7 +148,7 @@ fn collect_elements(
     fragment: &Fragment,
     ctx: &mut TraversalContext,
     path: Vec<FragmentSegment>,
-    current_branches: Option<&HashSet<BranchId>>,
+    current_branches: Option<&FxHashSet<BranchId>>,
 ) {
     collect_elements_impl(fragment, ctx, path, current_branches, None, None);
 }
@@ -157,7 +158,7 @@ fn collect_elements_with_position(
     fragment: &Fragment,
     ctx: &mut TraversalContext,
     path: Vec<FragmentSegment>,
-    current_branches: Option<&HashSet<BranchId>>,
+    current_branches: Option<&FxHashSet<BranchId>>,
     fixed_position: usize,
     fixed_sub_position: Option<usize>,
 ) {
@@ -176,7 +177,7 @@ fn collect_elements_impl(
     fragment: &Fragment,
     ctx: &mut TraversalContext,
     path: Vec<FragmentSegment>,
-    current_branches: Option<&HashSet<BranchId>>,
+    current_branches: Option<&FxHashSet<BranchId>>,
     fixed_position: Option<usize>,
     fixed_sub_position: Option<usize>,
 ) {
@@ -507,7 +508,7 @@ fn find_next_siblings(dom_idx: usize, info: &ElementInfo, ctx: &TraversalContext
 }
 
 /// Determine if two elements can be siblings (not in mutually exclusive branches).
-fn can_be_siblings(branches1: &HashSet<BranchId>, branches2: &HashSet<BranchId>) -> bool {
+fn can_be_siblings(branches1: &FxHashSet<BranchId>, branches2: &FxHashSet<BranchId>) -> bool {
     // If elements share a branch ID with different branch numbers for the same path,
     // they are mutually exclusive and cannot be siblings.
 
@@ -525,8 +526,8 @@ fn can_be_siblings(branches1: &HashSet<BranchId>, branches2: &HashSet<BranchId>)
 
 /// Determine the certainty of sibling relationship.
 fn determine_certainty(
-    branches1: &HashSet<BranchId>,
-    branches2: &HashSet<BranchId>,
+    branches1: &FxHashSet<BranchId>,
+    branches2: &FxHashSet<BranchId>,
 ) -> SiblingCertainty {
     // If either element is in a control flow branch, relationship is probable
     if !branches1.is_empty() || !branches2.is_empty() {
@@ -577,8 +578,8 @@ fn is_definite_barrier(between: &ElementInfo, source: &ElementInfo, target: &Ele
 fn is_immediately_before(
     other_info: &ElementInfo,
     target_info: &ElementInfo,
-    all_elements: &HashMap<usize, ElementInfo>,
-    _target_branches: &HashSet<BranchId>,
+    all_elements: &FxHashMap<usize, ElementInfo>,
+    _target_branches: &FxHashSet<BranchId>,
 ) -> bool {
     // Check if any element exists between other and target that would ALWAYS be present
     for between_info in all_elements.values() {
@@ -598,8 +599,8 @@ fn is_immediately_before(
 fn is_immediately_after(
     source_info: &ElementInfo,
     other_info: &ElementInfo,
-    all_elements: &HashMap<usize, ElementInfo>,
-    _source_branches: &HashSet<BranchId>,
+    all_elements: &FxHashMap<usize, ElementInfo>,
+    _source_branches: &FxHashSet<BranchId>,
 ) -> bool {
     for between_info in all_elements.values() {
         if between_info.fragment_path == source_info.fragment_path

@@ -3,7 +3,7 @@
 use super::scope::{Scope, ScopeRoot};
 use crate::ast::template::{Root, Script};
 use crate::compiler::CompileOptions;
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 /// Pre-extracted script content to avoid re-parsing in Phase 3.
 #[derive(Debug, Clone)]
@@ -22,7 +22,7 @@ pub struct ScriptContent {
 #[derive(Debug, Clone)]
 pub struct ReactiveStatement {
     /// Bindings that are assigned to in this reactive statement
-    pub assignments: HashSet<usize>,
+    pub assignments: FxHashSet<usize>,
     /// Bindings that this reactive statement depends on
     pub dependencies: Vec<usize>,
 }
@@ -65,7 +65,7 @@ pub struct AwaitedDeclaration {
     /// Expression metadata for the declaration
     pub metadata: crate::ast::template::ExpressionMetadata,
     /// Identifiers that update this declaration
-    pub updated_by: HashSet<String>,
+    pub updated_by: FxHashSet<String>,
 }
 
 impl ScriptContent {
@@ -170,7 +170,7 @@ pub struct ComponentAnalysis {
 
     /// $derived expressions that contain await (async deriveds)
     /// These need special handling during code generation
-    pub async_deriveds: HashSet<String>,
+    pub async_deriveds: FxHashSet<String>,
 
     /// The identifier used for $props.id() (if any)
     /// Used to track the props ID declaration
@@ -181,11 +181,11 @@ pub struct ComponentAnalysis {
 
     /// Class bodies with their state fields (for class body analysis)
     /// Maps from class body node (JSON) to state fields by name
-    pub classes: HashMap<String, HashMap<String, StateField>>,
+    pub classes: FxHashMap<String, FxHashMap<String, StateField>>,
 
     /// Reactive statements ($: statements) in legacy mode
     /// Maps from the labeled statement node (JSON string) to its analysis
-    pub reactive_statements: HashMap<String, ReactiveStatement>,
+    pub reactive_statements: FxHashMap<String, ReactiveStatement>,
 
     /// Whether the component is immutable (no reactivity)
     pub immutable: bool,
@@ -194,17 +194,17 @@ pub struct ComponentAnalysis {
     pub accessors: bool,
 
     /// Await expressions needing context preservation (pickled awaits)
-    pub pickled_awaits: HashSet<String>,
+    pub pickled_awaits: FxHashSet<String>,
 
     /// Identifiers that make up bind:group expressions -> internal group binding name
     /// Maps from (key, bindings) to the generated identifier
-    pub binding_groups: HashMap<String, String>,
+    pub binding_groups: FxHashMap<String, String>,
 
     /// Slot names mapped to their SlotElement nodes
-    pub slot_names: HashMap<String, String>,
+    pub slot_names: FxHashMap<String, String>,
 
     /// Every render tag/component and whether it could be definitively resolved
-    pub snippet_renderers: HashMap<String, bool>,
+    pub snippet_renderers: FxHashMap<String, bool>,
 
     /// Pre-transformed <script> instance body (for optimization)
     pub instance_body: InstanceBody,
@@ -254,17 +254,17 @@ impl ComponentAnalysis {
             source: source.to_string(),
             instance_script_content: None,
             module_script_content: None,
-            async_deriveds: HashSet::new(),
+            async_deriveds: FxHashSet::default(),
             props_id: None,
             tracing: false,
-            classes: HashMap::new(),
-            reactive_statements: HashMap::new(),
+            classes: FxHashMap::default(),
+            reactive_statements: FxHashMap::default(),
             immutable: options.immutable,
             accessors: options.accessors,
-            pickled_awaits: HashSet::new(),
-            binding_groups: HashMap::new(),
-            slot_names: HashMap::new(),
-            snippet_renderers: HashMap::new(),
+            pickled_awaits: FxHashSet::default(),
+            binding_groups: FxHashMap::default(),
+            slot_names: FxHashMap::default(),
+            snippet_renderers: FxHashMap::default(),
             instance_body: InstanceBody::default(),
             comments: Vec::new(),
             warnings: Vec::new(),
@@ -404,7 +404,7 @@ pub struct JsAnalysis {
     pub scope: Scope,
 
     /// Scopes for nested blocks
-    pub scopes: HashMap<usize, Scope>,
+    pub scopes: FxHashMap<usize, Scope>,
 
     /// Whether this block contains await expressions
     pub has_await: bool,
@@ -417,7 +417,7 @@ pub struct TemplateAnalysis {
     pub scope: Scope,
 
     /// Scopes for nested template blocks
-    pub scopes: HashMap<usize, Scope>,
+    pub scopes: FxHashMap<usize, Scope>,
 
     /// All DOM elements in the template
     pub elements: Vec<ElementInfo>,
@@ -426,7 +426,7 @@ pub struct TemplateAnalysis {
     pub components: Vec<ComponentInfo>,
 
     /// All snippets declared in the template
-    pub snippets: HashSet<String>,
+    pub snippets: FxHashSet<String>,
 }
 
 /// Information about a DOM element.
@@ -497,13 +497,13 @@ pub struct CssAnalysis {
     pub has_global: bool,
 
     /// Element tag names used in the template (for unused selector detection)
-    pub used_elements: std::collections::HashSet<String>,
+    pub used_elements: FxHashSet<String>,
 
     /// Class names used in the template (for unused selector detection)
-    pub used_classes: std::collections::HashSet<String>,
+    pub used_classes: FxHashSet<String>,
 
     /// IDs used in the template (for unused selector detection)
-    pub used_ids: std::collections::HashSet<String>,
+    pub used_ids: FxHashSet<String>,
 
     /// Whether there are dynamic elements (svelte:element with dynamic this)
     /// If true, type selectors cannot be safely pruned
@@ -545,7 +545,7 @@ pub struct CssDomElement {
     /// Element tag name
     pub tag_name: String,
     /// Class names on this element
-    pub classes: std::collections::HashSet<String>,
+    pub classes: FxHashSet<String>,
     /// ID (if any)
     pub id: Option<String>,
     /// Parent element index (in elements array), None for root

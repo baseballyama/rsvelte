@@ -12,7 +12,7 @@
 //!   --mode <MODE>       Generation mode: client, server (default: client)
 //!   --output <FORMAT>   Output format: text, json (default: text)
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
@@ -577,7 +577,7 @@ fn print_text_output(config: &Config, all_metrics: &[FileMetrics]) {
 }
 
 fn print_json_output(config: &Config, all_metrics: &[FileMetrics]) {
-    let mut output = HashMap::new();
+    let mut output = FxHashMap::default();
     output.insert("mode", format!("{:?}", config.mode));
     output.insert("phase", config.phase.clone());
     output.insert("iterations", config.iterations.to_string());

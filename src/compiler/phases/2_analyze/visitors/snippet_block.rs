@@ -4,7 +4,7 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/SnippetBlock.js`.
 
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
 
 use super::VisitorContext;
 use super::shared::fragment;
@@ -57,7 +57,7 @@ pub fn visit(block: &mut SnippetBlock, context: &mut VisitorContext) -> Result<(
 /// A snippet CANNOT be hoisted if it references any instance-level state.
 fn can_hoist_snippet(snippet: &SnippetBlock) -> bool {
     // Collect parameter names from the snippet
-    let param_names: HashSet<String> = snippet
+    let param_names: FxHashSet<String> = snippet
         .parameters
         .iter()
         .filter_map(extract_param_name)
@@ -68,7 +68,7 @@ fn can_hoist_snippet(snippet: &SnippetBlock) -> bool {
 }
 
 /// Check if a list of template nodes can be hoisted.
-fn check_hoistable(nodes: &[TemplateNode], param_names: &HashSet<String>) -> bool {
+fn check_hoistable(nodes: &[TemplateNode], param_names: &FxHashSet<String>) -> bool {
     for node in nodes {
         match node {
             // Static content - always OK
@@ -172,7 +172,7 @@ fn extract_param_name(param: &Expression) -> Option<String> {
 
 /// Check if an expression only uses the given parameter names (and globals).
 /// Returns true if the expression can be hoisted.
-fn expression_only_uses_params(expr: &Expression, param_names: &HashSet<String>) -> bool {
+fn expression_only_uses_params(expr: &Expression, param_names: &FxHashSet<String>) -> bool {
     let Expression::Value(val) = expr;
 
     if let serde_json::Value::Object(obj) = val {

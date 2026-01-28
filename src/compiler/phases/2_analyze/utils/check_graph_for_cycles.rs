@@ -4,7 +4,7 @@
 //!
 //! Corresponds to Svelte's `2-analyze/utils/check_graph_for_cycles.js`.
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::hash::Hash;
 
 /// Check a directed graph for cycles.
@@ -31,21 +31,21 @@ where
     T: Clone + Eq + Hash,
 {
     // Build adjacency list
-    let mut graph: HashMap<T, Vec<T>> = HashMap::new();
+    let mut graph: FxHashMap<T, Vec<T>> = FxHashMap::default();
 
     for (u, v) in edges {
         graph.entry(u.clone()).or_default().push(v.clone());
         graph.entry(v.clone()).or_default();
     }
 
-    let mut visited: HashMap<T, bool> = HashMap::new();
+    let mut visited: FxHashMap<T, bool> = FxHashMap::default();
     let mut on_stack: Vec<T> = Vec::new();
     let mut cycles: Vec<Vec<T>> = Vec::new();
 
     fn visit<T: Clone + Eq + Hash>(
         v: T,
-        graph: &HashMap<T, Vec<T>>,
-        visited: &mut HashMap<T, bool>,
+        graph: &FxHashMap<T, Vec<T>>,
+        visited: &mut FxHashMap<T, bool>,
         on_stack: &mut Vec<T>,
         cycles: &mut Vec<Vec<T>>,
     ) {

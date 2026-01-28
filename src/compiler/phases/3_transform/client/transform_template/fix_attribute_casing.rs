@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::sync::LazyLock;
 
 static SVG_ATTRIBUTES: &[&str] = &[
@@ -274,8 +274,8 @@ static SVG_ATTRIBUTES: &[&str] = &[
     "zoomAndPan",
 ];
 
-static SVG_ATTRIBUTE_LOOKUP: LazyLock<HashMap<String, &'static str>> = LazyLock::new(|| {
-    let mut map = HashMap::new();
+static SVG_ATTRIBUTE_LOOKUP: LazyLock<FxHashMap<String, &'static str>> = LazyLock::new(|| {
+    let mut map = FxHashMap::default();
     for &name in SVG_ATTRIBUTES {
         map.insert(name.to_lowercase(), name);
     }

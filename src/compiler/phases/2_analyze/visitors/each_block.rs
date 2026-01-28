@@ -4,7 +4,7 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/EachBlock.js`.
 
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
 
 use super::super::{AnalysisError, Binding, BindingKind, errors};
 use super::VisitorContext;
@@ -136,7 +136,7 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
 #[allow(dead_code)]
 fn collect_transitive_dependencies(
     binding: &Binding,
-    bindings: &mut HashSet<usize>,
+    bindings: &mut FxHashSet<usize>,
     binding_idx: usize,
 ) {
     // Avoid cycles

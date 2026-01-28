@@ -6,7 +6,7 @@
 
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::{ComponentAnalysis, Scope};
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 /// Base state for all transformations in phase 3.
 ///
@@ -27,14 +27,14 @@ pub struct TransformState<'a> {
     pub scope: &'a Scope,
 
     /// Map of all scopes in the component (keyed by AST node position)
-    pub scopes: &'a HashMap<u32, Scope>,
+    pub scopes: &'a FxHashMap<u32, Scope>,
 
     /// Whether we're transforming instance script content
     pub is_instance: bool,
 
     /// State fields tracked during transformation
     /// Maps field name to its metadata
-    pub state_fields: HashMap<String, StateField>,
+    pub state_fields: FxHashMap<String, StateField>,
 }
 
 impl<'a> TransformState<'a> {
@@ -43,7 +43,7 @@ impl<'a> TransformState<'a> {
         analysis: &'a ComponentAnalysis,
         options: &'a CompileOptions,
         scope: &'a Scope,
-        scopes: &'a HashMap<u32, Scope>,
+        scopes: &'a FxHashMap<u32, Scope>,
     ) -> Self {
         Self {
             analysis,
@@ -51,7 +51,7 @@ impl<'a> TransformState<'a> {
             scope,
             scopes,
             is_instance: false,
-            state_fields: HashMap::new(),
+            state_fields: FxHashMap::default(),
         }
     }
 
@@ -60,7 +60,7 @@ impl<'a> TransformState<'a> {
         analysis: &'a ComponentAnalysis,
         options: &'a CompileOptions,
         scope: &'a Scope,
-        scopes: &'a HashMap<u32, Scope>,
+        scopes: &'a FxHashMap<u32, Scope>,
     ) -> Self {
         Self {
             analysis,
@@ -68,7 +68,7 @@ impl<'a> TransformState<'a> {
             scope,
             scopes,
             is_instance: true,
-            state_fields: HashMap::new(),
+            state_fields: FxHashMap::default(),
         }
     }
 }

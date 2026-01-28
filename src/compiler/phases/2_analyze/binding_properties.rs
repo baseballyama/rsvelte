@@ -4,7 +4,7 @@
 //!
 //! Corresponds to Svelte's `phases/bindings.js`.
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::sync::LazyLock;
 
 /// Properties of a binding.
@@ -60,9 +60,9 @@ impl BindingProperty {
 }
 
 /// Map of binding names to their properties.
-pub static BINDING_PROPERTIES: LazyLock<HashMap<&'static str, BindingProperty>> =
+pub static BINDING_PROPERTIES: LazyLock<FxHashMap<&'static str, BindingProperty>> =
     LazyLock::new(|| {
-        let mut map = HashMap::new();
+        let mut map = FxHashMap::default();
 
         // Media bindings
         map.insert(

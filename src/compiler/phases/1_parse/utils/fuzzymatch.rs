@@ -10,7 +10,7 @@
 // Allow dead code for library functions that will be used by the validator
 #![allow(dead_code)]
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 /// Threshold score for considering a match valid (0.0 - 1.0)
 const MATCH_THRESHOLD: f64 = 0.7;
@@ -135,9 +135,9 @@ fn iterate_grams(value: &str, gram_size: usize) -> Vec<String> {
 }
 
 /// Count n-gram occurrences in a string.
-fn gram_counter(value: &str, gram_size: usize) -> HashMap<String, usize> {
+fn gram_counter(value: &str, gram_size: usize) -> FxHashMap<String, usize> {
     let grams = iterate_grams(value, gram_size);
-    let mut counts = HashMap::new();
+    let mut counts = FxHashMap::default();
 
     for gram in grams {
         *counts.entry(gram).or_insert(0) += 1;
@@ -149,20 +149,20 @@ fn gram_counter(value: &str, gram_size: usize) -> HashMap<String, usize> {
 /// A fuzzy matching set for efficient string matching.
 struct FuzzySet {
     /// Exact match lookup: normalized -> original
-    exact_set: HashMap<String, String>,
+    exact_set: FxHashMap<String, String>,
     /// Match dictionary: gram -> [(index, count)]
-    match_dict: HashMap<String, Vec<(usize, usize)>>,
+    match_dict: FxHashMap<String, Vec<(usize, usize)>>,
     /// Items for each gram size: gram_size -> [(vector_normal, normalized_value)]
-    items: HashMap<usize, Vec<(f64, String)>>,
+    items: FxHashMap<usize, Vec<(f64, String)>>,
 }
 
 impl FuzzySet {
     /// Create a new FuzzySet from a list of strings.
     fn new(arr: &[&str]) -> Self {
         let mut set = FuzzySet {
-            exact_set: HashMap::new(),
-            match_dict: HashMap::new(),
-            items: HashMap::new(),
+            exact_set: FxHashMap::default(),
+            match_dict: FxHashMap::default(),
+            items: FxHashMap::default(),
         };
 
         // Initialize items for each gram size
@@ -241,7 +241,7 @@ impl FuzzySet {
         };
 
         // Calculate match scores using cosine similarity
-        let mut matches: HashMap<usize, usize> = HashMap::new();
+        let mut matches: FxHashMap<usize, usize> = FxHashMap::default();
         let sum_of_squares: usize = gram_counts.values().map(|&c| c * c).sum();
 
         for (gram, count) in &gram_counts {

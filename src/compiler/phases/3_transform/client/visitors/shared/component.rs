@@ -15,7 +15,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::element
 use crate::compiler::phases::phase3_transform::client::visitors::shared::events::build_event_handler;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 /// Component node types.
 #[derive(Debug, Clone)]
@@ -65,7 +65,7 @@ pub fn build_component(
     let mut props_and_spreads: Vec<PropsEntry> = Vec::new();
     let mut delayed_props: Vec<DelayedProp> = Vec::new();
     let mut lets: Vec<JsExpressionStatement> = Vec::new();
-    let mut events: HashMap<String, Vec<JsExpr>> = HashMap::new();
+    let mut events: FxHashMap<String, Vec<JsExpr>> = FxHashMap::default();
     let mut custom_css_props: Vec<JsObjectMember> = Vec::new();
     let mut bind_this: Option<Expression> = None;
     let mut binding_initializers: Vec<JsStatement> = Vec::new();
@@ -198,7 +198,7 @@ pub fn build_component(
     }
 
     // Group children by slot and process snippets
-    let mut children: HashMap<String, Vec<&TemplateNode>> = HashMap::new();
+    let mut children: FxHashMap<String, Vec<&TemplateNode>> = FxHashMap::default();
 
     for child in &fragment.nodes {
         if let TemplateNode::SnippetBlock(snippet) = child {
@@ -415,7 +415,7 @@ fn process_let_directive(
 fn process_on_directive(
     on_directive: &OnDirective,
     context: &mut ComponentContext,
-    events: &mut HashMap<String, Vec<JsExpr>>,
+    events: &mut FxHashMap<String, Vec<JsExpr>>,
 ) {
     // If no expression, mark that component needs props for event bubbling
     if on_directive.expression.is_none() {

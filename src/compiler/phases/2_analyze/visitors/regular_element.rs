@@ -17,6 +17,7 @@ use crate::ast::template::{
     Attribute, AttributeValue, AttributeValuePart, RegularElement, TemplateNode,
 };
 use regex::Regex;
+use rustc_hash::FxHashSet;
 use std::sync::LazyLock;
 
 /// Regex for matching a leading newline character.
@@ -379,7 +380,7 @@ pub fn visit(
     let is_root_child = parent_idx.is_none();
 
     // Extract classes and ID from attributes
-    let mut element_classes = std::collections::HashSet::new();
+    let mut element_classes = FxHashSet::default();
     let mut element_id: Option<String> = None;
 
     // Track class names and IDs from attributes

@@ -5,7 +5,7 @@
 //! This module corresponds to `svelte/packages/svelte/src/compiler/phases/1-parse/utils/bracket.js`
 
 use crate::error::{ParseError, ParseResult};
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 use super::super::parser::Parser;
 
@@ -118,7 +118,7 @@ fn count_leading_backslashes(string: &str, search_start_index: usize) -> usize {
 /// # Returns
 /// The index of the closing bracket, or `None` if not found
 pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option<usize> {
-    let default_brackets: HashMap<char, char> = [('{', '}'), ('(', ')'), ('[', ']')]
+    let default_brackets: FxHashMap<char, char> = [('{', '}'), ('(', ')'), ('[', ']')]
         .iter()
         .cloned()
         .collect();
@@ -213,9 +213,9 @@ pub fn find_matching_bracket(template: &str, index: usize, open: char) -> Option
 pub fn match_bracket(
     parser: &Parser,
     start: usize,
-    brackets: Option<&HashMap<char, char>>,
+    brackets: Option<&FxHashMap<char, char>>,
 ) -> ParseResult<usize> {
-    let default_brackets: HashMap<char, char> = [('{', '}'), ('(', ')'), ('[', ']')]
+    let default_brackets: FxHashMap<char, char> = [('{', '}'), ('(', ')'), ('[', ']')]
         .iter()
         .cloned()
         .collect();

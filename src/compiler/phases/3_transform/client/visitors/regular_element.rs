@@ -32,7 +32,7 @@ use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::{JsExpr, JsStatement};
 use crate::compiler::phases::phase3_transform::utils::clean_nodes;
 // Note: can_delegate_event and is_capture_event are used in attribute.rs for event delegation
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 /// Visit a regular element node.
 ///
@@ -82,7 +82,7 @@ pub fn visit_regular_element(
     let mut on_directives: Vec<OnDirective> = Vec::with_capacity(4);
     let mut transition_directives: Vec<TransitionDirective> = Vec::with_capacity(2);
     let mut use_directives: Vec<UseDirective> = Vec::with_capacity(2);
-    let mut bindings: HashMap<String, BindDirective> = HashMap::with_capacity(4);
+    let mut bindings: FxHashMap<String, BindDirective> = FxHashMap::default();
     let has_spread = node
         .attributes
         .iter()

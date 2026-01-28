@@ -15,7 +15,7 @@ use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 /// Collapse whitespace sequences (including newlines) to single spaces.
 /// This matches the behavior of clean_nodes in the official compiler.
@@ -108,7 +108,7 @@ struct ServerCodeGenerator<'a> {
     /// Module script (context="module") - executed at module level outside component
     module_script: Option<&'a Script>,
     /// Map of constant variable names to their values
-    constant_vars: HashMap<String, String>,
+    constant_vars: FxHashMap<String, String>,
     /// Snippet definitions to be generated at module level
     snippets: Vec<SnippetDef>,
     /// Component analysis from Phase 2
@@ -206,10 +206,10 @@ impl<'a> ServerCodeGenerator<'a> {
             if end > start && end <= source.len() {
                 extract_constant_vars(&source[start..end])
             } else {
-                HashMap::new()
+                FxHashMap::default()
             }
         } else {
-            HashMap::new()
+            FxHashMap::default()
         };
 
         // Check if the analysis has any StoreSub bindings
@@ -3334,8 +3334,8 @@ fn transform_props_spread(script: &str) -> String {
 }
 
 /// Extract constant variable bindings from script content.
-fn extract_constant_vars(script: &str) -> HashMap<String, String> {
-    let mut constants = HashMap::new();
+fn extract_constant_vars(script: &str) -> FxHashMap<String, String> {
+    let mut constants = FxHashMap::default();
 
     for line in script.lines() {
         let trimmed = line.trim();

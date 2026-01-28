@@ -8,19 +8,19 @@ use super::{CssOutput, TransformError};
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::types::DomStructure;
+use rustc_hash::FxHashSet;
 use serde_json::Value;
-use std::collections::HashSet;
 
 /// Context for CSS transformation containing analysis data and options
 #[derive(Clone)]
 #[allow(dead_code)] // used_elements reserved for future type selector detection
 struct CssContext<'a> {
     /// Element names used in the template
-    used_elements: &'a HashSet<String>,
+    used_elements: &'a FxHashSet<String>,
     /// Class names used in the template
-    used_classes: &'a HashSet<String>,
+    used_classes: &'a FxHashSet<String>,
     /// IDs used in the template
-    used_ids: &'a HashSet<String>,
+    used_ids: &'a FxHashSet<String>,
     /// Whether there are dynamic elements (svelte:element)
     has_dynamic_elements: bool,
     /// Whether there are dynamic class expressions
@@ -84,8 +84,8 @@ pub fn render_stylesheet(
 }
 
 /// Collect all keyframe names defined in the stylesheet
-fn collect_keyframe_names(children: &[Value]) -> HashSet<String> {
-    let mut keyframes = HashSet::new();
+fn collect_keyframe_names(children: &[Value]) -> FxHashSet<String> {
+    let mut keyframes = FxHashSet::default();
     for child in children {
         collect_keyframe_names_from_node(child, &mut keyframes);
     }
@@ -93,7 +93,7 @@ fn collect_keyframe_names(children: &[Value]) -> HashSet<String> {
 }
 
 /// Recursively collect keyframe names from a node
-fn collect_keyframe_names_from_node(node: &Value, keyframes: &mut HashSet<String>) {
+fn collect_keyframe_names_from_node(node: &Value, keyframes: &mut FxHashSet<String>) {
     let node_type = node.get("type").and_then(|t| t.as_str());
     match node_type {
         Some("Atrule") => {
@@ -130,7 +130,7 @@ fn collect_keyframe_names_from_node(node: &Value, keyframes: &mut HashSet<String
 }
 
 /// Replace animation keyframe name references in the CSS output
-fn replace_animation_keyframes(css: &str, hash: &str, keyframes: &HashSet<String>) -> String {
+fn replace_animation_keyframes(css: &str, hash: &str, keyframes: &FxHashSet<String>) -> String {
     let mut result = css.to_string();
     for keyframe in keyframes {
         let patterns = [
@@ -2481,9 +2481,9 @@ mod tests {
 
             let hash = "svelte-test";
             let selector = ".svelte-test";
-            let used_elements = HashSet::new();
-            let used_classes = HashSet::new();
-            let used_ids = HashSet::new();
+            let used_elements = FxHashSet::default();
+            let used_classes = FxHashSet::default();
+            let used_ids = FxHashSet::default();
             let dom_structure = DomStructure::default();
             let ctx = CssContext {
                 used_elements: &used_elements,
@@ -2519,9 +2519,9 @@ mod tests {
 
             let hash = "svelte-test";
             let selector = ".svelte-test";
-            let used_elements = HashSet::new();
-            let used_classes = HashSet::new();
-            let used_ids = HashSet::new();
+            let used_elements = FxHashSet::default();
+            let used_classes = FxHashSet::default();
+            let used_ids = FxHashSet::default();
             let dom_structure = DomStructure::default();
             let ctx = CssContext {
                 used_elements: &used_elements,

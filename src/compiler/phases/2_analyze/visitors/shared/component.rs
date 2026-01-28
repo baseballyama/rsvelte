@@ -4,7 +4,7 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/shared/component.js`.
 
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
 
 use super::super::super::AnalysisError;
 use super::super::super::errors;
@@ -151,7 +151,7 @@ pub fn validate_component(
     }
 
     // Check for duplicate attributes
-    let mut seen_names: HashSet<String> = HashSet::new();
+    let mut seen_names: FxHashSet<String> = FxHashSet::default();
 
     for attr in &component.attributes {
         let attr_name = match attr {

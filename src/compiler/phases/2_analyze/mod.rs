@@ -237,12 +237,12 @@ pub fn get_component_name(filename: &str) -> String {
 ///
 /// Returns an error if a circular dependency is detected.
 pub fn order_reactive_statements(
-    unsorted_reactive_declarations: std::collections::HashMap<String, ReactiveStatement>,
+    unsorted_reactive_declarations: rustc_hash::FxHashMap<String, ReactiveStatement>,
 ) -> Result<Vec<(String, ReactiveStatement)>, AnalysisError> {
-    use std::collections::{HashMap, HashSet};
+    use rustc_hash::{FxHashMap, FxHashSet};
 
     // Build a lookup map: binding_index -> list of (statement_key, ReactiveStatement)
-    let mut lookup: HashMap<usize, Vec<(String, ReactiveStatement)>> = HashMap::new();
+    let mut lookup: FxHashMap<usize, Vec<(String, ReactiveStatement)>> = FxHashMap::default();
 
     for (key, declaration) in &unsorted_reactive_declarations {
         for &assignment_idx in &declaration.assignments {
@@ -283,15 +283,15 @@ pub fn order_reactive_statements(
 
     // Build the ordered list using dependency ordering
     let mut reactive_declarations: Vec<(String, ReactiveStatement)> = Vec::new();
-    let mut added_declarations: HashSet<String> = HashSet::new();
+    let mut added_declarations: FxHashSet<String> = FxHashSet::default();
 
     // Recursive function to add a declaration and its dependencies
     fn add_declaration(
         key: &str,
         declaration: &ReactiveStatement,
         reactive_declarations: &mut Vec<(String, ReactiveStatement)>,
-        added_declarations: &mut HashSet<String>,
-        lookup: &HashMap<usize, Vec<(String, ReactiveStatement)>>,
+        added_declarations: &mut FxHashSet<String>,
+        lookup: &FxHashMap<usize, Vec<(String, ReactiveStatement)>>,
     ) {
         // If already added, skip
         if added_declarations.contains(key) {
@@ -340,19 +340,19 @@ pub fn order_reactive_statements(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::{HashMap, HashSet};
+    use rustc_hash::{FxHashMap, FxHashSet};
 
     #[test]
     fn test_order_reactive_statements_simple() {
         // Test case: $: b = a + 1; $: a = 1;
         // Expected order: a first, then b
-        let mut statements = HashMap::new();
+        let mut statements = FxHashMap::default();
 
         // Statement 1: assigns to binding 1 (b), depends on binding 0 (a)
         statements.insert(
             "stmt_1".to_string(),
             ReactiveStatement {
-                assignments: HashSet::from([1]),
+                assignments: FxHashSet::from_iter([1usize]),
                 dependencies: vec![0],
             },
         );
@@ -361,7 +361,7 @@ mod tests {
         statements.insert(
             "stmt_2".to_string(),
             ReactiveStatement {
-                assignments: HashSet::from([0]),
+                assignments: FxHashSet::from_iter([0usize]),
                 dependencies: vec![],
             },
         );
@@ -378,12 +378,12 @@ mod tests {
     fn test_order_reactive_statements_chain() {
         // Test case: $: c = b + 1; $: b = a + 1; $: a = 1;
         // Expected order: a, b, c
-        let mut statements = HashMap::new();
+        let mut statements = FxHashMap::default();
 
         statements.insert(
             "stmt_c".to_string(),
             ReactiveStatement {
-                assignments: HashSet::from([2]),
+                assignments: FxHashSet::from_iter([2usize]),
                 dependencies: vec![1],
             },
         );
@@ -391,7 +391,7 @@ mod tests {
         statements.insert(
             "stmt_b".to_string(),
             ReactiveStatement {
-                assignments: HashSet::from([1]),
+                assignments: FxHashSet::from_iter([1usize]),
                 dependencies: vec![0],
             },
         );
@@ -399,7 +399,7 @@ mod tests {
         statements.insert(
             "stmt_a".to_string(),
             ReactiveStatement {
-                assignments: HashSet::from([0]),
+                assignments: FxHashSet::from_iter([0usize]),
                 dependencies: vec![],
             },
         );
@@ -416,12 +416,12 @@ mod tests {
     fn test_order_reactive_statements_cycle() {
         // Test case: $: a = b + 1; $: b = a + 1;
         // This creates a circular dependency
-        let mut statements = HashMap::new();
+        let mut statements = FxHashMap::default();
 
         statements.insert(
             "stmt_a".to_string(),
             ReactiveStatement {
-                assignments: HashSet::from([0]),
+                assignments: FxHashSet::from_iter([0usize]),
                 dependencies: vec![1],
             },
         );
@@ -429,7 +429,7 @@ mod tests {
         statements.insert(
             "stmt_b".to_string(),
             ReactiveStatement {
-                assignments: HashSet::from([1]),
+                assignments: FxHashSet::from_iter([1usize]),
                 dependencies: vec![0],
             },
         );
@@ -442,12 +442,12 @@ mod tests {
     fn test_order_reactive_statements_self_assignment() {
         // Test case: $: a = a + 1;
         // Self-assignment should not create a cycle
-        let mut statements = HashMap::new();
+        let mut statements = FxHashMap::default();
 
         statements.insert(
             "stmt_a".to_string(),
             ReactiveStatement {
-                assignments: HashSet::from([0]),
+                assignments: FxHashSet::from_iter([0usize]),
                 dependencies: vec![0],
             },
         );

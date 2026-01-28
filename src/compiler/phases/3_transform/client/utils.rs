@@ -8,11 +8,11 @@
 use crate::compiler::phases::phase2_analyze::scope::Binding;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
 
 /// Collect all variable names that are initialized with $state().
-pub fn collect_state_var_names(script_content: &str) -> HashSet<String> {
-    let mut state_vars = HashSet::new();
+pub fn collect_state_var_names(script_content: &str) -> FxHashSet<String> {
+    let mut state_vars = FxHashSet::default();
 
     for line in script_content.lines() {
         let trimmed = line.trim();
@@ -50,7 +50,7 @@ fn extract_state_var_name(decl: &str) -> Option<String> {
 }
 
 /// Check if an expression contains state variable references.
-pub fn contains_state_reference(expr: &str, state_vars: &HashSet<String>) -> bool {
+pub fn contains_state_reference(expr: &str, state_vars: &FxHashSet<String>) -> bool {
     // Simple check - look for any state variable name in the expression
     // A more sophisticated implementation would parse the expression
     for var in state_vars {
@@ -217,7 +217,7 @@ mod tests {
 
     #[test]
     fn test_contains_state_reference() {
-        let mut state_vars = HashSet::new();
+        let mut state_vars = FxHashSet::default();
         state_vars.insert("count".to_string());
 
         assert!(contains_state_reference("count + 1", &state_vars));

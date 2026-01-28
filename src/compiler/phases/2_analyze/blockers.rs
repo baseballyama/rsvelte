@@ -7,8 +7,8 @@
 
 use super::scope::Scope;
 use super::types::{ComponentAnalysis, JsAnalysis};
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde_json::Value as JsonValue;
-use std::collections::{HashMap, HashSet};
 
 /// Analyzes the instance's top level statements to calculate which bindings need to wait on which
 /// top level statements. This includes indirect blockers such as functions referencing async top level statements.
@@ -22,7 +22,7 @@ use std::collections::{HashMap, HashSet};
 /// * `analysis` - The component analysis (modified in-place)
 pub fn calculate_blockers(
     instance: &JsAnalysis,
-    scopes: &HashMap<usize, Scope>,
+    scopes: &FxHashMap<usize, Scope>,
     analysis: &mut ComponentAnalysis,
 ) {
     let _instance_ast = &instance.scope; // We need the AST body
@@ -35,26 +35,26 @@ pub fn calculate_blockers(
     }
 
     // Track which bindings are touched by expressions
-    let _touch = |expression: &JsonValue, scope: &Scope, touched: &mut HashSet<String>| {
+    let _touch = |expression: &JsonValue, scope: &Scope, touched: &mut FxHashSet<String>| {
         touch_bindings(
             expression,
             scope,
             touched,
             &instance.scope,
-            &mut HashSet::new(),
+            &mut FxHashSet::default(),
         );
     };
 
     // Track which bindings are read/written by statements
     let _trace_references =
-        |node: &JsonValue, reads: &mut HashSet<String>, writes: &mut HashSet<String>| {
+        |node: &JsonValue, reads: &mut FxHashSet<String>, writes: &mut FxHashSet<String>| {
             trace_bindings(
                 node,
                 reads,
                 writes,
                 &instance.scope,
                 scopes,
-                &mut HashSet::new(),
+                &mut FxHashSet::default(),
             );
         };
 
@@ -80,9 +80,9 @@ pub fn calculate_blockers(
 fn touch_bindings(
     expression: &JsonValue,
     _scope: &Scope,
-    touched: &mut HashSet<String>,
+    touched: &mut FxHashSet<String>,
     _root_scope: &Scope,
-    seen: &mut HashSet<String>,
+    seen: &mut FxHashSet<String>,
 ) {
     // Recursively walk the expression and find all identifier references
     // For each identifier that is a reference, add the binding to `touched`
@@ -148,11 +148,11 @@ fn touch_bindings(
 /// Corresponds to the `trace_references` inner function in `calculate_blockers`.
 fn trace_bindings(
     node: &JsonValue,
-    reads: &mut HashSet<String>,
-    writes: &mut HashSet<String>,
+    reads: &mut FxHashSet<String>,
+    writes: &mut FxHashSet<String>,
     instance_scope: &Scope,
-    _scopes: &HashMap<usize, Scope>,
-    seen: &mut HashSet<String>,
+    _scopes: &FxHashMap<usize, Scope>,
+    seen: &mut FxHashSet<String>,
 ) {
     let node_id = format!("{:?}", node); // Simple deduplication
     if seen.contains(&node_id) {
@@ -183,14 +183,14 @@ fn trace_bindings(
                 // Special case: skip $effect as they only run once async work has completed
                 // TODO: Check for $effect rune
 
-                let mut touched = HashSet::new();
+                let mut touched = FxHashSet::default();
                 if let Some(callee) = node.get("callee") {
                     touch_bindings(
                         callee,
                         instance_scope,
                         &mut touched,
                         instance_scope,
-                        &mut HashSet::new(),
+                        &mut FxHashSet::default(),
                     );
                 }
 
@@ -232,7 +232,7 @@ fn trace_bindings(
 }
 
 /// Extract identifiers from a pattern (destructuring, etc.).
-fn extract_pattern_identifiers(pattern: &JsonValue, identifiers: &mut HashSet<String>) {
+fn extract_pattern_identifiers(pattern: &JsonValue, identifiers: &mut FxHashSet<String>) {
     if let Some(pattern_type) = pattern.get("type").and_then(|t| t.as_str()) {
         match pattern_type {
             "Identifier" => {
@@ -278,7 +278,7 @@ fn extract_pattern_identifiers(pattern: &JsonValue, identifiers: &mut HashSet<St
 }
 
 /// Extract all identifier names from an expression.
-fn extract_identifiers(expression: &JsonValue, identifiers: &mut HashSet<String>) {
+fn extract_identifiers(expression: &JsonValue, identifiers: &mut FxHashSet<String>) {
     if let Some(expr_type) = expression.get("type").and_then(|t| t.as_str()) {
         match expr_type {
             "Identifier" => {

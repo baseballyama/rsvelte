@@ -7,7 +7,7 @@
 //! This file is auto-generated from the official Svelte compiler.
 //! Do not edit manually.
 
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 use std::sync::LazyLock;
 
 /// ARIA attributes list.
@@ -64,9 +64,9 @@ pub const ARIA_ATTRIBUTES: &[&str] = &[
 ];
 
 /// Required attributes for specific elements.
-pub static A11Y_REQUIRED_ATTRIBUTES: LazyLock<HashMap<&'static str, &'static [&'static str]>> =
+pub static A11Y_REQUIRED_ATTRIBUTES: LazyLock<FxHashMap<&'static str, &'static [&'static str]>> =
     LazyLock::new(|| {
-        let mut m = HashMap::new();
+        let mut m = FxHashMap::default();
         m.insert("a", &["href"] as &[&str]);
         m.insert("area", &["alt", "aria-label", "aria-labelledby"] as &[&str]);
         m.insert("html", &["lang"] as &[&str]);
@@ -126,18 +126,18 @@ pub const A11Y_RECOMMENDED_INTERACTIVE_HANDLERS: &[&str] = &[
 ];
 
 /// Nested implicit semantics map.
-pub static A11Y_NESTED_IMPLICIT_SEMANTICS: LazyLock<HashMap<&'static str, &'static str>> =
+pub static A11Y_NESTED_IMPLICIT_SEMANTICS: LazyLock<FxHashMap<&'static str, &'static str>> =
     LazyLock::new(|| {
-        let mut m = HashMap::new();
+        let mut m = FxHashMap::default();
         m.insert("header", "banner");
         m.insert("footer", "contentinfo");
         m
     });
 
 /// Implicit semantics map.
-pub static A11Y_IMPLICIT_SEMANTICS: LazyLock<HashMap<&'static str, &'static str>> =
+pub static A11Y_IMPLICIT_SEMANTICS: LazyLock<FxHashMap<&'static str, &'static str>> =
     LazyLock::new(|| {
-        let mut m = HashMap::new();
+        let mut m = FxHashMap::default();
         m.insert("a", "link");
         m.insert("area", "link");
         m.insert("article", "article");
@@ -185,9 +185,9 @@ pub static A11Y_IMPLICIT_SEMANTICS: LazyLock<HashMap<&'static str, &'static str>
     });
 
 /// Menuitem type to implicit role map.
-pub static MENUITEM_TYPE_TO_IMPLICIT_ROLE: LazyLock<HashMap<&'static str, &'static str>> =
+pub static MENUITEM_TYPE_TO_IMPLICIT_ROLE: LazyLock<FxHashMap<&'static str, &'static str>> =
     LazyLock::new(|| {
-        let mut m = HashMap::new();
+        let mut m = FxHashMap::default();
         m.insert("command", "menuitem");
         m.insert("checkbox", "menuitemcheckbox");
         m.insert("radio", "menuitemradio");
@@ -195,9 +195,9 @@ pub static MENUITEM_TYPE_TO_IMPLICIT_ROLE: LazyLock<HashMap<&'static str, &'stat
     });
 
 /// Input type to implicit role map.
-pub static INPUT_TYPE_TO_IMPLICIT_ROLE: LazyLock<HashMap<&'static str, &'static str>> =
+pub static INPUT_TYPE_TO_IMPLICIT_ROLE: LazyLock<FxHashMap<&'static str, &'static str>> =
     LazyLock::new(|| {
-        let mut m = HashMap::new();
+        let mut m = FxHashMap::default();
         m.insert("button", "button");
         m.insert("image", "button");
         m.insert("reset", "button");
@@ -216,9 +216,9 @@ pub static INPUT_TYPE_TO_IMPLICIT_ROLE: LazyLock<HashMap<&'static str, &'static 
 
 /// Non-interactive element to interactive role exceptions.
 pub static A11Y_NON_INTERACTIVE_ELEMENT_TO_INTERACTIVE_ROLE_EXCEPTIONS: LazyLock<
-    HashMap<&'static str, &'static [&'static str]>,
+    FxHashMap<&'static str, &'static [&'static str]>,
 > = LazyLock::new(|| {
-    let mut m = HashMap::new();
+    let mut m = FxHashMap::default();
     m.insert(
         "ul",
         &[
@@ -338,8 +338,8 @@ pub mod element_interactivity {
 pub const INVISIBLE_ELEMENTS: &[&str] = &["meta", "html", "script", "style"];
 
 /// All ARIA roles.
-pub static ARIA_ROLES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
-    let mut s = HashSet::new();
+pub static ARIA_ROLES: LazyLock<FxHashSet<&'static str>> = LazyLock::new(|| {
+    let mut s = FxHashSet::default();
     s.insert("command");
     s.insert("composite");
     s.insert("input");
@@ -483,8 +483,8 @@ pub static ARIA_ROLES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
 });
 
 /// Abstract ARIA roles.
-pub static ABSTRACT_ROLES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
-    let mut s = HashSet::new();
+pub static ABSTRACT_ROLES: LazyLock<FxHashSet<&'static str>> = LazyLock::new(|| {
+    let mut s = FxHashSet::default();
     s.insert("command");
     s.insert("composite");
     s.insert("input");

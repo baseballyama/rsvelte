@@ -15,7 +15,7 @@ use decode_sourcemap::decode_map;
 use lazy_static::lazy_static;
 use regex::Regex;
 use replace_in_code::{replace_in_code, slice_source};
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use types::*;
 
 lazy_static! {
@@ -234,8 +234,8 @@ fn processed_tag_to_code(
 /// Parse tag attributes from a string.
 ///
 /// Corresponds to `parse_tag_attributes` in index.js.
-fn parse_tag_attributes(str: &str) -> HashMap<String, AttributeValue> {
-    let mut attrs = HashMap::new();
+fn parse_tag_attributes(str: &str) -> FxHashMap<String, AttributeValue> {
+    let mut attrs = FxHashMap::default();
 
     for cap in ATTRIBUTE_PATTERN.captures_iter(str) {
         let name = cap.get(1).map(|m| m.as_str()).unwrap_or("");
@@ -262,7 +262,7 @@ fn parse_tag_attributes(str: &str) -> HashMap<String, AttributeValue> {
 /// Stringify tag attributes to a string.
 ///
 /// Corresponds to `stringify_tag_attributes` in index.js.
-fn stringify_tag_attributes(attributes: &Option<HashMap<String, AttributeValue>>) -> String {
+fn stringify_tag_attributes(attributes: &Option<FxHashMap<String, AttributeValue>>) -> String {
     if let Some(attrs) = attributes {
         let value = attrs
             .iter()
@@ -532,7 +532,7 @@ mod tests {
 
     #[test]
     fn test_stringify_tag_attributes() {
-        let mut attrs = HashMap::new();
+        let mut attrs = FxHashMap::default();
         attrs.insert("lang".to_string(), AttributeValue::String("ts".to_string()));
         attrs.insert("defer".to_string(), AttributeValue::Boolean(true));
 

@@ -4,7 +4,7 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/ClassBody.js`.
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::sync::LazyLock;
 
 use regex::Regex;
@@ -61,11 +61,11 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     }
 
     // State fields map (name -> StateField)
-    let mut state_fields: HashMap<String, StateField> = HashMap::new();
+    let mut state_fields: FxHashMap<String, StateField> = FxHashMap::default();
 
     // Track all fields and their kinds to detect duplicates
     // Maps from field key (prefixed with @ for static) to kinds
-    let mut fields: HashMap<String, Vec<String>> = HashMap::new();
+    let mut fields: FxHashMap<String, Vec<String>> = FxHashMap::default();
 
     // Find constructor for analyzing this.x = $state(...) assignments
     let mut constructor: Option<&Value> = None;
@@ -137,8 +137,8 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         node: &Value,
         key: &Value,
         value: Option<&Value>,
-        state_fields: &mut HashMap<String, StateField>,
-        fields: &mut HashMap<String, Vec<String>>,
+        state_fields: &mut FxHashMap<String, StateField>,
+        fields: &mut FxHashMap<String, Vec<String>>,
         is_static: bool,
     ) -> Result<(), AnalysisError> {
         let name = match get_name(key) {

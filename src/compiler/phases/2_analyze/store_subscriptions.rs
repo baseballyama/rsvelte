@@ -13,7 +13,7 @@ use crate::ast::template::{
     Attribute, AttributeValue, AttributeValuePart, AwaitBlock, EachBlock, Fragment, IfBlock,
     KeyBlock, RegularElement, Root, Script, SnippetBlock, TemplateNode,
 };
-use std::collections::HashSet;
+use rustc_hash::FxHashSet;
 
 /// Detect store subscriptions and create synthetic bindings.
 ///
@@ -31,7 +31,7 @@ use std::collections::HashSet;
 /// Returns `Ok(())` on success.
 pub fn detect_store_subscriptions(ast: &Root, analysis: &mut ComponentAnalysis) {
     // Collect all $xxx references from the AST
-    let mut store_refs: HashSet<String> = HashSet::new();
+    let mut store_refs: FxHashSet<String> = FxHashSet::default();
 
     // Scan scripts for $xxx identifiers
     if let Some(ref instance) = ast.instance {
@@ -112,7 +112,7 @@ pub fn detect_store_subscriptions(ast: &Root, analysis: &mut ComponentAnalysis) 
 }
 
 /// Collect $xxx identifiers from a script block.
-fn collect_dollar_refs_from_script(script: &Script, source: &str, refs: &mut HashSet<String>) {
+fn collect_dollar_refs_from_script(script: &Script, source: &str, refs: &mut FxHashSet<String>) {
     let start = script.content.start().unwrap_or(0) as usize;
     let end = script.content.end().unwrap_or(0) as usize;
 
@@ -125,7 +125,7 @@ fn collect_dollar_refs_from_script(script: &Script, source: &str, refs: &mut Has
 }
 
 /// Collect $xxx identifiers from a JavaScript string.
-fn collect_dollar_identifiers_from_js(js: &str, refs: &mut HashSet<String>) {
+fn collect_dollar_identifiers_from_js(js: &str, refs: &mut FxHashSet<String>) {
     // Simple regex-like scanning for $xxx identifiers
     // We look for $ followed by valid identifier characters
     let chars: Vec<char> = js.chars().collect();
@@ -179,7 +179,7 @@ fn is_identifier_char(c: char) -> bool {
 fn collect_dollar_refs_from_fragment(
     fragment: &Fragment,
     source: &str,
-    refs: &mut HashSet<String>,
+    refs: &mut FxHashSet<String>,
 ) {
     for node in &fragment.nodes {
         collect_dollar_refs_from_node(node, source, refs);
@@ -187,7 +187,7 @@ fn collect_dollar_refs_from_fragment(
 }
 
 /// Collect $xxx identifiers from a template node.
-fn collect_dollar_refs_from_node(node: &TemplateNode, source: &str, refs: &mut HashSet<String>) {
+fn collect_dollar_refs_from_node(node: &TemplateNode, source: &str, refs: &mut FxHashSet<String>) {
     match node {
         TemplateNode::ExpressionTag(tag) => {
             collect_dollar_refs_from_expression(&tag.expression, source, refs);
@@ -285,7 +285,7 @@ fn collect_dollar_refs_from_node(node: &TemplateNode, source: &str, refs: &mut H
 fn collect_dollar_refs_from_element(
     element: &RegularElement,
     source: &str,
-    refs: &mut HashSet<String>,
+    refs: &mut FxHashSet<String>,
 ) {
     collect_dollar_refs_from_attributes(&element.attributes, source, refs);
     collect_dollar_refs_from_fragment(&element.fragment, source, refs);
@@ -295,7 +295,7 @@ fn collect_dollar_refs_from_element(
 fn collect_dollar_refs_from_attributes(
     attributes: &[Attribute],
     source: &str,
-    refs: &mut HashSet<String>,
+    refs: &mut FxHashSet<String>,
 ) {
     for attr in attributes {
         match attr {
@@ -375,7 +375,7 @@ fn collect_dollar_refs_from_attributes(
 fn collect_dollar_refs_from_expression(
     expr: &crate::ast::js::Expression,
     source: &str,
-    refs: &mut HashSet<String>,
+    refs: &mut FxHashSet<String>,
 ) {
     // Extract source range and collect identifiers from the expression source
     if let Some(start) = expr.start()
@@ -391,7 +391,7 @@ fn collect_dollar_refs_from_expression(
 }
 
 /// Collect $xxx identifiers from an if block.
-fn collect_dollar_refs_from_if_block(block: &IfBlock, source: &str, refs: &mut HashSet<String>) {
+fn collect_dollar_refs_from_if_block(block: &IfBlock, source: &str, refs: &mut FxHashSet<String>) {
     collect_dollar_refs_from_expression(&block.test, source, refs);
     collect_dollar_refs_from_fragment(&block.consequent, source, refs);
     if let Some(ref alternate) = block.alternate {
@@ -403,7 +403,7 @@ fn collect_dollar_refs_from_if_block(block: &IfBlock, source: &str, refs: &mut H
 fn collect_dollar_refs_from_each_block(
     block: &EachBlock,
     source: &str,
-    refs: &mut HashSet<String>,
+    refs: &mut FxHashSet<String>,
 ) {
     collect_dollar_refs_from_expression(&block.expression, source, refs);
     if let Some(ref key) = block.key {
@@ -419,7 +419,7 @@ fn collect_dollar_refs_from_each_block(
 fn collect_dollar_refs_from_await_block(
     block: &AwaitBlock,
     source: &str,
-    refs: &mut HashSet<String>,
+    refs: &mut FxHashSet<String>,
 ) {
     collect_dollar_refs_from_expression(&block.expression, source, refs);
     if let Some(ref pending) = block.pending {
@@ -434,7 +434,11 @@ fn collect_dollar_refs_from_await_block(
 }
 
 /// Collect $xxx identifiers from a key block.
-fn collect_dollar_refs_from_key_block(block: &KeyBlock, source: &str, refs: &mut HashSet<String>) {
+fn collect_dollar_refs_from_key_block(
+    block: &KeyBlock,
+    source: &str,
+    refs: &mut FxHashSet<String>,
+) {
     collect_dollar_refs_from_expression(&block.expression, source, refs);
     collect_dollar_refs_from_fragment(&block.fragment, source, refs);
 }
@@ -443,7 +447,7 @@ fn collect_dollar_refs_from_key_block(block: &KeyBlock, source: &str, refs: &mut
 fn collect_dollar_refs_from_snippet_block(
     block: &SnippetBlock,
     source: &str,
-    refs: &mut HashSet<String>,
+    refs: &mut FxHashSet<String>,
 ) {
     collect_dollar_refs_from_fragment(&block.body, source, refs);
 }
@@ -454,7 +458,7 @@ mod tests {
 
     #[test]
     fn test_collect_dollar_identifiers() {
-        let mut refs = HashSet::new();
+        let mut refs = FxHashSet::default();
 
         // Simple store reference
         collect_dollar_identifiers_from_js("$store", &mut refs);

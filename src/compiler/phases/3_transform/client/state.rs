@@ -5,7 +5,7 @@
 
 #![allow(dead_code)]
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 
 /// Source context for the component being compiled.
 #[derive(Debug)]
@@ -123,11 +123,11 @@ impl NavigationState {
 #[derive(Debug, Default)]
 pub struct VariableTracker {
     /// Counter for variable names per tag name
-    pub var_name_counters: HashMap<String, usize>,
+    pub var_name_counters: FxHashMap<String, usize>,
     /// State variable names (for $.get() and $.set())
     pub state_vars: Vec<String>,
     /// Constant variables (name -> value) for compile-time evaluation
-    pub const_vars: HashMap<String, String>,
+    pub const_vars: FxHashMap<String, String>,
     /// Read-only destructured props (accessed via $$props.propName)
     pub read_only_props: Vec<String>,
 }
@@ -141,7 +141,7 @@ impl VariableTracker {
     /// Initialize with extracted variables from script content.
     pub fn from_script(script_content: &str) -> Self {
         Self {
-            var_name_counters: HashMap::new(),
+            var_name_counters: FxHashMap::default(),
             state_vars: collect_state_variables(script_content),
             const_vars: collect_constant_variables(script_content),
             read_only_props: collect_read_only_props(script_content),
@@ -221,8 +221,8 @@ fn extract_state_var_name(decl: &str) -> Option<String> {
 }
 
 /// Collect constant variables from script content.
-fn collect_constant_variables(script_content: &str) -> HashMap<String, String> {
-    let mut const_vars = HashMap::new();
+fn collect_constant_variables(script_content: &str) -> FxHashMap<String, String> {
+    let mut const_vars = FxHashMap::default();
 
     for line in script_content.lines() {
         let trimmed = line.trim();
