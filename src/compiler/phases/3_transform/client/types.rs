@@ -229,9 +229,9 @@ impl<'a> ComponentContext<'a> {
         TransformResult::None
     }
 
-    fn visit_key_block(&mut self, _key: &crate::ast::template::KeyBlock) -> TransformResult {
-        // TODO: Implement {#key} transformation
-        TransformResult::None
+    fn visit_key_block(&mut self, key: &crate::ast::template::KeyBlock) -> TransformResult {
+        use crate::compiler::phases::phase3_transform::client::visitors::key_block::key_block as visit_key_block_impl;
+        visit_key_block_impl(key, self)
     }
 
     fn visit_snippet_block(

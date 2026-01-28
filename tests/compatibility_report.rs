@@ -18,8 +18,8 @@ use common::{
     write_actual_output,
 };
 use svelte_compiler_rust::{
-    CompileOptions, ExperimentalOptions, GenerateMode, ParseOptions, compile, compiler::CssMode,
-    convert_to_legacy, parse,
+    CompileOptions, GenerateMode, ParseOptions, compile, compiler::CssMode, convert_to_legacy,
+    parse,
 };
 
 // ============================================================================

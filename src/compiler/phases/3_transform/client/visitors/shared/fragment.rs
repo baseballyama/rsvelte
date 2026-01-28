@@ -3,7 +3,9 @@
 //! Corresponds to fragment.js in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/fragment.js`.
 
-use crate::ast::template::{Attribute, ExpressionTag, RegularElement, TemplateNode, Text};
+use crate::ast::template::{
+    Attribute, ExpressionTag, Fragment, RegularElement, TemplateNode, Text,
+};
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_template_chunk;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
@@ -75,6 +77,11 @@ fn has_dynamic_children(nodes: &[TemplateNode]) -> bool {
                     return true;
                 }
 
+                // Check if this is a select/optgroup/option with rich content
+                if is_customizable_select_element(elem) {
+                    return true;
+                }
+
                 // Check for attributes that cannot be set statically (need runtime code)
                 // Note: img loading does NOT need runtime code - it can be static in template
                 for attr in &elem.attributes {
@@ -104,7 +111,7 @@ fn has_dynamic_children(nodes: &[TemplateNode]) -> bool {
 ///
 /// A static element is one that can be rendered in the template without
 /// needing any runtime updates.
-fn is_static_element(node: &TemplateNode, _state: &ComponentClientTransformState) -> bool {
+pub fn is_static_element(node: &TemplateNode, _state: &ComponentClientTransformState) -> bool {
     match node {
         TemplateNode::RegularElement(elem) => {
             // Dynamic fragment means we can't be static
@@ -120,6 +127,12 @@ fn is_static_element(node: &TemplateNode, _state: &ComponentClientTransformState
 
             // Custom elements are not static (we set attributes through properties)
             if is_custom_element_node(elem) {
+                return false;
+            }
+
+            // Customizable select elements (select/optgroup/option with rich content)
+            // are not static because they need $.customizable_select() handling
+            if is_customizable_select_element(elem) {
                 return false;
             }
 
@@ -464,3 +477,113 @@ fn push_static_element_to_template(node: &TemplateNode, template: &mut Template)
 }
 
 use crate::compiler::phases::phase3_transform::client::transform_template::template::Template;
+
+/// Checks if a <select>, <optgroup>, or <option> element has rich content that requires
+/// special hydration handling with `$.customizable_select()`.
+///
+/// Rich content is anything beyond simple text, expressions, and comments for <option>,
+/// anything beyond <option> children for <optgroup>,
+/// or anything beyond <option>, <optgroup>, and empty text for <select>.
+/// Control flow blocks are recursively checked - they only count as rich content if they
+/// contain rich content themselves.
+fn is_customizable_select_element(node: &RegularElement) -> bool {
+    if node.name == "select" || node.name == "optgroup" || node.name == "option" {
+        for child in find_descendants(&node.fragment) {
+            match &child {
+                TemplateNode::RegularElement(elem) => {
+                    if node.name == "select" && elem.name != "option" && elem.name != "optgroup" {
+                        return true;
+                    }
+                    if node.name == "optgroup" && elem.name != "option" {
+                        return true;
+                    }
+                    if node.name == "option" {
+                        return true;
+                    }
+                }
+                TemplateNode::Text(text) => {
+                    // Text nodes directly in <select> or <optgroup> are rich content
+                    // (only if non-empty after trim)
+                    if (node.name == "select" || node.name == "optgroup")
+                        && !text.data.trim().is_empty()
+                    {
+                        return true;
+                    }
+                }
+                _ => {
+                    // Any non-RegularElement, non-Text node is rich content
+                    // This includes Component, RenderTag, HtmlTag, etc.
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Iterate through descendants of a fragment, recursively descending into control flow blocks.
+fn find_descendants(fragment: &Fragment) -> Vec<TemplateNode> {
+    let mut result = Vec::new();
+    find_descendants_recursive(&fragment.nodes, &mut result);
+    result
+}
+
+fn find_descendants_recursive(nodes: &[TemplateNode], result: &mut Vec<TemplateNode>) {
+    for node in nodes {
+        match node {
+            // Skip these types - they don't contribute to rich content detection
+            TemplateNode::SnippetBlock(_)
+            | TemplateNode::DebugTag(_)
+            | TemplateNode::ConstTag(_)
+            | TemplateNode::Comment(_)
+            | TemplateNode::ExpressionTag(_) => {}
+
+            // Text nodes: yield if non-whitespace
+            TemplateNode::Text(text) => {
+                if !text.data.trim().is_empty() {
+                    result.push(node.clone());
+                }
+            }
+
+            // Control flow blocks: recurse into their content
+            TemplateNode::IfBlock(if_block) => {
+                find_descendants_recursive(&if_block.consequent.nodes, result);
+                if let Some(alternate) = &if_block.alternate {
+                    find_descendants_recursive(&alternate.nodes, result);
+                }
+            }
+
+            TemplateNode::EachBlock(each_block) => {
+                find_descendants_recursive(&each_block.body.nodes, result);
+                if let Some(fallback) = &each_block.fallback {
+                    find_descendants_recursive(&fallback.nodes, result);
+                }
+            }
+
+            TemplateNode::KeyBlock(key_block) => {
+                find_descendants_recursive(&key_block.fragment.nodes, result);
+            }
+
+            TemplateNode::AwaitBlock(await_block) => {
+                if let Some(pending) = &await_block.pending {
+                    find_descendants_recursive(&pending.nodes, result);
+                }
+                if let Some(then) = &await_block.then {
+                    find_descendants_recursive(&then.nodes, result);
+                }
+                if let Some(catch) = &await_block.catch {
+                    find_descendants_recursive(&catch.nodes, result);
+                }
+            }
+
+            TemplateNode::SvelteBoundary(boundary) => {
+                find_descendants_recursive(&boundary.fragment.nodes, result);
+            }
+
+            // All other nodes (RegularElement, Component, RenderTag, HtmlTag, etc.) are yielded
+            _ => {
+                result.push(node.clone());
+            }
+        }
+    }
+}

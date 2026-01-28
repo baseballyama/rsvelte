@@ -9,9 +9,10 @@
 #![allow(dead_code)]
 
 use crate::ast::template::{
-    Attribute, AttributeNode, AttributeValue, BindDirective, OnDirective,
+    Attribute, AttributeNode, AttributeValue, BindDirective, Fragment, OnDirective,
     RegularElement as RegularElementNode, TemplateNode, TransitionDirective, UseDirective,
 };
+use crate::compiler::phases::phase3_transform::client::transform_template::Template;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::attribute::{
     is_event_attribute, visit_event_attribute,
@@ -495,6 +496,116 @@ pub fn visit_regular_element(
             )));
         }
         // No need for $.reset() since we didn't descend into children
+    } else if is_customizable_select_element(node) {
+        // For <option>, <optgroup>, or <select> elements with rich content, we need to branch based on browser support.
+        // Modern browsers preserve rich HTML in options, older browsers strip it to text only.
+        // We create a separate template for the rich content and append it to the element.
+        //
+        // Corresponds to the `is_customizable_select_element(node)` branch in RegularElement.js
+
+        let element_node = context.state.node.clone();
+
+        // Add a hydration marker inside the option element so $.child() has an anchor to find
+        context.state.template.push_comment(None);
+
+        // Create a separate template for the rich content
+        // Generate unique names for template and variables
+        let template_name = context
+            .state
+            .memoizer
+            .generate_id(&format!("{}_content", node.name));
+        let fragment_id_name = context.state.memoizer.generate_id("fragment");
+        let anchor_id_name = context.state.memoizer.generate_id("anchor");
+
+        let fragment_id = b::id(&fragment_id_name);
+        let anchor_id = b::id(&anchor_id_name);
+
+        // Create a separate template for processing the rich content
+        let mut select_template = Template::new();
+
+        // Save current state and create new state for processing children in the separate template
+        let saved_template = std::mem::replace(&mut context.state.template, select_template);
+        let saved_init = std::mem::take(&mut context.state.init);
+        let saved_update = std::mem::take(&mut context.state.update);
+        let saved_after_update = std::mem::take(&mut context.state.after_update);
+
+        // Process children with the new template
+        process_children(
+            &cleaned.trimmed,
+            |is_text| {
+                let mut args = vec![fragment_id.clone()];
+                if is_text {
+                    args.push(b::boolean(true));
+                }
+                b::call(b::member_path("$.first_child"), args)
+            },
+            false, // Not an element - we're processing into a fragment
+            context,
+        );
+
+        // Capture the init/update/after_update statements from processing children
+        let child_init = std::mem::take(&mut context.state.init);
+        let child_update = std::mem::take(&mut context.state.update);
+        let child_after_update = std::mem::take(&mut context.state.after_update);
+
+        // Get the template and restore saved state
+        select_template = std::mem::replace(&mut context.state.template, saved_template);
+        context.state.init = saved_init;
+        context.state.update = saved_update;
+        context.state.after_update = saved_after_update;
+
+        // Transform the template to $.from_html(...) and hoist it
+        // We need to generate the template expression here
+        let template_html = select_template.as_html();
+        let template_call = b::call(
+            b::member_path("$.from_html"),
+            vec![template_html, b::number(1.0)],
+        );
+
+        // Add the template declaration to hoisted
+        context
+            .state
+            .hoisted
+            .push(b::var_decl(&template_name, Some(template_call)));
+
+        // Build the rich content function body
+        // The anchor is the child of the element (a hydration marker during hydration)
+        let mut body_stmts = vec![
+            b::var_decl(
+                &anchor_id_name,
+                Some(b::call(
+                    b::member_path("$.child"),
+                    vec![element_node.clone()],
+                )),
+            ),
+            b::var_decl(
+                &fragment_id_name,
+                Some(b::call(b::id(&template_name), vec![])),
+            ),
+        ];
+        body_stmts.extend(child_init);
+
+        // Add template_effect if there are update statements
+        if !child_update.is_empty() {
+            body_stmts.push(b::stmt(b::call(
+                b::member_path("$.template_effect"),
+                vec![b::arrow_block(vec![], child_update)],
+            )));
+        }
+
+        body_stmts.extend(child_after_update);
+        body_stmts.push(b::stmt(b::call(
+            b::member_path("$.append"),
+            vec![anchor_id.clone(), fragment_id.clone()],
+        )));
+
+        // Create the $.customizable_select() call
+        let customizable_select_call = b::call(
+            b::member_path("$.customizable_select"),
+            vec![element_node, b::arrow_block(vec![], body_stmts)],
+        );
+
+        context.state.init.push(b::stmt(customizable_select_call));
     } else {
         // Process trimmed child nodes
         // These statements go directly into context.state (child_state in JS)
@@ -727,6 +838,125 @@ fn build_element_attribute_update(
         b::member_path(set_fn),
         vec![b::id(node_id), b::string(name), value],
     )
+}
+
+/// Checks if a <select>, <optgroup>, or <option> element has rich content that requires
+/// special hydration handling with `$.customizable_select()`.
+///
+/// Rich content is anything beyond simple text, expressions, and comments for <option>,
+/// anything beyond <option> children for <optgroup>,
+/// or anything beyond <option>, <optgroup>, and empty text for <select>.
+/// Control flow blocks are recursively checked - they only count as rich content if they
+/// contain rich content themselves.
+///
+/// Corresponds to `is_customizable_select_element` in
+/// `svelte/packages/svelte/src/compiler/phases/nodes.js`.
+fn is_customizable_select_element(node: &RegularElementNode) -> bool {
+    if node.name == "select" || node.name == "optgroup" || node.name == "option" {
+        for child in find_descendants(&node.fragment) {
+            match &child {
+                TemplateNode::RegularElement(elem) => {
+                    if node.name == "select" && elem.name != "option" && elem.name != "optgroup" {
+                        return true;
+                    }
+                    if node.name == "optgroup" && elem.name != "option" {
+                        return true;
+                    }
+                    if node.name == "option" {
+                        return true;
+                    }
+                }
+                TemplateNode::Text(text) => {
+                    // Text nodes directly in <select> or <optgroup> are rich content
+                    // (only if non-empty after trim)
+                    if (node.name == "select" || node.name == "optgroup")
+                        && !text.data.trim().is_empty()
+                    {
+                        return true;
+                    }
+                }
+                _ => {
+                    // Any non-RegularElement, non-Text node is rich content
+                    // This includes Component, RenderTag, HtmlTag, etc.
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+/// Iterate through descendants of a fragment, recursively descending into control flow blocks.
+///
+/// This yields nodes that are "concrete" content - it skips control flow wrappers and returns
+/// their inner content. SnippetBlock, DebugTag, ConstTag, Comment, and ExpressionTag are skipped.
+///
+/// Corresponds to `find_descendants` generator in
+/// `svelte/packages/svelte/src/compiler/phases/nodes.js`.
+fn find_descendants(fragment: &Fragment) -> Vec<TemplateNode> {
+    let mut result = Vec::new();
+    find_descendants_recursive(&fragment.nodes, &mut result);
+    result
+}
+
+fn find_descendants_recursive(nodes: &[TemplateNode], result: &mut Vec<TemplateNode>) {
+    for node in nodes {
+        match node {
+            // Skip these types - they don't contribute to rich content detection
+            TemplateNode::SnippetBlock(_)
+            | TemplateNode::DebugTag(_)
+            | TemplateNode::ConstTag(_)
+            | TemplateNode::Comment(_)
+            | TemplateNode::ExpressionTag(_) => {}
+
+            // Text nodes: yield if non-whitespace
+            TemplateNode::Text(text) => {
+                if !text.data.trim().is_empty() {
+                    result.push(node.clone());
+                }
+            }
+
+            // Control flow blocks: recurse into their content
+            TemplateNode::IfBlock(if_block) => {
+                find_descendants_recursive(&if_block.consequent.nodes, result);
+                if let Some(alternate) = &if_block.alternate {
+                    find_descendants_recursive(&alternate.nodes, result);
+                }
+            }
+
+            TemplateNode::EachBlock(each_block) => {
+                find_descendants_recursive(&each_block.body.nodes, result);
+                if let Some(fallback) = &each_block.fallback {
+                    find_descendants_recursive(&fallback.nodes, result);
+                }
+            }
+
+            TemplateNode::KeyBlock(key_block) => {
+                find_descendants_recursive(&key_block.fragment.nodes, result);
+            }
+
+            TemplateNode::AwaitBlock(await_block) => {
+                if let Some(pending) = &await_block.pending {
+                    find_descendants_recursive(&pending.nodes, result);
+                }
+                if let Some(then) = &await_block.then {
+                    find_descendants_recursive(&then.nodes, result);
+                }
+                if let Some(catch) = &await_block.catch {
+                    find_descendants_recursive(&catch.nodes, result);
+                }
+            }
+
+            TemplateNode::SvelteBoundary(boundary) => {
+                find_descendants_recursive(&boundary.fragment.nodes, result);
+            }
+
+            // All other nodes (RegularElement, Component, RenderTag, HtmlTag, etc.) are yielded
+            _ => {
+                result.push(node.clone());
+            }
+        }
+    }
 }
 
 #[cfg(test)]
