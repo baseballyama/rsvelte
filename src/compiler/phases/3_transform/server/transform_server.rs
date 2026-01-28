@@ -3775,6 +3775,8 @@ fn strip_export_specifiers(script: &str) -> String {
 fn transform_script_content(script: &str) -> String {
     let script = script.replace("$props()", "$$props");
     // Note: Order matters - check $state.raw before $state to avoid partial matches
+    // $state.snapshot(x) becomes $.snapshot(x) - it's a runtime helper
+    let script = script.replace("$state.snapshot(", "$.snapshot(");
     let script = transform_rune_call_multiline(&script, "$state.raw(");
     let script = transform_rune_call_multiline(&script, "$state(");
     let script = transform_rune_call_multiline(&script, "$derived.by(");

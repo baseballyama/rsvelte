@@ -203,7 +203,8 @@ fn transform_client_with_visitors(
     // Add instance script content (transformed runes)
     // This includes $state, $derived, $effect, $props transformations
     if let Some(ref content) = analysis.instance_script_content {
-        let transformed_script = transform_instance_script_for_visitors(&content.raw, analysis);
+        let transformed_script =
+            transform_instance_script_for_visitors(&content.raw, analysis, options.dev);
         // Only add if there's actual content (not just whitespace)
         let trimmed = transformed_script.trim();
         if !trimmed.is_empty() {
@@ -499,7 +500,11 @@ fn extract_proxy_vars(script: &str) -> Vec<String> {
 
 /// Transform instance script content for the visitor-based code generation.
 /// Handles $state, $derived, $effect, $props transformations.
-fn transform_instance_script_for_visitors(script: &str, analysis: &ComponentAnalysis) -> String {
+fn transform_instance_script_for_visitors(
+    script: &str,
+    analysis: &ComponentAnalysis,
+    dev: bool,
+) -> String {
     if script.is_empty() {
         return String::new();
     }
@@ -646,6 +651,7 @@ fn transform_instance_script_for_visitors(script: &str, analysis: &ComponentAnal
             &prop_source_vars,
             &exported_names,
             &proxy_vars,
+            dev,
         );
 
         // Skip empty transformations (e.g., read-only $props() with no defaults)
@@ -708,8 +714,14 @@ fn transform_client_runes_with_skip_and_state(
     prop_source_vars: &[String],
     exported_names: &[String],
     proxy_vars: &[String],
+    dev: bool,
 ) -> String {
     let mut result = line.to_string();
+
+    // Transform $state.snapshot(x) to $.snapshot(x)
+    if result.contains("$state.snapshot(") {
+        result = result.replace("$state.snapshot(", "$.snapshot(");
+    }
 
     // Transform $state.raw(x) to $.state(x)
     if result.contains("$state.raw(") {
@@ -839,6 +851,35 @@ fn transform_client_runes_with_skip_and_state(
     // Transform $effect(x) to $.user_effect(x)
     if result.contains("$effect(") {
         result = result.replace("$effect(", "$.user_effect(");
+    }
+
+    // Transform $inspect(...) - in non-dev mode, remove the entire call
+    // In dev mode, transform to $.inspect(...)
+    if let Some(pos) = result.find("$inspect(") {
+        if dev {
+            result = result.replacen("$inspect(", "$.inspect(", 1);
+        } else {
+            // In non-dev mode, remove the entire $inspect(...) call
+            // Find matching closing paren
+            let inspect_start = pos + 9; // after "$inspect("
+            if let Some(content_end) = find_matching_paren(&result[inspect_start..]) {
+                // Check if the $inspect call is a statement on its own
+                let before = result[..pos].trim();
+                let after = result[inspect_start + content_end + 1..].trim();
+
+                // If the line is just the $inspect call, return empty or semicolon
+                if before.is_empty() && (after.is_empty() || after == ";") {
+                    return String::new(); // Will be filtered out as empty transformation
+                } else {
+                    // Remove just the $inspect(...) part but keep other code on the line
+                    result = format!(
+                        "{}{}",
+                        &result[..pos],
+                        &result[inspect_start + content_end + 1..]
+                    );
+                }
+            }
+        }
     }
 
     // Transform $props() destructuring to $.prop() calls (only for source props)
