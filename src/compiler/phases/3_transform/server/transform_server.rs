@@ -3987,9 +3987,11 @@ fn add_statement_semicolon(line: &str) -> String {
 /// 2. $derived fields (private field + getter/setter)
 /// 3. Methods
 fn transform_class_fields_server(script: &str) -> String {
-    // Check for $derived or $derived.by patterns
+    // Check for $derived, $derived.by, or $state patterns in class
     if !script.contains("class ")
-        || (!script.contains("$derived(") && !script.contains("$derived.by("))
+        || (!script.contains("$derived(")
+            && !script.contains("$derived.by(")
+            && !script.contains("$state("))
     {
         return script.to_string();
     }
@@ -4042,6 +4044,7 @@ fn transform_class_fields_server(script: &str) -> String {
     let mut in_method = false;
     let mut method_depth = 0;
     let mut current_method: Vec<String> = Vec::new();
+    let mut has_state_fields = false; // Track if we've transformed any $state fields
 
     for line in class_body.lines() {
         let trimmed = line.trim();
@@ -4154,13 +4157,37 @@ fn transform_class_fields_server(script: &str) -> String {
             }
         }
 
-        // Non-$derived fields (like $state fields or regular fields)
+        // Handle $state fields
+        let is_state_field = trimmed.contains("= $state(") || trimmed.contains("=$state(");
+        if is_state_field
+            && let Some(eq_pos) = trimmed.find('=')
+            && let Some(state_pos) = trimmed.find("$state(")
+        {
+            let field_name = trimmed[..eq_pos].trim();
+            let value_start = state_pos + "$state(".len();
+            let after_paren = &trimmed[value_start..];
+
+            if let Some(value_end) = find_matching_paren_server(after_paren) {
+                let value = after_paren[..value_end].trim();
+                has_state_fields = true;
+                if value.is_empty() {
+                    // $state() with no argument -> just field declaration
+                    field_lines.push(format!("{};", field_name));
+                } else {
+                    // $state(value) -> field = value
+                    field_lines.push(format!("{} = {};", field_name, value));
+                }
+                continue;
+            }
+        }
+
+        // Non-$derived, non-$state fields (regular fields)
         if !trimmed.is_empty() {
             field_lines.push(trimmed.to_string());
         }
     }
 
-    if derived_fields.is_empty() {
+    if derived_fields.is_empty() && !has_state_fields {
         return script.to_string();
     }
 
