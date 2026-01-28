@@ -25,7 +25,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::fragmen
     TextOrExpr, process_children,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
-    build_template_chunk, expression_has_reactive_state,
+    apply_transforms_to_expression, build_template_chunk, expression_has_reactive_state,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
 use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
@@ -405,28 +405,6 @@ pub fn visit_regular_element(
         // (via visit_event_attribute when is_event_attribute is true)
     }
 
-    // Handle special value attribute for option/select
-    if !has_spread && needs_special_value_handling {
-        // Find the value attribute
-        for attribute in &attributes {
-            if let Attribute::Attribute(attr) = attribute
-                && attr.name == "value"
-            {
-                let node_id = extract_node_id(&context.state.node);
-                let result = build_attribute_value(&attr.value, context, |expr, _metadata| expr);
-
-                // For option/select: element.value = element.__value = value
-                // This sets both the hidden __value property and the visible value
-                let assignment =
-                    b::assign(b::member(b::id(&node_id), "__value"), result.value.clone());
-                let set_value = b::assign(b::member(b::id(&node_id), "value"), assignment);
-
-                context.state.init.push(b::stmt(set_value));
-                break;
-            }
-        }
-    }
-
     // Clean child nodes - trim whitespace
     let preserve_whitespace =
         context.state.preserve_whitespace || node.name == "pre" || node.name == "textarea";
@@ -646,6 +624,51 @@ pub fn visit_regular_element(
         .state
         .after_update
         .extend(element_state_after_update);
+
+    // Handle special value attribute for option/select
+    // This must happen after child processing but before pop_element
+    // Corresponds to lines 480-501 in RegularElement.js
+    if !has_spread && needs_special_value_handling {
+        let node_id = extract_node_id(&context.state.node);
+
+        if let Some(synthetic_node) = &node.metadata.synthetic_value_node {
+            // This is an `option` element without a `value` attribute but with a single-expression child.
+            // We treat the value of that expression as the value of the option.
+            // Use AttributeValue::Expression to leverage build_attribute_value's transform handling
+            let synthetic_attr_value = AttributeValue::Expression((**synthetic_node).clone());
+            let result =
+                build_attribute_value(&synthetic_attr_value, context, |expr, _metadata| expr);
+
+            build_element_special_value_attribute(
+                &node.name,
+                &node_id,
+                result.value,
+                result.has_state,
+                true, // synthetic = true
+                context,
+            );
+        } else {
+            // Look for an explicit value attribute
+            for attribute in &attributes {
+                if let Attribute::Attribute(attr) = attribute
+                    && attr.name == "value"
+                {
+                    let result =
+                        build_attribute_value(&attr.value, context, |expr, _metadata| expr);
+
+                    build_element_special_value_attribute(
+                        &node.name,
+                        &node_id,
+                        result.value,
+                        result.has_state,
+                        false, // synthetic = false
+                        context,
+                    );
+                    break;
+                }
+            }
+        }
+    }
 
     context.state.template.pop_element();
     TransformResult::None
@@ -956,6 +979,84 @@ fn find_descendants_recursive(nodes: &[TemplateNode], result: &mut Vec<TemplateN
                 result.push(node.clone());
             }
         }
+    }
+}
+
+/// Serializes an assignment to the value property of a `<select>`, `<option>` or `<input>` element
+/// that needs the hidden `__value` property.
+///
+/// Corresponds to `build_element_special_value_attribute` in
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/RegularElement.js`.
+///
+/// Parameters:
+/// - `element_name`: The element tag name ("option", "select", etc.)
+/// - `node_id`: The identifier for the element node
+/// - `value`: The value expression
+/// - `has_state`: Whether the value is dynamic (has reactive state)
+/// - `synthetic`: Whether this is a synthetic value (no explicit value attribute, just child expression)
+/// - `context`: The component context
+fn build_element_special_value_attribute(
+    element_name: &str,
+    node_id: &str,
+    value: JsExpr,
+    has_state: bool,
+    synthetic: bool,
+    context: &mut ComponentContext,
+) {
+    // Apply transforms to the value expression (e.g., $.get() wrapping for reactive variables)
+    let transformed_value = apply_transforms_to_expression(&value, context);
+
+    // node.__value = transformed_value
+    let assignment = b::assign(
+        b::member(b::id(node_id), "__value"),
+        transformed_value.clone(),
+    );
+
+    // For non-synthetic values: node.value = node.__value = transformed_value
+    // For synthetic values: just node.__value = transformed_value
+    let update = if synthetic {
+        b::stmt(assignment)
+    } else {
+        b::stmt(b::assign(b::member(b::id(node_id), "value"), assignment))
+    };
+
+    if has_state {
+        // For dynamic values:
+        // var node_value = {};  // {} is used as a sentinel that will never equal any real value
+        // if (node_value !== (node_value = transformed_value)) {
+        //     node.__value = transformed_value;  // or node.value = node.__value = transformed_value for non-synthetic
+        // }
+        let value_id = context
+            .state
+            .memoizer
+            .generate_id(&format!("{}_value", node_id));
+
+        // For option elements, use {} as initial value (a sentinel that won't equal any real value)
+        // This ensures the first comparison always triggers the update
+        let init_value = if element_name == "option" {
+            Some(b::object(vec![]))
+        } else {
+            None
+        };
+
+        // Add variable declaration: var node_value = {} (for option) or var node_value (for others)
+        context.state.init.push(b::var_decl(&value_id, init_value));
+
+        // Create the comparison: value_id !== (value_id = transformed_value)
+        let comparison = b::binary_str(
+            "!==",
+            b::id(&value_id),
+            b::assign(b::id(&value_id), transformed_value.clone()),
+        );
+
+        // Create the if statement: if (comparison) { update }
+        // b::if_stmt takes (test, consequent, alternate)
+        let if_statement = b::if_stmt(comparison, b::block(vec![update]), None);
+
+        context.state.update.push(if_statement);
+    } else {
+        // For static values, just add the assignment to init
+        context.state.init.push(update);
     }
 }
 

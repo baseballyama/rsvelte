@@ -208,14 +208,24 @@ fn normalize_generated_var_names(code: &str) -> String {
         // Match common compiler-generated variable names with numeric suffixes
         // These patterns capture: node_1, node_2, text_1, text_2, button_1, div_1, span_1, etc.
         // Only normalize these specific patterns that are clearly compiler-generated
+        // Note: \b doesn't work before $$ because $ is not a word character,
+        // so we handle $$index and $$length separately
         static ref VAR_WITH_SUFFIX: Regex = Regex::new(
-            r"\b(node|text|button|div|span|p|a|input|form|fragment|consequent|alternate|each|if_block|component|each_array|\$\$index|\$\$length|snippets|spread_props)_(\d+)\b"
+            r"\b(node|text|button|div|span|p|a|input|form|fragment|consequent|alternate|each|if_block|component|each_array|snippets|spread_props)_(\d+)\b"
+        ).unwrap();
+        // Separate pattern for $$index_N and $$length_N (no word boundary before $$)
+        static ref DOLLAR_VAR_WITH_SUFFIX: Regex = Regex::new(
+            r"(\$\$index|\$\$length)_(\d+)"
         ).unwrap();
     }
 
     // Replace var_N with just var (remove the numeric suffix)
     // This normalizes `node_1` -> `node`, `text_2` -> `text`, etc.
-    VAR_WITH_SUFFIX.replace_all(code, "$1").to_string()
+    let result = VAR_WITH_SUFFIX.replace_all(code, "$1").to_string();
+    // Also handle $$index_N and $$length_N
+    DOLLAR_VAR_WITH_SUFFIX
+        .replace_all(&result, "$1")
+        .to_string()
 }
 
 /// Normalize whitespace-only text nodes inside template literals.
@@ -1932,4 +1942,19 @@ fn test_normalize_js_arrow_block_to_expr() {
     let input = "$.template_effect(() => {$.set_text(text, $.get(item))\n})";
     let expected = "$.template_effect(() => $.set_text(text, $.get(item)))";
     assert_eq!(normalize_js(input), expected);
+}
+
+#[test]
+fn test_normalize_js_generated_var_suffixes() {
+    // Test that $$index_1 normalizes to $$index (removes _N suffix)
+    let with_suffix = "for (let $$index_1 = 0, $$length = each_array_2.length; $$index_1 < $$length; $$index_1++)";
+    let without_suffix =
+        "for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++)";
+    let norm_with = normalize_js(with_suffix);
+    let norm_without = normalize_js(without_suffix);
+
+    assert_eq!(
+        norm_with, norm_without,
+        "Variables with numeric suffixes should normalize to the same as without"
+    );
 }

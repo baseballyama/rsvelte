@@ -230,6 +230,8 @@ enum OutputPart {
         body: Vec<OutputPart>,
         /// Whether this option has rich content (requires 7th argument `true`)
         is_rich: bool,
+        /// Direct value expression (when synthetic_value_node is set) - passed directly without callback
+        direct_value: Option<String>,
     },
     /// Await block - produces $.await() call
     AwaitBlock {
@@ -251,6 +253,12 @@ enum OutputPart {
     RenderCall(String),
     /// Const declaration - produces const variable
     ConstDeclaration(String),
+    /// Block scope - wraps content in { } JavaScript block
+    BlockScope {
+        body: Vec<OutputPart>,
+    },
+    /// Hydration anchor marker - outputs "<!>" after Components/RenderTags/HtmlTags in select/optgroup
+    HydrationAnchor,
 }
 
 impl<'a> ServerCodeGenerator<'a> {
@@ -610,6 +618,13 @@ impl<'a> ServerCodeGenerator<'a> {
                 is_first_content = false;
             }
 
+            // For select/optgroup with Component/RenderTag/HtmlTag, add <!> marker before closing tag
+            if (name == "select" || name == "optgroup")
+                && Self::is_customizable_select_element(element)
+            {
+                self.output_parts.push(OutputPart::HydrationAnchor);
+            }
+
             // End tag
             self.output_parts
                 .push(OutputPart::Html(format!("</{}>", name)));
@@ -689,6 +704,13 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.generate_node(child, false)?;
             }
 
+            // For select/optgroup with Component/RenderTag/HtmlTag, add <!> marker before closing tag
+            if (name == "select" || name == "optgroup")
+                && Self::is_customizable_select_element(element)
+            {
+                self.output_parts.push(OutputPart::HydrationAnchor);
+            }
+
             // End tag
             self.output_parts
                 .push(OutputPart::Html(format!("</{}>", name)));
@@ -766,6 +788,30 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
+        // Check if we have a synthetic_value_node - if so, pass the value directly
+        if let Some(synthetic_value_node) = &element.metadata.synthetic_value_node {
+            // Get expression source directly
+            let expr_start = synthetic_value_node.expression.start().unwrap_or(0) as usize;
+            let expr_end = synthetic_value_node.expression.end().unwrap_or(0) as usize;
+            let expr_source = if expr_end > expr_start && expr_end <= self.source.len() {
+                self.source[expr_start..expr_end].trim().to_string()
+            } else {
+                "undefined".to_string()
+            };
+
+            // Check if this option has rich content
+            let is_rich = Self::is_rich_option_content(&element.fragment.nodes);
+
+            self.output_parts.push(OutputPart::OptionElement {
+                attrs,
+                body: Vec::new(),
+                is_rich,
+                direct_value: Some(expr_source),
+            });
+
+            return Ok(());
+        }
+
         // Generate body parts
         let mut body_generator = ServerCodeGenerator::new(
             self.component_name.clone(),
@@ -815,6 +861,7 @@ impl<'a> ServerCodeGenerator<'a> {
             attrs,
             body: body_generator.output_parts,
             is_rich,
+            direct_value: None,
         });
 
         Ok(())
@@ -879,6 +926,67 @@ impl<'a> ServerCodeGenerator<'a> {
                 TemplateNode::Text(_) => {}
                 TemplateNode::ExpressionTag(_) => {}
                 // Other nodes
+                _ => {}
+            }
+        }
+        false
+    }
+
+    /// Check if a select or optgroup element contains Components, RenderTags, or HtmlTags
+    /// that require hydration anchor markers (<!>) before the closing tag.
+    /// This does NOT include option elements with rich content - those are handled separately.
+    fn is_customizable_select_element(element: &RegularElement) -> bool {
+        let element_name = element.name.as_str();
+        if element_name == "select" || element_name == "optgroup" {
+            // Check for Components, RenderTags, HtmlTags directly in select/optgroup
+            // or within control flow blocks (if, each, key, boundary)
+            return Self::has_component_or_render_tag(&element.fragment.nodes);
+        }
+        false
+    }
+
+    /// Check if nodes contain Component, RenderTag, or HtmlTag (recursively through control flow).
+    /// Does NOT recurse into option/optgroup children - only control flow blocks.
+    fn has_component_or_render_tag(nodes: &[TemplateNode]) -> bool {
+        for node in nodes {
+            match node {
+                // These require <!> marker
+                TemplateNode::Component(_)
+                | TemplateNode::SvelteComponent(_)
+                | TemplateNode::RenderTag(_)
+                | TemplateNode::HtmlTag(_) => return true,
+
+                // Control flow blocks: check their contents
+                TemplateNode::IfBlock(block) => {
+                    if Self::has_component_or_render_tag(&block.consequent.nodes) {
+                        return true;
+                    }
+                    if let Some(alt) = &block.alternate
+                        && Self::has_component_or_render_tag(&alt.nodes)
+                    {
+                        return true;
+                    }
+                }
+                TemplateNode::EachBlock(block) => {
+                    if Self::has_component_or_render_tag(&block.body.nodes) {
+                        return true;
+                    }
+                }
+                TemplateNode::KeyBlock(block) => {
+                    if Self::has_component_or_render_tag(&block.fragment.nodes) {
+                        return true;
+                    }
+                }
+                TemplateNode::SvelteBoundary(boundary) => {
+                    if Self::has_component_or_render_tag(&boundary.fragment.nodes) {
+                        return true;
+                    }
+                }
+
+                // option/optgroup: do NOT recurse - their content doesn't affect the parent's <!> marker
+                TemplateNode::RegularElement(_) => {}
+
+                // Text, ExpressionTag, etc. don't require <!> marker
                 _ => {}
             }
         }
@@ -1635,26 +1743,34 @@ impl<'a> ServerCodeGenerator<'a> {
         let mut start_idx = 0;
         let mut end_idx = len;
 
-        // Skip leading whitespace
+        // Skip leading whitespace and comments (comments don't produce output)
         while start_idx < len {
-            if let TemplateNode::Text(text) = nodes[start_idx]
-                && text.data.trim().is_empty()
-            {
-                start_idx += 1;
-                continue;
+            match nodes[start_idx] {
+                TemplateNode::Text(text) if text.data.trim().is_empty() => {
+                    start_idx += 1;
+                    continue;
+                }
+                TemplateNode::Comment(_) => {
+                    start_idx += 1;
+                    continue;
+                }
+                _ => break,
             }
-            break;
         }
 
-        // Skip trailing whitespace
+        // Skip trailing whitespace and comments
         while end_idx > start_idx {
-            if let TemplateNode::Text(text) = nodes[end_idx - 1]
-                && text.data.trim().is_empty()
-            {
-                end_idx -= 1;
-                continue;
+            match nodes[end_idx - 1] {
+                TemplateNode::Text(text) if text.data.trim().is_empty() => {
+                    end_idx -= 1;
+                    continue;
+                }
+                TemplateNode::Comment(_) => {
+                    end_idx -= 1;
+                    continue;
+                }
+                _ => break,
             }
-            break;
         }
 
         // Generate body parts
@@ -1745,7 +1861,18 @@ impl<'a> ServerCodeGenerator<'a> {
             body_generator.output_parts.push(OutputPart::Comment);
         }
 
+        // Track if previous node was a ConstTag to skip whitespace after it
+        let mut prev_was_const = false;
         for node in body_nodes.iter().take(end_idx).skip(start_idx) {
+            // Skip whitespace-only text after ConstTag
+            if prev_was_const
+                && let TemplateNode::Text(text) = node
+                && text.data.trim().is_empty()
+            {
+                prev_was_const = false;
+                continue;
+            }
+            prev_was_const = matches!(node, TemplateNode::ConstTag(_));
             body_generator.generate_node(node, false)?;
         }
 
@@ -1862,7 +1989,35 @@ impl<'a> ServerCodeGenerator<'a> {
         Ok(())
     }
 
-    fn generate_key_block(&mut self, _block: &KeyBlock) -> Result<(), TransformError> {
+    fn generate_key_block(&mut self, block: &KeyBlock) -> Result<(), TransformError> {
+        // Key block in SSR outputs: <!---->{ fragment content }<!---->
+        // First comment marker
+        self.output_parts.push(OutputPart::Comment);
+
+        // Generate fragment content in a block scope
+        let mut body_generator = ServerCodeGenerator::new(
+            self.component_name.clone(),
+            self.source.clone(),
+            None,
+            None,
+            None,
+        );
+
+        for node in &block.fragment.nodes {
+            // Skip whitespace-only text nodes in key block
+            if let TemplateNode::Text(text) = node
+                && text.data.trim().is_empty()
+            {
+                continue;
+            }
+            body_generator.generate_node(node, false)?;
+        }
+
+        self.output_parts.push(OutputPart::BlockScope {
+            body: body_generator.output_parts,
+        });
+
+        // Second comment marker
         self.output_parts.push(OutputPart::Comment);
         Ok(())
     }
@@ -2821,6 +2976,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     attrs,
                     body,
                     is_rich,
+                    direct_value,
                 } => {
                     // Flush current HTML before option element
                     if !current_html.is_empty() {
@@ -2838,9 +2994,15 @@ export default function {component_name}($$renderer{props_param}) {{
                         .collect::<Vec<_>>()
                         .join(", ");
 
-                    // Build the $$renderer.option() call
-                    // If is_rich, we need to pass 7 arguments: attrs, body, void 0, void 0, void 0, void 0, true
-                    if *is_rich {
+                    // If we have a direct value (from synthetic_value_node), pass it directly
+                    if let Some(value_expr) = direct_value {
+                        body_code.push_str(&format!(
+                            "{}$$renderer.option({{ {} }}, {});\n",
+                            indent, attrs_str, value_expr
+                        ));
+                    } else if *is_rich {
+                        // Build the $$renderer.option() call
+                        // If is_rich, we need to pass 7 arguments: attrs, body, void 0, void 0, void 0, void 0, true
                         body_code.push_str(&format!(
                             "{}$$renderer.option(\n{}\t{{ {} }},\n{}\t($$renderer) => {{\n",
                             indent, indent, attrs_str, indent
@@ -2984,6 +3146,31 @@ export default function {component_name}($$renderer{props_param}) {{
 
                     // Generate the snippet function call
                     body_code.push_str(&format!("{}{};\n", indent, call_str));
+
+                    // Add comment marker after render call only if there's content after
+                    let has_content_after = parts[i + 1..].iter().any(|p| {
+                        matches!(
+                            p,
+                            OutputPart::Html(h) if !h.trim().is_empty()
+                        ) || matches!(
+                            p,
+                            OutputPart::Expression(_)
+                                | OutputPart::RawExpression(_)
+                                | OutputPart::HtmlExpression(_)
+                                | OutputPart::Component { .. }
+                                | OutputPart::EachBlock { .. }
+                                | OutputPart::IfBlock { .. }
+                                | OutputPart::AwaitBlock { .. }
+                                | OutputPart::SvelteBoundary { .. }
+                                | OutputPart::RenderCall(_)
+                                | OutputPart::OptionElement { .. }
+                                | OutputPart::HydrationAnchor
+                        )
+                    });
+
+                    if has_content_after {
+                        current_html.push_str("<!---->");
+                    }
                 }
                 OutputPart::ConstDeclaration(declaration) => {
                     // Flush current HTML before const declaration
@@ -2995,6 +3182,26 @@ export default function {component_name}($$renderer{props_param}) {{
 
                     // Generate the const declaration
                     body_code.push_str(&format!("{}const {};\n", indent, declaration));
+                }
+                OutputPart::BlockScope { body } => {
+                    // Flush current HTML before block scope
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+
+                    // Generate the block scope
+                    body_code.push_str(&format!("{}{{\n", indent));
+                    if !body.is_empty() {
+                        let body_code_inner = Self::build_parts(body, indent_level + 1);
+                        body_code.push_str(&body_code_inner);
+                    }
+                    body_code.push_str(&format!("{}}}\n", indent));
+                }
+                OutputPart::HydrationAnchor => {
+                    // Add <!> marker to current HTML (hydration anchor for Components/RenderTags/HtmlTags in select/optgroup)
+                    current_html.push_str("<!>");
                 }
             }
             i += 1;

@@ -145,6 +145,24 @@ fn run_snapshot_fixture_test(fixture: &SnapshotFixture) -> TestResult {
                 } else {
                     result.client_passed = Some(false);
                     result.client_error = Some("Client JS mismatch".to_string());
+
+                    // Debug: write normalized outputs for select-with-rich-content
+                    if fixture.name == "select-with-rich-content" {
+                        let norm_actual = normalize_js(&compile_result.js.code);
+                        let norm_expected = normalize_js(expected_client);
+                        write_actual_output(
+                            "snapshot",
+                            &fixture.name,
+                            "client_normalized_actual.js",
+                            &norm_actual,
+                        );
+                        write_actual_output(
+                            "snapshot",
+                            &fixture.name,
+                            "client_normalized_expected.js",
+                            &norm_expected,
+                        );
+                    }
                 }
             }
             Err(e) => {

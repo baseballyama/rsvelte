@@ -443,6 +443,7 @@ impl Parser<'_> {
                 name_loc: Some(name_loc_with_char),
                 attributes,
                 fragment,
+                metadata: Default::default(),
             }),
         };
 

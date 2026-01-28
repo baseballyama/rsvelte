@@ -403,6 +403,9 @@ pub struct RegularElement {
     pub name_loc: Option<SourceLocation>,
     pub attributes: Vec<Attribute>,
     pub fragment: Fragment,
+    /// Metadata populated during analysis (Phase 2)
+    #[serde(skip)]
+    pub metadata: RegularElementMetadata,
 }
 
 /// A Svelte component.
@@ -1155,6 +1158,18 @@ impl<'de> Deserialize<'de> for ExpressionMetadata {
         result.set_has_assignment(helper.has_assignment);
         Ok(result)
     }
+}
+
+/// Metadata for RegularElement nodes, populated during Phase 2 analysis.
+#[derive(Debug, Clone, Default)]
+pub struct RegularElementMetadata {
+    /// For option elements without an explicit value attribute but with a single expression child,
+    /// the expression is used as the synthetic value. This stores a clone of that ExpressionTag.
+    pub synthetic_value_node: Option<Box<ExpressionTag>>,
+    /// Whether this element is scoped (has CSS class hash applied)
+    pub scoped: bool,
+    /// Whether this element has spread attributes
+    pub has_spread: bool,
 }
 
 /// Metadata for Component nodes, populated during Phase 2 analysis.

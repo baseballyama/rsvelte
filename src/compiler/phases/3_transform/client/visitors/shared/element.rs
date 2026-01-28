@@ -50,12 +50,16 @@ where
             let expression = extract_expression_from_tag_with_context(expr_tag, context);
             let metadata = extract_metadata_from_tag(expr_tag);
 
+            // Check for reactive state using the comprehensive check that considers transforms
+            let has_state =
+                super::utils::expression_has_reactive_state(&expr_tag.expression, context);
+
             // Memoize if needed
             let memoized = memoize(expression, &metadata);
 
             AttributeValueResult {
                 value: memoized,
-                has_state: metadata.has_state(),
+                has_state,
             }
         }
 
@@ -71,11 +75,15 @@ where
                     let expression = extract_expression_from_tag_with_context(expr_tag, context);
                     let metadata = extract_metadata_from_tag(expr_tag);
 
+                    // Check for reactive state using the comprehensive check that considers transforms
+                    let has_state =
+                        super::utils::expression_has_reactive_state(&expr_tag.expression, context);
+
                     let memoized = memoize(expression, &metadata);
 
                     AttributeValueResult {
                         value: memoized,
-                        has_state: metadata.has_state(),
+                        has_state,
                     }
                 }
             }

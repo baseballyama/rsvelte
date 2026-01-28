@@ -509,9 +509,10 @@ pub fn visit(
             .iter()
             .any(|attr| matches!(attr, Attribute::Attribute(a) if a.name == "value"))
     {
-        // Note: In JS, this sets node.metadata.synthetic_value_node = child
-        // We would need to add this to the RegularElement metadata structure
-        // For now, we'll skip this as it requires AST changes
+        // Set metadata.synthetic_value_node to the expression tag child
+        if let TemplateNode::ExpressionTag(expr_tag) = &element.fragment.nodes[0] {
+            element.metadata.synthetic_value_node = Some(Box::new(expr_tag.clone()));
+        }
     }
 
     // Check if component name binding exists and warn if unused
