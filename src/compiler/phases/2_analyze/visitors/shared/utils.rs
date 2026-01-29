@@ -1118,7 +1118,7 @@ pub fn is_invalid_attribute_name(name: &str) -> bool {
 /// * `metadata` - Expression metadata to populate
 pub fn walk_js_expression(
     expression: &Value,
-    context: &VisitorContext,
+    context: &mut VisitorContext,
     metadata: &mut crate::ast::template::ExpressionMetadata,
 ) -> Result<(), AnalysisError> {
     let expr_type = expression.get("type").and_then(|t| t.as_str());
@@ -1147,6 +1147,13 @@ pub fn walk_js_expression(
             }
         }
         Some("MemberExpression") => {
+            // Check if this identifier is "safe" (doesn't require component context)
+            // If it's not safe, we need to track that this component needs context
+            // Corresponds to MemberExpression.js line 23-24
+            if !is_safe_identifier(expression, context) {
+                context.analysis.needs_context = true;
+            }
+
             // Recursively visit object and property
             if let Some(object) = expression.get("object") {
                 walk_js_expression(object, context, metadata)?;
@@ -1161,8 +1168,20 @@ pub fn walk_js_expression(
             }
         }
         Some("CallExpression") => {
-            // Visit callee and arguments
+            // Check if the callee is safe (doesn't require component context)
+            // Corresponds to CallExpression.js line 30-33
             if let Some(callee) = expression.get("callee") {
+                // Only check if it's not a rune
+                let is_rune = callee.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                    && callee
+                        .get("name")
+                        .and_then(|n| n.as_str())
+                        .is_some_and(|name| name.starts_with('$'));
+
+                if !is_rune && !is_safe_identifier(callee, context) {
+                    context.analysis.needs_context = true;
+                }
+
                 walk_js_expression(callee, context, metadata)?;
             }
             if let Some(arguments) = expression.get("arguments").and_then(|a| a.as_array()) {
@@ -1283,7 +1302,7 @@ pub fn walk_js_expression(
 /// Helper for walk_js_expression when encountering BlockStatement.
 pub fn walk_js_statement(
     statement: &Value,
-    context: &VisitorContext,
+    context: &mut VisitorContext,
     metadata: &mut crate::ast::template::ExpressionMetadata,
 ) -> Result<(), AnalysisError> {
     let stmt_type = statement.get("type").and_then(|t| t.as_str());
