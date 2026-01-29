@@ -2095,3 +2095,37 @@ $.template_effect(() => {
 1. さらなるテスト正規化の改善
 2. C-078: Server 出力から Client API を除去
 3. C-079: State/Derived Rune の正確な生成
+
+### 2026-01-29 セッション2 完了
+
+**完了タスク:**
+- [x] Context Injection の修正（リアクティブエクスポートのみに注入）
+- [x] svelte:element コールバック生成（+1 Total, +2 Client）
+- [x] @attach ディレクティブ実装（+2 Total, +2 Client）
+- [x] テンプレート空白正規化の追加（+15 Total）
+- [x] 数値リテラル/undefined 正規化の追加
+
+**テスト状況（セッション2終了時）:**
+| メトリック | 値 | 変化（セッション1比）|
+|-----------|-----|------|
+| Compiler Snapshot | 20/20 (100%) | 維持 ✅ |
+| Runtime Runes Total | 212/737 (28.8%) | **+18 (+9%)** |
+| Runtime Runes Client | 236/737 (32.0%) | **+7 (+3%)** |
+| Runtime Runes Server | 471/737 (63.9%) | **+17 (+4%)** |
+
+**累計改善（本日）:**
+| メトリック | セッション開始 | セッション終了 | 改善 |
+|-----------|--------------|---------------|------|
+| Runtime Runes Total | 128/737 (17.4%) | **212/737 (28.8%)** | **+84 (+66%)** |
+| Runtime Runes Client | 185/737 (25.1%) | **236/737 (32.0%)** | **+51 (+28%)** |
+| Runtime Runes Server | 311/737 (42.2%) | **471/737 (63.9%)** | **+160 (+51%)** |
+
+**特定された残存問題:**
+1. Destructuring Pattern の展開（derived-destructured 等）
+2. Export ホイスティング（snippet-hoisting-3 等）
+3. State proxy ラッピング（inspect-deep-array 等）
+
+**次のアクション:**
+1. Destructuring Pattern の適切な展開
+2. Export 文の順序修正
+3. Server props 処理の慎重な修正
