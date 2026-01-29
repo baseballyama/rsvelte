@@ -5336,7 +5336,20 @@ pub fn parse_binding_pattern(content: &str, offset: usize, line_offsets: &[usize
     }
 
     // Fallback: return as simple identifier
-    create_identifier(content.trim(), offset, offset + content.len(), line_offsets)
+    // Strip type annotation if present (e.g., "letter: string" -> "letter")
+    let trimmed = content.trim();
+    let name = if let Some(colon_pos) = trimmed.find(':') {
+        // Only strip if it looks like a simple identifier with type annotation
+        // (not a destructuring pattern with default values)
+        if !trimmed.starts_with('{') && !trimmed.starts_with('[') {
+            trimmed[..colon_pos].trim()
+        } else {
+            trimmed
+        }
+    } else {
+        trimmed
+    };
+    create_identifier(name, offset, offset + name.len(), line_offsets)
 }
 
 /// Convert a binding pattern with position adjustment.
