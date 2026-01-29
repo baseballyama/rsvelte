@@ -45,6 +45,9 @@ static REGEX_STATE_DERIVED_VAR: LazyLock<Regex> =
 // This is reset at the start of each component transformation.
 thread_local! {
     static DERIVED_ARRAY_COUNTER: Cell<usize> = const { Cell::new(0) };
+    // Counter for looking up which $$array variable to use when processing nested patterns
+    // This must stay in sync with DERIVED_ARRAY_COUNTER
+    static ARRAY_LOOKUP_COUNTER: Cell<usize> = const { Cell::new(0) };
 }
 
 /// Transform a component analysis into client-side JavaScript.
@@ -600,9 +603,10 @@ fn transform_instance_script_for_visitors(
         return String::new();
     }
 
-    // Reset the $$array counter for this component
+    // Reset the $$array counters for this component
     // This ensures unique names across multiple $derived destructuring patterns
     DERIVED_ARRAY_COUNTER.with(|c| c.set(0));
+    ARRAY_LOOKUP_COUNTER.with(|c| c.set(0));
 
     // First, transform class fields with $state and $derived
     let script = transform_class_fields_client(script);
@@ -1245,32 +1249,24 @@ fn process_derived_object_pattern(
 ) -> Option<()> {
     let properties = split_derived_object_properties(inner);
 
-    // First pass: process nested array/object patterns (which generate $$array helpers)
-    // These must come first because other declarations may depend on them
+    // First pass: collect ONLY $$array helper declarations for nested array patterns
+    // These must come first because other declarations depend on them
     for prop in &properties {
         let prop = prop.trim();
-        if prop.is_empty() {
+        if prop.is_empty() || prop.starts_with("...") {
             continue;
-        }
-        if prop.starts_with("...") {
-            continue; // Handle rest in second pass
         }
         if let Some(colon_pos) = find_derived_property_colon(prop) {
             let key = prop[..colon_pos].trim();
             let value_pattern = prop[colon_pos + 1..].trim();
             let prop_access = format!("{}.{}", base_expr, key);
             if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
-                process_derived_destructuring_pattern(
-                    value_pattern,
-                    &prop_access,
-                    declarations,
-                    array_counter,
-                )?;
+                collect_array_helpers_only(value_pattern, &prop_access, declarations)?;
             }
         }
     }
 
-    // Second pass: process simple properties and rest elements
+    // Second pass: process all properties in source order
     for prop in &properties {
         let prop = prop.trim();
         if prop.is_empty() {
@@ -1285,17 +1281,23 @@ fn process_derived_object_pattern(
             continue;
         }
         if let Some(colon_pos) = find_derived_property_colon(prop) {
-            let value_pattern = prop[colon_pos + 1..].trim();
-            // Skip nested patterns - already handled in first pass
-            if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
-                continue;
-            }
             let key = prop[..colon_pos].trim();
+            let value_pattern = prop[colon_pos + 1..].trim();
             let prop_access = format!("{}.{}", base_expr, key);
-            declarations.push(format!(
-                "{} = $.derived(() => {})",
-                value_pattern, prop_access
-            ));
+            if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
+                // Process nested pattern elements (not the $$array helpers, already added)
+                process_nested_pattern_elements(
+                    value_pattern,
+                    &prop_access,
+                    declarations,
+                    array_counter,
+                )?;
+            } else {
+                declarations.push(format!(
+                    "{} = $.derived(() => {})",
+                    value_pattern, prop_access
+                ));
+            }
         } else {
             declarations.push(format!(
                 "{} = $.derived(() => {}.{})",
@@ -1304,6 +1306,180 @@ fn process_derived_object_pattern(
         }
     }
     Some(())
+}
+
+/// Collect ONLY $$array helper declarations from nested patterns.
+/// This is used in the first pass to ensure $$array declarations come before
+/// the variable declarations that depend on them.
+fn collect_array_helpers_only(
+    pattern: &str,
+    base_expr: &str,
+    declarations: &mut Vec<String>,
+) -> Option<()> {
+    let pattern = pattern.trim();
+    if pattern.starts_with('[') && pattern.ends_with(']') {
+        let inner = &pattern[1..pattern.len() - 1];
+        let elements = split_derived_array_elements(inner);
+        let element_count = elements.len();
+
+        // Generate the $$array helper
+        let global_counter = DERIVED_ARRAY_COUNTER.with(|c| {
+            let current = c.get();
+            c.set(current + 1);
+            current
+        });
+
+        let array_var = if global_counter == 0 {
+            "$$array".to_string()
+        } else {
+            format!("$$array_{}", global_counter)
+        };
+
+        declarations.push(format!(
+            "{} = $.derived(() => $.to_array({}, {}))",
+            array_var, base_expr, element_count
+        ));
+
+        // Recursively collect array helpers from nested patterns
+        for (index, element) in elements.iter().enumerate() {
+            let element = element.trim();
+            if element.is_empty() || element.starts_with("...") {
+                continue;
+            }
+            let element_access = format!("$.get({})[{}]", array_var, index);
+            if element.starts_with('[') || element.starts_with('{') {
+                collect_array_helpers_only(element, &element_access, declarations)?;
+            }
+        }
+    } else if pattern.starts_with('{') && pattern.ends_with('}') {
+        let inner = &pattern[1..pattern.len() - 1];
+        let properties = split_derived_object_properties(inner);
+
+        // Recursively collect array helpers from nested patterns in object properties
+        for prop in &properties {
+            let prop = prop.trim();
+            if prop.is_empty() || prop.starts_with("...") {
+                continue;
+            }
+            if let Some(colon_pos) = find_derived_property_colon(prop) {
+                let key = prop[..colon_pos].trim();
+                let value_pattern = prop[colon_pos + 1..].trim();
+                let prop_access = format!("{}.{}", base_expr, key);
+                if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
+                    collect_array_helpers_only(value_pattern, &prop_access, declarations)?;
+                }
+            }
+        }
+    }
+    Some(())
+}
+
+/// Process nested pattern elements (variables), assuming $$array helpers are already declared.
+/// This handles the actual variable declarations in source order.
+fn process_nested_pattern_elements(
+    pattern: &str,
+    base_expr: &str,
+    declarations: &mut Vec<String>,
+    _array_counter: &mut usize,
+) -> Option<()> {
+    let pattern = pattern.trim();
+    if pattern.starts_with('[') && pattern.ends_with(']') {
+        let inner = &pattern[1..pattern.len() - 1];
+        let elements = split_derived_array_elements(inner);
+
+        // Get the array variable that was already created by collect_array_helpers_only
+        // We need to track which $$array we're using - use a separate counter for lookups
+        let array_var = get_current_array_var_for_base(base_expr);
+
+        for (index, element) in elements.iter().enumerate() {
+            let element = element.trim();
+            if element.is_empty() {
+                continue;
+            }
+            if let Some(rest_name) = element.strip_prefix("...") {
+                let rest_name = rest_name.trim();
+                declarations.push(format!(
+                    "{} = $.derived(() => $.get({}).slice({}))",
+                    rest_name, array_var, index
+                ));
+                continue;
+            }
+            let element_access = format!("$.get({})[{}]", array_var, index);
+            if element.starts_with('[') || element.starts_with('{') {
+                process_nested_pattern_elements(
+                    element,
+                    &element_access,
+                    declarations,
+                    _array_counter,
+                )?;
+            } else {
+                declarations.push(format!("{} = $.derived(() => {})", element, element_access));
+            }
+        }
+    } else if pattern.starts_with('{') && pattern.ends_with('}') {
+        let inner = &pattern[1..pattern.len() - 1];
+        let properties = split_derived_object_properties(inner);
+
+        for prop in &properties {
+            let prop = prop.trim();
+            if prop.is_empty() {
+                continue;
+            }
+            if let Some(rest_name) = prop.strip_prefix("...") {
+                let rest_name = rest_name.trim();
+                declarations.push(format!(
+                    "{} = $.derived(() => {{ /* TODO: rest element */ }})",
+                    rest_name
+                ));
+                continue;
+            }
+            if let Some(colon_pos) = find_derived_property_colon(prop) {
+                let key = prop[..colon_pos].trim();
+                let value_pattern = prop[colon_pos + 1..].trim();
+                let prop_access = format!("{}.{}", base_expr, key);
+                if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
+                    process_nested_pattern_elements(
+                        value_pattern,
+                        &prop_access,
+                        declarations,
+                        _array_counter,
+                    )?;
+                } else {
+                    declarations.push(format!(
+                        "{} = $.derived(() => {})",
+                        value_pattern, prop_access
+                    ));
+                }
+            } else {
+                declarations.push(format!(
+                    "{} = $.derived(() => {}.{})",
+                    prop, base_expr, prop
+                ));
+            }
+        }
+    }
+    Some(())
+}
+
+/// Helper to determine which $$array variable corresponds to a given base expression.
+/// This is needed because we pre-generate $$array helpers in the first pass,
+/// and need to reference the correct one in the second pass.
+fn get_current_array_var_for_base(_base_expr: &str) -> String {
+    // The $$array variables are generated in order during collect_array_helpers_only.
+    // We use the module-level ARRAY_LOOKUP_COUNTER to track which $$array we're on.
+    // This counter is reset at the start of each component transformation along with
+    // DERIVED_ARRAY_COUNTER to ensure they stay in sync.
+    let counter = ARRAY_LOOKUP_COUNTER.with(|c| {
+        let current = c.get();
+        c.set(current + 1);
+        current
+    });
+
+    if counter == 0 {
+        "$$array".to_string()
+    } else {
+        format!("$$array_{}", counter)
+    }
 }
 
 fn process_derived_array_pattern(

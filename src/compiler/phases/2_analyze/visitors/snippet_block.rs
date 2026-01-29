@@ -119,11 +119,10 @@ fn check_hoistable(nodes: &[TemplateNode], param_names: &FxHashSet<String>) -> b
                 // so we need to add it to the allowed names for the body
                 let mut inner_params = param_names.clone();
                 if let Some(ref context) = each_block.context {
-                    if let Expression::Value(val) = context {
-                        if let Some(names) = extract_pattern_names(val) {
-                            for n in names {
-                                inner_params.insert(n);
-                            }
+                    let Expression::Value(val) = context;
+                    if let Some(names) = extract_pattern_names(val) {
+                        for n in names {
+                            inner_params.insert(n);
                         }
                     }
                 }
@@ -136,10 +135,10 @@ fn check_hoistable(nodes: &[TemplateNode], param_names: &FxHashSet<String>) -> b
                     return false;
                 }
                 // Check fallback
-                if let Some(ref fallback) = each_block.fallback {
-                    if !check_hoistable(&fallback.nodes, param_names) {
-                        return false;
-                    }
+                if let Some(ref fallback) = each_block.fallback
+                    && !check_hoistable(&fallback.nodes, param_names)
+                {
+                    return false;
                 }
             }
 
@@ -150,20 +149,19 @@ fn check_hoistable(nodes: &[TemplateNode], param_names: &FxHashSet<String>) -> b
                     return false;
                 }
                 // Check pending
-                if let Some(ref pending) = await_block.pending {
-                    if !check_hoistable(&pending.nodes, param_names) {
-                        return false;
-                    }
+                if let Some(ref pending) = await_block.pending
+                    && !check_hoistable(&pending.nodes, param_names)
+                {
+                    return false;
                 }
                 // Check then block (value is a new binding)
                 if let Some(ref then_block) = await_block.then {
                     let mut inner_params = param_names.clone();
                     if let Some(ref value) = await_block.value {
-                        if let Expression::Value(val) = value {
-                            if let Some(name) = extract_pattern_names(val) {
-                                for n in name {
-                                    inner_params.insert(n);
-                                }
+                        let Expression::Value(val) = value;
+                        if let Some(name) = extract_pattern_names(val) {
+                            for n in name {
+                                inner_params.insert(n);
                             }
                         }
                     }
@@ -175,11 +173,10 @@ fn check_hoistable(nodes: &[TemplateNode], param_names: &FxHashSet<String>) -> b
                 if let Some(ref catch_block) = await_block.catch {
                     let mut inner_params = param_names.clone();
                     if let Some(ref error) = await_block.error {
-                        if let Expression::Value(val) = error {
-                            if let Some(name) = extract_pattern_names(val) {
-                                for n in name {
-                                    inner_params.insert(n);
-                                }
+                        let Expression::Value(val) = error;
+                        if let Some(name) = extract_pattern_names(val) {
+                            for n in name {
+                                inner_params.insert(n);
                             }
                         }
                     }
@@ -289,28 +286,25 @@ fn extract_pattern_names(val: &serde_json::Value) -> Option<Vec<String>> {
                             if prop_obj.get("type").and_then(|v| v.as_str()) == Some("Property") {
                                 if let Some(value) = prop_obj.get("value") {
                                     // Handle AssignmentPattern (default values)
-                                    let actual_value =
-                                        if value.get("type").and_then(|v| v.as_str())
-                                            == Some("AssignmentPattern")
-                                        {
-                                            value.get("left")
-                                        } else {
-                                            Some(value)
-                                        };
-                                    if let Some(v) = actual_value {
-                                        if let Some(inner_names) = extract_pattern_names(v) {
-                                            names.extend(inner_names);
-                                        }
+                                    let actual_value = if value.get("type").and_then(|v| v.as_str())
+                                        == Some("AssignmentPattern")
+                                    {
+                                        value.get("left")
+                                    } else {
+                                        Some(value)
+                                    };
+                                    if let Some(v) = actual_value
+                                        && let Some(inner_names) = extract_pattern_names(v)
+                                    {
+                                        names.extend(inner_names);
                                     }
                                 }
                             } else if prop_obj.get("type").and_then(|v| v.as_str())
                                 == Some("RestElement")
+                                && let Some(arg) = prop_obj.get("argument")
+                                && let Some(inner_names) = extract_pattern_names(arg)
                             {
-                                if let Some(arg) = prop_obj.get("argument") {
-                                    if let Some(inner_names) = extract_pattern_names(arg) {
-                                        names.extend(inner_names);
-                                    }
-                                }
+                                names.extend(inner_names);
                             }
                         }
                     }
@@ -321,10 +315,10 @@ fn extract_pattern_names(val: &serde_json::Value) -> Option<Vec<String>> {
                 let mut names = Vec::new();
                 if let Some(elements) = obj.get("elements").and_then(|e| e.as_array()) {
                     for elem in elements {
-                        if !elem.is_null() {
-                            if let Some(inner_names) = extract_pattern_names(elem) {
-                                names.extend(inner_names);
-                            }
+                        if !elem.is_null()
+                            && let Some(inner_names) = extract_pattern_names(elem)
+                        {
+                            names.extend(inner_names);
                         }
                     }
                 }
