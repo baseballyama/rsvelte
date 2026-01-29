@@ -2183,11 +2183,31 @@ $.template_effect(() => {
 | Runtime Runes Client | 245/737 (33.2%) | **251/737 (34.1%)** | **+6** |
 | Runtime Runes Server | 480/737 (65.1%) | **480/737 (65.1%)** | 維持 |
 
+**セッション3 Part 2 - 追加修正:**
+
+- [x] $derived デストラクチャリングの変数宣言順序修正
+  - Two-pass アプローチで $$array ヘルパーを先に宣言
+  - **結果**: derived-destructured の順序問題を修正
+
+- [x] $.store_mutate() ラッピング実装
+  - store_sub_mutate 関数を追加
+  - replace_store_with_untracked ヘルパー追加
+  - **結果**: Client +1
+
+**最終テスト状況（セッション3 Part 2 終了時）:**
+| メトリック | セッション開始 | セッション終了 | 差分 |
+|-----------|--------------|---------------|------|
+| Compiler Snapshot | 20/20 (100%) | 20/20 (100%) | 維持 ✅ |
+| Runtime Runes Total | 220/737 (29.9%) | **224/737 (30.4%)** | **+4** |
+| Runtime Runes Client | 245/737 (33.2%) | **252/737 (34.2%)** | **+7** |
+| Runtime Runes Server | 480/737 (65.1%) | **480/737 (65.1%)** | 維持 |
+
 **残存問題:**
-1. snippet-hoisting-3 Client - 定数畳み込みの欠如（`'Hello world!'` vs テンプレートリテラル）
-2. derived-destructured - 宣言順序の違い（機能的には正しいが順序が異なる）
+1. snippet-hoisting-3 Client - 定数畳み込みの欠如
+2. form-default-value-spread - フォーム要素のデフォルト値追跡
+3. inspect-deep-array - リアクティブプロキシラッピング
 
 **次のアクション:**
 1. 定数畳み込みの実装または正規化
-2. 残りの失敗テストの調査
-3. 残りの高インパクト問題の特定と修正
+2. フォーム要素のデフォルト値処理の改善
+3. 残りの失敗テストの調査
