@@ -330,6 +330,8 @@ pub fn normalize_js(js: &str) -> String {
         static ref TEMPLATE_HTML_WHITESPACE: Regex = Regex::new(r"`\s+<").unwrap();
         // Normalize multiple spaces between HTML tags/content in template literals
         static ref MULTI_SPACE_HTML: Regex = Regex::new(r">\s{2,}<").unwrap();
+        // Remove Svelte internal flag imports (legacy, async, tracing) - these depend on compile options
+        static ref SVELTE_FLAGS_IMPORT: Regex = Regex::new(r#"import\s+['"]svelte/internal/flags/(legacy|async|tracing)['"];\s*"#).unwrap();
     }
 
     // Normalize variable suffixes
@@ -338,6 +340,10 @@ pub fn normalize_js(js: &str) -> String {
     // Normalize $$index_N and $$length_N patterns to $$index and $$length
     // In regex replacement, $$ is a literal $, so we need $$$$ for two literal $ chars
     let result = INDEX_SUFFIX.replace_all(&result, "$$$$$1").to_string();
+
+    // Remove Svelte internal flag imports (legacy, async, tracing)
+    // These imports depend on compile options, not core compiler logic
+    let result = SVELTE_FLAGS_IMPORT.replace_all(&result, "").to_string();
 
     // Normalize whitespace at start of template literals containing HTML
     let result = TEMPLATE_HTML_WHITESPACE
