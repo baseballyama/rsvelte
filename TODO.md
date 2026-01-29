@@ -2330,7 +2330,26 @@ $.template_effect(() => {
 4. `feat(transform): Add assignment transformation helpers for visitor system`
 5. `test: Fix normalization test expectations`
 
+**追加完了タスク（セッション1後半）:**
+
+- [x] **C-091**: 定数畳み込み（constant folding）実装 ✅
+  - 対象: `src/compiler/phases/2_analyze/visitors/variable_declarator.rs`
+  - 問題: 非 runes モードで `binding.initial` が設定されていない
+  - 修正: `visit_non_runes_mode` でリテラル初期値を `binding.initial` に保存
+  - 結果: `snippet-hoisting-3` テスト通過
+  - 例: `let name = 'world'` + `{name}` → `'Hello world!'` at compile time
+
+**テスト状況（セッション1最終）:**
+| メトリック | セッション開始 | セッション終了 | 差分 |
+|-----------|--------------|---------------|------|
+| Compiler Snapshot | 18/20 (実際) | **20/20** | **+2 (100%)** ✅ |
+| Runtime Runes Total | 237/737 (32.2%) | **265/737 (36.0%)** | **+28 (+3.8%)** |
+| Runtime Runes Client | 268/737 | **296/737** | **+28** |
+| Runtime Runes Server | 480/737 | **497/737** | **+17** |
+
+**追加コミット:**
+6. `feat(analyze): Implement constant folding for non-runes mode`
+
 **次のアクション:**
-1. 静的テキスト最適化（定数畳み込み）の実装
-2. snippet-hoisting-3 の定数畳み込み問題調査
-3. Runtime Runes のさらなる改善
+1. Runtime Runes のさらなる改善
+2. 失敗パターンの分析と対応
