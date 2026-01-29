@@ -774,24 +774,18 @@ fn transform_instance_script_for_visitors(
         // Transform store subscription assignments to $.store_set()
         let transformed = transform_store_assignments_client(&transformed, store_sub_vars);
 
-        // Wrap state variable reads in $.get() for general expressions
-        // This handles cases like: console.log('init ' + double)
-        // where `double` is a $derived variable that needs to be read with $.get()
-        // BUT only if this is NOT a declaration line (let/const/var) - those are already
-        // handled by transform_client_runes_with_skip_and_state
-        let transformed = if !transformed.trim_start().starts_with("let ")
-            && !transformed.trim_start().starts_with("const ")
-            && !transformed.trim_start().starts_with("var ")
-        {
-            wrap_state_vars_in_expr(
-                &transformed,
-                state_vars,
-                non_reactive_state_vars,
-                proxy_vars,
-            )
-        } else {
-            transformed
-        };
+        // Wrap state variable reads in $.get() for ALL statements including declarations.
+        // This handles cases like:
+        // - console.log('init ' + double) - where `double` is a $derived variable
+        // - let foo = { get bar() { return bar } } - getter referencing state variable
+        // The wrap function already handles skipping left-side-of-assignment cases,
+        // so `let bar = ...` won't wrap `bar` on the left side.
+        let transformed = wrap_state_vars_in_expr(
+            &transformed,
+            state_vars,
+            non_reactive_state_vars,
+            proxy_vars,
+        );
 
         // Transform rest_prop member access to $$props (only in runes mode)
         let transformed = if analysis.runes && !rest_prop_vars.is_empty() {
@@ -2104,7 +2098,54 @@ fn transform_state_in_expr(
         let var_chars: Vec<char> = var.chars().collect();
         let mut i = 0;
 
+        // Track whether we're inside a string literal
+        let mut in_string: Option<char> = None; // None or Some('\'') or Some('"') or Some('`')
+
         while i < chars.len() {
+            let c = chars[i];
+
+            // Handle string literal boundaries
+            if in_string.is_none() {
+                if c == '\'' || c == '"' || c == '`' {
+                    in_string = Some(c);
+                    new_result.push(c);
+                    i += 1;
+                    continue;
+                }
+            } else if Some(c) == in_string {
+                // Check for escape sequence
+                let escaped = if i > 0 && chars[i - 1] == '\\' {
+                    // Count consecutive backslashes
+                    let mut backslash_count = 0;
+                    let mut j = i - 1;
+                    while j > 0 && chars[j] == '\\' {
+                        backslash_count += 1;
+                        if j == 0 {
+                            break;
+                        }
+                        j -= 1;
+                    }
+                    // If odd number of backslashes, the quote is escaped
+                    backslash_count % 2 == 1
+                } else {
+                    false
+                };
+
+                if !escaped {
+                    in_string = None;
+                }
+                new_result.push(c);
+                i += 1;
+                continue;
+            }
+
+            // Skip replacements inside string literals
+            if in_string.is_some() {
+                new_result.push(c);
+                i += 1;
+                continue;
+            }
+
             if i + var_chars.len() <= chars.len() {
                 let potential_match: String = chars[i..i + var_chars.len()].iter().collect();
                 if potential_match == *var {
@@ -2150,6 +2191,39 @@ fn transform_state_in_expr(
                         let is_assignment_target =
                             is_on_left_side_of_assignment(&chars, i, var_chars.len());
 
+                        // Check if this is a getter/setter method name (e.g., `get bar()` or `set bar(v)`)
+                        // These are preceded by "get " or "set " and followed by "(" (with optional whitespace)
+                        let is_getter_setter_name = {
+                            let after_idx = i + var_chars.len();
+                            // Skip whitespace after the variable to find the next non-whitespace char
+                            let mut k = after_idx;
+                            while k < chars.len() && chars[k].is_whitespace() {
+                                k += 1;
+                            }
+                            let has_paren_after = k < chars.len() && chars[k] == '(';
+                            let has_get_before = i >= 4 && {
+                                let prefix: String = chars[i - 4..i].iter().collect();
+                                prefix == "get "
+                            };
+                            let has_set_before = i >= 4 && {
+                                let prefix: String = chars[i - 4..i].iter().collect();
+                                prefix == "set "
+                            };
+                            has_paren_after && (has_get_before || has_set_before)
+                        };
+
+                        // Check if this is an object property key (e.g., `{ foo: value }`)
+                        // Property keys before `:` should not be wrapped
+                        let is_property_key = {
+                            let after_idx = i + var_chars.len();
+                            // Skip whitespace after the variable
+                            let mut k = after_idx;
+                            while k < chars.len() && chars[k].is_whitespace() {
+                                k += 1;
+                            }
+                            k < chars.len() && chars[k] == ':'
+                        };
+
                         if !already_wrapped
                             && !preceded_by_dot
                             && !in_set_first_arg
@@ -2157,6 +2231,8 @@ fn transform_state_in_expr(
                             && !in_update_pre_arg
                             && !in_param_position
                             && !is_assignment_target
+                            && !is_getter_setter_name
+                            && !is_property_key
                         {
                             new_result.push_str(&format!("$.get({})", var));
                             i += var_chars.len();
