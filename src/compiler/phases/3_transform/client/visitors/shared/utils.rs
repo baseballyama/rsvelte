@@ -55,12 +55,25 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
         }
 
         JsExpr::Call(call) => {
+            // Check if this is a $.set() or $.update() call - these have a state reference
+            // as the first argument that should NOT be transformed with $.get()
+            let is_svelte_set_call = is_svelte_runtime_set_call(&call.callee);
+
             // Apply transforms to callee and arguments
             let transformed_callee = apply_transforms_to_expression(&call.callee, context);
             let transformed_args: Vec<JsExpr> = call
                 .arguments
                 .iter()
-                .map(|arg| apply_transforms_to_expression(arg, context))
+                .enumerate()
+                .map(|(i, arg)| {
+                    // Skip transforming the first argument of $.set(), $.update(), $.update_pre()
+                    // These take a state reference directly, not a $.get() wrapped value
+                    if is_svelte_set_call && i == 0 {
+                        arg.clone()
+                    } else {
+                        apply_transforms_to_expression(arg, context)
+                    }
+                })
                 .collect();
 
             JsExpr::Call(JsCallExpression {
@@ -448,6 +461,23 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
         | JsExpr::Chain(_)
         | JsExpr::Void(_) => expr.clone(),
     }
+}
+
+/// Check if a callee expression represents a Svelte runtime function that takes
+/// a state reference as its first argument (e.g., $.set, $.update, $.update_pre).
+///
+/// These functions should NOT have their first argument transformed with $.get()
+/// because they expect the raw state reference, not the value.
+fn is_svelte_runtime_set_call(callee: &JsExpr) -> bool {
+    // Check for $.set, $.update, $.update_pre patterns
+    if let JsExpr::Member(member) = callee
+        && let JsExpr::Identifier(obj_name) = member.object.as_ref()
+        && obj_name == "$"
+        && let JsMemberProperty::Identifier(prop_name) = &member.property
+    {
+        return matches!(prop_name.as_str(), "set" | "update" | "update_pre");
+    }
+    false
 }
 
 /// Get the base object of a member expression.
