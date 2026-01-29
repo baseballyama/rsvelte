@@ -1703,6 +1703,9 @@ impl<'a> ServerCodeGenerator<'a> {
             "false".to_string()
         };
 
+        // Transform store subscriptions ($store -> $.store_get())
+        let test_expr = self.transform_store_refs(&test_expr);
+
         // Generate consequent body parts
         let consequent_body = self.generate_if_branch_body(&block.consequent)?;
 
@@ -1833,6 +1836,9 @@ impl<'a> ServerCodeGenerator<'a> {
             "[]".to_string()
         };
 
+        // Transform store subscriptions ($store -> $.store_get())
+        let iterable = self.transform_store_refs(&iterable);
+
         // Get the context variable name (None if no "as" clause)
         let context_name = if let Some(ref context) = block.context {
             let ctx_start = context.start().unwrap_or(0) as usize;
@@ -1929,6 +1935,9 @@ impl<'a> ServerCodeGenerator<'a> {
         } else {
             "null".to_string()
         };
+
+        // Transform store subscriptions ($store -> $.store_get())
+        let promise_expr = self.transform_store_refs(&promise_expr);
 
         // Get the then value variable name if present
         let then_param = if let Some(ref value) = block.value {
