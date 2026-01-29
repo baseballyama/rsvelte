@@ -2202,12 +2202,21 @@ $.template_effect(() => {
 | Runtime Runes Client | 245/737 (33.2%) | **252/737 (34.2%)** | **+7** |
 | Runtime Runes Server | 480/737 (65.1%) | **480/737 (65.1%)** | 維持 |
 
+**セッション3 Part 3 - 追加修正:**
+
+- [x] $inspect rune 変換の実装
+  - `$inspect(args)` → `$.inspect(() => [args], callback, true)`
+  - `$inspect().with(callback)` サポート
+  - dev/non-dev モード対応
+  - **結果**: ユニットテスト通過（runtime テストは dev mode features 欠如のため未通過）
+
 **残存問題:**
-1. snippet-hoisting-3 Client - 定数畳み込みの欠如
-2. form-default-value-spread - フォーム要素のデフォルト値追跡
-3. inspect-deep-array - リアクティブプロキシラッピング
+1. snippet-hoisting-3 - 定数畳み込みの欠如
+2. inspect-deep-array - dev mode features ($.tag_proxy, $.strict_equals, $.check_target 等)
+3. form-default-value-spread - フォーム要素のデフォルト値追跡
+4. derived-destructured - 宣言順序以外の差異
 
 **次のアクション:**
-1. 定数畳み込みの実装または正規化
-2. フォーム要素のデフォルト値処理の改善
-3. 残りの失敗テストの調査
+1. Dev mode features の実装（$.tag_proxy, $.strict_equals 等）
+2. 定数畳み込みの実装または正規化
+3. フォーム要素のデフォルト値処理の改善
