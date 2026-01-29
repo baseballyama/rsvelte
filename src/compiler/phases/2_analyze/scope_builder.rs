@@ -847,6 +847,37 @@ impl<'a> ScopeBuilder<'a> {
                 self.visit_fragment(&component.fragment);
             }
             TemplateNode::ConstTag(tag) => self.visit_const_tag(tag),
+            // Handle special Svelte elements that have attributes and fragments
+            TemplateNode::SvelteBoundary(elem)
+            | TemplateNode::SvelteBody(elem)
+            | TemplateNode::SvelteDocument(elem)
+            | TemplateNode::SvelteFragment(elem)
+            | TemplateNode::SvelteHead(elem)
+            | TemplateNode::SvelteOptions(elem)
+            | TemplateNode::SvelteWindow(elem) => {
+                self.process_attributes(&elem.attributes);
+                self.visit_fragment(&elem.fragment);
+            }
+            TemplateNode::SvelteSelf(elem) => {
+                self.process_attributes(&elem.attributes);
+                self.visit_fragment(&elem.fragment);
+            }
+            TemplateNode::SvelteComponent(elem) => {
+                self.process_attributes(&elem.attributes);
+                self.visit_fragment(&elem.fragment);
+            }
+            TemplateNode::SvelteElement(elem) => {
+                self.process_attributes(&elem.attributes);
+                self.visit_fragment(&elem.fragment);
+            }
+            TemplateNode::TitleElement(elem) => {
+                self.process_attributes(&elem.attributes);
+                self.visit_fragment(&elem.fragment);
+            }
+            TemplateNode::SlotElement(elem) => {
+                self.process_attributes(&elem.attributes);
+                self.visit_fragment(&elem.fragment);
+            }
             // Other nodes don't create scopes
             _ => {}
         }

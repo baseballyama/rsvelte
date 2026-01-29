@@ -449,7 +449,8 @@ fn normalize_if_braces(code: &str) -> String {
                 continue;
             }
 
-            result.push('(');
+            // Preserve a space before ( for readability and consistency
+            result.push_str(" (");
             i += 1;
 
             // Find matching closing paren
