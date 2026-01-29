@@ -376,9 +376,11 @@ fn process_props_object_pattern(
 }
 
 /// Process variable declarator in non-runes mode.
-fn visit_non_runes_mode(node: &Value, context: &VisitorContext) -> Result<(), AnalysisError> {
+fn visit_non_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    let init = node.get("init");
+
     // Check for invalid rune usage
-    if let Some(init) = node.get("init")
+    if let Some(init) = init
         && init.get("type").and_then(|t| t.as_str()) == Some("CallExpression")
         && let Some(callee) = init.get("callee")
         && callee.get("type").and_then(|t| t.as_str()) == Some("Identifier")
@@ -399,6 +401,24 @@ fn visit_non_runes_mode(node: &Value, context: &VisitorContext) -> Result<(), An
 
             if !is_store_sub {
                 return Err(errors::rune_invalid_usage(name));
+            }
+        }
+    }
+
+    // Set initial value for constant folding (same as runes mode)
+    if let Some(init) = init {
+        let paths = if let Some(id) = node.get("id") {
+            extract_paths(id)
+        } else {
+            Vec::new()
+        };
+
+        for path in &paths {
+            if let Some(name) = path.get("name").and_then(|n| n.as_str())
+                && let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name)
+            {
+                let binding = &mut context.analysis.root.bindings[binding_idx];
+                binding.initial = extract_literal_string(init);
             }
         }
     }

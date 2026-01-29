@@ -783,4 +783,33 @@ $inspect(x).with(console.warn);
         // For $inspect().with(), the third argument (true) should NOT be present
         // The callback should be wrapped in an arrow function
     }
+
+    #[test]
+    fn test_constant_folding() {
+        // Test constant folding for non-reactive variables
+        let source = r#"<script>
+let name = 'world';
+</script>
+<h1>Hello {name}!</h1>"#;
+
+        let options = CompileOptions {
+            dev: false,
+            ..Default::default()
+        };
+
+        let result = compile(source, options).expect("Compilation should succeed");
+        let code = result.js.code;
+
+        // Verify constant folding occurred
+        assert!(
+            code.contains("'Hello world!'"),
+            "Should fold constant 'name' to 'Hello world!' but got:\n{}",
+            code
+        );
+        // Should not have template literal with expression
+        assert!(
+            !code.contains("${name"),
+            "Should not have template literal with 'name' variable"
+        );
+    }
 }
