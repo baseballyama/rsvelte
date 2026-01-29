@@ -17,12 +17,15 @@
     "generate-fixtures:force": "node scripts/generate-fixtures.mjs --force",
     "generate-fixtures:verbose": "node scripts/generate-fixtures.mjs --verbose",
     "test-results": "cargo run --release --bin test_reporter -- --output playground/static/test-results.json",
-    "compatibility-report": "cargo test --release --test compatibility_report generate_compatibility_report -- --nocapture",
+    "compatibility-report": "RUST_TEST_THREADS=1 cargo test --release --test compatibility_report generate_compatibility_report -- --nocapture",
     "list-categories": "cargo test --release --test compatibility_report list_test_categories -- --nocapture",
     "update-docs": "node scripts/update-docs.mjs",
     "test-and-update": "npm run compatibility-report && npm run update-docs",
     "generate-entities": "node scripts/generate-entities-from-svelte.mjs",
-    "verify-entities": "node scripts/verify-entities-compatibility.mjs"
+    "verify-entities": "node scripts/verify-entities-compatibility.mjs",
+    "test": "RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 cargo test",
+    "test:single": "RUST_TEST_THREADS=1 RAYON_NUM_THREADS=1 cargo test",
+    "test:release": "RUST_TEST_THREADS=2 RAYON_NUM_THREADS=2 cargo test --release"
   },
   "devDependencies": {
     "oxfmt": "^0.23.0"
