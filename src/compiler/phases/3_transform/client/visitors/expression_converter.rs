@@ -306,6 +306,14 @@ const RUNES: &[&str] = &[
 ];
 
 /// Get the rune name from a CallExpression if it's a rune call.
+///
+/// This function mirrors the official Svelte compiler's `get_rune` function
+/// from `svelte/packages/svelte/src/compiler/phases/scope.js`.
+///
+/// It recognizes rune patterns like:
+/// - `$state()` -> "$state"
+/// - `$state.raw()` -> "$state.raw"
+/// - `$inspect(value).with(callback)` -> "$inspect().with"
 fn get_rune_from_call(
     obj: &serde_json::Map<String, Value>,
     context: &ComponentContext,
@@ -316,18 +324,45 @@ fn get_rune_from_call(
 
     let rune_name = match callee_type {
         "Identifier" => {
-            // Simple rune like $state, $derived, $effect
+            // Simple rune like $state, $derived, $effect, $inspect
             callee_obj.get("name")?.as_str()?.to_string()
         }
         "MemberExpression" => {
-            // Rune with method like $state.raw, $derived.by
+            // Could be either:
+            // 1. Rune with method like $state.raw(), $derived.by()
+            // 2. Rune call chain like $inspect().with()
+
             let object = callee_obj.get("object")?.as_object()?;
             let property = callee_obj.get("property")?.as_object()?;
-
-            let object_name = object.get("name")?.as_str()?;
             let property_name = property.get("name")?.as_str()?;
+            let object_type = object.get("type")?.as_str()?;
 
-            format!("{}.{}", object_name, property_name)
+            if object_type == "CallExpression" {
+                // This might be $inspect().with() pattern
+                // The object is a CallExpression, so check if it's a rune call
+                let inner_callee = object.get("callee")?.as_object()?;
+                let inner_callee_type = inner_callee.get("type")?.as_str()?;
+
+                if inner_callee_type == "Identifier" {
+                    let inner_name = inner_callee.get("name")?.as_str()?;
+                    // Produce "$inspect().with" style keypath
+                    let keypath = format!("{}().{}", inner_name, property_name);
+                    if RUNES.contains(&keypath.as_str()) {
+                        // Check if the rune is shadowed
+                        if context.state.get_binding(inner_name).is_some() {
+                            return None;
+                        }
+                        return Some(keypath);
+                    }
+                }
+                return None;
+            } else if object_type == "Identifier" {
+                // Standard rune with method like $state.raw
+                let object_name = object.get("name")?.as_str()?;
+                format!("{}.{}", object_name, property_name)
+            } else {
+                return None;
+            }
         }
         _ => return None,
     };
@@ -585,6 +620,119 @@ fn transform_rune_call(
                     optional: false,
                 })),
                 arguments: converted_args,
+                optional: false,
+            })
+        }
+
+        "$inspect" | "$inspect().with" => {
+            // $inspect(arg1, arg2, ...) ->
+            //   $.inspect(() => [arg1, arg2, ...], (...$$args) => console.log(...$$args), true)
+            //
+            // $inspect(...args).with(callback) ->
+            //   $.inspect(() => [args], callback, true)
+            //
+            // In non-dev mode, return empty statement.
+            // The check for dev mode should be done at a higher level,
+            // but we still implement the transformation here.
+
+            if !context.state.options.dev {
+                // In non-dev mode, $inspect is a no-op
+                // Return a simple undefined - this will be filtered out as an empty statement
+                return JsExpr::Identifier("undefined".to_string());
+            }
+
+            // Get the inspect args based on the rune type
+            let (inspect_args, inspector): (Vec<JsExpr>, JsExpr) = if rune == "$inspect" {
+                // $inspect(arg1, arg2, ...) - args come from the current call
+                let args: Vec<JsExpr> = arguments
+                    .iter()
+                    .map(|arg| convert_json_value(arg, context))
+                    .collect();
+
+                // Default inspector is console.log
+                let console_log = JsExpr::Member(JsMemberExpression {
+                    object: Box::new(JsExpr::Identifier("console".to_string())),
+                    property: JsMemberProperty::Identifier("log".to_string()),
+                    computed: false,
+                    optional: false,
+                });
+
+                (args, console_log)
+            } else {
+                // $inspect().with - need to get args from the inner $inspect() call
+                // and the callback from the outer .with() call
+                let callee = obj.get("callee").and_then(|c| c.as_object());
+                if let Some(callee_obj) = callee {
+                    let inner_call = callee_obj.get("object").and_then(|o| o.as_object());
+                    if let Some(inner) = inner_call {
+                        let inner_args = inner
+                            .get("arguments")
+                            .and_then(|a| a.as_array())
+                            .map(|arr| {
+                                arr.iter()
+                                    .map(|arg| convert_json_value(arg, context))
+                                    .collect()
+                            })
+                            .unwrap_or_default();
+
+                        // The callback is the first argument of .with()
+                        let callback = arguments
+                            .first()
+                            .map(|arg| convert_json_value(arg, context))
+                            .unwrap_or_else(|| JsExpr::Identifier("undefined".to_string()));
+
+                        (inner_args, callback)
+                    } else {
+                        (vec![], JsExpr::Identifier("undefined".to_string()))
+                    }
+                } else {
+                    (vec![], JsExpr::Identifier("undefined".to_string()))
+                }
+            };
+
+            // Build: () => [arg1, arg2, ...]
+            let args_array = JsExpr::Array(JsArrayExpression {
+                elements: inspect_args.into_iter().map(Some).collect(),
+            });
+            let args_thunk = JsExpr::Arrow(JsArrowFunction {
+                params: vec![],
+                body: JsArrowBody::Expression(Box::new(args_array)),
+                is_async: false,
+            });
+
+            // Build: (...$$args) => inspector(...$$args)
+            // This makes the log appear to come from the $inspect callsite
+            let args_id = JsExpr::Identifier("$$args".to_string());
+            let spread_args = JsExpr::Spread(Box::new(args_id.clone()));
+            let inspector_call = JsExpr::Call(JsCallExpression {
+                callee: Box::new(inspector),
+                arguments: vec![spread_args],
+                optional: false,
+            });
+            let fn_wrapper = JsExpr::Arrow(JsArrowFunction {
+                params: vec![JsPattern::Rest(Box::new(JsPattern::Identifier(
+                    "$$args".to_string(),
+                )))],
+                body: JsArrowBody::Expression(Box::new(inspector_call)),
+                is_async: false,
+            });
+
+            // Build: $.inspect(args_thunk, fn_wrapper, true)
+            // The third argument is `true` only for $inspect (not $inspect().with)
+            // This tells the runtime whether to run immediately
+            let mut call_args = vec![args_thunk, fn_wrapper];
+            if rune == "$inspect" {
+                call_args.push(JsExpr::Literal(JsLiteral::Boolean(true)));
+            }
+
+            JsExpr::Call(JsCallExpression {
+                callee: Box::new(JsExpr::Member(JsMemberExpression {
+                    object: Box::new(JsExpr::Identifier("$".to_string())),
+                    property: JsMemberProperty::Identifier("inspect".to_string()),
+                    computed: false,
+                    optional: false,
+                })),
+                arguments: call_args,
                 optional: false,
             })
         }

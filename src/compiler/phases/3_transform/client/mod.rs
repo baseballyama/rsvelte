@@ -1083,29 +1083,76 @@ fn transform_client_runes_with_skip_and_state(
     }
 
     // Transform $inspect(...) - in non-dev mode, remove the entire call
-    // In dev mode, transform to $.inspect(...)
+    // In dev mode, transform to $.inspect(() => [args], (...$$args) => console.log(...$$args), true)
     if let Some(pos) = result.find("$inspect(") {
         if dev {
-            result = result.replacen("$inspect(", "$.inspect(", 1);
+            // Find the matching closing paren to get the arguments
+            let inspect_start = pos + 9; // after "$inspect("
+            if let Some(content_end) = find_matching_paren(&result[inspect_start..]) {
+                let args_content = &result[inspect_start..inspect_start + content_end];
+
+                // Check if this is $inspect().with() pattern
+                let after_inspect = &result[inspect_start + content_end + 1..];
+                if after_inspect.trim_start().starts_with(".with(") {
+                    // $inspect(...).with(callback) pattern
+                    let with_start_offset = after_inspect.find(".with(").unwrap();
+                    let with_content_start =
+                        inspect_start + content_end + 1 + with_start_offset + 6;
+                    if let Some(with_end) = find_matching_paren(&result[with_content_start..]) {
+                        let callback = &result[with_content_start..with_content_start + with_end];
+                        let rest = &result[with_content_start + with_end + 1..];
+
+                        // Build: $.inspect(() => [args], (...$$args) => callback(...$$args))
+                        // Note: No third argument for $inspect().with
+                        result = format!(
+                            "{}$.inspect(() => [{}], (...$$args) => {}(...$$args)){}",
+                            &result[..pos],
+                            args_content,
+                            callback,
+                            rest
+                        );
+                    }
+                } else {
+                    // Simple $inspect(...) pattern
+                    // Build: $.inspect(() => [args], (...$$args) => console.log(...$$args), true)
+                    result = format!(
+                        "{}$.inspect(() => [{}], (...$$args) => console.log(...$$args), true){}",
+                        &result[..pos],
+                        args_content,
+                        &result[inspect_start + content_end + 1..]
+                    );
+                }
+            }
         } else {
             // In non-dev mode, remove the entire $inspect(...) call
             // Find matching closing paren
             let inspect_start = pos + 9; // after "$inspect("
             if let Some(content_end) = find_matching_paren(&result[inspect_start..]) {
+                // Check for .with() chaining
+                let after_inspect = &result[inspect_start + content_end + 1..];
+                let total_end = if after_inspect.trim_start().starts_with(".with(") {
+                    let with_start_offset = after_inspect.find(".with(").unwrap();
+                    let with_content_start =
+                        inspect_start + content_end + 1 + with_start_offset + 6;
+                    if let Some(with_end) = find_matching_paren(&result[with_content_start..]) {
+                        with_content_start + with_end + 1 - pos
+                    } else {
+                        inspect_start + content_end + 1 - pos
+                    }
+                } else {
+                    inspect_start + content_end + 1 - pos
+                };
+
                 // Check if the $inspect call is a statement on its own
                 let before = result[..pos].trim();
-                let after = result[inspect_start + content_end + 1..].trim();
+                let after = result[pos + total_end..].trim();
 
                 // If the line is just the $inspect call, return empty or semicolon
                 if before.is_empty() && (after.is_empty() || after == ";") {
                     return String::new(); // Will be filtered out as empty transformation
                 } else {
                     // Remove just the $inspect(...) part but keep other code on the line
-                    result = format!(
-                        "{}{}",
-                        &result[..pos],
-                        &result[inspect_start + content_end + 1..]
-                    );
+                    result = format!("{}{}", &result[..pos], &result[pos + total_end..]);
                 }
             }
         }

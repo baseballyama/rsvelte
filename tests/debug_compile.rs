@@ -705,4 +705,82 @@ let value = $state();
             },
         }
     }
+
+    #[test]
+    fn test_inspect_rune_transformation() {
+        // Test $inspect transformation in dev mode
+        let source = r#"<script>
+let x = $state(0);
+$inspect(x);
+</script>
+<p>{x}</p>"#;
+
+        let options = CompileOptions {
+            dev: true,
+            ..Default::default()
+        };
+
+        let result = compile(source, options).expect("Compilation should succeed");
+        let code = result.js.code;
+
+        // Verify the $inspect transformation
+        assert!(
+            code.contains("$.inspect("),
+            "Should transform $inspect to $.inspect"
+        );
+        assert!(code.contains("() => ["), "Should wrap arguments in a thunk");
+        assert!(
+            code.contains("(...$$args) => console.log(...$$args)"),
+            "Should create arrow function for console.log"
+        );
+        assert!(
+            code.contains(", true)"),
+            "Should include true as third argument for plain $inspect"
+        );
+
+        // Test $inspect in non-dev mode (should be removed)
+        let options_non_dev = CompileOptions {
+            dev: false,
+            ..Default::default()
+        };
+
+        let result_non_dev = compile(source, options_non_dev).expect("Compilation should succeed");
+        let code_non_dev = result_non_dev.js.code;
+
+        assert!(
+            !code_non_dev.contains("$inspect"),
+            "Should remove $inspect in non-dev mode"
+        );
+        assert!(
+            !code_non_dev.contains("$.inspect"),
+            "Should not contain $.inspect in non-dev mode"
+        );
+    }
+
+    #[test]
+    fn test_inspect_with_callback_transformation() {
+        // Test $inspect().with() transformation in dev mode
+        let source = r#"<script>
+let x = $state(0);
+$inspect(x).with(console.warn);
+</script>
+<p>{x}</p>"#;
+
+        let options = CompileOptions {
+            dev: true,
+            ..Default::default()
+        };
+
+        let result = compile(source, options).expect("Compilation should succeed");
+        let code = result.js.code;
+
+        // Verify the $inspect().with() transformation
+        assert!(
+            code.contains("$.inspect("),
+            "Should transform $inspect().with() to $.inspect"
+        );
+        assert!(code.contains("() => ["), "Should wrap arguments in a thunk");
+        // For $inspect().with(), the third argument (true) should NOT be present
+        // The callback should be wrapped in an arrow function
+    }
 }
