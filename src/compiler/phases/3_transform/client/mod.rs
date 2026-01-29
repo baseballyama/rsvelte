@@ -972,6 +972,14 @@ fn transform_client_runes_with_skip_and_state(
                         content,
                         &result[state_start + content_end + 1..]
                     );
+                } else if trimmed_content.is_empty() {
+                    // Empty $state() - use void 0 explicitly
+                    // Example: $state() -> $.state(void 0)
+                    result = format!(
+                        "{}$.state(void 0){}",
+                        &result[..pos],
+                        &result[state_start + content_end + 1..]
+                    );
                 } else {
                     // Primitives that ARE reassigned need $.state()
                     result = result.replacen("$state(", "$.state(", 1);
