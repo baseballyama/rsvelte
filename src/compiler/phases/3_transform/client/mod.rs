@@ -1147,9 +1147,10 @@ fn transform_client_runes_with_skip_and_state(
                 let before = result[..pos].trim();
                 let after = result[pos + total_end..].trim();
 
-                // If the line is just the $inspect call, return empty or semicolon
+                // If the line is just the $inspect call, output empty statements (;;)
+                // This matches the official Svelte compiler behavior in non-dev mode
                 if before.is_empty() && (after.is_empty() || after == ";") {
-                    return String::new(); // Will be filtered out as empty transformation
+                    return ";;".to_string();
                 } else {
                     // Remove just the $inspect(...) part but keep other code on the line
                     result = format!("{}{}", &result[..pos], &result[pos + total_end..]);
@@ -2364,7 +2365,33 @@ fn expression_needs_proxy(expr: &str) -> bool {
         return true;
     }
 
+    // Identifiers (except primitives like undefined, null, true, false)
+    // could be objects/arrays passed as arguments, so they need proxy
+    if is_simple_identifier(trimmed)
+        && !matches!(
+            trimmed,
+            "undefined" | "null" | "true" | "false" | "NaN" | "Infinity"
+        )
+    {
+        return true;
+    }
+
     false
+}
+
+/// Check if an expression is a simple identifier (not a complex expression)
+fn is_simple_identifier(expr: &str) -> bool {
+    if expr.is_empty() {
+        return false;
+    }
+    let first_char = expr.chars().next().unwrap();
+    // Must start with letter, underscore, or $
+    if !first_char.is_alphabetic() && first_char != '_' && first_char != '$' {
+        return false;
+    }
+    // All chars must be alphanumeric, underscore, or $
+    expr.chars()
+        .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
 }
 
 /// Check if an expression is a function expression (arrow function or function keyword).
