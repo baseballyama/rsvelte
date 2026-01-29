@@ -386,6 +386,9 @@ pub fn normalize_js(js: &str) -> String {
     let result = result.replace("1e4", "10000");
     let result = result.replace("1e5", "100000");
 
+    // Normalize undefined representation (void 0 -> undefined)
+    let result = result.replace("void 0", "undefined");
+
     // Remove semicolons for normalization
     let result = result.replace(';', "");
 
