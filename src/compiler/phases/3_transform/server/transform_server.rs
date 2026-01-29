@@ -4766,9 +4766,19 @@ fn remove_rune_statement(script: &str, rune_prefix: &str) -> String {
                         end += 1;
                     }
 
-                    // Remove leading whitespace/tabs on this line from result
-                    while result.ends_with(' ') || result.ends_with('\t') {
-                        result.pop();
+                    // For $inspect, output ;; as placeholder (matches official compiler)
+                    // For $effect and similar, just remove the statement entirely
+                    if rune_prefix.starts_with("$inspect") {
+                        // Keep leading whitespace/tabs for proper indentation
+                        result.push_str(";;");
+                        if end < chars.len() && chars[end - 1] != '\n' {
+                            result.push('\n');
+                        }
+                    } else {
+                        // Remove leading whitespace/tabs on this line from result
+                        while result.ends_with(' ') || result.ends_with('\t') {
+                            result.pop();
+                        }
                     }
 
                     i = end;
