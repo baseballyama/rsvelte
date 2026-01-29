@@ -249,6 +249,11 @@ enum OutputPart {
         /// False if rendering main content (use <!--[--> marker)
         is_pending: bool,
     },
+    /// svelte:head - document head manipulation
+    SvelteHead {
+        hash: String,
+        body: Vec<OutputPart>,
+    },
     /// Render tag call - calls a snippet function
     RenderCall(String),
     /// Const declaration - produces const variable
@@ -425,6 +430,7 @@ impl<'a> ServerCodeGenerator<'a> {
             TemplateNode::HtmlTag(tag) => self.generate_html_tag(tag),
             TemplateNode::SvelteElement(elem) => self.generate_svelte_element(elem),
             TemplateNode::SvelteBoundary(boundary) => self.generate_svelte_boundary(boundary),
+            TemplateNode::SvelteHead(head) => self.generate_svelte_head(head),
             TemplateNode::ConstTag(tag) => self.generate_const_tag(tag),
             _ => Ok(()),
         }
@@ -2371,6 +2377,25 @@ impl<'a> ServerCodeGenerator<'a> {
         Ok(())
     }
 
+    /// Generate code for <svelte:head> elements.
+    ///
+    /// Generates: $.head('hash', $$renderer, ($$renderer) => { ... });
+    fn generate_svelte_head(&mut self, head: &SvelteElement) -> Result<(), TransformError> {
+        // Generate body parts for the head content
+        let body = self.generate_fragment_body_parts(&head.fragment)?;
+
+        // Generate a hash for hydration validation
+        let hash = format!(
+            "{:x}s{:03}",
+            self.output_parts.len() % 256,
+            self.output_parts.len() % 1000
+        );
+
+        self.output_parts
+            .push(OutputPart::SvelteHead { hash, body });
+        Ok(())
+    }
+
     /// Generate body parts from a fragment.
     fn generate_fragment_body_parts(
         &mut self,
@@ -2944,6 +2969,7 @@ export default function {component_name}($$renderer{props_param}) {{
                                 | OutputPart::IfBlock { .. }
                                 | OutputPart::AwaitBlock { .. }
                                 | OutputPart::SvelteBoundary { .. }
+                                | OutputPart::SvelteHead { .. }
                                 | OutputPart::RenderCall(_)
                         )
                     });
@@ -3201,6 +3227,27 @@ export default function {component_name}($$renderer{props_param}) {{
                     // Add closing marker to current_html to combine with subsequent content
                     current_html.push_str("<!--]-->");
                 }
+                OutputPart::SvelteHead { hash, body } => {
+                    // Flush current HTML before head call
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+
+                    // Generate $.head('hash', $$renderer, ($$renderer) => { ... });
+                    body_code.push_str(&format!(
+                        "{}$.head('{}', $$renderer, ($$renderer) => {{\n",
+                        indent, hash
+                    ));
+
+                    if !body.is_empty() {
+                        let body_code_inner = Self::build_parts(body, indent_level + 1);
+                        body_code.push_str(&body_code_inner);
+                    }
+
+                    body_code.push_str(&format!("{}}});\n", indent));
+                }
                 OutputPart::RenderCall(call_str) => {
                     // Flush current HTML before render call
                     if !current_html.is_empty() {
@@ -3227,6 +3274,7 @@ export default function {component_name}($$renderer{props_param}) {{
                                 | OutputPart::IfBlock { .. }
                                 | OutputPart::AwaitBlock { .. }
                                 | OutputPart::SvelteBoundary { .. }
+                                | OutputPart::SvelteHead { .. }
                                 | OutputPart::RenderCall(_)
                                 | OutputPart::OptionElement { .. }
                                 | OutputPart::HydrationAnchor
