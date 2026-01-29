@@ -4767,15 +4767,14 @@ fn remove_rune_statement(script: &str, rune_prefix: &str) -> String {
                     }
 
                     // For $inspect, output ;; as placeholder (matches official compiler)
-                    // For $effect and similar, just remove the statement entirely
+                    // Note: OXC normalization will split this into separate lines, but
+                    // test normalization should handle this by removing all semicolons
                     if rune_prefix.starts_with("$inspect") {
-                        // Keep leading whitespace/tabs for proper indentation
                         result.push_str(";;");
-                        if end < chars.len() && chars[end - 1] != '\n' {
-                            result.push('\n');
-                        }
-                    } else {
-                        // Remove leading whitespace/tabs on this line from result
+                    }
+                    // Remove leading whitespace/tabs on this line from result
+                    // (for $effect and similar that are completely removed)
+                    if !rune_prefix.starts_with("$inspect") {
                         while result.ends_with(' ') || result.ends_with('\t') {
                             result.pop();
                         }
