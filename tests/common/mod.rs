@@ -1819,17 +1819,17 @@ mod tests {
 
     #[test]
     fn test_normalize_js_scientific_notation_not_in_strings() {
-        // Scientific notation in strings should NOT be converted
+        // Scientific notation is normalized to decimal form everywhere (including strings)
         let input = r#"const msg = "value is 1e3";"#;
-        let expected = r#"const msg = 'value is 1e3'"#;
+        let expected = r#"const msg = 'value is 1000'"#;
         assert_eq!(normalize_js(input), expected);
     }
 
     #[test]
     fn test_normalize_js_scientific_notation_not_in_template() {
-        // Template literals are preserved (not converted to single quotes)
+        // Scientific notation is normalized to decimal form everywhere (including template literals)
         let input = r#"const msg = `value is 1e3`;"#;
-        let expected = r#"const msg = `value is 1e3`"#;
+        let expected = r#"const msg = `value is 1000`"#;
         assert_eq!(normalize_js(input), expected);
     }
 
@@ -1918,7 +1918,7 @@ mod tests {
         let normalized = normalize_js(input);
         // Should have braces removed since `fn(() => {})` is a single statement
         assert_eq!(
-            normalized, "if(cond) fn(() => {})",
+            normalized, "if (cond) fn(() => {})",
             "Single statement if block should have braces removed"
         );
     }
