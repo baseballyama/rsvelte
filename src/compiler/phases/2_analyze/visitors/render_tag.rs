@@ -49,8 +49,11 @@ pub fn visit(tag: &mut RenderTag, context: &mut VisitorContext) -> Result<(), An
     };
 
     // Determine if this render tag is dynamic
-    // It's dynamic if the binding is not a normal variable (e.g., it's a prop, parameter, etc.)
-    tag.metadata.dynamic = binding.is_some_and(|b| b.kind != BindingKind::Normal);
+    // It's dynamic if:
+    // - The callee is not a simple Identifier (e.g., MemberExpression like `state.value`)
+    // - OR the binding is not a 'normal' variable (e.g., it's a prop, parameter, etc.)
+    // In JavaScript: binding?.kind !== 'normal' - when binding is null, this returns true
+    tag.metadata.dynamic = binding.is_none_or(|b| b.kind != BindingKind::Normal);
 
     // Determine if we can unambiguously resolve this to a specific snippet declaration
     // It's resolved if:
