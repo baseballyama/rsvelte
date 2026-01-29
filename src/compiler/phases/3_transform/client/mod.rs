@@ -1801,9 +1801,15 @@ fn find_statement_end_client(s: &str) -> usize {
             ')' | ']' | '}' => {
                 if depth > 0 {
                     depth -= 1;
+                } else {
+                    // At depth 0, a closing brace/bracket/paren ends the statement
+                    // (it belongs to the enclosing function/block, not our expression)
+                    return i;
                 }
             }
             ';' if depth == 0 => return i,
+            // Newline at depth 0 ends the statement (JavaScript ASI)
+            '\n' if depth == 0 => return i,
             _ => {}
         }
     }
