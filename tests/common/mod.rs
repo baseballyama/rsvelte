@@ -401,6 +401,10 @@ pub fn normalize_js(js: &str) -> String {
     // Normalize quotes (double quotes to single)
     let result = result.replace('"', "'");
 
+    // Re-normalize multiple spaces that may have been created by semicolon removal
+    // This handles cases like ";;" becoming "  " after semicolon removal
+    let result = MULTI_SPACE.replace_all(&result, " ").to_string();
+
     result.trim().to_string()
 }
 
