@@ -2220,3 +2220,55 @@ $.template_effect(() => {
 1. Dev mode features の実装（$.tag_proxy, $.strict_equals 等）
 2. 定数畳み込みの実装または正規化
 3. フォーム要素のデフォルト値処理の改善
+
+### 2026-01-29 セッション4
+
+**セッション再開 (2026-01-29 セッション4):**
+
+現在地: Phase C - Rust 実装
+目標: Runtime Runes テストの改善
+
+**完了タスク:**
+
+- [x] $state(identifier) の $.proxy() ラッピング修正
+  - `is_simple_identifier()` 関数を追加して変数参照を検出
+  - 関数引数のような識別子もオブジェクト/配列の可能性があるため proxy が必要
+  - Example: `$state(init)` → `$.proxy(init)`
+  - **結果**: +2 Total, +3 Client
+
+- [x] $inspect の非dev モード出力修正
+  - 空文字列ではなく `;;` を出力（公式コンパイラと一致）
+  - **結果**: +1 Client
+
+- [x] 空の $state() に void 0 を使用
+  - `$state()` → `$.state(void 0)` に変換
+  - **結果**: +10 Total, +13 Client
+
+- [x] サーバー側 $inspect の ;; 出力
+  - サーバー変換でも $inspect を `;;` プレースホルダーに変換
+  - **結果**: +1 Total
+
+**最終テスト状況（セッション4終了時）:**
+| メトリック | セッション開始 | セッション終了 | 差分 |
+|-----------|--------------|---------------|------|
+| Compiler Snapshot | 20/20 (100%) | 20/20 (100%) | 維持 ✅ |
+| Runtime Runes Total | 224/737 (30.4%) | **237/737 (32.2%)** | **+13** |
+| Runtime Runes Client | 252/737 (34.2%) | **268/737 (36.4%)** | **+16** |
+| Runtime Runes Server | 480/737 (65.1%) | **480/737 (65.1%)** | 維持 |
+
+**コミット:**
+1. `feat(transform): Fix $state(identifier) proxy wrapping and $inspect output`
+2. `feat(transform): Use void 0 for empty $state() initialization`
+3. `feat(transform): Server-side $inspect outputs ;; placeholder`
+4. `refactor(transform): Simplify server $inspect output`
+
+**残存問題:**
+1. snippet-hoisting-3 - 静的テキストの最適化（テンプレートリテラル → 文字列リテラル）
+2. derived-destructured - 変数宣言の順序問題
+3. OXC の `;;` 分割 - `;;` が2つの別々の `;` 行に分割される
+4. サーバー側ストア処理 - `$.store_get()` が正しく生成されない
+
+**次のアクション:**
+1. 静的テキスト最適化の実装
+2. 分割代入の変数順序修正
+3. テスト正規化の改善（OXC フォーマットの違いを吸収）
