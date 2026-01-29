@@ -13,6 +13,7 @@ pub mod utils;
 mod visitor;
 pub mod visitors;
 
+use std::cell::Cell;
 use std::rc::Rc;
 use std::sync::LazyLock;
 
@@ -38,6 +39,13 @@ use types::{ComponentClientTransformState, ComponentContext, TransformOptions, T
 // Cached regular expressions for performance
 static REGEX_STATE_DERIVED_VAR: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?:let|const)\s+(\w+)\s*=\s*\$(?:state|derived)\s*\(").unwrap());
+
+// Thread-local counter for generating unique $$array variable names across multiple
+// $derived destructuring patterns in the same component.
+// This is reset at the start of each component transformation.
+thread_local! {
+    static DERIVED_ARRAY_COUNTER: Cell<usize> = const { Cell::new(0) };
+}
 
 /// Transform a component analysis into client-side JavaScript.
 ///
@@ -418,14 +426,25 @@ fn transform_client_with_visitors(
         source: "svelte/internal/client".to_string(),
     }));
 
-    // Add module script content (imports and module-level declarations)
-    // This comes from <script context="module"> and includes component imports
-    if let Some(ref module_content) = analysis.module_script_content {
-        let trimmed = module_content.raw.trim();
-        if !trimmed.is_empty() {
-            body.push(JsStatement::Raw(trimmed.to_string()));
-        }
-    }
+    // Process module script content - extract imports separately from other content
+    // This is needed because module_level_snippets must come after imports but before exports
+    // Reference: transform-client.js line 513: body = [...imports, ...state.module_level_snippets, ...body];
+    let module_script_non_imports: Option<String> =
+        if let Some(ref module_content) = analysis.module_script_content {
+            let (module_imports, rest) = extract_imports(&module_content.raw);
+            // Add module script imports first
+            for import_line in module_imports {
+                body.push(JsStatement::Raw(import_line));
+            }
+            let rest_trimmed = rest.trim();
+            if rest_trimmed.is_empty() {
+                None
+            } else {
+                Some(rest_trimmed.to_string())
+            }
+        } else {
+            None
+        };
 
     // Extract and add imports from instance script
     // These are hoisted to module level (after svelte imports)
@@ -436,8 +455,15 @@ fn transform_client_with_visitors(
         }
     }
 
-    // Add module-level snippets (before templates)
+    // Add module-level snippets (after imports, before module script exports)
+    // This ensures `const foo = ...` comes before `export { foo }`
     body.extend(module_level_snippets);
+
+    // Add module script non-import content (exports, declarations, etc.)
+    // This comes after module_level_snippets so that `export { foo }` can reference `const foo`
+    if let Some(non_imports) = module_script_non_imports {
+        body.push(JsStatement::Raw(non_imports));
+    }
 
     // Add hoisted statements (template declarations, etc.)
     body.extend(hoisted_statements);
@@ -574,6 +600,10 @@ fn transform_instance_script_for_visitors(
         return String::new();
     }
 
+    // Reset the $$array counter for this component
+    // This ensures unique names across multiple $derived destructuring patterns
+    DERIVED_ARRAY_COUNTER.with(|c| c.set(0));
+
     // First, transform class fields with $state and $derived
     let script = transform_class_fields_client(script);
 
@@ -682,12 +712,107 @@ fn transform_instance_script_for_visitors(
     // Track if we're inside a multi-line export block
     let mut in_export_block = false;
 
+    // Accumulator for multi-line statements
+    let mut accumulated_lines: Vec<String> = Vec::new();
+
+    // Helper closure to process accumulated lines as a complete statement
+    let process_accumulated = |accumulated: &[String],
+                               result: &mut String,
+                               state_vars: &[String],
+                               non_reactive_state_vars: &[String],
+                               proxy_vars: &[String],
+                               raw_state_vars: &[String],
+                               store_sub_vars: &[String],
+                               prop_source_vars: &[String],
+                               exported_names: &[String],
+                               rest_prop_vars: &[String],
+                               analysis: &ComponentAnalysis,
+                               dev: bool,
+                               has_legacy_export_let: bool| {
+        if accumulated.is_empty() {
+            return;
+        }
+
+        // Join all accumulated lines into a single statement
+        let statement = accumulated.join("\n");
+        let first_line_trimmed = accumulated[0].trim();
+
+        // Handle legacy export let declarations
+        if has_legacy_export_let && first_line_trimmed.starts_with("export let ") {
+            let transformed = transform_export_let(first_line_trimmed);
+            result.push_str(&transformed);
+            result.push('\n');
+            return;
+        }
+
+        // Transform runes ($state, $derived, $effect, $props)
+        let transformed = transform_client_runes_with_skip_and_state(
+            &statement,
+            non_reactive_state_vars,
+            state_vars,
+            non_reactive_state_vars,
+            prop_source_vars,
+            exported_names,
+            proxy_vars,
+            dev,
+        );
+
+        // Skip empty transformations (e.g., read-only $props() with no defaults)
+        if transformed.trim().is_empty() {
+            return;
+        }
+
+        // Transform state variable assignments to $.set()
+        let transformed = transform_state_assignments(
+            &transformed,
+            state_vars,
+            non_reactive_state_vars,
+            proxy_vars,
+            raw_state_vars,
+        );
+
+        // Transform store subscription assignments to $.store_set()
+        let transformed = transform_store_assignments_client(&transformed, store_sub_vars);
+
+        // Wrap state variable reads in $.get() for general expressions
+        // This handles cases like: console.log('init ' + double)
+        // where `double` is a $derived variable that needs to be read with $.get()
+        // BUT only if this is NOT a declaration line (let/const/var) - those are already
+        // handled by transform_client_runes_with_skip_and_state
+        let transformed = if !transformed.trim_start().starts_with("let ")
+            && !transformed.trim_start().starts_with("const ")
+            && !transformed.trim_start().starts_with("var ")
+        {
+            wrap_state_vars_in_expr(
+                &transformed,
+                state_vars,
+                non_reactive_state_vars,
+                proxy_vars,
+            )
+        } else {
+            transformed
+        };
+
+        // Transform rest_prop member access to $$props (only in runes mode)
+        let transformed = if analysis.runes && !rest_prop_vars.is_empty() {
+            transform_rest_prop_member_access(&transformed, rest_prop_vars)
+        } else {
+            transformed
+        };
+
+        result.push_str(&transformed);
+        result.push('\n');
+    };
+
     // Process script lines
     for line in script_rest.lines() {
         let trimmed = line.trim();
 
-        // Skip empty lines
+        // Skip empty lines (but preserve them if we're accumulating)
         if trimmed.is_empty() {
+            if !accumulated_lines.is_empty() {
+                accumulated_lines.push(line.to_string());
+            }
             continue;
         }
 
@@ -708,71 +833,49 @@ fn transform_instance_script_for_visitors(
             continue;
         }
 
-        // Handle legacy export let declarations
-        if has_legacy_export_let && trimmed.starts_with("export let ") {
-            let transformed = transform_export_let(trimmed);
-            result.push_str(&transformed);
-            result.push('\n');
-            continue;
+        // Add line to accumulator
+        accumulated_lines.push(line.to_string());
+
+        // Check if we have a complete statement (balanced braces/parens)
+        let combined = accumulated_lines.join("\n");
+        if !is_incomplete_expression(&combined) {
+            // Process the complete statement
+            process_accumulated(
+                &accumulated_lines,
+                &mut result,
+                &state_vars,
+                &non_reactive_state_vars,
+                &proxy_vars,
+                &raw_state_vars,
+                &store_sub_vars,
+                &prop_source_vars,
+                &exported_names,
+                &rest_prop_vars,
+                analysis,
+                dev,
+                has_legacy_export_let,
+            );
+            accumulated_lines.clear();
         }
+    }
 
-        // Transform runes ($state, $derived, $effect, $props)
-        let transformed = transform_client_runes_with_skip_and_state(
-            trimmed,
-            &non_reactive_state_vars,
-            &state_vars,
-            &non_reactive_state_vars,
-            &prop_source_vars,
-            &exported_names,
-            &proxy_vars,
-            dev,
-        );
-
-        // Skip empty transformations (e.g., read-only $props() with no defaults)
-        if transformed.trim().is_empty() {
-            continue;
-        }
-
-        // Transform state variable assignments to $.set()
-        let transformed = transform_state_assignments(
-            &transformed,
+    // Process any remaining accumulated lines
+    if !accumulated_lines.is_empty() {
+        process_accumulated(
+            &accumulated_lines,
+            &mut result,
             &state_vars,
             &non_reactive_state_vars,
             &proxy_vars,
             &raw_state_vars,
+            &store_sub_vars,
+            &prop_source_vars,
+            &exported_names,
+            &rest_prop_vars,
+            analysis,
+            dev,
+            has_legacy_export_let,
         );
-
-        // Transform store subscription assignments to $.store_set()
-        let transformed = transform_store_assignments_client(&transformed, &store_sub_vars);
-
-        // Wrap state variable reads in $.get() for general expressions
-        // This handles cases like: console.log('init ' + double)
-        // where `double` is a $derived variable that needs to be read with $.get()
-        // BUT only if this is NOT a declaration line (let/const/var) - those are already
-        // handled by transform_client_runes_with_skip_and_state
-        let transformed = if !transformed.trim_start().starts_with("let ")
-            && !transformed.trim_start().starts_with("const ")
-            && !transformed.trim_start().starts_with("var ")
-        {
-            wrap_state_vars_in_expr(
-                &transformed,
-                &state_vars,
-                &non_reactive_state_vars,
-                &proxy_vars,
-            )
-        } else {
-            transformed
-        };
-
-        // Transform rest_prop member access to $$props (only in runes mode)
-        let transformed = if analysis.runes && !rest_prop_vars.is_empty() {
-            transform_rest_prop_member_access(&transformed, &rest_prop_vars)
-        } else {
-            transformed
-        };
-
-        result.push_str(&transformed);
-        result.push('\n');
     }
 
     result
@@ -1135,16 +1238,25 @@ fn process_derived_array_pattern(
     inner: &str,
     base_expr: &str,
     declarations: &mut Vec<String>,
-    array_counter: &mut usize,
+    _array_counter: &mut usize,
 ) -> Option<()> {
     let elements = split_derived_array_elements(inner);
     let element_count = elements.len();
-    let array_var = if *array_counter == 0 {
+
+    // Use the global counter to generate a unique $$array variable name
+    // This ensures unique names across multiple $derived destructuring patterns
+    let global_counter = DERIVED_ARRAY_COUNTER.with(|c| {
+        let current = c.get();
+        c.set(current + 1);
+        current
+    });
+
+    let array_var = if global_counter == 0 {
         "$$array".to_string()
     } else {
-        format!("$$array_{}", array_counter)
+        format!("$$array_{}", global_counter)
     };
-    *array_counter += 1;
+
     declarations.push(format!(
         "{} = $.derived(() => $.to_array({}, {}))",
         array_var, base_expr, element_count
@@ -1164,11 +1276,13 @@ fn process_derived_array_pattern(
         }
         let element_access = format!("$.get({})[{}]", array_var, index);
         if element.starts_with('[') || element.starts_with('{') {
+            // Pass a dummy counter for nested patterns - the global counter is used instead
+            let mut nested_counter = 0;
             process_derived_destructuring_pattern(
                 element,
                 &element_access,
                 declarations,
-                array_counter,
+                &mut nested_counter,
             )?;
         } else {
             declarations.push(format!("{} = $.derived(() => {})", element, element_access));
@@ -1477,8 +1591,8 @@ fn transform_state_assignments(
                     }
 
                     let after = &result[pos + pattern.len()..];
-                    // Find the expression (until ; or end)
-                    let expr_end = after.find(';').unwrap_or(after.len());
+                    // Find the expression (until ; or end, respecting nested braces)
+                    let expr_end = find_statement_end_client(after);
                     let expr = after[..expr_end].trim();
                     // Wrap state variables in the expression with $.get()
                     let wrapped_expr =
@@ -1513,9 +1627,24 @@ fn transform_state_assignments(
                 // Skip if preceded by dot (property access like foo.count = ...)
                 if !before.ends_with('=') && !before.ends_with('!') && !before.ends_with('.') {
                     let after = &result[pos + assignment_pattern.len()..];
-                    // Find the expression (until ; or end of line)
-                    let expr_end = after.find(';').unwrap_or(after.len());
+                    // Find the expression (until ; or end of line, respecting nested braces)
+                    let expr_end = find_statement_end_client(after);
                     let expr = after[..expr_end].trim();
+
+                    // Debug output
+                    if std::env::var("DEBUG_STATE_ASSIGNMENT").is_ok() {
+                        eprintln!(
+                            "[DEBUG] Checking assignment for var '{}': expr = '{}'",
+                            var, expr
+                        );
+                        eprintln!("[DEBUG] is_incomplete = {}", is_incomplete_expression(expr));
+                    }
+
+                    // Skip incomplete expressions (e.g., multi-line arrow functions
+                    // where only the first line is processed)
+                    if is_incomplete_expression(expr) {
+                        continue;
+                    }
 
                     // Check it's not already wrapped
                     if !expr.starts_with("$.") {
@@ -1680,6 +1809,48 @@ fn find_statement_end_client(s: &str) -> usize {
     }
 
     s.len()
+}
+
+/// Check if an expression is incomplete (e.g., unbalanced brackets).
+/// This is used to skip transformations on multi-line statements that are
+/// processed line by line.
+fn is_incomplete_expression(expr: &str) -> bool {
+    let mut paren_depth = 0;
+    let mut bracket_depth = 0;
+    let mut brace_depth = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+    let chars: Vec<char> = expr.chars().collect();
+
+    for (i, &c) in chars.iter().enumerate() {
+        // Handle string literals
+        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char {
+                in_string = false;
+            }
+            continue;
+        }
+
+        if in_string {
+            continue;
+        }
+
+        match c {
+            '(' => paren_depth += 1,
+            ')' => paren_depth -= 1,
+            '[' => bracket_depth += 1,
+            ']' => bracket_depth -= 1,
+            '{' => brace_depth += 1,
+            '}' => brace_depth -= 1,
+            _ => {}
+        }
+    }
+
+    // If any depth is non-zero, the expression is incomplete
+    paren_depth != 0 || bracket_depth != 0 || brace_depth != 0
 }
 
 /// Wrap state variable references with $.get() in an expression.
@@ -1891,12 +2062,17 @@ fn transform_state_in_expr(
                         let in_param_position =
                             is_in_function_param_position(&chars, i, i + var_chars.len());
 
+                        // Check if this variable is on the left side of an assignment
+                        let is_assignment_target =
+                            is_on_left_side_of_assignment(&chars, i, var_chars.len());
+
                         if !already_wrapped
                             && !preceded_by_dot
                             && !in_set_first_arg
                             && !in_update_arg
                             && !in_update_pre_arg
                             && !in_param_position
+                            && !is_assignment_target
                         {
                             new_result.push_str(&format!("$.get({})", var));
                             i += var_chars.len();
@@ -1913,6 +2089,75 @@ fn transform_state_in_expr(
     }
 
     result
+}
+
+/// Check if a variable at the given position is on the left side of an assignment.
+/// This detects patterns like:
+/// - `varname = expr` - simple assignment
+/// - `varname += expr` - compound assignment
+/// The variable should NOT be wrapped with $.get() if it's an assignment target.
+fn is_on_left_side_of_assignment(chars: &[char], var_start: usize, var_len: usize) -> bool {
+    let var_end = var_start + var_len;
+
+    // Skip whitespace after the variable
+    let mut k = var_end;
+    while k < chars.len() && chars[k].is_whitespace() {
+        k += 1;
+    }
+
+    if k >= chars.len() {
+        return false;
+    }
+
+    // Check for assignment operator: = += -= *= /= %= **= etc.
+    let next_char = chars[k];
+
+    if next_char == '=' {
+        // Could be = or == or ===
+        // For assignment, we only have = not followed by =
+        if k + 1 < chars.len() && chars[k + 1] == '=' {
+            // It's == or ===, not an assignment
+            return false;
+        }
+        // It's a simple assignment
+        return true;
+    }
+
+    // Check for compound assignments: += -= *= /= %= **=
+    if k + 1 < chars.len()
+        && chars[k + 1] == '='
+        && (next_char == '+' || next_char == '-' || next_char == '*' || next_char == '/')
+    {
+        // Make sure it's not !== or similar
+        if k + 2 < chars.len() && chars[k + 2] == '=' {
+            return false;
+        }
+        return true;
+    }
+
+    // Check for **=
+    if k + 2 < chars.len() && chars[k] == '*' && chars[k + 1] == '*' && chars[k + 2] == '=' {
+        return true;
+    }
+
+    // Check for %= ||= &&= ??=
+    if k + 1 < chars.len()
+        && chars[k + 1] == '='
+        && (next_char == '%' || next_char == '|' || next_char == '&' || next_char == '?')
+    {
+        // Check for ||= &&= ??= (two char operators)
+        if (next_char == '|' || next_char == '&' || next_char == '?')
+            && k + 2 < chars.len()
+            && chars[k + 2] == '='
+        {
+            // It's ||= or &&= or ??=
+            return chars[k] == chars[k + 1]; // e.g., || or && or ??
+        }
+        // It's %= or similar
+        return true;
+    }
+
+    false
 }
 
 /// Replace a pattern with a replacement, respecting word boundaries.
@@ -1999,15 +2244,26 @@ fn find_matching_paren(s: &str) -> Option<usize> {
 /// - Object literals `{}`
 /// - Array literals `[]`
 /// - `new` expressions
-/// - Function calls (could return objects)
+/// - Top-level function calls (could return objects)
 ///
 /// Returns `false` for:
 /// - Primitives (numbers, strings, booleans, null, undefined)
 /// - Arithmetic/binary operations
 /// - Unary operations
 /// - Identifier references
+/// - Arrow functions and function expressions (even if they contain objects inside)
 fn expression_needs_proxy(expr: &str) -> bool {
     let trimmed = expr.trim();
+
+    // Arrow functions and function expressions don't need proxy wrapping
+    // They're functions themselves, not objects/arrays
+    // Check for patterns like:
+    // - `(x) => ...` or `x => ...` (arrow function)
+    // - `function(...)` (function expression)
+    // - `async (x) => ...` or `async function(...)` (async variants)
+    if is_function_expression(trimmed) {
+        return false;
+    }
 
     // Object literal
     if trimmed.starts_with('{') {
@@ -2024,10 +2280,140 @@ fn expression_needs_proxy(expr: &str) -> bool {
         return true;
     }
 
-    // Check for function call pattern: identifier followed by (
+    // Check for top-level function call pattern: identifier followed by (
     // But not operators like !, -, etc.
     // Also check for method calls like foo.bar()
-    if contains_function_call(trimmed) {
+    // NOTE: Only check the TOP-LEVEL expression, not nested function calls
+    if is_top_level_function_call(trimmed) {
+        return true;
+    }
+
+    false
+}
+
+/// Check if an expression is a function expression (arrow function or function keyword).
+fn is_function_expression(expr: &str) -> bool {
+    let trimmed = expr.trim();
+
+    // Check for async prefix
+    let without_async = if trimmed.starts_with("async ") {
+        trimmed[6..].trim()
+    } else {
+        trimmed
+    };
+
+    // Check for function keyword
+    if without_async.starts_with("function") {
+        let after_fn = &without_async[8..];
+        // Could be `function(` or `function name(`
+        if after_fn.starts_with('(') || after_fn.starts_with(' ') || after_fn.starts_with('*') {
+            return true;
+        }
+    }
+
+    // Check for arrow function patterns:
+    // - `(x) => ...` - starts with (
+    // - `x => ...` - starts with identifier followed by =>
+    // - `() => ...` - empty params
+    if without_async.starts_with('(') {
+        // Could be `(x) => ...` or just a parenthesized expression
+        // Look for `) =>` pattern
+        if let Some(paren_end) = find_matching_paren(&without_async[1..]) {
+            let after_paren = without_async[paren_end + 2..].trim_start();
+            if after_paren.starts_with("=>") {
+                return true;
+            }
+        }
+    }
+
+    // Check for `identifier =>` pattern (single param arrow function without parens)
+    // e.g., `name => {...}` or `x => x + 1`
+    let mut chars = without_async.chars().peekable();
+    let mut ident = String::new();
+
+    // Collect identifier chars
+    while let Some(&c) = chars.peek() {
+        if c.is_alphanumeric() || c == '_' || c == '$' {
+            ident.push(c);
+            chars.next();
+        } else {
+            break;
+        }
+    }
+
+    if !ident.is_empty() {
+        // Skip whitespace after identifier
+        while let Some(&c) = chars.peek() {
+            if c.is_whitespace() {
+                chars.next();
+            } else {
+                break;
+            }
+        }
+        // Check for =>
+        let remaining: String = chars.collect();
+        if remaining.starts_with("=>") {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Check if an expression is a top-level function call.
+/// This only checks if the expression starts with a function call pattern,
+/// not if it contains function calls nested inside.
+fn is_top_level_function_call(expr: &str) -> bool {
+    let trimmed = expr.trim();
+
+    // Skip arrow functions and function expressions
+    if is_function_expression(trimmed) {
+        return false;
+    }
+
+    // Look for pattern: identifier(...) or identifier.method(...)
+    let chars: Vec<char> = trimmed.chars().collect();
+    let mut i = 0;
+
+    // Must start with identifier or (
+    if chars.is_empty() {
+        return false;
+    }
+
+    let first = chars[0];
+
+    // If starts with ( it could be an IIFE: (function(){})() or (() => {})()
+    // For simplicity, skip these for now
+    if first == '(' {
+        return false;
+    }
+
+    // Skip if starts with operators or non-identifier chars
+    if !first.is_alphabetic() && first != '_' && first != '$' {
+        return false;
+    }
+
+    // Collect the identifier path (could include dots for method calls)
+    while i < chars.len() {
+        let c = chars[i];
+        if c.is_alphanumeric() || c == '_' || c == '$' || c == '.' {
+            i += 1;
+        } else {
+            break;
+        }
+    }
+
+    // After identifier, should be (
+    if i < chars.len() && chars[i] == '(' {
+        // Check it's not a keyword
+        let ident: String = chars[..i].iter().collect();
+        let last_part = ident.split('.').next_back().unwrap_or(&ident);
+        let keywords = [
+            "if", "while", "for", "switch", "catch", "with", "function", "async",
+        ];
+        if keywords.contains(&last_part) {
+            return false;
+        }
         return true;
     }
 
@@ -2277,11 +2663,33 @@ fn transform_class_fields_client(script: &str) -> String {
     // Parse class fields with $state and $derived
     let mut fields: Vec<ClassStateField> = Vec::new();
     let mut constructor_content = String::new();
+    let mut constructor_params = String::new();
     let mut constructor_start = None;
 
     // Find constructor first
     if let Some(ctor_pos) = class_body.find("constructor(") {
         let after_ctor = &class_body[ctor_pos..];
+        // Extract constructor parameters
+        if let Some(paren_start) = after_ctor.find('(') {
+            let params_start = paren_start + 1;
+            let mut depth = 1;
+            let mut params_end = params_start;
+            for (i, c) in after_ctor[params_start..].char_indices() {
+                match c {
+                    '(' => depth += 1,
+                    ')' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            params_end = params_start + i;
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            constructor_params = after_ctor[params_start..params_end].to_string();
+        }
+
         if let Some(brace_pos) = after_ctor.find('{') {
             let ctor_body_start = ctor_pos + brace_pos + 1;
             let mut depth = 1;
@@ -2425,7 +2833,7 @@ fn transform_class_fields_client(script: &str) -> String {
     // Add constructor with transformed assignments
     if constructor_start.is_some() {
         new_class_body.push('\n');
-        new_class_body.push_str("\t\tconstructor() {\n");
+        new_class_body.push_str(&format!("\t\tconstructor({}) {{\n", constructor_params));
 
         // Transform constructor content
         for line in constructor_content.lines() {
@@ -2484,20 +2892,30 @@ fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStateField> {
     })
 }
 
-/// Transform constructor assignments for private state fields.
+/// Transform constructor assignments for private state fields and rune calls.
 fn transform_constructor_assignment(line: &str, fields: &[ClassStateField]) -> String {
-    let trimmed = line.trim();
+    let mut result = line.trim().to_string();
+
+    // Transform $effect.pre -> $.user_pre_effect
+    if result.contains("$effect.pre(") {
+        result = result.replace("$effect.pre(", "$.user_pre_effect(");
+    }
+
+    // Transform $effect -> $.user_effect
+    if result.contains("$effect(") {
+        result = result.replace("$effect(", "$.user_effect(");
+    }
 
     // Check for private field assignment: this.#name = value
-    if trimmed.starts_with("this.#") && trimmed.contains('=') {
+    if result.starts_with("this.#") && result.contains('=') {
         for field in fields {
             if field.is_private {
                 let pattern = format!("this.#{} =", field.name);
                 let pattern_nospace = format!("this.#{}=", field.name);
 
-                if trimmed.starts_with(&pattern) || trimmed.starts_with(&pattern_nospace) {
-                    let eq_pos = trimmed.find('=').unwrap();
-                    let value = trimmed[eq_pos + 1..].trim().trim_end_matches(';');
+                if result.starts_with(&pattern) || result.starts_with(&pattern_nospace) {
+                    let eq_pos = result.find('=').unwrap();
+                    let value = result[eq_pos + 1..].trim().trim_end_matches(';');
                     // Use private_backing_name for the output
                     return format!("$.set(this.#{}, {});", field.private_backing_name, value);
                 }
@@ -2505,7 +2923,7 @@ fn transform_constructor_assignment(line: &str, fields: &[ClassStateField]) -> S
         }
     }
 
-    trimmed.to_string()
+    result
 }
 
 #[cfg(test)]
