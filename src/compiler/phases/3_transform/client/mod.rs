@@ -1194,7 +1194,34 @@ fn process_derived_object_pattern(
     array_counter: &mut usize,
 ) -> Option<()> {
     let properties = split_derived_object_properties(inner);
-    for prop in properties {
+
+    // First pass: process nested array/object patterns (which generate $$array helpers)
+    // These must come first because other declarations may depend on them
+    for prop in &properties {
+        let prop = prop.trim();
+        if prop.is_empty() {
+            continue;
+        }
+        if prop.starts_with("...") {
+            continue; // Handle rest in second pass
+        }
+        if let Some(colon_pos) = find_derived_property_colon(prop) {
+            let key = prop[..colon_pos].trim();
+            let value_pattern = prop[colon_pos + 1..].trim();
+            let prop_access = format!("{}.{}", base_expr, key);
+            if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
+                process_derived_destructuring_pattern(
+                    value_pattern,
+                    &prop_access,
+                    declarations,
+                    array_counter,
+                )?;
+            }
+        }
+    }
+
+    // Second pass: process simple properties and rest elements
+    for prop in &properties {
         let prop = prop.trim();
         if prop.is_empty() {
             continue;
@@ -1208,22 +1235,17 @@ fn process_derived_object_pattern(
             continue;
         }
         if let Some(colon_pos) = find_derived_property_colon(prop) {
-            let key = prop[..colon_pos].trim();
             let value_pattern = prop[colon_pos + 1..].trim();
-            let prop_access = format!("{}.{}", base_expr, key);
+            // Skip nested patterns - already handled in first pass
             if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
-                process_derived_destructuring_pattern(
-                    value_pattern,
-                    &prop_access,
-                    declarations,
-                    array_counter,
-                )?;
-            } else {
-                declarations.push(format!(
-                    "{} = $.derived(() => {})",
-                    value_pattern, prop_access
-                ));
+                continue;
             }
+            let key = prop[..colon_pos].trim();
+            let prop_access = format!("{}.{}", base_expr, key);
+            declarations.push(format!(
+                "{} = $.derived(() => {})",
+                value_pattern, prop_access
+            ));
         } else {
             declarations.push(format!(
                 "{} = $.derived(() => {}.{})",
