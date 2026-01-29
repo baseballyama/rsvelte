@@ -1083,6 +1083,23 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Visit a snippet block.
     fn visit_snippet_block(&mut self, block: &SnippetBlock) {
+        // Declare the snippet name in the CURRENT (parent) scope BEFORE creating child scope
+        // This matches the official Svelte compiler: scope.declare(node.expression, 'normal', 'function', node)
+        // The snippet name must be available in the enclosing scope so that {@render snippet()}
+        // can find it and know that it's a local (non-dynamic) snippet
+        if let Some(name) = block
+            .expression
+            .as_json()
+            .get("name")
+            .and_then(|n| n.as_str())
+        {
+            self.declare_binding(
+                name.to_string(),
+                BindingKind::Normal,
+                DeclarationKind::Function,
+            );
+        }
+
         let old_scope = self.push_scope();
 
         // Declare snippet parameters
