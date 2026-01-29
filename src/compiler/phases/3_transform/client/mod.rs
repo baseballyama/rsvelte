@@ -1861,67 +1861,86 @@ fn transform_state_assignments(
 
         // Transform simple assignment: varname = expr to $.set(varname, expr)
         // But not if it's a declaration (let/const/var varname = ...)
+        // Use a loop to handle multiple assignments of the same variable in one statement
         let assignment_pattern = format!("{} = ", var);
-        if result.contains(&assignment_pattern)
-            && !result.contains(&format!("let {} = ", var))
+        let mut search_start = 0;
+        while !result.contains(&format!("let {} = ", var))
             && !result.contains(&format!("const {} = ", var))
             && !result.contains(&format!("var {} = ", var))
-            && !result.contains(&format!("$.set({}", var))
         {
-            // Find the assignment position
-            if let Some(pos) = result.find(&assignment_pattern) {
+            // Find the next assignment position starting from search_start
+            if let Some(relative_pos) = result[search_start..].find(&assignment_pattern) {
+                let pos = search_start + relative_pos;
+
                 // Check that it's not part of a comparison (==, ===)
                 let before = &result[..pos];
                 // Skip if preceded by dot (property access like foo.count = ...)
-                if !before.ends_with('=') && !before.ends_with('!') && !before.ends_with('.') {
-                    let after = &result[pos + assignment_pattern.len()..];
-                    // Find the expression (until ; or end of line, respecting nested braces)
-                    let expr_end = find_statement_end_client(after);
-                    let expr = after[..expr_end].trim();
-
-                    // Debug output
-                    if std::env::var("DEBUG_STATE_ASSIGNMENT").is_ok() {
-                        eprintln!(
-                            "[DEBUG] Checking assignment for var '{}': expr = '{}'",
-                            var, expr
-                        );
-                        eprintln!("[DEBUG] is_incomplete = {}", is_incomplete_expression(expr));
-                    }
-
-                    // Skip incomplete expressions (e.g., multi-line arrow functions
-                    // where only the first line is processed)
-                    if is_incomplete_expression(expr) {
-                        continue;
-                    }
-
-                    // Check it's not already wrapped
-                    if !expr.starts_with("$.") {
-                        // Wrap state variables in the expression with $.get()
-                        let wrapped_expr = wrap_state_vars_in_expr(
-                            expr,
-                            state_vars,
-                            non_reactive_vars,
-                            proxy_vars,
-                        );
-                        // Check if the value needs proxying (could be an object/array)
-                        // $state.raw() variables never need proxy wrapping
-                        let is_raw_state = raw_state_vars.contains(var);
-                        let needs_proxy = !is_raw_state && expression_needs_proxy(expr.trim());
-
-                        let replacement = if needs_proxy {
-                            format!("$.set({}, {}, true)", var, wrapped_expr)
-                        } else {
-                            format!("$.set({}, {})", var, wrapped_expr)
-                        };
-
-                        result = format!(
-                            "{}{}{}",
-                            &result[..pos],
-                            replacement,
-                            &result[pos + assignment_pattern.len() + expr_end..]
-                        );
-                    }
+                // Also skip if already wrapped with $.set
+                if before.ends_with('=') || before.ends_with('!') || before.ends_with('.') {
+                    search_start = pos + assignment_pattern.len();
+                    continue;
                 }
+
+                // Skip if this is already wrapped with $.set
+                if before.ends_with(&format!("$.set({}, ", var))
+                    || before.ends_with(&format!("$.set({},", var))
+                {
+                    search_start = pos + assignment_pattern.len();
+                    continue;
+                }
+
+                let after = &result[pos + assignment_pattern.len()..];
+                // Find the expression (until ; or end of line, respecting nested braces)
+                let expr_end = find_statement_end_client(after);
+                let expr = after[..expr_end].trim();
+
+                // Debug output
+                if std::env::var("DEBUG_STATE_ASSIGNMENT").is_ok() {
+                    eprintln!(
+                        "[DEBUG] Checking assignment for var '{}': expr = '{}'",
+                        var, expr
+                    );
+                    eprintln!("[DEBUG] is_incomplete = {}", is_incomplete_expression(expr));
+                }
+
+                // Skip incomplete expressions (e.g., multi-line arrow functions
+                // where only the first line is processed)
+                if is_incomplete_expression(expr) {
+                    search_start = pos + assignment_pattern.len();
+                    continue;
+                }
+
+                // Check it's not already wrapped
+                if !expr.starts_with("$.") {
+                    // Wrap state variables in the expression with $.get()
+                    let wrapped_expr =
+                        wrap_state_vars_in_expr(expr, state_vars, non_reactive_vars, proxy_vars);
+                    // Check if the value needs proxying (could be an object/array)
+                    // $state.raw() variables never need proxy wrapping
+                    let is_raw_state = raw_state_vars.contains(var);
+                    let needs_proxy = !is_raw_state && expression_needs_proxy(expr.trim());
+
+                    let replacement = if needs_proxy {
+                        format!("$.set({}, {}, true)", var, wrapped_expr)
+                    } else {
+                        format!("$.set({}, {})", var, wrapped_expr)
+                    };
+
+                    let new_result = format!(
+                        "{}{}{}",
+                        &result[..pos],
+                        replacement,
+                        &result[pos + assignment_pattern.len() + expr_end..]
+                    );
+                    // Update search_start to continue after this replacement
+                    search_start = pos + replacement.len();
+                    result = new_result;
+                } else {
+                    search_start = pos + assignment_pattern.len();
+                }
+            } else {
+                // No more assignments found
+                break;
             }
         }
     }
