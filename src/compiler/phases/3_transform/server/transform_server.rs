@@ -2441,7 +2441,8 @@ impl<'a> ServerCodeGenerator<'a> {
             };
 
             // Extract imports and transform the rest
-            let (imports, rest) = extract_imports(&raw_script);
+            // Use extract_imports_module to keep `export { ... }` statements
+            let (imports, rest) = extract_imports_module(&raw_script);
             let transformed = transform_script_content(&rest);
 
             (imports, transformed)
@@ -2576,15 +2577,15 @@ impl<'a> ServerCodeGenerator<'a> {
 
                 format!(
                     r#"import * as $ from 'svelte/internal/server';
-{imports_section}{module_section}{snippets_section}
+{imports_section}{snippets_section}{module_section}
 export default function {component_name}($$renderer{props_param}) {{
 	$$renderer.component(($$renderer) => {{
 {store_subs_decl}{inner_script}
 {instance_snippets}{inner_body}{bind_props_code}{store_subs_cleanup}	}});
 }}"#,
                     imports_section = imports_section,
-                    module_section = module_section,
                     snippets_section = snippets_section,
+                    module_section = module_section,
                     component_name = self.component_name,
                     props_param = props_param,
                     store_subs_decl = store_subs_decl,
@@ -2607,12 +2608,12 @@ export default function {component_name}($$renderer{props_param}) {{
 
                 format!(
                     r#"import * as $ from 'svelte/internal/server';
-{imports_section}{module_section}{snippets_section}
+{imports_section}{snippets_section}{module_section}
 export default function {component_name}($$renderer{props_param}) {{
 {script_section}{instance_snippets}{body_code}{bind_props_code}}}"#,
                     imports_section = imports_section,
-                    module_section = module_section,
                     snippets_section = snippets_section,
+                    module_section = module_section,
                     component_name = self.component_name,
                     props_param = props_param,
                     script_section = script_section,
@@ -2628,23 +2629,23 @@ export default function {component_name}($$renderer{props_param}) {{
             if bind_props_code.is_empty() {
                 format!(
                     r#"import * as $ from 'svelte/internal/server';
-{imports_section}{module_section}{snippets_section}
+{imports_section}{snippets_section}{module_section}
 export default function {component_name}($$renderer{props_param}) {{}}"#,
                     imports_section = imports_section,
-                    module_section = module_section,
                     snippets_section = snippets_section,
+                    module_section = module_section,
                     component_name = self.component_name,
                     props_param = props_param,
                 )
             } else {
                 format!(
                     r#"import * as $ from 'svelte/internal/server';
-{imports_section}{module_section}{snippets_section}
+{imports_section}{snippets_section}{module_section}
 export default function {component_name}($$renderer{props_param}) {{
 {bind_props_code}}}"#,
                     imports_section = imports_section,
-                    module_section = module_section,
                     snippets_section = snippets_section,
+                    module_section = module_section,
                     component_name = self.component_name,
                     props_param = props_param,
                     bind_props_code = bind_props_code
@@ -3995,7 +3996,10 @@ fn parse_numeric_expr(s: &str) -> Option<i64> {
 }
 
 /// Extract import statements from script content.
-fn extract_imports(script: &str) -> (Vec<String>, String) {
+/// If `strip_exports` is true, also strips `export { ... }` statements.
+/// This should be true for instance scripts (where exports are handled via $.bind_props),
+/// but false for module scripts (where exports should be emitted directly).
+fn extract_imports_with_options(script: &str, strip_exports: bool) -> (Vec<String>, String) {
     let mut imports = Vec::new();
     let mut rest = String::new();
 
@@ -4014,10 +4018,26 @@ fn extract_imports(script: &str) -> (Vec<String>, String) {
     }
 
     // Strip export statements without declarations (e.g., `export { name }`)
-    // These should be removed in server-side rendering
-    let rest = strip_export_specifiers(&rest);
+    // These should be removed for instance scripts (handled via $.bind_props)
+    // but kept for module scripts (emitted directly)
+    if strip_exports {
+        let rest = strip_export_specifiers(&rest);
+        (imports, rest)
+    } else {
+        (imports, rest)
+    }
+}
 
-    (imports, rest)
+/// Extract import statements from script content (instance script version).
+/// Strips `export { ... }` statements as they're handled via $.bind_props.
+fn extract_imports(script: &str) -> (Vec<String>, String) {
+    extract_imports_with_options(script, true)
+}
+
+/// Extract import statements from module script content.
+/// Keeps `export { ... }` statements as they should be emitted directly.
+fn extract_imports_module(script: &str) -> (Vec<String>, String) {
+    extract_imports_with_options(script, false)
 }
 
 /// Strip `export { ... }` statements (exports without declarations) from script content.
