@@ -81,16 +81,125 @@ fn check_hoistable(nodes: &[TemplateNode], param_names: &FxHashSet<String>) -> b
                 }
             }
 
-            // These complex blocks prevent hoisting
+            // HtmlTag, dynamic components, and regular components prevent hoisting
+            // They may reference instance state directly or in props
             TemplateNode::HtmlTag(_)
-            | TemplateNode::IfBlock(_)
-            | TemplateNode::EachBlock(_)
-            | TemplateNode::AwaitBlock(_)
-            | TemplateNode::KeyBlock(_)
             | TemplateNode::Component(_)
             | TemplateNode::SvelteComponent(_)
             | TemplateNode::SvelteElement(_)
             | TemplateNode::SvelteSelf(_) => return false,
+
+            // IfBlock - check test expression and all branches
+            TemplateNode::IfBlock(if_block) => {
+                // Check the test expression
+                if !expression_only_uses_params(&if_block.test, param_names) {
+                    return false;
+                }
+                // Check consequent
+                if !check_hoistable(&if_block.consequent.nodes, param_names) {
+                    return false;
+                }
+                // Check alternate (may be else or elseif)
+                // IfBlock's alternate contains either a Fragment (else) or another IfBlock (elseif)
+                if let Some(ref alt) = if_block.alternate {
+                    // Check if the alternate contains an IfBlock (elseif case)
+                    if !check_hoistable(&alt.nodes, param_names) {
+                        return false;
+                    }
+                }
+            }
+
+            // EachBlock - check iterable expression and body
+            TemplateNode::EachBlock(each_block) => {
+                // Check the iterable expression
+                if !expression_only_uses_params(&each_block.expression, param_names) {
+                    return false;
+                }
+                // The loop variable is a new binding within the each block's scope,
+                // so we need to add it to the allowed names for the body
+                let mut inner_params = param_names.clone();
+                if let Some(ref context) = each_block.context {
+                    if let Expression::Value(val) = context {
+                        if let Some(names) = extract_pattern_names(val) {
+                            for n in names {
+                                inner_params.insert(n);
+                            }
+                        }
+                    }
+                }
+                // Add index to allowed names if present
+                if let Some(ref index) = each_block.index {
+                    inner_params.insert(index.to_string());
+                }
+                // Check body
+                if !check_hoistable(&each_block.body.nodes, &inner_params) {
+                    return false;
+                }
+                // Check fallback
+                if let Some(ref fallback) = each_block.fallback {
+                    if !check_hoistable(&fallback.nodes, param_names) {
+                        return false;
+                    }
+                }
+            }
+
+            // AwaitBlock - check promise expression and all branches
+            TemplateNode::AwaitBlock(await_block) => {
+                // Check the promise expression
+                if !expression_only_uses_params(&await_block.expression, param_names) {
+                    return false;
+                }
+                // Check pending
+                if let Some(ref pending) = await_block.pending {
+                    if !check_hoistable(&pending.nodes, param_names) {
+                        return false;
+                    }
+                }
+                // Check then block (value is a new binding)
+                if let Some(ref then_block) = await_block.then {
+                    let mut inner_params = param_names.clone();
+                    if let Some(ref value) = await_block.value {
+                        if let Expression::Value(val) = value {
+                            if let Some(name) = extract_pattern_names(val) {
+                                for n in name {
+                                    inner_params.insert(n);
+                                }
+                            }
+                        }
+                    }
+                    if !check_hoistable(&then_block.nodes, &inner_params) {
+                        return false;
+                    }
+                }
+                // Check catch block (error is a new binding)
+                if let Some(ref catch_block) = await_block.catch {
+                    let mut inner_params = param_names.clone();
+                    if let Some(ref error) = await_block.error {
+                        if let Expression::Value(val) = error {
+                            if let Some(name) = extract_pattern_names(val) {
+                                for n in name {
+                                    inner_params.insert(n);
+                                }
+                            }
+                        }
+                    }
+                    if !check_hoistable(&catch_block.nodes, &inner_params) {
+                        return false;
+                    }
+                }
+            }
+
+            // KeyBlock - check key expression and body
+            TemplateNode::KeyBlock(key_block) => {
+                // Check the key expression
+                if !expression_only_uses_params(&key_block.expression, param_names) {
+                    return false;
+                }
+                // Check body
+                if !check_hoistable(&key_block.fragment.nodes, param_names) {
+                    return false;
+                }
+            }
 
             // RenderTag - check the expression
             TemplateNode::RenderTag(tag) => {
@@ -159,15 +268,86 @@ fn check_hoistable(nodes: &[TemplateNode], param_names: &FxHashSet<String>) -> b
 /// Extract parameter name from a parameter expression.
 fn extract_param_name(param: &Expression) -> Option<String> {
     let Expression::Value(val) = param;
-    if let serde_json::Value::Object(obj) = val
-        && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
-    {
-        return obj
-            .get("name")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string());
+    extract_pattern_names(val).and_then(|names| names.into_iter().next())
+}
+
+/// Extract all names from a pattern (Identifier, ObjectPattern, ArrayPattern).
+fn extract_pattern_names(val: &serde_json::Value) -> Option<Vec<String>> {
+    if let serde_json::Value::Object(obj) = val {
+        let expr_type = obj.get("type").and_then(|v| v.as_str())?;
+
+        match expr_type {
+            "Identifier" => {
+                let name = obj.get("name").and_then(|v| v.as_str())?.to_string();
+                Some(vec![name])
+            }
+            "ObjectPattern" => {
+                let mut names = Vec::new();
+                if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
+                    for prop in props {
+                        if let Some(prop_obj) = prop.as_object() {
+                            if prop_obj.get("type").and_then(|v| v.as_str()) == Some("Property") {
+                                if let Some(value) = prop_obj.get("value") {
+                                    // Handle AssignmentPattern (default values)
+                                    let actual_value =
+                                        if value.get("type").and_then(|v| v.as_str())
+                                            == Some("AssignmentPattern")
+                                        {
+                                            value.get("left")
+                                        } else {
+                                            Some(value)
+                                        };
+                                    if let Some(v) = actual_value {
+                                        if let Some(inner_names) = extract_pattern_names(v) {
+                                            names.extend(inner_names);
+                                        }
+                                    }
+                                }
+                            } else if prop_obj.get("type").and_then(|v| v.as_str())
+                                == Some("RestElement")
+                            {
+                                if let Some(arg) = prop_obj.get("argument") {
+                                    if let Some(inner_names) = extract_pattern_names(arg) {
+                                        names.extend(inner_names);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Some(names)
+            }
+            "ArrayPattern" => {
+                let mut names = Vec::new();
+                if let Some(elements) = obj.get("elements").and_then(|e| e.as_array()) {
+                    for elem in elements {
+                        if !elem.is_null() {
+                            if let Some(inner_names) = extract_pattern_names(elem) {
+                                names.extend(inner_names);
+                            }
+                        }
+                    }
+                }
+                Some(names)
+            }
+            "AssignmentPattern" => {
+                // Extract from the left side of the assignment
+                if let Some(left) = obj.get("left") {
+                    return extract_pattern_names(left);
+                }
+                None
+            }
+            "RestElement" => {
+                if let Some(arg) = obj.get("argument") {
+                    return extract_pattern_names(arg);
+                }
+                None
+            }
+            _ => None,
+        }
+    } else {
+        None
     }
-    None
 }
 
 /// Check if an expression only uses the given parameter names (and globals).
