@@ -233,12 +233,22 @@ pub struct RenderTag {
     pub metadata: RenderTagMetadata,
 }
 
+/// Metadata for AttachTag nodes.
+#[derive(Debug, Clone, Default)]
+pub struct AttachTagMetadata {
+    /// Expression metadata for the expression
+    pub expression: ExpressionMetadata,
+}
+
 /// An attach tag: `{@attach expression}`.
 #[derive(Debug, Clone, Deserialize)]
 pub struct AttachTag {
     pub start: u32,
     pub end: u32,
     pub expression: Expression,
+    /// Metadata (not serialized)
+    #[serde(skip)]
+    pub metadata: AttachTagMetadata,
 }
 
 impl serde::Serialize for AttachTag {

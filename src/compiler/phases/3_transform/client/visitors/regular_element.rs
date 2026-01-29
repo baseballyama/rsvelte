@@ -9,11 +9,12 @@
 #![allow(dead_code)]
 
 use crate::ast::template::{
-    Attribute, AttributeNode, AttributeValue, BindDirective, Fragment, OnDirective,
+    AttachTag, Attribute, AttributeNode, AttributeValue, BindDirective, Fragment, OnDirective,
     RegularElement as RegularElementNode, TemplateNode, TransitionDirective, UseDirective,
 };
 use crate::compiler::phases::phase3_transform::client::transform_template::Template;
 use crate::compiler::phases::phase3_transform::client::types::*;
+use crate::compiler::phases::phase3_transform::client::visitors::attach_tag::attach_tag;
 use crate::compiler::phases::phase3_transform::client::visitors::attribute::{
     is_event_attribute, visit_event_attribute,
 };
@@ -83,6 +84,7 @@ pub fn visit_regular_element(
     let mut on_directives: Vec<OnDirective> = Vec::with_capacity(4);
     let mut transition_directives: Vec<TransitionDirective> = Vec::with_capacity(2);
     let mut use_directives: Vec<UseDirective> = Vec::with_capacity(2);
+    let mut attach_tags: Vec<AttachTag> = Vec::with_capacity(2);
     let mut bindings: FxHashMap<String, BindDirective> = FxHashMap::default();
     let has_spread = node
         .attributes
@@ -137,6 +139,9 @@ pub fn visit_regular_element(
             }
             Attribute::UseDirective(dir) => {
                 use_directives.push(dir.clone());
+            }
+            Attribute::AttachTag(tag) => {
+                attach_tags.push(tag.clone());
             }
             _ => {}
         }
@@ -219,6 +224,22 @@ pub fn visit_regular_element(
     for use_dir in &use_directives {
         let stmt = use_directive(use_dir, context);
         element_state_init.push(stmt);
+    }
+
+    // Process attach tags into element_state
+    // {@attach} tags are processed similarly to other directives
+    for attach in &attach_tags {
+        // Store current init length to capture any statements added by attach_tag
+        let init_before = context.state.init.len();
+
+        attach_tag(attach, context);
+
+        // Move any statements added to context.state to element_state instead
+        while context.state.init.len() > init_before {
+            if let Some(stmt) = context.state.init.pop() {
+                element_state_init.insert(0, stmt);
+            }
+        }
     }
 
     // For input elements with bind:value, bind:checked, or bind:group,
