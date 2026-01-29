@@ -277,27 +277,10 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
                 // Find the base object of the member expression
                 let base_object = get_base_object(assign.left.as_ref());
 
-                // DEBUG: Log base object and transform lookup
-                #[cfg(debug_assertions)]
-                if let JsExpr::Identifier(ref name) = base_object {
-                    eprintln!("[DEBUG] Assignment to member with base object: {}", name);
-                    eprintln!(
-                        "[DEBUG] Available transforms: {:?}",
-                        context.state.transform.keys().collect::<Vec<_>>()
-                    );
-                    eprintln!(
-                        "[DEBUG] Transform for '{}': {:?}",
-                        name,
-                        context.state.transform.contains_key(name)
-                    );
-                }
-
                 if let JsExpr::Identifier(name) = base_object
                     && let Some(transform) = context.state.transform.get(&name)
                     && let Some(mutate_fn) = transform.mutate
                 {
-                    #[cfg(debug_assertions)]
-                    eprintln!("[DEBUG] Applying mutate transform for: {}", name);
                     // DO NOT apply read transforms to the left side here!
                     // The mutate function (e.g., store_sub_mutate) is responsible for
                     // replacing the base identifier with $.untrack($store) as needed.

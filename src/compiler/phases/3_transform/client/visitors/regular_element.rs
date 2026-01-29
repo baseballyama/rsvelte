@@ -263,10 +263,10 @@ pub fn visit_regular_element(
     if node.name == "textarea" {
         // Check if there's a value attribute that's not a simple text
         let value_attr = attributes.iter().find_map(|attr| {
-            if let Attribute::Attribute(a) = attr {
-                if a.name == "value" {
-                    return Some(a);
-                }
+            if let Attribute::Attribute(a) = attr
+                && a.name == "value"
+            {
+                return Some(a);
             }
             None
         });

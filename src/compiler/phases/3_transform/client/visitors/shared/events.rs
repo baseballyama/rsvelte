@@ -90,57 +90,55 @@ fn json_value_has_call(value: &serde_json::Value) -> bool {
             // Recurse into child expressions based on node type
             match node_type {
                 "MemberExpression" => {
-                    if let Some(object) = obj.get("object") {
-                        if json_value_has_call(object) {
-                            return true;
-                        }
+                    if let Some(object) = obj.get("object")
+                        && json_value_has_call(object)
+                    {
+                        return true;
                     }
-                    if let Some(property) = obj.get("property") {
-                        if obj
+                    if let Some(property) = obj.get("property")
+                        && obj
                             .get("computed")
                             .and_then(|v| v.as_bool())
                             .unwrap_or(false)
-                        {
-                            if json_value_has_call(property) {
-                                return true;
-                            }
-                        }
+                        && json_value_has_call(property)
+                    {
+                        return true;
                     }
                 }
                 "BinaryExpression" | "LogicalExpression" => {
-                    if let Some(left) = obj.get("left") {
-                        if json_value_has_call(left) {
-                            return true;
-                        }
+                    if let Some(left) = obj.get("left")
+                        && json_value_has_call(left)
+                    {
+                        return true;
                     }
-                    if let Some(right) = obj.get("right") {
-                        if json_value_has_call(right) {
-                            return true;
-                        }
+                    if let Some(right) = obj.get("right")
+                        && json_value_has_call(right)
+                    {
+                        return true;
                     }
                 }
                 "UnaryExpression" | "AwaitExpression" => {
-                    if let Some(arg) = obj.get("argument") {
-                        if json_value_has_call(arg) {
-                            return true;
-                        }
+                    if let Some(arg) = obj.get("argument")
+                        && json_value_has_call(arg)
+                    {
+                        return true;
                     }
                 }
                 "ConditionalExpression" => {
-                    if let Some(test) = obj.get("test") {
-                        if json_value_has_call(test) {
-                            return true;
-                        }
+                    if let Some(test) = obj.get("test")
+                        && json_value_has_call(test)
+                    {
+                        return true;
                     }
-                    if let Some(consequent) = obj.get("consequent") {
-                        if json_value_has_call(consequent) {
-                            return true;
-                        }
+                    if let Some(consequent) = obj.get("consequent")
+                        && json_value_has_call(consequent)
+                    {
+                        return true;
                     }
-                    if let Some(alternate) = obj.get("alternate") {
-                        if json_value_has_call(alternate) {
-                            return true;
-                        }
+                    if let Some(alternate) = obj.get("alternate")
+                        && json_value_has_call(alternate)
+                    {
+                        return true;
                     }
                 }
                 "ArrayExpression" => {
@@ -155,12 +153,11 @@ fn json_value_has_call(value: &serde_json::Value) -> bool {
                 "ObjectExpression" => {
                     if let Some(serde_json::Value::Array(props)) = obj.get("properties") {
                         for prop in props {
-                            if let serde_json::Value::Object(prop_obj) = prop {
-                                if let Some(val) = prop_obj.get("value") {
-                                    if json_value_has_call(val) {
-                                        return true;
-                                    }
-                                }
+                            if let serde_json::Value::Object(prop_obj) = prop
+                                && let Some(val) = prop_obj.get("value")
+                                && json_value_has_call(val)
+                            {
+                                return true;
                             }
                         }
                     }
@@ -175,10 +172,10 @@ fn json_value_has_call(value: &serde_json::Value) -> bool {
                     }
                 }
                 "ChainExpression" => {
-                    if let Some(expr) = obj.get("expression") {
-                        if json_value_has_call(expr) {
-                            return true;
-                        }
+                    if let Some(expr) = obj.get("expression")
+                        && json_value_has_call(expr)
+                    {
+                        return true;
                     }
                 }
                 _ => {}

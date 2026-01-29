@@ -2123,6 +2123,7 @@ fn transform_state_in_expr(
 /// This detects patterns like:
 /// - `varname = expr` - simple assignment
 /// - `varname += expr` - compound assignment
+///
 /// The variable should NOT be wrapped with $.get() if it's an assignment target.
 fn is_on_left_side_of_assignment(chars: &[char], var_start: usize, var_len: usize) -> bool {
     let var_end = var_start + var_len;
@@ -2324,15 +2325,13 @@ fn is_function_expression(expr: &str) -> bool {
     let trimmed = expr.trim();
 
     // Check for async prefix
-    let without_async = if trimmed.starts_with("async ") {
-        trimmed[6..].trim()
-    } else {
-        trimmed
-    };
+    let without_async = trimmed
+        .strip_prefix("async ")
+        .map(|s| s.trim())
+        .unwrap_or(trimmed);
 
     // Check for function keyword
-    if without_async.starts_with("function") {
-        let after_fn = &without_async[8..];
+    if let Some(after_fn) = without_async.strip_prefix("function") {
         // Could be `function(` or `function name(`
         if after_fn.starts_with('(') || after_fn.starts_with(' ') || after_fn.starts_with('*') {
             return true;
@@ -2343,11 +2342,11 @@ fn is_function_expression(expr: &str) -> bool {
     // - `(x) => ...` - starts with (
     // - `x => ...` - starts with identifier followed by =>
     // - `() => ...` - empty params
-    if without_async.starts_with('(') {
+    if let Some(inner) = without_async.strip_prefix('(') {
         // Could be `(x) => ...` or just a parenthesized expression
         // Look for `) =>` pattern
-        if let Some(paren_end) = find_matching_paren(&without_async[1..]) {
-            let after_paren = without_async[paren_end + 2..].trim_start();
+        if let Some(paren_end) = find_matching_paren(inner) {
+            let after_paren = inner[paren_end + 1..].trim_start();
             if after_paren.starts_with("=>") {
                 return true;
             }
@@ -2449,6 +2448,7 @@ fn is_top_level_function_call(expr: &str) -> bool {
 }
 
 /// Check if an expression contains a function call.
+#[allow(dead_code)]
 fn contains_function_call(expr: &str) -> bool {
     let chars: Vec<char> = expr.chars().collect();
     let mut i = 0;
