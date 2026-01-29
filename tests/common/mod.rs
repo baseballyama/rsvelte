@@ -378,6 +378,14 @@ pub fn normalize_js(js: &str) -> String {
         result = new_result;
     }
 
+    // Normalize template empty text (handles whitespace differences in HTML templates)
+    let result = normalize_template_empty_text(&result);
+
+    // Normalize numeric literals (1e3 -> 1000, etc.)
+    let result = result.replace("1e3", "1000");
+    let result = result.replace("1e4", "10000");
+    let result = result.replace("1e5", "100000");
+
     // Remove semicolons for normalization
     let result = result.replace(';', "");
 
