@@ -65,6 +65,130 @@ pub fn build_event(
     b::call(b::member_path("$.event"), args)
 }
 
+/// Check if a JSON expression contains a call expression.
+/// This is used to determine if an event handler needs to be memoized.
+fn expression_has_call(expr: &Expression) -> bool {
+    match expr {
+        Expression::Value(val) => json_value_has_call(val),
+    }
+}
+
+/// Check if a JSON value contains a call expression.
+fn json_value_has_call(value: &serde_json::Value) -> bool {
+    match value {
+        serde_json::Value::Object(obj) => {
+            let node_type = obj
+                .get("type")
+                .and_then(|t| t.as_str())
+                .unwrap_or("Unknown");
+
+            // If this is a CallExpression, return true
+            if node_type == "CallExpression" {
+                return true;
+            }
+
+            // Recurse into child expressions based on node type
+            match node_type {
+                "MemberExpression" => {
+                    if let Some(object) = obj.get("object") {
+                        if json_value_has_call(object) {
+                            return true;
+                        }
+                    }
+                    if let Some(property) = obj.get("property") {
+                        if obj
+                            .get("computed")
+                            .and_then(|v| v.as_bool())
+                            .unwrap_or(false)
+                        {
+                            if json_value_has_call(property) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                "BinaryExpression" | "LogicalExpression" => {
+                    if let Some(left) = obj.get("left") {
+                        if json_value_has_call(left) {
+                            return true;
+                        }
+                    }
+                    if let Some(right) = obj.get("right") {
+                        if json_value_has_call(right) {
+                            return true;
+                        }
+                    }
+                }
+                "UnaryExpression" | "AwaitExpression" => {
+                    if let Some(arg) = obj.get("argument") {
+                        if json_value_has_call(arg) {
+                            return true;
+                        }
+                    }
+                }
+                "ConditionalExpression" => {
+                    if let Some(test) = obj.get("test") {
+                        if json_value_has_call(test) {
+                            return true;
+                        }
+                    }
+                    if let Some(consequent) = obj.get("consequent") {
+                        if json_value_has_call(consequent) {
+                            return true;
+                        }
+                    }
+                    if let Some(alternate) = obj.get("alternate") {
+                        if json_value_has_call(alternate) {
+                            return true;
+                        }
+                    }
+                }
+                "ArrayExpression" => {
+                    if let Some(serde_json::Value::Array(elements)) = obj.get("elements") {
+                        for elem in elements {
+                            if json_value_has_call(elem) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                "ObjectExpression" => {
+                    if let Some(serde_json::Value::Array(props)) = obj.get("properties") {
+                        for prop in props {
+                            if let serde_json::Value::Object(prop_obj) = prop {
+                                if let Some(val) = prop_obj.get("value") {
+                                    if json_value_has_call(val) {
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                "SequenceExpression" => {
+                    if let Some(serde_json::Value::Array(exprs)) = obj.get("expressions") {
+                        for expr in exprs {
+                            if json_value_has_call(expr) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                "ChainExpression" => {
+                    if let Some(expr) = obj.get("expression") {
+                        if json_value_has_call(expr) {
+                            return true;
+                        }
+                    }
+                }
+                _ => {}
+            }
+            false
+        }
+        _ => false,
+    }
+}
+
 /// Build an event handler function.
 ///
 /// Corresponds to `build_event_handler` in
@@ -97,6 +221,9 @@ pub fn build_event_handler(
 
     let expression = expression.unwrap();
 
+    // Check if expression has a call (for memoization)
+    let has_call = expression_has_call(expression);
+
     // Convert the expression to JS
     let handler = convert_expression(expression, context);
 
@@ -106,7 +233,7 @@ pub fn build_event_handler(
     let mut metadata =
         crate::compiler::phases::phase3_transform::client::types::ExpressionMetadata::default();
     metadata.set_has_state(true); // Conservative: assume handlers may reference state
-    let handler = build_expression(context, &handler, &metadata);
+    let mut handler = build_expression(context, &handler, &metadata);
 
     // Inline handler (arrow or function expression)
     if matches!(handler, JsExpr::Arrow(_) | JsExpr::Function(_)) {
@@ -126,14 +253,36 @@ pub fn build_event_handler(
         return handler;
     }
 
+    // If the handler contains a call expression, we need to memoize it with $.derived
+    // This is important for cases like: on:click={saySomething('Tama').handler}
+    // where the call needs to be evaluated each time but memoized for the event handler
+    if has_call {
+        // Generate a unique identifier for the event handler
+        let id_name = context.state.memoizer.generate_id("event_handler");
+
+        // Create: var event_handler = $.derived(() => handler);
+        context.state.init.push(b::var_decl(
+            &id_name,
+            Some(b::call(
+                b::member_path("$.derived"),
+                vec![b::thunk(handler)],
+            )),
+        ));
+
+        // Now handler becomes: $.get(event_handler)
+        handler = b::call(b::member_path("$.get"), vec![b::id(&id_name)]);
+    }
+
     // For complex expressions, wrap in a function that calls the expression
     // This handles cases like: onclick={obj.method} or onclick={expr()}
+    // handler?.apply(this, $$args) - use optional chaining for safety
     let call_expr = b::call(
-        b::member(handler.clone(), "apply"),
+        b::optional_member(handler, "apply"),
         vec![b::this(), b::id("$$args")],
     );
 
-    b::arrow_block(
+    b::function_expr(
+        None,
         vec![JsPattern::Rest(Box::new(b::id_pattern("$$args")))],
         vec![b::stmt(call_expr)],
     )

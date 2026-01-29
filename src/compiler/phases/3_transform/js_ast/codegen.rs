@@ -46,6 +46,10 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     let result = parser.parse();
 
     if !result.errors.is_empty() {
+        // Print raw source for debugging
+        eprintln!("=== RAW SOURCE (normalize_js error) ===");
+        eprintln!("{}", source);
+        eprintln!("=== END RAW SOURCE ===");
         return Err(format!("Parse errors: {:?}", result.errors));
     }
 

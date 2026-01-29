@@ -185,8 +185,12 @@ fn store_sub_assign(node: JsExpr, value: JsExpr, _needs_proxy: bool) -> JsExpr {
 ///
 /// Transforms mutations like `$store.prop = value` to:
 /// ```javascript
-/// $.store_mutate(store, $store.prop = value, $.untrack($store))
+/// $.store_mutate(store, $.untrack($store).prop = value, $.untrack($store))
 /// ```
+///
+/// The key insight is that within the mutation expression, we need to replace
+/// `$store` (which would normally become `$store()`) with `$.untrack($store)`
+/// to avoid tracking the store read inside the mutation.
 ///
 /// # Arguments
 ///
@@ -203,10 +207,58 @@ fn store_sub_mutate(node: JsExpr, mutation: JsExpr) -> JsExpr {
     // We need to untrack the store read, for consistency with Svelte 4
     let untracked = b::call(b::member_path("$.untrack"), vec![node.clone()]);
 
+    // Replace $store with $.untrack($store) in the mutation expression
+    // This follows the official Svelte compiler's replace() function
+    let transformed_mutation = replace_store_with_untracked(&mutation, &untracked);
+
     b::call(
         b::member_path("$.store_mutate"),
-        vec![b::id(&store_name), mutation, untracked],
+        vec![b::id(&store_name), transformed_mutation, untracked],
     )
+}
+
+/// Replace the base store reference with an untracked version in a mutation expression.
+///
+/// For a member expression like `$store.prop.nested`, this recursively walks down
+/// to the base identifier and replaces it with the untracked version.
+///
+/// Corresponds to the `replace()` function in the official Svelte compiler's
+/// `Program.js` store_sub mutate transform.
+fn replace_store_with_untracked(expr: &JsExpr, untracked: &JsExpr) -> JsExpr {
+    match expr {
+        JsExpr::Assignment(assign) => {
+            // For assignment expressions, we need to replace the store ref in the left side
+            let transformed_left = replace_store_with_untracked(assign.left.as_ref(), untracked);
+            JsExpr::Assignment(JsAssignmentExpression {
+                operator: assign.operator,
+                left: Box::new(transformed_left),
+                right: assign.right.clone(),
+            })
+        }
+        JsExpr::Member(member) => {
+            // Recursively replace in the object part of the member expression
+            let transformed_object = replace_store_with_untracked(&member.object, untracked);
+            JsExpr::Member(JsMemberExpression {
+                object: Box::new(transformed_object),
+                property: member.property.clone(),
+                computed: member.computed,
+                optional: member.optional,
+            })
+        }
+        JsExpr::Update(update) => {
+            // For update expressions like ++$store.prop
+            let transformed_argument = replace_store_with_untracked(&update.argument, untracked);
+            JsExpr::Update(JsUpdateExpression {
+                operator: update.operator,
+                argument: Box::new(transformed_argument),
+                prefix: update.prefix,
+            })
+        }
+        // When we reach an identifier or call expression at the base, replace it with untracked
+        JsExpr::Identifier(_) | JsExpr::Call(_) => untracked.clone(),
+        // For any other expression, return it unchanged (shouldn't happen in normal cases)
+        _ => expr.clone(),
+    }
 }
 
 /// Transform a store subscription update expression (++ or --).

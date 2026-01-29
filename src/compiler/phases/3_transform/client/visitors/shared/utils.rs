@@ -270,6 +270,55 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
                 return assign_fn(JsExpr::Identifier(name.clone()), final_value, needs_proxy);
             }
 
+            // Check for mutation case: when assigning to a member expression where
+            // the base object has a mutate transform (e.g., $store.prop = value)
+            // This corresponds to the mutation case in AssignmentExpression.js
+            if let JsExpr::Member(_) = assign.left.as_ref() {
+                // Find the base object of the member expression
+                let base_object = get_base_object(assign.left.as_ref());
+
+                // DEBUG: Log base object and transform lookup
+                #[cfg(debug_assertions)]
+                if let JsExpr::Identifier(ref name) = base_object {
+                    eprintln!("[DEBUG] Assignment to member with base object: {}", name);
+                    eprintln!(
+                        "[DEBUG] Available transforms: {:?}",
+                        context.state.transform.keys().collect::<Vec<_>>()
+                    );
+                    eprintln!(
+                        "[DEBUG] Transform for '{}': {:?}",
+                        name,
+                        context.state.transform.contains_key(name)
+                    );
+                }
+
+                if let JsExpr::Identifier(name) = base_object
+                    && let Some(transform) = context.state.transform.get(&name)
+                    && let Some(mutate_fn) = transform.mutate
+                {
+                    #[cfg(debug_assertions)]
+                    eprintln!("[DEBUG] Applying mutate transform for: {}", name);
+                    // DO NOT apply read transforms to the left side here!
+                    // The mutate function (e.g., store_sub_mutate) is responsible for
+                    // replacing the base identifier with $.untrack($store) as needed.
+                    // We only transform the right side of the assignment.
+                    let transformed_right = apply_transforms_to_expression(&assign.right, context);
+
+                    // Create the assignment expression with the original left side
+                    // and the transformed right side. The mutate function will handle
+                    // replacing the store reference with $.untrack($store).
+                    let full_assignment = JsExpr::Assignment(JsAssignmentExpression {
+                        operator: assign.operator,
+                        left: assign.left.clone(),
+                        right: Box::new(transformed_right),
+                    });
+
+                    // Apply the mutate transform
+                    // e.g., $store.prop = value -> $.store_mutate(store, $.untrack($store).prop = value, $.untrack($store))
+                    return mutate_fn(JsExpr::Identifier(name.clone()), full_assignment);
+                }
+            }
+
             // For non-state variables, transform the right side
             let transformed_right = apply_transforms_to_expression(&assign.right, context);
 
@@ -415,6 +464,19 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
         | JsExpr::Class(_)
         | JsExpr::Chain(_)
         | JsExpr::Void(_) => expr.clone(),
+    }
+}
+
+/// Get the base object of a member expression.
+///
+/// For example, for `a.b.c.d`, returns `a`.
+/// For nested member expressions like `$store().users['gary'].value`,
+/// returns `$store`.
+fn get_base_object(expr: &JsExpr) -> JsExpr {
+    match expr {
+        JsExpr::Member(member) => get_base_object(&member.object),
+        JsExpr::Call(call) => get_base_object(&call.callee),
+        _ => expr.clone(),
     }
 }
 
@@ -1192,10 +1254,29 @@ fn get_literal_value(
 
                     // Check if the identifier is a constant binding
                     let binding = context.state.get_binding(name)?;
-                    // Only fold if it's a normal (non-reactive) binding
+
+                    // Only fold if:
+                    // 1. Not a reactive binding ($state, $derived, store, etc.)
+                    // 2. Not updated (reassigned or mutated)
+                    // 3. Not a prop (props come from outside and can change)
+                    // This matches Svelte's scope.js evaluate() logic:
+                    // if (!binding.updated && binding.initial !== null && !is_prop)
                     if binding.kind.is_reactive() {
                         return None;
                     }
+                    if binding.is_updated() {
+                        return None;
+                    }
+                    let is_prop = matches!(
+                        binding.kind,
+                        crate::compiler::phases::phase2_analyze::scope::BindingKind::Prop
+                            | crate::compiler::phases::phase2_analyze::scope::BindingKind::BindableProp
+                            | crate::compiler::phases::phase2_analyze::scope::BindingKind::RestProp
+                    );
+                    if is_prop {
+                        return None;
+                    }
+
                     // Check if we have a known initial value (stored as source string)
                     let init = binding.initial.as_ref()?;
                     // Parse simple string literals like 'world' or "world"

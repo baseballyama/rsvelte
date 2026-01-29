@@ -257,6 +257,29 @@ pub fn visit_regular_element(
         }
     }
 
+    // For textarea elements with bind:value, spread attributes, or non-text value attribute,
+    // add $.remove_textarea_child() call
+    // See: svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/RegularElement.js
+    if node.name == "textarea" {
+        // Check if there's a value attribute that's not a simple text
+        let value_attr = attributes.iter().find_map(|attr| {
+            if let Attribute::Attribute(a) = attr {
+                if a.name == "value" {
+                    return Some(a);
+                }
+            }
+            None
+        });
+        let needs_content_reset = value_attr.is_some_and(|attr| !is_text_attribute(attr));
+
+        if has_spread || bindings.contains_key("value") || needs_content_reset {
+            context.state.init.push(b::stmt(b::call(
+                b::member_path("$.remove_textarea_child"),
+                vec![context.state.node.clone()],
+            )));
+        }
+    }
+
     // Process attributes (excluding directives)
     if has_spread {
         // Use build_attribute_effect for spread attributes

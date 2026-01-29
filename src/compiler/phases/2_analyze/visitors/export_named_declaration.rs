@@ -34,32 +34,36 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
                 }
             }
 
-            // Track the exported binding
-            if let Some(local) = specifier.get("local") {
-                let local_name = local.get("name").and_then(|n| n.as_str()).unwrap_or("");
-                let exported_name = specifier
-                    .get("exported")
-                    .and_then(|e| e.get("name"))
-                    .and_then(|n| n.as_str())
-                    .unwrap_or(local_name);
+            // Track the exported binding - only for instance script
+            // Module script exports are handled differently (they're emitted directly)
+            if context.ast_type == super::AstType::Instance {
+                if let Some(local) = specifier.get("local") {
+                    let local_name = local.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                    let exported_name = specifier
+                        .get("exported")
+                        .and_then(|e| e.get("name"))
+                        .and_then(|n| n.as_str())
+                        .unwrap_or(local_name);
 
-                if !local_name.is_empty() {
-                    let export = Export {
-                        name: local_name.to_string(),
-                        alias: if exported_name != local_name {
-                            Some(exported_name.to_string())
-                        } else {
-                            None
-                        },
-                    };
-                    context.analysis.exports.push(export);
+                    if !local_name.is_empty() {
+                        let export = Export {
+                            name: local_name.to_string(),
+                            alias: if exported_name != local_name {
+                                Some(exported_name.to_string())
+                            } else {
+                                None
+                            },
+                        };
+                        context.analysis.exports.push(export);
+                    }
                 }
             }
         }
     }
 
-    // In runes mode, handle export declarations
+    // In runes mode, handle export declarations - only for instance script
     if context.analysis.runes
+        && context.ast_type == super::AstType::Instance
         && let Some(declaration) = node.get("declaration")
     {
         let decl_type = declaration.get("type").and_then(|t| t.as_str());
