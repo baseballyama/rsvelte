@@ -681,15 +681,34 @@ impl<'a> ServerCodeGenerator<'a> {
 
         let object_literal = format!("{{ {} }}", object_parts.join(", "));
 
+        // Determine flags for $.attributes() call
+        // ELEMENT_IS_NAMESPACED = 1, ELEMENT_PRESERVE_ATTRIBUTE_CASE = 2, ELEMENT_IS_INPUT = 4
+        let is_custom_element = self.is_custom_element(element);
+        let flags = if is_custom_element {
+            2 // ELEMENT_PRESERVE_ATTRIBUTE_CASE
+        } else if name == "input" {
+            4 // ELEMENT_IS_INPUT
+        } else {
+            0
+        };
+
         // Start tag with $.attributes() call
         let tag = format!("<{}", name);
         self.output_parts.push(OutputPart::Html(tag));
 
-        // Add $.attributes() expression (raw, no escaping needed)
-        self.output_parts.push(OutputPart::RawExpression(format!(
-            "$.attributes({})",
-            object_literal
-        )));
+        // Add $.attributes() expression with full arguments
+        // $.attributes(object, css_hash, classes, styles, flags)
+        // For now, css_hash, classes, and styles are void 0
+        let attributes_call = if flags != 0 {
+            format!(
+                "$.attributes({}, void 0, void 0, void 0, {})",
+                object_literal, flags
+            )
+        } else {
+            format!("$.attributes({})", object_literal)
+        };
+        self.output_parts
+            .push(OutputPart::RawExpression(attributes_call));
 
         if is_void_element(name) {
             self.output_parts.push(OutputPart::Html("/>".to_string()));
@@ -717,6 +736,21 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         Ok(())
+    }
+
+    /// Check if an element is a custom element.
+    /// Custom elements have a hyphen in their name or have an `is` attribute.
+    fn is_custom_element(&self, element: &RegularElement) -> bool {
+        let name = element.name.as_str();
+        // Check if name contains hyphen
+        if name.contains('-') {
+            return true;
+        }
+        // Check if element has an `is` attribute
+        element
+            .attributes
+            .iter()
+            .any(|attr| matches!(attr, Attribute::Attribute(node) if node.name.as_str() == "is"))
     }
 
     /// Extract attribute value as a string representation for code generation.
@@ -2415,64 +2449,85 @@ impl<'a> ServerCodeGenerator<'a> {
             (Vec::new(), String::new())
         };
 
+        // Get analysis flags for determining component wrapper and props injection
+        // These are independent of whether there's an instance script
+        let needs_context = self.analysis.map(|a| a.needs_context).unwrap_or(false);
+        let analysis_needs_props = self.analysis.map(|a| a.needs_props).unwrap_or(false);
+        let analysis_uses_props = self.analysis.map(|a| a.uses_props).unwrap_or(false);
+        let analysis_uses_rest_props = self.analysis.map(|a| a.uses_rest_props).unwrap_or(false);
+        let analysis_uses_slots = self.analysis.map(|a| a.uses_slots).unwrap_or(false);
+
         // Process instance script content if present
-        let (props_param, script_code, hoisted_imports, needs_component_wrapper) =
-            if let Some(script) = self.instance_script {
-                let start = script.content.start().unwrap_or(0) as usize;
-                let end = script.content.end().unwrap_or(0) as usize;
-                let raw_script = if end > start && end <= self.source.len() {
-                    self.source[start..end].to_string()
-                } else {
-                    String::new()
-                };
-
-                // First, remove $effect, $effect.pre, $effect.root, and $inspect.trace blocks
-                // These are client-side only and should not appear in SSR output
-                let raw_script = remove_effect_blocks(&raw_script);
-
-                // Check if script uses $props()
-                let uses_props = raw_script.contains("$props()");
-
-                // Check if class fields use $state or $derived runes
-                // This requires $$props and $$renderer.component() wrapper
-                let has_class_state_fields = raw_script.contains("class ")
-                    && (raw_script.contains("= $state(") || raw_script.contains("= $derived("));
-
-                // Check if uses spread pattern: let props = $props() or let xxx = $props()
-                // This requires $$renderer.component() wrapper with destructuring
-                let uses_props_spread = detect_props_spread_pattern(&raw_script);
-
-                // Extract imports and transform the rest
-                let (imports, rest) = extract_imports(&raw_script);
-
-                // Apply class field transformation for $derived fields
-                let rest = transform_class_fields_server(&rest);
-
-                let transformed = transform_script_content(&rest);
-
-                // Use needs_context from Phase 2 analysis
-                // This is set when:
-                // - Call to imported function (callee is not a "safe identifier")
-                // - $bindable is used
-                // - $effect or $effect.pre is used
-                // - new expression is used (any constructor call)
-                // - Member expression on unsafe identifier
-                let needs_context = self.analysis.map(|a| a.needs_context).unwrap_or(false);
-
-                // Store subscriptions require $$renderer.component() wrapper
-                let needs_wrapper = uses_props_spread
-                    || has_class_state_fields
-                    || needs_context
-                    || self.uses_store_subs;
-
-                if uses_props || has_class_state_fields || needs_context || self.uses_store_subs {
-                    (", $$props", transformed, imports, needs_wrapper)
-                } else {
-                    ("", transformed, imports, false)
-                }
+        let (
+            script_code,
+            hoisted_imports,
+            script_uses_props,
+            has_class_state_fields,
+            uses_props_spread,
+        ) = if let Some(script) = self.instance_script {
+            let start = script.content.start().unwrap_or(0) as usize;
+            let end = script.content.end().unwrap_or(0) as usize;
+            let raw_script = if end > start && end <= self.source.len() {
+                self.source[start..end].to_string()
             } else {
-                ("", String::new(), Vec::new(), false)
+                String::new()
             };
+
+            // First, remove $effect, $effect.pre, $effect.root, and $inspect.trace blocks
+            // These are client-side only and should not appear in SSR output
+            let raw_script = remove_effect_blocks(&raw_script);
+
+            // Check if script uses $props()
+            let uses_props = raw_script.contains("$props()");
+
+            // Check if class fields use $state or $derived runes
+            // This requires $$props and $$renderer.component() wrapper
+            let class_state_fields = raw_script.contains("class ")
+                && (raw_script.contains("= $state(") || raw_script.contains("= $derived("));
+
+            // Check if uses spread pattern: let props = $props() or let xxx = $props()
+            // This requires $$renderer.component() wrapper with destructuring
+            let props_spread = detect_props_spread_pattern(&raw_script);
+
+            // Extract imports and transform the rest
+            let (imports, rest) = extract_imports(&raw_script);
+
+            // Apply class field transformation for $derived fields
+            let rest = transform_class_fields_server(&rest);
+
+            let transformed = transform_script_content(&rest);
+
+            (
+                transformed,
+                imports,
+                uses_props,
+                class_state_fields,
+                props_spread,
+            )
+        } else {
+            (String::new(), Vec::new(), false, false, false)
+        };
+
+        // Determine if we need $$renderer.component() wrapper
+        // This matches the official compiler's should_inject_context logic
+        let should_inject_context = needs_context;
+        let needs_component_wrapper = should_inject_context
+            || uses_props_spread
+            || has_class_state_fields
+            || self.uses_store_subs;
+
+        // Determine if we need $$props parameter
+        // This matches the official compiler's should_inject_props logic
+        let should_inject_props = should_inject_context
+            || analysis_needs_props
+            || analysis_uses_props
+            || analysis_uses_rest_props
+            || analysis_uses_slots
+            || script_uses_props
+            || has_class_state_fields
+            || self.uses_store_subs;
+
+        let props_param = if should_inject_props { ", $$props" } else { "" };
 
         // Combine module imports and instance imports (module imports first)
         let all_imports: Vec<String> = module_imports.into_iter().chain(hoisted_imports).collect();

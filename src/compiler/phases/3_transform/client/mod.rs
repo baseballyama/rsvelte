@@ -903,10 +903,24 @@ fn transform_client_runes_with_skip_and_state(
     }
 
     // Transform $derived(x) to $.derived(() => x) or $.async_derived() for async
+    // Handle destructuring patterns specially
     if let Some(pos) = result.find("$derived(")
         && !result[..pos].ends_with("$") // Skip if already transformed to $.derived()
         && (result[..pos].contains("let ") || result[..pos].contains("const "))
     {
+        // Check if this is a destructuring pattern
+        let before_derived = result[..pos].trim();
+        let has_destructuring = before_derived.contains('{') || before_derived.contains('[');
+
+        if has_destructuring {
+            // Handle destructuring pattern for $derived
+            if let Some(transformed) =
+                transform_derived_destructuring(&result, state_vars, non_reactive_vars, proxy_vars)
+            {
+                return transformed;
+            }
+        }
+
         // Find the content inside $derived(...)
         let derived_start = pos + 9; // after "$derived("
         if let Some(content_end) = find_matching_paren(&result[derived_start..]) {
@@ -1006,6 +1020,230 @@ fn transform_client_runes_with_skip_and_state(
 }
 
 /// Transform `export let x = value` to `let x = $.prop($$props, 'x', 12, value)`.
+/// Transform `$derived()` with destructuring patterns.
+fn transform_derived_destructuring(
+    line: &str,
+    state_vars: &[String],
+    non_reactive_vars: &[String],
+    proxy_vars: &[String],
+) -> Option<String> {
+    let trimmed = line.trim();
+    let decl_keyword = if trimmed.starts_with("let ") {
+        "let"
+    } else if trimmed.starts_with("const ") {
+        "const"
+    } else {
+        return None;
+    };
+    let derived_pos = trimmed.find("$derived(")?;
+    let pattern_start = decl_keyword.len() + 1;
+    let eq_pos = trimmed[..derived_pos].rfind('=')?;
+    let pattern = trimmed[pattern_start..eq_pos].trim();
+    let source_start = derived_pos + 9;
+    let source_end = find_matching_paren(&trimmed[source_start..])?;
+    let source = trimmed[source_start..source_start + source_end].trim();
+    let source_is_identifier = source
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '_' || c == '$');
+    let mut declarations = Vec::new();
+    let mut array_counter = 0;
+    let wrapped_source = wrap_state_vars_in_expr(source, state_vars, non_reactive_vars, proxy_vars);
+    let base_expr = if source_is_identifier {
+        wrapped_source.clone()
+    } else {
+        declarations.push(format!("$$d = $.derived(() => {})", wrapped_source));
+        "$.get($$d)".to_string()
+    };
+    process_derived_destructuring_pattern(
+        pattern,
+        &base_expr,
+        &mut declarations,
+        &mut array_counter,
+    )?;
+    if declarations.is_empty() {
+        return None;
+    }
+    Some(format!("let {};", declarations.join(",\n\t")))
+}
+
+fn process_derived_destructuring_pattern(
+    pattern: &str,
+    base_expr: &str,
+    declarations: &mut Vec<String>,
+    array_counter: &mut usize,
+) -> Option<()> {
+    let pattern = pattern.trim();
+    if pattern.starts_with('{') && pattern.ends_with('}') {
+        let inner = &pattern[1..pattern.len() - 1];
+        process_derived_object_pattern(inner, base_expr, declarations, array_counter)
+    } else if pattern.starts_with('[') && pattern.ends_with(']') {
+        let inner = &pattern[1..pattern.len() - 1];
+        process_derived_array_pattern(inner, base_expr, declarations, array_counter)
+    } else {
+        None
+    }
+}
+
+fn process_derived_object_pattern(
+    inner: &str,
+    base_expr: &str,
+    declarations: &mut Vec<String>,
+    array_counter: &mut usize,
+) -> Option<()> {
+    let properties = split_derived_object_properties(inner);
+    for prop in properties {
+        let prop = prop.trim();
+        if prop.is_empty() {
+            continue;
+        }
+        if let Some(rest_name) = prop.strip_prefix("...") {
+            let rest_name = rest_name.trim();
+            declarations.push(format!(
+                "{} = $.derived(() => {{ /* TODO: rest element */ }})",
+                rest_name
+            ));
+            continue;
+        }
+        if let Some(colon_pos) = find_derived_property_colon(prop) {
+            let key = prop[..colon_pos].trim();
+            let value_pattern = prop[colon_pos + 1..].trim();
+            let prop_access = format!("{}.{}", base_expr, key);
+            if value_pattern.starts_with('[') || value_pattern.starts_with('{') {
+                process_derived_destructuring_pattern(
+                    value_pattern,
+                    &prop_access,
+                    declarations,
+                    array_counter,
+                )?;
+            } else {
+                declarations.push(format!(
+                    "{} = $.derived(() => {})",
+                    value_pattern, prop_access
+                ));
+            }
+        } else {
+            declarations.push(format!(
+                "{} = $.derived(() => {}.{})",
+                prop, base_expr, prop
+            ));
+        }
+    }
+    Some(())
+}
+
+fn process_derived_array_pattern(
+    inner: &str,
+    base_expr: &str,
+    declarations: &mut Vec<String>,
+    array_counter: &mut usize,
+) -> Option<()> {
+    let elements = split_derived_array_elements(inner);
+    let element_count = elements.len();
+    let array_var = if *array_counter == 0 {
+        "$$array".to_string()
+    } else {
+        format!("$$array_{}", array_counter)
+    };
+    *array_counter += 1;
+    declarations.push(format!(
+        "{} = $.derived(() => $.to_array({}, {}))",
+        array_var, base_expr, element_count
+    ));
+    for (index, element) in elements.iter().enumerate() {
+        let element = element.trim();
+        if element.is_empty() {
+            continue;
+        }
+        if let Some(rest_name) = element.strip_prefix("...") {
+            let rest_name = rest_name.trim();
+            declarations.push(format!(
+                "{} = $.derived(() => $.get({}).slice({}))",
+                rest_name, array_var, index
+            ));
+            continue;
+        }
+        let element_access = format!("$.get({})[{}]", array_var, index);
+        if element.starts_with('[') || element.starts_with('{') {
+            process_derived_destructuring_pattern(
+                element,
+                &element_access,
+                declarations,
+                array_counter,
+            )?;
+        } else {
+            declarations.push(format!("{} = $.derived(() => {})", element, element_access));
+        }
+    }
+    Some(())
+}
+
+fn split_derived_object_properties(inner: &str) -> Vec<String> {
+    let mut properties = Vec::new();
+    let mut current = String::new();
+    let mut depth = 0;
+    for c in inner.chars() {
+        match c {
+            '{' | '[' | '(' => {
+                depth += 1;
+                current.push(c);
+            }
+            '}' | ']' | ')' => {
+                depth -= 1;
+                current.push(c);
+            }
+            ',' if depth == 0 => {
+                if !current.trim().is_empty() {
+                    properties.push(current.trim().to_string());
+                }
+                current = String::new();
+            }
+            _ => current.push(c),
+        }
+    }
+    if !current.trim().is_empty() {
+        properties.push(current.trim().to_string());
+    }
+    properties
+}
+
+fn split_derived_array_elements(inner: &str) -> Vec<String> {
+    let mut elements = Vec::new();
+    let mut current = String::new();
+    let mut depth = 0;
+    for c in inner.chars() {
+        match c {
+            '{' | '[' | '(' => {
+                depth += 1;
+                current.push(c);
+            }
+            '}' | ']' | ')' => {
+                depth -= 1;
+                current.push(c);
+            }
+            ',' if depth == 0 => {
+                elements.push(current.clone());
+                current = String::new();
+            }
+            _ => current.push(c),
+        }
+    }
+    elements.push(current);
+    elements
+}
+
+fn find_derived_property_colon(prop: &str) -> Option<usize> {
+    let mut depth = 0;
+    for (i, c) in prop.char_indices() {
+        match c {
+            '{' | '[' | '(' => depth += 1,
+            '}' | ']' | ')' => depth -= 1,
+            ':' if depth == 0 => return Some(i),
+            _ => {}
+        }
+    }
+    None
+}
+
 fn transform_export_let(line: &str) -> String {
     let trimmed = line.trim();
 

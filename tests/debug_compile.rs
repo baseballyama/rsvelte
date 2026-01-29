@@ -672,4 +672,37 @@ let value = $state();
             },
         }
     }
+
+    #[test]
+    fn debug_derived_destructured() {
+        let source = r#"<script>
+  let stuff = $state({ foo: true, bar: [1, 2, {baz: 'baz'}] });
+  let { foo, bar: [a, b, { baz }]} = $derived(stuff);
+</script>
+
+{foo} {a} {b} {baz}"#;
+
+        let options = CompileOptions {
+            dev: false,
+            ..Default::default()
+        };
+
+        match compile(source, options) {
+            Ok(result) => {
+                println!(
+                    "\n=== COMPILED CLIENT OUTPUT ===\n{}\n=== END ===\n",
+                    result.js.code
+                );
+            }
+            Err(e) => match e {
+                svelte_compiler_rust::compiler::CompileError::Transform(ref transform_err) => {
+                    println!(
+                        "\n=== TRANSFORM ERROR ===\n{:?}\n=== END ===\n",
+                        transform_err
+                    );
+                }
+                _ => println!("\n=== ERROR ===\n{:?}\n=== END ===\n", e),
+            },
+        }
+    }
 }
