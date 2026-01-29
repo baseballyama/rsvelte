@@ -1215,6 +1215,8 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
 /// When the LHS is `props.a = ...` (direct property assignment on rest_prop),
 /// we DON'T transform `props` to `$$props`. But for deeper assignments like
 /// `props.a.b = ...`, we DO transform `props` to `$$props`.
+///
+/// Also applies reactive transformations ($.set()) for state variables.
 fn convert_assignment_expression(
     obj: &serde_json::Map<String, Value>,
     context: &mut ComponentContext,
@@ -1287,11 +1289,145 @@ fn convert_assignment_expression(
         .map(|r| Box::new(convert_json_value(r, context)))
         .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Null)));
 
+    // Get the raw right expression for should_proxy check
+    let right_json = obj.get("right");
+
+    // Try to apply reactive transformations for state variables
+    // This corresponds to the build_assignment logic in the official Svelte compiler
+    if let Some(transformed) =
+        try_transform_assignment(operator_str, &left, &right, right_json, context)
+    {
+        return transformed;
+    }
+
     JsExpr::Assignment(JsAssignmentExpression {
         operator,
         left,
         right,
     })
+}
+
+/// Try to apply reactive transformations to an assignment expression.
+///
+/// This function checks if the left-hand side is a reactive state variable
+/// and applies the appropriate transformation ($.set()).
+///
+/// Corresponds to `build_assignment` in the official Svelte compiler's
+/// `AssignmentExpression.js`.
+fn try_transform_assignment(
+    operator: &str,
+    left: &JsExpr,
+    right: &JsExpr,
+    right_json: Option<&Value>,
+    context: &mut ComponentContext,
+) -> Option<JsExpr> {
+    use crate::compiler::phases::phase3_transform::client::visitors::shared::assignment_helpers::build_assignment_value;
+    use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
+    // Extract the root identifier from the left-hand side
+    let root_name = extract_root_identifier_from_expr(left)?;
+
+    // Check if there's a transform for this identifier
+    let transform = context.state.transform.get(&root_name)?;
+
+    // Case: Reassignment (root identifier === left)
+    // If the left side is a simple identifier (not a member expression)
+    if let JsExpr::Identifier(name) = left
+        && name == &root_name
+        && let Some(assign_fn) = transform.assign
+    {
+        // Build the assignment value (expand compound operators)
+        let value = build_assignment_value(operator, left, right);
+
+        // Determine if proxy is needed
+        // Check skip_proxy flag on the transform (for $state.raw)
+        let skip_proxy = transform.skip_proxy;
+
+        // Determine if proxy is needed based on:
+        // 1. Not skipped (not $state.raw)
+        // 2. In runes mode
+        // 3. Non-coercive operator (=, ||=, &&=, ??=)
+        // 4. Right side should be proxied (not a primitive)
+        let needs_proxy = !skip_proxy
+            && context.state.analysis.runes
+            && is_non_coercive_operator(operator)
+            && should_proxy_value(right_json);
+
+        return Some(assign_fn(b::id(&root_name), value, needs_proxy));
+    }
+
+    // Case: Mutation (root identifier !== left, i.e., member expression assignment)
+    if let Some(mutate_fn) = transform.mutate {
+        // Build the mutation expression
+        let mutation_expr = b::assign_op(operator, left.clone(), right.clone());
+
+        return Some(mutate_fn(b::id(&root_name), mutation_expr));
+    }
+
+    None
+}
+
+/// Extract the root identifier name from a JsExpr.
+///
+/// Recursively walks down member expressions to find the leftmost identifier.
+fn extract_root_identifier_from_expr(expr: &JsExpr) -> Option<String> {
+    match expr {
+        JsExpr::Identifier(name) => Some(name.clone()),
+        JsExpr::Member(member) => extract_root_identifier_from_expr(&member.object),
+        JsExpr::Chain(chain) => extract_root_identifier_from_expr(&chain.expression),
+        _ => None,
+    }
+}
+
+/// Check if an assignment operator is non-coercive (=, ||=, &&=, ??=).
+///
+/// Non-coercive operators may require proxy wrapping for deep reactivity.
+fn is_non_coercive_operator(operator: &str) -> bool {
+    matches!(operator, "=" | "||=" | "&&=" | "??=")
+}
+
+/// Determines if a value should be wrapped in $.proxy() for deep reactivity.
+///
+/// Returns `false` for primitives, functions, and literals.
+/// Returns `true` for objects, arrays, and other reference types.
+fn should_proxy_value(value: Option<&Value>) -> bool {
+    let value = match value {
+        Some(v) => v,
+        None => return true, // Unknown, conservatively assume proxy needed
+    };
+
+    let obj = match value.as_object() {
+        Some(o) => o,
+        None => return false,
+    };
+
+    let node_type = match obj.get("type").and_then(|t| t.as_str()) {
+        Some(t) => t,
+        None => return true, // Unknown type, assume proxy needed
+    };
+
+    match node_type {
+        // Primitives don't need proxy
+        "Literal" => false,
+        // Functions don't need proxy
+        "ArrowFunctionExpression" | "FunctionExpression" => false,
+        // Unary and binary expressions result in primitives
+        "UnaryExpression" | "BinaryExpression" => false,
+        // Template literals are strings (primitives)
+        "TemplateLiteral" => false,
+        // `undefined` identifier doesn't need proxy
+        "Identifier" => {
+            if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
+                name == "undefined"
+            } else {
+                true
+            }
+        }
+        // Objects and arrays need proxy
+        "ObjectExpression" | "ArrayExpression" => true,
+        // Other expressions might need proxy (e.g., function calls that return objects)
+        _ => true,
+    }
 }
 
 /// Convert an UpdateExpression node.
