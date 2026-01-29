@@ -81,5 +81,6 @@ pub mod bind_directive;
 pub mod fragment;
 pub mod on_directive;
 pub mod svelte_boundary;
+pub mod svelte_head;
 pub mod transition_directive;
 pub mod use_directive;

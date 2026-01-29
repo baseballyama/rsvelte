@@ -118,6 +118,8 @@ impl<'a> ComponentContext<'a> {
 
             TemplateNode::SvelteBoundary(boundary) => self.visit_svelte_boundary(boundary),
 
+            TemplateNode::SvelteHead(head) => self.visit_svelte_head(head),
+
             // Other node types - TODO: implement
             _ => TransformResult::None,
         };
@@ -507,6 +509,12 @@ impl<'a> ComponentContext<'a> {
     ) -> TransformResult {
         use crate::compiler::phases::phase3_transform::client::visitors::svelte_boundary::svelte_boundary as visit_svelte_boundary_impl;
         visit_svelte_boundary_impl(boundary, self);
+        TransformResult::None
+    }
+
+    fn visit_svelte_head(&mut self, head: &crate::ast::template::SvelteElement) -> TransformResult {
+        use crate::compiler::phases::phase3_transform::client::visitors::svelte_head::svelte_head as visit_svelte_head_impl;
+        visit_svelte_head_impl(head, self);
         TransformResult::None
     }
 

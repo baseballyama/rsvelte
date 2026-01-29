@@ -332,6 +332,8 @@ pub fn normalize_js(js: &str) -> String {
         static ref MULTI_SPACE_HTML: Regex = Regex::new(r">\s{2,}<").unwrap();
         // Remove Svelte internal flag imports (legacy, async, tracing) - these depend on compile options
         static ref SVELTE_FLAGS_IMPORT: Regex = Regex::new(r#"import\s+['"]svelte/internal/flags/(legacy|async|tracing)['"];\s*"#).unwrap();
+        // Normalize $.head() hash values - these are implementation-specific
+        static ref HEAD_HASH: Regex = Regex::new(r"\$\.head\('[a-zA-Z0-9]+',").unwrap();
     }
 
     // Normalize variable suffixes
@@ -344,6 +346,9 @@ pub fn normalize_js(js: &str) -> String {
     // Remove Svelte internal flag imports (legacy, async, tracing)
     // These imports depend on compile options, not core compiler logic
     let result = SVELTE_FLAGS_IMPORT.replace_all(&result, "").to_string();
+
+    // Normalize $.head() hash values to a consistent value
+    let result = HEAD_HASH.replace_all(&result, "$.head('hash',").to_string();
 
     // Normalize whitespace at start of template literals containing HTML
     let result = TEMPLATE_HTML_WHITESPACE
