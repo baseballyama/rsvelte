@@ -640,4 +640,36 @@ let value = $state();
             },
         }
     }
+
+    #[test]
+    fn debug_svelte_element_snapshot() {
+        let source = std::fs::read_to_string(
+            "svelte/packages/svelte/tests/snapshot/samples/svelte-element/index.svelte",
+        )
+        .unwrap();
+
+        let options = CompileOptions {
+            filename: Some("svelte-element/index.svelte".to_string()),
+            dev: false,
+            ..Default::default()
+        };
+
+        match compile(&source, options) {
+            Ok(result) => {
+                println!(
+                    "\n=== COMPILED CLIENT OUTPUT ===\n{}\n=== END ===\n",
+                    result.js.code
+                );
+            }
+            Err(e) => match e {
+                svelte_compiler_rust::compiler::CompileError::Transform(ref transform_err) => {
+                    println!(
+                        "\n=== TRANSFORM ERROR ===\n{:?}\n=== END ===\n",
+                        transform_err
+                    );
+                }
+                _ => println!("\n=== ERROR ===\n{:?}\n=== END ===\n", e),
+            },
+        }
+    }
 }

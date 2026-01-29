@@ -166,21 +166,261 @@ impl<'a> ComponentContext<'a> {
         &mut self,
         elem: &crate::ast::template::SvelteDynamicElement,
     ) -> TransformResult {
+        use crate::ast::template::{
+            Attribute, ClassDirective, LetDirective, OnDirective, StyleDirective,
+            TransitionDirective, UseDirective,
+        };
         use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+        use crate::compiler::phases::phase3_transform::client::visitors::shared::element::build_attribute_effect;
+        use crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::process_children;
+        use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
+        use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
         use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+        use crate::compiler::phases::phase3_transform::utils::clean_nodes;
 
         // Add a comment node to the template for the anchor
         self.state.template.push_comment(None);
 
+        // Categorize attributes
+        let mut attributes: Vec<Attribute> = Vec::new();
+        let mut class_directives: Vec<ClassDirective> = Vec::new();
+        let mut style_directives: Vec<StyleDirective> = Vec::new();
+        let mut on_directives: Vec<OnDirective> = Vec::new();
+        let mut transition_directives: Vec<TransitionDirective> = Vec::new();
+        let mut use_directives: Vec<UseDirective> = Vec::new();
+        let mut let_directives: Vec<LetDirective> = Vec::new();
+
+        for attribute in &elem.attributes {
+            match attribute {
+                Attribute::Attribute(_) | Attribute::SpreadAttribute(_) => {
+                    attributes.push(attribute.clone());
+                }
+                Attribute::ClassDirective(dir) => {
+                    class_directives.push(dir.clone());
+                }
+                Attribute::StyleDirective(dir) => {
+                    style_directives.push(dir.clone());
+                }
+                Attribute::OnDirective(dir) => {
+                    on_directives.push(dir.clone());
+                }
+                Attribute::TransitionDirective(dir) => {
+                    transition_directives.push(dir.clone());
+                }
+                Attribute::UseDirective(dir) => {
+                    use_directives.push(dir.clone());
+                }
+                Attribute::LetDirective(dir) => {
+                    let_directives.push(dir.clone());
+                }
+                _ => {}
+            }
+        }
+
+        // Create a temporary inner state to collect statements for the callback
+        // These will be wrapped in the callback function for $.element
+        let element_id_name = self.state.memoizer.generate_id("$$element");
+        let anchor_id_name = "$$anchor".to_string();
+        let element_id = b::id(&element_id_name);
+
+        // Store the current node and create inner state vectors
+        let mut inner_init: Vec<JsStatement> = Vec::new();
+        let mut inner_update: Vec<JsStatement> = Vec::new();
+        let mut inner_after_update: Vec<JsStatement> = Vec::new();
+
+        // Check if there are use directives (affects how we handle on: directives)
+        let has_use = !use_directives.is_empty();
+
+        // Process OnDirectives
+        for on_directive in &on_directives {
+            // Save current node and temporarily set to element_id
+            let saved_node = self.state.node.clone();
+            self.state.node = element_id.clone();
+
+            if let TransformResult::Expression(event_call) = self.visit_on_directive(on_directive) {
+                if has_use {
+                    // If there's a use: directive, wrap in $.effect
+                    inner_init.push(b::stmt(b::call(
+                        b::member_path("$.effect"),
+                        vec![b::thunk(event_call)],
+                    )));
+                } else {
+                    inner_after_update.push(b::stmt(event_call));
+                }
+            }
+
+            // Restore node
+            self.state.node = saved_node;
+        }
+
+        // Process TransitionDirectives
+        for trans_directive in &transition_directives {
+            // Save current state
+            let saved_node = self.state.node.clone();
+            let saved_init_len = self.state.init.len();
+            let saved_after_update_len = self.state.after_update.len();
+
+            // Temporarily set node to element_id
+            self.state.node = element_id.clone();
+
+            transition_directive(trans_directive, self);
+
+            // Collect statements added by transition_directive
+            while self.state.init.len() > saved_init_len {
+                if let Some(stmt) = self.state.init.pop() {
+                    inner_init.insert(0, stmt);
+                }
+            }
+            while self.state.after_update.len() > saved_after_update_len {
+                if let Some(stmt) = self.state.after_update.pop() {
+                    inner_after_update.insert(0, stmt);
+                }
+            }
+
+            // Restore node
+            self.state.node = saved_node;
+        }
+
+        // Process UseDirectives (actions)
+        for use_dir in &use_directives {
+            // Save current state
+            let saved_node = self.state.node.clone();
+
+            // Temporarily set node to element_id
+            self.state.node = element_id.clone();
+
+            let stmt = use_directive(use_dir, self);
+            inner_init.push(stmt);
+
+            // Restore node
+            self.state.node = saved_node;
+        }
+
+        // Process attributes using build_attribute_effect (always use spread for svelte:element)
+        if !attributes.is_empty() || !class_directives.is_empty() || !style_directives.is_empty() {
+            // Save current state
+            let saved_node = self.state.node.clone();
+            let saved_init_len = self.state.init.len();
+            let saved_update_len = self.state.update.len();
+
+            // Temporarily set node to element_id
+            self.state.node = element_id.clone();
+
+            let css_hash = self.state.analysis.css.hash.clone();
+            build_attribute_effect(
+                &attributes,
+                &class_directives,
+                &style_directives,
+                self,
+                element_id.clone(),
+                &css_hash,
+            );
+
+            // Move statements added to context.state to inner state
+            while self.state.init.len() > saved_init_len {
+                if let Some(stmt) = self.state.init.pop() {
+                    inner_init.insert(0, stmt);
+                }
+            }
+            while self.state.update.len() > saved_update_len {
+                if let Some(stmt) = self.state.update.pop() {
+                    inner_update.insert(0, stmt);
+                }
+            }
+
+            // Restore node
+            self.state.node = saved_node;
+        }
+
+        // Process fragment (children)
+        let cleaned = clean_nodes(
+            None,
+            &elem.fragment.nodes,
+            &[],
+            &self.state.metadata.namespace,
+            self.state.scope,
+            self.state.analysis,
+            self.state.preserve_whitespace,
+            self.state.options.preserve_comments,
+        );
+
+        if !cleaned.trimmed.is_empty() {
+            // Save current state
+            let saved_node = self.state.node.clone();
+            let saved_init = std::mem::take(&mut self.state.init);
+            let saved_update = std::mem::take(&mut self.state.update);
+            let saved_after_update = std::mem::take(&mut self.state.after_update);
+
+            // Process children with element_id as the base node
+            process_children(
+                &cleaned.trimmed,
+                |is_text| {
+                    let mut args = vec![element_id.clone()];
+                    if is_text {
+                        args.push(b::boolean(true));
+                    }
+                    b::call(b::member_path("$.child"), args)
+                },
+                true, // is_element
+                self,
+            );
+
+            // Collect child statements
+            inner_init.extend(std::mem::take(&mut self.state.init));
+            inner_update.extend(std::mem::take(&mut self.state.update));
+            inner_after_update.extend(std::mem::take(&mut self.state.after_update));
+
+            // Restore state
+            self.state.init = saved_init;
+            self.state.update = saved_update;
+            self.state.after_update = saved_after_update;
+            self.state.node = saved_node;
+        }
+
+        // Build the callback body
+        let mut callback_body: Vec<JsStatement> = Vec::new();
+        callback_body.extend(inner_init);
+
+        // Add template_effect if there are update statements
+        if !inner_update.is_empty() {
+            callback_body.push(b::stmt(b::call(
+                b::member_path("$.template_effect"),
+                vec![b::arrow_block(vec![], inner_update)],
+            )));
+        }
+
+        callback_body.extend(inner_after_update);
+
         // Convert the tag expression
         let tag_expr = convert_expression(&elem.tag, self);
+        let get_tag = b::thunk(tag_expr);
 
-        // Build $.element(anchor, tag, false) call
-        // The third argument is whether it's an SVG element (we assume false for now)
-        let element_call = b::call(
-            b::member_path("$.element"),
-            vec![self.state.node.clone(), tag_expr, b::boolean(false)],
-        );
+        // Build $.element(...) call
+        // $.element(anchor, get_tag, is_svg_or_mathml, callback, namespace)
+        let is_svg_or_mathml = b::boolean(false); // TODO: Check metadata if available
+
+        let mut element_args = vec![self.state.node.clone(), get_tag, is_svg_or_mathml];
+
+        // Only add callback if there are statements in the body
+        if !callback_body.is_empty() {
+            let callback = b::arrow_block(
+                vec![
+                    b::id_pattern(&element_id_name),
+                    b::id_pattern(&anchor_id_name),
+                ],
+                callback_body,
+            );
+            element_args.push(callback);
+        }
+
+        // TODO: Add namespace argument if dynamic_namespace is present
+
+        let element_call = b::call(b::member_path("$.element"), element_args);
+
+        // Handle LetDirectives by wrapping in ExpressionStatements
+        for _let_dir in &let_directives {
+            // TODO: Implement LetDirective handling
+        }
 
         self.state.init.push(b::stmt(element_call));
 

@@ -127,9 +127,10 @@ fn convert_identifier(
             });
         }
 
-        // Only exported props need to be called as functions
-        // Non-exported props with defaults are accessed directly
-        if is_exported {
+        // Source props (with default value, reassigned, etc.) and exported props
+        // are defined via $.prop() which returns a getter function.
+        // They need to be called as functions to get their current value.
+        if is_source || is_exported {
             return JsExpr::Call(JsCallExpression {
                 callee: Box::new(JsExpr::Identifier(name)),
                 arguments: vec![],
