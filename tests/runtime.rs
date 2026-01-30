@@ -17,7 +17,9 @@ use common::{
     ensure_fixtures_exist, get_fixture_samples, load_fixture_output, normalize_js, svelte_path,
     write_actual_output,
 };
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
+use svelte_compiler_rust::{
+    CompileOptions, ExperimentalOptions, GenerateMode, compile, compiler::CssMode,
+};
 
 /// Load input from Svelte test suite.
 fn load_input(category: &str, sample_name: &str) -> Option<String> {
@@ -133,12 +135,16 @@ fn run_runtime_fixture_test(category: &str, fixture: &RuntimeFixture) -> TestRes
 
     let write_output = should_write_actual_output();
 
+    // Enable experimental.async for runtime-runes tests (matches fixture generation)
+    let use_async = category == "runtime-runes";
+
     // Test client-side compilation
     if let Some(expected_client) = &fixture.expected_client_js {
         let client_options = CompileOptions {
             generate: GenerateMode::Client,
             filename: Some("main.svelte".to_string()),
             css: CssMode::External,
+            experimental: ExperimentalOptions { r#async: use_async },
             // Let runes mode be auto-detected from source (matches official compiler behavior)
             ..Default::default()
         };
@@ -185,6 +191,7 @@ fn run_runtime_fixture_test(category: &str, fixture: &RuntimeFixture) -> TestRes
             generate: GenerateMode::Server,
             filename: Some("main.svelte".to_string()),
             css: CssMode::External,
+            experimental: ExperimentalOptions { r#async: use_async },
             // Let runes mode be auto-detected from source (matches official compiler behavior)
             ..Default::default()
         };
