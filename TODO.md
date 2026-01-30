@@ -2393,6 +2393,47 @@ $.template_effect(() => {
 9. `fix(transform): Add SSR hydration markers for snippet text nodes`
 10. `fix(transform): Build logical expressions for ||=, &&=, ??= operators`
 
+### 2026-01-30 セッション2
+
+**セッション再開 (2026-01-30 セッション2):**
+
+現在地: Phase C - Rust 実装
+目標: Runtime Runes 改善継続
+
+**テスト状況（セッション開始時）:**
+| メトリック | 値 |
+|-----------|-----|
+| Compiler Snapshot | 20/20 (100%) |
+| Runtime Runes Total | 272/737 (36.9%) |
+| Runtime Runes Client | 300/737 |
+| Runtime Runes Server | 500/737 |
+
+**完了タスク:**
+
+- [x] **C-096**: Spread 属性への $.get() 適用 ✅
+  - 対象: `src/compiler/phases/3_transform/client/visitors/shared/element.rs`
+  - 問題: `$.attribute_effect()` 内のスプレッド式で状態変数が `$.get()` でラップされない
+    - Expected: `$.attribute_effect(button, () => ({ ...$.get(obj) }));`
+    - Actual: `$.attribute_effect(button, () => ({ ...obj }));`
+  - 修正: `apply_transforms_to_expression()` をスプレッド式にも適用
+  - **結果**: Runtime Runes Total 272 → 274 (+2)
+  - **コミット**: `fix(transform): Apply state transforms to spread attributes in attribute_effect`
+
+**テスト状況（セッション2進行中）:**
+| メトリック | セッション開始 | 現在 | 差分 |
+|-----------|--------------|------|------|
+| Compiler Snapshot | 20/20 | 20/20 | 維持 ✅ |
+| Runtime Runes Total | 272/737 (36.9%) | **274/737 (37.2%)** | **+2** |
+| Runtime Runes Client | 300/737 | **302/737** | **+2** |
+| Runtime Runes Server | 500/737 | **500/737** | 維持 |
+
+**発見された残存問題:**
+| 問題カテゴリ | 影響テスト例 | 難易度 |
+|------------|-------------|--------|
+| 関数スプレッド最適化 | dynamic-spread-and-attribute-directive | 高（`$0` パラメータ + 関数配列） |
+| void 0 vs undefined | form-default-value-spread | 低 |
+| 空行フォーマット | 多数 | 低（正規化で対応可能） |
+
 **次のアクション:**
 1. Runtime Runes のさらなる改善（目標: 50%）
 2. 複雑な spread operator の `attribute_effect()` 署名修正
