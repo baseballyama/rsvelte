@@ -491,7 +491,10 @@ pub fn build_attribute_effect(
             Attribute::SpreadAttribute(spread) => {
                 // Convert the spread expression
                 let spread_expr = convert_expression(&spread.expression, context);
-                properties.push(b::spread(spread_expr));
+                // Apply transforms to handle state variables ($.get() wrapping)
+                let transformed_expr =
+                    super::utils::apply_transforms_to_expression(&spread_expr, context);
+                properties.push(b::spread(transformed_expr));
             }
             _ => {}
         }
