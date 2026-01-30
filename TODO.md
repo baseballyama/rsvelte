@@ -2438,3 +2438,59 @@ $.template_effect(() => {
 1. Runtime Runes のさらなる改善（目標: 50%）
 2. 複雑な spread operator の `attribute_effect()` 署名修正
 3. Server 側のさらなる改善
+
+---
+
+## 進捗ログ（2026-01-30）セッション3
+
+現在地: Phase C - Rust 実装
+目標: Runtime Runes 改善継続（目標: 50%）
+
+**完了タスク:**
+
+- [x] **C-098**: Render tag ネスト括弧パーサー修正 ✅
+  - 対象: `src/compiler/phases/1_parse/state/tag.rs`
+  - 問題: `{@render foo({ count })}` がオブジェクトリテラル内の `}` で切り詰められる
+    - 元のコード: `while self.current_char() != '}'` - 最初の `}` で停止
+    - 例: `foo({ count })` → `foo({ count` と解析されていた
+  - 修正: 括弧深度追跡を追加、文字列リテラル内の括弧をスキップ
+  - **コミット**: `fix(parse): Handle nested braces in render tag expressions`
+
+- [x] **C-099**: 非リアクティブ $state() の void 0 出力 ✅
+  - 対象: `src/compiler/phases/3_transform/client/mod.rs`
+  - 問題: `$state()` や `$state(undefined)` が `undefined` として出力される
+    - 期待: `let value = void 0;`
+    - 実際: `let value = undefined;`
+  - 修正: 空の $state() や explicit undefined を `void 0` に変換
+  - **コミット**: 上記と同時
+
+- [x] **C-100**: $.untrack/$.store_mutate 引数変換スキップ ✅
+  - 対象: `src/compiler/phases/3_transform/client/visitors/shared/utils.rs`
+  - 問題: `$.untrack($roomState)` が `$.untrack($roomState())` に変換される
+    - `store_sub_read` 変換が $.untrack 内でも適用されていた
+  - 修正: `is_svelte_runtime_skip_args_transform()` で $.untrack/$.store_mutate を検出
+  - **コミット**: 上記と同時
+
+**テスト状況（セッション終了時）:**
+| メトリック | セッション開始 | 現在 | 差分 |
+|-----------|--------------|------|------|
+| Runtime Runes Total | 276/737 (37.4%) | 276/737 (37.4%) | 維持 |
+
+**発見された新しい問題:**
+| 問題カテゴリ | 影響テスト例 | 難易度 |
+|------------|-------------|--------|
+| スニペットパラメータ分解構文 | snippet-argument-destructured | 中 |
+| - 期待: `($$anchor, { count } = $.noop)` | | |
+| - 実際: `($$anchor, {...} = $.noop)` | | |
+
+**分析結果 - Quick Wins:**
+1. ✅ void 0 vs undefined - 修正済み
+2. ✅ render tag nested braces - 修正済み
+3. スニペットパラメータ分解構文 - 次の優先
+4. form element default value handling - 中優先
+5. derived state wrapping for props - 中優先
+
+**次のアクション:**
+1. スニペットパラメータ分解構文の修正（`{...}` → actual pattern）
+2. form element default value handling の修正
+3. Runtime Runes 50% への継続的改善
