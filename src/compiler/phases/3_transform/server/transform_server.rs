@@ -2763,10 +2763,6 @@ export default function {component_name}($$renderer{props_param}) {{
                     has_prior_content: _,
                     children: _, // TODO: Handle children for components with bindings
                 } => {
-                    // Don't flush whitespace-only HTML before component with bindings
-                    // It will be absorbed into the do/while pattern
-                    current_html.clear();
-
                     // Generate $$settled and $$inner_renderer
                     body_code.push_str(&format!("{}let $$settled = true;\n", indent));
                     body_code.push_str(&format!("{}let $$inner_renderer;\n\n", indent));
@@ -2776,6 +2772,15 @@ export default function {component_name}($$renderer{props_param}) {{
                         "{}function $$render_inner($$renderer) {{\n",
                         indent
                     ));
+
+                    // Flush any prior HTML content inside $$render_inner (e.g., button before component)
+                    if !current_html.is_empty() {
+                        body_code.push_str(&format!(
+                            "{}\t$$renderer.push(`{}`);\n",
+                            indent, current_html
+                        ));
+                        current_html.clear();
+                    }
 
                     // Generate component call - use $.spread_props if spreads exist
                     if !spreads.is_empty() {
