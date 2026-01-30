@@ -2640,7 +2640,36 @@ $.template_effect(() => {
 9. `fix(test): Add test normalizations for root variable suffix, function names, and marker functions`
 10. `fix(transform): Add word boundary check for state variable assignments`
 
+**追加完了タスク（セッション4継続3）:**
+
+- [x] **C-110**: 論理代入演算子 (`??=`, `&&=`, `||=`) サポート ✅
+  - 対象: `mod.rs`
+  - 問題: `a1 ??= true` が `$.get(a1) ??= true` に誤変換（代入不可）
+  - 修正: 論理代入演算子のパターンマッチを追加
+  - **結果**: Total +1 (279 → 280), Client +1 (312 → 313)
+  - **コミット**: `fix(transform): Add support for logical assignment operators (??=, &&=, ||=)`
+
+**試行したがリグレッションのため取り消し:**
+- TypeScript non-null assertion stripping（リグレッション発生）
+- Update expression transformation（リグレッション発生）
+
+**テスト状況（セッション4継続3 最終）:**
+| メトリック | セッション開始 | セッション終了 | 差分 |
+|-----------|--------------|---------------|------|
+| Compiler Snapshot | 20/20 | 20/20 | 維持 ✅ |
+| Runtime Runes Total | 276/737 (37.4%) | **280/737 (38.0%)** | **+4 (+0.6%)** |
+| Runtime Runes Client | 302/737 | **313/737** | **+11** |
+| Runtime Runes Server | 500/737 | **504/737** | **+4** |
+
+**分析結果（失敗パターン）:**
+| パターン | 影響テスト数 | 難易度 | 状態 |
+|---------|------------|--------|------|
+| TypeScript 構文 (!) | 50-80 | 高（リグレッション発生）| 保留 |
+| 分解パターン | 30-50 | 中 | 未着手 |
+| ++/-- 変換 | 20-30 | 高（リグレッション発生）| 保留 |
+| テキストノード代入 | 20-40 | 中 | 未着手 |
+
 **次のアクション:**
-1. `snippet-dynamic-children` 等の複雑なスニペット問題修正
-2. Runtime Runes 40%+ 達成
-3. 残りの Quick Wins 実装
+1. より慎重なアプローチでの TypeScript/Update 修正
+2. `snippet-dynamic-children` 等の複雑なスニペット問題修正
+3. Runtime Runes 40%+ 達成
