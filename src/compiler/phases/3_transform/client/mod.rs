@@ -948,8 +948,13 @@ fn transform_client_runes_with_skip_and_state(
                         );
                     } else {
                         // Primitives - just extract the value
+                        // Empty $state() should become "void 0" (not "undefined")
+                        // to match the official Svelte compiler output
                         let extracted_value = if trimmed_content.is_empty() {
-                            "undefined"
+                            "void 0"
+                        } else if trimmed_content == "undefined" {
+                            // Explicit undefined should also become void 0
+                            "void 0"
                         } else {
                             content
                         };

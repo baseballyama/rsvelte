@@ -1108,9 +1108,42 @@ impl Parser<'_> {
             "render" => {
                 // {@render snippet(...)}
                 let expr_start = self.index;
-                while !self.is_eof() && self.current_char() != '}' {
+
+                // Track bracket depth to handle nested braces in expressions
+                // e.g., {@render foo({ count })} - need to skip the inner `}` of the object
+                let mut depth = 1; // We're already inside the opening `{` of the tag
+                while !self.is_eof() {
+                    let ch = self.current_char();
+                    match ch {
+                        '{' => depth += 1,
+                        '}' => {
+                            depth -= 1;
+                            if depth == 0 {
+                                break;
+                            }
+                        }
+                        // Skip string literals to avoid counting braces inside strings
+                        '"' | '\'' | '`' => {
+                            let quote = ch;
+                            self.advance();
+                            let mut escaped = false;
+                            while !self.is_eof() {
+                                let c = self.current_char();
+                                if escaped {
+                                    escaped = false;
+                                } else if c == '\\' {
+                                    escaped = true;
+                                } else if c == quote {
+                                    break;
+                                }
+                                self.advance();
+                            }
+                        }
+                        _ => {}
+                    }
                     self.advance();
                 }
+
                 let expr_content = &self.source[expr_start..self.index];
                 self.advance(); // consume '}'
 

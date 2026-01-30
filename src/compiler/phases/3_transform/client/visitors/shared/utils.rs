@@ -59,6 +59,10 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
             // as the first argument that should NOT be transformed with $.get()
             let is_svelte_set_call = is_svelte_runtime_set_call(&call.callee);
 
+            // Check if this is a function that should skip all argument transformations
+            // (e.g., $.untrack, $.store_mutate - these have pre-constructed arguments)
+            let skip_args_transform = is_svelte_runtime_skip_args_transform(&call.callee);
+
             // Apply transforms to callee and arguments
             let transformed_callee = apply_transforms_to_expression(&call.callee, context);
             let transformed_args: Vec<JsExpr> = call
@@ -66,9 +70,10 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
                 .iter()
                 .enumerate()
                 .map(|(i, arg)| {
-                    // Skip transforming the first argument of $.set(), $.update(), $.update_pre()
-                    // These take a state reference directly, not a $.get() wrapped value
-                    if is_svelte_set_call && i == 0 {
+                    // Skip transforming arguments that shouldn't have transforms applied:
+                    // 1. ALL arguments of $.untrack(), $.store_mutate(), etc.
+                    // 2. First argument of $.set(), $.update(), $.update_pre() (state reference)
+                    if skip_args_transform || (is_svelte_set_call && i == 0) {
                         arg.clone()
                     } else {
                         apply_transforms_to_expression(arg, context)
@@ -476,6 +481,22 @@ fn is_svelte_runtime_set_call(callee: &JsExpr) -> bool {
         && let JsMemberProperty::Identifier(prop_name) = &member.property
     {
         return matches!(prop_name.as_str(), "set" | "update" | "update_pre");
+    }
+    false
+}
+
+/// Check if a callee expression represents a Svelte runtime function that should
+/// skip transformation of ALL its arguments (e.g., $.untrack, $.store_mutate).
+///
+/// - `$.untrack()` takes a getter function that should not be invoked
+/// - `$.store_mutate()` has pre-constructed arguments with $.untrack() calls
+fn is_svelte_runtime_skip_args_transform(callee: &JsExpr) -> bool {
+    if let JsExpr::Member(member) = callee
+        && let JsExpr::Identifier(obj_name) = member.object.as_ref()
+        && obj_name == "$"
+        && let JsMemberProperty::Identifier(prop_name) = &member.property
+    {
+        return matches!(prop_name.as_str(), "untrack" | "store_mutate");
     }
     false
 }

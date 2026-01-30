@@ -948,4 +948,23 @@ const counter = new Counter();
             code
         );
     }
+
+    /// Test that render tags with object arguments compile correctly.
+    #[test]
+    fn test_render_tag_with_object_arg() {
+        // Use the exact same source as the fixture
+        let source = "<script>\n\tlet count = $state(0);\n</script>\n\n{#snippet foo({ count })}\n\t<p>clicks: {count}</p>\n{/snippet}\n\n{@render foo({ count })}\n\n<button on:click={() => count += 1}>\n\tclick me\n</button>\n";
+
+        let options = CompileOptions {
+            dev: false,
+            ..Default::default()
+        };
+
+        let result = compile(source, options);
+        assert!(
+            result.is_ok(),
+            "Compilation should succeed: {:?}",
+            result.err()
+        );
+    }
 }
