@@ -233,9 +233,10 @@ fn process_destructured_pattern(
 
                                 let needs_derived = has_default.unwrap_or(false);
 
-                                // Create: let key = needs_derived ? $.derived_safe_equal(...) : () => $$arg?.key
-                                let access_expr =
-                                    b::member_path(&format!("{}?.{}", arg_alias, key_name));
+                                // Create: let key = needs_derived ? $.derived_safe_equal(...) : () => $$arg?.().key
+                                // The snippet parameter is passed as a thunk, so we need to call it first
+                                let call_expr = b::optional_call(b::id(arg_alias), vec![]);
+                                let access_expr = b::member(call_expr, key_name);
                                 let fn_expr = b::thunk(access_expr);
 
                                 let decl = if needs_derived {

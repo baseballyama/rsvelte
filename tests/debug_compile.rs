@@ -966,5 +966,22 @@ const counter = new Counter();
             "Compilation should succeed: {:?}",
             result.err()
         );
+
+        let output = result.unwrap().js.code;
+
+        // Verify key patterns in the output
+        // 1. Snippet should use $$arg0 parameter
+        assert!(output.contains("$$arg0"), "Should use $$arg0 as parameter");
+        // 2. Should create a getter that calls $$arg0 as a function: $$arg0?.().count
+        assert!(
+            output.contains("$$arg0?.().count"),
+            "Should call $$arg0 as a function before accessing property: {}",
+            output
+        );
+        // 3. The snippet body should use count() to call the getter
+        assert!(
+            output.contains("count()"),
+            "Should call count() as a getter function"
+        );
     }
 }
