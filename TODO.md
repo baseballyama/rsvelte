@@ -2698,12 +2698,44 @@ $.template_effect(() => {
 
 **着手タスク:**
 
-- [ ] **C-111**: フォーム reset input の value 属性保持
-  - 対象: `src/compiler/phases/3_transform/client/`
-  - 問題: `<input type="reset" value="Reset"/>` から `value` 属性が欠落し、HTML テンプレートに含まれない
-  - 修正: reset ボタンの value 属性をテンプレートに保持する
+- [x] **C-111**: フォーム reset input の value 属性保持 ✅
+  - 対象: `src/compiler/phases/3_transform/client/visitors/regular_element.rs`
+  - 問題: `<input type="reset" value="Reset"/>` から `value` 属性が欠落
+  - 原因: `cannot_be_set_statically()` が公式コンパイラより多くの属性を除外していた
+  - 修正: `cannot_be_set_statically()` を公式コンパイラに合わせて4属性のみに修正
+    - Before: `value`, `checked`, `selected`, `innerHTML`, `innerText`, `textContent`, `autofocus`, `muted`, `defaultValue`, `defaultChecked`
+    - After: `autofocus`, `muted`, `defaultValue`, `defaultChecked`
+  - **コミット**: `fix(transform): Align cannot_be_set_statically with official Svelte compiler`
+  - 結果: `<input type="reset" value="Reset"/>` が正しくテンプレートに含まれるように
 
 - [ ] **C-112**: Select option の $.set_selected() 実行タイミング修正
   - 対象: `src/compiler/phases/3_transform/client/`
   - 問題: `$.set_selected()` が初期化から `template_effect()` 内に遅延
-  - 修正: 初期化フェーズでの即時実行に変更
+  - 修正試行: `has_reactive_state_json` で既知の初期値を持つ $state を非リアクティブ扱い
+  - 結果: **副作用が大きく取り消し**（280→273、-7テスト後退）
+    - EachItem 等の他のリアクティブバインディングに影響
+  - 状態: 別のアプローチが必要
+
+**テスト状況（セッション1終了時）:**
+| メトリック | セッション開始 | セッション終了 | 差分 |
+|-----------|--------------|---------------|------|
+| Compiler Snapshot | 20/20 (100%) | 20/20 (100%) | 維持 ✅ |
+| Runtime Runes Total | 280/737 (38.0%) | 280/737 (38.0%) | 維持 |
+| Runtime Runes Client | 313/737 | 313/737 | 維持 |
+| Runtime Runes Server | 504/737 | 504/737 | 維持 |
+
+**本日のコミット:**
+1. `fix(transform): Align cannot_be_set_statically with official Svelte compiler`
+
+**分析結果（今後の参考）:**
+| 問題 | 影響テスト数 | 難易度 | 状態 |
+|------|------------|--------|------|
+| `$.set_selected()` タイミング | 中 | 高（副作用注意）| 未解決 |
+| Dynamic spread extraction | 50+ | 中 | 未着手 |
+| Snippet/Slot template | 80+ | 高 | 未着手 |
+| 空白行正規化 | 低（正規化済み）| 低 | 対応不要 |
+
+**次のアクション:**
+1. C-112 は慎重なアプローチが必要（特定の binding kind のみを対象に）
+2. Dynamic spread extraction の実装を検討
+3. Snippet/Slot template 生成の改善
