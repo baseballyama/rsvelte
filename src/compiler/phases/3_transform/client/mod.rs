@@ -3128,8 +3128,21 @@ fn transform_class_fields_client(script: &str) -> String {
             continue;
         }
 
+        // Check for $state.raw field first (must check before $state to avoid false match)
+        // $state.raw() should NOT get $.proxy() wrapping
+        if trimmed.contains("= $state.raw(") || trimmed.contains("=$state.raw(") {
+            if let Some(field) = parse_state_field(trimmed, "$state.raw") {
+                fields.push(field);
+            }
+        }
+        // Check for $state.frozen field (similar to $state.raw)
+        else if trimmed.contains("= $state.frozen(") || trimmed.contains("=$state.frozen(") {
+            if let Some(field) = parse_state_field(trimmed, "$state.frozen") {
+                fields.push(field);
+            }
+        }
         // Check for $state field: name = $state(...) or #name = $state(...)
-        if trimmed.contains("= $state(") || trimmed.contains("=$state(") {
+        else if trimmed.contains("= $state(") || trimmed.contains("=$state(") {
             if let Some(field) = parse_state_field(trimmed, "$state") {
                 fields.push(field);
             }
@@ -3168,10 +3181,20 @@ fn transform_class_fields_client(script: &str) -> String {
         let private_name = format!("#{}", field.private_backing_name);
 
         if field.rune_type == "$state" {
-            // Transform $state: #name = $.state(value)
+            // Transform $state: #name = $.state(value) or $.state($.proxy(value)) for objects/arrays
+            // Check if the value needs $.proxy() wrapping
+            let value_trimmed = field.value.trim();
+            let needs_proxy = !value_trimmed.is_empty() && expression_needs_proxy(value_trimmed);
+
+            let wrapped_value = if needs_proxy {
+                format!("$.proxy({})", field.value)
+            } else {
+                field.value.clone()
+            };
+
             new_class_body.push_str(&format!(
                 "\t\t{} = $.state({});\n",
-                private_name, field.value
+                private_name, wrapped_value
             ));
 
             // Add getter/setter only for public fields
@@ -3184,6 +3207,28 @@ fn transform_class_fields_client(script: &str) -> String {
                 new_class_body.push('\n');
                 new_class_body.push_str(&format!(
                     "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value, true);\n\t\t}}\n",
+                    field.name, private_name
+                ));
+            }
+        } else if field.rune_type == "$state.raw" || field.rune_type == "$state.frozen" {
+            // Transform $state.raw/$state.frozen: #name = $.state(value) - NO $.proxy() wrapping
+            // These runes explicitly opt out of deep reactivity
+            new_class_body.push_str(&format!(
+                "\t\t{} = $.state({});\n",
+                private_name, field.value
+            ));
+
+            // Add getter/setter only for public fields
+            // Note: setter should NOT have the third argument (true) for raw state
+            if !field.is_private {
+                new_class_body.push('\n');
+                new_class_body.push_str(&format!(
+                    "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
+                    field.name, private_name
+                ));
+                new_class_body.push('\n');
+                new_class_body.push_str(&format!(
+                    "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}\n",
                     field.name, private_name
                 ));
             }

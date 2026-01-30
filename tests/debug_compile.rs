@@ -812,4 +812,101 @@ let name = 'world';
             "Should not have template literal with 'name' variable"
         );
     }
+
+    #[test]
+    fn test_class_field_state_proxy_wrapping() {
+        // Test that $state() with object/array literals in class fields gets $.proxy() wrapping
+        let source = r#"<script>
+class Counter {
+    #a = $state();
+    #b = $state({ val: -1 });
+    #c = $state([1, 2, 3]);
+    #d = $state(42);
+}
+const counter = new Counter();
+</script>
+
+<p>{counter}</p>"#;
+
+        let options = CompileOptions {
+            dev: false,
+            ..Default::default()
+        };
+
+        let result = compile(source, options).expect("Compilation should succeed");
+        let code = result.js.code;
+
+        // Object literal should be wrapped with $.proxy()
+        assert!(
+            code.contains("$.state($.proxy({ val: -1 }))"),
+            "Object literal should be wrapped with $.proxy(): {}",
+            code
+        );
+
+        // Array literal should be wrapped with $.proxy()
+        assert!(
+            code.contains("$.state($.proxy([1, 2, 3]))"),
+            "Array literal should be wrapped with $.proxy(): {}",
+            code
+        );
+
+        // Primitive should NOT be wrapped with $.proxy()
+        assert!(
+            code.contains("$.state(42)"),
+            "Primitive should not have $.proxy() wrapper: {}",
+            code
+        );
+        assert!(
+            !code.contains("$.proxy(42)"),
+            "Primitive 42 should not be wrapped with $.proxy()"
+        );
+
+        // Empty $state() should NOT be wrapped with $.proxy()
+        assert!(
+            code.contains("#a = $.state();") || code.contains("#a = $.state()"),
+            "Empty $state() should not have $.proxy() wrapper: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_class_field_state_raw_no_proxy() {
+        // Test that $state.raw() in class fields does NOT get $.proxy() wrapping
+        let source = r#"<script>
+class Counter {
+    count = $state.raw(0);
+    obj = $state.raw({ val: 1 });
+}
+const counter = new Counter();
+</script>
+
+<p>{counter.count}</p>"#;
+
+        let options = CompileOptions {
+            dev: false,
+            ..Default::default()
+        };
+
+        let result = compile(source, options).expect("Compilation should succeed");
+        let code = result.js.code;
+
+        // Primitive should NOT be wrapped with $.proxy()
+        assert!(
+            code.contains("$.state(0)"),
+            "Primitive in $state.raw() should become $.state(0): {}",
+            code
+        );
+
+        // Object in $state.raw() should NOT be wrapped with $.proxy()
+        assert!(
+            code.contains("$.state({ val: 1 })"),
+            "Object in $state.raw() should NOT have $.proxy() wrapper: {}",
+            code
+        );
+        assert!(
+            !code.contains("$.proxy({ val: 1 })"),
+            "$state.raw() should never use $.proxy(): {}",
+            code
+        );
+    }
 }
