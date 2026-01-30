@@ -1903,6 +1903,43 @@ fn transform_state_assignments(
             }
         }
 
+        // Transform logical assignment operators: varname ??= expr to $.set(varname, $.get(varname) ?? (expr))
+        // These operators have two-character prefixes before the '='
+        for (op, op_without_eq) in &[("??=", "??"), ("&&=", "&&"), ("||=", "||")] {
+            let pattern = format!("{} {}", var, op);
+            if let Some(pos) = result.find(&pattern) {
+                // Skip if this is a member expression (e.g., this.count ??=, obj.prop ??=)
+                let before = &result[..pos];
+                if before.ends_with('.') {
+                    continue;
+                }
+
+                // Skip if preceded by an identifier character (not a word boundary)
+                // This prevents matching "reactive" inside "nonreactive"
+                if !before.is_empty() && is_identifier_char(before.chars().last().unwrap()) {
+                    continue;
+                }
+
+                let after = &result[pos + pattern.len()..];
+                // Find the expression (until ; or end, respecting nested braces)
+                let expr_end = find_statement_end_client(after);
+                let expr = after[..expr_end].trim();
+                // Wrap state variables in the expression with $.get()
+                let wrapped_expr =
+                    wrap_state_vars_in_expr(expr, state_vars, non_reactive_vars, proxy_vars);
+                let replacement = format!(
+                    "$.set({}, $.get({}) {} ({}))",
+                    var, var, op_without_eq, wrapped_expr
+                );
+                result = format!(
+                    "{}{}{}",
+                    &result[..pos],
+                    replacement,
+                    &result[pos + pattern.len() + expr_end..]
+                );
+            }
+        }
+
         // Transform simple assignment: varname = expr to $.set(varname, expr)
         // But not if it's a declaration (let/const/var varname = ...)
         // Use a loop to handle multiple assignments of the same variable in one statement
