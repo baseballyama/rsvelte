@@ -974,38 +974,109 @@ impl Memoizer {
         }
     }
 
-    /// Add an expression to be memoized.
+    /// Add an expression to be memoized for component props.
+    ///
+    /// Corresponds to `Memoizer.add()` in the official Svelte compiler.
+    /// When expressions are memoized, they get wrapped in `$.derived()` and
+    /// the getter returns `$.get($N)` instead of the original expression.
     ///
     /// # Arguments
     ///
     /// * `expression` - The expression to memoize
     /// * `has_call` - Whether the expression contains a function call
     /// * `has_await` - Whether the expression contains await
+    /// * `memoize_if_state` - If true, memoize when expression has state
     /// * `has_state` - Whether the expression references reactive state
-    /// * `force_wrap` - Force wrapping even for simple expressions
     ///
     /// # Returns
     ///
-    /// Returns the memoized expression (which might be the original if no memoization is needed).
+    /// Returns the memoized identifier if memoization is needed, or the original expression.
     pub fn add(
         &mut self,
         expression: JsExpr,
         has_call: bool,
         has_await: bool,
+        memoize_if_state: bool,
         has_state: bool,
-        force_wrap: bool,
     ) -> JsExpr {
-        // For now, simple implementation that doesn't actually memoize
-        // In full implementation, this would generate $.memoize() calls
+        use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 
-        // If the expression is simple and doesn't need memoization, return as-is
-        if !has_call && !has_await && !has_state && !force_wrap {
+        // Determine if we need to memoize
+        // This matches the official Svelte logic:
+        // should_memoize = has_call || has_await || (memoize_if_state && has_state)
+        let should_memoize = has_call || has_await || (memoize_if_state && has_state);
+
+        if !should_memoize {
             return expression;
         }
 
-        // TODO: Implement actual memoization logic
-        // For now, just return the expression
-        expression
+        // Calculate the index for this memoized expression
+        // Sync expressions come first, then async expressions
+        let idx = if has_await {
+            self.sync.len() + self.async_entries.len()
+        } else {
+            self.sync.len()
+        };
+
+        // Create the identifier with the correct name ($0, $1, etc.)
+        let name = format!("${}", idx);
+        let id = b::id(&name);
+
+        let entry = MemoEntry {
+            id: id.clone(),
+            expression,
+        };
+
+        if has_await {
+            self.async_entries.push(entry);
+        } else {
+            self.sync.push(entry);
+        }
+
+        id
+    }
+
+    /// Generate the `let $N = $.derived(...)` statements for memoized expressions.
+    ///
+    /// Corresponds to `Memoizer.deriveds()` in the official Svelte compiler.
+    ///
+    /// # Arguments
+    ///
+    /// * `runes` - Whether to use runes mode ($.derived vs $.derived_safe_equal)
+    ///
+    /// # Returns
+    ///
+    /// Returns a vector of `let $N = $.derived(() => expr)` statements.
+    pub fn deriveds(&self, runes: bool) -> Vec<JsStatement> {
+        use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
+        self.sync
+            .iter()
+            .map(|memo| {
+                let derived_fn = if runes {
+                    "$.derived"
+                } else {
+                    "$.derived_safe_equal"
+                };
+                // Extract the identifier name from the JsExpr::Identifier
+                let name = match &memo.id {
+                    JsExpr::Identifier(n) => n.clone(),
+                    _ => "$memo".to_string(),
+                };
+                b::let_decl(
+                    &name,
+                    Some(b::call(
+                        b::member_path(derived_fn),
+                        vec![b::thunk(memo.expression.clone())],
+                    )),
+                )
+            })
+            .collect()
+    }
+
+    /// Check if there are any sync memoized expressions that need to be output.
+    pub fn has_deriveds(&self) -> bool {
+        !self.sync.is_empty()
     }
 
     /// Add an expression to be memoized for template effects.
@@ -1401,12 +1472,51 @@ mod tests {
         let mut memoizer = Memoizer::new();
         let expr = JsExpr::Literal(JsLiteral::String("test".to_string()));
 
+        // No memoization needed for simple expressions with no flags
+        // add(expression, has_call, has_await, memoize_if_state, has_state)
         let result = memoizer.add(expr.clone(), false, false, false, false);
 
-        // Should return the same expression for simple cases
+        // Should return the same expression for simple cases (no memoization)
         match result {
             JsExpr::Literal(JsLiteral::String(s)) => assert_eq!(s, "test"),
             _ => panic!("Expected string literal"),
+        }
+    }
+
+    #[test]
+    fn test_memoizer_memoize_if_state() {
+        let mut memoizer = Memoizer::new();
+        let expr = JsExpr::Literal(JsLiteral::String("test".to_string()));
+
+        // memoize_if_state=true but has_state=false should NOT memoize
+        let result = memoizer.add(expr.clone(), false, false, true, false);
+        match result {
+            JsExpr::Literal(JsLiteral::String(s)) => assert_eq!(s, "test"),
+            _ => panic!("Expected string literal, got {:?}", result),
+        }
+
+        // memoize_if_state=true AND has_state=true SHOULD memoize
+        let result = memoizer.add(expr.clone(), false, false, true, true);
+        match result {
+            JsExpr::Identifier(name) => assert_eq!(name, "$0"),
+            _ => panic!("Expected identifier $0, got {:?}", result),
+        }
+
+        // Check that deriveds() produces the correct output
+        let deriveds = memoizer.deriveds(true);
+        assert_eq!(deriveds.len(), 1);
+    }
+
+    #[test]
+    fn test_memoizer_has_call() {
+        let mut memoizer = Memoizer::new();
+        let expr = JsExpr::Literal(JsLiteral::String("test".to_string()));
+
+        // has_call=true should always memoize, regardless of other flags
+        let result = memoizer.add(expr.clone(), true, false, false, false);
+        match result {
+            JsExpr::Identifier(name) => assert_eq!(name, "$0"),
+            _ => panic!("Expected identifier $0, got {:?}", result),
         }
     }
 

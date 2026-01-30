@@ -60,6 +60,8 @@ pub fn build_component(
     component_name: String,
     context: &mut ComponentContext,
 ) -> JsStatement {
+    use crate::compiler::phases::phase3_transform::client::types::Memoizer;
+
     let anchor = context.state.node.clone();
 
     let mut props_and_spreads: Vec<PropsEntry> = Vec::new();
@@ -72,6 +74,10 @@ pub fn build_component(
     let mut snippet_declarations: Vec<JsStatement> = Vec::new();
     let mut serialized_slots: Vec<JsObjectMember> = Vec::new();
     let mut has_children_prop = false;
+
+    // Create a local memoizer for this component's props
+    // This stores expressions that need to be wrapped in $.derived()
+    let mut memoizer = Memoizer::new();
 
     // Determine if component is dynamic
     let is_component_dynamic = match &node {
@@ -138,6 +144,7 @@ pub fn build_component(
                     context,
                     &mut props_and_spreads,
                     &mut custom_css_props,
+                    &mut memoizer,
                 );
             }
 
@@ -291,8 +298,8 @@ pub fn build_component(
     let mut statements: Vec<JsStatement> = Vec::new();
     statements.extend(snippet_declarations);
 
-    // Add memoized deriveds
-    // TODO: Add memoizer.deriveds() when memoizer is fully implemented
+    // Add memoized deriveds (let $0 = $.derived(() => ...) statements)
+    statements.extend(memoizer.deriveds(context.state.analysis.runes));
 
     // Build the component instantiation
     if !custom_css_props.is_empty() {
@@ -457,6 +464,7 @@ fn process_regular_attribute(
     context: &mut ComponentContext,
     props_and_spreads: &mut Vec<PropsEntry>,
     custom_css_props: &mut Vec<JsObjectMember>,
+    memoizer: &mut crate::compiler::phases::phase3_transform::client::types::Memoizer,
 ) {
     use crate::compiler::phases::phase3_transform::client::types::ExpressionMetadata;
     use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_expression;
@@ -471,19 +479,55 @@ fn process_regular_attribute(
         return;
     }
 
-    // Build attribute value with state transform application
-    let result = build_attribute_value(&attr.value, context, |value, _metadata| {
-        // Note: We can't call build_expression here because the closure takes context by mutable ref
-        // The transforms will be applied during the build_attribute_value phase
-        value
-    });
+    // Check if this expression needs to be wrapped in $.derived() when it has state
+    // This happens when the expression is complex (not just Identifier or MemberExpression)
+    // For example, ternary expressions like `show ? foo : bar` need memoization
+    let memoize_if_state = should_memoize_attribute(&attr.value);
 
-    // Apply state transforms to the value AFTER extraction
-    // This handles cases like event handlers: onmousedown={() => count += 1}
-    let transformed_value = {
-        let mut metadata = ExpressionMetadata::default();
-        metadata.set_has_state(result.has_state);
-        build_expression(context, &result.value, &metadata)
+    // Build attribute value WITHOUT memoization first - just extract the expression
+    let result = build_attribute_value(&attr.value, context, |value, _metadata| value);
+
+    // Now apply transforms to get the final expression
+    // This is done OUTSIDE the callback to avoid borrow conflicts
+    let mut metadata = ExpressionMetadata::default();
+    metadata.set_has_state(result.has_state);
+    let transformed_value = build_expression(context, &result.value, &metadata);
+
+    // Determine if we should memoize
+    // Memoization happens when:
+    // - has_call is true AND has_state is true (function calls with reactive dependencies)
+    // - has_await is true (async expressions need memoization)
+    // - memoize_if_state is true AND has_state is true (complex stateful expressions)
+    // Note: Pure function calls with literal arguments (like encodeURIComponent('hello'))
+    // are NOT memoized because they have no state dependencies.
+    let has_call = super::utils::expression_has_call(&get_original_expression(&attr.value));
+    let has_await = false; // TODO: detect await
+    let should_memoize =
+        (has_call && result.has_state) || has_await || (memoize_if_state && result.has_state);
+
+    // Decide the final value based on memoization
+    let final_value = if should_memoize {
+        // Add to memoizer - pass the TRANSFORMED expression
+        let memo_id = memoizer.add(
+            transformed_value.clone(),
+            has_call,
+            has_await,
+            memoize_if_state,
+            result.has_state,
+        );
+
+        // If memoization happened, wrap in $.get()
+        if let JsExpr::Identifier(name) = &memo_id {
+            if name.starts_with('$') && name.chars().skip(1).all(|c| c.is_ascii_digit()) {
+                b::call(b::member_path("$.get"), vec![memo_id])
+            } else {
+                memo_id
+            }
+        } else {
+            memo_id
+        }
+    } else {
+        transformed_value
     };
 
     // Check if this is a reference to a snippet
@@ -497,14 +541,101 @@ fn process_regular_attribute(
         // Use getter for reactive values and snippet references
         push_prop_immediate(
             props_and_spreads,
-            b::getter(attr.name.as_str(), vec![b::return_value(transformed_value)]),
+            b::getter(attr.name.as_str(), vec![b::return_value(final_value)]),
         );
     } else {
         // Use init for static values
-        push_prop_immediate(
-            props_and_spreads,
-            b::prop(attr.name.as_str(), transformed_value),
-        );
+        push_prop_immediate(props_and_spreads, b::prop(attr.name.as_str(), final_value));
+    }
+}
+
+/// Extract the original AST expression from an AttributeValue.
+fn get_original_expression(value: &AttributeValue) -> crate::ast::js::Expression {
+    match value {
+        AttributeValue::Expression(expr_tag) => expr_tag.expression.clone(),
+        AttributeValue::Sequence(parts) if parts.len() == 1 => {
+            if let AttributeValuePart::ExpressionTag(expr_tag) = &parts[0] {
+                expr_tag.expression.clone()
+            } else {
+                // Text - create a dummy literal expression
+                crate::ast::js::Expression::Value(serde_json::json!({
+                    "type": "Literal",
+                    "value": ""
+                }))
+            }
+        }
+        _ => {
+            // Other cases - create a dummy literal expression
+            crate::ast::js::Expression::Value(serde_json::json!({
+                "type": "Literal",
+                "value": ""
+            }))
+        }
+    }
+}
+
+/// Check if an attribute value should be memoized.
+///
+/// An attribute should be memoized if it contains a complex expression
+/// (not just an Identifier or MemberExpression). This includes:
+/// - Ternary/conditional expressions
+/// - Binary expressions
+/// - Call expressions
+/// - Array/Object expressions
+/// - etc.
+fn should_memoize_attribute(value: &AttributeValue) -> bool {
+    // Check if this is a single expression (not a template with multiple parts)
+    match value {
+        AttributeValue::Expression(expr_tag) => is_complex_expression(&expr_tag.expression),
+        AttributeValue::Sequence(parts) if parts.len() == 1 => {
+            if let AttributeValuePart::ExpressionTag(expr_tag) = &parts[0] {
+                is_complex_expression(&expr_tag.expression)
+            } else {
+                false
+            }
+        }
+        _ => false, // Multiple parts or text don't need memoization
+    }
+}
+
+/// Check if an expression is complex (not just Identifier or MemberExpression).
+///
+/// Complex expressions that need memoization include:
+/// - ConditionalExpression (ternary): `a ? b : c`
+/// - BinaryExpression: `a + b`, `a === b`
+/// - CallExpression: `foo()`
+/// - LogicalExpression: `a && b`, `a || b`
+/// - etc.
+///
+/// Simple expressions that don't need memoization include:
+/// - Identifier: `foo`
+/// - MemberExpression: `foo.bar`
+/// - Literal: `5`, `"hello"`, `true`
+/// - ArrowFunctionExpression: `() => ...`
+/// - FunctionExpression: `function() { ... }`
+fn is_complex_expression(expression: &crate::ast::js::Expression) -> bool {
+    use crate::ast::js::Expression;
+
+    match expression {
+        Expression::Value(val) => {
+            if let Some(obj) = val.as_object() {
+                if let Some(expr_type) = obj.get("type").and_then(|t| t.as_str()) {
+                    // Simple expressions that don't need memoization
+                    !matches!(
+                        expr_type,
+                        "Identifier"
+                            | "MemberExpression"
+                            | "Literal"
+                            | "ArrowFunctionExpression"
+                            | "FunctionExpression"
+                    )
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
     }
 }
 

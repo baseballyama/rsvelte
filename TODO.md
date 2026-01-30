@@ -2494,3 +2494,65 @@ $.template_effect(() => {
 1. スニペットパラメータ分解構文の修正（`{...}` → actual pattern）
 2. form element default value handling の修正
 3. Runtime Runes 50% への継続的改善
+
+### 2026-01-30 セッション4
+
+**セッション再開 (2026-01-30 セッション4):**
+
+現在地: Phase C - Rust 実装
+目標: Runtime Runes 改善継続
+
+**テスト状況（セッション開始時）:**
+| メトリック | 値 |
+|-----------|-----|
+| Compiler Snapshot | 20/20 (100%) |
+| Runtime Runes Total | 276/737 (37.4%) |
+| Runtime Runes Client | 302/737 |
+| Runtime Runes Server | 500/737 |
+
+**完了タスク:**
+
+- [x] **C-101**: ArrayPattern/AssignmentPattern の関数パラメータ変換修正 ✅
+  - 対象: `src/compiler/phases/1_parse/read/expression.rs`
+  - 問題: 配列分解パターンが `[...]` という文字列識別子に変換されていた
+  - 修正:
+    - `convert_array_pattern_to_expr()` 関数を追加
+    - `convert_assignment_pattern_to_expr()` 関数を追加
+    - `convert_formal_parameter()` で正しく変換するよう修正
+  - **結果**: Runtime Runes Client 302 → 304 (+2), Server 500 → 503 (+3)
+  - **コミット**: `fix(parse): Properly convert ArrayPattern and AssignmentPattern in snippet parameters`
+
+**調査結果（snippet-prop-reactive）:**
+- **根本原因**: Memoizer が複雑な式（三項演算子など）を `$.derived()` でメモ化していない
+- **期待される出力**:
+  ```javascript
+  {
+      let $0 = $.derived(() => $.get(show_foo) ? foo : bar);
+      Inner(node, { get snippet() { return $.get($0); } });
+  }
+  ```
+- **実際の出力**:
+  ```javascript
+  Inner(node, { get snippet() { return $.get(show_foo) ? foo : bar; } });
+  ```
+- **修正必要箇所**:
+  1. `component.rs:455-509` - `process_regular_attribute()` で複雑な式を検出
+  2. `types.rs:990-1009` - `Memoizer::add()` の完全実装
+  3. `types.rs` - `Memoizer::deriveds()` メソッドの追加
+
+**リグレッション回避:**
+- form defaultValue 修正でリグレッション発生（276 → 267）
+- 変更を取り消して元の状態に復元
+
+**テスト状況（セッション4進行中）:**
+| メトリック | セッション開始 | 現在 | 差分 |
+|-----------|--------------|------|------|
+| Compiler Snapshot | 20/20 | 20/20 | 維持 ✅ |
+| Runtime Runes Total | 276/737 (37.4%) | **276/737 (37.4%)** | 維持 |
+| Runtime Runes Client | 302/737 | **304/737** | **+2** |
+| Runtime Runes Server | 500/737 | **503/737** | **+3** |
+
+**次のアクション:**
+1. Memoizer の完全実装（複雑な式のメモ化）
+2. ObjectPattern の snippet パラメータ変換
+3. Runtime Runes 40%+ 達成

@@ -1033,4 +1033,58 @@ let array = $state(['a', 'b', 'c'])
             output
         );
     }
+
+    /// Test that complex expressions in component props are memoized with $.derived()
+    /// This tests the Memoizer functionality for ternary expressions
+    #[test]
+    fn test_component_prop_memoization() {
+        // Test case: ternary expression in component prop should be memoized
+        // We need a button that modifies show_foo to ensure the state is actually used
+        let source = r#"<script>
+    import Inner from './Inner.svelte';
+    let show_foo = $state(true);
+</script>
+
+{#snippet foo()}
+    <p>foo</p>
+{/snippet}
+
+{#snippet bar()}
+    <p>bar</p>
+{/snippet}
+
+<Inner snippet={show_foo ? foo : bar} />
+<button onclick={() => show_foo = false}>toggle</button>"#;
+
+        let options = CompileOptions {
+            dev: false,
+            ..Default::default()
+        };
+
+        let result = compile(source, options);
+        assert!(
+            result.is_ok(),
+            "Compilation should succeed: {:?}",
+            result.err()
+        );
+
+        let output = result.unwrap().js.code;
+        println!("=== OUTPUT ===\n{}\n=== END ===", output);
+
+        // The ternary expression should be memoized with $.derived()
+        // Expected: let $0 = $.derived(() => $.get(show_foo) ? foo : bar);
+        assert!(
+            output.contains("$.derived"),
+            "Ternary expression should be memoized with $.derived(): {}",
+            output
+        );
+
+        // The getter should use $.get($0)
+        // Expected: get snippet() { return $.get($0); }
+        assert!(
+            output.contains("$.get($0)") || output.contains("$.get($"),
+            "Getter should return memoized value with $.get($N): {}",
+            output
+        );
+    }
 }

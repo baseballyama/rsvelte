@@ -34,10 +34,10 @@ use super::utils::build_expression;
 pub fn build_attribute_value<F>(
     value: &AttributeValue,
     context: &mut ComponentContext,
-    memoize: F,
+    mut memoize: F,
 ) -> AttributeValueResult
 where
-    F: Fn(JsExpr, &ExpressionMetadata) -> JsExpr,
+    F: FnMut(JsExpr, &ExpressionMetadata) -> JsExpr,
 {
     match value {
         AttributeValue::True(_) => AttributeValueResult {
@@ -48,11 +48,14 @@ where
         AttributeValue::Expression(expr_tag) => {
             // Extract the expression from the ExpressionTag using the full expression converter
             let expression = extract_expression_from_tag_with_context(expr_tag, context);
-            let metadata = extract_metadata_from_tag(expr_tag);
+            let mut metadata = extract_metadata_from_tag(expr_tag);
 
             // Check for reactive state using the comprehensive check that considers transforms
             let has_state =
                 super::utils::expression_has_reactive_state(&expr_tag.expression, context);
+
+            // Update metadata with correct has_state value
+            metadata.set_has_state(has_state);
 
             // Memoize if needed
             let memoized = memoize(expression, &metadata);
@@ -73,11 +76,14 @@ where
 
                 AttributeValuePart::ExpressionTag(expr_tag) => {
                     let expression = extract_expression_from_tag_with_context(expr_tag, context);
-                    let metadata = extract_metadata_from_tag(expr_tag);
+                    let mut metadata = extract_metadata_from_tag(expr_tag);
 
                     // Check for reactive state using the comprehensive check that considers transforms
                     let has_state =
                         super::utils::expression_has_reactive_state(&expr_tag.expression, context);
+
+                    // Update metadata with correct has_state value
+                    metadata.set_has_state(has_state);
 
                     let memoized = memoize(expression, &metadata);
 
@@ -112,10 +118,10 @@ pub struct AttributeValueResult {
 fn build_template_chunk<F>(
     values: &[AttributeValuePart],
     context: &mut ComponentContext,
-    memoize: F,
+    mut memoize: F,
 ) -> AttributeValueResult
 where
-    F: Fn(JsExpr, &ExpressionMetadata) -> JsExpr,
+    F: FnMut(JsExpr, &ExpressionMetadata) -> JsExpr,
 {
     // Pre-allocate for typical attribute value complexity
     let mut quasis = Vec::with_capacity(4);
