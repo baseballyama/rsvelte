@@ -2673,3 +2673,37 @@ $.template_effect(() => {
 1. より慎重なアプローチでの TypeScript/Update 修正
 2. `snippet-dynamic-children` 等の複雑なスニペット問題修正
 3. Runtime Runes 40%+ 達成
+
+### 2026-01-31 セッション1
+
+**セッション再開 (2026-01-31):**
+
+現在地: Phase C - Rust 実装
+目標: Runtime Runes 40%+ 達成
+
+**テスト状況（セッション開始時）:**
+| メトリック | 値 |
+|-----------|-----|
+| Compiler Snapshot | 20/20 (100%) |
+| Runtime Runes Total | 280/737 (38.0%) |
+| Runtime Runes Client | 313/737 |
+| Runtime Runes Server | 504/737 |
+
+**詳細失敗分析結果:**
+| 問題 | 影響範囲 | 優先度 |
+|------|---------|--------|
+| フォーム `<input type="reset" value="">` の value 属性欠落 | 高 | 🔴 最高 |
+| `$.set_selected()` の実行タイミング (init vs template_effect) | 中 | 🔴 高 |
+| Dynamic spread extraction for attribute_effect | 50+ テスト | 🟠 中 |
+
+**着手タスク:**
+
+- [ ] **C-111**: フォーム reset input の value 属性保持
+  - 対象: `src/compiler/phases/3_transform/client/`
+  - 問題: `<input type="reset" value="Reset"/>` から `value` 属性が欠落し、HTML テンプレートに含まれない
+  - 修正: reset ボタンの value 属性をテンプレートに保持する
+
+- [ ] **C-112**: Select option の $.set_selected() 実行タイミング修正
+  - 対象: `src/compiler/phases/3_transform/client/`
+  - 問題: `$.set_selected()` が初期化から `template_effect()` 内に遅延
+  - 修正: 初期化フェーズでの即時実行に変更

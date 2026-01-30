@@ -749,19 +749,17 @@ fn get_attribute_name(_node: &RegularElementNode, attr: &AttributeNode) -> Strin
 }
 
 /// Check if an attribute cannot be set statically in the template.
+/// These attributes need special JavaScript handling at runtime.
+///
+/// Corresponds to NON_STATIC_PROPERTIES in:
+/// svelte/packages/svelte/src/utils.js
 fn cannot_be_set_statically(name: &str) -> bool {
+    // Only these 4 attributes are unconditionally non-static
+    // Other attributes like value, checked, selected are handled conditionally
+    // based on the element type (see is_static_attribute)
     matches!(
         name,
-        "value"
-            | "checked"
-            | "selected"
-            | "innerHTML"
-            | "innerText"
-            | "textContent"
-            | "autofocus"
-            | "muted"
-            | "defaultValue"
-            | "defaultChecked"
+        "autofocus" | "muted" | "defaultValue" | "defaultChecked"
     )
 }
 
