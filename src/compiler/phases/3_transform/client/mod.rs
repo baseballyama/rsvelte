@@ -1876,6 +1876,12 @@ fn transform_state_assignments(
                         continue;
                     }
 
+                    // Skip if preceded by an identifier character (not a word boundary)
+                    // This prevents matching "reactive" inside "nonreactive"
+                    if !before.is_empty() && is_identifier_char(before.chars().last().unwrap()) {
+                        continue;
+                    }
+
                     let after = &result[pos + pattern.len()..];
                     // Find the expression (until ; or end, respecting nested braces)
                     let expr_end = find_statement_end_client(after);
@@ -1915,6 +1921,13 @@ fn transform_state_assignments(
                 // Skip if preceded by dot (property access like foo.count = ...)
                 // Also skip if already wrapped with $.set
                 if before.ends_with('=') || before.ends_with('!') || before.ends_with('.') {
+                    search_start = pos + assignment_pattern.len();
+                    continue;
+                }
+
+                // Skip if preceded by an identifier character (not a word boundary)
+                // This prevents matching "reactive" inside "nonreactive"
+                if !before.is_empty() && is_identifier_char(before.chars().last().unwrap()) {
                     search_start = pos + assignment_pattern.len();
                     continue;
                 }
