@@ -191,6 +191,8 @@ pub fn should_proxy(expr: &Expression, _scope: &Scope) -> Option<bool> {
 ///
 /// The expanded expression. For `=`, returns `right`. For compound operators,
 /// returns a binary expression (e.g., `a += b` becomes `a + b`).
+/// For logical assignment operators (`||=`, `&&=`, `??=`), returns a logical
+/// expression (e.g., `a ||= b` becomes `a || b`).
 ///
 /// # Examples
 ///
@@ -198,6 +200,9 @@ pub fn should_proxy(expr: &Expression, _scope: &Scope) -> Option<bool> {
 /// // "=" -> right
 /// // "+=" -> left + right
 /// // "*=" -> left * right
+/// // "||=" -> left || right
+/// // "&&=" -> left && right
+/// // "??=" -> left ?? right
 /// ```
 pub fn build_assignment_value(operator: &str, left: &JsExpr, right: &JsExpr) -> JsExpr {
     match operator {
@@ -214,8 +219,11 @@ pub fn build_assignment_value(operator: &str, left: &JsExpr, right: &JsExpr) -> 
         "|=" => b::binary_str("|", left.clone(), right.clone()),
         "^=" => b::binary_str("^", left.clone(), right.clone()),
         "&=" => b::binary_str("&", left.clone(), right.clone()),
-        // Logical assignment operators are not expanded
-        "||=" | "&&=" | "??=" => right.clone(),
+        // Logical assignment operators: build logical expressions
+        // e.g., x ||= y becomes x || y
+        "||=" => b::logical_str("||", left.clone(), right.clone()),
+        "&&=" => b::logical_str("&&", left.clone(), right.clone()),
+        "??=" => b::logical_str("??", left.clone(), right.clone()),
         _ => right.clone(),
     }
 }
@@ -346,10 +354,44 @@ mod tests {
 
         let result = build_assignment_value("||=", &left, &right);
 
-        // 論理代入演算子は展開しない
+        // 論理代入演算子は論理式に展開される: a ||= b -> a || b
         match result {
-            JsExpr::Literal(JsLiteral::Number(n)) => assert_eq!(n, 1.0),
-            _ => panic!("Expected Number literal"),
+            JsExpr::Logical(logical) => {
+                assert!(matches!(logical.operator, JsLogicalOp::Or));
+            }
+            _ => panic!("Expected Logical expression"),
+        }
+    }
+
+    #[test]
+    fn test_build_assignment_value_logical_and() {
+        let left = JsExpr::Identifier("a".to_string());
+        let right = JsExpr::Literal(JsLiteral::Number(1.0));
+
+        let result = build_assignment_value("&&=", &left, &right);
+
+        // a &&= b -> a && b
+        match result {
+            JsExpr::Logical(logical) => {
+                assert!(matches!(logical.operator, JsLogicalOp::And));
+            }
+            _ => panic!("Expected Logical expression"),
+        }
+    }
+
+    #[test]
+    fn test_build_assignment_value_logical_nullish() {
+        let left = JsExpr::Identifier("a".to_string());
+        let right = JsExpr::Literal(JsLiteral::Number(1.0));
+
+        let result = build_assignment_value("??=", &left, &right);
+
+        // a ??= b -> a ?? b
+        match result {
+            JsExpr::Logical(logical) => {
+                assert!(matches!(logical.operator, JsLogicalOp::NullishCoalescing));
+            }
+            _ => panic!("Expected Logical expression"),
         }
     }
 
