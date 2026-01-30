@@ -1170,4 +1170,93 @@ mod tests {
         let result = collapse_short_arrays(input);
         assert_eq!(result, "const arr = [-1, -2, -3];");
     }
+
+    #[test]
+    fn test_arrow_function_with_object_literal() {
+        // Test that arrow functions with object literal bodies are wrapped in parentheses
+        let obj = object(vec![prop("value", number(1.0))]);
+        let arrow_fn = arrow(vec![], obj);
+        let prog = program(vec![const_decl("fn", arrow_fn)]);
+
+        let code = generate(&prog).unwrap();
+        println!("Generated code: {}", code);
+        assert!(
+            code.contains("() => ({ value: 1 })") || code.contains("() => ({value: 1})"),
+            "Object literal in arrow function should be wrapped in parentheses: {}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_arrow_function_with_getter_setter_object() {
+        // Test that arrow functions returning objects with getters/setters work correctly
+        // This mirrors the `derived-proxy` test case:
+        // $derived({ get value() { return count * 2}, set value(c) { count = c / 2 } })
+
+        let getter = JsObjectMember::Property(JsProperty {
+            key: JsPropertyKey::Identifier("value".to_string()),
+            value: Box::new(JsExpr::Function(JsFunctionExpression {
+                id: None,
+                params: vec![],
+                body: JsBlockStatement::with_body(vec![JsStatement::Return(JsReturnStatement {
+                    argument: Some(Box::new(binary(JsBinaryOp::Mul, id("count"), number(2.0)))),
+                })]),
+                is_async: false,
+                is_generator: false,
+            })),
+            kind: JsPropertyKind::Get,
+            computed: false,
+            shorthand: false,
+        });
+
+        let setter = JsObjectMember::Property(JsProperty {
+            key: JsPropertyKey::Identifier("value".to_string()),
+            value: Box::new(JsExpr::Function(JsFunctionExpression {
+                id: None,
+                params: vec![id_pattern("c")],
+                body: JsBlockStatement::with_body(vec![JsStatement::Expression(
+                    JsExpressionStatement {
+                        expression: Box::new(JsExpr::Assignment(JsAssignmentExpression {
+                            operator: JsAssignmentOp::Assign,
+                            left: Box::new(id("count")),
+                            right: Box::new(binary(JsBinaryOp::Div, id("c"), number(2.0))),
+                        })),
+                    },
+                )]),
+                is_async: false,
+                is_generator: false,
+            })),
+            kind: JsPropertyKind::Set,
+            computed: false,
+            shorthand: false,
+        });
+
+        let obj = JsExpr::Object(JsObjectExpression {
+            properties: vec![getter, setter],
+        });
+
+        let arrow_fn = arrow(vec![], obj);
+        let prog = program(vec![const_decl(
+            "double",
+            call(
+                JsExpr::Member(JsMemberExpression {
+                    object: Box::new(id("$")),
+                    property: JsMemberProperty::Identifier("derived".to_string()),
+                    computed: false,
+                    optional: false,
+                }),
+                vec![arrow_fn],
+            ),
+        )]);
+
+        let code = generate(&prog).unwrap();
+        println!("Generated code: {}", code);
+
+        // The arrow function body should be wrapped in parentheses
+        assert!(
+            code.contains("() => ({") || code.contains("()=>({"),
+            "Object literal with getters in arrow function should be wrapped in parentheses: {}",
+            code
+        );
+    }
 }

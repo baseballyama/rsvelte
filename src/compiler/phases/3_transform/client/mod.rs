@@ -1050,10 +1050,21 @@ fn transform_client_runes_with_skip_and_state(
                 let wrapped_content =
                     wrap_state_vars_in_expr(content, state_vars, non_reactive_vars, proxy_vars);
 
+                // Check if the content is an object literal - if so, wrap in parentheses
+                // to disambiguate from a block statement
+                let wrapped_trimmed = wrapped_content.trim();
+                let is_object_literal = wrapped_trimmed.starts_with('{');
+
                 let new_derived = if contains_direct_await {
                     // For async derived: $.async_derived(async () => expr)
                     // The expression may have await calls that need to be preserved
-                    format!("$.async_derived(async () => {})", wrapped_content)
+                    if is_object_literal {
+                        format!("$.async_derived(async () => ({}))", wrapped_content)
+                    } else {
+                        format!("$.async_derived(async () => {})", wrapped_content)
+                    }
+                } else if is_object_literal {
+                    format!("$.derived(() => ({}))", wrapped_content)
                 } else {
                     format!("$.derived(() => {})", wrapped_content)
                 };
@@ -3368,4 +3379,62 @@ mod tests {
         assert_eq!(find_matching_paren("((a)))"), Some(5));
         assert_eq!(find_matching_paren("abc"), None);
     }
+
+    #[test]
+    fn test_derived_object_literal_wrapped_in_parens() {
+        // Test that object literals in $derived() are wrapped in parentheses
+        let input = "let count = $derived({ value: 1 });";
+        let result = transform_client_runes_with_skip_and_state(
+            input,
+            &[],   // skip_state_vars
+            &[],   // state_vars
+            &[],   // non_reactive_vars
+            &[],   // prop_source_vars
+            &[],   // exported_names
+            &[],   // proxy_vars
+            false, // dev
+        );
+        println!("Input:  {}", input);
+        println!("Result: {}", result);
+        assert!(
+            result.contains("$.derived(() => ({"),
+            "Object literal should be wrapped in parentheses: {}",
+            result
+        );
+    }
+}
+
+#[test]
+fn test_derived_object_literal_double_wrap() {
+    // Test that the double wrapping preserves parentheses
+    let input = "let count = $derived({ value: 1 });";
+
+    // First transform
+    let result1 = transform_client_runes_with_skip_and_state(
+        input,
+        &[],   // skip_state_vars
+        &[],   // state_vars
+        &[],   // non_reactive_vars
+        &[],   // prop_source_vars
+        &[],   // exported_names
+        &[],   // proxy_vars
+        false, // dev
+    );
+    println!("After first transform: {}", result1);
+
+    // Second wrap (simulating what happens in the actual code)
+    // Note: "count" is a state variable after $derived transformation
+    let result2 = wrap_state_vars_in_expr(
+        &result1,
+        &["count".to_string()], // state_vars
+        &[],                    // non_reactive_vars
+        &[],                    // proxy_vars
+    );
+    println!("After second wrap: {}", result2);
+
+    assert!(
+        result2.contains("$.derived(() => ({"),
+        "Object literal should still be wrapped in parentheses: {}",
+        result2
+    );
 }
