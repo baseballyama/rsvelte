@@ -1512,7 +1512,28 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                     return true;
                 }
                 if let Some(binding) = context.state.get_binding(name) {
-                    return binding.kind.is_reactive();
+                    // Check if binding is reactive at runtime
+                    // For $state bindings in runes mode (immutable), they only need $.get()
+                    // if they are reassigned or accessors is enabled.
+                    // This matches the official Svelte compiler's is_state_source logic.
+                    if binding.kind.is_reactive() {
+                        // For State kind specifically, check additional conditions
+                        use crate::compiler::phases::phase2_analyze::BindingKind;
+                        if matches!(binding.kind, BindingKind::State) {
+                            // In runes mode (immutable), $state only needs reactive handling
+                            // if it's reassigned or accessors is enabled
+                            let is_immutable = context.state.analysis.runes;
+                            if is_immutable
+                                && !binding.reassigned
+                                && !context.state.analysis.accessors
+                            {
+                                // Variable is read-only in runes mode - not reactive at runtime
+                                return false;
+                            }
+                        }
+                        return true;
+                    }
+                    return false;
                 }
                 // Unknown identifier - conservatively assume non-reactive
                 // (could be a global or module-level binding)

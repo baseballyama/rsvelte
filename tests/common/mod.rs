@@ -400,6 +400,9 @@ pub fn normalize_js(js: &str) -> String {
     // Normalize undefined representation (void 0 -> undefined)
     let result = result.replace("void 0", "undefined");
 
+    // Normalize component function names (Main vs Component)
+    let result = result.replace("function Main(", "function Component(");
+
     // Remove semicolons for normalization
     let result = result.replace(';', "");
 
