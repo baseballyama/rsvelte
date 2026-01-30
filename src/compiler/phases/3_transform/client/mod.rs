@@ -923,14 +923,29 @@ fn transform_client_runes_with_skip_and_state(
     if let Some(pos) = result.find("$state(") {
         // Check if this is a declaration
         if result[..pos].contains("let ") || result[..pos].contains("const ") {
-            // Extract variable name
-            let before_eq = result[..pos].trim();
-            let before_equals = if let Some(eq_pos) = before_eq.rfind('=') {
-                before_eq[..eq_pos].trim()
+            // Extract variable name by finding identifier after let/const keyword
+            let decl_pattern = if result[..pos].contains("let ") {
+                "let "
             } else {
-                before_eq
+                "const "
             };
-            let var_name = before_equals.split_whitespace().last().unwrap_or("").trim();
+
+            let var_name = if let Some(decl_pos) = result[..pos].rfind(decl_pattern) {
+                let after_keyword = &result[decl_pos + decl_pattern.len()..pos];
+                // Extract valid identifier characters only (before any '=' sign)
+                let before_eq = if let Some(eq_pos) = after_keyword.find('=') {
+                    &after_keyword[..eq_pos]
+                } else {
+                    after_keyword
+                };
+                before_eq
+                    .trim()
+                    .chars()
+                    .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '$')
+                    .collect::<String>()
+            } else {
+                String::new()
+            };
 
             // Check if we should skip this state variable
             let state_start = pos + 7; // after "$state("
