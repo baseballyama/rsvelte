@@ -1087,4 +1087,52 @@ let array = $state(['a', 'b', 'c'])
             output
         );
     }
+
+    #[test]
+    fn debug_numeric_class_field_names() {
+        // Test numeric property names in class - should NOT generate invalid #0, #1 identifiers
+        let source = r#"<script>
+class Test {
+    0 = $state();
+    1 = $state({ val: 1 });
+}
+const test = new Test();
+</script>
+
+<p>{test}</p>"#;
+
+        let options = CompileOptions {
+            dev: false,
+            ..Default::default()
+        };
+
+        let result = compile(source, options);
+        let r = result.expect("Compilation should succeed with numeric field names");
+
+        println!(
+            "\n=== NUMERIC FIELD OUTPUT ===\n{}\n=== END ===\n",
+            r.js.code
+        );
+
+        // Should NOT contain invalid private field names like #0, #1
+        assert!(
+            !r.js.code.contains("#0 ="),
+            "Should NOT generate #0 private field name: {}",
+            r.js.code
+        );
+        assert!(
+            !r.js.code.contains("#1 ="),
+            "Should NOT generate #1 private field name: {}",
+            r.js.code
+        );
+
+        // Should contain valid sanitized identifiers like #_ or #_0
+        // The name "0" should become "_" and "1" should become "_" as well
+        // So they might conflict and become "_" and "__" or similar
+        assert!(
+            r.js.code.contains("#_"),
+            "Should generate sanitized private field names like #_: {}",
+            r.js.code
+        );
+    }
 }

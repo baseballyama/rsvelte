@@ -40,6 +40,13 @@ use types::{ComponentClientTransformState, ComponentContext, TransformOptions, T
 static REGEX_STATE_DERIVED_VAR: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?:let|const)\s+(\w+)\s*=\s*\$(?:state|derived)\s*\(").unwrap());
 
+// Regex for sanitizing identifier names - replaces invalid identifier characters
+// Pattern matches:
+// - ^[^a-zA-Z_$] - character at start that is NOT a valid identifier start
+// - [^a-zA-Z0-9_$] - any character that is NOT a valid identifier character
+static REGEX_INVALID_IDENTIFIER_CHARS: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(^[^a-zA-Z_$]|[^a-zA-Z0-9_$])").unwrap());
+
 // Thread-local counter for generating unique $$array variable names across multiple
 // $derived destructuring patterns in the same component.
 // This is reset at the start of each component transformation.
@@ -3178,9 +3185,11 @@ fn transform_class_fields_client(script: &str) -> String {
     // Deconflict private backing names for public fields
     // If a public field "count" exists and there's already a "#count" private field,
     // rename the backing field to "#_count" (prepend _ until unique)
+    // Note: We start from the already-sanitized private_backing_name, not field.name
     for field in &mut fields {
         if !field.is_private {
-            let mut deconflicted = field.name.clone();
+            // Start with the already-sanitized name (handles numeric names like "0" -> "_")
+            let mut deconflicted = field.private_backing_name.clone();
             while existing_private_ids.contains(&deconflicted) {
                 deconflicted = format!("_{}", deconflicted);
             }
@@ -3301,6 +3310,15 @@ fn transform_class_fields_client(script: &str) -> String {
     )
 }
 
+/// Sanitize a name to be a valid JavaScript identifier.
+/// Replaces invalid identifier characters with underscores.
+/// For example, "0" becomes "_", "1foo" becomes "_foo".
+fn sanitize_identifier(name: &str) -> String {
+    REGEX_INVALID_IDENTIFIER_CHARS
+        .replace_all(name, "_")
+        .to_string()
+}
+
 /// Parse a state field definition.
 fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStateField> {
     let trimmed = line.trim().trim_end_matches(';');
@@ -3325,12 +3343,16 @@ fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStateField> {
     let value_end = find_matching_paren(after_paren)?;
     let value = after_paren[..value_end].to_string();
 
+    // Sanitize the private backing name to ensure it's a valid identifier
+    // This handles cases like numeric property names (0, 1) which become (_)
+    let private_backing_name = sanitize_identifier(&name);
+
     Some(ClassStateField {
         name: name.clone(),
         is_private,
         rune_type: rune_type.to_string(),
         value,
-        private_backing_name: name, // Will be deconflicted later if needed
+        private_backing_name, // Sanitized to be a valid identifier
     })
 }
 

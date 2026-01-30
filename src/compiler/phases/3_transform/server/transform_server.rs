@@ -52,6 +52,38 @@ fn quote_prop_name(name: &str) -> String {
     }
 }
 
+/// Sanitize a name to be a valid JavaScript identifier.
+/// Replaces invalid identifier characters with underscores.
+/// For example, "0" becomes "_", "1foo" becomes "_foo".
+fn sanitize_identifier(name: &str) -> String {
+    if name.is_empty() {
+        return "_".to_string();
+    }
+
+    let mut result = String::new();
+    let mut chars = name.chars().peekable();
+
+    // First character must be a letter, underscore, or dollar sign
+    if let Some(first) = chars.next() {
+        if first.is_alphabetic() || first == '_' || first == '$' {
+            result.push(first);
+        } else {
+            result.push('_');
+        }
+    }
+
+    // Subsequent characters can also include digits
+    for c in chars {
+        if c.is_alphanumeric() || c == '_' || c == '$' {
+            result.push(c);
+        } else {
+            result.push('_');
+        }
+    }
+
+    result
+}
+
 /// Collapse whitespace sequences (including newlines) to single spaces.
 /// This matches the behavior of clean_nodes in the official compiler.
 fn collapse_whitespace(s: &str) -> String {
@@ -4652,7 +4684,10 @@ fn transform_class_fields_server(script: &str) -> String {
 
     // 2. Output $derived fields (private field + getter/setter)
     for field in &derived_fields {
-        let private_name = format!("#{}", field.name);
+        // Sanitize the name to ensure it's a valid identifier for the private field
+        // This handles numeric property names like "0", "1" which would be invalid as #0, #1
+        let sanitized_name = sanitize_identifier(&field.name);
+        let private_name = format!("#{}", sanitized_name);
 
         // If the value starts with '{', wrap it in parentheses to avoid
         // it being interpreted as a block statement instead of an object literal
