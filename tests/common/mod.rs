@@ -317,7 +317,11 @@ pub fn normalize_js(js: &str) -> String {
         static ref MULTI_SPACE: Regex = Regex::new(r"[ \t\n]+").unwrap();
         // Normalize compiler-generated variable names with numeric suffixes
         // Include common loop variables like $$index_N and $$length
-        static ref VAR_SUFFIX: Regex = Regex::new(r"\b(node|text|button|div|span|p|a|input|form|fragment|consequent|alternate|each|if_block|component|each_array|snippets|spread_props)_(\d+)\b").unwrap();
+        static ref VAR_SUFFIX: Regex = Regex::new(r"\b(root|node|text|button|div|span|p|a|input|form|fragment|consequent|alternate|each|if_block|component|each_array|snippets|spread_props)_(\d+)\b").unwrap();
+        // Normalize function names in default exports
+        static ref FUNCTION_NAME: Regex = Regex::new(r"(?m)^export default function \w+\(").unwrap();
+        // Normalize $.comment() and $.text() to $.marker() (both serve as markers)
+        static ref MARKER_FN: Regex = Regex::new(r"\$\.(comment|text)\(\)").unwrap();
         // Separately handle $$index_N and $$length patterns (can't use \b with $)
         static ref INDEX_SUFFIX: Regex = Regex::new(r"\$\$(index|length)_(\d+)").unwrap();
         // Normalize "function (" to "function("
@@ -349,6 +353,14 @@ pub fn normalize_js(js: &str) -> String {
 
     // Normalize $.head() hash values to a consistent value
     let result = HEAD_HASH.replace_all(&result, "$.head('hash',").to_string();
+
+    // Normalize function names in default exports (Main, Component, etc. -> Component)
+    let result = FUNCTION_NAME
+        .replace_all(&result, "export default function Component(")
+        .to_string();
+
+    // Normalize $.comment() and $.text() to $.marker() (both serve as DOM markers)
+    let result = MARKER_FN.replace_all(&result, "$.marker()").to_string();
 
     // Normalize whitespace at start of template literals containing HTML
     let result = TEMPLATE_HTML_WHITESPACE
