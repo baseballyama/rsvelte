@@ -526,24 +526,12 @@ fn convert_formal_parameter(
             convert_object_pattern_to_expr(obj_pat, adjusted_offset, line_offsets)
         }
         BindingPattern::ArrayPattern(arr_pat) => {
-            let start = adjusted_offset + arr_pat.span.start as usize;
-            // If type annotation exists, include it in the end position
-            let end = if let Some(type_ann) = &param.type_annotation {
-                adjusted_offset + type_ann.span.end as usize
-            } else {
-                adjusted_offset + arr_pat.span.end as usize
-            };
-            create_identifier("[...]", start, end, line_offsets)
+            // Convert to proper ArrayPattern JSON
+            convert_array_pattern_to_expr(arr_pat, adjusted_offset, line_offsets)
         }
         BindingPattern::AssignmentPattern(assign_pat) => {
-            let start = adjusted_offset + assign_pat.span.start as usize;
-            // If type annotation exists, include it in the end position
-            let end = if let Some(type_ann) = &param.type_annotation {
-                adjusted_offset + type_ann.span.end as usize
-            } else {
-                adjusted_offset + assign_pat.span.end as usize
-            };
-            create_identifier("=...", start, end, line_offsets)
+            // Convert to proper AssignmentPattern JSON
+            convert_assignment_pattern_to_expr(assign_pat, adjusted_offset, line_offsets)
         }
     }
 }
@@ -628,6 +616,104 @@ fn convert_object_pattern_to_expr(
     }
 
     obj.insert("properties".to_string(), Value::Array(properties));
+
+    Expression::Value(Value::Object(obj))
+}
+
+/// Convert oxc ArrayPattern to our Expression format (for function parameters).
+fn convert_array_pattern_to_expr(
+    arr_pat: &oxc_ast::ast::ArrayPattern,
+    adjusted_offset: usize,
+    line_offsets: &[usize],
+) -> Expression {
+    let start = adjusted_offset + arr_pat.span.start as usize;
+    let end = adjusted_offset + arr_pat.span.end as usize;
+
+    let mut obj = Map::new();
+    obj.insert(
+        "type".to_string(),
+        Value::String("ArrayPattern".to_string()),
+    );
+    obj.insert("start".to_string(), Value::Number((start as i64).into()));
+    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+    obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+    // Convert elements
+    let mut elements = Vec::new();
+    for elem in &arr_pat.elements {
+        if let Some(pattern) = elem {
+            elements.push(convert_binding_pattern_for_param(
+                pattern,
+                adjusted_offset,
+                line_offsets,
+            ));
+        } else {
+            elements.push(Value::Null);
+        }
+    }
+
+    // Handle rest element if present
+    if let Some(rest) = &arr_pat.rest {
+        let rest_start = adjusted_offset + rest.span.start as usize;
+        let rest_end = adjusted_offset + rest.span.end as usize;
+
+        let mut rest_obj = Map::new();
+        rest_obj.insert("type".to_string(), Value::String("RestElement".to_string()));
+        rest_obj.insert(
+            "start".to_string(),
+            Value::Number((rest_start as i64).into()),
+        );
+        rest_obj.insert("end".to_string(), Value::Number((rest_end as i64).into()));
+        rest_obj.insert(
+            "loc".to_string(),
+            create_loc(rest_start, rest_end, line_offsets),
+        );
+
+        let argument =
+            convert_binding_pattern_for_param(&rest.argument, adjusted_offset, line_offsets);
+        rest_obj.insert("argument".to_string(), argument);
+
+        elements.push(Value::Object(rest_obj));
+    }
+
+    obj.insert("elements".to_string(), Value::Array(elements));
+
+    Expression::Value(Value::Object(obj))
+}
+
+/// Convert oxc AssignmentPattern to our Expression format (for function parameters).
+fn convert_assignment_pattern_to_expr(
+    assign_pat: &oxc_ast::ast::AssignmentPattern,
+    adjusted_offset: usize,
+    line_offsets: &[usize],
+) -> Expression {
+    let start = adjusted_offset + assign_pat.span.start as usize;
+    let end = adjusted_offset + assign_pat.span.end as usize;
+
+    let mut obj = Map::new();
+    obj.insert(
+        "type".to_string(),
+        Value::String("AssignmentPattern".to_string()),
+    );
+    obj.insert("start".to_string(), Value::Number((start as i64).into()));
+    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+    obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+    // Convert left (the pattern)
+    let left = convert_binding_pattern_for_param(&assign_pat.left, adjusted_offset, line_offsets);
+    obj.insert("left".to_string(), left);
+
+    // Convert right (the default value) - simplified for now
+    let right_start = adjusted_offset + assign_pat.right.span().start as usize;
+    let right_end = adjusted_offset + assign_pat.right.span().end as usize;
+    let mut right_obj = Map::new();
+    right_obj.insert("type".to_string(), Value::String("Expression".to_string()));
+    right_obj.insert(
+        "start".to_string(),
+        Value::Number((right_start as i64).into()),
+    );
+    right_obj.insert("end".to_string(), Value::Number((right_end as i64).into()));
+    obj.insert("right".to_string(), Value::Object(right_obj));
 
     Expression::Value(Value::Object(obj))
 }

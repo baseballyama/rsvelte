@@ -984,4 +984,53 @@ const counter = new Counter();
             "Should call count() as a getter function"
         );
     }
+
+    #[test]
+    fn test_snippet_array_destructure_param() {
+        // Test that snippet parameters with array destructuring are handled correctly
+        // The parameter should use $$arg0 identifier, not the destructuring pattern directly
+        let source = r#"<script>
+let array = $state(['a', 'b', 'c'])
+</script>
+
+{#snippet content([x])}
+    {x}
+{/snippet}
+
+{@render content(array)}"#;
+
+        let options = CompileOptions {
+            dev: false,
+            ..Default::default()
+        };
+
+        let result = compile(source, options);
+        assert!(
+            result.is_ok(),
+            "Compilation should succeed: {:?}",
+            result.err()
+        );
+
+        let output = result.unwrap().js.code;
+
+        // Verify key patterns in the output
+        // 1. Snippet should use $$arg0 parameter (not [x] or [...])
+        assert!(
+            output.contains("$$arg0"),
+            "Should use $$arg0 as parameter: {}",
+            output
+        );
+        // 2. Should NOT contain [...] in function signature (indicates bug)
+        assert!(
+            !output.contains("[...]"),
+            "Should NOT contain [...] in function signature: {}",
+            output
+        );
+        // 3. Should use $.to_array to convert the argument
+        assert!(
+            output.contains("$.to_array"),
+            "Should use $.to_array for array destructuring: {}",
+            output
+        );
+    }
 }

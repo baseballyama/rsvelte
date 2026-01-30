@@ -185,6 +185,9 @@ fn process_parameter(
         // 3. Create derived values for each extracted path
 
         let arg_alias = format!("$$arg{}", index);
+
+        // IMPORTANT: Use simple identifier pattern for the function parameter
+        // The destructuring is handled internally via declarations
         let pattern = b::id_pattern(&arg_alias);
 
         // For now, we'll create a simplified handling of destructured patterns
