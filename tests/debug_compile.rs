@@ -909,4 +909,43 @@ const counter = new Counter();
             code
         );
     }
+
+    /// Test that snippet body in component children has <!---> marker when starting with text
+    /// This prevents text fusion during hydration
+    #[test]
+    fn test_snippet_text_marker_server() {
+        use svelte_compiler_rust::compiler::GenerateMode;
+
+        // A component with a snippet that starts with text should have <!----> marker
+        let source = r#"<script>
+    import Component from './Component.svelte';
+</script>
+
+<Component>
+    {#snippet children()}
+        Default
+        <span slot="slot">Slotted</span>
+    {/snippet}
+</Component>"#;
+
+        let options = CompileOptions {
+            dev: false,
+            generate: GenerateMode::Server,
+            filename: Some("Main.svelte".to_string()),
+            ..Default::default()
+        };
+
+        let result = compile(source, options).expect("Compilation should succeed");
+        let code = result.js.code;
+
+        println!("\n=== COMPILED SERVER OUTPUT ===\n{}\n=== END ===\n", code);
+
+        // The snippet body should have <!---> marker since it starts with text,
+        // and should preserve trailing space before the next element
+        assert!(
+            code.contains("<!---->Default <span"),
+            "Snippet body should have <!----> marker and preserve space before next element.\nExpected to contain: '<!---->Default <span'\nActual output:\n{}",
+            code
+        );
+    }
 }

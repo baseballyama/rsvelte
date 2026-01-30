@@ -1592,6 +1592,22 @@ impl<'a> ServerCodeGenerator<'a> {
             break;
         }
 
+        // Check if first node is text or expression tag - if so, we need hydration marker
+        // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/utils.js clean_nodes()
+        // This prevents text from being fused with its surroundings during hydration
+        let first_node = body_nodes.get(start_idx);
+        let is_text_first = matches!(
+            first_node,
+            Some(TemplateNode::Text(_)) | Some(TemplateNode::ExpressionTag(_))
+        );
+
+        // Add hydration marker if first content is text
+        if is_text_first {
+            body_generator
+                .output_parts
+                .push(OutputPart::Html("<!---->".to_string()));
+        }
+
         // Generate body content
         for (i, node) in body_nodes
             .iter()
@@ -1600,13 +1616,23 @@ impl<'a> ServerCodeGenerator<'a> {
             .take(end_idx - start_idx)
         {
             if i == start_idx {
-                // First node - if it's text, trim it
+                // First node - if it's text, trim leading whitespace but preserve trailing space
+                // if followed by a non-expression-tag node
                 if let TemplateNode::Text(text) = node {
-                    let trimmed = text.data.trim();
-                    if !trimmed.is_empty() {
-                        body_generator
-                            .output_parts
-                            .push(OutputPart::Html(escape_html(trimmed)));
+                    let trimmed = text.data.trim_start();
+                    // Check if there's a next node and it's not an expression tag
+                    let next_node = body_nodes.get(i + 1);
+                    let needs_trailing_space = next_node.is_some()
+                        && !matches!(next_node, Some(TemplateNode::ExpressionTag(_)))
+                        && text.data.chars().last().is_some_and(|c| c.is_whitespace());
+
+                    let trimmed_end = trimmed.trim_end();
+                    if !trimmed_end.is_empty() {
+                        let mut content = escape_html(trimmed_end);
+                        if needs_trailing_space {
+                            content.push(' ');
+                        }
+                        body_generator.output_parts.push(OutputPart::Html(content));
                     }
                     continue;
                 }
@@ -2172,13 +2198,23 @@ impl<'a> ServerCodeGenerator<'a> {
             .take(end_idx - start_idx)
         {
             if i == start_idx {
-                // First node - if it's text, trim it
+                // First node - if it's text, trim leading whitespace but preserve trailing space
+                // if followed by a non-expression-tag node
                 if let TemplateNode::Text(text) = node {
-                    let trimmed = text.data.trim();
-                    if !trimmed.is_empty() {
-                        body_generator
-                            .output_parts
-                            .push(OutputPart::Html(escape_html(trimmed)));
+                    let trimmed = text.data.trim_start();
+                    // Check if there's a next node and it's not an expression tag
+                    let next_node = body_nodes.get(i + 1);
+                    let needs_trailing_space = next_node.is_some()
+                        && !matches!(next_node, Some(TemplateNode::ExpressionTag(_)))
+                        && text.data.chars().last().is_some_and(|c| c.is_whitespace());
+
+                    let trimmed_end = trimmed.trim_end();
+                    if !trimmed_end.is_empty() {
+                        let mut content = escape_html(trimmed_end);
+                        if needs_trailing_space {
+                            content.push(' ');
+                        }
+                        body_generator.output_parts.push(OutputPart::Html(content));
                     }
                     prev_was_const_tag = false;
                     continue;
