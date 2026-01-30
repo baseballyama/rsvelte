@@ -2503,6 +2503,290 @@ fn assignment_operator_to_string(op: &oxc_ast::ast::AssignmentOperator) -> Strin
     .to_string()
 }
 
+/// Convert an ObjectAssignmentTarget to ObjectPattern JSON.
+/// ObjectAssignmentTarget is `{ foo }` in `({ foo } = obj);`
+fn convert_object_assignment_target(
+    obj_target: &oxc_ast::ast::ObjectAssignmentTarget,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    // Note: -1 adjustment for the paren we added when parsing
+    let start = offset + obj_target.span.start as usize - 1;
+    let end = offset + obj_target.span.end as usize - 1;
+
+    let mut obj = Map::new();
+    obj.insert(
+        "type".to_string(),
+        Value::String("ObjectPattern".to_string()),
+    );
+    obj.insert("start".to_string(), Value::Number((start as i64).into()));
+    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+    obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+    let mut properties: Vec<Value> = obj_target
+        .properties
+        .iter()
+        .map(|prop| convert_assignment_target_property(prop, offset, line_offsets))
+        .collect();
+
+    // Add rest element if present
+    if let Some(rest) = &obj_target.rest {
+        let rest_start = offset + rest.span.start as usize - 1;
+        let rest_end = offset + rest.span.end as usize - 1;
+
+        let mut rest_obj = Map::new();
+        rest_obj.insert("type".to_string(), Value::String("RestElement".to_string()));
+        rest_obj.insert(
+            "start".to_string(),
+            Value::Number((rest_start as i64).into()),
+        );
+        rest_obj.insert("end".to_string(), Value::Number((rest_end as i64).into()));
+        rest_obj.insert(
+            "loc".to_string(),
+            create_loc(rest_start, rest_end, line_offsets),
+        );
+        rest_obj.insert(
+            "argument".to_string(),
+            convert_assignment_target(&rest.target, offset, line_offsets),
+        );
+        properties.push(Value::Object(rest_obj));
+    }
+
+    obj.insert("properties".to_string(), Value::Array(properties));
+
+    Value::Object(obj)
+}
+
+/// Convert an ArrayAssignmentTarget to ArrayPattern JSON.
+/// ArrayAssignmentTarget is `[a, b]` in `([a, b] = arr);`
+fn convert_array_assignment_target(
+    arr_target: &oxc_ast::ast::ArrayAssignmentTarget,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    // Note: -1 adjustment for the paren we added when parsing
+    let start = offset + arr_target.span.start as usize - 1;
+    let end = offset + arr_target.span.end as usize - 1;
+
+    let mut obj = Map::new();
+    obj.insert(
+        "type".to_string(),
+        Value::String("ArrayPattern".to_string()),
+    );
+    obj.insert("start".to_string(), Value::Number((start as i64).into()));
+    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+    obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+    let mut elements: Vec<Value> = arr_target
+        .elements
+        .iter()
+        .map(|elem| match elem {
+            Some(target) => convert_assignment_target_maybe_default(target, offset, line_offsets),
+            None => Value::Null,
+        })
+        .collect();
+
+    // Add rest element if present
+    if let Some(rest) = &arr_target.rest {
+        let rest_start = offset + rest.span.start as usize - 1;
+        let rest_end = offset + rest.span.end as usize - 1;
+
+        let mut rest_obj = Map::new();
+        rest_obj.insert("type".to_string(), Value::String("RestElement".to_string()));
+        rest_obj.insert(
+            "start".to_string(),
+            Value::Number((rest_start as i64).into()),
+        );
+        rest_obj.insert("end".to_string(), Value::Number((rest_end as i64).into()));
+        rest_obj.insert(
+            "loc".to_string(),
+            create_loc(rest_start, rest_end, line_offsets),
+        );
+        rest_obj.insert(
+            "argument".to_string(),
+            convert_assignment_target(&rest.target, offset, line_offsets),
+        );
+        elements.push(Value::Object(rest_obj));
+    }
+
+    obj.insert("elements".to_string(), Value::Array(elements));
+
+    Value::Object(obj)
+}
+
+/// Convert an AssignmentTargetProperty to Property JSON.
+fn convert_assignment_target_property(
+    prop: &oxc_ast::ast::AssignmentTargetProperty,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    use oxc_ast::ast::AssignmentTargetProperty;
+
+    match prop {
+        AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(id_prop) => {
+            // Shorthand property like `{ foo }` in `({ foo } = obj);`
+            let start = offset + id_prop.span.start as usize - 1;
+            let end = offset + id_prop.span.end as usize - 1;
+
+            let mut obj = Map::new();
+            obj.insert("type".to_string(), Value::String("Property".to_string()));
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            obj.insert("method".to_string(), Value::Bool(false));
+            obj.insert("shorthand".to_string(), Value::Bool(true));
+            obj.insert("computed".to_string(), Value::Bool(false));
+            obj.insert("kind".to_string(), Value::String("init".to_string()));
+
+            // For shorthand, key and value are the same identifier
+            let id_start = offset + id_prop.binding.span.start as usize - 1;
+            let id_end = offset + id_prop.binding.span.end as usize - 1;
+            let identifier =
+                create_identifier(&id_prop.binding.name, id_start, id_end, line_offsets)
+                    .as_json()
+                    .clone();
+
+            obj.insert("key".to_string(), identifier.clone());
+
+            // Value is the identifier, possibly with a default value
+            if let Some(init) = &id_prop.init {
+                // Has default: `{ foo = default }` -> AssignmentPattern
+                let mut assign_pat = Map::new();
+                assign_pat.insert(
+                    "type".to_string(),
+                    Value::String("AssignmentPattern".to_string()),
+                );
+                assign_pat.insert("start".to_string(), Value::Number((id_start as i64).into()));
+                let init_end = offset + init.span().end as usize - 1;
+                assign_pat.insert("end".to_string(), Value::Number((init_end as i64).into()));
+                assign_pat.insert(
+                    "loc".to_string(),
+                    create_loc(id_start, init_end, line_offsets),
+                );
+                assign_pat.insert("left".to_string(), identifier);
+                assign_pat.insert(
+                    "right".to_string(),
+                    convert_expression(init, offset, line_offsets)
+                        .as_json()
+                        .clone(),
+                );
+                obj.insert("value".to_string(), Value::Object(assign_pat));
+            } else {
+                obj.insert("value".to_string(), identifier);
+            }
+
+            Value::Object(obj)
+        }
+        AssignmentTargetProperty::AssignmentTargetPropertyProperty(prop_prop) => {
+            // Non-shorthand property like `{ foo: bar }` in `({ foo: bar } = obj);`
+            let start = offset + prop_prop.span.start as usize - 1;
+            let end = offset + prop_prop.span.end as usize - 1;
+
+            let mut obj = Map::new();
+            obj.insert("type".to_string(), Value::String("Property".to_string()));
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            obj.insert("method".to_string(), Value::Bool(false));
+            obj.insert("shorthand".to_string(), Value::Bool(false));
+            obj.insert("computed".to_string(), Value::Bool(prop_prop.computed));
+            obj.insert("kind".to_string(), Value::String("init".to_string()));
+
+            // Convert key
+            let key = convert_property_key_with_offset(&prop_prop.name, offset, line_offsets);
+            obj.insert("key".to_string(), key);
+
+            // Convert value
+            let value =
+                convert_assignment_target_maybe_default(&prop_prop.binding, offset, line_offsets);
+            obj.insert("value".to_string(), value);
+
+            Value::Object(obj)
+        }
+    }
+}
+
+/// Convert an AssignmentTargetMaybeDefault to JSON.
+fn convert_assignment_target_maybe_default(
+    target: &oxc_ast::ast::AssignmentTargetMaybeDefault,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    use oxc_ast::ast::AssignmentTargetMaybeDefault;
+
+    match target {
+        AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(with_default) => {
+            // Has default value: `foo = default`
+            let start = offset + with_default.span.start as usize - 1;
+            let end = offset + with_default.span.end as usize - 1;
+
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("AssignmentPattern".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            obj.insert(
+                "left".to_string(),
+                convert_assignment_target(&with_default.binding, offset, line_offsets),
+            );
+            obj.insert(
+                "right".to_string(),
+                convert_expression(&with_default.init, offset, line_offsets)
+                    .as_json()
+                    .clone(),
+            );
+
+            Value::Object(obj)
+        }
+        // All other variants are AssignmentTarget variants
+        _ => {
+            // Convert to AssignmentTarget - need to extract the inner target
+            if let Some(inner) = target.as_assignment_target() {
+                convert_assignment_target(inner, offset, line_offsets)
+            } else {
+                Value::Null
+            }
+        }
+    }
+}
+
+/// Convert a PropertyKey with -1 offset adjustment (for expression context).
+fn convert_property_key_with_offset(
+    key: &oxc_ast::ast::PropertyKey,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    match key {
+        oxc_ast::ast::PropertyKey::StaticIdentifier(id) => {
+            let start = offset + id.span.start as usize - 1;
+            let end = offset + id.span.end as usize - 1;
+            create_identifier(&id.name, start, end, line_offsets)
+                .as_json()
+                .clone()
+        }
+        oxc_ast::ast::PropertyKey::PrivateIdentifier(id) => {
+            let start = offset + id.span.start as usize - 1;
+            let end = offset + id.span.end as usize - 1;
+            create_private_identifier(&id.name, start, end, line_offsets)
+                .as_json()
+                .clone()
+        }
+        _ => {
+            // For computed keys, try to get the expression
+            if let Some(expr) = key.as_expression() {
+                convert_expression(expr, offset, line_offsets)
+                    .as_json()
+                    .clone()
+            } else {
+                Value::Null
+            }
+        }
+    }
+}
+
 fn convert_assignment_target(
     target: &oxc_ast::ast::AssignmentTarget,
     offset: usize,
@@ -2532,8 +2816,14 @@ fn convert_assignment_target(
                 .as_json()
                 .clone()
         }
+        AssignmentTarget::ObjectAssignmentTarget(obj_target) => {
+            convert_object_assignment_target(obj_target, offset, line_offsets)
+        }
+        AssignmentTarget::ArrayAssignmentTarget(arr_target) => {
+            convert_array_assignment_target(arr_target, offset, line_offsets)
+        }
         _ => {
-            // Fallback for complex patterns
+            // Fallback for other complex patterns (e.g., TSAsExpression, TSNonNullExpression)
             Value::Null
         }
     }
@@ -5520,10 +5810,256 @@ fn convert_assignment_target_for_program(
 
             Value::Object(obj)
         }
+        AssignmentTarget::ObjectAssignmentTarget(obj_target) => {
+            convert_object_assignment_target_for_program(obj_target, offset, line_offsets)
+        }
+        AssignmentTarget::ArrayAssignmentTarget(arr_target) => {
+            convert_array_assignment_target_for_program(arr_target, offset, line_offsets)
+        }
         _ => {
-            // For complex patterns (ArrayAssignmentTarget, ObjectAssignmentTarget, etc.),
-            // fallback to placeholder. These are rarely used in Svelte templates.
+            // For other complex patterns (e.g., TSAsExpression, TSNonNullExpression)
             Value::Null
+        }
+    }
+}
+
+/// Convert an ObjectAssignmentTarget to ObjectPattern JSON (no -1 offset adjustment).
+fn convert_object_assignment_target_for_program(
+    obj_target: &oxc_ast::ast::ObjectAssignmentTarget,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    let start = offset + obj_target.span.start as usize;
+    let end = offset + obj_target.span.end as usize;
+
+    let mut obj = Map::new();
+    obj.insert(
+        "type".to_string(),
+        Value::String("ObjectPattern".to_string()),
+    );
+    obj.insert("start".to_string(), Value::Number((start as i64).into()));
+    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+    obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+    let mut properties: Vec<Value> = obj_target
+        .properties
+        .iter()
+        .map(|prop| convert_assignment_target_property_for_program(prop, offset, line_offsets))
+        .collect();
+
+    // Add rest element if present
+    if let Some(rest) = &obj_target.rest {
+        let rest_start = offset + rest.span.start as usize;
+        let rest_end = offset + rest.span.end as usize;
+
+        let mut rest_obj = Map::new();
+        rest_obj.insert("type".to_string(), Value::String("RestElement".to_string()));
+        rest_obj.insert(
+            "start".to_string(),
+            Value::Number((rest_start as i64).into()),
+        );
+        rest_obj.insert("end".to_string(), Value::Number((rest_end as i64).into()));
+        rest_obj.insert(
+            "loc".to_string(),
+            create_loc(rest_start, rest_end, line_offsets),
+        );
+        rest_obj.insert(
+            "argument".to_string(),
+            convert_assignment_target_for_program(&rest.target, offset, line_offsets),
+        );
+        properties.push(Value::Object(rest_obj));
+    }
+
+    obj.insert("properties".to_string(), Value::Array(properties));
+
+    Value::Object(obj)
+}
+
+/// Convert an ArrayAssignmentTarget to ArrayPattern JSON (no -1 offset adjustment).
+fn convert_array_assignment_target_for_program(
+    arr_target: &oxc_ast::ast::ArrayAssignmentTarget,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    let start = offset + arr_target.span.start as usize;
+    let end = offset + arr_target.span.end as usize;
+
+    let mut obj = Map::new();
+    obj.insert(
+        "type".to_string(),
+        Value::String("ArrayPattern".to_string()),
+    );
+    obj.insert("start".to_string(), Value::Number((start as i64).into()));
+    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+    obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+    let mut elements: Vec<Value> = arr_target
+        .elements
+        .iter()
+        .map(|elem| match elem {
+            Some(target) => {
+                convert_assignment_target_maybe_default_for_program(target, offset, line_offsets)
+            }
+            None => Value::Null,
+        })
+        .collect();
+
+    // Add rest element if present
+    if let Some(rest) = &arr_target.rest {
+        let rest_start = offset + rest.span.start as usize;
+        let rest_end = offset + rest.span.end as usize;
+
+        let mut rest_obj = Map::new();
+        rest_obj.insert("type".to_string(), Value::String("RestElement".to_string()));
+        rest_obj.insert(
+            "start".to_string(),
+            Value::Number((rest_start as i64).into()),
+        );
+        rest_obj.insert("end".to_string(), Value::Number((rest_end as i64).into()));
+        rest_obj.insert(
+            "loc".to_string(),
+            create_loc(rest_start, rest_end, line_offsets),
+        );
+        rest_obj.insert(
+            "argument".to_string(),
+            convert_assignment_target_for_program(&rest.target, offset, line_offsets),
+        );
+        elements.push(Value::Object(rest_obj));
+    }
+
+    obj.insert("elements".to_string(), Value::Array(elements));
+
+    Value::Object(obj)
+}
+
+/// Convert an AssignmentTargetProperty to Property JSON (no -1 offset adjustment).
+fn convert_assignment_target_property_for_program(
+    prop: &oxc_ast::ast::AssignmentTargetProperty,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    use oxc_ast::ast::AssignmentTargetProperty;
+
+    match prop {
+        AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(id_prop) => {
+            let start = offset + id_prop.span.start as usize;
+            let end = offset + id_prop.span.end as usize;
+
+            let mut obj = Map::new();
+            obj.insert("type".to_string(), Value::String("Property".to_string()));
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            obj.insert("method".to_string(), Value::Bool(false));
+            obj.insert("shorthand".to_string(), Value::Bool(true));
+            obj.insert("computed".to_string(), Value::Bool(false));
+            obj.insert("kind".to_string(), Value::String("init".to_string()));
+
+            let id_start = offset + id_prop.binding.span.start as usize;
+            let id_end = offset + id_prop.binding.span.end as usize;
+            let identifier =
+                create_identifier(&id_prop.binding.name, id_start, id_end, line_offsets)
+                    .as_json()
+                    .clone();
+
+            obj.insert("key".to_string(), identifier.clone());
+
+            if let Some(init) = &id_prop.init {
+                let mut assign_pat = Map::new();
+                assign_pat.insert(
+                    "type".to_string(),
+                    Value::String("AssignmentPattern".to_string()),
+                );
+                assign_pat.insert("start".to_string(), Value::Number((id_start as i64).into()));
+                let init_end = offset + init.span().end as usize;
+                assign_pat.insert("end".to_string(), Value::Number((init_end as i64).into()));
+                assign_pat.insert(
+                    "loc".to_string(),
+                    create_loc(id_start, init_end, line_offsets),
+                );
+                assign_pat.insert("left".to_string(), identifier);
+                assign_pat.insert(
+                    "right".to_string(),
+                    convert_expression_for_program(init, offset, line_offsets)
+                        .as_json()
+                        .clone(),
+                );
+                obj.insert("value".to_string(), Value::Object(assign_pat));
+            } else {
+                obj.insert("value".to_string(), identifier);
+            }
+
+            Value::Object(obj)
+        }
+        AssignmentTargetProperty::AssignmentTargetPropertyProperty(prop_prop) => {
+            let start = offset + prop_prop.span.start as usize;
+            let end = offset + prop_prop.span.end as usize;
+
+            let mut obj = Map::new();
+            obj.insert("type".to_string(), Value::String("Property".to_string()));
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            obj.insert("method".to_string(), Value::Bool(false));
+            obj.insert("shorthand".to_string(), Value::Bool(false));
+            obj.insert("computed".to_string(), Value::Bool(prop_prop.computed));
+            obj.insert("kind".to_string(), Value::String("init".to_string()));
+
+            let key = convert_property_key(&prop_prop.name, offset, line_offsets);
+            obj.insert("key".to_string(), key);
+
+            let value = convert_assignment_target_maybe_default_for_program(
+                &prop_prop.binding,
+                offset,
+                line_offsets,
+            );
+            obj.insert("value".to_string(), value);
+
+            Value::Object(obj)
+        }
+    }
+}
+
+/// Convert an AssignmentTargetMaybeDefault to JSON (no -1 offset adjustment).
+fn convert_assignment_target_maybe_default_for_program(
+    target: &oxc_ast::ast::AssignmentTargetMaybeDefault,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    use oxc_ast::ast::AssignmentTargetMaybeDefault;
+
+    match target {
+        AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(with_default) => {
+            let start = offset + with_default.span.start as usize;
+            let end = offset + with_default.span.end as usize;
+
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("AssignmentPattern".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            obj.insert(
+                "left".to_string(),
+                convert_assignment_target_for_program(&with_default.binding, offset, line_offsets),
+            );
+            obj.insert(
+                "right".to_string(),
+                convert_expression_for_program(&with_default.init, offset, line_offsets)
+                    .as_json()
+                    .clone(),
+            );
+
+            Value::Object(obj)
+        }
+        _ => {
+            if let Some(inner) = target.as_assignment_target() {
+                convert_assignment_target_for_program(inner, offset, line_offsets)
+            } else {
+                Value::Null
+            }
         }
     }
 }
@@ -6247,5 +6783,38 @@ fn convert_statement_with_adjustment(
             Some(Value::Object(obj))
         }
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_destructuring_assignment() {
+        let content = "{ handler } = structured";
+        let offset = 10; // arbitrary offset
+        let line_offsets = vec![0, 50, 100]; // dummy line offsets
+
+        let expr = parse_expression_with_typescript(content, offset, &line_offsets, false);
+
+        println!("Expression: {:?}", expr);
+
+        if let Some(e) = &expr {
+            println!("Type: {:?}", e.node_type());
+            println!("Start: {:?}", e.start());
+            println!("End: {:?}", e.end());
+        }
+
+        assert!(
+            expr.is_some(),
+            "Should successfully parse destructuring assignment"
+        );
+        let e = expr.unwrap();
+        assert_eq!(
+            e.node_type(),
+            Some("AssignmentExpression"),
+            "Should be AssignmentExpression"
+        );
     }
 }

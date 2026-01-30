@@ -1171,9 +1171,45 @@ impl Parser<'_> {
             }
             "const" => {
                 // {@const foo = bar}
+                // Note: Must track brace depth for destructuring patterns like { handler } = obj
                 self.skip_whitespace();
                 let expr_start = self.index;
-                while !self.is_eof() && self.current_char() != '}' {
+                let mut brace_depth = 0;
+                let mut in_string = false;
+                let mut string_char = '\0';
+                let mut prev_char = '\0';
+
+                while !self.is_eof() {
+                    let c = self.current_char();
+
+                    if in_string {
+                        // Handle escape sequences - backslash escapes the next char
+                        if c == string_char && prev_char != '\\' {
+                            in_string = false;
+                        }
+                        prev_char = c;
+                        self.advance();
+                        continue;
+                    }
+
+                    if c == '"' || c == '\'' || c == '`' {
+                        in_string = true;
+                        string_char = c;
+                        prev_char = c;
+                        self.advance();
+                        continue;
+                    }
+
+                    if c == '{' {
+                        brace_depth += 1;
+                    } else if c == '}' {
+                        if brace_depth == 0 {
+                            // Found the closing brace of the @const tag
+                            break;
+                        }
+                        brace_depth -= 1;
+                    }
+                    prev_char = c;
                     self.advance();
                 }
                 let expr_content = &self.source[expr_start..self.index];
