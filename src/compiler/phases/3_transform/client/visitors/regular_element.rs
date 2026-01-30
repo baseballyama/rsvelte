@@ -243,30 +243,13 @@ pub fn visit_regular_element(
     }
 
     // For input elements with bind:value, bind:checked, or bind:group,
-    // add $.remove_input_defaults() call - but NOT if defaultValue/defaultChecked is present
+    // add $.remove_input_defaults() call
     if node.name == "input" && !has_spread {
-        let has_value_attribute = attributes.iter().any(|attr| {
-            if let Attribute::Attribute(a) = attr {
-                (a.name == "value" || a.name == "checked") && !is_text_attribute(a)
-            } else {
-                false
-            }
-        });
-        let has_default_value_attribute = attributes.iter().any(|attr| {
-            if let Attribute::Attribute(a) = attr {
-                a.name == "defaultValue" || a.name == "defaultChecked"
-            } else {
-                false
-            }
-        });
+        let has_value_binding = bindings.contains_key("value")
+            || bindings.contains_key("checked")
+            || bindings.contains_key("group");
 
-        // Only call remove_input_defaults if there's NO defaultValue/defaultChecked attribute
-        if !has_default_value_attribute
-            && (bindings.contains_key("value")
-                || bindings.contains_key("checked")
-                || bindings.contains_key("group")
-                || (!bindings.contains_key("group") && has_value_attribute))
-        {
+        if has_value_binding {
             context.state.init.push(b::stmt(b::call(
                 b::member_path("$.remove_input_defaults"),
                 vec![context.state.node.clone()],
@@ -766,12 +749,19 @@ fn get_attribute_name(_node: &RegularElementNode, attr: &AttributeNode) -> Strin
 }
 
 /// Check if an attribute cannot be set statically in the template.
-/// These are properties that can only work properly when set via JavaScript,
-/// not through HTML attributes in the template string.
 fn cannot_be_set_statically(name: &str) -> bool {
     matches!(
         name,
-        "autofocus" | "muted" | "defaultValue" | "defaultChecked"
+        "value"
+            | "checked"
+            | "selected"
+            | "innerHTML"
+            | "innerText"
+            | "textContent"
+            | "autofocus"
+            | "muted"
+            | "defaultValue"
+            | "defaultChecked"
     )
 }
 
@@ -821,8 +811,6 @@ fn is_dom_property(name: &str) -> bool {
             | "innerHTML"
             | "innerText"
             | "textContent"
-            | "defaultValue"
-            | "defaultChecked"
     )
 }
 
@@ -866,10 +854,6 @@ fn build_element_attribute_update(
     }
 
     // Special case: defaultValue
-    // If we would just set the defaultValue property, it would override the value property,
-    // because it is set in the template which implicitly means it's also setting the default value,
-    // and if one updates the default value while the input is pristine it will also update the
-    // current value, which is not what we want, which is why we need to do some extra work.
     if name == "defaultValue" {
         let has_value_attr = attributes.iter().any(|attr| {
             if let Attribute::Attribute(a) = attr {
@@ -885,12 +869,9 @@ fn build_element_attribute_update(
                 vec![b::id(node_id), value],
             );
         }
-
-        // Direct property assignment
-        return b::assign(b::member(b::id(node_id), "defaultValue"), value);
     }
 
-    // Special case: defaultChecked (see defaultValue comment above)
+    // Special case: defaultChecked
     if name == "defaultChecked" {
         let has_checked_attr = attributes.iter().any(|attr| {
             if let Attribute::Attribute(a) = attr {
@@ -906,9 +887,6 @@ fn build_element_attribute_update(
                 vec![b::id(node_id), value],
             );
         }
-
-        // Direct property assignment
-        return b::assign(b::member(b::id(node_id), "defaultChecked"), value);
     }
 
     // DOM property
