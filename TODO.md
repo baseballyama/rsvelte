@@ -2552,7 +2552,43 @@ $.template_effect(() => {
 | Runtime Runes Client | 302/737 | **304/737** | **+2** |
 | Runtime Runes Server | 500/737 | **503/737** | **+3** |
 
+**追加完了タスク（セッション4継続）:**
+
+- [x] **C-102**: Memoizer 完全実装 ✅
+  - 対象: `types.rs`, `component.rs`
+  - 実装: MemoEntry 構造体、deriveds() メソッド、複雑な式検出
+  - **結果**: Runtime Runes Total 276 → 278 (+2), Client +4
+  - **コミット**: `feat(transform): Implement Memoizer for complex component prop expressions`
+
+- [x] **C-103**: Derived object literal 括弧ラップ ✅
+  - 対象: `mod.rs`
+  - 問題: `$.derived(() => { ... })` が `$.derived(() => ({ ... }))` になっていない
+  - 修正: オブジェクトリテラルを検出して括弧でラップ
+  - **コミット**: `fix(transform): Wrap object literals in parentheses for derived arrow functions`
+
+- [x] **C-104**: 数値プライベートフィールド名サニタイズ ✅
+  - 対象: `mod.rs` (client/server)
+  - 問題: `#0`, `#1` のような無効な識別子生成
+  - 修正: `sanitize_identifier()` で数字始まりを `_` に変換
+  - **結果**: Runtime Runes Client +1 (308 → 309)
+  - **コミット**: `fix(transform): Sanitize numeric private field names to valid JS identifiers`
+
+**テスト状況（セッション4最終）:**
+| メトリック | セッション開始 | セッション終了 | 差分 |
+|-----------|--------------|---------------|------|
+| Compiler Snapshot | 20/20 | 20/20 | 維持 ✅ |
+| Runtime Runes Total | 276/737 (37.4%) | **278/737 (37.7%)** | **+2 (+0.3%)** |
+| Runtime Runes Client | 302/737 | **309/737** | **+7** |
+| Runtime Runes Server | 500/737 | **503/737** | **+3** |
+
+**本日のコミット:**
+1. `fix(parse): Properly convert ArrayPattern and AssignmentPattern in snippet parameters`
+2. `feat(transform): Implement Memoizer for complex component prop expressions`
+3. `Revert "fix(transform): Handle defaultValue/defaultChecked as DOM properties"` (リグレッション回避)
+4. `fix(transform): Wrap object literals in parentheses for derived arrow functions`
+5. `fix(transform): Sanitize numeric private field names to valid JS identifiers`
+
 **次のアクション:**
-1. Memoizer の完全実装（複雑な式のメモ化）
-2. ObjectPattern の snippet パラメータ変換
+1. Destructuring syntax 修正（サーバー側）
+2. 変数名切り詰め問題の修正
 3. Runtime Runes 40%+ 達成
