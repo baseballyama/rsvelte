@@ -145,17 +145,9 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
             }
 
             // Check if this binding needs reactive transformations
-            // In legacy mode (!runes), Normal bindings that are reassigned or mutated
-            // also need $.get()/.set() transformations
-            let is_legacy_mutable = !context.state.analysis.runes
-                && matches!(binding.kind, BindingKind::Normal)
-                && (binding.reassigned || binding.mutated)
-                && !matches!(binding.declaration_kind, DeclarationKind::Const);
-
             if is_state_source(binding, context.state.analysis)
                 || matches!(binding.kind, BindingKind::Derived)
                 || matches!(binding.kind, BindingKind::LegacyReactive)
-                || is_legacy_mutable
             {
                 // Determine the read function based on declaration kind
                 let read_fn: fn(JsExpr) -> JsExpr =
