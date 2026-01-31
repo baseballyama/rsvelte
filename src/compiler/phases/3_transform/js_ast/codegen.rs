@@ -62,67 +62,145 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
         .build(&result.program)
         .code;
     let code = collapse_short_arrays(code);
-    let code = add_blank_line_after_imports(code);
+    let code = add_blank_lines_for_formatting(code);
     Ok(code)
 }
 
-/// Add a blank line after the last import statement.
+/// Add blank lines to match Svelte's esrap output formatting.
 ///
-/// oxc's codegen doesn't add a blank line between imports and other statements.
-/// This function finds the last import line and inserts a blank line after it.
-///
-/// Example:
-/// ```js
-/// // Input:
-/// import * as $ from "svelte/internal/client";
-/// export default function Main($$anchor) {
-///
-/// // Output:
-/// import * as $ from "svelte/internal/client";
-///
-/// export default function Main($$anchor) {
-/// ```
-fn add_blank_line_after_imports(code: String) -> String {
+/// oxc's codegen doesn't add blank lines between statements.
+/// This function adds blank lines in the following cases:
+/// 1. After the last import statement (before non-import code)
+/// 2. After top-level variable declarations (before export/function declarations)
+/// 3. After variable declaration groups (before function declarations) inside functions
+/// 4. After function declarations inside functions
+/// 5. After variable declaration groups (before non-declaration statements) inside functions
+fn add_blank_lines_for_formatting(code: String) -> String {
     let lines: Vec<&str> = code.lines().collect();
     if lines.is_empty() {
         return code;
     }
 
-    // Find the index of the last import line
-    let mut last_import_idx: Option<usize> = None;
-    for (i, line) in lines.iter().enumerate() {
+    let mut result = String::with_capacity(code.len() + 100);
+    let mut i = 0;
+
+    while i < lines.len() {
+        let line = lines[i];
         let trimmed = line.trim();
-        if trimmed.starts_with("import ") {
-            last_import_idx = Some(i);
-        }
-    }
-
-    // If no imports found or import is the last line, return as-is
-    let Some(idx) = last_import_idx else {
-        return code;
-    };
-
-    // If import is the last line, no need to add blank line
-    if idx + 1 >= lines.len() {
-        return code;
-    }
-
-    // Check if the next line is already blank
-    if lines[idx + 1].trim().is_empty() {
-        return code;
-    }
-
-    // Insert a blank line after the last import
-    let mut result = String::with_capacity(code.len() + 1);
-    for (i, line) in lines.iter().enumerate() {
         result.push_str(line);
         result.push('\n');
-        if i == idx {
-            result.push('\n');
+
+        // Check if we need to add a blank line after this line
+        if i + 1 < lines.len() {
+            let next_line = lines[i + 1].trim();
+
+            // Skip if next line is already blank
+            if !next_line.is_empty() {
+                let should_add_blank = should_add_blank_line_after(trimmed, next_line, line);
+                if should_add_blank {
+                    result.push('\n');
+                }
+            }
         }
+
+        i += 1;
     }
 
     result
+}
+
+/// Determine if a blank line should be added after the current line.
+fn should_add_blank_line_after(current: &str, next: &str, raw_current: &str) -> bool {
+    // Rule 1: After import statements (before non-import)
+    if current.starts_with("import ") && !next.starts_with("import ") {
+        return true;
+    }
+
+    // Rule 2: After top-level var/let/const declarations (before export or function)
+    // Top-level means no leading whitespace
+    if !raw_current.starts_with('\t')
+        && !raw_current.starts_with(' ')
+        && is_var_declaration(current)
+        && (next.starts_with("export ")
+            || next.starts_with("function ")
+            || next.starts_with("async function "))
+    {
+        return true;
+    }
+
+    // Rule 3 & 4: Inside functions (indented code)
+    if raw_current.starts_with('\t') || raw_current.starts_with("  ") {
+        let current_indent = get_indent_level(raw_current);
+        let next_raw = format!("{}{}", "\t".repeat(current_indent), next);
+        let next_indent = get_indent_level(&next_raw);
+
+        // Only apply rules at the same indent level
+        if current_indent == next_indent
+            || next.starts_with("function ")
+            || next.starts_with("async function ")
+        {
+            // After variable declarations (before function declarations)
+            if is_var_declaration(current)
+                && (next.starts_with("function ") || next.starts_with("async function "))
+            {
+                return true;
+            }
+
+            // After closing brace of function (before next function or var or statement)
+            if current == "}"
+                && (next.starts_with("function ")
+                    || next.starts_with("async function ")
+                    || is_var_declaration(next)
+                    || is_statement(next))
+            {
+                return true;
+            }
+
+            // After variable declarations (before non-declaration statements)
+            // But only if the current is a declaration and next is NOT a declaration
+            if is_var_declaration(current) && !is_var_declaration(next) && is_statement(next) {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
+/// Check if a line is a variable declaration
+fn is_var_declaration(line: &str) -> bool {
+    line.starts_with("var ") || line.starts_with("let ") || line.starts_with("const ")
+}
+
+/// Check if a line is a statement (not a declaration)
+fn is_statement(line: &str) -> bool {
+    !line.starts_with("function ")
+        && !line.starts_with("async function ")
+        && !is_var_declaration(line)
+        && !line.starts_with("import ")
+        && !line.starts_with("export ")
+        && !line.is_empty()
+        && !line.starts_with("//")
+        && !line.starts_with("/*")
+        && line != "}"
+}
+
+/// Get the indentation level (number of tabs or equivalent spaces)
+fn get_indent_level(line: &str) -> usize {
+    let mut count = 0;
+    for c in line.chars() {
+        match c {
+            '\t' => count += 1,
+            ' ' => {
+                // Count 2 spaces as 1 indent level
+                count += 1;
+                // Skip the potential second space
+                break;
+            }
+            _ => break,
+        }
+    }
+    count
 }
 
 /// Collapse short arrays from multi-line to single-line format.
