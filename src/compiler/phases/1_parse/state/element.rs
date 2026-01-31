@@ -94,6 +94,29 @@ impl Parser<'_> {
         let name = self.read_tag_name();
         let name_end = self.index;
 
+        // Validate svelte: tag names
+        if name.starts_with("svelte:") {
+            let valid_svelte_tags = [
+                "svelte:head",
+                "svelte:options",
+                "svelte:window",
+                "svelte:document",
+                "svelte:body",
+                "svelte:element",
+                "svelte:component",
+                "svelte:self",
+                "svelte:fragment",
+                "svelte:boundary",
+            ];
+            if !valid_svelte_tags.contains(&name.as_str()) {
+                return Err(crate::error::ParseError::svelte(
+                    "svelte_meta_invalid_tag",
+                    "Valid `<svelte:...>` tag names are svelte:head, svelte:options, svelte:window, svelte:document, svelte:body, svelte:element, svelte:component, svelte:self, svelte:fragment or svelte:boundary\nhttps://svelte.dev/e/svelte_meta_invalid_tag",
+                    (name_start, name_end),
+                ));
+            }
+        }
+
         if name.is_empty() {
             // If we're at EOF with just '<', report unexpected_eof (unless in loose mode)
             if self.is_eof() {

@@ -244,16 +244,27 @@ impl Parser<'_> {
             }
 
             if is_block_close || is_block_continuation {
-                // Check if this is at root level (only Root on stack) - this is an error
-                let is_root_level =
-                    self.stack.len() == 1 && matches!(self.stack.first(), Some(StackEntry::Root));
-                if is_root_level && is_block_continuation {
+                // Check if block continuation is valid at this position
+                // Block continuation tags like {:else}, {:then}, {:catch} are only valid
+                // within IfBlock, EachBlock, or AwaitBlock contexts
+                if is_block_continuation {
                     let cont_start = self.index;
-                    return Err(crate::error::ParseError::svelte(
-                        "block_invalid_continuation_placement",
-                        "{:...} block is invalid at this position (did you forget to close the preceding element or block?)",
-                        (cont_start, cont_start),
-                    ));
+                    // Get the current context from the stack
+                    let current_context = self.stack.last();
+                    let is_valid_continuation_context = matches!(
+                        current_context,
+                        Some(StackEntry::IfBlock { .. })
+                            | Some(StackEntry::EachBlock { .. })
+                            | Some(StackEntry::AwaitBlock { .. })
+                    );
+
+                    if !is_valid_continuation_context {
+                        return Err(crate::error::ParseError::svelte(
+                            "block_invalid_continuation_placement",
+                            "{:...} block is invalid at this position (did you forget to close the preceding element or block?)",
+                            (cont_start, cont_start),
+                        ));
+                    }
                 }
                 break;
             }

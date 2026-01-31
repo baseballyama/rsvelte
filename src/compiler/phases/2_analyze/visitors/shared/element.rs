@@ -90,11 +90,7 @@ pub fn validate_element(
                                 }
 
                                 if !is_parenthesized {
-                                    return Err(AnalysisError::Validation(
-                                                "Sequence expressions are not allowed as attribute values. \
-                                                 Wrap the expression in parentheses."
-                                                    .to_string(),
-                                            ));
+                                    return Err(errors::attribute_invalid_sequence_expression());
                                 }
                             }
                         }
@@ -108,10 +104,7 @@ pub fn validate_element(
 
                 // Check for event handlers
                 if attr.name.starts_with("on") && attr.name.len() > 2 && !is_expression {
-                    return Err(AnalysisError::Validation(format!(
-                        "Event attribute '{}' must be an expression",
-                        attr.name
-                    )));
+                    return Err(errors::attribute_invalid_event_handler());
                 }
 
                 // Check for global event reference

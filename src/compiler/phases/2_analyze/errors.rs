@@ -97,12 +97,12 @@ pub fn rune_invalid_arguments_length(rune: &str, expected: &str) -> AnalysisErro
     )
 }
 
-/// `%rune%` can only be used inside `%location%`
+/// `%rune%` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.
 pub fn state_invalid_placement(rune: &str) -> AnalysisError {
     error(
         "state_invalid_placement",
         format!(
-            "`{}` can only be used at the top level of a component or inside a function",
+            "`{}(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement",
             rune
         ),
     )
@@ -866,5 +866,83 @@ pub fn directive_missing_name(directive_type: &str) -> AnalysisError {
             "`{}` name cannot be empty\nhttps://svelte.dev/e/directive_missing_name",
             directive_type
         ),
+    )
+}
+
+/// Sequence expressions are not allowed as attribute/directive values in runes mode, unless wrapped in parentheses
+pub fn attribute_invalid_sequence_expression() -> AnalysisError {
+    error(
+        "attribute_invalid_sequence_expression",
+        "Sequence expressions are not allowed as attribute/directive values in runes mode, unless wrapped in parentheses\nhttps://svelte.dev/e/attribute_invalid_sequence_expression",
+    )
+}
+
+/// `%name%` is an illegal variable name. To reference a global variable called `%name%`, use `globalThis.%name%`
+pub fn global_reference_invalid(name: &str) -> AnalysisError {
+    error(
+        "global_reference_invalid",
+        format!(
+            "`{}` is an illegal variable name. To reference a global variable called `{}`, use `globalThis.{}`\nhttps://svelte.dev/e/global_reference_invalid",
+            name, name, name
+        ),
+    )
+}
+
+/// Valid `<svelte:...>` tag names are %list%
+pub fn svelte_meta_invalid_tag(list: &str) -> AnalysisError {
+    error(
+        "svelte_meta_invalid_tag",
+        format!(
+            "Valid `<svelte:...>` tag names are {}\nhttps://svelte.dev/e/svelte_meta_invalid_tag",
+            list
+        ),
+    )
+}
+
+/// Expected a valid element or component name. Components must have a valid variable name or dot notation expression
+pub fn tag_invalid_name() -> AnalysisError {
+    error(
+        "tag_invalid_name",
+        "Expected a valid element or component name. Components must have a valid variable name or dot notation expression\nhttps://svelte.dev/e/tag_invalid_name",
+    )
+}
+
+/// Cannot use `<slot>` syntax and `{@render ...}` tags in the same component. Migrate towards `{@render ...}` tags completely
+pub fn slot_snippet_conflict() -> AnalysisError {
+    error(
+        "slot_snippet_conflict",
+        "Cannot use `<slot>` syntax and `{@render ...}` tags in the same component. Migrate towards `{@render ...}` tags completely\nhttps://svelte.dev/e/slot_snippet_conflict",
+    )
+}
+
+/// Cannot use explicit children snippet at the same time as implicit children content. Remove either the non-whitespace content or the children snippet block
+pub fn snippet_conflict() -> AnalysisError {
+    error(
+        "snippet_conflict",
+        "Cannot use explicit children snippet at the same time as implicit children content. Remove either the non-whitespace content or the children snippet block\nhttps://svelte.dev/e/snippet_conflict",
+    )
+}
+
+/// An exported snippet can only reference things declared in a `<script module>`, or other exportable snippets
+pub fn snippet_invalid_export() -> AnalysisError {
+    error(
+        "snippet_invalid_export",
+        "An exported snippet can only reference things declared in a `<script module>`, or other exportable snippets\nhttps://svelte.dev/e/snippet_invalid_export",
+    )
+}
+
+/// Attribute values containing `{...}` must be enclosed in quote marks, unless the value only contains the expression
+pub fn attribute_unquoted_sequence() -> AnalysisError {
+    error(
+        "attribute_unquoted_sequence",
+        "Attribute values containing `{...}` must be enclosed in quote marks, unless the value only contains the expression\nhttps://svelte.dev/e/attribute_unquoted_sequence",
+    )
+}
+
+/// Event attribute must be a JavaScript expression, not a string
+pub fn attribute_invalid_event_handler() -> AnalysisError {
+    error(
+        "attribute_invalid_event_handler",
+        "Event attribute must be a JavaScript expression, not a string\nhttps://svelte.dev/e/attribute_invalid_event_handler",
     )
 }
