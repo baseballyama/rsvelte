@@ -1135,4 +1135,86 @@ const test = new Test();
             r.js.code
         );
     }
+
+    /// Test CSS scoping with dynamic class expression
+    #[test]
+    fn debug_css_dynamic_class() {
+        use svelte_compiler_rust::compiler::CssMode;
+
+        let source = r#"<h1 class={{ [foo]: true }}>hello world</h1>
+
+<style>
+	.x { color: green; }
+</style>"#;
+
+        let options = CompileOptions {
+            dev: false,
+            css: CssMode::External,
+            filename: Some("input.svelte".to_string()),
+            ..Default::default()
+        };
+
+        let result = compile(source, options).expect("Compilation should succeed");
+
+        // Print CSS for debugging
+        if let Some(css) = &result.css {
+            println!(
+                "\n=== CSS OUTPUT (dynamic class) ===\n{}\n=== END ===\n",
+                css.code
+            );
+
+            // CSS should NOT be commented as unused because of dynamic class expression
+            assert!(
+                !css.code.contains("/* (unused)"),
+                "CSS selector '.x' should NOT be marked as unused since class is dynamic: {}",
+                css.code
+            );
+        } else {
+            panic!("Expected CSS output but got None");
+        }
+    }
+
+    /// Test CSS scoping with basic element selector
+    #[test]
+    fn debug_css_basic() {
+        use svelte_compiler_rust::compiler::CssMode;
+
+        let source = r#"<div>red</div>
+
+<style>
+    div {
+        color: red;
+    }
+</style>"#;
+
+        let options = CompileOptions {
+            dev: false,
+            css: CssMode::External,
+            filename: Some("input.svelte".to_string()),
+            ..Default::default()
+        };
+
+        let result = compile(source, options).expect("Compilation should succeed");
+
+        // Print CSS for debugging
+        if let Some(css) = &result.css {
+            println!("\n=== CSS OUTPUT ===\n{}\n=== END ===\n", css.code);
+
+            // CSS should NOT be commented as unused
+            assert!(
+                !css.code.contains("/* (unused)"),
+                "CSS selector 'div' should NOT be marked as unused since <div> is used in template: {}",
+                css.code
+            );
+
+            // CSS should be properly scoped
+            assert!(
+                css.code.contains("div.svelte-"),
+                "CSS selector should be scoped with svelte hash: {}",
+                css.code
+            );
+        } else {
+            panic!("Expected CSS output but got None");
+        }
+    }
 }

@@ -466,8 +466,8 @@ fn process_regular_attribute(
     custom_css_props: &mut Vec<JsObjectMember>,
     memoizer: &mut crate::compiler::phases::phase3_transform::client::types::Memoizer,
 ) {
+    #[allow(unused_imports)]
     use crate::compiler::phases::phase3_transform::client::types::ExpressionMetadata;
-    use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_expression;
 
     // Handle custom CSS properties (--var)
     if attr.name.starts_with("--") {
@@ -484,14 +484,11 @@ fn process_regular_attribute(
     // For example, ternary expressions like `show ? foo : bar` need memoization
     let memoize_if_state = should_memoize_attribute(&attr.value);
 
-    // Build attribute value WITHOUT memoization first - just extract the expression
+    // Build attribute value - this already applies transforms via build_expression internally
     let result = build_attribute_value(&attr.value, context, |value, _metadata| value);
 
-    // Now apply transforms to get the final expression
-    // This is done OUTSIDE the callback to avoid borrow conflicts
-    let mut metadata = ExpressionMetadata::default();
-    metadata.set_has_state(result.has_state);
-    let transformed_value = build_expression(context, &result.value, &metadata);
+    // The transformed value is already in result.value (transforms applied by build_attribute_value)
+    let transformed_value = result.value.clone();
 
     // Determine if we should memoize
     // Memoization happens when:
@@ -921,11 +918,13 @@ fn build_slot_function(
 /// with a modified set of nodes. We need to:
 /// 1. Clean the nodes (trim whitespace, handle hoisted nodes)
 /// 2. For standalone components, just visit them directly with $$anchor
-/// 3. For other cases, use the process_children pattern
+/// 3. For single element case, create template and append
+/// 4. For other cases, use the process_children pattern
 fn visit_slot_children(
     children: &[&TemplateNode],
     context: &mut ComponentContext,
 ) -> Vec<JsStatement> {
+    use crate::compiler::phases::phase3_transform::client::transform_template::Namespace;
     use crate::compiler::phases::phase3_transform::utils::clean_nodes;
 
     // Convert &[&TemplateNode] to Vec<TemplateNode> for clean_nodes
@@ -953,6 +952,7 @@ fn visit_slot_children(
     let saved_update = std::mem::take(&mut context.state.update);
     let saved_template = context.state.template.clone();
     let saved_node = context.state.node.clone();
+    let saved_hoisted = std::mem::take(&mut context.state.hoisted);
 
     // Reset template for slot content
     context.state.template =
@@ -965,8 +965,55 @@ fn visit_slot_children(
     // Track whether we need to auto-append at the end
     let mut needs_auto_append = false;
 
-    // Handle standalone case: single component/render tag doesn't need template processing
-    if cleaned.is_standalone {
+    // Check if single element (mirrors Fragment.js line 47)
+    let is_single_element =
+        cleaned.trimmed.len() == 1 && matches!(cleaned.trimmed[0], TemplateNode::RegularElement(_));
+
+    // Handle single element case (mirrors Fragment.js lines 82-98)
+    if is_single_element {
+        if let TemplateNode::RegularElement(element) = &cleaned.trimmed[0] {
+            // Generate unique id for the element
+            let id_name = context.state.memoizer.generate_id(&element.name);
+            let id = b::id(&id_name);
+
+            // Set node to the element id and visit
+            context.state.node = id.clone();
+            let _result = context.visit_node(&cleaned.trimmed[0], None);
+
+            // Transform template using the state's template
+            // This creates the hoisted template expression like: var root_1 = $.from_html(`<input slot="slot1"/>`);
+            let template_name = context.state.memoizer.generate_id("root");
+            let namespace = match context.state.metadata.namespace.as_str() {
+                "svg" => Namespace::Svg,
+                "mathml" => Namespace::Mathml,
+                _ => Namespace::Html,
+            };
+
+            // Build the template expression manually from the template state
+            let html_expr = context.state.template.as_html();
+            let template_expr = b::call(
+                b::member(b::id("$"), format!("from_{}", namespace.as_str())),
+                vec![html_expr],
+            );
+            context
+                .state
+                .hoisted
+                .push(b::var_decl(&template_name, Some(template_expr)));
+
+            // Add: var id = template_name();
+            context.state.init.insert(
+                0,
+                b::var_decl(&id_name, Some(b::call(b::id(&template_name), vec![]))),
+            );
+
+            // Add: $.append($$anchor, id);
+            context.state.init.push(b::stmt(b::call(
+                b::member_path("$.append"),
+                vec![b::id("$$anchor"), b::id(&id_name)],
+            )));
+        }
+    } else if cleaned.is_standalone {
+        // Handle standalone case: single component/render tag doesn't need template processing
         // For standalone components, just visit them directly
         for node in &cleaned.trimmed {
             let result = context.visit_node(node, None);
@@ -1105,6 +1152,11 @@ fn visit_slot_children(
             )));
         }
     }
+
+    // Merge hoisted (slot template declarations) into global hoisted
+    // These need to be at module level, not inside the slot function
+    let slot_hoisted = std::mem::replace(&mut context.state.hoisted, saved_hoisted);
+    context.state.hoisted.extend(slot_hoisted);
 
     // Restore the template and node
     context.state.template = saved_template;

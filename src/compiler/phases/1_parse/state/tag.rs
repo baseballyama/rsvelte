@@ -35,7 +35,11 @@ impl Parser<'_> {
 
         if self.match_str(":") {
             // Block continuation - should not happen at top level
-            return Ok(None);
+            return Err(crate::error::ParseError::svelte(
+                "block_invalid_continuation_placement",
+                "{:...} block is invalid at this position (did you forget to close the preceding element or block?)",
+                (start, start),
+            ));
         }
 
         if self.match_str("/") && !self.match_str("/*") && !self.match_str("//") {
@@ -1091,8 +1095,125 @@ impl Parser<'_> {
         match keyword.as_str() {
             "html" => {
                 let expr_start = self.index;
-                while !self.is_eof() && self.current_char() != '}' {
-                    self.advance();
+
+                // Track bracket depth to handle nested braces in expressions
+                // e.g., {@html `foo: ${foo}`} - need to skip the inner `}` in template literal
+                let mut depth = 1; // We're already inside the opening `{` of the tag
+                while !self.is_eof() {
+                    let ch = self.current_char();
+                    match ch {
+                        '{' => {
+                            depth += 1;
+                            self.advance();
+                        }
+                        '}' => {
+                            depth -= 1;
+                            if depth == 0 {
+                                break;
+                            }
+                            self.advance();
+                        }
+                        // Skip string literals to avoid counting braces inside strings
+                        '"' | '\'' => {
+                            let quote = ch;
+                            self.advance();
+                            let mut escaped = false;
+                            while !self.is_eof() {
+                                let c = self.current_char();
+                                if escaped {
+                                    escaped = false;
+                                } else if c == '\\' {
+                                    escaped = true;
+                                } else if c == quote {
+                                    break;
+                                }
+                                self.advance();
+                            }
+                            if !self.is_eof() {
+                                self.advance(); // consume closing quote
+                            }
+                        }
+                        // Skip template literals - they can contain ${...}
+                        '`' => {
+                            self.advance(); // consume opening backtick
+                            let mut escaped = false;
+                            while !self.is_eof() {
+                                let c = self.current_char();
+                                if escaped {
+                                    escaped = false;
+                                    self.advance();
+                                } else if c == '\\' {
+                                    escaped = true;
+                                    self.advance();
+                                } else if c == '$' && self.peek_chars(1).starts_with('{') {
+                                    // Template literal expression ${...}
+                                    self.advance(); // consume '$'
+                                    self.advance(); // consume '{'
+                                    let mut template_depth = 1;
+                                    while !self.is_eof() && template_depth > 0 {
+                                        match self.current_char() {
+                                            '{' => {
+                                                template_depth += 1;
+                                                self.advance();
+                                            }
+                                            '}' => {
+                                                template_depth -= 1;
+                                                self.advance();
+                                            }
+                                            '`' => {
+                                                // Nested template literal - skip it recursively
+                                                self.advance(); // consume opening backtick
+                                                let mut nested_escaped = false;
+                                                while !self.is_eof() {
+                                                    let nc = self.current_char();
+                                                    if nested_escaped {
+                                                        nested_escaped = false;
+                                                        self.advance();
+                                                    } else if nc == '\\' {
+                                                        nested_escaped = true;
+                                                        self.advance();
+                                                    } else if nc == '`' {
+                                                        self.advance();
+                                                        break;
+                                                    } else {
+                                                        self.advance();
+                                                    }
+                                                }
+                                            }
+                                            '"' | '\'' => {
+                                                // Skip strings inside template expression
+                                                let q = self.current_char();
+                                                self.advance();
+                                                while !self.is_eof() {
+                                                    let sc = self.current_char();
+                                                    if sc == '\\' {
+                                                        self.advance();
+                                                        if !self.is_eof() {
+                                                            self.advance();
+                                                        }
+                                                    } else if sc == q {
+                                                        self.advance();
+                                                        break;
+                                                    } else {
+                                                        self.advance();
+                                                    }
+                                                }
+                                            }
+                                            _ => self.advance(),
+                                        }
+                                    }
+                                } else if c == '`' {
+                                    break;
+                                } else {
+                                    self.advance();
+                                }
+                            }
+                            if !self.is_eof() {
+                                self.advance(); // consume closing backtick
+                            }
+                        }
+                        _ => self.advance(),
+                    }
                 }
                 let expr_content = &self.source[expr_start..self.index];
                 self.advance(); // consume '}'
