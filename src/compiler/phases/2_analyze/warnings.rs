@@ -462,6 +462,99 @@ pub fn a11y_unknown_role(role: &str, suggestion: Option<&str>) -> AnalysisWarnin
     warning("a11y_unknown_role", message)
 }
 
+// ARIA proptypes warnings
+
+/// The value of the attribute must be a specific type (generic)
+pub fn a11y_incorrect_aria_attribute_type(attribute: &str, expected_type: &str) -> AnalysisWarning {
+    warning(
+        "a11y_incorrect_aria_attribute_type",
+        format!(
+            "The value of '{}' must be a {}\nhttps://svelte.dev/e/a11y_incorrect_aria_attribute_type",
+            attribute, expected_type
+        ),
+    )
+}
+
+/// The value of the attribute must be 'true' or 'false' (boolean)
+pub fn a11y_incorrect_aria_attribute_type_boolean(attribute: &str) -> AnalysisWarning {
+    warning(
+        "a11y_incorrect_aria_attribute_type_boolean",
+        format!(
+            "The value of '{}' must be either 'true' or 'false'. It cannot be empty\nhttps://svelte.dev/e/a11y_incorrect_aria_attribute_type_boolean",
+            attribute
+        ),
+    )
+}
+
+/// The value of the attribute must be a DOM element ID
+pub fn a11y_incorrect_aria_attribute_type_id(attribute: &str) -> AnalysisWarning {
+    warning(
+        "a11y_incorrect_aria_attribute_type_id",
+        format!(
+            "The value of '{}' must be a string that represents a DOM element ID\nhttps://svelte.dev/e/a11y_incorrect_aria_attribute_type_id",
+            attribute
+        ),
+    )
+}
+
+/// The value of the attribute must be a space-separated list of DOM element IDs
+pub fn a11y_incorrect_aria_attribute_type_idlist(attribute: &str) -> AnalysisWarning {
+    warning(
+        "a11y_incorrect_aria_attribute_type_idlist",
+        format!(
+            "The value of '{}' must be a space-separated list of strings that represent DOM element IDs\nhttps://svelte.dev/e/a11y_incorrect_aria_attribute_type_idlist",
+            attribute
+        ),
+    )
+}
+
+/// The value of the attribute must be an integer
+pub fn a11y_incorrect_aria_attribute_type_integer(attribute: &str) -> AnalysisWarning {
+    warning(
+        "a11y_incorrect_aria_attribute_type_integer",
+        format!(
+            "The value of '{}' must be an integer\nhttps://svelte.dev/e/a11y_incorrect_aria_attribute_type_integer",
+            attribute
+        ),
+    )
+}
+
+/// The value of the attribute must be one of the specified tokens
+pub fn a11y_incorrect_aria_attribute_type_token(attribute: &str, values: &str) -> AnalysisWarning {
+    warning(
+        "a11y_incorrect_aria_attribute_type_token",
+        format!(
+            "The value of '{}' must be exactly one of {}\nhttps://svelte.dev/e/a11y_incorrect_aria_attribute_type_token",
+            attribute, values
+        ),
+    )
+}
+
+/// The value of the attribute must be a space-separated list of the specified tokens
+pub fn a11y_incorrect_aria_attribute_type_tokenlist(
+    attribute: &str,
+    values: &str,
+) -> AnalysisWarning {
+    warning(
+        "a11y_incorrect_aria_attribute_type_tokenlist",
+        format!(
+            "The value of '{}' must be a space-separated list of one or more of {}\nhttps://svelte.dev/e/a11y_incorrect_aria_attribute_type_tokenlist",
+            attribute, values
+        ),
+    )
+}
+
+/// The value of the attribute must be 'true', 'false', or 'mixed'
+pub fn a11y_incorrect_aria_attribute_type_tristate(attribute: &str) -> AnalysisWarning {
+    warning(
+        "a11y_incorrect_aria_attribute_type_tristate",
+        format!(
+            "The value of '{}' must be exactly one of true, false, or mixed\nhttps://svelte.dev/e/a11y_incorrect_aria_attribute_type_tristate",
+            attribute
+        ),
+    )
+}
+
 // Custom element warnings
 
 /// When creating a custom element, props should be defined using the `customElement.props` compiler option

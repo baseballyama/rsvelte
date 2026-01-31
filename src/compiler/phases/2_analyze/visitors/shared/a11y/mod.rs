@@ -37,11 +37,11 @@ use crate::compiler::phases::phase2_analyze::warnings as w;
 ///
 /// # Arguments
 /// * `node` - The element to check (RegularElement or SvelteElement)
-/// * `path` - The path from root to this element (for parent checks)
+/// * `ancestor_names` - The element names of ancestors from root to parent (for parent checks)
 ///
 /// # Returns
 /// A vector of warnings detected for this element.
-pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::AnalysisWarning> {
+pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w::AnalysisWarning> {
     let mut warnings = Vec::new();
     let mut attribute_map: FxHashMap<String, &AttributeNode> = FxHashMap::default();
     let mut handlers: FxHashSet<String> = FxHashSet::default();
@@ -109,6 +109,12 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
                     warnings.push(w::a11y_hidden(&node.name));
                 }
 
+                // aria-proptypes validation
+                let value = get_static_value(attribute);
+                if let Some(schema) = ARIA_PROPERTY_DEFINITIONS.get(name.as_str()) {
+                    validate_aria_attribute_value(&mut warnings, &name, schema, value);
+                }
+
                 // aria-activedescendant-has-tabindex
                 if name == "aria-activedescendant"
                     && !is_dynamic_element
@@ -151,7 +157,8 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
                         }
 
                         // Footers and headers special case
-                        let is_parent_section_or_article = is_parent(path, &["section", "article"]);
+                        let is_parent_section_or_article =
+                            is_parent(ancestor_names, &["section", "article"]);
                         if !is_parent_section_or_article
                             && let Some(nested_role) =
                                 A11Y_NESTED_IMPLICIT_SEMANTICS.get(node.name.as_str())
@@ -225,7 +232,10 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
             }
 
             // no-autofocus
-            if name == "autofocus" && node.name != "dialog" && !is_parent(path, &["dialog"]) {
+            if name == "autofocus"
+                && node.name != "dialog"
+                && !is_parent(ancestor_names, &["dialog"])
+            {
                 warnings.push(w::a11y_autofocus());
             }
 
@@ -245,6 +255,7 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
         }
     }
 
+    let has_role_attr = attribute_map.contains_key("role");
     let role_static_value = attribute_map
         .get("role")
         .and_then(|attr| get_static_value(attr));
@@ -284,15 +295,14 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
     if !has_spread
         && !has_contenteditable_attr
         && !is_hidden_from_screen_reader(&node.name, &attribute_map)
-        && role_static_value.is_some_and(|r| !is_presentation_role(r))
+        && !role_static_value.is_some_and(is_presentation_role)
     {
-        let should_check = if !is_interactive_element(&node.name, &attribute_map) {
-            role_static_value.is_some_and(is_non_interactive_roles)
-        } else if is_non_interactive_element(&node.name, &attribute_map) {
-            role_static_value.is_none()
-        } else {
-            false
-        };
+        // Check if element should trigger the warning:
+        // (!is_interactive_element && is_non_interactive_roles) ||
+        // (is_non_interactive_element && !role)
+        let should_check = (!is_interactive_element(&node.name, &attribute_map)
+            && role_static_value.is_some_and(is_non_interactive_roles))
+            || (is_non_interactive_element(&node.name, &attribute_map) && !has_role_attr);
 
         if should_check {
             let has_interactive_handlers = handlers
@@ -307,7 +317,6 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
     // no-static-element-interactions
     // Check: (!role || role_static_value !== null)
     // This means: either there's no role attribute, OR if there is a role, it has a static value
-    let has_role_attr = attribute_map.contains_key("role");
     if !has_spread
         && (!has_role_attr || role_static_value.is_some())
         && !is_hidden_from_screen_reader(&node.name, &attribute_map)
@@ -463,7 +472,7 @@ pub fn check_element(node: &RegularElement, path: &[&TemplateNode]) -> Vec<w::An
             }
         }
         "figcaption" => {
-            if !is_parent(path, &["figure"]) {
+            if !is_parent(ancestor_names, &["figure"]) {
                 warnings.push(w::a11y_figcaption_parent());
             }
         }
@@ -738,14 +747,10 @@ fn match_schema(
     true
 }
 
-fn is_parent(path: &[&TemplateNode], elements: &[&str]) -> bool {
-    for node in path.iter().rev() {
-        if let TemplateNode::SvelteElement(_) = node {
-            return true; // Unknown, play it safe
-        }
-        if let TemplateNode::RegularElement(el) = node {
-            return elements.contains(&el.name.as_str());
-        }
+fn is_parent(ancestor_names: &[String], elements: &[&str]) -> bool {
+    // Check if the immediate parent element name is in the list
+    if let Some(parent_name) = ancestor_names.last() {
+        return elements.contains(&parent_name.as_str());
     }
     false
 }
@@ -859,6 +864,107 @@ fn list(strings: &[&str], conjunction: &str) -> String {
             let last = strings.last().unwrap();
             let rest = &strings[..strings.len() - 1];
             format!("{} {} {}", rest.join(", "), conjunction, last)
+        }
+    }
+}
+
+/// Validate ARIA attribute value against its schema type.
+/// Corresponds to `validate_aria_attribute_value` in the official Svelte compiler.
+fn validate_aria_attribute_value(
+    warnings: &mut Vec<w::AnalysisWarning>,
+    name: &str,
+    schema: &AriaPropertyDefinition,
+    value: Option<&str>,
+) {
+    // If value is None (dynamic), skip validation
+    let value = match value {
+        None => return,
+        Some(v) => {
+            // If it was a boolean attribute (true), treat as empty string
+            if v == "true" && matches!(schema.property_type, AriaPropertyType::Boolean) {
+                // For aria-props, "true" (the string) is valid for boolean
+                // The issue is when attribute is present with no value or wrong value
+                return;
+            }
+            v
+        }
+    };
+
+    match schema.property_type {
+        AriaPropertyType::Id | AriaPropertyType::String => {
+            if value.is_empty() {
+                warnings.push(w::a11y_incorrect_aria_attribute_type(
+                    name,
+                    "non-empty string",
+                ));
+            }
+        }
+        AriaPropertyType::Number => {
+            if value.is_empty() || value.parse::<f64>().is_err() {
+                warnings.push(w::a11y_incorrect_aria_attribute_type(name, "number"));
+            }
+        }
+        AriaPropertyType::Boolean => {
+            if value != "true" && value != "false" {
+                warnings.push(w::a11y_incorrect_aria_attribute_type_boolean(name));
+            }
+        }
+        AriaPropertyType::IdList => {
+            if value.is_empty() {
+                warnings.push(w::a11y_incorrect_aria_attribute_type_idlist(name));
+            }
+        }
+        AriaPropertyType::Integer => {
+            let is_valid_integer = if value.is_empty() {
+                false
+            } else {
+                value.parse::<f64>().is_ok_and(|n| n.fract() == 0.0)
+            };
+            if !is_valid_integer {
+                warnings.push(w::a11y_incorrect_aria_attribute_type_integer(name));
+            }
+        }
+        AriaPropertyType::Token => {
+            if let Some(valid_values) = schema.values {
+                let lowercase_value = value.to_lowercase();
+                if !valid_values
+                    .iter()
+                    .any(|v| v.to_lowercase() == lowercase_value)
+                {
+                    let values_list: Vec<String> =
+                        valid_values.iter().map(|v| format!("\"{}\"", v)).collect();
+                    warnings.push(w::a11y_incorrect_aria_attribute_type_token(
+                        name,
+                        &values_list.join(", "),
+                    ));
+                }
+            }
+        }
+        AriaPropertyType::TokenList => {
+            if let Some(valid_values) = schema.values {
+                let tokens: Vec<&str> = REGEX_WHITESPACES.split(value).collect();
+                let invalid_tokens: Vec<_> = tokens
+                    .iter()
+                    .filter(|t| {
+                        !valid_values
+                            .iter()
+                            .any(|v| v.to_lowercase() == t.to_lowercase())
+                    })
+                    .collect();
+                if !invalid_tokens.is_empty() {
+                    let values_list: Vec<String> =
+                        valid_values.iter().map(|v| format!("\"{}\"", v)).collect();
+                    warnings.push(w::a11y_incorrect_aria_attribute_type_tokenlist(
+                        name,
+                        &values_list.join(", "),
+                    ));
+                }
+            }
+        }
+        AriaPropertyType::Tristate => {
+            if value != "true" && value != "false" && value != "mixed" {
+                warnings.push(w::a11y_incorrect_aria_attribute_type_tristate(name));
+            }
         }
     }
 }

@@ -399,8 +399,7 @@ pub fn visit(
     validate_element(element, context)?;
 
     // Check accessibility
-    let path_refs = context.path.to_vec();
-    let a11y_warnings = a11y_check(element, &path_refs);
+    let a11y_warnings = a11y_check(element, &context.element_ancestors);
     for warning in a11y_warnings {
         context.emit_warning(warning);
     }

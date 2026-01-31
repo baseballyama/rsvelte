@@ -92,9 +92,11 @@ pub const A11Y_LABELABLE: &[&str] = &[
 
 /// Interactive event handlers.
 pub const A11Y_INTERACTIVE_HANDLERS: &[&str] = &[
+    // Keyboard events
     "keypress",
     "keydown",
     "keyup",
+    // Click events
     "click",
     "contextmenu",
     "dblclick",
@@ -113,6 +115,20 @@ pub const A11Y_INTERACTIVE_HANDLERS: &[&str] = &[
     "mouseout",
     "mouseover",
     "mouseup",
+    // Pointer events
+    "pointerdown",
+    "pointerup",
+    "pointermove",
+    "pointerenter",
+    "pointerleave",
+    "pointerover",
+    "pointerout",
+    "pointercancel",
+    // Touch events
+    "touchstart",
+    "touchend",
+    "touchmove",
+    "touchcancel",
 ];
 
 /// Recommended interactive event handlers.
@@ -910,6 +926,400 @@ pub static NON_INTERACTIVE_ELEMENT_ROLE_SCHEMAS: LazyLock<Vec<RoleRelationConcep
                 attributes: None,
             },
         ]
+    });
+
+/// ARIA property type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AriaPropertyType {
+    /// A reference to another element ID
+    Id,
+    /// A list of element IDs
+    IdList,
+    /// A string value
+    String,
+    /// A boolean value (true or false)
+    Boolean,
+    /// A numeric value
+    Number,
+    /// An integer value
+    Integer,
+    /// A token from a predefined list
+    Token,
+    /// A list of tokens from a predefined list
+    TokenList,
+    /// A tristate value (true, false, or mixed)
+    Tristate,
+}
+
+/// ARIA property definition.
+#[derive(Debug, Clone)]
+pub struct AriaPropertyDefinition {
+    pub property_type: AriaPropertyType,
+    pub values: Option<&'static [&'static str]>,
+}
+
+/// ARIA property definitions map.
+pub static ARIA_PROPERTY_DEFINITIONS: LazyLock<FxHashMap<&'static str, AriaPropertyDefinition>> =
+    LazyLock::new(|| {
+        let mut m = FxHashMap::default();
+        m.insert(
+            "aria-activedescendant",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Id,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-atomic",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Boolean,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-autocomplete",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Token,
+                values: Some(&["inline", "list", "both", "none"]),
+            },
+        );
+        m.insert(
+            "aria-braillelabel",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::String,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-brailleroledescription",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::String,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-busy",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Boolean,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-checked",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Tristate,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-colcount",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Integer,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-colindex",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Integer,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-colspan",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Integer,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-controls",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::IdList,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-current",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Token,
+                values: Some(&["page", "step", "location", "date", "time", "true", "false"]),
+            },
+        );
+        m.insert(
+            "aria-describedby",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::IdList,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-description",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::String,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-details",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Id,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-disabled",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Boolean,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-dropeffect",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::TokenList,
+                values: Some(&["copy", "execute", "link", "move", "none", "popup"]),
+            },
+        );
+        m.insert(
+            "aria-errormessage",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Id,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-expanded",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Boolean,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-flowto",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::IdList,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-grabbed",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Boolean,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-haspopup",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Token,
+                values: Some(&["false", "true", "menu", "listbox", "tree", "grid", "dialog"]),
+            },
+        );
+        m.insert(
+            "aria-hidden",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Boolean,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-invalid",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Token,
+                values: Some(&["grammar", "false", "spelling", "true"]),
+            },
+        );
+        m.insert(
+            "aria-keyshortcuts",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::String,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-label",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::String,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-labelledby",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::IdList,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-level",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Integer,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-live",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Token,
+                values: Some(&["assertive", "off", "polite"]),
+            },
+        );
+        m.insert(
+            "aria-modal",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Boolean,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-multiline",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Boolean,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-multiselectable",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Boolean,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-orientation",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Token,
+                values: Some(&["vertical", "undefined", "horizontal"]),
+            },
+        );
+        m.insert(
+            "aria-owns",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::IdList,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-placeholder",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::String,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-posinset",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Integer,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-pressed",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Tristate,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-readonly",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Boolean,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-relevant",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::TokenList,
+                values: Some(&["additions", "all", "removals", "text"]),
+            },
+        );
+        m.insert(
+            "aria-required",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Boolean,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-roledescription",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::String,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-rowcount",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Integer,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-rowindex",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Integer,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-rowspan",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Integer,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-selected",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Boolean,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-setsize",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Integer,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-sort",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Token,
+                values: Some(&["ascending", "descending", "none", "other"]),
+            },
+        );
+        m.insert(
+            "aria-valuemax",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Number,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-valuemin",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Number,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-valuenow",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::Number,
+                values: None,
+            },
+        );
+        m.insert(
+            "aria-valuetext",
+            AriaPropertyDefinition {
+                property_type: AriaPropertyType::String,
+                values: None,
+            },
+        );
+        m
     });
 
 /// Interactive element role schemas.
