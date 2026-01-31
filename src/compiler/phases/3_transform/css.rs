@@ -1888,6 +1888,9 @@ fn transform_complex_selector(
     let mut local_specificity_bumped = is_nested;
     // Track if we've seen a :global() selector - elements AFTER :global() should use direct class
     let mut seen_global = false;
+    // Track if the previous selector was scoped - for specificity bumping decisions
+    #[allow(unused_assignments)]
+    let mut previous_was_scoped = false;
 
     if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
         // Pre-scan: check if ANY RelativeSelector in this ComplexSelector has :global()
@@ -1952,6 +1955,8 @@ fn transform_complex_selector(
                             false,
                         ));
                     }
+                    // Global-like selectors don't count as scoped
+                    previous_was_scoped = false;
                 } else if is_entirely_global {
                     // Handle :global selector - extract :global() content without scoping,
                     // but scope subsequent selectors like :is() with direct class
@@ -1991,6 +1996,8 @@ fn transform_complex_selector(
                     }
                     // Mark that we've passed a :global() selector
                     seen_global = true;
+                    // :global() selectors don't count as scoped
+                    previous_was_scoped = false;
                 } else if has_partial_global {
                     // Handle partial :global() - scope non-global parts, unwrap :global() parts
                     let needs_scoping = relative_selector
@@ -2056,6 +2063,8 @@ fn transform_complex_selector(
                     }
 
                     result.push_str(&selector_parts);
+                    // Mark that this selector was scoped (if scoping was applied)
+                    previous_was_scoped = needs_scoping;
                 } else {
                     // Regular scoped selector
                     let needs_scoping = relative_selector
@@ -2139,6 +2148,8 @@ fn transform_complex_selector(
                     }
 
                     result.push_str(&selector_parts);
+                    // Mark that this selector was scoped
+                    previous_was_scoped = needs_scoping;
                 }
             }
         }

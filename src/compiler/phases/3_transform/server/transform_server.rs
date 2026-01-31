@@ -121,6 +121,65 @@ fn collapse_whitespace(s: &str) -> String {
     result
 }
 
+/// Collapse all whitespace sequences (including newlines) to single spaces.
+/// Unlike `collapse_whitespace`, this doesn't preserve leading/trailing whitespace markers.
+fn collapse_whitespace_to_single_space(s: &str) -> String {
+    let mut result = String::new();
+    let mut in_whitespace = false;
+
+    for c in s.chars() {
+        if c.is_whitespace() {
+            if !in_whitespace {
+                result.push(' ');
+                in_whitespace = true;
+            }
+        } else {
+            result.push(c);
+            in_whitespace = false;
+        }
+    }
+
+    result
+}
+
+/// Escape special characters for single-quoted JavaScript strings.
+/// Escapes: single quote, backslash, newlines, tabs, carriage returns.
+fn escape_for_single_quote(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '\'' => result.push_str("\\'"),
+            '\\' => result.push_str("\\\\"),
+            '\n' => result.push_str("\\n"),
+            '\r' => result.push_str("\\r"),
+            '\t' => result.push_str("\\t"),
+            _ => result.push(c),
+        }
+    }
+    result
+}
+
+/// Escape special characters for JavaScript template literals.
+/// Escapes: backtick, backslash, ${, newlines, tabs, carriage returns.
+fn escape_for_template_literal(s: &str) -> String {
+    let mut result = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '`' => result.push_str("\\`"),
+            '\\' => result.push_str("\\\\"),
+            '$' if chars.peek() == Some(&'{') => {
+                result.push_str("\\$");
+            }
+            '\n' => result.push_str("\\n"),
+            '\r' => result.push_str("\\r"),
+            '\t' => result.push_str("\\t"),
+            _ => result.push(c),
+        }
+    }
+    result
+}
+
 /// Trim leading and trailing whitespace from output parts.
 /// This trims whitespace from the first and last Html parts if they exist.
 fn trim_output_parts(parts: &mut Vec<OutputPart>) {
@@ -245,6 +304,8 @@ enum OutputPart {
         context_name: Option<String>,
         index_name: Option<String>,
         body: Vec<OutputPart>,
+        /// Fallback content (for {:else} clause)
+        fallback: Option<Vec<OutputPart>>,
     },
     /// If block - produces an if statement
     IfBlock {
@@ -2574,6 +2635,7 @@ impl<'a> ServerCodeGenerator<'a> {
             context_name,
             index_name,
             body: body_generator.output_parts,
+            fallback: None,
         });
 
         Ok(())
@@ -3687,6 +3749,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     context_name,
                     index_name,
                     body,
+                    ..
                 } => {
                     // Add block marker to current HTML and flush together
                     current_html.push_str("<!--[-->");
