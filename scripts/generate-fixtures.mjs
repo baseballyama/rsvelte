@@ -453,9 +453,15 @@ async function generateRuntimeFixture(sampleDir, outputDir, config) {
 
   const source = fs.readFileSync(inputPath, 'utf-8');
 
+  // Determine if this is a runtime-runes test based on the output path
+  const isRuntimeRunes = outputDir.includes('/runtime-runes/');
+
   const compileOptions = {
     dev: config.compileOptions?.dev ?? false,
     css: config.compileOptions?.css ?? 'external',
+    // Enable experimental.async for runtime-runes tests
+    // This matches the official Svelte compiler behavior and test configuration
+    ...(isRuntimeRunes ? { experimental: { async: true } } : {}),
     ...config.compileOptions,
   };
 

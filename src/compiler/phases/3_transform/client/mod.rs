@@ -108,6 +108,7 @@ fn transform_client_with_visitors(
         dev: options.dev,
         preserve_whitespace: options.preserve_whitespace,
         preserve_comments: options.preserve_comments,
+        experimental_async: options.experimental.r#async,
         ..Default::default()
     });
 

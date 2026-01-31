@@ -1176,6 +1176,32 @@ const test = new Test();
 
     /// Test CSS scoping with basic element selector
     #[test]
+    fn debug_each_updates_4() {
+        use svelte_compiler_rust::compiler::ExperimentalOptions;
+
+        let source = std::fs::read_to_string(
+            "svelte/packages/svelte/tests/runtime-runes/samples/each-updates-4/main.svelte",
+        )
+        .unwrap();
+
+        let options = CompileOptions {
+            dev: false,
+            filename: Some("main.svelte".to_string()),
+            experimental: ExperimentalOptions { r#async: true },
+            ..Default::default()
+        };
+
+        match compile(&source, options) {
+            Ok(result) => {
+                println!("\n=== OUR OUTPUT ===\n{}\n=== END ===", result.js.code);
+            }
+            Err(e) => {
+                println!("\n=== ERROR ===\n{:?}\n=== END ===", e);
+            }
+        }
+    }
+
+    #[test]
     fn debug_css_basic() {
         use svelte_compiler_rust::compiler::CssMode;
 

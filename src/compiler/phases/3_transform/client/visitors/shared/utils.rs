@@ -615,18 +615,159 @@ pub fn build_expression(
     let value = apply_transforms_to_expression(expression, context);
 
     // In runes mode, expressions are already reactive (after transform application)
-    if context.state.analysis.runes || context.state.analysis.maybe_runes {
+    // Components not explicitly in legacy mode might be expected to be in runes mode
+    // (especially since we didn't adjust this behavior until recently, which broke
+    // people's existing components), so we also bail in this case.
+    // Kind of an in-between-mode.
+    //
+    // Also skip legacy reactivity when experimental.async is enabled, as this uses
+    // Svelte 5's reactivity model even for non-runes components.
+    if context.state.analysis.runes
+        || context.state.analysis.maybe_runes
+        || context.state.options.experimental_async
+    {
         return value;
     }
 
-    // Legacy mode: wrap in reactivity tracking if the expression references state
-    if metadata.has_state() {
-        // TODO: Implement legacy reactivity wrapping
-        // For now, return the transformed expression as-is
+    // Legacy mode: check if we need reactivity wrapping
+    // This is needed when the expression contains:
+    // - Function calls (has_call)
+    // - Member expressions (has_member_expression)
+    // - Assignments (has_assignment)
+    //
+    // Legacy reactivity is coarse-grained, looking at the statically visible dependencies.
+    // We replicate that by reading the state dependencies first, then wrapping the
+    // actual value access in $.untrack() to avoid double-tracking.
+    if !metadata.has_call() && !metadata.has_member_expression() && !metadata.has_assignment() {
         return value;
     }
 
-    value
+    // Build a sequence expression: (deps..., $.untrack(() => value))
+    // The dependencies are read first to establish reactivity tracking,
+    // then the actual value is computed inside $.untrack() to avoid
+    // establishing additional dependencies.
+    //
+    // For now, we look for state getters that were transformed in the expression
+    // and extract them as the leading dependencies in the sequence.
+    let mut sequence_exprs = Vec::new();
+
+    // Collect state dependencies from the transformed expression
+    collect_state_getters(&value, &mut sequence_exprs);
+
+    if sequence_exprs.is_empty() {
+        // No state dependencies found, return value as-is
+        return value;
+    }
+
+    // Wrap the value in $.untrack(() => value)
+    let thunk = b::arrow(vec![], value);
+    let untracked = b::call(b::member_path("$.untrack"), vec![thunk]);
+
+    // Add the untracked value as the last expression in the sequence
+    sequence_exprs.push(untracked);
+
+    // Return a sequence expression: (dep1, dep2, ..., $.untrack(() => value))
+    b::sequence(sequence_exprs)
+}
+
+/// Collect state getter calls from an expression.
+///
+/// This walks the expression tree and collects any `$.get(x)` calls,
+/// which represent reads of reactive state variables.
+fn collect_state_getters(expr: &JsExpr, getters: &mut Vec<JsExpr>) {
+    match expr {
+        JsExpr::Call(call) => {
+            // Check if this is a $.get() call
+            if let JsExpr::Member(member) = call.callee.as_ref()
+                && let JsExpr::Identifier(obj) = member.object.as_ref()
+                && obj == "$"
+                && let JsMemberProperty::Identifier(prop) = &member.property
+                && prop == "get"
+            {
+                // Found a $.get() call - add it as a dependency
+                getters.push(JsExpr::Call(call.clone()));
+                return;
+            }
+            // Recurse into call arguments
+            for arg in &call.arguments {
+                collect_state_getters(arg, getters);
+            }
+            // Recurse into callee
+            collect_state_getters(call.callee.as_ref(), getters);
+        }
+        JsExpr::Member(member) => {
+            collect_state_getters(&member.object, getters);
+            if let JsMemberProperty::Expression(prop) = &member.property {
+                collect_state_getters(prop, getters);
+            }
+        }
+        JsExpr::Binary(binary) => {
+            collect_state_getters(&binary.left, getters);
+            collect_state_getters(&binary.right, getters);
+        }
+        JsExpr::Logical(logical) => {
+            collect_state_getters(&logical.left, getters);
+            collect_state_getters(&logical.right, getters);
+        }
+        JsExpr::Conditional(cond) => {
+            collect_state_getters(&cond.test, getters);
+            collect_state_getters(&cond.consequent, getters);
+            collect_state_getters(&cond.alternate, getters);
+        }
+        JsExpr::Array(arr) => {
+            for e in arr.elements.iter().flatten() {
+                collect_state_getters(e, getters);
+            }
+        }
+        JsExpr::Object(obj) => {
+            for prop in &obj.properties {
+                match prop {
+                    JsObjectMember::Property(p) => {
+                        collect_state_getters(&p.value, getters);
+                    }
+                    JsObjectMember::SpreadElement(s) => {
+                        collect_state_getters(s, getters);
+                    }
+                }
+            }
+        }
+        JsExpr::Assignment(assign) => {
+            collect_state_getters(&assign.left, getters);
+            collect_state_getters(&assign.right, getters);
+        }
+        JsExpr::Unary(unary) => {
+            collect_state_getters(&unary.argument, getters);
+        }
+        JsExpr::Update(update) => {
+            collect_state_getters(&update.argument, getters);
+        }
+        JsExpr::Sequence(seq) => {
+            for expr in &seq.expressions {
+                collect_state_getters(expr, getters);
+            }
+        }
+        JsExpr::TemplateLiteral(template) => {
+            for expr in &template.expressions {
+                collect_state_getters(expr, getters);
+            }
+        }
+        JsExpr::Arrow(_) | JsExpr::Function(_) => {
+            // Don't collect from function bodies - they're lazily evaluated
+        }
+        // Terminal nodes or nodes that don't contain expressions
+        JsExpr::Identifier(_)
+        | JsExpr::Literal(_)
+        | JsExpr::This
+        | JsExpr::Raw(_)
+        | JsExpr::Spread(_)
+        | JsExpr::New(_)
+        | JsExpr::Class(_)
+        | JsExpr::Yield(_)
+        | JsExpr::Await(_)
+        | JsExpr::TaggedTemplate(_)
+        | JsExpr::Chain(_)
+        | JsExpr::Void(_) => {}
+    }
 }
 
 /// Build bind:this directive.
@@ -1179,15 +1320,17 @@ pub fn build_template_chunk(
                     // Convert Expression to JsExpr using the proper converter
                     let converted_expr = convert_expression(&expr_tag.expression, context);
 
-                    // Check if the expression references reactive state or contains calls
+                    // Check if the expression references reactive state, contains calls, or has member expressions
                     let expr_has_state =
                         expression_has_reactive_state(&expr_tag.expression, context);
                     let expr_has_call = expression_has_call(&expr_tag.expression);
+                    let expr_has_member = expression_has_member(&expr_tag.expression);
 
                     // Build the expression with transforms applied (e.g., $.get() wrapping)
                     let mut expr_metadata = ExpressionMetadata::default();
                     expr_metadata.set_has_state(expr_has_state);
                     expr_metadata.set_has_call(expr_has_call);
+                    expr_metadata.set_has_member_expression(expr_has_member);
 
                     let built_expr = build_expression(context, &converted_expr, &expr_metadata);
 
@@ -1782,6 +1925,110 @@ fn has_call_json(json_value: &serde_json::Value) -> bool {
                 for prop in properties {
                     if let Some(value) = prop.as_object().and_then(|p| p.get("value"))
                         && has_call_json(value)
+                    {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        _ => false,
+    }
+}
+
+/// Check if an expression contains a member expression.
+///
+/// Returns true if the expression contains a MemberExpression at any level.
+#[inline]
+pub fn expression_has_member(expr: &crate::ast::js::Expression) -> bool {
+    use crate::ast::js::Expression;
+
+    match expr {
+        Expression::Value(json_value) => has_member_json(json_value),
+    }
+}
+
+/// Internal helper that checks for MemberExpression in JSON values.
+#[inline]
+fn has_member_json(json_value: &serde_json::Value) -> bool {
+    let Some(obj) = json_value.as_object() else {
+        return false;
+    };
+    let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
+        return false;
+    };
+
+    match expr_type {
+        "MemberExpression" => true,
+        "CallExpression" => {
+            if let Some(callee) = obj.get("callee")
+                && has_member_json(callee)
+            {
+                return true;
+            }
+            if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+                for arg in args {
+                    if has_member_json(arg) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        "BinaryExpression" | "LogicalExpression" => {
+            if let Some(left) = obj.get("left")
+                && has_member_json(left)
+            {
+                return true;
+            }
+            if let Some(right) = obj.get("right")
+                && has_member_json(right)
+            {
+                return true;
+            }
+            false
+        }
+        "UnaryExpression" => {
+            if let Some(argument) = obj.get("argument") {
+                return has_member_json(argument);
+            }
+            false
+        }
+        "ConditionalExpression" => {
+            for field in ["test", "consequent", "alternate"] {
+                if let Some(val) = obj.get(field)
+                    && has_member_json(val)
+                {
+                    return true;
+                }
+            }
+            false
+        }
+        "TemplateLiteral" => {
+            if let Some(exprs) = obj.get("expressions").and_then(|v| v.as_array()) {
+                for expr_val in exprs {
+                    if has_member_json(expr_val) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        "ArrayExpression" => {
+            if let Some(elements) = obj.get("elements").and_then(|v| v.as_array()) {
+                for elem in elements {
+                    if has_member_json(elem) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        "ObjectExpression" => {
+            if let Some(properties) = obj.get("properties").and_then(|v| v.as_array()) {
+                for prop in properties {
+                    if let Some(value) = prop.as_object().and_then(|p| p.get("value"))
+                        && has_member_json(value)
                     {
                         return true;
                     }

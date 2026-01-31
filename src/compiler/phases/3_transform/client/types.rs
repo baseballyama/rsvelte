@@ -569,6 +569,11 @@ pub struct TransformOptions {
 
     /// Whether to preserve comments
     pub preserve_comments: bool,
+
+    /// Whether experimental.async is enabled
+    /// When true, Svelte 5 async features are enabled and legacy reactivity
+    /// patterns should not be used even for non-runes components.
+    pub experimental_async: bool,
 }
 
 impl Default for TransformOptions {
@@ -578,6 +583,7 @@ impl Default for TransformOptions {
             fragments: FragmentsMode::Html,
             preserve_whitespace: false,
             preserve_comments: false,
+            experimental_async: false,
         }
     }
 }
