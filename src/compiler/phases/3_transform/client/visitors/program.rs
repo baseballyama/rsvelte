@@ -93,6 +93,8 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
                         update: Some(store_sub_update),
                         skip_proxy: false,
                         is_defined: false,
+                        // Store subscriptions are reactive
+                        is_reactive: true,
                     };
 
                     context.state.transform.insert(name.clone(), transform);

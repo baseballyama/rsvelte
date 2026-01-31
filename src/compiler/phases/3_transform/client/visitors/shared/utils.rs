@@ -1513,11 +1513,14 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
             // Check if identifier is a reactive binding
             if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
                 // Check if identifier has a transform registered (e.g., @const, snippet parameter)
-                // Identifiers with transforms are derived values that need reactive tracking
+                // Identifiers with transforms are derived values that need reactive tracking,
+                // BUT only if the transform has is_reactive=true.
                 // This check comes FIRST because @const creates both a binding (Normal) and a transform,
                 // but the transform indicates it's a derived value needing reactive tracking.
-                if context.state.transform.contains_key(name) {
-                    return true;
+                if let Some(transform) = context.state.transform.get(name) {
+                    // Use the is_reactive flag from the transform
+                    // Non-reactive transforms (like unkeyed each block index) should not be treated as reactive
+                    return transform.is_reactive;
                 }
                 if let Some(binding) = context.state.get_binding(name) {
                     return binding.kind.is_reactive();

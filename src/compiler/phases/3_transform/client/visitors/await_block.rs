@@ -225,6 +225,8 @@ fn create_derived_block_argument(
                 update: None,
                 skip_proxy: false,
                 is_defined: false,
+                // Await block resolved values need reactive tracking
+                is_reactive: true,
             },
         );
         return (Some(JsPattern::Identifier(name)), vec![]);
@@ -289,6 +291,8 @@ fn create_derived_block_argument(
                 update: None,
                 skip_proxy: false,
                 is_defined: false,
+                // Destructured await values need reactive tracking
+                is_reactive: true,
             },
         );
 

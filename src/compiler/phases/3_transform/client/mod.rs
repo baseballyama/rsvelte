@@ -1926,6 +1926,14 @@ fn transform_read_only_props(line: &str, read_only_props: &[String]) -> String {
                 }
             }
 
+            // Check if the match is inside a string literal (skip if so)
+            // This prevents transforming 'prop' -> '$$props.prop' inside strings like $.prop($$props, 'prop', ...)
+            if is_inside_string_literal(&result, mat.start()) {
+                new_result.push_str(&result[last_end..mat.end()]);
+                last_end = mat.end();
+                continue;
+            }
+
             // Check if this is a declaration (skip if so)
             let before = &result[..mat.start()];
             let trimmed_before = before.trim_end();
@@ -2033,6 +2041,33 @@ fn is_in_destructuring_pattern(code: &str, pos: usize) -> bool {
     }
 
     false
+}
+
+/// Check if a position is inside a string literal.
+/// This prevents transforming identifiers inside quoted strings.
+fn is_inside_string_literal(code: &str, pos: usize) -> bool {
+    let before = &code[..pos];
+    let mut in_string = false;
+    let mut string_char = ' ';
+    let mut chars = before.chars().peekable();
+
+    while let Some(c) = chars.next() {
+        if in_string {
+            if c == '\\' {
+                // Skip escaped character
+                chars.next();
+                continue;
+            }
+            if c == string_char {
+                in_string = false;
+            }
+        } else if c == '"' || c == '\'' || c == '`' {
+            in_string = true;
+            string_char = c;
+        }
+    }
+
+    in_string
 }
 
 // ============================================================================

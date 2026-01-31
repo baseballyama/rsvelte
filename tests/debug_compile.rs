@@ -1217,4 +1217,83 @@ const test = new Test();
             panic!("Expected CSS output but got None");
         }
     }
+
+    /// Test that CSS hash class is added to template HTML for elements without class attribute
+    /// This test verifies the fix for: elements without class attributes should still get
+    /// the CSS scoping hash added to their template HTML.
+    #[test]
+    fn test_css_hash_added_to_template_without_class_attr() {
+        use svelte_compiler_rust::compiler::CssMode;
+
+        // Element without class attribute should have CSS hash added to template
+        let source = r#"<div>hello</div>
+
+<style>
+    div {
+        color: red;
+    }
+</style>"#;
+
+        let options = CompileOptions {
+            dev: false,
+            css: CssMode::External,
+            filename: Some("test.svelte".to_string()),
+            ..Default::default()
+        };
+
+        let result = compile(source, options).expect("Compilation should succeed");
+        let code = result.js.code;
+
+        println!(
+            "\n=== JS OUTPUT (no class attr) ===\n{}\n=== END ===\n",
+            code
+        );
+
+        // The template HTML should include the CSS hash class
+        // Expected: $.from_html(`<div class="svelte-xxx">hello</div>`)
+        // Not: $.from_html(`<div>hello</div>`)
+        assert!(
+            code.contains("class=\"svelte-"),
+            "Template HTML should include CSS hash class for element without class attribute:\n{}",
+            code
+        );
+    }
+
+    /// Test that CSS hash class is appended to existing class attribute
+    #[test]
+    fn test_css_hash_appended_to_existing_class() {
+        use svelte_compiler_rust::compiler::CssMode;
+
+        // Element with existing class attribute should have CSS hash appended
+        let source = r#"<div class="foo">hello</div>
+
+<style>
+    div {
+        color: red;
+    }
+</style>"#;
+
+        let options = CompileOptions {
+            dev: false,
+            css: CssMode::External,
+            filename: Some("test.svelte".to_string()),
+            ..Default::default()
+        };
+
+        let result = compile(source, options).expect("Compilation should succeed");
+        let code = result.js.code;
+
+        println!(
+            "\n=== JS OUTPUT (with class attr) ===\n{}\n=== END ===\n",
+            code
+        );
+
+        // The template HTML should have both the original class and the CSS hash
+        // Expected: $.from_html(`<div class="foo svelte-xxx">hello</div>`)
+        assert!(
+            code.contains("class=\"foo svelte-"),
+            "Template HTML should include both original class and CSS hash:\n{}",
+            code
+        );
+    }
 }

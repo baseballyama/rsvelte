@@ -614,6 +614,8 @@ fn build_declarations(
                 skip_proxy: false,
                 // Each block indices are always numbers, never null/undefined
                 is_defined: true,
+                // Index is only reactive in keyed each blocks with index
+                is_reactive: index_reactive,
             },
         );
     }
@@ -646,6 +648,8 @@ fn build_declarations(
                         skip_proxy: false,
                         // Each items can be any value including null/undefined
                         is_defined: false,
+                        // Item is reactive when EACH_ITEM_REACTIVE flag is set
+                        is_reactive: true,
                     },
                 );
             }

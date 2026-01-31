@@ -789,6 +789,11 @@ pub struct IdentifierTransform {
     /// Whether this identifier is guaranteed to be defined (non-null/undefined).
     /// Set to true for each block indices, which are always numbers.
     pub is_defined: bool,
+
+    /// Whether this identifier represents reactive state that needs tracking.
+    /// Set to false for non-reactive each block indices/items (unkeyed blocks).
+    /// When false, expressions using this identifier don't need template_effect wrapping.
+    pub is_reactive: bool,
 }
 
 /// Component metadata.

@@ -101,6 +101,8 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
                     update: Some(store_sub_update),
                     skip_proxy: false,
                     is_defined: false,
+                    // Store subscriptions are reactive
+                    is_reactive: true,
                 };
                 context.state.transform.insert(name.clone(), transform);
                 continue;
@@ -127,6 +129,8 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
                         update: Some(prop_update),
                         skip_proxy: false,
                         is_defined: false,
+                        // Props are reactive
+                        is_reactive: true,
                     };
                     context.state.transform.insert(name.clone(), transform);
                 } else {
@@ -173,6 +177,8 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
                     update: Some(update_value),
                     skip_proxy,
                     is_defined: false,
+                    // State sources ($state, $derived, legacy reactive) are reactive
+                    is_reactive: true,
                 };
 
                 // Register the transform in the state

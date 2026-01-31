@@ -468,6 +468,20 @@ pub fn visit_regular_element(
             }
         }
 
+        // Add CSS scoping class to elements without class attribute or class directives
+        // Corresponds to the logic in the official Svelte's analyze phase (index.js lines 901-914)
+        // that adds a synthetic empty class attribute when scoped but no class exists.
+        // Since we don't modify the AST in phase 2, we add the hash directly to template here.
+        if is_scoped && class_attribute.is_none() && class_directives.is_empty() {
+            let hash = &context.state.analysis.css.hash;
+            if !hash.is_empty() {
+                context
+                    .state
+                    .template
+                    .set_prop("class".to_string(), Some(hash.clone()));
+            }
+        }
+
         // Handle class directives (with or without class attribute)
         if !class_directives.is_empty() {
             let node_id = extract_node_id(&context.state.node);
