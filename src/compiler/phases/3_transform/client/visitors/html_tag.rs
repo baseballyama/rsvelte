@@ -6,6 +6,7 @@
 use crate::ast::template::HtmlTag;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 
@@ -19,7 +20,9 @@ pub fn html_tag(node: &HtmlTag, context: &mut ComponentContext) -> JsStatement {
     context.state.template.push_comment(None);
 
     // Build the expression for the content
-    let expression = convert_expression(&node.expression, context);
+    // First convert from Svelte AST to JS AST, then apply transforms ($.get() wrapping etc.)
+    let converted = convert_expression(&node.expression, context);
+    let expression = apply_transforms_to_expression(&converted, context);
 
     // Check namespace for SVG/MathML
     let is_svg = context.state.metadata.namespace == "svg";

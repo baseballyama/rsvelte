@@ -704,6 +704,30 @@ fn transform_instance_script_for_visitors(
         .map(|b| b.name.clone())
         .collect();
 
+    // In legacy mode (!runes), collect variables that need $.mutable_source() wrapping
+    // These are Normal bindings that are reassigned or mutated
+    let legacy_mutable_vars: Vec<String> = if !analysis.runes {
+        analysis
+            .root
+            .bindings
+            .iter()
+            .filter(|b| {
+                matches!(b.kind, BindingKind::Normal)
+                    && (b.reassigned || b.mutated)
+                    && !matches!(
+                        b.declaration_kind,
+                        crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Const
+                    )
+            })
+            .map(|b| b.name.clone())
+            .collect()
+    } else {
+        Vec::new()
+    };
+
+    // Add legacy mutable vars to state_vars so they get $.get()/.set() transforms
+    state_vars.extend(legacy_mutable_vars.clone());
+
     // Check for legacy mode (export let)
     let has_legacy_export_let = script_rest.lines().any(|line| {
         let trimmed = line.trim();
@@ -752,6 +776,7 @@ fn transform_instance_script_for_visitors(
     let mut accumulated_lines: Vec<String> = Vec::new();
 
     // Helper closure to process accumulated lines as a complete statement
+    #[allow(clippy::too_many_arguments)]
     let process_accumulated = |accumulated: &[String],
                                result: &mut String,
                                state_vars: &[String],
@@ -763,6 +788,7 @@ fn transform_instance_script_for_visitors(
                                exported_names: &[String],
                                rest_prop_vars: &[String],
                                read_only_props: &[String],
+                               legacy_mutable_vars: &[String],
                                analysis: &ComponentAnalysis,
                                dev: bool,
                                has_legacy_export_let: bool| {
@@ -799,6 +825,19 @@ fn transform_instance_script_for_visitors(
         if transformed.trim().is_empty() {
             return;
         }
+
+        // Transform legacy mode variable declarations to $.mutable_source()
+        // This handles: let x = value; -> let x = $.mutable_source(value);
+        // for variables that are reassigned or mutated in legacy (non-runes) mode
+        let transformed = if !analysis.runes && !legacy_mutable_vars.is_empty() {
+            transform_legacy_mutable_declarations(
+                &transformed,
+                legacy_mutable_vars,
+                analysis.immutable,
+            )
+        } else {
+            transformed
+        };
 
         // Transform state variable assignments to $.set()
         let transformed = transform_state_assignments(
@@ -891,6 +930,7 @@ fn transform_instance_script_for_visitors(
                 &exported_names,
                 &rest_prop_vars,
                 &read_only_props,
+                &legacy_mutable_vars,
                 analysis,
                 dev,
                 has_legacy_export_let,
@@ -913,6 +953,7 @@ fn transform_instance_script_for_visitors(
             &exported_names,
             &rest_prop_vars,
             &read_only_props,
+            &legacy_mutable_vars,
             analysis,
             dev,
             has_legacy_export_let,
@@ -1748,6 +1789,120 @@ fn find_line_comment_position(code: &str) -> Option<usize> {
         pos += c.len_utf8();
     }
     None
+}
+
+/// Transform variable declarations to use $.mutable_source() in legacy mode.
+///
+/// This transforms: `let x = value;` to `let x = $.mutable_source(value);`
+/// for variables that are reassigned or mutated.
+///
+/// Reference: Official Svelte compiler's `create_state_declarators()` in
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/VariableDeclaration.js`
+fn transform_legacy_mutable_declarations(
+    line: &str,
+    legacy_mutable_vars: &[String],
+    immutable: bool,
+) -> String {
+    let mut result = line.to_string();
+
+    for var_name in legacy_mutable_vars {
+        // Match pattern: let varname = value;
+        // We need to transform: let x = value; -> let x = $.mutable_source(value);
+        // But NOT transform if it's already a rune ($state, $derived, etc.)
+        let patterns = [format!("let {} = ", var_name), format!("let {}=", var_name)];
+
+        for pattern in &patterns {
+            if let Some(pos) = result.find(pattern) {
+                let after_pattern = &result[pos + pattern.len()..];
+
+                // Skip if this is already a rune call
+                if after_pattern.trim_start().starts_with('$') {
+                    continue;
+                }
+
+                // Skip if this is already $.mutable_source
+                if after_pattern.trim_start().starts_with("$.mutable_source") {
+                    continue;
+                }
+
+                // Skip if this is a $.prop call
+                if after_pattern.trim_start().starts_with("$.prop") {
+                    continue;
+                }
+
+                // Find the semicolon that ends this statement
+                // Handle nested braces/parens for complex expressions
+                if let Some(value_end) = find_statement_end(after_pattern) {
+                    let value = after_pattern[..value_end].trim();
+                    let rest = &after_pattern[value_end..];
+
+                    // Build the new declaration with $.mutable_source()
+                    // If immutable mode is enabled, pass true as second argument
+                    let new_value = if immutable {
+                        format!("$.mutable_source({}, true)", value)
+                    } else {
+                        format!("$.mutable_source({})", value)
+                    };
+
+                    result = format!("{}let {} = {}{}", &result[..pos], var_name, new_value, rest);
+                    break;
+                }
+            }
+        }
+    }
+
+    result
+}
+
+/// Find the end of a statement value (before the semicolon).
+/// Handles nested braces, parens, and brackets.
+fn find_statement_end(code: &str) -> Option<usize> {
+    let mut brace_depth = 0;
+    let mut paren_depth = 0;
+    let mut bracket_depth = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+    let mut chars = code.chars().peekable();
+    let mut pos = 0;
+
+    while let Some(c) = chars.next() {
+        if in_string {
+            if c == '\\' {
+                // Skip escaped character
+                chars.next();
+                pos += 2;
+                continue;
+            }
+            if c == string_char {
+                in_string = false;
+            }
+        } else {
+            match c {
+                '"' | '\'' | '`' => {
+                    in_string = true;
+                    string_char = c;
+                }
+                '{' => brace_depth += 1,
+                '}' => brace_depth -= 1,
+                '(' => paren_depth += 1,
+                ')' => paren_depth -= 1,
+                '[' => bracket_depth += 1,
+                ']' => bracket_depth -= 1,
+                ';' if brace_depth == 0 && paren_depth == 0 && bracket_depth == 0 => {
+                    return Some(pos);
+                }
+                '\n' if brace_depth == 0 && paren_depth == 0 && bracket_depth == 0 => {
+                    // End of line without semicolon
+                    return Some(pos);
+                }
+                _ => {}
+            }
+        }
+        pos += c.len_utf8();
+    }
+
+    // If we reach the end without a semicolon, return the length
+    Some(code.len())
 }
 
 /// Transform $props() usage.
@@ -4107,4 +4262,227 @@ fn test_derived_object_literal_double_wrap() {
         "Object literal should still be wrapped in parentheses: {}",
         result2
     );
+}
+
+#[cfg(test)]
+mod tests_legacy_transform {
+    use super::*;
+
+    #[test]
+    fn test_transform_legacy_mutable_declarations() {
+        let legacy_vars = vec!["foo".to_string(), "bar".to_string()];
+
+        // Simple declaration
+        let input = "let foo = false;";
+        let result = transform_legacy_mutable_declarations(input, &legacy_vars, false);
+        println!("Input: {}", input);
+        println!("Output: {}", result);
+        assert!(
+            result.contains("$.mutable_source(false)"),
+            "Should wrap value in $.mutable_source()"
+        );
+
+        // Array declaration
+        let input = "let bar = [false];";
+        let result = transform_legacy_mutable_declarations(input, &legacy_vars, false);
+        println!("Input: {}", input);
+        println!("Output: {}", result);
+        assert!(
+            result.contains("$.mutable_source([false])"),
+            "Should wrap array in $.mutable_source()"
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests_legacy_compile_integration {
+    use crate::compiler::{CompileOptions, CssMode, GenerateMode, compile};
+
+    #[test]
+    fn test_legacy_mutable_source_transform() {
+        let source = r#"<script>
+    let foo = false;
+    let bar = [false];
+</script>
+
+<button on:click={() => foo = !foo}>Toggle foo</button>
+<button on:click={() => bar[0] = !bar[0]}>Toggle bar</button>
+"#;
+
+        let options = CompileOptions {
+            generate: GenerateMode::Client,
+            runes: Some(false), // Force legacy mode
+            ..Default::default()
+        };
+
+        let result = compile(source, options).expect("Compilation failed");
+        let code = &result.js.code;
+
+        println!("Generated code:\n{}", code);
+
+        // Check for $.mutable_source() wrapping
+        assert!(
+            code.contains("$.mutable_source(false)"),
+            "Should contain $.mutable_source(false) for foo, got:\n{}",
+            code
+        );
+        assert!(
+            code.contains("$.mutable_source([false])"),
+            "Should contain $.mutable_source([false]) for bar, got:\n{}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_legacy_if_block_and_html_transform() {
+        let source = r#"<script>
+    let foo = false;
+    let bar = [false];
+</script>
+
+<button on:click={() => foo = !foo}>Toggle foo</button>
+<button on:click={() => bar[0] = !bar[0]}>Toggle bar</button>
+
+<hr>
+{@html `foo: ${foo}, bar: ${bar.every(x => x)}`}
+<hr>
+
+{#if foo}
+    foo!
+{:else if bar.every(x => x)}
+    bar!
+{/if}
+"#;
+
+        // Test with explicit legacy mode
+        let options = CompileOptions {
+            generate: GenerateMode::Client,
+            runes: Some(false), // Force legacy mode
+            ..Default::default()
+        };
+
+        let result = compile(source, options).expect("Compilation failed");
+        let code = &result.js.code;
+
+        println!("Generated code:\n{}", code);
+
+        // Check for $.mutable_source() wrapping
+        assert!(
+            code.contains("$.mutable_source(false)"),
+            "Should contain $.mutable_source(false) for foo"
+        );
+        assert!(
+            code.contains("$.mutable_source([false])"),
+            "Should contain $.mutable_source([false]) for bar"
+        );
+
+        // Check that $.get() is used in template expressions
+        // Note: The @html tag should have $.get(foo) and $.get(bar)
+        // The {#if foo} should have $.get(foo) in the condition
+        assert!(
+            code.contains("$.get(foo)"),
+            "Should contain $.get(foo) in template, got:\n{}",
+            code
+        );
+        assert!(
+            code.contains("$.get(bar)"),
+            "Should contain $.get(bar) in template, got:\n{}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_legacy_auto_detect_mode() {
+        // Test with auto-detect mode (like the runtime tests)
+        let source = r#"<script>
+    let foo = false;
+    let bar = [false];
+</script>
+
+<button on:click={() => foo = !foo}>Toggle foo</button>
+<button on:click={() => bar[0] = !bar[0]}>Toggle bar</button>
+
+<hr>
+{@html `foo: ${foo}, bar: ${bar.every(x => x)}`}
+<hr>
+
+{#if foo}
+    foo!
+{:else if bar.every(x => x)}
+    bar!
+{/if}
+"#;
+
+        // Auto-detect mode (runes: None) - should still work as legacy
+        let options = CompileOptions {
+            generate: GenerateMode::Client,
+            filename: Some("main.svelte".to_string()),
+            css: CssMode::External,
+            // runes: None by default - auto-detect
+            ..Default::default()
+        };
+
+        let result = compile(source, options).expect("Compilation failed");
+        let code = &result.js.code;
+
+        println!("Generated code (auto-detect):\n{}", code);
+
+        // Should contain $.mutable_source
+        assert!(
+            code.contains("$.mutable_source(false)"),
+            "Should contain $.mutable_source(false) for foo in auto-detect mode"
+        );
+
+        // Should contain $.get() in template
+        assert!(
+            code.contains("$.get(foo)"),
+            "Should contain $.get(foo) in auto-detect mode, got:\n{}",
+            code
+        );
+    }
+
+    #[test]
+    fn test_exact_fixture_source() {
+        // Use the EXACT source from the fixture file (including missing semicolon)
+        let source = r#"<script>
+	let foo = false
+	let bar = [false];
+</script>
+
+<button on:click={() => foo = !foo}>
+	Toggle foo
+</button>
+<button on:click={() => bar[0] = !bar[0]}>
+	Toggle bar
+</button>
+
+<hr>
+{@html `foo: ${foo}, bar: ${bar.every(x => x)}`}
+<hr>
+
+{#if foo}
+	foo!
+{:else if bar.every(x => x)}
+	bar!
+{/if}"#;
+
+        // Auto-detect mode (matching runtime tests)
+        let options = CompileOptions {
+            generate: GenerateMode::Client,
+            filename: Some("main.svelte".to_string()),
+            css: CssMode::External,
+            ..Default::default()
+        };
+
+        let result = compile(source, options).expect("Compilation failed");
+        let code = &result.js.code;
+
+        println!("Generated code (exact fixture source):\n{}", code);
+
+        // Should contain $.mutable_source
+        assert!(
+            code.contains("$.mutable_source(false)"),
+            "Should contain $.mutable_source(false) for foo"
+        );
+    }
 }
