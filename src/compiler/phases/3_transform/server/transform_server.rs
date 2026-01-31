@@ -523,6 +523,14 @@ impl<'a> ServerCodeGenerator<'a> {
                 {
                     continue;
                 }
+                // Skip whitespace after SvelteHead (head elements are hoisted in official compiler)
+                if i > 0 && matches!(nodes[i - 1], TemplateNode::SvelteHead(_)) {
+                    continue;
+                }
+                // Skip whitespace before SvelteHead
+                if i + 1 < len && matches!(nodes[i + 1], TemplateNode::SvelteHead(_)) {
+                    continue;
+                }
             }
             self.generate_node(node, true)?;
         }
