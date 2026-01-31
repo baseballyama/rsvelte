@@ -2464,6 +2464,23 @@ fn transform_is_not_complex_selector(
                     }
 
                     for (idx, sel) in selectors.iter().enumerate() {
+                        let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                        let is_universal = sel_type == "TypeSelector"
+                            && sel.get("name").and_then(|n| n.as_str()) == Some("*");
+
+                        // If this is a universal selector (*) that will be replaced by :where(),
+                        // don't output the * - just output the :where() directly
+                        if is_universal && Some(idx) == last_non_pseudo_idx && !selector.is_empty()
+                        {
+                            // Replace * with just :where(selector)
+                            if use_direct_class {
+                                selector_parts.push_str(selector);
+                            } else {
+                                selector_parts.push_str(&format!(":where({})", selector));
+                            }
+                            continue;
+                        }
+
                         selector_parts.push_str(&format_simple_selector_with_scope(
                             sel,
                             selector,
@@ -2547,8 +2564,9 @@ fn get_selector_text(node: &Value) -> String {
     }
 }
 
-/// Generate a hash for CSS scoping (matches Svelte's algorithm).
-pub fn generate_css_hash(source: &str) -> String {
+/// Generate a raw hash string (matches Svelte's hash() function in utils.js).
+/// This is the base hash without the "svelte-" prefix.
+pub fn generate_raw_hash(source: &str) -> String {
     // Remove carriage returns like Svelte does
     let source = source.replace('\r', "");
 
@@ -2562,7 +2580,12 @@ pub fn generate_css_hash(source: &str) -> String {
 
     // Convert to unsigned and then to base-36
     let hash_unsigned = hash as u32;
-    format!("svelte-{}", to_base36(hash_unsigned))
+    to_base36(hash_unsigned)
+}
+
+/// Generate a hash for CSS scoping (matches Svelte's algorithm).
+pub fn generate_css_hash(source: &str) -> String {
+    format!("svelte-{}", generate_raw_hash(source))
 }
 
 /// Convert a number to base-36 string

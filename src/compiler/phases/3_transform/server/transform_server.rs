@@ -123,6 +123,7 @@ fn collapse_whitespace(s: &str) -> String {
 
 /// Collapse all whitespace sequences (including newlines) to single spaces.
 /// Unlike `collapse_whitespace`, this doesn't preserve leading/trailing whitespace markers.
+#[allow(dead_code)]
 fn collapse_whitespace_to_single_space(s: &str) -> String {
     let mut result = String::new();
     let mut in_whitespace = false;
@@ -144,6 +145,7 @@ fn collapse_whitespace_to_single_space(s: &str) -> String {
 
 /// Escape special characters for single-quoted JavaScript strings.
 /// Escapes: single quote, backslash, newlines, tabs, carriage returns.
+#[allow(dead_code)]
 fn escape_for_single_quote(s: &str) -> String {
     let mut result = String::with_capacity(s.len());
     for c in s.chars() {
@@ -161,6 +163,7 @@ fn escape_for_single_quote(s: &str) -> String {
 
 /// Escape special characters for JavaScript template literals.
 /// Escapes: backtick, backslash, ${, newlines, tabs, carriage returns.
+#[allow(dead_code)]
 fn escape_for_template_literal(s: &str) -> String {
     let mut result = String::with_capacity(s.len());
     let mut chars = s.chars().peekable();
@@ -305,6 +308,7 @@ enum OutputPart {
         index_name: Option<String>,
         body: Vec<OutputPart>,
         /// Fallback content (for {:else} clause)
+        #[allow(dead_code)]
         fallback: Option<Vec<OutputPart>>,
     },
     /// If block - produces an if statement
@@ -2057,6 +2061,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         AttributeValue::Sequence(parts) => {
                             // Handle text or mixed values like name="world"
                             let mut value_str = String::new();
+                            let mut has_expression = false;
                             for part in parts {
                                 match part {
                                     crate::ast::template::AttributeValuePart::Text(text) => {
@@ -2065,6 +2070,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                     crate::ast::template::AttributeValuePart::ExpressionTag(
                                         expr_tag,
                                     ) => {
+                                        has_expression = true;
                                         // For mixed values with expressions, extract from source
                                         let expr_start =
                                             expr_tag.expression.start().unwrap_or(0) as usize;
@@ -2079,22 +2085,13 @@ impl<'a> ServerCodeGenerator<'a> {
                                     }
                                 }
                             }
-                            if !value_str.is_empty() {
-                                // Check if the value contains expressions
-                                if value_str.contains("${") {
-                                    props.push(format!(
-                                        "{}: `{}`",
-                                        quote_prop_name(name),
-                                        value_str
-                                    ));
-                                } else {
-                                    // Simple string value
-                                    props.push(format!(
-                                        "{}: '{}'",
-                                        quote_prop_name(name),
-                                        value_str
-                                    ));
-                                }
+                            // Always add the prop (even for empty strings like foo='')
+                            // Check if the value contains expressions
+                            if has_expression {
+                                props.push(format!("{}: `{}`", quote_prop_name(name), value_str));
+                            } else {
+                                // Simple string value (including empty strings)
+                                props.push(format!("{}: '{}'", quote_prop_name(name), value_str));
                             }
                         }
                         AttributeValue::True(_) => {
@@ -3103,12 +3100,12 @@ impl<'a> ServerCodeGenerator<'a> {
         // Generate body parts for the head content
         let body = self.generate_fragment_body_parts(&head.fragment)?;
 
-        // Generate a hash for hydration validation
-        let hash = format!(
-            "{:x}s{:03}",
-            self.output_parts.len() % 256,
-            self.output_parts.len() % 1000
-        );
+        // Generate a hash for hydration validation based on the filename
+        // The official Svelte compiler uses hash(filename) for this
+        let hash = self
+            .analysis
+            .map(|a| a.filename_hash.clone())
+            .unwrap_or_else(|| "0".to_string());
 
         self.output_parts
             .push(OutputPart::SvelteHead { hash, body });

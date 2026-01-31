@@ -176,6 +176,10 @@ pub struct ComponentAnalysis {
     /// Used to track the props ID declaration
     pub props_id: Option<String>,
 
+    /// Hash of the filename (used for svelte:head hydration validation)
+    /// This is always computed from the filename, regardless of CSS presence
+    pub filename_hash: String,
+
     /// Whether the component uses $inspect.trace()
     pub tracing: bool,
 
@@ -229,6 +233,17 @@ impl ComponentAnalysis {
         // and let the analysis phase detect runes from source
         let initial_runes = options.runes.unwrap_or(false);
 
+        // Compute filename hash for svelte:head hydration validation
+        // This is always based on the filename (or "main.svelte" if not specified)
+        let filename_hash_source = options
+            .filename
+            .as_ref()
+            .filter(|f| *f != "(unknown)")
+            .map(|f| f.as_str())
+            .unwrap_or("main.svelte");
+        let filename_hash =
+            crate::compiler::phases::phase3_transform::css::generate_raw_hash(filename_hash_source);
+
         Self {
             root: ScopeRoot::new(),
             module: None,
@@ -256,6 +271,7 @@ impl ComponentAnalysis {
             module_script_content: None,
             async_deriveds: FxHashSet::default(),
             props_id: None,
+            filename_hash,
             tracing: false,
             classes: FxHashMap::default(),
             reactive_statements: FxHashMap::default(),

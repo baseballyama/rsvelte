@@ -25,8 +25,17 @@ pub fn svelte_head(node: &SvelteElement, context: &mut ComponentContext) {
         ..Default::default()
     };
 
+    // Save the current namespace and force HTML namespace for head content
+    // Elements like <title> should use from_html, not from_svg, even though
+    // <title> is a valid SVG element in other contexts
+    let saved_namespace = context.state.metadata.namespace.clone();
+    context.state.metadata.namespace = "html".to_string();
+
     // Visit the content fragment (not root, since we're inside head)
     let content_block = fragment(&content_fragment, context, false);
+
+    // Restore the original namespace
+    context.state.metadata.namespace = saved_namespace;
 
     // Generate a payload hash for hydration validation
     // The official compiler uses a hash of the head content for SSR validation
@@ -47,11 +56,8 @@ pub fn svelte_head(node: &SvelteElement, context: &mut ComponentContext) {
 /// Generate a hash for the svelte:head element.
 ///
 /// This hash is used for payload validation during hydration.
-/// The official Svelte compiler uses a hash based on the element position
-/// in the source code.
+/// The official Svelte compiler uses hash(filename) for this.
 fn generate_head_hash(context: &ComponentContext) -> String {
-    // Simple hash based on current init statements count
-    // In the official compiler, this is derived from the source position
-    let counter = context.state.init.len() + context.state.update.len();
-    format!("{:x}s{:03}", counter % 256, counter % 1000)
+    // Use the pre-computed filename hash from the analysis
+    context.state.analysis.filename_hash.clone()
 }
