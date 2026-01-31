@@ -1889,8 +1889,7 @@ fn transform_complex_selector(
     // Track if we've seen a :global() selector - elements AFTER :global() should use direct class
     let mut seen_global = false;
     // Track if the previous selector was scoped - for specificity bumping decisions
-    #[allow(unused_assignments)]
-    let mut previous_was_scoped = false;
+    let mut _previous_was_scoped = false;
     // Track if the previous selector was global-like - determines if we bump specificity after combinator
     let mut previous_was_global_like = false;
 
@@ -1965,7 +1964,7 @@ fn transform_complex_selector(
                     }
                     // Global-like selectors don't count as scoped and don't bump specificity
                     // The next scoped selector should get the direct class
-                    previous_was_scoped = false;
+                    _previous_was_scoped = false;
                     previous_was_global_like = true;
                 } else if is_entirely_global {
                     // Handle :global selector - extract :global() content without scoping,
@@ -2007,7 +2006,7 @@ fn transform_complex_selector(
                     // Mark that we've passed a :global() selector
                     seen_global = true;
                     // :global() selectors don't count as scoped
-                    previous_was_scoped = false;
+                    _previous_was_scoped = false;
                 } else if has_partial_global {
                     // Handle partial :global() - scope non-global parts, unwrap :global() parts
                     let needs_scoping = relative_selector
@@ -2074,7 +2073,7 @@ fn transform_complex_selector(
 
                     result.push_str(&selector_parts);
                     // Mark that this selector was scoped (if scoping was applied)
-                    previous_was_scoped = needs_scoping;
+                    _previous_was_scoped = needs_scoping;
                 } else {
                     // Regular scoped selector
                     let needs_scoping = relative_selector
@@ -2159,7 +2158,7 @@ fn transform_complex_selector(
 
                     result.push_str(&selector_parts);
                     // Mark that this selector was scoped
-                    previous_was_scoped = needs_scoping;
+                    _previous_was_scoped = needs_scoping;
                 }
             }
         }

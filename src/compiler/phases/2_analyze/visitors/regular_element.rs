@@ -14,6 +14,7 @@ use super::on_directive;
 use super::shared::a11y::check_element as a11y_check;
 use super::shared::element::validate_element;
 use super::shared::fragment::{analyze, mark_subtree_dynamic};
+use super::spread_attribute;
 use super::use_directive;
 use crate::ast::template::{
     Attribute, AttributeValue, AttributeValuePart, RegularElement, TemplateNode,
@@ -526,6 +527,9 @@ pub fn visit(
                 }
                 _ => {}
             }
+        } else if let Attribute::SpreadAttribute(spread) = attr {
+            // Visit spread attribute to set has_dynamic_classes
+            spread_attribute::visit(spread, context)?;
         }
     }
 

@@ -1747,7 +1747,6 @@ fn split_declarators(s: &str) -> Vec<&str> {
     let mut result = Vec::new();
     let mut depth: usize = 0;
     let mut start = 0;
-    let mut byte_pos = 0;
 
     for (i, c) in s.char_indices() {
         match c {
@@ -1759,7 +1758,6 @@ fn split_declarators(s: &str) -> Vec<&str> {
             }
             _ => {}
         }
-        byte_pos = i + c.len_utf8();
     }
 
     // Don't forget the last segment
