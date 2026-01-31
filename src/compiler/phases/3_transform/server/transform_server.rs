@@ -931,13 +931,27 @@ impl<'a> ServerCodeGenerator<'a> {
         match &node.value {
             AttributeValue::True(_) => Ok("true".to_string()),
             AttributeValue::Sequence(parts) => {
+                // Optimization: if the sequence is a single expression with no text,
+                // return the expression directly without template literal wrapping
+                if parts.len() == 1 {
+                    if let AttributeValuePart::ExpressionTag(expr_tag) = &parts[0] {
+                        let start = expr_tag.expression.start().unwrap_or(0) as usize;
+                        let end = expr_tag.expression.end().unwrap_or(0) as usize;
+                        if end > start && end <= self.source.len() {
+                            return Ok(self.source[start..end].trim().to_string());
+                        }
+                    }
+                }
+
                 let mut value = String::new();
+                let mut has_expression = false;
                 for part in parts {
                     match part {
                         AttributeValuePart::Text(text) => {
                             value.push_str(&text.data);
                         }
                         AttributeValuePart::ExpressionTag(expr_tag) => {
+                            has_expression = true;
                             // Extract expression from source
                             let start = expr_tag.expression.start().unwrap_or(0) as usize;
                             let end = expr_tag.expression.end().unwrap_or(0) as usize;
@@ -950,7 +964,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
                 }
                 // If it looks like it needs to be a template literal (has ${...})
-                if value.contains("${") {
+                if has_expression {
                     Ok(format!("`{}`", value))
                 } else {
                     Ok(format!("'{}'", value))
