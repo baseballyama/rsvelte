@@ -83,6 +83,7 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
                 mutate: None,
                 update: None,
                 skip_proxy: false,
+                is_defined: false,
             },
         );
 

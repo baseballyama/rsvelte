@@ -72,12 +72,14 @@ fn visit_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<(), An
     };
 
     // Validate identifier names
+    // NOTE: In runes mode, we don't pass function_depth to match Svelte behavior
+    // where all variable declarations are validated regardless of function depth
     for path in &paths {
         if let Some(name) = path.get("name").and_then(|n| n.as_str())
             && let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name)
         {
             let binding = &context.analysis.root.bindings[binding_idx];
-            utils::validate_identifier_name(binding, Some(context.function_depth))?;
+            utils::validate_identifier_name(binding, None)?;
         }
     }
 
@@ -341,6 +343,9 @@ fn process_props_object_pattern(
                 let binding = &mut context.analysis.root.bindings[binding_idx];
                 binding.prop_alias = Some(alias);
 
+                // Default to Prop kind (will be overwritten if $bindable)
+                binding.kind = BindingKind::Prop;
+
                 // Check for $bindable() wrapper
                 if let Some(init) = initial {
                     if init.get("type").and_then(|t| t.as_str()) == Some("CallExpression")
@@ -379,6 +384,23 @@ fn process_props_object_pattern(
 fn visit_non_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     let init = node.get("init");
 
+    // Extract paths from the pattern for validation
+    let paths = if let Some(id) = node.get("id") {
+        extract_paths(id)
+    } else {
+        Vec::new()
+    };
+
+    // Validate identifier names for dollar prefix (also applies in non-runes mode)
+    for path in &paths {
+        if let Some(name) = path.get("name").and_then(|n| n.as_str())
+            && let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name)
+        {
+            let binding = &context.analysis.root.bindings[binding_idx];
+            utils::validate_identifier_name(binding, Some(context.function_depth))?;
+        }
+    }
+
     // Check for invalid rune usage
     if let Some(init) = init
         && init.get("type").and_then(|t| t.as_str()) == Some("CallExpression")
@@ -405,14 +427,8 @@ fn visit_non_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<()
         }
     }
 
-    // Set initial value for constant folding (same as runes mode)
+    // Set initial value for constant folding
     if let Some(init) = init {
-        let paths = if let Some(id) = node.get("id") {
-            extract_paths(id)
-        } else {
-            Vec::new()
-        };
-
         for path in &paths {
             if let Some(name) = path.get("name").and_then(|n| n.as_str())
                 && let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name)

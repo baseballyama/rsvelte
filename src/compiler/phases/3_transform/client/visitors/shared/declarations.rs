@@ -100,8 +100,43 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
                     mutate: Some(store_sub_mutate),
                     update: Some(store_sub_update),
                     skip_proxy: false,
+                    is_defined: false,
                 };
                 context.state.transform.insert(name.clone(), transform);
+                continue;
+            }
+
+            // Handle props (Prop or BindableProp)
+            // Reference: Program.js lines 104-136
+            if matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp) {
+                use crate::compiler::phases::phase3_transform::client::utils::is_prop_source;
+
+                if is_prop_source(binding, context.state.analysis) {
+                    // Prop is a "source" - accessed via function call
+                    // read: b.call - transforms x to x()
+                    // assign: (node, value) => b.call(node, value) - x(value)
+                    let is_bindable = matches!(binding.kind, BindingKind::BindableProp);
+                    let transform = IdentifierTransform {
+                        read: Some(prop_source_read),
+                        assign: Some(prop_source_assign),
+                        mutate: Some(if is_bindable {
+                            prop_bindable_mutate
+                        } else {
+                            prop_mutate
+                        }),
+                        update: Some(prop_update),
+                        skip_proxy: false,
+                        is_defined: false,
+                    };
+                    context.state.transform.insert(name.clone(), transform);
+                } else {
+                    // Prop is NOT a source - accessed via $$props.name
+                    // Note: we need to capture the name for the member access
+                    // Since we can't capture in fn pointers, we use a different approach:
+                    // For non-source props, we don't register a transform and let the
+                    // default identifier handling access $$props.name directly
+                    // This is handled elsewhere in the codebase
+                }
                 continue;
             }
 
@@ -137,6 +172,7 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
                     mutate: Some(mutate_fn),
                     update: Some(update_value),
                     skip_proxy,
+                    is_defined: false,
                 };
 
                 // Register the transform in the state
@@ -144,6 +180,60 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
             }
         }
     }
+}
+
+// ============================================================================
+// Prop transform functions
+// ============================================================================
+
+/// Transform a prop source read.
+///
+/// This transforms `x` into `x()` by calling it as a function.
+/// In the generated code, `$.prop()` returns a getter function.
+fn prop_source_read(node: JsExpr) -> JsExpr {
+    b::call(node, vec![])
+}
+
+/// Transform a prop source assignment.
+///
+/// This transforms `x = value` into `x(value)` by calling the setter.
+fn prop_source_assign(node: JsExpr, value: JsExpr, _needs_proxy: bool) -> JsExpr {
+    b::call(node, vec![value])
+}
+
+/// Transform a prop mutation (non-bindable).
+///
+/// For non-bindable props, mutations are passed through unchanged.
+fn prop_mutate(_node: JsExpr, mutation: JsExpr) -> JsExpr {
+    mutation
+}
+
+/// Transform a bindable prop mutation.
+///
+/// For bindable props, mutations need to notify the parent.
+/// Transforms `x.prop = value` to `x(x.prop = value, true)`
+fn prop_bindable_mutate(node: JsExpr, mutation: JsExpr) -> JsExpr {
+    b::call(node, vec![mutation, b::boolean(true)])
+}
+
+/// Transform a prop update expression (++ or --).
+///
+/// Transforms `x++` to `$.update_prop(x)` or `++x` to `$.update_pre_prop(x)`.
+fn prop_update(operator: JsUpdateOp, argument: JsExpr, prefix: bool) -> JsExpr {
+    let method = if prefix {
+        "update_pre_prop"
+    } else {
+        "update_prop"
+    };
+
+    let mut args = vec![argument];
+
+    // For decrement, pass -1 as the second argument
+    if operator == JsUpdateOp::Decrement {
+        args.push(b::number(-1.0));
+    }
+
+    b::svelte_call(method, args)
 }
 
 /// Transform a store subscription read.

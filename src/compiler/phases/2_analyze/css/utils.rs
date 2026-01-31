@@ -77,7 +77,7 @@ pub fn is_outer_global(selector: &serde_json::Value) -> bool {
 /// Marker for unknown values (when we can't statically determine all possible values).
 const UNKNOWN_MARKER: &str = "__UNKNOWN__";
 
-/// Get possible values from an expression chunk (Text or ExpressionTag).
+/// Get possible values from an expression chunk (Text, ExpressionTag, or direct expression).
 ///
 /// Returns `None` if the values cannot be determined statically (dynamic expression).
 /// Returns `Some(Vec<String>)` if we can determine all possible values.
@@ -85,9 +85,10 @@ const UNKNOWN_MARKER: &str = "__UNKNOWN__";
 /// This is used for class attribute analysis to determine which classes might be used.
 pub fn get_possible_values(chunk: &serde_json::Value, is_class: bool) -> Option<Vec<String>> {
     let mut values = Vec::new();
+    let chunk_type = chunk.get("type").and_then(|t| t.as_str());
 
     // Handle Text nodes
-    if let Some("Text") = chunk.get("type").and_then(|t| t.as_str())
+    if let Some("Text") = chunk_type
         && let Some(data) = chunk.get("data").and_then(|d| d.as_str())
     {
         values.push(data.to_string());
@@ -95,10 +96,14 @@ pub fn get_possible_values(chunk: &serde_json::Value, is_class: bool) -> Option<
     }
 
     // Handle ExpressionTag nodes
-    if let Some("ExpressionTag") = chunk.get("type").and_then(|t| t.as_str())
+    if let Some("ExpressionTag") = chunk_type
         && let Some(expression) = chunk.get("expression")
     {
         gather_possible_values(expression, is_class, &mut values, false);
+    } else if chunk_type.is_some() {
+        // Handle direct expression nodes (ObjectExpression, Identifier, etc.)
+        // This happens when class={{ ... }} is parsed directly as an expression
+        gather_possible_values(chunk, is_class, &mut values, false);
     }
 
     // Check if we encountered UNKNOWN

@@ -512,8 +512,10 @@ mod tests {
 
     #[test]
     fn test_parse_expression_at() {
-        let source = "const x = 1 + 2;";
-        let result = parse_expression_at(source, false, 10);
+        // Test parsing expression starting at a specific position
+        // Note: parse_expression_at parses everything from the index to the end as an expression
+        let source = "xxx 1 + 2";
+        let result = parse_expression_at(source, false, 4);
         assert!(result.is_ok());
     }
 

@@ -162,19 +162,13 @@ pub fn validate_element(
                         matches!(parent, crate::ast::template::TemplateNode::EachBlock(_));
 
                     if !is_each_block {
-                        return Err(AnalysisError::Validation(
-                            "Animate directives can only be used on elements inside an each block"
-                                .to_string(),
-                        ));
+                        return Err(errors::animation_invalid_placement());
                     }
 
                     // Check for key on the EachBlock
                     if let crate::ast::template::TemplateNode::EachBlock(each) = parent {
                         if each.key.is_none() {
-                            return Err(AnalysisError::Validation(
-                                "Animate directives require the each block to have a key"
-                                    .to_string(),
-                            ));
+                            return Err(errors::animation_missing_key());
                         }
 
                         // Check that there's only one child element (excluding comments, empty text, const tags)
@@ -193,10 +187,7 @@ pub fn validate_element(
                             .count();
 
                         if non_empty_children > 1 {
-                            return Err(AnalysisError::Validation(
-                                    "An element with an animate directive must be the only child of an each block"
-                                        .to_string(),
-                                ));
+                            return Err(errors::animation_invalid_placement());
                         }
                     }
                 }

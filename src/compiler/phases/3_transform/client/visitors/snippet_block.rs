@@ -363,6 +363,7 @@ fn create_call_transform()
         mutate: None,
         update: None,
         skip_proxy: false,
+        is_defined: false,
     }
 }
 
@@ -375,6 +376,7 @@ fn create_get_value_transform()
         mutate: None,
         update: None,
         skip_proxy: false,
+        is_defined: false,
     }
 }
 

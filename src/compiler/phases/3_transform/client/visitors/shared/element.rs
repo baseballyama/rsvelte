@@ -12,7 +12,7 @@ use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 #[cfg(test)]
 use crate::compiler::phases::phase3_transform::js_ast::nodes::JsLiteral;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::{
-    JsExpr, JsObjectMember, JsStatement, JsTemplateLiteral,
+    JsExpr, JsObjectMember, JsPattern, JsStatement, JsTemplateLiteral,
 };
 
 use super::utils::build_expression;
@@ -57,8 +57,11 @@ where
             // Update metadata with correct has_state value
             metadata.set_has_state(has_state);
 
+            // Apply transforms via build_expression (handles props: x -> x())
+            let transformed = build_expression(context, &expression, &metadata);
+
             // Memoize if needed
-            let memoized = memoize(expression, &metadata);
+            let memoized = memoize(transformed, &metadata);
 
             AttributeValueResult {
                 value: memoized,
@@ -85,7 +88,10 @@ where
                     // Update metadata with correct has_state value
                     metadata.set_has_state(has_state);
 
-                    let memoized = memoize(expression, &metadata);
+                    // Apply transforms via build_expression (handles props: x -> x())
+                    let transformed = build_expression(context, &expression, &metadata);
+
+                    let memoized = memoize(transformed, &metadata);
 
                     AttributeValueResult {
                         value: memoized,
@@ -140,8 +146,8 @@ where
                 quasis.push(b::quasi(&current_text, false));
                 current_text.clear();
 
-                // Build the expression
-                let expression = extract_expression_from_tag(expr_tag);
+                // Build the expression using full context-aware conversion
+                let expression = extract_expression_from_tag_with_context(expr_tag, context);
                 let metadata = extract_metadata_from_tag(expr_tag);
 
                 let built = build_expression(context, &expression, &metadata);
@@ -186,6 +192,7 @@ fn extract_expression_from_tag_with_context(
 ///
 /// This is a fallback for cases where we don't have mutable access to context.
 /// It only handles simple expressions like identifiers.
+#[allow(dead_code)]
 fn extract_expression_from_tag(expr_tag: &ExpressionTag) -> JsExpr {
     use crate::ast::js::Expression;
 
@@ -452,7 +459,7 @@ pub fn build_set_style_call(
 ///
 /// ```js
 /// var event_handler = () => $.set(changed, 'a');
-/// $.attribute_effect(div, () => ({ ...props, ona: event_handler }));
+/// $.attribute_effect(div, ($0) => ({ ...$0, ona: event_handler }), [() => get_rest()]);
 /// ```
 pub fn build_attribute_effect(
     attributes: &[crate::ast::template::Attribute],
@@ -465,6 +472,10 @@ pub fn build_attribute_effect(
     use crate::ast::template::Attribute;
     use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
 
+    // Create a local memoizer for this attribute effect
+    // This extracts complex expressions (like function calls) and replaces them with $0, $1, etc.
+    let mut local_memoizer = Memoizer::new();
+
     // Pre-allocate based on number of attributes
     let mut properties: Vec<JsObjectMember> = Vec::with_capacity(attributes.len());
     let mut event_handler_decls: Vec<JsStatement> = Vec::with_capacity(4);
@@ -472,8 +483,17 @@ pub fn build_attribute_effect(
     for attribute in attributes {
         match attribute {
             Attribute::Attribute(attr) => {
-                // Build the attribute value
-                let result = build_attribute_value(&attr.value, context, |expr, _metadata| expr);
+                // Build the attribute value with local memoization
+                let result = build_attribute_value(&attr.value, context, |expr, metadata| {
+                    // Use the local memoizer to extract complex expressions
+                    local_memoizer.add(
+                        expr,
+                        metadata.has_call(),
+                        false, // has_await - TODO: detect
+                        false, // memoize_if_state
+                        metadata.has_state(),
+                    )
+                });
 
                 // Check if this is an event attribute
                 // Apply state transforms to expression (converts state variable refs to $.get())
@@ -500,7 +520,23 @@ pub fn build_attribute_effect(
                 // Apply transforms to handle state variables ($.get() wrapping)
                 let transformed_expr =
                     super::utils::apply_transforms_to_expression(&spread_expr, context);
-                properties.push(b::spread(transformed_expr));
+
+                // Check if the spread expression has function calls or reactive state
+                let has_call = super::utils::expression_has_call(&spread.expression);
+                let has_state =
+                    super::utils::expression_has_reactive_state(&spread.expression, context);
+
+                // Memoize the spread expression if it has calls (like getter functions)
+                // This ensures the expression is only evaluated once per render cycle
+                let memoized_expr = local_memoizer.add(
+                    transformed_expr,
+                    has_call,
+                    false, // has_await - TODO: detect
+                    false, // memoize_if_state
+                    has_state,
+                );
+
+                properties.push(b::spread(memoized_expr));
             }
             _ => {}
         }
@@ -525,23 +561,47 @@ pub fn build_attribute_effect(
         context.state.init.push(decl);
     }
 
+    // Get memoizer parameters ($0, $1, etc.) and sync values
+    let params = local_memoizer.apply();
+    let sync_values = local_memoizer.sync_values();
+
+    // Convert params (JsExpr) to patterns (JsPattern) for arrow function
+    let param_patterns: Vec<JsPattern> = params
+        .iter()
+        .filter_map(|p| {
+            if let JsExpr::Identifier(name) = p {
+                Some(JsPattern::Identifier(name.clone()))
+            } else {
+                None
+            }
+        })
+        .collect();
+
     // Build the attribute effect call
-    // $.attribute_effect(element, () => ({ ...attrs }), sync_values?, async_values?, blockers?, css_hash?)
+    // $.attribute_effect(element, ($0, $1...) => ({ ...attrs }), sync_values?, async_values?, blockers?, css_hash?, should_remove_defaults?, ignore_hydration?)
     let obj = b::object(properties);
-    let arrow = b::arrow(vec![], obj);
+    let arrow = b::arrow(param_patterns, obj);
 
     let mut args = vec![element_id, arrow];
 
-    // For now, we don't handle memoization - pass undefined for sync/async values
-    // This matches the simple case without complex expressions
+    // Add sync_values if we have memoized expressions
+    // Otherwise, we still need to add placeholders if css_hash is present
+    let has_memoized = sync_values.is_some();
 
-    // Add CSS hash if present
-    if !css_hash.is_empty() {
-        // Need to add undefined placeholders for sync_values, async_values, blockers
+    if has_memoized || !css_hash.is_empty() {
+        // Add sync_values (or undefined if none)
+        args.push(sync_values.unwrap_or_else(b::undefined));
+
+        // Add async_values (not yet implemented)
         args.push(b::undefined());
+
+        // Add blockers (not yet implemented)
         args.push(b::undefined());
-        args.push(b::undefined());
-        args.push(b::string(css_hash));
+
+        // Add CSS hash if present
+        if !css_hash.is_empty() {
+            args.push(b::string(css_hash));
+        }
     }
 
     context

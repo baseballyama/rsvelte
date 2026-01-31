@@ -293,8 +293,15 @@ impl ComponentAnalysis {
     /// Create scopes for the component.
     pub fn create_scopes(&mut self, ast: &Root) -> Result<(), super::AnalysisError> {
         // Build scope tree using ScopeBuilder
-        let scope_root = super::scope_builder::build_scopes(ast, &self.source);
+        let (scope_root, validation_errors) =
+            super::scope_builder::build_scopes(ast, &self.source, self.runes);
         self.root = scope_root;
+
+        // Return first validation error if any occurred during scope building
+        // (e.g., invalid $ prefix on variable names)
+        if let Some(err) = validation_errors.into_iter().next() {
+            return Err(err);
+        }
 
         // Update runes flag based on bindings
         for binding in &self.root.bindings {

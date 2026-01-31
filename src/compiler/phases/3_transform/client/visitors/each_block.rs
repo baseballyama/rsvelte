@@ -594,23 +594,28 @@ fn build_declarations(
 
     // Handle index transform
     // When EACH_INDEX_REACTIVE flag is set, wrap index reads with $.get()
+    // Always register index transform with is_defined: true since indices are always numbers
     if let Some(index_name) = &node.index {
         let index_reactive = (flags & EACH_INDEX_REACTIVE) != 0;
-        if index_reactive {
-            context.state.transform.insert(
-                index_name.to_string(),
-                IdentifierTransform {
-                    read: Some(|node| {
+        context.state.transform.insert(
+            index_name.to_string(),
+            IdentifierTransform {
+                read: if index_reactive {
+                    Some(|node| {
                         // Wrap with $.get(node)
                         b::call(b::member_path("$.get"), vec![node])
-                    }),
-                    assign: None,
-                    mutate: None,
-                    update: None,
-                    skip_proxy: false,
+                    })
+                } else {
+                    None
                 },
-            );
-        }
+                assign: None,
+                mutate: None,
+                update: None,
+                skip_proxy: false,
+                // Each block indices are always numbers, never null/undefined
+                is_defined: true,
+            },
+        );
     }
 
     // Handle simple identifier context
@@ -639,6 +644,8 @@ fn build_declarations(
                         mutate: None,
                         update: None,
                         skip_proxy: false,
+                        // Each items can be any value including null/undefined
+                        is_defined: false,
                     },
                 );
             }

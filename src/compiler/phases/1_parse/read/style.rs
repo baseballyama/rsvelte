@@ -311,7 +311,9 @@ impl<'a> CssParser<'a> {
 
     fn parse_selector_list(&self, text: &str, offset: usize) -> Value {
         let start = offset;
-        let end = offset + text.len();
+        // Calculate end position excluding trailing whitespace
+        let trailing_ws = text.len() - text.trim_end().len();
+        let end = offset + text.len() - trailing_ws;
 
         // Split by comma for multiple selectors, but respect parentheses and comments
         let selectors: Vec<Value> = self

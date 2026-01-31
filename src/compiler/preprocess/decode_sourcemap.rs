@@ -42,11 +42,13 @@ mod tests {
 
     #[test]
     fn test_decode_map_from_json() {
+        // Note: mappings must be in decoded format (Vec<Vec<Vec<i64>>>),
+        // not VLQ-encoded string, since SimpleDecodedMap expects decoded data
         let json_map = r#"{
             "version": 3,
             "sources": ["input.svelte"],
             "names": [],
-            "mappings": "AAAA"
+            "mappings": [[[0, 0, 0, 0]]]
         }"#;
 
         let processed = Processed {

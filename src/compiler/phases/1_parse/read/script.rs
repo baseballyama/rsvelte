@@ -115,9 +115,17 @@ impl Parser<'_> {
                 if attr_node.name.as_str() == "context" {
                     if let AttributeValue::Sequence(parts) = &attr_node.value
                         && let Some(AttributeValuePart::Text(t)) = parts.first()
-                        && t.data.as_str() == "module"
                     {
-                        context = ScriptContext::Module;
+                        if t.data.as_str() == "module" {
+                            context = ScriptContext::Module;
+                        } else {
+                            // Invalid context value - only "module" is allowed
+                            return Err(crate::error::ParseError::svelte(
+                                "script_invalid_context",
+                                "If the context attribute is supplied, its value must be \"module\"\nhttps://svelte.dev/e/script_invalid_context",
+                                (attr_node.start as usize, attr_node.end as usize),
+                            ));
+                        }
                     }
                 } else if attr_node.name.as_str() == "module" {
                     // `module` attribute (boolean or with value) indicates module context
@@ -142,6 +150,8 @@ impl Parser<'_> {
 
         // Parse the script content as a JavaScript/TypeScript Program
         // Pass any pending leading comments (HTML comments before the script tag)
+        // Also pass the script tag start and end positions for loc calculation
+        // (Svelte uses locator(start) for loc.start and locator(parser.index) for loc.end)
         let leading_comments = std::mem::take(&mut self.pending_leading_comments);
         let program = super::super::expression::parse_program(
             script_content,
@@ -149,6 +159,8 @@ impl Parser<'_> {
             &self.line_offsets,
             is_typescript,
             &leading_comments,
+            start, // Script tag start position for loc.start
+            end,   // Script tag end position (after </script>) for loc.end
         );
 
         let script = Script {

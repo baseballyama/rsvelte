@@ -213,13 +213,23 @@ fn transform_client_with_visitors(
         || reactive_export_count > 0
         || needs_store_cleanup; // Store subscriptions need context
 
+    // Check if there are any prop bindings (Prop or BindableProp) that require $$props
+    // This is needed for legacy mode where props are accessed via $.prop($$props, 'name', flags)
+    let has_prop_bindings = analysis.root.bindings.iter().any(|b| {
+        matches!(
+            b.kind,
+            BindingKind::Prop | BindingKind::BindableProp | BindingKind::RestProp
+        )
+    });
+
     // Determine if we need $$props parameter
     let should_inject_props = should_inject_context
         || analysis.needs_props
         || analysis.uses_props
         || analysis.uses_rest_props
         || analysis.uses_slots
-        || !analysis.slot_names.is_empty();
+        || !analysis.slot_names.is_empty()
+        || has_prop_bindings; // Legacy mode props need $$props parameter
 
     // Build component function body
     // Pre-allocate for typical component body size
@@ -700,6 +710,9 @@ fn transform_instance_script_for_visitors(
         trimmed.starts_with("export let ") || trimmed.starts_with("export let\t")
     });
 
+    // Collect exported names from analysis (needed for prop filtering below)
+    let exported_names: Vec<String> = analysis.exports.iter().map(|e| e.name.clone()).collect();
+
     // Collect props that are "sources" (reassigned or mutated - need $.prop() declarations)
     // Read-only props should be accessed directly via $$props.propName
     let prop_source_vars: Vec<String> = analysis
@@ -715,8 +728,20 @@ fn transform_instance_script_for_visitors(
         .map(|b| b.name.clone())
         .collect();
 
-    // Collect exported names from analysis
-    let exported_names: Vec<String> = analysis.exports.iter().map(|e| e.name.clone()).collect();
+    // Collect read-only props (props that are not sources and not exported with defaults)
+    // These should be accessed directly via $$props.propName
+    let read_only_props: Vec<String> = analysis
+        .root
+        .bindings
+        .iter()
+        .filter(|b| {
+            matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp)
+                && !b.reassigned
+                && !b.mutated
+                && !exported_names.contains(&b.name)
+        })
+        .map(|b| b.name.clone())
+        .collect();
 
     let mut result = String::new();
 
@@ -737,6 +762,7 @@ fn transform_instance_script_for_visitors(
                                prop_source_vars: &[String],
                                exported_names: &[String],
                                rest_prop_vars: &[String],
+                               read_only_props: &[String],
                                analysis: &ComponentAnalysis,
                                dev: bool,
                                has_legacy_export_let: bool| {
@@ -750,7 +776,8 @@ fn transform_instance_script_for_visitors(
 
         // Handle legacy export let declarations
         if has_legacy_export_let && first_line_trimmed.starts_with("export let ") {
-            let transformed = transform_export_let(first_line_trimmed);
+            // Use the full statement for multi-line export declarations
+            let transformed = transform_export_let(&statement);
             result.push_str(&transformed);
             result.push('\n');
             return;
@@ -801,6 +828,13 @@ fn transform_instance_script_for_visitors(
         // Transform rest_prop member access to $$props (only in runes mode)
         let transformed = if analysis.runes && !rest_prop_vars.is_empty() {
             transform_rest_prop_member_access(&transformed, rest_prop_vars)
+        } else {
+            transformed
+        };
+
+        // Transform read-only props to $$props.propName (only in runes mode)
+        let transformed = if analysis.runes && !read_only_props.is_empty() {
+            transform_read_only_props(&transformed, read_only_props)
         } else {
             transformed
         };
@@ -856,6 +890,7 @@ fn transform_instance_script_for_visitors(
                 &prop_source_vars,
                 &exported_names,
                 &rest_prop_vars,
+                &read_only_props,
                 analysis,
                 dev,
                 has_legacy_export_let,
@@ -877,6 +912,7 @@ fn transform_instance_script_for_visitors(
             &prop_source_vars,
             &exported_names,
             &rest_prop_vars,
+            &read_only_props,
             analysis,
             dev,
             has_legacy_export_let,
@@ -1645,6 +1681,8 @@ fn find_derived_property_colon(prop: &str) -> Option<usize> {
 }
 
 fn transform_export_let(line: &str) -> String {
+    use crate::compiler::constants::PROPS_IS_BINDABLE;
+
     let trimmed = line.trim();
 
     // Pattern: export let name = value; or export let name;
@@ -1655,15 +1693,61 @@ fn transform_export_let(line: &str) -> String {
     let rest = trimmed[11..].trim(); // After "export let "
     let rest = rest.trim_end_matches(';').trim();
 
+    // In legacy mode, export let props use PROPS_IS_BINDABLE (8)
+    // because they can be bound from parent components
+    let flags = PROPS_IS_BINDABLE;
+
     // Parse: name = value or just name
     if let Some(eq_pos) = rest.find('=') {
         let name = rest[..eq_pos].trim();
-        let value = rest[eq_pos + 1..].trim();
-        format!("let {} = $.prop($$props, '{}', 12, {});", name, name, value)
+        let mut value = rest[eq_pos + 1..].trim();
+
+        // Remove trailing line comment if present
+        // Need to handle strings correctly - don't strip // inside strings
+        if let Some(comment_pos) = find_line_comment_position(value) {
+            value = value[..comment_pos].trim();
+        }
+
+        // Remove trailing semicolon from value (after comment removal)
+        let value = value.trim_end_matches(';').trim();
+
+        format!(
+            "let {} = $.prop($$props, '{}', {}, {});",
+            name, name, flags, value
+        )
     } else {
         let name = rest;
-        format!("let {} = $.prop($$props, '{}', 12);", name, name)
+        format!("let {} = $.prop($$props, '{}', {});", name, name, flags)
     }
+}
+
+/// Find the position of a line comment (//) that is not inside a string.
+fn find_line_comment_position(code: &str) -> Option<usize> {
+    let mut in_string = false;
+    let mut string_char = ' ';
+    let mut chars = code.chars().peekable();
+    let mut pos = 0;
+
+    while let Some(c) = chars.next() {
+        if in_string {
+            if c == '\\' {
+                // Skip escaped character
+                chars.next();
+                pos += 2;
+                continue;
+            }
+            if c == string_char {
+                in_string = false;
+            }
+        } else if c == '"' || c == '\'' || c == '`' {
+            in_string = true;
+            string_char = c;
+        } else if c == '/' && chars.peek() == Some(&'/') {
+            return Some(pos);
+        }
+        pos += c.len_utf8();
+    }
+    None
 }
 
 /// Transform $props() usage.
@@ -1811,6 +1895,144 @@ fn transform_rest_prop_member_access(line: &str, rest_prop_vars: &[String]) -> S
     }
 
     result
+}
+
+/// Transform read-only props to $$props.propName.
+/// Read-only props are props that are not reassigned or mutated.
+fn transform_read_only_props(line: &str, read_only_props: &[String]) -> String {
+    let mut result = line.to_string();
+
+    for prop_name in read_only_props {
+        // Create a regex pattern that matches the prop name as a complete identifier
+        // Rust regex doesn't support lookbehind, so we match with word boundaries
+        // and handle the prefix check manually
+        let pattern = format!(r"\b{}\b", regex::escape(prop_name));
+        let re = match regex::Regex::new(&pattern) {
+            Ok(r) => r,
+            Err(_) => continue,
+        };
+
+        let mut new_result = String::new();
+        let mut last_end = 0;
+
+        for mat in re.find_iter(&result.clone()) {
+            // Check if preceded by . (property access) or $ (dollar identifier)
+            if mat.start() > 0 {
+                let prev_char = result.chars().nth(mat.start() - 1);
+                if prev_char == Some('.') || prev_char == Some('$') {
+                    new_result.push_str(&result[last_end..mat.end()]);
+                    last_end = mat.end();
+                    continue;
+                }
+            }
+
+            // Check if this is a declaration (skip if so)
+            let before = &result[..mat.start()];
+            let trimmed_before = before.trim_end();
+
+            // Skip if this is part of a let/const/var declaration
+            if trimmed_before.ends_with("let")
+                || trimmed_before.ends_with("const")
+                || trimmed_before.ends_with("var")
+                || trimmed_before.ends_with(',')
+                || trimmed_before.ends_with('{')
+            {
+                new_result.push_str(&result[last_end..mat.end()]);
+                last_end = mat.end();
+                continue;
+            }
+
+            // Check if this is a destructuring pattern
+            // Look for patterns like `{ prop }` or `{ prop, ... }`
+            if is_in_destructuring_pattern(&result, mat.start()) {
+                new_result.push_str(&result[last_end..mat.end()]);
+                last_end = mat.end();
+                continue;
+            }
+
+            // Replace with $$props.propName
+            new_result.push_str(&result[last_end..mat.start()]);
+            new_result.push_str("$$props.");
+            new_result.push_str(prop_name);
+            last_end = mat.end();
+        }
+
+        new_result.push_str(&result[last_end..]);
+        result = new_result;
+    }
+
+    result
+}
+
+/// Check if a position is inside a destructuring pattern.
+/// Destructuring patterns appear on the LEFT side of an assignment,
+/// not the right side (which would be an object literal).
+fn is_in_destructuring_pattern(code: &str, pos: usize) -> bool {
+    let before = &code[..pos];
+
+    // Count unmatched braces to see if we're inside { }
+    let mut brace_depth = 0;
+    let mut last_open_brace = None;
+
+    for (i, c) in before.chars().enumerate() {
+        match c {
+            '{' => {
+                brace_depth += 1;
+                last_open_brace = Some(i);
+            }
+            '}' => brace_depth -= 1,
+            _ => {}
+        }
+    }
+
+    if brace_depth <= 0 {
+        return false;
+    }
+
+    // If we're inside braces, check if they're part of a destructuring
+    if let Some(open_idx) = last_open_brace {
+        let before_brace = code[..open_idx].trim_end();
+
+        // Destructuring patterns are on the LEFT side of assignment
+        // So `= {` followed by content is NOT destructuring (it's an object literal on the right)
+        // But `let {` or `const {` directly (no identifier between) IS destructuring
+
+        // If it ends with `=`, check if there's an identifier before the `=`
+        // `const foo = { ... }` is NOT destructuring
+        // `const { ... } = foo` IS destructuring (but the `{` would be before `=`)
+        if before_brace.ends_with('=') {
+            // This is the right side of an assignment - NOT a destructuring pattern
+            return false;
+        }
+
+        // Check for destructuring patterns: `let {`, `const {`, `var {`
+        // These are cases where the brace immediately follows the keyword
+        if before_brace.ends_with("let")
+            || before_brace.ends_with("const")
+            || before_brace.ends_with("var")
+        {
+            return true;
+        }
+
+        // Function parameter destructuring: `function({ prop })`
+        if before_brace.ends_with('(') {
+            return true;
+        }
+
+        // Nested destructuring: `{ outer: { inner } }`
+        if before_brace.ends_with(':') || before_brace.ends_with(',') {
+            // Check if we're in the left side of an assignment
+            // by looking for `= ` after the last `{` at our current depth
+            let after_brace = &code[open_idx..];
+            if !after_brace.contains('=') || after_brace.find('=').map(|i| open_idx + i) > Some(pos)
+            {
+                // The `=` is after our position, so we're on the left side
+                return true;
+            }
+        }
+    }
+
+    false
 }
 
 // ============================================================================
@@ -2123,9 +2345,335 @@ fn transform_store_assignments_client(line: &str, store_sub_vars: &[String]) -> 
                 );
             }
         }
+
+        // Transform member expression mutations: $store.prop.value++ or $store[0].value++
+        // These need $.store_mutate(store, $.untrack($store).prop.value++, $.untrack($store))
+        result = transform_store_member_mutations(&result, store_sub, store_name);
     }
 
     result
+}
+
+/// Transform store member expression mutations.
+///
+/// Handles patterns like:
+/// - `$store.prop++` -> `$.store_mutate(store, $.untrack($store).prop++, $.untrack($store))`
+/// - `$store[0].value++` -> `$.store_mutate(store, $.untrack($store)[0].value++, $.untrack($store))`
+/// - `$store.items[0] = x` -> `$.store_mutate(store, $.untrack($store).items[0] = x, $.untrack($store))`
+fn transform_store_member_mutations(line: &str, store_sub: &str, store_name: &str) -> String {
+    let mut result = line.to_string();
+
+    // Skip if already transformed (contains $.store_mutate for this store)
+    if result.contains(&format!("$.store_mutate({},", store_name)) {
+        return result;
+    }
+
+    // Pattern for member access: $store. or $store[
+    let member_patterns = [format!("{}.", store_sub), format!("{}[", store_sub)];
+
+    for member_pattern in &member_patterns {
+        // Keep transforming as long as we find patterns
+        while let Some(pos) = find_store_member_mutation(&result, member_pattern) {
+            // Find the full mutation expression
+            if let Some((mutation_start, mutation_end, is_update)) =
+                extract_store_mutation(&result, pos, store_sub, member_pattern.len())
+            {
+                let mutation_expr = &result[mutation_start..mutation_end];
+
+                // Replace $store occurrences with $.untrack($store) in the mutation expression
+                let untracked_expr = mutation_expr.replacen(
+                    store_sub,
+                    &format!("$.untrack({})", store_sub),
+                    1, // Only replace the first occurrence (the root store access)
+                );
+
+                // Build the $.store_mutate call
+                let replacement = format!(
+                    "$.store_mutate({}, {}, $.untrack({}))",
+                    store_name, untracked_expr, store_sub
+                );
+
+                result = format!(
+                    "{}{}{}",
+                    &result[..mutation_start],
+                    replacement,
+                    &result[mutation_end..]
+                );
+
+                // Remove trailing semicolon if it was an update expression statement
+                // (since $.store_mutate already includes the full statement)
+                if is_update && result[mutation_start + replacement.len()..].starts_with(';') {
+                    // Keep the semicolon, it's part of the statement
+                }
+            } else {
+                // Couldn't extract mutation - break to avoid infinite loop
+                break;
+            }
+        }
+    }
+
+    result
+}
+
+/// Find a store member mutation pattern that needs transformation.
+///
+/// Returns the position where the mutation starts, or None if not found.
+fn find_store_member_mutation(line: &str, pattern: &str) -> Option<usize> {
+    let mut search_start = 0;
+    while let Some(pos) = line[search_start..].find(pattern) {
+        let abs_pos = search_start + pos;
+
+        // Skip if this is inside a $.untrack() or $.store_mutate() call
+        let before = &line[..abs_pos];
+        if before.ends_with("$.untrack(") || before.ends_with("$.store_mutate(") {
+            search_start = abs_pos + 1;
+            continue;
+        }
+
+        // Skip if this is already transformed (inside a $.store_mutate call)
+        if is_inside_store_mutate(line, abs_pos) {
+            search_start = abs_pos + 1;
+            continue;
+        }
+
+        // Check if this is followed by an assignment or update operation
+        // by examining what comes after the member expression
+        let after = &line[abs_pos..];
+        if is_mutation_expression(after, pattern) {
+            return Some(abs_pos);
+        }
+
+        search_start = abs_pos + 1;
+    }
+
+    None
+}
+
+/// Check if a position is inside an existing $.store_mutate() call.
+fn is_inside_store_mutate(line: &str, pos: usize) -> bool {
+    // Find the nearest $.store_mutate( before this position
+    let before = &line[..pos];
+    if let Some(mutate_pos) = before.rfind("$.store_mutate(") {
+        // Check if we're inside the parentheses
+        let after_mutate = &line[mutate_pos + 15..]; // after "$.store_mutate("
+        let mut depth = 1;
+        for (i, c) in after_mutate.char_indices() {
+            match c {
+                '(' => depth += 1,
+                ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        // Found the closing paren
+                        return mutate_pos + 15 + i > pos;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    false
+}
+
+/// Check if the expression starting at the given pattern is a mutation (assignment or update).
+fn is_mutation_expression(text: &str, pattern: &str) -> bool {
+    // Skip the pattern itself
+    let after_pattern = &text[pattern.len()..];
+
+    // Find what comes after the member chain
+    // If pattern ends with '[', we're already inside a bracket, so start with depth=1
+    let mut depth = if pattern.ends_with('[') { 1 } else { 0 };
+    let chars: Vec<char> = after_pattern.chars().collect();
+    let mut i = 0;
+
+    // Skip through the rest of the member expression
+    while i < chars.len() {
+        let c = chars[i];
+        match c {
+            '[' => {
+                depth += 1;
+                i += 1;
+            }
+            ']' => {
+                depth -= 1;
+                i += 1;
+            }
+            '.' if depth == 0 => {
+                // Continue with next property access
+                i += 1;
+                // Skip the property name
+                while i < chars.len()
+                    && (chars[i].is_alphanumeric() || chars[i] == '_' || chars[i] == '$')
+                {
+                    i += 1;
+                }
+            }
+            '(' if depth == 0 => {
+                // This is a function call, not a mutation
+                return false;
+            }
+            '+' | '-' | '=' | '*' | '/' | '%' | '&' | '|' | '^' | '!' | '?' if depth == 0 => {
+                // This could be an assignment or update operator
+                // Check for ++ or --
+                if c == '+' && i + 1 < chars.len() && chars[i + 1] == '+' {
+                    return true;
+                }
+                if c == '-' && i + 1 < chars.len() && chars[i + 1] == '-' {
+                    return true;
+                }
+                // Check for assignment operators
+                if i + 1 < chars.len() && chars[i + 1] == '=' {
+                    return true;
+                }
+                if c == '=' && (i == 0 || chars[i - 1] != '=' && chars[i - 1] != '!') {
+                    return true;
+                }
+                // Not a mutation
+                return false;
+            }
+            ' ' | '\t' if depth == 0 => {
+                // Whitespace - continue to find the operator
+                i += 1;
+            }
+            _ if depth == 0 && !c.is_alphanumeric() && c != '_' && c != '$' => {
+                // End of member expression without finding mutation
+                return false;
+            }
+            _ => {
+                i += 1;
+            }
+        }
+    }
+
+    false
+}
+
+/// Extract the full mutation expression boundaries.
+///
+/// Returns (start, end, is_update) where:
+/// - start: position where the mutation starts
+/// - end: position after the mutation ends
+/// - is_update: true if this is an update expression (++ or --)
+fn extract_store_mutation(
+    line: &str,
+    start: usize,
+    _store_sub: &str,
+    _pattern_len: usize,
+) -> Option<(usize, usize, bool)> {
+    let after_start = &line[start..];
+    let chars: Vec<char> = after_start.chars().collect();
+    let mut i = 0;
+    let mut depth = 0;
+
+    // First, traverse the member expression
+    while i < chars.len() {
+        let c = chars[i];
+        match c {
+            '[' => {
+                depth += 1;
+                i += 1;
+            }
+            ']' => {
+                depth -= 1;
+                i += 1;
+            }
+            '.' if depth == 0 => {
+                i += 1;
+                // Skip the property name
+                while i < chars.len()
+                    && (chars[i].is_alphanumeric() || chars[i] == '_' || chars[i] == '$')
+                {
+                    i += 1;
+                }
+            }
+            ' ' | '\t' if depth == 0 => {
+                i += 1;
+            }
+            '+' if depth == 0 && i + 1 < chars.len() && chars[i + 1] == '+' => {
+                // Postfix ++
+                return Some((start, start + i + 2, true));
+            }
+            '-' if depth == 0 && i + 1 < chars.len() && chars[i + 1] == '-' => {
+                // Postfix --
+                return Some((start, start + i + 2, true));
+            }
+            '=' if depth == 0 => {
+                // Assignment - find the end of the RHS expression
+                // Skip whitespace after =
+                let mut j = i + 1;
+                while j < chars.len() && (chars[j] == ' ' || chars[j] == '\t') {
+                    j += 1;
+                }
+
+                // Find the end of the assignment expression
+                let rhs_end = find_expression_end(&after_start[j..]);
+                return Some((start, start + j + rhs_end, false));
+            }
+            _ if depth == 0
+                && (c == '+' || c == '-' || c == '*' || c == '/' || c == '%' || c == '?')
+                && i + 1 < chars.len()
+                && chars[i + 1] == '=' =>
+            {
+                // Compound assignment (+=, -=, etc.)
+                // Find the end of the RHS expression
+                let mut j = i + 2;
+                while j < chars.len() && (chars[j] == ' ' || chars[j] == '\t') {
+                    j += 1;
+                }
+
+                let rhs_end = find_expression_end(&after_start[j..]);
+                return Some((start, start + j + rhs_end, false));
+            }
+            _ if depth == 0 && !c.is_alphanumeric() && c != '_' && c != '$' && c != '(' => {
+                // End of member expression without finding mutation
+                return None;
+            }
+            _ => {
+                i += 1;
+            }
+        }
+    }
+
+    None
+}
+
+/// Find the end of an expression (until ; or newline at depth 0).
+fn find_expression_end(s: &str) -> usize {
+    let mut depth = 0;
+    let chars: Vec<char> = s.chars().collect();
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    for (i, &c) in chars.iter().enumerate() {
+        // Handle string literals
+        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char {
+                in_string = false;
+            }
+            continue;
+        }
+
+        if in_string {
+            continue;
+        }
+
+        match c {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => {
+                if depth > 0 {
+                    depth -= 1;
+                } else {
+                    return i;
+                }
+            }
+            ';' | '\n' if depth == 0 => return i,
+            _ => {}
+        }
+    }
+
+    s.len()
 }
 
 /// Find the end of a statement value for client-side transformations.

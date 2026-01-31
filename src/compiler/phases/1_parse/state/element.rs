@@ -683,6 +683,9 @@ impl Parser<'_> {
     /// Parse attributes.
     pub fn parse_attributes(&mut self) -> ParseResult<Vec<crate::ast::Attribute>> {
         let mut attributes = Vec::new();
+        // Track unique attribute names for duplicate detection
+        // Format: "type:name" where type is Attribute, BindDirective, ClassDirective, or StyleDirective
+        let mut unique_names: Vec<String> = Vec::new();
 
         loop {
             // Track position before whitespace skip for unclosed elements
@@ -711,6 +714,45 @@ impl Parser<'_> {
             }
 
             if let Some(attr) = self.parse_attribute()? {
+                // Check for duplicate attributes
+                // animate and transition can only be specified once per element so no need
+                // to check here, use can be used multiple times, same for the on directive
+                // finally let already has error handling in case of duplicate variable names
+                let (attr_type, attr_name, attr_start) = match &attr {
+                    crate::ast::Attribute::Attribute(a) => {
+                        ("Attribute".to_string(), a.name.to_string(), a.start)
+                    }
+                    crate::ast::Attribute::BindDirective(b) => {
+                        // bind:attribute and attribute are the same, normalize to Attribute
+                        ("Attribute".to_string(), b.name.to_string(), b.start)
+                    }
+                    crate::ast::Attribute::ClassDirective(c) => {
+                        ("ClassDirective".to_string(), c.name.to_string(), c.start)
+                    }
+                    crate::ast::Attribute::StyleDirective(s) => {
+                        ("StyleDirective".to_string(), s.name.to_string(), s.start)
+                    }
+                    _ => {
+                        // Other attribute types are not checked for duplicates
+                        attributes.push(attr);
+                        continue;
+                    }
+                };
+
+                let key = format!("{}:{}", attr_type, attr_name);
+
+                // Skip duplicate check for "this" attribute (used on svelte:element and svelte:component)
+                if attr_name != "this" {
+                    if unique_names.contains(&key) {
+                        return Err(crate::error::ParseError::svelte(
+                            "attribute_duplicate",
+                            "Attributes need to be unique",
+                            (attr_start as usize, attr_start as usize + attr_name.len()),
+                        ));
+                    }
+                    unique_names.push(key);
+                }
+
                 attributes.push(attr);
             } else {
                 break;
@@ -779,26 +821,61 @@ impl Parser<'_> {
             let expr_content = &self.source[expr_start..expr_end];
             self.advance(); // consume '}'
 
-            // Create the expression (handle empty shorthand for "loose" mode)
-            let mut expression = if expr_content.trim().is_empty() {
-                // Create an empty identifier for empty shorthand
-                self.parse_js_expression("", expr_start)
-            } else {
-                self.parse_js_expression(expr_content.trim(), expr_start)
-            };
+            // Check for empty attribute shorthand {}
+            // In loose mode, allow empty shorthand (e.g., when typing)
+            if expr_content.trim().is_empty() {
+                if !self.options.loose {
+                    return Err(crate::error::ParseError::svelte(
+                        "attribute_empty_shorthand",
+                        "Attribute shorthand cannot be empty",
+                        (expr_start, expr_start),
+                    ));
+                }
+
+                // In loose mode, create an empty attribute with empty expression
+                let name_loc = self.create_name_loc(expr_start, expr_start);
+                let loc = self.get_location(expr_start);
+
+                // Create an empty ExpressionTag value
+                let expression = Expression::Value(serde_json::json!({
+                    "type": "Identifier",
+                    "name": "",
+                    "start": expr_start,
+                    "end": expr_start,
+                    "loc": {
+                        "start": {
+                            "line": loc.start.line,
+                            "column": loc.start.column,
+                            "character": expr_start
+                        },
+                        "end": {
+                            "line": loc.end.line,
+                            "column": loc.end.column,
+                            "character": expr_start
+                        }
+                    }
+                }));
+
+                let value = AttributeValue::Expression(ExpressionTag {
+                    start: expr_start as u32,
+                    end: expr_start as u32,
+                    expression: expression.clone(),
+                });
+
+                return Ok(Some(crate::ast::Attribute::Attribute(AttributeNode {
+                    start: start as u32,
+                    end: self.index as u32,
+                    name: CompactString::from(""),
+                    name_loc: Some(name_loc),
+                    value,
+                })));
+            }
+
+            // Create the expression
+            let expression = self.parse_js_expression(expr_content.trim(), expr_start);
 
             // Create the attribute name from the expression (shorthand)
             let name = expr_content.trim().to_string();
-
-            // For empty shorthand attributes (<div {}>), add loc field to the expression
-            // This matches Svelte's behavior where read_identifier() adds loc
-            if name.is_empty()
-                && let Expression::Value(serde_json::Value::Object(obj)) = &mut expression
-            {
-                use crate::compiler::phases::phase1_parse::estree_compat::utils::create_loc_with_character;
-                let loc = create_loc_with_character(expr_start, expr_end, &self.line_offsets);
-                obj.insert("loc".to_string(), loc);
-            }
 
             // Calculate name_loc
             let name_loc = self.create_name_loc(expr_start, expr_end);
@@ -1137,6 +1214,16 @@ impl Parser<'_> {
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute>> {
         let action_name = &full_name[4..]; // Skip "use:"
+
+        // Check for empty directive name
+        if action_name.is_empty() {
+            return Err(crate::error::ParseError::svelte(
+                "directive_missing_name",
+                "`use:` name cannot be empty",
+                (start, name_end),
+            ));
+        }
+
         let name_loc = self.create_name_loc(name_start, name_end);
 
         let (expression, end_pos) = if self.eat_optional("=") {
@@ -1234,6 +1321,16 @@ impl Parser<'_> {
         name_end: usize,
     ) -> ParseResult<Option<crate::ast::Attribute>> {
         let class_name = &full_name[6..]; // Skip "class:"
+
+        // Check for empty directive name
+        if class_name.is_empty() {
+            return Err(crate::error::ParseError::svelte(
+                "directive_missing_name",
+                "`class:` name cannot be empty",
+                (start, name_end),
+            ));
+        }
+
         let name_loc = self.create_name_loc(name_start, name_end);
 
         let expression = if self.eat_optional("=") {
@@ -1747,12 +1844,27 @@ impl Parser<'_> {
     pub fn parse_attribute_value(&mut self) -> ParseResult<AttributeValue> {
         // Check for missing value (e.g., `class= >` or `class=>`)
         let c = self.current_char();
-        if c == '>' || c == '/' {
+        if c == '>' {
             return Err(crate::error::ParseError::svelte(
                 "expected_attribute_value",
                 "Expected attribute value",
                 (self.index, self.index),
             ));
+        }
+
+        // Special case: `href=/>` should be parsed as `href=/` with `/` as the value
+        // followed by `>` to close the tag. This matches official Svelte behavior.
+        if c == '/' && self.match_str("/>") {
+            let start = self.index;
+            self.advance(); // consume '/'
+            return Ok(AttributeValue::Sequence(vec![AttributeValuePart::Text(
+                Text {
+                    start: start as u32,
+                    end: self.index as u32,
+                    raw: CompactString::from("/"),
+                    data: CompactString::from("/"),
+                },
+            )]));
         }
 
         let quote = if self.eat_optional("\"") {

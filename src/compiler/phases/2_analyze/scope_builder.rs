@@ -3,6 +3,7 @@
 //! Walks the AST and creates a scope tree with bindings.
 
 use super::scope::{Binding, BindingKind, DeclarationKind, Scope, ScopeRoot};
+use super::visitors::shared::utils::validate_identifier_name;
 use crate::ast::template::{
     AwaitBlock, ConstTag, EachBlock, Fragment, IfBlock, KeyBlock, RegularElement, Root, Script,
     SnippetBlock, TemplateNode,
@@ -39,22 +40,40 @@ pub struct ScopeBuilder<'a> {
     source: &'a str,
     /// Tracked updates (assignments and update expressions) to process after declarations
     updates: Vec<Update>,
+    /// Current function depth (for validating $ prefixes)
+    function_depth: usize,
+    /// Whether we are in runes mode
+    runes_mode: bool,
+    /// Validation errors collected during scope building
+    validation_errors: Vec<crate::compiler::phases::phase2_analyze::AnalysisError>,
 }
 
 impl<'a> ScopeBuilder<'a> {
-    /// Create a new scope builder.
-    pub fn new(source: &'a str) -> Self {
+    /// Create a new scope builder with runes mode.
+    pub fn new(source: &'a str, runes_mode: bool) -> Self {
         Self {
             scopes: vec![Scope::new(None)],
             bindings: Vec::new(),
             current_scope: 0,
             source,
             updates: Vec::new(),
+            function_depth: 0,
+            runes_mode,
+            validation_errors: Vec::new(),
         }
     }
 
     /// Build scopes from the AST.
-    pub fn build(mut self, ast: &Root) -> ScopeRoot {
+    ///
+    /// Returns a tuple of (ScopeRoot, Vec<AnalysisError>) where the errors
+    /// are validation errors collected during scope building.
+    pub fn build(
+        mut self,
+        ast: &Root,
+    ) -> (
+        ScopeRoot,
+        Vec<crate::compiler::phases::phase2_analyze::AnalysisError>,
+    ) {
         // Visit instance script
         if let Some(ref script) = ast.instance {
             self.visit_script(script);
@@ -110,12 +129,15 @@ impl<'a> ScopeBuilder<'a> {
             }
         }
 
-        // Return the root scope
+        // Return the root scope and validation errors
         let root_scope = self.scopes.remove(0);
-        ScopeRoot {
-            bindings: self.bindings,
-            scope: root_scope,
-        }
+        (
+            ScopeRoot {
+                bindings: self.bindings,
+                scope: root_scope,
+            },
+            self.validation_errors,
+        )
     }
 
     /// Push a new child scope and return its index.
@@ -148,6 +170,19 @@ impl<'a> ScopeBuilder<'a> {
             declaration_kind,
             self.current_scope,
         );
+
+        // Validate identifier name (check for invalid $ prefixes)
+        // In runes mode, we don't pass function_depth (validation always runs)
+        // In legacy mode, we pass function_depth so validation skips in nested functions
+        let function_depth = if self.runes_mode {
+            None
+        } else {
+            Some(self.function_depth)
+        };
+        if let Err(e) = validate_identifier_name(&binding, function_depth) {
+            self.validation_errors.push(e);
+        }
+
         self.bindings.push(binding);
         self.scopes[self.current_scope].declare(name, idx);
         idx
@@ -213,6 +248,7 @@ impl<'a> ScopeBuilder<'a> {
                 }
                 // Create a new scope for the function body
                 let old_scope = self.push_scope();
+                self.function_depth += 1;
 
                 // Declare function parameters in the new scope
                 for param in &func_decl.params.items {
@@ -222,6 +258,7 @@ impl<'a> ScopeBuilder<'a> {
                 // Process function body for assignments
                 self.process_function_body(&func_decl.body);
 
+                self.function_depth -= 1;
                 self.pop_scope(old_scope);
             }
             Statement::ClassDeclaration(class_decl) => {
@@ -360,6 +397,7 @@ impl<'a> ScopeBuilder<'a> {
                 oxc_ast::ast::ClassElement::MethodDefinition(method_def) => {
                     // Create a new scope for the method
                     let old_scope = self.push_scope();
+                    self.function_depth += 1;
 
                     // Declare function parameters in the new scope
                     for param in &method_def.value.params.items {
@@ -369,6 +407,7 @@ impl<'a> ScopeBuilder<'a> {
                     // Process method body for assignments
                     self.process_function_body(&method_def.value.body);
 
+                    self.function_depth -= 1;
                     self.pop_scope(old_scope);
                 }
                 oxc_ast::ast::ClassElement::PropertyDefinition(prop_def) => {
@@ -430,6 +469,7 @@ impl<'a> ScopeBuilder<'a> {
             Expression::ArrowFunctionExpression(arrow_func) => {
                 // Create a new scope for the arrow function body
                 let old_scope = self.push_scope();
+                self.function_depth += 1;
 
                 // Declare function parameters in the new scope
                 for param in &arrow_func.params.items {
@@ -441,11 +481,13 @@ impl<'a> ScopeBuilder<'a> {
                     self.process_statement(stmt);
                 }
 
+                self.function_depth -= 1;
                 self.pop_scope(old_scope);
             }
             Expression::FunctionExpression(func_expr) => {
                 // Create a new scope for the function body
                 let old_scope = self.push_scope();
+                self.function_depth += 1;
 
                 // Declare function parameters in the new scope
                 for param in &func_expr.params.items {
@@ -455,6 +497,7 @@ impl<'a> ScopeBuilder<'a> {
                 // Track updates in function body
                 self.process_function_body(&func_expr.body);
 
+                self.function_depth -= 1;
                 self.pop_scope(old_scope);
             }
             Expression::ConditionalExpression(cond_expr) => {
@@ -1193,8 +1236,18 @@ impl<'a> ScopeBuilder<'a> {
 }
 
 /// Build scopes for a component AST.
-pub fn build_scopes(ast: &Root, source: &str) -> ScopeRoot {
-    let builder = ScopeBuilder::new(source);
+///
+/// Returns a tuple of (ScopeRoot, Vec<AnalysisError>) where the errors
+/// are validation errors collected during scope building.
+pub fn build_scopes(
+    ast: &Root,
+    source: &str,
+    runes_mode: bool,
+) -> (
+    ScopeRoot,
+    Vec<crate::compiler::phases::phase2_analyze::AnalysisError>,
+) {
+    let builder = ScopeBuilder::new(source, runes_mode);
     builder.build(ast)
 }
 

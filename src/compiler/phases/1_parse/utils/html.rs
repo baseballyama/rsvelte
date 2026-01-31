@@ -116,7 +116,7 @@ pub fn is_void_element(name: &str) -> bool {
             | "source"
             | "track"
             | "wbr"
-    )
+    ) || name.eq_ignore_ascii_case("!doctype")
 }
 
 #[cfg(test)]

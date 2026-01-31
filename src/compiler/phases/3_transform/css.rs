@@ -1110,11 +1110,14 @@ fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
         }
         Some("ClassSelector") => {
             if let Some(name) = sel.get("name").and_then(|n| n.as_str()) {
+                // If there are dynamic classes that we can't statically analyze,
+                // we must assume any class selector could potentially match
+                if ctx.has_dynamic_classes {
+                    return false;
+                }
                 // Check if this class appears in used_classes
                 // If it does, it's potentially used (from static or dynamic expressions)
                 // If it doesn't, it's unused (never referenced anywhere)
-                // We no longer bail out for has_dynamic_classes because we now extract
-                // classes from ternaries and other expressions that we can analyze
                 let decoded = decode_css_escape(name);
                 return !ctx.used_classes.contains(&decoded);
             }
@@ -1283,8 +1286,6 @@ fn transform_rule_preserving(
 
     // Get the prelude (selector list)
     if let Some(prelude) = node.get("prelude") {
-        let prelude_end = prelude.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
-
         // Transform selectors
         let transformed_selector = transform_selector_list(
             prelude,
@@ -1303,14 +1304,9 @@ fn transform_rule_preserving(
             let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
             let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
-            // Copy space between prelude and block
-            if block_start > prelude_end {
-                let gap_start = prelude_end.saturating_sub(css_start);
-                let gap_end = block_start.saturating_sub(css_start);
-                if gap_end <= css_source.len() && gap_start < gap_end {
-                    output.push_str(&css_source[gap_start..gap_end]);
-                }
-            }
+            // Add a single space between selector and block brace
+            // This is consistent with Svelte's output format
+            output.push(' ');
 
             // Check if block contains nested rules that need special handling
             if has_nested_rules(block) {

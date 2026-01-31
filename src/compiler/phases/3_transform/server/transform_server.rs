@@ -9,7 +9,7 @@ use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, BindDirective,
     ClassDirective, Component, ConstTag, EachBlock, ExpressionTag, Fragment, HtmlTag, IfBlock,
     KeyBlock, RegularElement, RenderTag, Root, Script, SnippetBlock, StyleDirective,
-    SvelteDynamicElement, SvelteElement, TemplateNode, Text,
+    SvelteDynamicElement, SvelteElement, TemplateNode, Text, TitleElement,
 };
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
@@ -256,6 +256,13 @@ enum OutputPart {
     SvelteElement {
         tag_expr: String,
     },
+    /// Select element with value - produces $$renderer.select() call
+    SelectElement {
+        attrs_obj: String,
+        body: Vec<OutputPart>,
+        /// Whether this select has rich content
+        is_rich: bool,
+    },
     /// Option element - produces $$renderer.option() call
     OptionElement {
         attrs: Vec<(String, String)>,
@@ -285,6 +292,14 @@ enum OutputPart {
     SvelteHead {
         hash: String,
         body: Vec<OutputPart>,
+    },
+    /// title element inside svelte:head - uses $$renderer.title()
+    TitleElement {
+        body: Vec<OutputPart>,
+    },
+    /// Textarea body with value - generates const $$body = $.escape(expr); if ($$body) { ... }
+    TextareaBody {
+        value_expr: String,
     },
     /// Render tag call - calls a snippet function
     RenderCall(String),
@@ -464,6 +479,7 @@ impl<'a> ServerCodeGenerator<'a> {
             TemplateNode::SvelteBoundary(boundary) => self.generate_svelte_boundary(boundary),
             TemplateNode::SvelteHead(head) => self.generate_svelte_head(head),
             TemplateNode::ConstTag(tag) => self.generate_const_tag(tag),
+            TemplateNode::TitleElement(title) => self.generate_title_element(title),
             _ => Ok(()),
         }
     }
@@ -492,6 +508,16 @@ impl<'a> ServerCodeGenerator<'a> {
         // Handle <option> element specially
         if name == "option" {
             return self.generate_option_element(element);
+        }
+
+        // Handle <select> with value specially - use $$renderer.select()
+        if name == "select" && self.select_has_value_attribute(element) {
+            return self.generate_select_element(element);
+        }
+
+        // Handle <textarea> with value/bind:value specially - output value as content
+        if name == "textarea" {
+            return self.generate_textarea_element(element);
         }
 
         // Check if we have spread attributes
@@ -550,7 +576,9 @@ impl<'a> ServerCodeGenerator<'a> {
                     continue;
                 }
                 _ => {
-                    if let Some(attr_str) = self.generate_attribute(attr)? {
+                    if let Some(attr_str) =
+                        self.generate_attribute_for_element(attr, Some(element))?
+                    {
                         tag.push_str(&attr_str);
                     }
                 }
@@ -836,6 +864,189 @@ impl<'a> ServerCodeGenerator<'a> {
         }
     }
 
+    /// Check if select element has a value attribute or bind:value.
+    fn select_has_value_attribute(&self, element: &RegularElement) -> bool {
+        element.attributes.iter().any(|attr| {
+            matches!(attr, Attribute::Attribute(node) if node.name.as_str() == "value")
+                || matches!(attr, Attribute::BindDirective(bind) if bind.name.as_str() == "value")
+                || matches!(attr, Attribute::SpreadAttribute(_))
+        })
+    }
+
+    /// Generate <select> element using $$renderer.select().
+    fn generate_select_element(&mut self, element: &RegularElement) -> Result<(), TransformError> {
+        // Extract attributes for the select element
+        let mut attrs = Vec::new();
+        let mut value_expr: Option<String> = None;
+
+        for attr in &element.attributes {
+            match attr {
+                Attribute::Attribute(node) => {
+                    let attr_name = node.name.as_str();
+                    // Skip value attribute - it's passed separately
+                    if attr_name == "value" {
+                        value_expr = Some(self.extract_attribute_value_as_string(node)?);
+                        continue;
+                    }
+                    // Skip event handlers
+                    if attr_name.starts_with("on") {
+                        continue;
+                    }
+                    let value = self.extract_attribute_value_as_string(node)?;
+                    attrs.push((attr_name.to_string(), value));
+                }
+                Attribute::BindDirective(bind) => {
+                    if bind.name.as_str() == "value" {
+                        // Extract the bound variable expression
+                        let expr_start = bind.expression.start().unwrap_or(0) as usize;
+                        let expr_end = bind.expression.end().unwrap_or(0) as usize;
+                        if expr_end > expr_start && expr_end <= self.source.len() {
+                            value_expr = Some(self.source[expr_start..expr_end].trim().to_string());
+                        }
+                    }
+                }
+                // Handle spread later
+                _ => {}
+            }
+        }
+
+        // Generate body parts for children
+        let mut body_generator = ServerCodeGenerator::new(
+            self.component_name.clone(),
+            self.source.clone(),
+            None,
+            None,
+            self.analysis,
+        );
+
+        // Process children
+        let children: Vec<_> = element.fragment.nodes.iter().collect();
+        let len = children.len();
+
+        // Skip leading/trailing whitespace
+        let mut start_idx = 0;
+        let mut end_idx = len;
+
+        while start_idx < len {
+            if let TemplateNode::Text(text) = children[start_idx]
+                && text.data.trim().is_empty()
+            {
+                start_idx += 1;
+                continue;
+            }
+            break;
+        }
+
+        while end_idx > start_idx {
+            if let TemplateNode::Text(text) = children[end_idx - 1]
+                && text.data.trim().is_empty()
+            {
+                end_idx -= 1;
+                continue;
+            }
+            break;
+        }
+
+        for node in children.iter().take(end_idx).skip(start_idx) {
+            body_generator.generate_node(node, false)?;
+        }
+
+        // Build the attributes object
+        let mut attr_parts = Vec::new();
+        if let Some(value) = &value_expr {
+            attr_parts.push(format!("value: {}", value));
+        }
+        for (name, value) in &attrs {
+            attr_parts.push(format!("{}: {}", quote_prop_name(name), value));
+        }
+        let attrs_obj = format!("{{ {} }}", attr_parts.join(", "));
+
+        // Check if it has rich content (Components, RenderTags, etc.)
+        let is_rich = Self::has_component_or_render_tag(&element.fragment.nodes);
+
+        // Push SelectElement OutputPart
+        self.output_parts.push(OutputPart::SelectElement {
+            attrs_obj,
+            body: body_generator.output_parts,
+            is_rich,
+        });
+
+        Ok(())
+    }
+
+    /// Generate <textarea> element with value as content.
+    fn generate_textarea_element(
+        &mut self,
+        element: &RegularElement,
+    ) -> Result<(), TransformError> {
+        // Find value attribute or bind:value
+        let mut value_expr: Option<String> = None;
+        let mut bind_value_expr: Option<String> = None;
+
+        for attr in &element.attributes {
+            match attr {
+                Attribute::Attribute(node) if node.name.as_str() == "value" => {
+                    value_expr = Some(self.extract_attribute_value_as_string(node)?);
+                }
+                Attribute::BindDirective(bind) if bind.name.as_str() == "value" => {
+                    let expr_start = bind.expression.start().unwrap_or(0) as usize;
+                    let expr_end = bind.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        bind_value_expr =
+                            Some(self.source[expr_start..expr_end].trim().to_string());
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // Get the body expression (value takes precedence, then bind:value)
+        let body_expr = value_expr.or(bind_value_expr);
+
+        // Start building the tag
+        let mut tag = "<textarea".to_string();
+
+        // Add other attributes (excluding value)
+        for attr in &element.attributes {
+            match attr {
+                Attribute::Attribute(node) if node.name.as_str() == "value" => continue,
+                Attribute::BindDirective(bind) if bind.name.as_str() == "value" => continue,
+                Attribute::ClassDirective(_) | Attribute::StyleDirective(_) => continue,
+                Attribute::OnDirective(_) => continue,
+                _ => {
+                    if let Some(attr_str) =
+                        self.generate_attribute_for_element(attr, Some(element))?
+                    {
+                        tag.push_str(&attr_str);
+                    }
+                }
+            }
+        }
+
+        tag.push('>');
+        self.output_parts.push(OutputPart::Html(tag));
+
+        // Generate the body - if we have a value expression, use it
+        if let Some(expr) = body_expr {
+            // Use TextareaBody OutputPart for proper statement-based generation
+            self.output_parts
+                .push(OutputPart::TextareaBody { value_expr: expr });
+        } else {
+            // No value - process children normally
+            for child in &element.fragment.nodes {
+                if matches!(child, TemplateNode::Comment(_)) {
+                    continue;
+                }
+                self.generate_node(child, false)?;
+            }
+        }
+
+        self.output_parts
+            .push(OutputPart::Html("</textarea>".to_string()));
+
+        Ok(())
+    }
+
     fn generate_option_element(&mut self, element: &RegularElement) -> Result<(), TransformError> {
         // Extract attributes as (name, value) pairs
         let mut attrs = Vec::new();
@@ -1065,35 +1276,211 @@ impl<'a> ServerCodeGenerator<'a> {
         false
     }
 
-    fn generate_attribute(&mut self, attr: &Attribute) -> Result<Option<String>, TransformError> {
+    fn generate_attribute_for_element(
+        &mut self,
+        attr: &Attribute,
+        element: Option<&RegularElement>,
+    ) -> Result<Option<String>, TransformError> {
         match attr {
             Attribute::Attribute(node) => self.generate_attribute_node(node),
-            Attribute::BindDirective(bind) => self.generate_bind_directive(bind),
+            Attribute::BindDirective(bind) => {
+                Self::generate_bind_directive_for_element(bind, &self.source, element)
+            }
             // Event handlers are not rendered on server
             Attribute::OnDirective(_) => Ok(None),
             _ => Ok(None),
         }
     }
 
-    fn generate_bind_directive(
-        &mut self,
+    /// Generate bind directive, optionally with element context for group bindings.
+    fn generate_bind_directive_for_element(
         bind: &BindDirective,
+        source: &str,
+        element: Option<&RegularElement>,
     ) -> Result<Option<String>, TransformError> {
         let name = bind.name.as_str();
 
-        // Skip bind:this - it's a client-only binding with no server representation
-        if name == "this" {
+        // Skip bindings that should be omitted in SSR
+        // Reference: svelte/packages/svelte/src/compiler/phases/bindings.js
+        if Self::should_omit_binding_in_ssr(name) {
             return Ok(None);
+        }
+
+        // Skip bind:value on file input elements
+        // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/server/visitors/shared/element.js
+        if name == "value"
+            && let Some(el) = element
+        {
+            // Check if this is a file input
+            let is_file_input = el.attributes.iter().any(|attr| {
+                if let Attribute::Attribute(node) = attr
+                    && node.name.as_str() == "type"
+                {
+                    if let AttributeValue::Sequence(parts) = &node.value {
+                        parts
+                            .iter()
+                            .any(|p| matches!(p, AttributeValuePart::Text(t) if t.data == "file"))
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            });
+            if is_file_input {
+                return Ok(None);
+            }
         }
 
         let expr_start = bind.expression.start().unwrap_or(0) as usize;
         let expr_end = bind.expression.end().unwrap_or(0) as usize;
 
-        if expr_end > expr_start && expr_end <= self.source.len() {
-            let expr = self.source[expr_start..expr_end].trim().to_string();
+        if expr_end > expr_start && expr_end <= source.len() {
+            let expr = source[expr_start..expr_end].trim().to_string();
+
+            // Handle bind:group specially - convert to checked attribute
+            if name == "group" {
+                return Self::generate_group_binding(element, source, &expr);
+            }
+
             // For bind directives on server, output as $.attr() call
             Ok(Some(format!("${{$.attr('{}', {})}}", name, expr)))
         } else {
+            Ok(None)
+        }
+    }
+
+    /// Check if a binding should be omitted in SSR.
+    /// Reference: svelte/packages/svelte/src/compiler/phases/bindings.js
+    fn should_omit_binding_in_ssr(name: &str) -> bool {
+        matches!(
+            name,
+            // bind:this
+            "this"
+            // media bindings
+            | "currentTime"
+            | "duration"
+            | "paused"
+            | "buffered"
+            | "seekable"
+            | "played"
+            | "volume"
+            | "muted"
+            | "playbackRate"
+            | "seeking"
+            | "ended"
+            | "readyState"
+            // video specific
+            | "videoHeight"
+            | "videoWidth"
+            // img specific
+            | "naturalWidth"
+            | "naturalHeight"
+            // document
+            | "activeElement"
+            | "fullscreenElement"
+            | "pointerLockElement"
+            | "visibilityState"
+            // window
+            | "innerWidth"
+            | "innerHeight"
+            | "outerWidth"
+            | "outerHeight"
+            | "scrollX"
+            | "scrollY"
+            | "online"
+            | "devicePixelRatio"
+            // dimension bindings
+            | "clientWidth"
+            | "clientHeight"
+            | "offsetWidth"
+            | "offsetHeight"
+            | "contentRect"
+            | "contentBoxSize"
+            | "borderBoxSize"
+            | "devicePixelContentBoxSize"
+            // checkbox
+            | "indeterminate"
+            // file input
+            | "files"
+        )
+    }
+
+    /// Generate bind:group as checked attribute for radio/checkbox inputs.
+    fn generate_group_binding(
+        element: Option<&RegularElement>,
+        source: &str,
+        group_expr: &str,
+    ) -> Result<Option<String>, TransformError> {
+        // We need the value attribute to generate the checked expression
+        let value_expr = element.and_then(|el| {
+            el.attributes.iter().find_map(|attr| {
+                if let Attribute::Attribute(node) = attr
+                    && node.name.as_str() == "value"
+                {
+                    match &node.value {
+                        AttributeValue::Sequence(parts) => {
+                            // Static text value
+                            let mut text_val = String::new();
+                            for part in parts {
+                                if let AttributeValuePart::Text(text) = part {
+                                    text_val.push_str(&text.data);
+                                }
+                            }
+                            Some(format!("'{}'", text_val))
+                        }
+                        AttributeValue::Expression(expr_tag) => {
+                            let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                            let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                            if expr_end > expr_start && expr_end <= source.len() {
+                                Some(source[expr_start..expr_end].trim().to_string())
+                            } else {
+                                None
+                            }
+                        }
+                        AttributeValue::True(_) => Some("true".to_string()),
+                    }
+                } else {
+                    None
+                }
+            })
+        });
+
+        // Check if this is a checkbox (type="checkbox")
+        let is_checkbox = element
+            .map(|el| {
+                el.attributes.iter().any(|attr| {
+                    if let Attribute::Attribute(node) = attr
+                        && node.name.as_str() == "type"
+                    {
+                        if let AttributeValue::Sequence(parts) = &node.value {
+                            parts.iter().any(|p| {
+                                matches!(p, AttributeValuePart::Text(t) if t.data == "checkbox")
+                            })
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                })
+            })
+            .unwrap_or(false);
+
+        if let Some(value) = value_expr {
+            // Generate: checked={group.includes(value)} for checkbox
+            // Generate: checked={group === value} for radio
+            let checked_expr = if is_checkbox {
+                format!("{}.includes({})", group_expr, value)
+            } else {
+                format!("{} === {}", group_expr, value)
+            };
+            Ok(Some(format!(
+                "${{$.attr('checked', {}, true)}}",
+                checked_expr
+            )))
+        } else {
+            // If no value attribute, skip the binding
             Ok(None)
         }
     }
@@ -1107,18 +1494,76 @@ impl<'a> ServerCodeGenerator<'a> {
         match &node.value {
             AttributeValue::True(_) => Ok(Some(format!(" {}", name))),
             AttributeValue::Sequence(parts) => {
-                let mut value = String::new();
+                // Check if it's a single expression (like x='{x}')
+                // In this case, treat it the same as AttributeValue::Expression
+                if parts.len() == 1
+                    && let AttributeValuePart::ExpressionTag(expr_tag) = &parts[0]
+                {
+                    // Skip event handler attributes (onclick, onmousedown, etc.)
+                    if name.starts_with("on") {
+                        return Ok(None);
+                    }
+
+                    // Check if the expression is a literal - if so, inline it directly
+                    if let Some(literal_value) = self.extract_literal_value(&expr_tag.expression) {
+                        return Ok(Some(format!(
+                            " {}=\"{}\"",
+                            name,
+                            escape_attr(&literal_value)
+                        )));
+                    }
+
+                    // Generate $.attr() call for non-literal expression attributes
+                    let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                    let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let expr = self.source[expr_start..expr_end].trim().to_string();
+                        return Ok(Some(format!("${{$.attr('{}', {})}}", name, expr)));
+                    } else {
+                        return Ok(None);
+                    }
+                }
+
+                // Mixed content (text + expressions) - build template string
+                let mut has_expressions = false;
+                let mut template_parts = Vec::new();
+                let mut current_text = String::new();
+
                 for part in parts {
                     match part {
                         AttributeValuePart::Text(text) => {
-                            value.push_str(&escape_attr(&text.data));
+                            current_text.push_str(&escape_attr(&text.data));
                         }
-                        AttributeValuePart::ExpressionTag(_) => {
-                            // TODO: Handle expression in attribute
+                        AttributeValuePart::ExpressionTag(expr_tag) => {
+                            has_expressions = true;
+                            // Push current text as template part
+                            template_parts.push(current_text.clone());
+                            current_text.clear();
+
+                            // Get the expression
+                            let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                            let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                            if expr_end > expr_start && expr_end <= self.source.len() {
+                                let expr = self.source[expr_start..expr_end].trim().to_string();
+                                template_parts.push(format!("${{{}}}", expr));
+                            }
                         }
                     }
                 }
-                Ok(Some(format!(" {}=\"{}\"", name, value)))
+                // Push any remaining text
+                if !current_text.is_empty() || template_parts.is_empty() {
+                    template_parts.push(current_text);
+                }
+
+                if has_expressions {
+                    // Use template literal with $.escape() for each expression
+                    let value = template_parts.join("");
+                    Ok(Some(format!(" {}=\"{}\"", name, value)))
+                } else {
+                    // Pure text - no expressions
+                    let value = template_parts.join("");
+                    Ok(Some(format!(" {}=\"{}\"", name, value)))
+                }
             }
             AttributeValue::Expression(expr_tag) => {
                 // Skip event handler attributes (onclick, onmousedown, etc.)
@@ -2464,6 +2909,41 @@ impl<'a> ServerCodeGenerator<'a> {
         Ok(())
     }
 
+    /// Generate <title> element inside svelte:head.
+    /// Uses $$renderer.title() callback.
+    fn generate_title_element(&mut self, title: &TitleElement) -> Result<(), TransformError> {
+        // Generate body parts for the title content
+        let mut body_generator = ServerCodeGenerator::new(
+            self.component_name.clone(),
+            self.source.clone(),
+            None,
+            None,
+            self.analysis,
+        );
+
+        // Add <title> tag
+        body_generator
+            .output_parts
+            .push(OutputPart::Html("<title>".to_string()));
+
+        // Process children (text and expressions)
+        for node in &title.fragment.nodes {
+            body_generator.generate_node(node, false)?;
+        }
+
+        // Add </title> tag
+        body_generator
+            .output_parts
+            .push(OutputPart::Html("</title>".to_string()));
+
+        // Add TitleElement output part
+        self.output_parts.push(OutputPart::TitleElement {
+            body: body_generator.output_parts,
+        });
+
+        Ok(())
+    }
+
     /// Generate body parts from a fragment.
     fn generate_fragment_body_parts(
         &mut self,
@@ -3045,6 +3525,7 @@ export default function {component_name}($$renderer{props_param}) {{
                                 | OutputPart::AwaitBlock { .. }
                                 | OutputPart::SvelteBoundary { .. }
                                 | OutputPart::SvelteHead { .. }
+                                | OutputPart::TitleElement { .. }
                                 | OutputPart::RenderCall(_)
                         )
                     });
@@ -3137,6 +3618,35 @@ export default function {component_name}($$renderer{props_param}) {{
                     // Generate $.element call
                     body_code
                         .push_str(&format!("{}$.element($$renderer, {});\n", indent, tag_expr));
+                }
+                OutputPart::SelectElement {
+                    attrs_obj,
+                    body,
+                    is_rich,
+                } => {
+                    // Flush current HTML before select element
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+
+                    // Generate $$renderer.select() call
+                    body_code.push_str(&format!(
+                        "{}$$renderer.select({}, ($$renderer) => {{\n",
+                        indent, attrs_obj
+                    ));
+
+                    // Body
+                    let body_code_inner = Self::build_parts(body, indent_level + 1);
+                    body_code.push_str(&body_code_inner);
+
+                    // Close callback with optional is_rich argument
+                    if *is_rich {
+                        body_code.push_str(&format!("{}}}, true);\n", indent));
+                    } else {
+                        body_code.push_str(&format!("{}}});\n", indent));
+                    }
                 }
                 OutputPart::OptionElement {
                     attrs,
@@ -3323,6 +3833,49 @@ export default function {component_name}($$renderer{props_param}) {{
 
                     body_code.push_str(&format!("{}}});\n", indent));
                 }
+                OutputPart::TitleElement { body } => {
+                    // Flush current HTML before title call
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+
+                    // Generate $$renderer.title(($$renderer) => { ... });
+                    body_code.push_str(&format!("{}$$renderer.title(($$renderer) => {{\n", indent));
+
+                    if !body.is_empty() {
+                        let body_code_inner = Self::build_parts(body, indent_level + 1);
+                        body_code.push_str(&body_code_inner);
+                    }
+
+                    body_code.push_str(&format!("{}}});\n", indent));
+                }
+                OutputPart::TextareaBody { value_expr } => {
+                    // Flush current HTML before textarea body
+                    if !current_html.is_empty() {
+                        body_code.push_str(&format!(
+                            "{}$$renderer.push(`{}`);\n\n",
+                            indent, current_html
+                        ));
+                        current_html.clear();
+                    }
+
+                    // Generate:
+                    // const $$body = $.escape(expr);
+                    //
+                    // if ($$body) {
+                    //     $$renderer.push(`${$$body}`);
+                    // } else {}
+                    body_code.push_str(&format!(
+                        "{}const $$body = $.escape({});\n\n",
+                        indent, value_expr
+                    ));
+                    body_code.push_str(&format!(
+                        "{}if ($$body) {{\n{}\t$$renderer.push(`${{$$body}}`);\n{}}} else {{}}\n\n",
+                        indent, indent, indent
+                    ));
+                }
                 OutputPart::RenderCall(call_str) => {
                     // Flush current HTML before render call
                     if !current_html.is_empty() {
@@ -3350,7 +3903,9 @@ export default function {component_name}($$renderer{props_param}) {{
                                 | OutputPart::AwaitBlock { .. }
                                 | OutputPart::SvelteBoundary { .. }
                                 | OutputPart::SvelteHead { .. }
+                                | OutputPart::TitleElement { .. }
                                 | OutputPart::RenderCall(_)
+                                | OutputPart::SelectElement { .. }
                                 | OutputPart::OptionElement { .. }
                                 | OutputPart::HydrationAnchor
                         )

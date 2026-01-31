@@ -296,7 +296,7 @@ fn trim_whitespace(
 pub fn infer_namespace(
     namespace: &str,
     parent: Option<&TemplateNode>,
-    _nodes: &[TemplateNode],
+    nodes: &[TemplateNode],
     _analysis: &ComponentAnalysis,
 ) -> String {
     // Check for foreignObject which resets to html
@@ -305,21 +305,143 @@ pub fn infer_namespace(
             return "html".to_string();
         }
 
-        // TODO: Check for SVG/MathML elements via metadata when metadata field is added to RegularElement
-        // For now, always return "html"
-        // if elem.metadata.as_ref().map(|m| m.svg).unwrap_or(false) {
-        //     return "svg".to_string();
-        // }
-        // if elem.metadata.as_ref().map(|m| m.mathml).unwrap_or(false) {
-        //     return "mathml".to_string();
-        // }
+        // Check if parent is an SVG element
+        if is_svg_element(&elem.name) {
+            return "svg".to_string();
+        }
 
-        return "html".to_string();
+        // Check if parent is a MathML element
+        if is_mathml_element(&elem.name) {
+            return "mathml".to_string();
+        }
+    }
+
+    // Check the first child element for namespace
+    for node in nodes {
+        if let TemplateNode::RegularElement(elem) = node {
+            if elem.name == "svg" {
+                return "svg".to_string();
+            }
+            if elem.name == "math" {
+                return "mathml".to_string();
+            }
+            if is_svg_element(&elem.name) {
+                return "svg".to_string();
+            }
+            if is_mathml_element(&elem.name) {
+                return "mathml".to_string();
+            }
+        }
     }
 
     // For other parent types, keep the current namespace
-    // TODO: Implement full namespace inference logic
     namespace.to_string()
+}
+
+/// Check if an element name is an SVG element.
+fn is_svg_element(name: &str) -> bool {
+    matches!(
+        name,
+        "svg"
+            | "animate"
+            | "animateMotion"
+            | "animateTransform"
+            | "circle"
+            | "clipPath"
+            | "defs"
+            | "desc"
+            | "ellipse"
+            | "feBlend"
+            | "feColorMatrix"
+            | "feComponentTransfer"
+            | "feComposite"
+            | "feConvolveMatrix"
+            | "feDiffuseLighting"
+            | "feDisplacementMap"
+            | "feDistantLight"
+            | "feDropShadow"
+            | "feFlood"
+            | "feFuncA"
+            | "feFuncB"
+            | "feFuncG"
+            | "feFuncR"
+            | "feGaussianBlur"
+            | "feImage"
+            | "feMerge"
+            | "feMergeNode"
+            | "feMorphology"
+            | "feOffset"
+            | "fePointLight"
+            | "feSpecularLighting"
+            | "feSpotLight"
+            | "feTile"
+            | "feTurbulence"
+            | "filter"
+            | "g"
+            | "image"
+            | "line"
+            | "linearGradient"
+            | "marker"
+            | "mask"
+            | "metadata"
+            | "mpath"
+            | "path"
+            | "pattern"
+            | "polygon"
+            | "polyline"
+            | "radialGradient"
+            | "rect"
+            | "set"
+            | "stop"
+            | "switch"
+            | "symbol"
+            | "text"
+            | "textPath"
+            | "title"
+            | "tspan"
+            | "use"
+            | "view"
+    )
+}
+
+/// Check if an element name is a MathML element.
+fn is_mathml_element(name: &str) -> bool {
+    matches!(
+        name,
+        "math"
+            | "mi"
+            | "mo"
+            | "mn"
+            | "ms"
+            | "mtext"
+            | "mspace"
+            | "mrow"
+            | "mfrac"
+            | "msqrt"
+            | "mroot"
+            | "mstyle"
+            | "merror"
+            | "mpadded"
+            | "mphantom"
+            | "mfenced"
+            | "menclose"
+            | "msub"
+            | "msup"
+            | "msubsup"
+            | "munder"
+            | "mover"
+            | "munderover"
+            | "mmultiscripts"
+            | "mtable"
+            | "mtr"
+            | "mtd"
+            | "maligngroup"
+            | "malignmark"
+            | "maction"
+            | "semantics"
+            | "annotation"
+            | "annotation-xml"
+    )
 }
 
 #[cfg(test)]

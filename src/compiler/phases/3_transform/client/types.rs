@@ -785,6 +785,10 @@ pub struct IdentifierTransform {
     /// Whether to skip proxy wrapping for this variable (e.g., $state.raw)
     /// When true, needs_proxy will always be false for assignments
     pub skip_proxy: bool,
+
+    /// Whether this identifier is guaranteed to be defined (non-null/undefined).
+    /// Set to true for each block indices, which are always numbers.
+    pub is_defined: bool,
 }
 
 /// Component metadata.

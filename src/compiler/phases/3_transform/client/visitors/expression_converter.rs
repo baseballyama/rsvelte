@@ -1432,9 +1432,9 @@ fn should_proxy_value(value: Option<&Value>) -> bool {
 
 /// Convert an UpdateExpression node.
 ///
-/// Note: Transform application is NOT done here. Transforms are applied
-/// in `build_expression()` in `shared/utils.rs` to ensure consistent
-/// handling across all expression types.
+/// This applies transforms for reactive state and store subscriptions.
+/// For store subscriptions like `$store++`, it generates `$.update_store(...)`.
+/// For member expressions like `$store[0].value++`, it generates `$.store_mutate(...)`.
 ///
 /// Special handling for rest_prop transformation:
 /// When the argument is `props.a` (MemberExpression on rest_prop),
@@ -1492,11 +1492,65 @@ fn convert_update_expression(
     // Restore the flag
     context.state.in_direct_assignment_lhs = saved_flag;
 
+    // Try to apply reactive transformations for state variables and store subscriptions
+    if let Some(transformed) = try_transform_update(operator, prefix, &argument, context) {
+        return transformed;
+    }
+
     JsExpr::Update(JsUpdateExpression {
         operator,
         argument,
         prefix,
     })
+}
+
+/// Try to apply reactive transformations to an update expression.
+///
+/// This function checks if the argument is a reactive state variable or store subscription
+/// and applies the appropriate transformation.
+///
+/// For store subscriptions:
+/// - `$store++` becomes `$.update_store(store, $store(), 1)` (or -1 for decrement)
+/// - `$store.prop++` becomes `$.store_mutate(store, $.untrack($store).prop++, $.untrack($store))`
+///
+/// Corresponds to `UpdateExpression.js` in the official Svelte compiler.
+fn try_transform_update(
+    operator: JsUpdateOp,
+    prefix: bool,
+    argument: &JsExpr,
+    context: &ComponentContext,
+) -> Option<JsExpr> {
+    use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
+    // Extract the root identifier from the argument
+    let root_name = extract_root_identifier_from_expr(argument)?;
+
+    // Check if there's a transform for this identifier
+    let transform = context.state.transform.get(&root_name)?;
+
+    // Case 1: Simple identifier update (root === argument)
+    // If the argument is a simple identifier like `$store`, use the `update` transform
+    if let JsExpr::Identifier(name) = argument
+        && name == &root_name
+        && let Some(update_fn) = transform.update
+    {
+        return Some(update_fn(operator, argument.clone(), prefix));
+    }
+
+    // Case 2: Member expression update (like `$store.prop++` or `$store[0].value++`)
+    // Use the `mutate` transform
+    if let Some(mutate_fn) = transform.mutate {
+        // Build the update expression as the mutation
+        let update_expr = JsExpr::Update(JsUpdateExpression {
+            operator,
+            argument: Box::new(argument.clone()),
+            prefix,
+        });
+
+        return Some(mutate_fn(b::id(&root_name), update_expr));
+    }
+
+    None
 }
 
 /// Convert a SequenceExpression node.

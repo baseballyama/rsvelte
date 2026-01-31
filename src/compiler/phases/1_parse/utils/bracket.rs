@@ -33,10 +33,11 @@ fn find_string_end(string: &str, search_start_index: usize, string_start_char: c
         string
     } else {
         // we could slice at the search start index, but this way the index remains valid
+        // For single/double quotes, search only until the end of the current line
         let newline_pos = memchr(b'\n', &string.as_bytes()[search_start_index..])
             .map(|p| search_start_index + p)
-            .unwrap_or(-1i32 as usize); // Will become usize::MAX
-        &string[0..infinity_if_negative(newline_pos as i32)]
+            .unwrap_or(string.len()); // If no newline, use the whole string
+        &string[0..newline_pos]
     };
 
     find_unescaped_char(string_to_search, search_start_index, string_start_char)
