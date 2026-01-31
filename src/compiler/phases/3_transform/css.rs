@@ -131,26 +131,103 @@ fn collect_keyframe_names_from_node(node: &Value, keyframes: &mut FxHashSet<Stri
     }
 }
 
+/// Check if a character is a CSS name boundary (whitespace, comma, semicolon, or closing brace)
+fn is_css_name_boundary(c: char) -> bool {
+    c.is_whitespace() || c == ',' || c == ';' || c == '}'
+}
+
 /// Replace animation keyframe name references in the CSS output
+/// This follows the official Svelte implementation approach: scan through animation property
+/// values and prefix any tokens that match defined keyframe names.
 fn replace_animation_keyframes(css: &str, hash: &str, keyframes: &FxHashSet<String>) -> String {
-    let mut result = css.to_string();
-    for keyframe in keyframes {
-        let patterns = [
-            format!("animation: {}", keyframe),
-            format!("animation:{}", keyframe),
-            format!("-webkit-animation: {}", keyframe),
-            format!("-webkit-animation:{}", keyframe),
-        ];
-        let replacements = [
-            format!("animation: {}-{}", hash, keyframe),
-            format!("animation:{}-{}", hash, keyframe),
-            format!("-webkit-animation: {}-{}", hash, keyframe),
-            format!("-webkit-animation:{}-{}", hash, keyframe),
-        ];
-        for (pattern, replacement) in patterns.iter().zip(replacements.iter()) {
-            result = result.replace(pattern, replacement);
+    let mut result = String::with_capacity(css.len() + keyframes.len() * hash.len() * 2);
+    let chars: Vec<char> = css.chars().collect();
+    let mut i = 0;
+
+    while i < chars.len() {
+        // Look for animation or animation-name property
+        let remaining: String = chars[i..].iter().collect();
+        let lower = remaining.to_lowercase();
+
+        // Check for animation properties (including vendor prefixes)
+        let property_match = if lower.starts_with("animation-name") {
+            Some(("animation-name", 14))
+        } else if lower.starts_with("animation") && !lower.starts_with("animation-") {
+            Some(("animation", 9))
+        } else if lower.starts_with("-webkit-animation-name") {
+            Some(("-webkit-animation-name", 22))
+        } else if lower.starts_with("-webkit-animation") && !lower.starts_with("-webkit-animation-")
+        {
+            Some(("-webkit-animation", 17))
+        } else if lower.starts_with("-moz-animation-name") {
+            Some(("-moz-animation-name", 19))
+        } else if lower.starts_with("-moz-animation") && !lower.starts_with("-moz-animation-") {
+            Some(("-moz-animation", 14))
+        } else if lower.starts_with("-o-animation-name") {
+            Some(("-o-animation-name", 17))
+        } else if lower.starts_with("-o-animation") && !lower.starts_with("-o-animation-") {
+            Some(("-o-animation", 12))
+        } else {
+            None
+        };
+
+        if let Some((_, prop_len)) = property_match {
+            // Copy property name
+            for j in 0..prop_len {
+                result.push(chars[i + j]);
+            }
+            i += prop_len;
+
+            // Skip whitespace and colon
+            while i < chars.len() && (chars[i].is_whitespace() || chars[i] == ':') {
+                result.push(chars[i]);
+                i += 1;
+            }
+
+            // Now scan the value, looking for keyframe names
+            let mut name = String::new();
+            let mut name_start = result.len();
+
+            while i < chars.len() {
+                let c = chars[i];
+
+                if is_css_name_boundary(c) {
+                    // Check if the accumulated name is a keyframe
+                    if !name.is_empty() && keyframes.contains(&name) {
+                        // Insert prefix before the name
+                        let prefix = format!("{}-", hash);
+                        result.insert_str(name_start, &prefix);
+                    }
+                    name.clear();
+
+                    result.push(c);
+                    i += 1;
+
+                    // Check for end of declaration
+                    if c == ';' || c == '}' {
+                        break;
+                    }
+
+                    // Update name_start for next potential name
+                    name_start = result.len();
+                } else {
+                    name.push(c);
+                    result.push(c);
+                    i += 1;
+                }
+            }
+
+            // Handle name at end of value (before EOF or without terminator)
+            if !name.is_empty() && keyframes.contains(&name) {
+                let prefix = format!("{}-", hash);
+                result.insert_str(name_start, &prefix);
+            }
+        } else {
+            result.push(chars[i]);
+            i += 1;
         }
     }
+
     result
 }
 
@@ -1130,9 +1207,11 @@ fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
             }
         }
         Some("PseudoClassSelector") => {
-            // Check for :is()/:not()/:has() where ALL inner selectors are unused
+            // Check for :is()/:has() where ALL inner selectors are unused
+            // Note: :not() is handled differently - even if the inner selector doesn't exist,
+            // :not(X) matches "all elements that are NOT X", so it's always potentially used
             let name = sel.get("name").and_then(|n| n.as_str()).unwrap_or("");
-            if (name == "is" || name == "not" || name == "has")
+            if (name == "is" || name == "has")
                 && let Some(args) = sel.get("args")
                 && let Some(children) = args.get("children").and_then(|c| c.as_array())
             {
@@ -1146,6 +1225,7 @@ fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
                     return true;
                 }
             }
+            // :not() is always potentially used (matches everything except the inner selector)
             // Other pseudo-classes need more complex analysis, consider them potentially used
             return false;
         }
@@ -2192,6 +2272,9 @@ fn format_simple_selector_with_scope(
 /// Also handles partial unused marking - individual selectors that don't match
 /// any elements are commented out as /* (unused) selector*/
 /// When `use_direct_class` is true, use direct class (e.g., .svelte-xyz) instead of :where()
+///
+/// Note: For :not(), we never mark inner selectors as unused because :not(X) means
+/// "everything that is NOT X", which is always potentially matching something.
 fn transform_is_not_args(
     args: &Value,
     selector: &str,
@@ -2208,12 +2291,18 @@ fn transform_is_not_args(
         let mut unused_selectors = Vec::new();
 
         for complex_selector in children.iter() {
-            // Check if this selector is unused (only if we have context)
-            // Use the conservative check for inner selectors - only mark as unused
-            // if it's a simple class/id that definitely doesn't exist
-            let is_unused = ctx
-                .map(|c| is_is_inner_selector_unused(complex_selector, c))
-                .unwrap_or(false);
+            // For :not(), never mark inner selectors as unused
+            // :not(X) means "everything except X", so even if X doesn't exist,
+            // the selector still matches all elements
+            let is_unused = if pseudo_name == "not" {
+                false
+            } else {
+                // Check if this selector is unused (only if we have context)
+                // Use the conservative check for inner selectors - only mark as unused
+                // if it's a simple class/id that definitely doesn't exist
+                ctx.map(|c| is_is_inner_selector_unused(complex_selector, c))
+                    .unwrap_or(false)
+            };
 
             if is_unused {
                 // Collect the raw selector text for unused selectors
