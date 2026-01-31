@@ -586,6 +586,8 @@ pub fn visit(
     }
 
     // Check if component name binding exists and warn if unused
+    // This warns when someone imports a component but uses a lowercase name,
+    // which makes it look like an HTML element
     let binding = context
         .analysis
         .root
@@ -598,8 +600,7 @@ pub fn visit(
         if binding.declaration_kind == super::super::DeclarationKind::Import
             && binding.references.is_empty()
         {
-            // Would generate warning here:
-            // w.component_name_lowercase(node, node.name);
+            context.emit_warning(warnings::component_name_lowercase(&element.name));
         }
     }
 

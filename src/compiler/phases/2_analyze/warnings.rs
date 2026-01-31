@@ -578,3 +578,16 @@ pub fn node_invalid_placement_ssr(message: &str) -> AnalysisWarning {
         ),
     )
 }
+
+// Component warnings
+
+/// Component name starts with a lowercase letter - will be treated as an HTML element
+pub fn component_name_lowercase(name: &str) -> AnalysisWarning {
+    warning(
+        "component_name_lowercase",
+        format!(
+            "`<{}>` will be treated as an HTML element unless it begins with a capital letter\nhttps://svelte.dev/e/component_name_lowercase",
+            name
+        ),
+    )
+}

@@ -3870,6 +3870,130 @@ fn convert_statement_for_program(
 
             Some(Value::Object(obj))
         }
+        oxc_ast::ast::Statement::ExportDefaultDeclaration(export_decl) => {
+            let start = offset + export_decl.span.start as usize;
+            let end = offset + export_decl.span.end as usize;
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("ExportDefaultDeclaration".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+            // Handle declaration (the exported value)
+            let decl_value = match &export_decl.declaration {
+                oxc_ast::ast::ExportDefaultDeclarationKind::FunctionDeclaration(func_decl) => {
+                    let func_start = offset + func_decl.span.start as usize;
+                    let func_end = offset + func_decl.span.end as usize;
+                    let mut func_obj = Map::new();
+                    func_obj.insert(
+                        "type".to_string(),
+                        Value::String("FunctionDeclaration".to_string()),
+                    );
+                    func_obj.insert(
+                        "start".to_string(),
+                        Value::Number((func_start as i64).into()),
+                    );
+                    func_obj.insert("end".to_string(), Value::Number((func_end as i64).into()));
+                    func_obj.insert("loc".to_string(), create_loc(func_start, func_end, line_offsets));
+
+                    if let Some(id) = &func_decl.id {
+                        let id_start = offset + id.span.start as usize;
+                        let id_end = offset + id.span.end as usize;
+                        let id_expr = create_identifier(&id.name, id_start, id_end, line_offsets);
+                        func_obj.insert("id".to_string(), id_expr.as_json().clone());
+                    } else {
+                        func_obj.insert("id".to_string(), Value::Null);
+                    }
+
+                    func_obj.insert("generator".to_string(), Value::Bool(func_decl.generator));
+                    func_obj.insert("async".to_string(), Value::Bool(func_decl.r#async));
+
+                    let params: Vec<Value> = func_decl
+                        .params
+                        .items
+                        .iter()
+                        .map(|param| {
+                            convert_formal_parameter(param, offset, line_offsets)
+                                .as_json()
+                                .clone()
+                        })
+                        .collect();
+                    func_obj.insert("params".to_string(), Value::Array(params));
+
+                    if let Some(body) = &func_decl.body {
+                        let body_value = convert_function_body_for_program(body, offset, line_offsets);
+                        func_obj.insert("body".to_string(), body_value);
+                    } else {
+                        func_obj.insert("body".to_string(), Value::Null);
+                    }
+
+                    Value::Object(func_obj)
+                }
+                oxc_ast::ast::ExportDefaultDeclarationKind::ClassDeclaration(class_decl) => {
+                    let class_start = offset + class_decl.span.start as usize;
+                    let class_end = offset + class_decl.span.end as usize;
+                    let mut class_obj = Map::new();
+                    class_obj.insert(
+                        "type".to_string(),
+                        Value::String("ClassDeclaration".to_string()),
+                    );
+                    class_obj.insert(
+                        "start".to_string(),
+                        Value::Number((class_start as i64).into()),
+                    );
+                    class_obj.insert("end".to_string(), Value::Number((class_end as i64).into()));
+                    class_obj.insert(
+                        "loc".to_string(),
+                        create_loc(class_start, class_end, line_offsets),
+                    );
+
+                    if let Some(id) = &class_decl.id {
+                        let id_start = offset + id.span.start as usize;
+                        let id_end = offset + id.span.end as usize;
+                        let id_expr = create_identifier(&id.name, id_start, id_end, line_offsets);
+                        class_obj.insert("id".to_string(), id_expr.as_json().clone());
+                    } else {
+                        class_obj.insert("id".to_string(), Value::Null);
+                    }
+
+                    // Add superClass if present
+                    if let Some(super_class) = &class_decl.super_class {
+                        let super_expr =
+                            convert_expression_for_program(super_class, offset, line_offsets);
+                        class_obj.insert("superClass".to_string(), super_expr.as_json().clone());
+                    } else {
+                        class_obj.insert("superClass".to_string(), Value::Null);
+                    }
+
+                    // Add class body
+                    let body =
+                        convert_class_body_for_program(&class_decl.body, offset, line_offsets);
+                    class_obj.insert("body".to_string(), body);
+
+                    Value::Object(class_obj)
+                }
+                oxc_ast::ast::ExportDefaultDeclarationKind::TSInterfaceDeclaration(_) => {
+                    // TypeScript interface - this would have been removed by TypeScript stripping
+                    Value::Null
+                }
+                _ => {
+                    // Expression (e.g., export default 42; or export default foo;)
+                    if let Some(expr) = export_decl.declaration.as_expression() {
+                        convert_expression_for_program(expr, offset, line_offsets)
+                            .as_json()
+                            .clone()
+                    } else {
+                        Value::Null
+                    }
+                }
+            };
+            obj.insert("declaration".to_string(), decl_value);
+
+            Some(Value::Object(obj))
+        }
         oxc_ast::ast::Statement::ImportDeclaration(import_decl) => {
             let start = offset + import_decl.span.start as usize;
             let end = offset + import_decl.span.end as usize;

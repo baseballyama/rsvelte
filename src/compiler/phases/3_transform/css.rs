@@ -1891,6 +1891,8 @@ fn transform_complex_selector(
     // Track if the previous selector was scoped - for specificity bumping decisions
     #[allow(unused_assignments)]
     let mut previous_was_scoped = false;
+    // Track if the previous selector was global-like - determines if we bump specificity after combinator
+    let mut previous_was_global_like = false;
 
     if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
         // Pre-scan: check if ANY RelativeSelector in this ComplexSelector has :global()
@@ -1918,7 +1920,13 @@ fn transform_complex_selector(
                     result.push_str(&format!(" {} ", name));
                 }
                 // After any combinator, subsequent selectors should use :where() for specificity preservation
-                local_specificity_bumped = true;
+                // UNLESS the previous selector was global-like (like :host), in which case the first
+                // real scoped selector should get the direct class for the specificity bump
+                if !previous_was_global_like {
+                    local_specificity_bumped = true;
+                }
+                // Reset the global-like flag since we've now passed the combinator
+                previous_was_global_like = false;
             }
 
             // Get selectors
@@ -1955,8 +1963,10 @@ fn transform_complex_selector(
                             false,
                         ));
                     }
-                    // Global-like selectors don't count as scoped
+                    // Global-like selectors don't count as scoped and don't bump specificity
+                    // The next scoped selector should get the direct class
                     previous_was_scoped = false;
+                    previous_was_global_like = true;
                 } else if is_entirely_global {
                     // Handle :global selector - extract :global() content without scoping,
                     // but scope subsequent selectors like :is() with direct class

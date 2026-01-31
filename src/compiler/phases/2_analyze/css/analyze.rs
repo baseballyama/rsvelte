@@ -15,7 +15,7 @@ pub fn analyze_css(
 ) -> Result<(), AnalysisError> {
     // Parse the CSS children (which are JSON values)
     for child in &stylesheet.children {
-        analyze_css_node(child, analysis)?;
+        analyze_css_node(child, analysis, false)?;
     }
     Ok(())
 }
@@ -23,14 +23,15 @@ pub fn analyze_css(
 fn analyze_css_node(
     node: &serde_json::Value,
     analysis: &mut ComponentAnalysis,
+    is_nested: bool,
 ) -> Result<(), AnalysisError> {
     if let Some(node_type) = node.get("type").and_then(|t| t.as_str()) {
         match node_type {
             "Atrule" => {
-                analyze_atrule(node, analysis)?;
+                analyze_atrule(node, analysis, is_nested)?;
             }
             "Rule" => {
-                analyze_rule(node, analysis)?;
+                analyze_rule(node, analysis, is_nested)?;
             }
             _ => {}
         }
@@ -41,6 +42,7 @@ fn analyze_css_node(
 fn analyze_atrule(
     node: &serde_json::Value,
     analysis: &mut ComponentAnalysis,
+    is_nested: bool,
 ) -> Result<(), AnalysisError> {
     let is_keyframes = if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
         matches!(
@@ -83,14 +85,14 @@ fn analyze_atrule(
                             block.get("children").and_then(|c| c.as_array())
                     {
                         for nested_child in nested_children {
-                            analyze_css_node(nested_child, analysis)?;
+                            analyze_css_node(nested_child, analysis, is_nested)?;
                         }
                     }
                 } else {
-                    analyze_css_node(child, analysis)?;
+                    analyze_css_node(child, analysis, is_nested)?;
                 }
             } else {
-                analyze_css_node(child, analysis)?;
+                analyze_css_node(child, analysis, is_nested)?;
             }
         }
     }
@@ -100,6 +102,7 @@ fn analyze_atrule(
 fn analyze_rule(
     node: &serde_json::Value,
     analysis: &mut ComponentAnalysis,
+    is_nested: bool,
 ) -> Result<(), AnalysisError> {
     // Check if this rule has global selectors
     if let Some(prelude) = node.get("prelude")
@@ -110,7 +113,7 @@ fn analyze_rule(
 
     // Validate :global() selectors
     if let Some(prelude) = node.get("prelude") {
-        validate_selectors(prelude)?;
+        validate_selectors(prelude, is_nested)?;
     }
 
     // Analyze children (nested rules)
@@ -118,7 +121,8 @@ fn analyze_rule(
         && let Some(children) = block.get("children").and_then(|c| c.as_array())
     {
         for child in children {
-            analyze_css_node(child, analysis)?;
+            // Children of a rule are nested rules
+            analyze_css_node(child, analysis, true)?;
         }
     }
     Ok(())
@@ -157,18 +161,21 @@ fn check_selector_for_global(selector: &serde_json::Value) -> bool {
 }
 
 /// Validate :global() selectors in a prelude (SelectorList).
-fn validate_selectors(prelude: &serde_json::Value) -> Result<(), AnalysisError> {
+fn validate_selectors(prelude: &serde_json::Value, is_nested: bool) -> Result<(), AnalysisError> {
     // prelude is a SelectorList with children (ComplexSelectors)
     if let Some(complex_selectors) = prelude.get("children").and_then(|c| c.as_array()) {
         for complex_selector in complex_selectors {
-            validate_complex_selector(complex_selector)?;
+            validate_complex_selector(complex_selector, is_nested)?;
         }
     }
     Ok(())
 }
 
 /// Validate a ComplexSelector for :global() usage.
-fn validate_complex_selector(complex_selector: &serde_json::Value) -> Result<(), AnalysisError> {
+fn validate_complex_selector(
+    complex_selector: &serde_json::Value,
+    is_nested: bool,
+) -> Result<(), AnalysisError> {
     // ComplexSelector has children (RelativeSelectors)
     let children = match complex_selector.get("children").and_then(|c| c.as_array()) {
         Some(c) => c,
@@ -227,12 +234,13 @@ fn validate_complex_selector(complex_selector: &serde_json::Value) -> Result<(),
     // Validate each RelativeSelector
     for (i, relative_selector) in children.iter().enumerate() {
         // Check for combinator at the start (first RelativeSelector)
+        // Starting with a combinator is only valid in nested rules (e.g., .foo { > .bar {} })
         if i == 0
+            && !is_nested
             && let Some(combinator) = relative_selector.get("combinator")
             && combinator.get("type").and_then(|t| t.as_str()) == Some("Combinator")
         {
-            // Starting with a combinator is invalid (unless nested or in :has())
-            // We don't have parent context here, so this will catch most cases
+            // Starting with a combinator is invalid at top-level
             return Err(errors::css_selector_invalid());
         }
 

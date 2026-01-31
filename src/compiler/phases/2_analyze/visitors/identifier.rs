@@ -102,6 +102,15 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         None => return Ok(()), // No binding, might be a global
     };
 
+    // Track this reference on the binding itself
+    // This is used by the component_name_lowercase warning to check if an import is referenced
+    let (start, end) = node
+        .get("start")
+        .and_then(|s| s.as_u64())
+        .zip(node.get("end").and_then(|e| e.as_u64()))
+        .unwrap_or((0, 0));
+    context.analysis.root.bindings[binding_idx].add_reference(start as u32, end as u32);
+
     // Handle legacy mode special variables
     if !context.analysis.runes {
         if name == "$$props" {
