@@ -23,7 +23,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::element
     build_attribute_effect, build_attribute_value, build_set_class, build_set_style_call,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::{
-    TextOrExpr, process_children,
+    TextOrExpr, is_static_element, process_children,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
     apply_transforms_to_expression, build_template_chunk, expression_has_reactive_state,
@@ -713,10 +713,12 @@ pub fn visit_regular_element(
         );
 
         // Reset after processing children if needed
+        // A reset is only needed if any child would actually advance the hydrate_node cursor.
+        // Static elements don't advance the cursor, so they don't need a reset.
         let needs_reset = cleaned
             .trimmed
             .iter()
-            .any(|n| !matches!(n, TemplateNode::Text(_)));
+            .any(|n| !matches!(n, TemplateNode::Text(_)) && !is_static_element(n, &context.state));
 
         if needs_reset {
             context.state.init.push(b::stmt(b::call(
