@@ -10,8 +10,11 @@ use smallvec::SmallVec;
 pub struct ScopeRoot {
     /// All unique bindings in the component
     pub bindings: Vec<Binding>,
-    /// The root scope
+    /// The root scope (scope at index 0)
     pub scope: Scope,
+    /// All scopes in the component (index 0 is the root scope)
+    /// Used for scope chain lookup when validating assignments
+    pub all_scopes: Vec<Scope>,
 }
 
 impl ScopeRoot {
@@ -20,12 +23,48 @@ impl ScopeRoot {
         Self {
             bindings: Vec::new(),
             scope: Scope::new(None),
+            all_scopes: Vec::new(),
         }
+    }
+
+    /// Look up a binding by name starting from a specific scope and walking up the parent chain.
+    /// This is the proper way to look up bindings, respecting lexical scoping.
+    ///
+    /// # Arguments
+    /// * `name` - The name of the binding to look up
+    /// * `scope_idx` - The scope index to start the search from
+    ///
+    /// # Returns
+    /// The binding index if found, or None if not found in any scope in the chain.
+    pub fn get_binding(&self, name: &str, scope_idx: usize) -> Option<usize> {
+        let mut current_scope_idx = Some(scope_idx);
+
+        while let Some(idx) = current_scope_idx {
+            // Try to get the scope from all_scopes
+            if let Some(scope) = self.all_scopes.get(idx) {
+                // Check if the binding is declared in this scope
+                if let Some(&binding_idx) = scope.declarations.get(name) {
+                    return Some(binding_idx);
+                }
+                // Move to parent scope
+                current_scope_idx = scope.parent;
+            } else if idx == 0 {
+                // Fallback to the root scope if all_scopes is empty (backward compatibility)
+                if let Some(&binding_idx) = self.scope.declarations.get(name) {
+                    return Some(binding_idx);
+                }
+                break;
+            } else {
+                break;
+            }
+        }
+
+        None
     }
 }
 
 /// A lexical scope containing variable bindings.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Scope {
     /// Parent scope index (None for root)
     pub parent: Option<usize>,

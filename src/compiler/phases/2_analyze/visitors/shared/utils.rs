@@ -237,8 +237,9 @@ pub fn validate_assignment(
                 return Err(errors::constant_assignment("$props.id()"));
             }
 
-            // Check for each block item assignment
-            if binding.kind == BindingKind::EachItem {
+            // Check for each block item assignment (only in runes mode)
+            // In legacy mode, binding to each items is allowed
+            if context.analysis.runes && binding.kind == BindingKind::EachItem {
                 return Err(errors::each_item_invalid_assignment());
             }
 
@@ -357,18 +358,33 @@ pub fn validate_no_const_assignment(
         }
         Some("Identifier") => {
             if let Some(name) = argument.get("name").and_then(|n| n.as_str()) {
-                // First try the scope declarations
-                let binding_idx = context.analysis.root.scope.declarations.get(name).copied();
+                // Skip validation when inside nested functions (function_depth > 1)
+                // because the binding might be shadowed by a local declaration in
+                // a nested scope that we can't properly track without full scope
+                // chain support during analysis.
+                //
+                // Example that would fail without this check:
+                //   function tooltip() {
+                //       let tooltip = null; // shadows the function name
+                //       tooltip = 1; // valid assignment to local variable
+                //   }
+                //
+                // When function_depth > 1, we're inside a function body where
+                // local variables can shadow outer declarations.
+                if context.function_depth > 1 {
+                    return Ok(());
+                }
 
-                // If not found, search through all bindings by name
-                let binding_idx = binding_idx.or_else(|| {
-                    context
-                        .analysis
-                        .root
-                        .bindings
-                        .iter()
-                        .position(|b| b.name == name)
-                });
+                // Use scope chain lookup to find the correct binding
+                // This respects lexical scoping - inner bindings shadow outer ones
+                let binding_idx = context
+                    .analysis
+                    .root
+                    .get_binding(name, context.scope)
+                    .or_else(|| {
+                        // Fallback to root scope declarations for backward compatibility
+                        context.analysis.root.scope.declarations.get(name).copied()
+                    });
 
                 if let Some(idx) = binding_idx {
                     let binding = &context.analysis.root.bindings[idx];

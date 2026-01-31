@@ -87,26 +87,8 @@ impl<'a> ScopeBuilder<'a> {
         // Visit template
         self.visit_fragment(&ast.fragment);
 
-        // Collect all declarations from all scopes into the root scope
-        // This allows name lookup from any scope level to find bindings
-        // Note: This is a temporary solution until proper scope chain lookup is implemented
-        for i in 1..self.scopes.len() {
-            let declarations: Vec<(String, usize)> = self.scopes[i]
-                .declarations
-                .iter()
-                .map(|(k, v)| (k.clone(), *v))
-                .collect();
-            for (name, binding_idx) in declarations {
-                // Only add if not already in root scope (child scope takes precedence)
-                self.scopes[0]
-                    .declarations
-                    .entry(name)
-                    .or_insert(binding_idx);
-            }
-        }
-
         // Process all tracked updates to mark bindings as reassigned/mutated
-        // This must happen after all declarations are collected
+        // Use scope chain lookup to find the correct binding
         for update in &self.updates {
             // Look up the binding starting from the scope where the update occurred
             // and traverse up the parent chain (closure semantics)
@@ -129,12 +111,37 @@ impl<'a> ScopeBuilder<'a> {
             }
         }
 
-        // Return the root scope and validation errors
-        let root_scope = self.scopes.remove(0);
+        // Collect all declarations from all scopes into the root scope for backward
+        // compatibility with code that uses root.scope.declarations.
+        // Process from outermost to innermost and use or_insert so OUTER scope
+        // bindings take precedence. This ensures that template expressions find
+        // the correct top-level bindings, not shadowed bindings inside functions.
+        //
+        // Example: let { foo } = (() => { const foo = ...; return { foo }; })();
+        // The outer `let foo` should be found, not the inner `const foo`.
+        for i in 1..self.scopes.len() {
+            let declarations: Vec<(String, usize)> = self.scopes[i]
+                .declarations
+                .iter()
+                .map(|(k, v)| (k.clone(), *v))
+                .collect();
+            for (name, binding_idx) in declarations {
+                // Only add if not already in root scope (outer scope takes precedence)
+                self.scopes[0]
+                    .declarations
+                    .entry(name)
+                    .or_insert(binding_idx);
+            }
+        }
+
+        // Return the root scope with all scopes preserved for proper lookup
+        let all_scopes = std::mem::take(&mut self.scopes);
+        let root_scope = all_scopes.first().cloned().unwrap_or_default();
         (
             ScopeRoot {
                 bindings: self.bindings,
                 scope: root_scope,
+                all_scopes,
             },
             self.validation_errors,
         )
