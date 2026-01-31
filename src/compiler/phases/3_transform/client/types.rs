@@ -316,6 +316,7 @@ impl<'a> ComponentContext<'a> {
                 self,
                 element_id.clone(),
                 &css_hash,
+                false, // should_remove_defaults - not needed for svelte:element
             );
 
             // Move statements added to context.state to inner state

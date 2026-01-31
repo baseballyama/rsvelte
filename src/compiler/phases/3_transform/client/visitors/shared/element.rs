@@ -621,6 +621,7 @@ pub fn build_attribute_effect(
     context: &mut ComponentContext,
     element_id: JsExpr,
     css_hash: &str,
+    should_remove_defaults: bool,
 ) {
     use crate::ast::template::Attribute;
     use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
@@ -738,10 +739,10 @@ pub fn build_attribute_effect(
     let mut args = vec![element_id, arrow];
 
     // Add sync_values if we have memoized expressions
-    // Otherwise, we still need to add placeholders if css_hash is present
+    // Otherwise, we still need to add placeholders if css_hash is present or should_remove_defaults
     let has_memoized = sync_values.is_some();
 
-    if has_memoized || !css_hash.is_empty() {
+    if has_memoized || !css_hash.is_empty() || should_remove_defaults {
         // Add sync_values (or undefined if none)
         args.push(sync_values.unwrap_or_else(b::undefined));
 
@@ -751,9 +752,16 @@ pub fn build_attribute_effect(
         // Add blockers (not yet implemented)
         args.push(b::undefined());
 
-        // Add CSS hash if present
+        // Add CSS hash if present, or undefined if we need should_remove_defaults
         if !css_hash.is_empty() {
             args.push(b::string(css_hash));
+        } else if should_remove_defaults {
+            args.push(b::undefined());
+        }
+
+        // Add should_remove_defaults if true
+        if should_remove_defaults {
+            args.push(b::boolean(true));
         }
     }
 

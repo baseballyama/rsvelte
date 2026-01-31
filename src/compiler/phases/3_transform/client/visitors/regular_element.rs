@@ -288,6 +288,11 @@ pub fn visit_regular_element(
         let node_expr = b::id(&node_id);
         let css_hash = context.state.analysis.css.hash.clone();
 
+        // Determine if we should remove input defaults (for input elements with spreads)
+        // This is needed because spreads might contain value-like attributes that override defaults
+        // Reference: RegularElement.js lines 175-186
+        let should_remove_defaults = node.name == "input" || node.name == "select";
+
         build_attribute_effect(
             &attributes,
             &class_directives,
@@ -295,6 +300,7 @@ pub fn visit_regular_element(
             context,
             node_expr,
             &css_hash,
+            should_remove_defaults,
         );
     } else {
         // Find class attribute for special handling
