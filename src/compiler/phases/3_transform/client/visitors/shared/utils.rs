@@ -469,18 +469,21 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
 }
 
 /// Check if a callee expression represents a Svelte runtime function that takes
-/// a state reference as its first argument (e.g., $.set, $.update, $.update_pre).
+/// a state reference as its first argument (e.g., $.set, $.update, $.update_pre, $.get).
 ///
 /// These functions should NOT have their first argument transformed with $.get()
 /// because they expect the raw state reference, not the value.
 fn is_svelte_runtime_set_call(callee: &JsExpr) -> bool {
-    // Check for $.set, $.update, $.update_pre patterns
+    // Check for $.set, $.update, $.update_pre, $.get, $.safe_get patterns
     if let JsExpr::Member(member) = callee
         && let JsExpr::Identifier(obj_name) = member.object.as_ref()
         && obj_name == "$"
         && let JsMemberProperty::Identifier(prop_name) = &member.property
     {
-        return matches!(prop_name.as_str(), "set" | "update" | "update_pre");
+        return matches!(
+            prop_name.as_str(),
+            "set" | "update" | "update_pre" | "get" | "safe_get"
+        );
     }
     false
 }

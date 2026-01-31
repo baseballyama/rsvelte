@@ -494,18 +494,84 @@ fn assign_value_with_store(node: JsExpr, value: JsExpr, needs_proxy: bool) -> Js
 
 /// Transform a mutation of reactive state in runes mode.
 ///
-/// In runes mode, mutations are automatically reactive, so we pass them through unchanged.
+/// In runes mode, mutations to state properties need the root identifier
+/// wrapped in `$.get()` to access the reactive value.
 ///
 /// # Arguments
 ///
-/// * `_node` - The identifier being mutated (unused in runes mode)
-/// * `mutation` - The mutation expression (e.g., `obj.prop = value`)
+/// * `node` - The identifier being mutated (the root state variable)
+/// * `mutation` - The mutation expression (e.g., `data.items[1].price = value`)
 ///
 /// # Returns
 ///
-/// The mutation expression unchanged
-fn mutate_value_runes(_node: JsExpr, mutation: JsExpr) -> JsExpr {
-    mutation
+/// The mutation expression with the root identifier wrapped in `$.get()`
+///
+/// # Example
+///
+/// ```ignore
+/// // Input: node = data, mutation = data.items[1].price = 2000
+/// // Output: $.get(data).items[1].price = 2000
+/// ```
+fn mutate_value_runes(node: JsExpr, mutation: JsExpr) -> JsExpr {
+    // The mutation is an assignment expression where the left side is a member expression
+    // like `data.items[1].price = 2000`. We need to replace `data` with `$.get(data)`.
+    //
+    // The node is the root identifier (e.g., `data`), and we need to find and replace
+    // it in the mutation expression.
+    let get_node = b::svelte_call("get", vec![node.clone()]);
+
+    // Replace the root identifier in the mutation with the get-wrapped version
+    replace_root_identifier_with_getter(&mutation, &node, &get_node)
+}
+
+/// Replace the root identifier in an expression with a getter-wrapped version.
+///
+/// This recursively walks the expression tree to find the leftmost identifier
+/// (the root of a member expression chain) and replaces it with the getter.
+fn replace_root_identifier_with_getter(
+    expr: &JsExpr,
+    original_id: &JsExpr,
+    replacement: &JsExpr,
+) -> JsExpr {
+    match expr {
+        JsExpr::Assignment(assign) => {
+            // For assignments, we need to replace in the left side
+            JsExpr::Assignment(JsAssignmentExpression {
+                operator: assign.operator,
+                left: Box::new(replace_root_identifier_with_getter(
+                    &assign.left,
+                    original_id,
+                    replacement,
+                )),
+                right: assign.right.clone(),
+            })
+        }
+        JsExpr::Member(member) => {
+            // For member expressions, replace in the object
+            JsExpr::Member(JsMemberExpression {
+                object: Box::new(replace_root_identifier_with_getter(
+                    &member.object,
+                    original_id,
+                    replacement,
+                )),
+                property: member.property.clone(),
+                computed: member.computed,
+                optional: member.optional,
+            })
+        }
+        JsExpr::Identifier(name) => {
+            // Check if this is the identifier we're looking for
+            if let JsExpr::Identifier(target_name) = original_id
+                && name == target_name
+            {
+                replacement.clone()
+            } else {
+                expr.clone()
+            }
+        }
+        // For other expression types, return unchanged
+        _ => expr.clone(),
+    }
 }
 
 /// Transform a mutation of reactive state in legacy mode.

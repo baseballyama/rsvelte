@@ -1174,13 +1174,13 @@ const test = new Test();
         }
     }
 
-    /// Test CSS scoping with basic element selector
+    /// Debug test for runtime-runes/each-updates
     #[test]
-    fn debug_each_updates_4() {
+    fn debug_each_updates() {
         use svelte_compiler_rust::compiler::ExperimentalOptions;
 
         let source = std::fs::read_to_string(
-            "svelte/packages/svelte/tests/runtime-runes/samples/each-updates-4/main.svelte",
+            "svelte/packages/svelte/tests/runtime-runes/samples/each-updates/main.svelte",
         )
         .unwrap();
 
