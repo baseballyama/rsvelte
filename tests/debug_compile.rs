@@ -1322,4 +1322,31 @@ const test = new Test();
             code
         );
     }
+
+    /// Debug test for class private fields with assignment shorthand
+    #[test]
+    fn debug_class_private_fields() {
+        use svelte_compiler_rust::compiler::ExperimentalOptions;
+
+        let source = std::fs::read_to_string(
+            "svelte/packages/svelte/tests/runtime-runes/samples/class-private-fields-assignment-shorthand/main.svelte",
+        )
+        .unwrap();
+
+        let options = CompileOptions {
+            dev: false,
+            filename: Some("main.svelte".to_string()),
+            experimental: ExperimentalOptions { r#async: true },
+            ..Default::default()
+        };
+
+        match compile(&source, options) {
+            Ok(result) => {
+                println!("\n=== OUR OUTPUT ===\n{}\n=== END ===", result.js.code);
+            }
+            Err(e) => {
+                println!("\n=== ERROR ===\n{:?}\n=== END ===", e);
+            }
+        }
+    }
 }

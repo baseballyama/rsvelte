@@ -3719,6 +3719,9 @@ fn transform_class_fields_client(script: &str) -> String {
     let mut constructor_params = String::new();
     let mut constructor_start = None;
 
+    // Track the end position of the constructor (after the closing brace)
+    let mut constructor_end: Option<usize> = None;
+
     // Find constructor first
     if let Some(ctor_pos) = class_body.find("constructor(") {
         let after_ctor = &class_body[ctor_pos..];
@@ -3764,6 +3767,8 @@ fn transform_class_fields_client(script: &str) -> String {
 
             constructor_start = Some(ctor_pos);
             constructor_content = class_body[ctor_body_start..ctor_body_end].to_string();
+            // The constructor ends at the closing brace (position ctor_body_end + 1 to include the brace)
+            constructor_end = Some(ctor_body_end + 1);
         }
     }
 
@@ -3949,6 +3954,27 @@ fn transform_class_fields_client(script: &str) -> String {
         new_class_body.push_str("\t\t}\n");
     }
 
+    // Add methods and other class members that come after the constructor
+    // (e.g., inc(), get a(), get b(), get c())
+    if let Some(ctor_end) = constructor_end {
+        let rest_of_class = &class_body[ctor_end..];
+        let transformed_rest = transform_class_methods(rest_of_class, &fields);
+        if !transformed_rest.trim().is_empty() {
+            new_class_body.push_str(&transformed_rest);
+        }
+    } else if constructor_start.is_none() && !fields.is_empty() {
+        // No constructor, but we have fields - there may be methods after the fields
+        // Find where the fields end and include the rest
+        let last_field_line = fields_section.rfind('\n').map(|p| p + 1).unwrap_or(0);
+        if last_field_line < class_body.len() {
+            let rest_of_class = &class_body[fields_section.len()..];
+            let transformed_rest = transform_class_methods(rest_of_class, &fields);
+            if !transformed_rest.trim().is_empty() {
+                new_class_body.push_str(&transformed_rest);
+            }
+        }
+    }
+
     // Build the final result
     let before_class = &script[..class_pos];
     let after_class_body = &script[class_body_end + 1..]; // Skip closing brace
@@ -4005,6 +4031,61 @@ fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStateField> {
     })
 }
 
+/// Transform class methods to use $.get() for state field accesses.
+///
+/// For private state fields (those initialized with $state or $derived),
+/// we need to wrap accesses with $.get() and mutations with $.get().
+fn transform_class_methods(content: &str, fields: &[ClassStateField]) -> String {
+    if content.trim().is_empty() || fields.is_empty() {
+        return content.to_string();
+    }
+
+    let mut result = content.to_string();
+
+    // Transform accesses to private state fields
+    // this.#name -> $.get(this.#name) when reading
+    // this.#name.prop -> $.get(this.#name).prop when accessing properties
+    for field in fields {
+        if field.is_private {
+            let private_name = format!("this.#{}", field.private_backing_name);
+
+            // Don't transform if it's on the left side of an assignment
+            // We need to handle this more carefully - for mutations like this.#a.val += 1,
+            // we want $.get(this.#a).val += 1
+
+            // Replace property access patterns: this.#name. -> $.get(this.#name).
+            // But NOT this.#name = (direct assignment)
+            let property_access_pattern = format!("{}.", private_name);
+            let getter_wrapped = format!("$.get({}).", private_name);
+
+            // Replace optional chaining patterns: this.#name?. -> $.get(this.#name)?.
+            let optional_access_pattern = format!("{}?.", private_name);
+            let optional_getter_wrapped = format!("$.get({})?.?.", private_name);
+
+            result = result.replace(&property_access_pattern, &getter_wrapped);
+            result = result.replace(&optional_access_pattern, &optional_getter_wrapped);
+
+            // Handle cases where this.#name is used in a return statement without property access
+            // return this.#name -> return $.get(this.#name)
+            let return_pattern = format!("return {};", private_name);
+            let return_wrapped = format!("return $.get({});", private_name);
+            result = result.replace(&return_pattern, &return_wrapped);
+
+            // Handle optional access in return: return this.#name?. -> return $.get(this.#name)?.
+            let return_optional_pattern = format!("return {}?.", private_name);
+            let return_optional_wrapped = format!("return $.get({})?.", private_name);
+            result = result.replace(&return_optional_pattern, &return_optional_wrapped);
+        }
+    }
+
+    // Clean up any double wrapping that might have occurred
+    result = result.replace("$.get($.get(", "$.get(");
+    // Fix optional chaining that got double-wrapped
+    result = result.replace("?.?.", "?.");
+
+    result
+}
+
 /// Transform constructor assignments for private state fields and rune calls.
 fn transform_constructor_assignment(line: &str, fields: &[ClassStateField]) -> String {
     let mut result = line.trim().to_string();
@@ -4023,6 +4104,30 @@ fn transform_constructor_assignment(line: &str, fields: &[ClassStateField]) -> S
     if result.starts_with("this.#") && result.contains('=') {
         for field in fields {
             if field.is_private {
+                // Handle logical assignment operators: ||=, &&=, ??=
+                // this.#a ||= {val: 0} -> $.set(this.#a, this.#a.v || { val: 0 }, true);
+                let logical_ops = [("||=", "||"), ("&&=", "&&"), ("??=", "??")];
+                for (assign_op, binary_op) in logical_ops {
+                    let pattern = format!("this.#{} {}", field.name, assign_op);
+                    let pattern_nospace = format!("this.#{}{}", field.name, assign_op);
+
+                    if result.starts_with(&pattern) || result.starts_with(&pattern_nospace) {
+                        let op_pos = result.find(assign_op).unwrap();
+                        let value = result[op_pos + assign_op.len()..]
+                            .trim()
+                            .trim_end_matches(';');
+                        // Use .v to access the value directly for logical operators
+                        return format!(
+                            "$.set(this.#{}, this.#{}.v {} {}, true);",
+                            field.private_backing_name,
+                            field.private_backing_name,
+                            binary_op,
+                            value
+                        );
+                    }
+                }
+
+                // Handle regular assignment: this.#name = value
                 let pattern = format!("this.#{} =", field.name);
                 let pattern_nospace = format!("this.#{}=", field.name);
 
