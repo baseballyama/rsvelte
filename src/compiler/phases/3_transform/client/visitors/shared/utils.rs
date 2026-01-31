@@ -1674,7 +1674,38 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                     return transform.is_reactive;
                 }
                 if let Some(binding) = context.state.get_binding(name) {
-                    return binding.kind.is_reactive();
+                    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+
+                    // Match Svelte's logic from Identifier.js (lines 95-101):
+                    // has_state ||= binding.kind !== 'static' &&
+                    //     (binding.kind === 'prop' || ... || !binding.is_function()) &&
+                    //     !context.state.scope.evaluate(node).is_known;
+
+                    // Static bindings are never reactive
+                    if matches!(binding.kind, BindingKind::Static) {
+                        return false;
+                    }
+
+                    // Props and other explicitly reactive bindings
+                    if binding.kind.is_reactive() {
+                        return true;
+                    }
+
+                    // For normal bindings:
+                    // - If it's a function, it's not reactive
+                    // - If it's an import, it's potentially reactive (value not known at compile time)
+                    // - Otherwise, check if value might be known
+                    if !binding.is_function() {
+                        // Imports from .svelte.js files can have reactive exports
+                        // Since we can't evaluate if the value is "known", treat imports as reactive
+                        if binding.declaration_kind
+                            == crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Import
+                        {
+                            return true;
+                        }
+                    }
+
+                    return false;
                 }
                 // Unknown identifier - conservatively assume non-reactive
                 // (could be a global or module-level binding)
