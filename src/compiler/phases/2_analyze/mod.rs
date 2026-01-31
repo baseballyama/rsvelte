@@ -122,9 +122,76 @@ pub fn analyze_component(
 
         // Prune unused selectors
         css::prune_css(stylesheet, &analysis);
+
+        // Mark all elements as scoped if CSS hash is present
+        // This is a simplified approach - the official compiler marks only
+        // elements that match CSS selectors as scoped
+        if !analysis.css.hash.is_empty() {
+            mark_elements_scoped(&mut ast.fragment);
+        }
     }
 
     Ok(analysis)
+}
+
+/// Mark all RegularElement nodes in the fragment as scoped.
+/// This is called when CSS is present in the component.
+fn mark_elements_scoped(fragment: &mut crate::ast::template::Fragment) {
+    use crate::ast::template::TemplateNode;
+
+    for node in &mut fragment.nodes {
+        match node {
+            TemplateNode::RegularElement(el) => {
+                el.metadata.scoped = true;
+                mark_elements_scoped(&mut el.fragment);
+            }
+            TemplateNode::Component(comp) => {
+                mark_elements_scoped(&mut comp.fragment);
+            }
+            TemplateNode::IfBlock(if_block) => {
+                mark_elements_scoped(&mut if_block.consequent);
+                if let Some(ref mut alt) = if_block.alternate {
+                    mark_elements_scoped(alt);
+                }
+            }
+            TemplateNode::EachBlock(each) => {
+                mark_elements_scoped(&mut each.body);
+                if let Some(ref mut fallback) = each.fallback {
+                    mark_elements_scoped(fallback);
+                }
+            }
+            TemplateNode::AwaitBlock(await_block) => {
+                if let Some(ref mut pending) = await_block.pending {
+                    mark_elements_scoped(pending);
+                }
+                if let Some(ref mut then) = await_block.then {
+                    mark_elements_scoped(then);
+                }
+                if let Some(ref mut catch) = await_block.catch {
+                    mark_elements_scoped(catch);
+                }
+            }
+            TemplateNode::KeyBlock(key) => {
+                mark_elements_scoped(&mut key.fragment);
+            }
+            TemplateNode::SnippetBlock(snippet) => {
+                mark_elements_scoped(&mut snippet.body);
+            }
+            TemplateNode::SvelteHead(head) => {
+                mark_elements_scoped(&mut head.fragment);
+            }
+            TemplateNode::SvelteElement(el) => {
+                mark_elements_scoped(&mut el.fragment);
+            }
+            TemplateNode::SlotElement(slot) => {
+                mark_elements_scoped(&mut slot.fragment);
+            }
+            TemplateNode::TitleElement(title) => {
+                mark_elements_scoped(&mut title.fragment);
+            }
+            _ => {}
+        }
+    }
 }
 
 /// Analyze a Svelte module (context="module" script).

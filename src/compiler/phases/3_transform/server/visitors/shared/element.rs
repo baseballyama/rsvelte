@@ -669,8 +669,7 @@ impl ElementNode for RegularElement {
     }
 
     fn is_scoped(&self) -> bool {
-        // TODO: Check metadata.scoped
-        false
+        self.metadata.scoped
     }
 
     fn is_svg(&self) -> bool {

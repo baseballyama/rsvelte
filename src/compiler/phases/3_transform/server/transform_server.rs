@@ -271,6 +271,8 @@ enum OutputPart {
         is_rich: bool,
         /// Direct value expression (when synthetic_value_node is set) - passed directly without callback
         direct_value: Option<String>,
+        /// CSS hash for scoped elements
+        css_hash: Option<String>,
     },
     /// Await block - produces $.await() call
     AwaitBlock {
@@ -537,6 +539,19 @@ impl<'a> ServerCodeGenerator<'a> {
         let mut base_class: Option<String> = None;
         let mut base_style: Option<String> = None;
 
+        // Get CSS hash for scoped elements
+        let css_hash = if element.metadata.scoped {
+            self.analysis.and_then(|a| {
+                if !a.css.hash.is_empty() {
+                    Some(a.css.hash.clone())
+                } else {
+                    None
+                }
+            })
+        } else {
+            None
+        };
+
         for attr in &element.attributes {
             match attr {
                 Attribute::ClassDirective(dir) => {
@@ -575,6 +590,14 @@ impl<'a> ServerCodeGenerator<'a> {
                 {
                     continue;
                 }
+                // Handle class attribute specially - add CSS hash if scoped
+                Attribute::Attribute(node) if node.name.as_str() == "class" => {
+                    if let Some(attr_str) =
+                        self.generate_attribute_node_with_css_hash(node, css_hash.as_deref())?
+                    {
+                        tag.push_str(&attr_str);
+                    }
+                }
                 _ => {
                     if let Some(attr_str) =
                         self.generate_attribute_for_element(attr, Some(element))?
@@ -583,6 +606,14 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
                 }
             }
+        }
+
+        // If element is scoped but has no class attribute, add one with just the hash
+        if let Some(ref hash) = css_hash
+            && base_class.is_none()
+            && class_directives.is_empty()
+        {
+            tag.push_str(&format!(" class=\"{}\"", hash));
         }
 
         // Generate $.attr_class() if we have class directives
@@ -1048,6 +1079,19 @@ impl<'a> ServerCodeGenerator<'a> {
     }
 
     fn generate_option_element(&mut self, element: &RegularElement) -> Result<(), TransformError> {
+        // Get CSS hash for scoped elements
+        let css_hash = if element.metadata.scoped {
+            self.analysis.and_then(|a| {
+                if !a.css.hash.is_empty() {
+                    Some(a.css.hash.clone())
+                } else {
+                    None
+                }
+            })
+        } else {
+            None
+        };
+
         // Extract attributes as (name, value) pairs
         let mut attrs = Vec::new();
         for attr in &element.attributes {
@@ -1090,6 +1134,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 body: Vec::new(),
                 is_rich,
                 direct_value: Some(expr_source),
+                css_hash: css_hash.clone(),
             });
 
             return Ok(());
@@ -1145,6 +1190,7 @@ impl<'a> ServerCodeGenerator<'a> {
             body: body_generator.output_parts,
             is_rich,
             direct_value: None,
+            css_hash,
         });
 
         Ok(())
@@ -1587,6 +1633,104 @@ impl<'a> ServerCodeGenerator<'a> {
                 if expr_end > expr_start && expr_end <= self.source.len() {
                     let expr = self.source[expr_start..expr_end].trim().to_string();
                     Ok(Some(format!("${{$.attr('{}', {})}}", name, expr)))
+                } else {
+                    Ok(None)
+                }
+            }
+        }
+    }
+
+    /// Generate class attribute with CSS hash appended if provided.
+    fn generate_attribute_node_with_css_hash(
+        &mut self,
+        node: &AttributeNode,
+        css_hash: Option<&str>,
+    ) -> Result<Option<String>, TransformError> {
+        let name = node.name.as_str();
+
+        match &node.value {
+            AttributeValue::True(_) => {
+                // class with no value - just add the hash
+                if let Some(hash) = css_hash {
+                    Ok(Some(format!(" {}=\"{}\"", name, hash)))
+                } else {
+                    Ok(Some(format!(" {}", name)))
+                }
+            }
+            AttributeValue::Sequence(parts) => {
+                // Check if it's a single expression (like class='{x}')
+                if parts.len() == 1
+                    && let AttributeValuePart::ExpressionTag(expr_tag) = &parts[0]
+                {
+                    // Dynamic class - need to use $.attr_class()
+                    let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                    let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let expr = self.source[expr_start..expr_end].trim().to_string();
+                        if let Some(hash) = css_hash {
+                            return Ok(Some(format!(
+                                "${{$.attr_class(`${{{}}}`)\n + \" {}\"}}",
+                                expr, hash
+                            )));
+                        } else {
+                            return Ok(Some(format!("${{$.attr_class(`${{{}}}`)}}", expr)));
+                        }
+                    }
+                    return Ok(None);
+                }
+
+                // Collect text and expression parts
+                let mut template_parts = Vec::new();
+                let mut current_text = String::new();
+
+                for part in parts {
+                    match part {
+                        AttributeValuePart::Text(text) => {
+                            current_text.push_str(&escape_attr(&text.data));
+                        }
+                        AttributeValuePart::ExpressionTag(expr_tag) => {
+                            template_parts.push(current_text.clone());
+                            current_text.clear();
+
+                            let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                            let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                            if expr_end > expr_start && expr_end <= self.source.len() {
+                                let expr = self.source[expr_start..expr_end].trim().to_string();
+                                template_parts.push(format!("${{{}}}", expr));
+                            }
+                        }
+                    }
+                }
+                if !current_text.is_empty() || template_parts.is_empty() {
+                    template_parts.push(current_text);
+                }
+
+                let mut value = template_parts.join("");
+
+                // Append CSS hash
+                if let Some(hash) = css_hash {
+                    if !value.is_empty() {
+                        value.push(' ');
+                    }
+                    value.push_str(hash);
+                }
+
+                Ok(Some(format!(" {}=\"{}\"", name, value)))
+            }
+            AttributeValue::Expression(expr_tag) => {
+                // Dynamic class expression
+                let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                if expr_end > expr_start && expr_end <= self.source.len() {
+                    let expr = self.source[expr_start..expr_end].trim().to_string();
+                    if let Some(hash) = css_hash {
+                        Ok(Some(format!(
+                            "${{$.attr_class(`${{{}}}`)\n + \" {}\"}}",
+                            expr, hash
+                        )))
+                    } else {
+                        Ok(Some(format!("${{$.attr_class(`${{{}}}`)}}", expr)))
+                    }
                 } else {
                     Ok(None)
                 }
@@ -3653,6 +3797,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     body,
                     is_rich,
                     direct_value,
+                    css_hash,
                 } => {
                     // Flush current HTML before option element
                     if !current_html.is_empty() {
@@ -3692,6 +3837,22 @@ export default function {component_name}($$renderer{props_param}) {{
                         body_code.push_str(&format!(
                             "{}\t}},\n{}\tvoid 0,\n{}\tvoid 0,\n{}\tvoid 0,\n{}\tvoid 0,\n{}\ttrue\n{});\n",
                             indent, indent, indent, indent, indent, indent, indent
+                        ));
+                    } else if let Some(hash) = css_hash {
+                        // Has CSS hash - pass as 3rd argument
+                        body_code.push_str(&format!(
+                            "{}$$renderer.option(\n{}\t{{ {} }},\n{}\t($$renderer) => {{\n",
+                            indent, indent, attrs_str, indent
+                        ));
+
+                        // Body
+                        let body_code_inner = Self::build_parts(body, indent_level + 2);
+                        body_code.push_str(&body_code_inner);
+
+                        // Close callback with CSS hash
+                        body_code.push_str(&format!(
+                            "{}\t}},\n{}\t'{}'\n{});\n",
+                            indent, indent, hash, indent
                         ));
                     } else {
                         body_code.push_str(&format!(
