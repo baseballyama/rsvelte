@@ -490,13 +490,18 @@ fn is_svelte_runtime_set_call(callee: &JsExpr) -> bool {
 ///
 /// - `$.untrack()` takes a getter function that should not be invoked
 /// - `$.store_mutate()` has pre-constructed arguments with $.untrack() calls
+/// - `$.update_store()` and `$.update_pre_store()` have a $store() call as second argument
+///   that should not have additional transforms applied
 fn is_svelte_runtime_skip_args_transform(callee: &JsExpr) -> bool {
     if let JsExpr::Member(member) = callee
         && let JsExpr::Identifier(obj_name) = member.object.as_ref()
         && obj_name == "$"
         && let JsMemberProperty::Identifier(prop_name) = &member.property
     {
-        return matches!(prop_name.as_str(), "untrack" | "store_mutate");
+        return matches!(
+            prop_name.as_str(),
+            "untrack" | "store_mutate" | "update_store" | "update_pre_store"
+        );
     }
     false
 }

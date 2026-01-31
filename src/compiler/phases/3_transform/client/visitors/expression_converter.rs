@@ -79,14 +79,15 @@ fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
 
 /// Convert an Identifier node.
 ///
-/// Note: Transform application is NOT done here. Transforms are applied
-/// in `build_expression()` in `shared/utils.rs` to ensure consistent
-/// handling across all expression types.
+/// Note: Transform application for reactive state and props is NOT done here.
+/// Transforms are applied in `build_expression()` in `shared/utils.rs` to ensure
+/// consistent handling across all expression types.
 ///
-/// However, we do handle props here:
-/// - Read-only props (not a "prop source"): access directly via `$$props.propName`
-/// - Exported props: call as function `propName()` because `$.prop()` returns a getter
-/// - Non-exported prop sources (with default value but not exported): access directly `propName`
+/// We only handle non-source props here:
+/// - Non-source props: access directly via `$$props.propName`
+///
+/// Source props and exported props have transforms registered in `add_state_transformers`,
+/// so they will be transformed via `apply_transforms_to_expression()`.
 #[inline]
 fn convert_identifier(
     obj: &serde_json::Map<String, Value>,
@@ -117,23 +118,14 @@ fn convert_identifier(
             .iter()
             .any(|e| e.name == name);
 
+        // Non-source, non-exported props: access directly via $$props.propName
+        // Source props and exported props have transforms registered, so they
+        // will be handled by apply_transforms_to_expression() later.
         if !is_source && !is_exported {
-            // Not a source and not exported: access directly via $$props.propName
             return JsExpr::Member(JsMemberExpression {
                 object: Box::new(JsExpr::Identifier("$$props".to_string())),
                 property: JsMemberProperty::Identifier(name),
                 computed: false,
-                optional: false,
-            });
-        }
-
-        // Source props (with default value, reassigned, etc.) and exported props
-        // are defined via $.prop() which returns a getter function.
-        // They need to be called as functions to get their current value.
-        if is_source || is_exported {
-            return JsExpr::Call(JsCallExpression {
-                callee: Box::new(JsExpr::Identifier(name)),
-                arguments: vec![],
                 optional: false,
             });
         }
