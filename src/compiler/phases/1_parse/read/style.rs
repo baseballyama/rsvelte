@@ -1002,12 +1002,9 @@ impl<'a> SelectorParser<'a> {
 
         let name = self.read_identifier();
 
-        // Record end position after the name only (NOT including arguments)
-        // The official Svelte compiler does not include parenthetical arguments in PseudoElementSelector
-        let end = self.offset + self.index;
-
-        // Skip any arguments in parentheses (e.g., ::view-transition-group(foo))
-        // These are consumed but NOT included in the selector output
+        // Consume any arguments in parentheses (e.g., ::view-transition-group(foo))
+        // The end position will include these arguments so they can be extracted
+        // from the source during CSS transformation
         if self.current_char() == '(' {
             self.advance(); // consume '('
 
@@ -1028,6 +1025,9 @@ impl<'a> SelectorParser<'a> {
 
             self.advance(); // consume ')'
         }
+
+        // Record end position AFTER consuming arguments so source preservation works
+        let end = self.offset + self.index;
 
         let mut obj = Map::new();
         obj.insert(

@@ -1698,28 +1698,76 @@ fn transform_export_let(line: &str) -> String {
     // because they can be bound from parent components
     let flags = PROPS_IS_BINDABLE;
 
-    // Parse: name = value or just name
-    if let Some(eq_pos) = rest.find('=') {
-        let name = rest[..eq_pos].trim();
-        let mut value = rest[eq_pos + 1..].trim();
+    // Handle multiple declarators: export let a, b, c;
+    // Split by comma, but be careful of commas inside default values
+    let declarators = split_declarators(rest);
 
-        // Remove trailing line comment if present
-        // Need to handle strings correctly - don't strip // inside strings
-        if let Some(comment_pos) = find_line_comment_position(value) {
-            value = value[..comment_pos].trim();
+    let mut results = Vec::new();
+
+    for decl in declarators {
+        let decl = decl.trim();
+        if decl.is_empty() {
+            continue;
         }
 
-        // Remove trailing semicolon from value (after comment removal)
-        let value = value.trim_end_matches(';').trim();
+        // Parse: name = value or just name
+        if let Some(eq_pos) = decl.find('=') {
+            let name = decl[..eq_pos].trim();
+            let mut value = decl[eq_pos + 1..].trim();
 
-        format!(
-            "let {} = $.prop($$props, '{}', {}, {});",
-            name, name, flags, value
-        )
-    } else {
-        let name = rest;
-        format!("let {} = $.prop($$props, '{}', {});", name, name, flags)
+            // Remove trailing line comment if present
+            // Need to handle strings correctly - don't strip // inside strings
+            if let Some(comment_pos) = find_line_comment_position(value) {
+                value = value[..comment_pos].trim();
+            }
+
+            // Remove trailing semicolon from value (after comment removal)
+            let value = value.trim_end_matches(';').trim();
+
+            results.push(format!(
+                "let {} = $.prop($$props, '{}', {}, {});",
+                name, name, flags, value
+            ));
+        } else {
+            let name = decl;
+            results.push(format!(
+                "let {} = $.prop($$props, '{}', {});",
+                name, name, flags
+            ));
+        }
     }
+
+    results.join("\n")
+}
+
+/// Split declarators by comma, handling nested braces, brackets, and parens.
+///
+/// For example: "a, b = {x: 1}, c" -> ["a", "b = {x: 1}", "c"]
+fn split_declarators(s: &str) -> Vec<&str> {
+    let mut result = Vec::new();
+    let mut depth: usize = 0;
+    let mut start = 0;
+    let mut byte_pos = 0;
+
+    for (i, c) in s.char_indices() {
+        match c {
+            '{' | '[' | '(' => depth += 1,
+            '}' | ']' | ')' => depth = depth.saturating_sub(1),
+            ',' if depth == 0 => {
+                result.push(&s[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+        byte_pos = i + c.len_utf8();
+    }
+
+    // Don't forget the last segment
+    if start < s.len() {
+        result.push(&s[start..]);
+    }
+
+    result
 }
 
 /// Find the position of a line comment (//) that is not inside a string.
