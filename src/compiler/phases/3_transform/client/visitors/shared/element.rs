@@ -294,20 +294,40 @@ pub fn build_set_attribute(element: JsExpr, name: &str, value: JsExpr) -> JsStat
 /// Build an object from class directives.
 ///
 /// Corresponds to `build_class_directives_object` in RegularElement.js.
-/// Creates an object like `{ foo: condition, bar: otherCondition }`.
+/// Creates an object like `{ foo: condition(), bar: otherCondition() }`.
+///
+/// Note: The expressions in class directives need to be converted to function calls
+/// if they reference props (e.g., `foo` becomes `foo()`).
 pub fn build_class_directives_object(
     class_directives: &[ClassDirective],
-    _context: &mut ComponentContext,
-) -> JsExpr {
+    context: &mut ComponentContext,
+) -> (JsExpr, bool) {
+    use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+
     let mut properties = Vec::with_capacity(class_directives.len());
+    let mut has_state = false;
 
     for directive in class_directives {
-        // Extract expression from directive
-        let expression = extract_expression_from_directive(&directive.expression);
+        // Check if this directive has reactive state
+        if super::utils::expression_has_reactive_state(&directive.expression, context) {
+            has_state = true;
+        }
+
+        // Convert the expression using the expression converter
+        // This handles the full conversion including:
+        // - props -> props() transform for prop bindings
+        // - Literal values, etc.
+        //
+        // Note: We do NOT call apply_transforms_to_expression here because
+        // convert_expression already handles the props -> props() transform.
+        // Calling apply_transforms_to_expression would cause double transformation
+        // (e.g., foo() -> foo()()).
+        let expression = convert_expression(&directive.expression, context);
+
         properties.push(b::prop(directive.name.to_string(), expression));
     }
 
-    b::object(properties)
+    (b::object(properties), has_state)
 }
 
 /// Build an object from style directives.
@@ -357,17 +377,137 @@ pub fn build_style_directives_object(
     }
 }
 
-/// Build a $.set_class() call for an element with class directives.
+/// Build class handling for an element with class attribute and/or class directives.
 ///
 /// Corresponds to `build_set_class` in shared/element.js.
 ///
-/// Generates: `$.set_class(element, flags, class_attr, css_hash, prev, next)`
-/// Where:
-/// - flags: 1 for HTML elements, 0 for SVG
-/// - class_attr: The static class attribute value (or "")
-/// - css_hash: The CSS scoping hash (or null)
-/// - prev: Previous class directives state (or {})
-/// - next: Current class directives object
+/// This function handles the complete class attribute + class directives processing:
+/// 1. Builds the class value from the attribute (if any)
+/// 2. Adds CSS hash to the class value if the element is scoped
+/// 3. Creates a `let classes;` declaration if there's state
+/// 4. Generates `$.set_class(element, flags, class_value, css_hash, prev, next)` call
+/// 5. Wraps in assignment `classes = $.set_class(...)` if there's state
+/// 6. Pushes to either init (static) or update (dynamic)
+///
+/// # Arguments
+///
+/// * `element` - The element node
+/// * `node_id` - The identifier for the element (e.g., "div")
+/// * `class_attribute` - The class attribute value (if any), or None for class directives only
+/// * `class_directives` - The class directives (class:foo, class:bar, etc.)
+/// * `context` - The component context
+/// * `is_html` - Whether this is an HTML element (vs SVG)
+/// * `css_hash` - The CSS scoping hash (empty string if no CSS)
+/// * `is_scoped` - Whether the element needs CSS scoping
+#[allow(clippy::too_many_arguments)]
+pub fn build_set_class(
+    _element: &RegularElementNode,
+    node_id: &str,
+    class_attribute: Option<&AttributeValue>,
+    class_directives: &[ClassDirective],
+    context: &mut ComponentContext,
+    is_html: bool,
+    css_hash: &str,
+    is_scoped: bool,
+) {
+    // Build the class value from the attribute
+    let (mut class_value, mut has_state) = if let Some(attr_value) = class_attribute {
+        let result = build_attribute_value(attr_value, context, |expr, _| expr);
+        (result.value, result.has_state)
+    } else {
+        // No class attribute - use empty string
+        (b::string(""), false)
+    };
+
+    // Handle CSS hash
+    let mut css_hash_expr: Option<JsExpr> = None;
+
+    if is_scoped && !css_hash.is_empty() {
+        // Check if class_value is a literal string
+        match &class_value {
+            JsExpr::Literal(
+                crate::compiler::phases::phase3_transform::js_ast::nodes::JsLiteral::String(s),
+            ) => {
+                // Append CSS hash to the class value
+                if s.is_empty() {
+                    class_value = b::string(css_hash);
+                } else {
+                    class_value = b::string(format!("{} {}", s, css_hash));
+                }
+            }
+            _ => {
+                // Dynamic class value - use css_hash as separate argument
+                css_hash_expr = Some(b::string(css_hash));
+            }
+        }
+    }
+
+    // Build class directives object if there are any
+    let (class_directives_obj, _directives_has_state) = if !class_directives.is_empty() {
+        let (obj, state) = build_class_directives_object(class_directives, context);
+        has_state = has_state || state;
+        (Some(obj), state)
+    } else {
+        (None, false)
+    };
+
+    // Generate a unique ID for the classes variable if needed
+    let previous_id = if has_state && class_directives_obj.is_some() {
+        let id = context.state.memoizer.generate_id("classes");
+        // Add variable declaration: let classes;
+        context.state.init.push(b::let_decl(&id, None));
+        Some(id)
+    } else {
+        None
+    };
+
+    // Build previous state expression
+    let prev = if let Some(ref id) = previous_id {
+        b::id(id)
+    } else {
+        // For class directives or when no previous_id, use empty object
+        b::empty_object()
+    };
+
+    // Build css_hash argument
+    let css_hash_arg = css_hash_expr.unwrap_or_else(b::null);
+
+    // Build the $.set_class call
+    // $.set_class(element, flags, class_value, css_hash, prev, next)
+    let flags = if is_html {
+        b::number(1.0)
+    } else {
+        b::number(0.0)
+    };
+    let node_expr = b::id(node_id);
+
+    let mut args = vec![node_expr, flags, class_value];
+
+    // Add css_hash, prev, next if there are class directives
+    if let Some(directives_obj) = class_directives_obj {
+        args.push(css_hash_arg);
+        args.push(prev);
+        args.push(directives_obj);
+    }
+
+    let set_class_call = b::call(b::member_path("$.set_class"), args);
+
+    // Wrap in assignment if we have a previous_id
+    let set_class_expr = if let Some(ref id) = previous_id {
+        b::assign(b::id(id), set_class_call)
+    } else {
+        set_class_call
+    };
+
+    // Push to either update (has_state) or init (static)
+    if has_state {
+        context.state.update.push(b::stmt(set_class_expr));
+    } else {
+        context.state.init.push(b::stmt(set_class_expr));
+    }
+}
+
+/// Legacy function for backwards compatibility - use build_set_class instead.
 #[allow(clippy::too_many_arguments)]
 pub fn build_set_class_call(
     _element: &RegularElementNode,
@@ -377,8 +517,14 @@ pub fn build_set_class_call(
     is_html: bool,
     css_hash: &str,
 ) -> JsExpr {
-    // Build class directives object: { foo: condition, bar: otherCondition }
-    let class_obj = build_class_directives_object(class_directives, context);
+    // Extract node_id from node_expr
+    let node_id = match &node_expr {
+        JsExpr::Identifier(name) => name.clone(),
+        _ => "node".to_string(),
+    };
+
+    // Build class directives object: { foo: condition(), bar: otherCondition() }
+    let (class_obj, _has_state) = build_class_directives_object(class_directives, context);
 
     // Flags: 1 for HTML, 0 for SVG
     let flags = if is_html {
@@ -403,7 +549,14 @@ pub fn build_set_class_call(
     // $.set_class(element, flags, class_attr, css_hash, prev, next)
     b::call(
         b::member_path("$.set_class"),
-        vec![node_expr, flags, class_attr, css_binding, prev, class_obj],
+        vec![
+            b::id(&node_id),
+            flags,
+            class_attr,
+            css_binding,
+            prev,
+            class_obj,
+        ],
     )
 }
 
@@ -544,7 +697,7 @@ pub fn build_attribute_effect(
 
     // Add class directives
     if !class_directives.is_empty() {
-        let class_obj = build_class_directives_object(class_directives, context);
+        let (class_obj, _has_state) = build_class_directives_object(class_directives, context);
         // Use $.CLASS as the key - using computed property
         properties.push(b::prop_computed(b::member_path("$.CLASS"), class_obj));
     }
@@ -621,6 +774,7 @@ fn is_function_expression(expr: &JsExpr) -> bool {
 }
 
 /// Extract a JavaScript expression from a directive's expression.
+#[allow(dead_code)]
 fn extract_expression_from_directive(expression: &crate::ast::js::Expression) -> JsExpr {
     use crate::ast::js::Expression;
 

@@ -20,7 +20,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::attribute::{
 };
 use crate::compiler::phases::phase3_transform::client::visitors::bind_directive::bind_directive;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::element::{
-    build_attribute_effect, build_attribute_value, build_set_class_call, build_set_style_call,
+    build_attribute_effect, build_attribute_value, build_set_class, build_set_style_call,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::{
     TextOrExpr, process_children,
@@ -297,6 +297,30 @@ pub fn visit_regular_element(
             &css_hash,
         );
     } else {
+        // Find class attribute for special handling
+        let class_attribute = attributes.iter().find_map(|attr| {
+            if let Attribute::Attribute(a) = attr
+                && a.name == "class"
+            {
+                return Some(a);
+            }
+            None
+        });
+
+        // Find style attribute for special handling
+        let _style_attribute = attributes.iter().find_map(|attr| {
+            if let Attribute::Attribute(a) = attr
+                && a.name == "style"
+            {
+                return Some(a);
+            }
+            None
+        });
+
+        // Check if element needs CSS scoping
+        let is_scoped =
+            context.state.analysis.css.has_css && !context.state.analysis.css.hash.is_empty();
+
         // Process attributes in source order (like official JS implementation)
         // Event attributes are handled by visit_event_attribute and continue
         for attribute in &attributes {
@@ -314,13 +338,21 @@ pub fn visit_regular_element(
                     continue;
                 }
 
+                // Skip class attribute if there are class directives - will be handled separately
+                if name == "class" && !class_directives.is_empty() {
+                    continue;
+                }
+
+                // Skip style attribute if there are style directives - will be handled separately
+                if name == "style" && !style_directives.is_empty() {
+                    continue;
+                }
+
                 // Static text attributes can go in the template
                 let is_true_value = matches!(&attr.value, AttributeValue::True(true));
                 if !is_custom_element
                     && !cannot_be_set_statically(&attr.name)
                     && (is_true_value || is_text_attribute(attr))
-                    && (name != "class" || class_directives.is_empty())
-                    && (name != "style" || style_directives.is_empty())
                 {
                     let mut value = if is_text_attribute(attr) {
                         if let AttributeValue::Sequence(parts) = &attr.value {
@@ -337,11 +369,8 @@ pub fn visit_regular_element(
                         String::new()
                     };
 
-                    // Add scoped class if needed
-                    if name == "class"
-                        && context.state.analysis.css.has_css
-                        && !context.state.analysis.css.hash.is_empty()
-                    {
+                    // Add scoped class if needed (only for class without class directives)
+                    if name == "class" && is_scoped {
                         let hash = &context.state.analysis.css.hash;
                         if value.is_empty() {
                             value = hash.clone();
@@ -374,6 +403,26 @@ pub fn visit_regular_element(
                         b::member_path("$.autofocus"),
                         vec![b::id(&node_id), result.value],
                     )));
+                } else if name == "class" {
+                    // Dynamic class attribute without class directives
+                    let is_html = context.state.metadata.namespace != "svg";
+                    let node_id = extract_node_id(&context.state.node);
+                    build_set_class(
+                        node,
+                        &node_id,
+                        Some(&attr.value),
+                        &[], // No class directives
+                        context,
+                        is_html,
+                        &context.state.analysis.css.hash.clone(),
+                        is_scoped,
+                    );
+                } else if name == "style" {
+                    // Dynamic style attribute without style directives - handled via build_set_style
+                    let node_id = extract_node_id(&context.state.node);
+                    let node_expr = b::id(&node_id);
+                    let set_style = build_set_style_call(node_expr, &[], context);
+                    context.state.init.push(b::stmt(set_style));
                 } else if is_custom_element {
                     // Custom element: use $.set_custom_element_data
                     let result =
@@ -419,24 +468,27 @@ pub fn visit_regular_element(
             }
         }
 
-        // Handle class directives
+        // Handle class directives (with or without class attribute)
         if !class_directives.is_empty() {
             let node_id = extract_node_id(&context.state.node);
-            let node_expr = b::id(&node_id);
             let is_html = context.state.metadata.namespace != "svg";
 
-            let set_class = build_set_class_call(
+            // Get the class attribute value if it exists
+            let class_attr_value = class_attribute.map(|attr| &attr.value);
+
+            build_set_class(
                 node,
-                node_expr,
+                &node_id,
+                class_attr_value,
                 &class_directives,
                 context,
                 is_html,
                 &context.state.analysis.css.hash.clone(),
+                is_scoped,
             );
-            context.state.init.push(b::stmt(set_class));
         }
 
-        // Handle style directives
+        // Handle style directives (with or without style attribute)
         if !style_directives.is_empty() {
             let node_id = extract_node_id(&context.state.node);
             let node_expr = b::id(&node_id);
