@@ -538,7 +538,23 @@ pub fn transition_conflict(a: &str, b: &str) -> AnalysisError {
 pub fn animation_duplicate() -> AnalysisError {
     error(
         "animation_duplicate",
-        "An element can only have one animate directive",
+        "An element can only have one 'animate' directive\nhttps://svelte.dev/e/animation_duplicate",
+    )
+}
+
+/// An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block
+pub fn animation_invalid_placement() -> AnalysisError {
+    error(
+        "animation_invalid_placement",
+        "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+    )
+}
+
+/// An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block. Did you forget to add a key to your each block?
+pub fn animation_missing_key() -> AnalysisError {
+    error(
+        "animation_missing_key",
+        "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block. Did you forget to add a key to your each block?\nhttps://svelte.dev/e/animation_missing_key",
     )
 }
 
@@ -678,7 +694,29 @@ pub fn reactive_declaration_cycle(cycle: &str) -> AnalysisError {
 pub fn tag_invalid_placement(name: &str, location: &str) -> AnalysisError {
     error(
         "tag_invalid_placement",
-        format!("{{@{} ...}} tag cannot be {}", name, location),
+        format!(
+            "{{@{} ...}} tag cannot be {}\nhttps://svelte.dev/e/tag_invalid_placement",
+            name, location
+        ),
+    )
+}
+
+/// %message%. The browser will 'repair' the HTML (by moving, removing, or inserting elements) which breaks Svelte's assumptions about the structure of your components.
+pub fn node_invalid_placement(message: &str) -> AnalysisError {
+    error(
+        "node_invalid_placement",
+        format!(
+            "{}. The browser will 'repair' the HTML (by moving, removing, or inserting elements) which breaks Svelte's assumptions about the structure of your components.\nhttps://svelte.dev/e/node_invalid_placement",
+            message
+        ),
+    )
+}
+
+/// A `<textarea>` can have either a value attribute or (equivalently) child content, but not both
+pub fn textarea_invalid_content() -> AnalysisError {
+    error(
+        "textarea_invalid_content",
+        "A `<textarea>` can have either a value attribute or (equivalently) child content, but not both\nhttps://svelte.dev/e/textarea_invalid_content",
     )
 }
 
@@ -689,6 +727,144 @@ pub fn mixed_event_handler_syntaxes(name: &str) -> AnalysisError {
         format!(
             "Mixing old (on:{}) and new syntaxes for event handling is not allowed. Use only the on{} syntax\nhttps://svelte.dev/e/mixed_event_handler_syntaxes",
             name, name
+        ),
+    )
+}
+
+/// Imports of `svelte/internal/*` are forbidden
+pub fn import_svelte_internal_forbidden() -> AnalysisError {
+    error(
+        "import_svelte_internal_forbidden",
+        "Imports of `svelte/internal/*` are forbidden. It contains private runtime code which is subject to change without notice.\nhttps://svelte.dev/e/import_svelte_internal_forbidden",
+    )
+}
+
+/// %name% cannot be used in runes mode
+pub fn runes_mode_invalid_import(name: &str) -> AnalysisError {
+    error(
+        "runes_mode_invalid_import",
+        format!(
+            "{} cannot be used in runes mode\nhttps://svelte.dev/e/runes_mode_invalid_import",
+            name
+        ),
+    )
+}
+
+/// Cannot use `export let` in runes mode — use `$props()` instead
+pub fn legacy_export_invalid() -> AnalysisError {
+    error(
+        "legacy_export_invalid",
+        "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid",
+    )
+}
+
+/// Cannot subscribe to stores that are not declared at the top level of the component
+pub fn store_invalid_scoped_subscription() -> AnalysisError {
+    error(
+        "store_invalid_scoped_subscription",
+        "Cannot subscribe to stores that are not declared at the top level of the component\nhttps://svelte.dev/e/store_invalid_scoped_subscription",
+    )
+}
+
+/// Cannot reference store value inside `<script module>`
+pub fn store_invalid_subscription() -> AnalysisError {
+    error(
+        "store_invalid_subscription",
+        "Cannot reference store value inside `<script module>`\nhttps://svelte.dev/e/store_invalid_subscription",
+    )
+}
+
+/// `%name%` is not defined
+pub fn export_undefined(name: &str) -> AnalysisError {
+    error(
+        "export_undefined",
+        format!(
+            "`{}` is not defined\nhttps://svelte.dev/e/export_undefined",
+            name
+        ),
+    )
+}
+
+/// Duplicate slot name '%name%' in <%component%>
+pub fn slot_attribute_duplicate(name: &str, component: &str) -> AnalysisError {
+    error(
+        "slot_attribute_duplicate",
+        format!(
+            "Duplicate slot name '{}' in <{}>\nhttps://svelte.dev/e/slot_attribute_duplicate",
+            name, component
+        ),
+    )
+}
+
+/// Found default slot content alongside an explicit slot="default"
+pub fn slot_default_duplicate() -> AnalysisError {
+    error(
+        "slot_default_duplicate",
+        "Found default slot content alongside an explicit slot=\"default\"\nhttps://svelte.dev/e/slot_default_duplicate",
+    )
+}
+
+/// This snippet is shadowing the prop `%prop%` with the same name
+pub fn snippet_shadowing_prop(prop: &str) -> AnalysisError {
+    error(
+        "snippet_shadowing_prop",
+        format!(
+            "This snippet is shadowing the prop `{}` with the same name\nhttps://svelte.dev/e/snippet_shadowing_prop",
+            prop
+        ),
+    )
+}
+
+/// Element with a slot='...' attribute must be a child of a component or a descendant of a custom element
+pub fn slot_attribute_invalid_placement() -> AnalysisError {
+    error(
+        "slot_attribute_invalid_placement",
+        "Element with a slot='...' attribute must be a child of a component or a descendant of a custom element\nhttps://svelte.dev/e/slot_attribute_invalid_placement",
+    )
+}
+
+/// slot attribute must be a static value
+pub fn slot_attribute_invalid() -> AnalysisError {
+    error(
+        "slot_attribute_invalid",
+        "slot attribute must be a static value\nhttps://svelte.dev/e/slot_attribute_invalid",
+    )
+}
+
+/// `<svelte:fragment>` must be the direct child of a component
+pub fn svelte_fragment_invalid_placement() -> AnalysisError {
+    error(
+        "svelte_fragment_invalid_placement",
+        "`<svelte:fragment>` must be the direct child of a component\nhttps://svelte.dev/e/svelte_fragment_invalid_placement",
+    )
+}
+
+/// Cyclical dependency detected: %cycle%
+pub fn const_tag_cycle(cycle: &str) -> AnalysisError {
+    error(
+        "const_tag_cycle",
+        format!(
+            "Cyclical dependency detected: {}\nhttps://svelte.dev/e/const_tag_cycle",
+            cycle
+        ),
+    )
+}
+
+/// Attribute shorthand cannot be empty
+pub fn attribute_empty_shorthand() -> AnalysisError {
+    error(
+        "attribute_empty_shorthand",
+        "Attribute shorthand cannot be empty\nhttps://svelte.dev/e/attribute_empty_shorthand",
+    )
+}
+
+/// `%type%` name cannot be empty
+pub fn directive_missing_name(directive_type: &str) -> AnalysisError {
+    error(
+        "directive_missing_name",
+        format!(
+            "`{}` name cannot be empty\nhttps://svelte.dev/e/directive_missing_name",
+            directive_type
         ),
     )
 }

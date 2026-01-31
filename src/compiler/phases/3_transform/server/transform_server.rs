@@ -2580,8 +2580,10 @@ impl<'a> ServerCodeGenerator<'a> {
             // These are client-side only and should not appear in SSR output
             let raw_script = remove_effect_blocks(&raw_script);
 
-            // Check if script uses $props()
-            let uses_props = raw_script.contains("$props()");
+            // Check if script uses $props() or export let (legacy props)
+            let uses_props = raw_script.contains("$props()")
+                || raw_script.contains("export let ")
+                || raw_script.contains("export var ");
 
             // Check if class fields use $state or $derived runes
             // This requires $$props and $$renderer.component() wrapper
@@ -4253,6 +4255,9 @@ fn transform_script_content(script: &str) -> String {
     let script = transform_rune_call_multiline(&script, "$derived(");
     // Transform store assignments: $count += 1 → $.store_set(count, ... + 1)
     let script = transform_store_assignments(&script);
+    // Transform export let declarations for legacy/non-runes mode
+    // This must be done before other transformations to properly handle props
+    let script = transform_export_let_declarations(&script);
 
     let mut result = String::new();
     let lines: Vec<&str> = script.lines().collect();
@@ -5137,4 +5142,239 @@ fn find_statement_end(s: &str) -> usize {
     }
 
     s.len()
+}
+
+/// Transform `export let` declarations for server-side rendering (legacy/non-runes mode).
+///
+/// This converts:
+/// - `export let foo;` → `let foo = $$props['foo'];`
+/// - `export let foo = 0;` → `let foo = $.fallback($$props['foo'], 0);`
+///
+/// This is used for Svelte 4 style components that use `export let` for props.
+fn transform_export_let_declarations(script: &str) -> String {
+    let mut result = String::new();
+    let mut lines = script.lines().peekable();
+
+    while let Some(line) = lines.next() {
+        let trimmed = line.trim();
+
+        // Check for `export let` or `export var` declaration
+        if trimmed.starts_with("export let ") || trimmed.starts_with("export var ") {
+            // Parse the declaration - both "export let " and "export var " are 11 chars
+            let rest = &trimmed[11..];
+
+            // Handle multi-line declarations by collecting until we hit a semicolon
+            let mut full_declaration = rest.to_string();
+            while !full_declaration.contains(';') && lines.peek().is_some() {
+                if let Some(next_line) = lines.next() {
+                    full_declaration.push(' ');
+                    full_declaration.push_str(next_line.trim());
+                }
+            }
+
+            // Remove trailing semicolon if present
+            let declaration = full_declaration.trim_end_matches(';').trim();
+
+            // Parse declarations (may be comma-separated: `export let a, b = 1, c;`)
+            let transformed = transform_single_export_let(declaration);
+            result.push_str(&transformed);
+            result.push('\n');
+        } else {
+            result.push_str(line);
+            result.push('\n');
+        }
+    }
+
+    // Remove trailing newline
+    if result.ends_with('\n') {
+        result.pop();
+    }
+
+    result
+}
+
+/// Transform a single `export let` declaration (after removing the `export let` prefix).
+///
+/// Input: `foo` or `foo = 0` or `foo, bar = 1`
+/// Output: `let foo = $$props['foo'];` or `let foo = $.fallback($$props['foo'], 0);`
+fn transform_single_export_let(declaration: &str) -> String {
+    let mut result = String::new();
+
+    // Split by comma (handling nested structures like objects/arrays)
+    let declarators = split_declarators(declaration);
+
+    for declarator in declarators {
+        let declarator = declarator.trim();
+        if declarator.is_empty() {
+            continue;
+        }
+
+        // Check if there's a default value
+        if let Some(eq_pos) = find_assignment_in_declarator(declarator) {
+            let name = declarator[..eq_pos].trim();
+            let default_value = declarator[eq_pos + 1..].trim();
+
+            // Use $.fallback for default values
+            // Simple values are passed directly, complex ones as thunks
+            let transformed_default = if is_simple_default_value(default_value) {
+                format!(
+                    "let {} = $.fallback($$props['{}'], {});",
+                    name, name, default_value
+                )
+            } else {
+                // Complex defaults need thunks
+                format!(
+                    "let {} = $.fallback($$props['{}'], () => ({}), true);",
+                    name, name, default_value
+                )
+            };
+            result.push_str(&transformed_default);
+        } else {
+            // No default value
+            let name = declarator.trim();
+            result.push_str(&format!("let {} = $$props['{}'];", name, name));
+        }
+        result.push('\n');
+    }
+
+    // Remove trailing newline
+    if result.ends_with('\n') {
+        result.pop();
+    }
+
+    result
+}
+
+/// Split declarators by comma, respecting nested structures.
+fn split_declarators(declaration: &str) -> Vec<String> {
+    let mut result = Vec::new();
+    let mut current = String::new();
+    let mut depth = 0;
+    let chars: Vec<char> = declaration.chars().collect();
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    for (i, &c) in chars.iter().enumerate() {
+        // Handle string literals
+        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char {
+                in_string = false;
+            }
+            current.push(c);
+            continue;
+        }
+
+        if in_string {
+            current.push(c);
+            continue;
+        }
+
+        match c {
+            '(' | '[' | '{' => {
+                depth += 1;
+                current.push(c);
+            }
+            ')' | ']' | '}' => {
+                depth -= 1;
+                current.push(c);
+            }
+            ',' if depth == 0 => {
+                result.push(current.trim().to_string());
+                current = String::new();
+            }
+            _ => current.push(c),
+        }
+    }
+
+    if !current.trim().is_empty() {
+        result.push(current.trim().to_string());
+    }
+
+    result
+}
+
+/// Find the position of the assignment operator in a declarator.
+/// Returns None if there's no assignment, or Some(pos) where pos is the index of '='.
+fn find_assignment_in_declarator(declarator: &str) -> Option<usize> {
+    let mut depth = 0;
+    let chars: Vec<char> = declarator.chars().collect();
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    for (i, &c) in chars.iter().enumerate() {
+        // Handle string literals
+        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char {
+                in_string = false;
+            }
+            continue;
+        }
+
+        if in_string {
+            continue;
+        }
+
+        match c {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            '=' if depth == 0 => {
+                // Make sure it's not ==, ===, =>, etc.
+                let prev = if i > 0 {
+                    chars.get(i - 1).copied()
+                } else {
+                    None
+                };
+                let next = chars.get(i + 1).copied();
+                if prev != Some('=')
+                    && prev != Some('!')
+                    && prev != Some('<')
+                    && prev != Some('>')
+                    && next != Some('=')
+                    && next != Some('>')
+                {
+                    return Some(i);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    None
+}
+
+/// Check if a default value is "simple" (can be passed directly to $.fallback).
+/// Simple values: literals (numbers, strings, booleans, null, undefined)
+fn is_simple_default_value(value: &str) -> bool {
+    let trimmed = value.trim();
+
+    // Numbers
+    if trimmed.parse::<f64>().is_ok() {
+        return true;
+    }
+
+    // Booleans and special values
+    if matches!(trimmed, "true" | "false" | "null" | "undefined") {
+        return true;
+    }
+
+    // String literals
+    if (trimmed.starts_with('"') && trimmed.ends_with('"'))
+        || (trimmed.starts_with('\'') && trimmed.ends_with('\''))
+        || (trimmed.starts_with('`') && trimmed.ends_with('`'))
+    {
+        return true;
+    }
+
+    // Empty array/object literals
+    if trimmed == "[]" || trimmed == "{}" {
+        return true;
+    }
+
+    false
 }

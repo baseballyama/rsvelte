@@ -471,3 +471,17 @@ pub fn custom_element_props_identifier() -> AnalysisWarning {
         "When creating a custom element, props should be defined using the `customElement.props` compiler option",
     )
 }
+
+// Node placement warnings
+
+/// Node placement SSR warning - when an element placement is invalid but can work on client
+/// because it's inside a conditional block that creates separate template strings.
+pub fn node_invalid_placement_ssr(message: &str) -> AnalysisWarning {
+    warning(
+        "node_invalid_placement_ssr",
+        format!(
+            "{}. When rendering this component on the server, the resulting HTML will be modified by the browser (by moving, removing, or inserting elements), likely resulting in a `hydration_mismatch` warning\nhttps://svelte.dev/e/node_invalid_placement_ssr",
+            message
+        ),
+    )
+}

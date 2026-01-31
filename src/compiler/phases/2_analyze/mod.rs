@@ -63,6 +63,14 @@ pub fn analyze_component(
 ) -> Result<ComponentAnalysis, AnalysisError> {
     let mut analysis = ComponentAnalysis::new(source, options);
 
+    // Merge svelte:options from the parsed AST into the analysis
+    // This handles cases like <svelte:options runes /> that set runes mode
+    if let Some(ref svelte_options) = ast.options
+        && let Some(runes) = svelte_options.runes
+    {
+        analysis.runes = runes;
+    }
+
     // Extract script content for Phase 3 (avoids re-parsing)
     analysis.extract_scripts(ast);
 
@@ -75,15 +83,26 @@ pub fn analyze_component(
     store_subscriptions::detect_store_subscriptions(ast, &mut analysis);
 
     // Analyze scripts (JavaScript AST)
+    // In Svelte's implementation, the scope function_depth works as follows:
+    // - Module scope: function_depth = 0
+    // - Instance scope: function_depth = 1 (child of module scope, not porous)
+    // - Functions inside instance: function_depth = 2, etc.
+    // We mirror this by setting the initial function_depth based on ast_type.
     if let Some(ref instance) = ast.instance {
         let script_ast = instance.content.as_json();
         let mut context = visitors::VisitorContext::new(&mut analysis);
+        context.ast_type = visitors::AstType::Instance;
+        // Instance script starts at function_depth 1 (like Svelte's scope system)
+        context.function_depth = 1;
         visitors::visit_script(script_ast, &mut context)?;
     }
 
     if let Some(ref module) = ast.module {
         let script_ast = module.content.as_json();
         let mut context = visitors::VisitorContext::new(&mut analysis);
+        context.ast_type = visitors::AstType::Module;
+        // Module script stays at function_depth 0
+        context.function_depth = 0;
         visitors::visit_script(script_ast, &mut context)?;
     }
 

@@ -5,6 +5,8 @@
 //! Corresponds to Svelte's `2-analyze/visitors/RegularElement.js`.
 
 use super::super::AnalysisError;
+use super::super::errors;
+use super::super::warnings;
 use super::VisitorContext;
 use super::attribute;
 use super::bind_directive;
@@ -269,6 +271,55 @@ fn is_tag_valid_with_parent(child_tag: &str, parent_tag: &str) -> Option<String>
     }
 }
 
+/// Elements that cannot contain certain descendants.
+/// Based on the disallowed_children map from html-tree-validation.js.
+fn get_disallowed_descendant(
+    ancestor_tag: &str,
+    _child_tag: &str,
+) -> Option<&'static [&'static str]> {
+    match ancestor_tag {
+        "p" => Some(&[
+            "address",
+            "article",
+            "aside",
+            "blockquote",
+            "div",
+            "dl",
+            "fieldset",
+            "footer",
+            "form",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+            "header",
+            "hgroup",
+            "hr",
+            "main",
+            "menu",
+            "nav",
+            "ol",
+            "p",
+            "pre",
+            "section",
+            "table",
+            "ul",
+        ]),
+        "form" => Some(&["form"]),
+        "a" => Some(&["a"]),
+        "button" => Some(&["button"]),
+        "h1" | "h2" | "h3" | "h4" | "h5" | "h6" => Some(&["h1", "h2", "h3", "h4", "h5", "h6"]),
+        "li" => Some(&["li"]),
+        "dt" | "dd" => Some(&["dt", "dd"]),
+        "rt" | "rp" => Some(&["rt", "rp"]),
+        "optgroup" => Some(&["optgroup"]),
+        "option" => Some(&["option", "optgroup"]),
+        _ => None,
+    }
+}
+
 /// Check if a tag is valid with an ancestor.
 /// Returns an error message if invalid, or None if valid.
 fn is_tag_valid_with_ancestor(child_tag: &str, ancestors: &[String]) -> Option<String> {
@@ -279,31 +330,22 @@ fn is_tag_valid_with_ancestor(child_tag: &str, ancestors: &[String]) -> Option<S
 
     let ancestor_tag = ancestors.last()?;
 
-    // Check descendant rules
-    // Simplified version of the disallowed_children map
-    match ancestor_tag.as_str() {
-        "form" if child_tag == "form" => Some(format!(
-            "`<{}>` cannot be a descendant of `<{}>",
-            child_tag, ancestor_tag
-        )),
-        "a" if child_tag == "a" => Some(format!(
-            "`<{}>` cannot be a descendant of `<{}>",
-            child_tag, ancestor_tag
-        )),
-        "button" if child_tag == "button" => Some(format!(
-            "`<{}>` cannot be a descendant of `<{}>",
-            child_tag, ancestor_tag
-        )),
-        "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
-            if matches!(child_tag, "h1" | "h2" | "h3" | "h4" | "h5" | "h6") =>
-        {
-            Some(format!(
-                "`<{}>` cannot be a descendant of `<{}>",
-                child_tag, ancestor_tag
-            ))
-        }
-        _ => None,
+    // Custom elements can be anything
+    if ancestor_tag.contains('-') {
+        return None;
     }
+
+    // Check descendant rules
+    if let Some(disallowed) = get_disallowed_descendant(ancestor_tag, child_tag)
+        && disallowed.contains(&child_tag)
+    {
+        return Some(format!(
+            "`<{}>` cannot be a descendant of `<{}>`",
+            child_tag, ancestor_tag
+        ));
+    }
+
+    None
 }
 
 /// Create a synthetic attribute for the textarea value.
@@ -389,53 +431,84 @@ pub fn visit(
             match attr_node.name.as_str() {
                 "class" => {
                     // Extract class names from attribute value
-                    if let AttributeValue::Sequence(parts) = &attr_node.value {
-                        for part in parts {
-                            match part {
-                                AttributeValuePart::Text(text) => {
-                                    // Static text classes
-                                    for class_name in text.data.split_whitespace() {
-                                        context
-                                            .analysis
-                                            .css
-                                            .used_classes
-                                            .insert(class_name.to_string());
-                                        // Also add to element's classes for DOM structure
-                                        element_classes.insert(class_name.to_string());
+                    match &attr_node.value {
+                        AttributeValue::Sequence(parts) => {
+                            for part in parts {
+                                match part {
+                                    AttributeValuePart::Text(text) => {
+                                        // Static text classes
+                                        for class_name in text.data.split_whitespace() {
+                                            context
+                                                .analysis
+                                                .css
+                                                .used_classes
+                                                .insert(class_name.to_string());
+                                            // Also add to element's classes for DOM structure
+                                            element_classes.insert(class_name.to_string());
+                                        }
                                     }
-                                }
-                                AttributeValuePart::ExpressionTag(expr_tag) => {
-                                    // Dynamic expression classes
-                                    // Serialize the expression to JSON to analyze it
-                                    if let Ok(expr_json) =
-                                        serde_json::to_value(&expr_tag.expression)
-                                    {
-                                        use super::super::css::get_possible_values;
-                                        if let Some(possible_values) =
-                                            get_possible_values(&expr_json, true)
+                                    AttributeValuePart::ExpressionTag(expr_tag) => {
+                                        // Dynamic expression classes
+                                        // Serialize the expression to JSON to analyze it
+                                        if let Ok(expr_json) =
+                                            serde_json::to_value(&expr_tag.expression)
                                         {
-                                            // We can statically determine the classes
-                                            for value in &possible_values {
-                                                for class_name in value.split_whitespace() {
-                                                    context
-                                                        .analysis
-                                                        .css
-                                                        .used_classes
-                                                        .insert(class_name.to_string());
-                                                    element_classes.insert(class_name.to_string());
+                                            use super::super::css::get_possible_values;
+                                            if let Some(possible_values) =
+                                                get_possible_values(&expr_json, true)
+                                            {
+                                                // We can statically determine the classes
+                                                for value in &possible_values {
+                                                    for class_name in value.split_whitespace() {
+                                                        context
+                                                            .analysis
+                                                            .css
+                                                            .used_classes
+                                                            .insert(class_name.to_string());
+                                                        element_classes
+                                                            .insert(class_name.to_string());
+                                                    }
                                                 }
+                                            } else {
+                                                // Unknown expression - mark as dynamic
+                                                context.analysis.css.has_dynamic_classes = true;
                                             }
                                         } else {
-                                            // Unknown expression - mark as dynamic
+                                            // Failed to serialize - mark as dynamic
                                             context.analysis.css.has_dynamic_classes = true;
                                         }
-                                    } else {
-                                        // Failed to serialize - mark as dynamic
-                                        context.analysis.css.has_dynamic_classes = true;
                                     }
                                 }
                             }
                         }
+                        AttributeValue::Expression(expr_tag) => {
+                            // Expression as attribute value: class={{ ... }}
+                            // Serialize the expression to JSON to analyze it
+                            if let Ok(expr_json) = serde_json::to_value(&expr_tag.expression) {
+                                use super::super::css::get_possible_values;
+                                if let Some(possible_values) = get_possible_values(&expr_json, true)
+                                {
+                                    // We can statically determine the classes
+                                    for value in &possible_values {
+                                        for class_name in value.split_whitespace() {
+                                            context
+                                                .analysis
+                                                .css
+                                                .used_classes
+                                                .insert(class_name.to_string());
+                                            element_classes.insert(class_name.to_string());
+                                        }
+                                    }
+                                } else {
+                                    // Unknown expression - mark as dynamic
+                                    context.analysis.css.has_dynamic_classes = true;
+                                }
+                            } else {
+                                // Failed to serialize - mark as dynamic
+                                context.analysis.css.has_dynamic_classes = true;
+                            }
+                        }
+                        _ => {}
                     }
                 }
                 "id" => {
@@ -464,9 +537,7 @@ pub fn visit(
             if let Attribute::Attribute(attr_node) = attr
                 && attr_node.name == "value"
             {
-                return Err(AnalysisError::Validation(
-                        "<textarea> cannot have both a value attribute and content. For binding use `bind:value`, for unidirectional data flow, use an `on*` event handler".to_string()
-                    ));
+                return Err(errors::textarea_invalid_content());
             }
         }
 
@@ -570,60 +641,58 @@ pub fn visit(
         mark_subtree_dynamic(&context.path);
     }
 
-    // Validate parent/ancestor relationships
+    // Validate parent/ancestor relationships using element_ancestors stack
+    // Follows the official Svelte implementation logic:
+    // - If there's a block (IfBlock, EachBlock, AwaitBlock, KeyBlock) between the element
+    //   and its ancestors, issue a warning (only_warn) instead of an error
+    // - This is because blocks create separate template strings on the client side
     if let Some(parent_element) = &context.parent_element {
-        let mut past_parent = false;
-        let mut only_warn = false;
-        let mut ancestors = vec![parent_element.clone()];
+        // Determine if there's a block between this element and any ancestor
+        // We compare current block_depth with the block_depth when each ancestor was entered
+        let current_block_depth = context.block_depth;
 
-        for i in (0..context.path.len()).rev() {
-            if let Some(ancestor) = context.path.get(i) {
-                // Check if we're in a control flow block (separate template string)
-                if matches!(
-                    ancestor,
-                    TemplateNode::IfBlock(_)
-                        | TemplateNode::EachBlock(_)
-                        | TemplateNode::AwaitBlock(_)
-                        | TemplateNode::KeyBlock(_)
-                ) {
-                    only_warn = true;
-                }
+        // Check direct parent first
+        if let Some(message) = is_tag_valid_with_parent(&element.name, parent_element) {
+            // Check if there's a block between us and the parent
+            let parent_block_depth = context.block_depth_at_element.last().copied().unwrap_or(0);
+            let only_warn = current_block_depth > parent_block_depth;
 
-                if !past_parent {
-                    if let TemplateNode::RegularElement(ancestor_el) = ancestor
-                        && ancestor_el.name == parent_element
-                    {
-                        if let Some(message) =
-                            is_tag_valid_with_parent(&element.name, parent_element)
-                        {
-                            if only_warn {
-                                // Would generate warning: w.node_invalid_placement_ssr(node, message)
-                            } else {
-                                return Err(AnalysisError::Validation(message));
-                            }
-                        }
-                        past_parent = true;
-                    }
-                } else if let TemplateNode::RegularElement(ancestor_el) = ancestor {
-                    ancestors.push(ancestor_el.name.to_string());
+            if only_warn {
+                context.emit_warning(warnings::node_invalid_placement_ssr(&message));
+            } else {
+                return Err(errors::node_invalid_placement(&message));
+            }
+        }
 
-                    if let Some(message) = is_tag_valid_with_ancestor(&element.name, &ancestors) {
-                        if only_warn {
-                            // Would generate warning: w.node_invalid_placement_ssr(node, message)
-                        } else {
-                            return Err(AnalysisError::Validation(message));
-                        }
-                    }
-                } else if matches!(
-                    ancestor,
-                    TemplateNode::Component(_)
-                        | TemplateNode::SvelteComponent(_)
-                        | TemplateNode::SvelteElement(_)
-                        | TemplateNode::SvelteSelf(_)
-                        | TemplateNode::SnippetBlock(_)
-                ) {
-                    break;
-                }
+        // Check all ancestors for descendant restrictions
+        // We need to check each ancestor individually
+        // Collect warnings first to avoid borrow conflicts
+        let mut ancestor_warnings: Vec<(String, bool)> = Vec::new();
+
+        for (i, ancestor_name) in context.element_ancestors.iter().enumerate() {
+            if let Some(disallowed) = get_disallowed_descendant(ancestor_name, &element.name)
+                && disallowed.contains(&element.name.as_str())
+            {
+                let message = format!(
+                    "`<{}>` cannot be a descendant of `<{}>`",
+                    element.name, ancestor_name
+                );
+
+                // Check if there's a block between us and this ancestor
+                let ancestor_block_depth =
+                    context.block_depth_at_element.get(i).copied().unwrap_or(0);
+                let only_warn = current_block_depth > ancestor_block_depth;
+
+                ancestor_warnings.push((message, only_warn));
+            }
+        }
+
+        // Now emit warnings or return errors
+        for (message, only_warn) in ancestor_warnings {
+            if only_warn {
+                context.emit_warning(warnings::node_invalid_placement_ssr(&message));
+            } else {
+                return Err(errors::node_invalid_placement(&message));
             }
         }
     }
@@ -741,6 +810,11 @@ pub fn visit(
         unsafe { &*(element as *const RegularElement as *const TemplateNode) };
     context.path.push(element_ref);
 
+    // Push this element to element_ancestors for node_invalid_placement validation
+    context.element_ancestors.push(element.name.to_string());
+    // Track the block depth when entering this element
+    context.block_depth_at_element.push(context.block_depth);
+
     // Push this element index to DOM element stack for tracking children
     context.dom_element_stack.push(element_idx);
 
@@ -749,6 +823,10 @@ pub fn visit(
 
     // Pop this element from DOM element stack
     context.dom_element_stack.pop();
+
+    // Pop this element from element_ancestors and block depth tracking
+    context.element_ancestors.pop();
+    context.block_depth_at_element.pop();
 
     // Pop this element from the path
     context.path.pop();

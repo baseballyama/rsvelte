@@ -3491,6 +3491,7 @@ fn create_loc_for_binding_identifier(start: usize, end: usize, line_offsets: &[u
 }
 
 /// Calculate line offsets for a string.
+#[allow(dead_code)]
 fn calculate_line_offsets(content: &str) -> Vec<usize> {
     let mut offsets = vec![0];
     for (i, c) in content.char_indices() {
@@ -3501,29 +3502,31 @@ fn calculate_line_offsets(content: &str) -> Vec<usize> {
     offsets
 }
 
-/// Create loc for script content using script-relative coordinates.
-/// Svelte uses the script content's line numbers but starting from line 1 of the document.
+/// Create loc for script Program node using document coordinates.
+/// Svelte uses locator(script_tag_start) for start and locator(script_tag_end) for end.
 fn create_loc_for_script(
-    _start: usize,
-    end: usize,
-    _script_line_offsets: &[usize],
-    doc_offset: usize,
+    script_tag_start: usize,
+    script_tag_end: usize,
     doc_line_offsets: &[usize],
 ) -> Value {
-    // Svelte uses a hybrid approach for Program.loc:
-    // - start: always line 1, column 0 (script-relative)
-    // - end: document line and column position
-    let doc_end = doc_offset + end;
-    let end_loc = get_line_column(doc_end, doc_line_offsets);
+    // Svelte uses document coordinates for Program.loc:
+    // - loc.start: locator(script_tag_start) - position of <script>
+    // - loc.end: locator(script_tag_end) - position after </script>
+    let start_loc = get_line_column(script_tag_start, doc_line_offsets);
+    let end_loc = get_line_column(script_tag_end, doc_line_offsets);
 
     let mut loc = Map::new();
 
-    // Start is always line 1, column 0 (script-relative)
     let mut start_obj = Map::new();
-    start_obj.insert("line".to_string(), Value::Number(1.into()));
-    start_obj.insert("column".to_string(), Value::Number(0.into()));
+    start_obj.insert(
+        "line".to_string(),
+        Value::Number((start_loc.0 as i64).into()),
+    );
+    start_obj.insert(
+        "column".to_string(),
+        Value::Number((start_loc.1 as i64).into()),
+    );
 
-    // End uses document coordinates
     let mut end_obj = Map::new();
     end_obj.insert("line".to_string(), Value::Number((end_loc.0 as i64).into()));
     end_obj.insert(
@@ -3541,12 +3544,16 @@ fn create_loc_for_script(
 /// This is used for script tags.
 /// Set `is_typescript` to true if the script contains TypeScript.
 /// `leading_comments` are HTML comments that appeared before the script tag.
+/// `script_tag_start` and `script_tag_end` are positions for loc calculation
+/// (Svelte uses locator(start) for loc.start and locator(parser.index) for loc.end).
 pub fn parse_program(
     content: &str,
     offset: usize,
     line_offsets: &[usize],
     is_typescript: bool,
     leading_comments: &[String],
+    script_tag_start: usize,
+    script_tag_end: usize,
 ) -> Expression {
     let allocator = Allocator::default();
     let source_type = if is_typescript {
@@ -3569,18 +3576,12 @@ pub fn parse_program(
     obj.insert("start".to_string(), Value::Number((start as i64).into()));
     obj.insert("end".to_string(), Value::Number((end as i64).into()));
 
-    // For Program loc, Svelte uses the script content's own coordinate system
-    // This means column 0 at the start of the script content
-    let script_line_offsets = calculate_line_offsets(content);
+    // For Program loc, Svelte uses document coordinates:
+    // - loc.start: locator(script_tag_start) - position of <script>
+    // - loc.end: locator(script_tag_end) - position after </script>
     obj.insert(
         "loc".to_string(),
-        create_loc_for_script(
-            program.span.start as usize,
-            program.span.end as usize,
-            &script_line_offsets,
-            offset,
-            line_offsets,
-        ),
+        create_loc_for_script(script_tag_start, script_tag_end, line_offsets),
     );
 
     // Convert body statements

@@ -1442,12 +1442,20 @@ fn is_expression_defined(expr: &crate::ast::js::Expression, context: &ComponentC
 
             match expr_type {
                 "Identifier" => {
-                    // Check if identifier is an EachIndex binding (always a number)
-                    if let Some(name) = obj.get("name").and_then(|v| v.as_str())
-                        && let Some(binding) = context.state.get_binding(name)
-                    {
-                        // EachIndex is always a number, never null/undefined
-                        return matches!(binding.kind, BindingKind::EachIndex);
+                    if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+                        // First, check if there's a transform with is_defined flag
+                        // This is how we track EachIndex within each block scope
+                        if let Some(transform) = context.state.transform.get(name)
+                            && transform.is_defined
+                        {
+                            return true;
+                        }
+
+                        // Fall back to checking the binding kind
+                        if let Some(binding) = context.state.get_binding(name) {
+                            // EachIndex is always a number, never null/undefined
+                            return matches!(binding.kind, BindingKind::EachIndex);
+                        }
                     }
                     false
                 }

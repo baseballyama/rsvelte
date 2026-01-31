@@ -152,7 +152,23 @@ impl<'a> Context<'a> {
     ///
     /// * `other` - The context to append
     pub fn append(&mut self, other: &Context) {
-        self.buffer.push_str(&other.buffer);
+        if other.buffer.is_empty() {
+            return;
+        }
+
+        // Add indentation for each line in the other context
+        let indent = INDENT_STRING.repeat(self.indent_level);
+        for (i, line) in other.buffer.split('\n').enumerate() {
+            if i > 0 {
+                self.buffer.push('\n');
+            }
+            // Add indentation at line start
+            if ((i == 0 && self.at_line_start) || i > 0) && !line.is_empty() {
+                self.buffer.push_str(&indent);
+            }
+            self.buffer.push_str(line);
+        }
+        self.at_line_start = other.buffer.ends_with('\n');
         if other.multiline {
             self.multiline = true;
         }

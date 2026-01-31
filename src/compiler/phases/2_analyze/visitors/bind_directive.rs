@@ -100,12 +100,29 @@ fn visit_common(
         }
 
         // Check for invalid parentheses in the binding expression
+        // But ignore parentheses that are inside comments (leading comments before the expression)
         if let Some(start) = directive
             .expression
             .as_json()
             .get("start")
             .and_then(|s| s.as_u64())
         {
+            // Get leading comments from the expression if available
+            let leading_comments = directive
+                .expression
+                .as_json()
+                .get("leadingComments")
+                .and_then(|c| c.as_array());
+
+            // Calculate comment range if we have leading comments
+            let comment_range: Option<(usize, usize)> = leading_comments.and_then(|comments| {
+                let first_comment = comments.first()?;
+                let last_comment = comments.last()?;
+                let comment_start = first_comment.get("start")?.as_u64()? as usize;
+                let comment_end = last_comment.get("end")?.as_u64()? as usize;
+                Some((comment_start, comment_end))
+            });
+
             let mut i = start as usize;
             while i > 0
                 && context.analysis.source.as_bytes().get(i.saturating_sub(1)) != Some(&b'{')
@@ -113,10 +130,26 @@ fn visit_common(
                 i -= 1;
             }
 
-            // Check for '(' between '{' and the expression
-            let substring = &context.analysis.source[i..start as usize];
-            if substring.contains('(') {
-                // TODO: Check if parenthesis is in a leading comment
+            // Check for '(' between '{' and the expression, but skip if inside a comment
+            let source_bytes = context.analysis.source.as_bytes();
+            let mut pos = i;
+            let mut found_invalid_paren = false;
+
+            while pos < start as usize {
+                if source_bytes.get(pos) == Some(&b'(') {
+                    // Check if this position is inside a comment
+                    let inside_comment = comment_range
+                        .is_some_and(|(c_start, c_end)| pos >= c_start && pos <= c_end);
+
+                    if !inside_comment {
+                        found_invalid_paren = true;
+                        break;
+                    }
+                }
+                pos += 1;
+            }
+
+            if found_invalid_paren {
                 return Err(AnalysisError::ValidationWithCode {
                     code: "bind_invalid_parens".to_string(),
                     message: format!(
@@ -544,6 +577,29 @@ fn validate_input_binding(
                     ));
                 }
             }
+        }
+    } else {
+        // No type attribute - validate bindings that require specific types
+        // Default input type is "text", so checked, files, and indeterminate are invalid
+        if binding_name == "checked" {
+            return Err(errors::bind_invalid_target(
+                binding_name,
+                "`<input type=\"checkbox\">`",
+            ));
+        }
+
+        if binding_name == "files" {
+            return Err(errors::bind_invalid_target(
+                binding_name,
+                "`<input type=\"file\">`",
+            ));
+        }
+
+        if binding_name == "indeterminate" {
+            return Err(errors::bind_invalid_target(
+                binding_name,
+                "`<input type=\"checkbox\">`",
+            ));
         }
     }
 

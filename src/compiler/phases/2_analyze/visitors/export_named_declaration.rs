@@ -7,6 +7,7 @@
 use super::VisitorContext;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use crate::compiler::phases::phase2_analyze::errors;
+use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase2_analyze::types::Export;
 use serde_json::Value;
 
@@ -94,6 +95,12 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
             // export const x = ...; or export let x = ...;
             Some("VariableDeclaration") => {
                 let kind = declaration.get("kind").and_then(|k| k.as_str());
+
+                // export let is forbidden in runes mode
+                if kind == Some("let") {
+                    return Err(errors::legacy_export_invalid());
+                }
+
                 // Only export const in runes mode
                 if kind == Some("const")
                     && let Some(declarators) =
@@ -104,13 +111,126 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
                         extract_identifiers_and_add_exports(declarator.get("id"), context);
                     }
                 }
-                // export let is forbidden in runes mode (error is thrown elsewhere)
             }
             _ => {}
         }
     }
 
+    // In legacy mode, `export let` creates bindable props
+    // This is handled separately from runes mode
+    if !context.analysis.runes
+        && context.ast_type == super::AstType::Instance
+        && let Some(declaration) = node.get("declaration")
+    {
+        let decl_type = declaration.get("type").and_then(|t| t.as_str());
+
+        if decl_type == Some("VariableDeclaration") {
+            let kind = declaration.get("kind").and_then(|k| k.as_str());
+            // In legacy mode, export let creates bindable props
+            if kind == Some("let")
+                && let Some(declarators) =
+                    declaration.get("declarations").and_then(|d| d.as_array())
+            {
+                for declarator in declarators {
+                    // Extract identifiers and mark them as bindable props
+                    mark_identifiers_as_bindable_props(declarator.get("id"), context);
+                }
+                // Set needs_props since we're using $.prop()
+                context.analysis.needs_props = true;
+            }
+        }
+    }
+
+    // Also handle `export { x }` specifiers in legacy mode
+    // These re-exports should also make the binding a bindable prop
+    if !context.analysis.runes
+        && context.ast_type == super::AstType::Instance
+        && let Some(specifiers) = node.get("specifiers").and_then(|s| s.as_array())
+    {
+        for specifier in specifiers {
+            if let Some(local) = specifier.get("local")
+                && let Some(local_name) = local.get("name").and_then(|n| n.as_str())
+            {
+                // Find and mark the binding as bindable_prop
+                if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(local_name)
+                    && let Some(binding) = context.analysis.root.bindings.get_mut(binding_idx)
+                {
+                    // Only mark let/var declarations as bindable props
+                    if matches!(
+                        binding.declaration_kind,
+                        crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Let
+                            | crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Var
+                    ) {
+                        binding.kind = BindingKind::BindableProp;
+
+                        // Set prop_alias if exported with a different name
+                        if let Some(exported) = specifier.get("exported")
+                            && let Some(exported_name) =
+                                exported.get("name").and_then(|n| n.as_str())
+                            && exported_name != local_name
+                        {
+                            binding.prop_alias = Some(exported_name.to_string());
+                        }
+                    }
+                }
+                // Set needs_props since we're using $.prop()
+                context.analysis.needs_props = true;
+            }
+        }
+    }
+
     Ok(())
+}
+
+/// Mark identifiers from a pattern as bindable props (for legacy `export let`).
+fn mark_identifiers_as_bindable_props(pattern: Option<&Value>, context: &mut VisitorContext) {
+    let pattern = match pattern {
+        Some(p) => p,
+        None => return,
+    };
+
+    let pattern_type = pattern.get("type").and_then(|t| t.as_str());
+
+    match pattern_type {
+        Some("Identifier") => {
+            if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
+                // Find and update the binding to be a bindable prop
+                if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name)
+                    && let Some(binding) = context.analysis.root.bindings.get_mut(binding_idx)
+                {
+                    binding.kind = BindingKind::BindableProp;
+                }
+            }
+        }
+        Some("ObjectPattern") => {
+            if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
+                for prop in properties {
+                    let prop_type = prop.get("type").and_then(|t| t.as_str());
+                    if prop_type == Some("Property") {
+                        mark_identifiers_as_bindable_props(prop.get("value"), context);
+                    } else if prop_type == Some("RestElement") {
+                        mark_identifiers_as_bindable_props(prop.get("argument"), context);
+                    }
+                }
+            }
+        }
+        Some("ArrayPattern") => {
+            if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
+                for elem in elements {
+                    if !elem.is_null() {
+                        mark_identifiers_as_bindable_props(Some(elem), context);
+                    }
+                }
+            }
+        }
+        Some("RestElement") => {
+            mark_identifiers_as_bindable_props(pattern.get("argument"), context);
+        }
+        Some("AssignmentPattern") => {
+            mark_identifiers_as_bindable_props(pattern.get("left"), context);
+        }
+        _ => {}
+    }
 }
 
 /// Extract identifiers from a pattern (Identifier, ObjectPattern, ArrayPattern)

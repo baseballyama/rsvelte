@@ -159,6 +159,18 @@ pub struct VisitorContext<'a> {
     /// Whether any event attributes (onclick, etc.) have been used.
     /// Used for mixed_event_handler_syntaxes validation.
     pub uses_event_attributes: bool,
+    /// Stack of ignored warning codes.
+    /// Each entry is a set of warning codes that should be ignored at that nesting level.
+    /// Corresponds to ignore_stack in Svelte's state.js.
+    pub ignore_stack: Vec<std::collections::HashSet<String>>,
+    /// Stack of ancestor element names for node_invalid_placement validation.
+    /// This is separate from path because path contains TemplateNode references that are difficult to manage.
+    pub element_ancestors: Vec<String>,
+    /// Tracks whether a block (IfBlock, EachBlock, AwaitBlock, KeyBlock) was entered
+    /// since the last element. This is used to determine whether node_invalid_placement
+    /// should be a warning (SSR) or error.
+    /// The value is the block depth at the time the element was entered.
+    pub block_depth_at_element: Vec<usize>,
 }
 
 /// Type of AST being analyzed.
@@ -200,6 +212,9 @@ impl<'a> VisitorContext<'a> {
             has_svelte_options: false,
             event_directive_node: None,
             uses_event_attributes: false,
+            ignore_stack: Vec::new(),
+            element_ancestors: Vec::new(),
+            block_depth_at_element: Vec::new(),
         }
     }
 
@@ -220,9 +235,40 @@ impl<'a> VisitorContext<'a> {
         self.dom_element_stack.last().copied()
     }
 
-    /// Emit a warning during analysis.
+    /// Push ignore codes onto the stack.
+    /// This is called when entering a node with preceding svelte-ignore comments.
+    pub fn push_ignore(&mut self, ignores: Vec<String>) {
+        // Combine with previous level's ignores
+        let mut combined = if let Some(prev) = self.ignore_stack.last() {
+            prev.clone()
+        } else {
+            std::collections::HashSet::new()
+        };
+        combined.extend(ignores);
+        self.ignore_stack.push(combined);
+    }
+
+    /// Pop ignore codes from the stack.
+    /// This is called when leaving a node that pushed ignores.
+    pub fn pop_ignore(&mut self) {
+        self.ignore_stack.pop();
+    }
+
+    /// Check if a warning code is currently being ignored.
+    pub fn is_ignored(&self, code: &str) -> bool {
+        if let Some(current_ignores) = self.ignore_stack.last() {
+            current_ignores.contains(code)
+        } else {
+            false
+        }
+    }
+
+    /// Emit a warning during analysis, but only if it's not being ignored.
     pub fn emit_warning(&mut self, warning: super::warnings::AnalysisWarning) {
-        self.analysis.warnings.push(warning);
+        // Check if this warning code is being ignored
+        if !self.is_ignored(&warning.code) {
+            self.analysis.warnings.push(warning);
+        }
     }
 
     /// Get the current expression being analyzed.
