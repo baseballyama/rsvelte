@@ -192,6 +192,8 @@ pub struct Binding {
     pub scope_index: usize,
     /// Initial value expression (if any)
     pub initial: Option<String>,
+    /// Whether the initial value is known to be defined (not null/undefined).
+    pub initial_is_defined: bool,
     /// All references to this binding (SmallVec avoids heap allocation for ≤4 refs)
     pub references: SmallVec<[BindingReference; 4]>,
     /// All mutations to this binding (SmallVec avoids heap allocation for ≤2 mutations)
@@ -234,6 +236,7 @@ impl Binding {
             mutated: false,
             scope_index,
             initial: None,
+            initial_is_defined: false,
             references: SmallVec::new(),
             mutations: SmallVec::new(),
             prop_alias: None,
@@ -256,6 +259,7 @@ impl Binding {
             mutated: false,
             scope_index,
             initial: None,
+            initial_is_defined: false,
             references: SmallVec::new(),
             mutations: SmallVec::new(),
             prop_alias: None,

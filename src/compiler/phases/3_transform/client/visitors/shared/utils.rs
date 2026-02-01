@@ -1861,6 +1861,17 @@ fn is_expression_defined_json(json_value: &serde_json::Value, context: &Componen
                     if matches!(binding.kind, BindingKind::EachIndex) {
                         return true;
                     }
+                    // For Normal const bindings with defined initial value
+                    if matches!(binding.kind, BindingKind::Normal)
+                        && !binding.reassigned
+                        && matches!(
+                            binding.declaration_kind,
+                            crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Const
+                        )
+                        && binding.initial_is_defined
+                    {
+                        return true;
+                    }
                 }
             }
             false

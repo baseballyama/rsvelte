@@ -99,6 +99,7 @@ fn visit_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<(), An
             {
                 let binding = &mut context.analysis.root.bindings[binding_idx];
                 binding.initial = extract_literal_string(init);
+                binding.initial_is_defined = is_expression_defined(init);
             }
         }
     }
@@ -435,6 +436,7 @@ fn visit_non_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<()
             {
                 let binding = &mut context.analysis.root.bindings[binding_idx];
                 binding.initial = extract_literal_string(init);
+                binding.initial_is_defined = is_expression_defined(init);
             }
         }
     }
@@ -561,6 +563,74 @@ fn extract_paths_recursive(pattern: &Value, paths: &mut Vec<Value>, is_rest: boo
             }
         }
         _ => {}
+    }
+}
+
+/// Check if an expression is guaranteed to produce a defined value.
+fn is_expression_defined(node: &Value) -> bool {
+    let Some(node_type) = node.get("type").and_then(|t| t.as_str()) else {
+        return false;
+    };
+    match node_type {
+        "Literal" => {
+            if let Some(value) = node.get("value") {
+                !value.is_null()
+            } else {
+                node.get("raw")
+                    .and_then(|r| r.as_str())
+                    .map(|r| r != "null")
+                    .unwrap_or(false)
+            }
+        }
+        "BinaryExpression" => {
+            let op = node.get("operator").and_then(|o| o.as_str()).unwrap_or("");
+            matches!(
+                op,
+                "==" | "!=" | "===" | "!==" | "<" | ">" | "<=" | ">=" | "instanceof" | "in"
+            )
+        }
+        "LogicalExpression" => {
+            let op = node.get("operator").and_then(|o| o.as_str()).unwrap_or("");
+            if op == "??" {
+                node.get("right")
+                    .map(is_expression_defined)
+                    .unwrap_or(false)
+            } else {
+                false
+            }
+        }
+        "UnaryExpression" => {
+            let op = node.get("operator").and_then(|o| o.as_str()).unwrap_or("");
+            op != "void"
+        }
+        "ConditionalExpression" => {
+            let c = node
+                .get("consequent")
+                .map(is_expression_defined)
+                .unwrap_or(false);
+            let a = node
+                .get("alternate")
+                .map(is_expression_defined)
+                .unwrap_or(false);
+            c && a
+        }
+        "ArrayExpression"
+        | "ObjectExpression"
+        | "ArrowFunctionExpression"
+        | "FunctionExpression"
+        | "TemplateLiteral"
+        | "NewExpression" => true,
+        "AssignmentExpression" => node
+            .get("right")
+            .map(is_expression_defined)
+            .unwrap_or(false),
+        "SequenceExpression" => node
+            .get("expressions")
+            .and_then(|e| e.as_array())
+            .and_then(|arr| arr.last())
+            .map(is_expression_defined)
+            .unwrap_or(false),
+        _ => false,
     }
 }
 
