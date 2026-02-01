@@ -1864,6 +1864,13 @@ impl<'a> ServerCodeGenerator<'a> {
     ) -> Result<Option<String>, TransformError> {
         let name = node.name.as_str();
 
+        // Skip defaultValue and defaultChecked - these are not real HTML attributes
+        // They are pseudo-properties used for form element initialization
+        // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/server/visitors/shared/element.js L78-79
+        if name == "defaultValue" || name == "defaultChecked" {
+            return Ok(None);
+        }
+
         match &node.value {
             AttributeValue::True(_) => Ok(Some(format!(" {}", name))),
             AttributeValue::Sequence(parts) => {
