@@ -5117,8 +5117,13 @@ fn transform_props_spread(script: &str) -> String {
     for line in script.lines() {
         let trimmed = line.trim();
 
+        // Only transform direct $$props assignments (not property access like $$props['x'])
+        // We check for "= $$props" followed by end of line, semicolon, or nothing
+        // NOT followed by "[" which would indicate property access
         if (trimmed.starts_with("let ") || trimmed.starts_with("const "))
-            && trimmed.contains("= $$props")
+            && (trimmed.ends_with("= $$props")
+                || trimmed.ends_with("= $$props;")
+                || trimmed.contains("= $$props "))
         {
             // Find the assignment `= $$props` part (not default value `=`)
             if let Some(props_idx) = trimmed.find("= $$props") {
