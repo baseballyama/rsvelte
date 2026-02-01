@@ -2802,16 +2802,29 @@ impl<'a> ServerCodeGenerator<'a> {
             self.use_async,
         );
 
-        // Check if first node is an expression - if so, add comment marker
-        if start_idx < end_idx
-            && let TemplateNode::ExpressionTag(_) = body_nodes[start_idx]
-        {
-            body_generator.output_parts.push(OutputPart::Comment);
+        // Check if first node is text or expression - if so, add comment marker
+        // This prevents text from being fused with surroundings (hydration marker)
+        if start_idx < end_idx {
+            if let TemplateNode::ExpressionTag(_) = body_nodes[start_idx] {
+                body_generator.output_parts.push(OutputPart::Comment);
+            } else if let TemplateNode::Text(text) = body_nodes[start_idx] {
+                // Only add comment if text has non-whitespace content after trimming
+                if !text.data.trim().is_empty() {
+                    body_generator.output_parts.push(OutputPart::Comment);
+                }
+            }
         }
 
         // Track if previous node was a ConstTag to skip whitespace after it
         let mut prev_was_const = false;
-        for node in body_nodes.iter().take(end_idx).skip(start_idx) {
+        let nodes_to_process: Vec<_> = body_nodes
+            .iter()
+            .skip(start_idx)
+            .take(end_idx - start_idx)
+            .collect();
+        let num_nodes = nodes_to_process.len();
+
+        for (i, node) in nodes_to_process.into_iter().enumerate() {
             // Skip whitespace-only text after ConstTag
             if prev_was_const
                 && let TemplateNode::Text(text) = node
@@ -2821,7 +2834,27 @@ impl<'a> ServerCodeGenerator<'a> {
                 continue;
             }
             prev_was_const = matches!(node, TemplateNode::ConstTag(_));
-            body_generator.generate_node(node, false)?;
+
+            // Special handling for first/last text nodes to trim whitespace
+            if let TemplateNode::Text(text) = node {
+                let mut data = text.data.to_string();
+                // Trim leading whitespace from first text node
+                if i == 0 {
+                    data = data.trim_start().to_string();
+                }
+                // Trim trailing whitespace from last text node
+                if i == num_nodes - 1 {
+                    data = data.trim_end().to_string();
+                }
+                // Output the trimmed text
+                if !data.is_empty() {
+                    body_generator
+                        .output_parts
+                        .push(OutputPart::Html(escape_html(&data)));
+                }
+            } else {
+                body_generator.generate_node(node, false)?;
+            }
         }
 
         self.output_parts.push(OutputPart::EachBlock {
