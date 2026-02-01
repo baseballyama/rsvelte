@@ -609,30 +609,35 @@ pub fn visit(
         .any(|attr| matches!(attr, Attribute::SpreadAttribute(_)));
 
     // Determine if element is SVG
-    let _is_svg_element = if is_svg(&element.name) {
+    // Following the official Svelte compiler logic:
+    // 1. Elements that are inherently SVG (like 'svg', 'path', 'circle', etc.) are always SVG
+    // 2. Ambiguous elements like 'a' and 'title' are SVG only if they have an SVG ancestor
+    let is_svg_element = if is_svg(&element.name) {
         true
     } else if element.name == "a" || element.name == "title" {
         // Check ancestors for SVG context
+        let mut found_svg_ancestor = false;
         let mut i = context.path.len();
         while i > 0 {
             i -= 1;
             if let Some(ancestor) = context.path.get(i)
                 && let TemplateNode::RegularElement(ancestor_el) = ancestor
             {
-                // Note: This would check ancestor_el.metadata.svg in JS
-                // For now, we check if it's an SVG element directly
-                if is_svg(&ancestor_el.name) {
-                    return Ok(());
+                // Check if ancestor has svg metadata set, or is an SVG element
+                if ancestor_el.metadata.svg || is_svg(&ancestor_el.name) {
+                    found_svg_ancestor = true;
+                    break;
                 }
             }
         }
-        false
+        found_svg_ancestor
     } else {
         false
     };
 
-    // Note: In JS, this sets node.metadata.svg and node.metadata.mathml
-    // We would need metadata structure on RegularElement
+    // Set the SVG and MathML metadata on the element
+    element.metadata.svg = is_svg_element;
+    element.metadata.mathml = is_mathml(&element.name);
 
     // If custom element with attributes, mark subtree as dynamic
     if is_custom_element_node(element) && !element.attributes.is_empty() {

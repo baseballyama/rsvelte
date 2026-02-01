@@ -1180,6 +1180,13 @@ pub struct RegularElementMetadata {
     pub scoped: bool,
     /// Whether this element has spread attributes
     pub has_spread: bool,
+    /// Whether this element is in the SVG namespace.
+    /// Set during Phase 2 analysis based on element name and ancestor context.
+    /// Elements like 'a' and 'title' are SVG only when inside an SVG ancestor.
+    pub svg: bool,
+    /// Whether this element is in the MathML namespace.
+    /// Set during Phase 2 analysis based on element name.
+    pub mathml: bool,
 }
 
 /// Metadata for Component nodes, populated during Phase 2 analysis.

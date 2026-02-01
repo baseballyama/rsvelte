@@ -283,6 +283,11 @@ fn trim_whitespace(
 /// Corresponds to `infer_namespace` in
 /// `svelte/packages/svelte/src/compiler/phases/3-transform/utils.js`.
 ///
+/// This function uses the metadata.svg and metadata.mathml fields set during
+/// Phase 2 analysis to determine the namespace. These fields correctly handle
+/// ambiguous elements like 'title' and 'a' which can be either HTML or SVG
+/// depending on their ancestor context.
+///
 /// # Arguments
 ///
 /// * `namespace` - The current namespace
@@ -305,30 +310,26 @@ pub fn infer_namespace(
             return "html".to_string();
         }
 
-        // Check if parent is an SVG element
-        if is_svg_element(&elem.name) {
+        // Use metadata set during analysis phase to determine namespace
+        // This correctly handles ambiguous elements like 'title' and 'a'
+        if elem.metadata.svg {
             return "svg".to_string();
         }
-
-        // Check if parent is a MathML element
-        if is_mathml_element(&elem.name) {
+        if elem.metadata.mathml {
             return "mathml".to_string();
         }
+        // If parent is a regular element without svg/mathml metadata, it's html
+        return "html".to_string();
     }
 
-    // Check the first child element for namespace
+    // For non-element parents (fragments, etc.), check the child elements
     for node in nodes {
         if let TemplateNode::RegularElement(elem) = node {
-            if elem.name == "svg" {
+            // Use the metadata to determine namespace
+            if elem.metadata.svg {
                 return "svg".to_string();
             }
-            if elem.name == "math" {
-                return "mathml".to_string();
-            }
-            if is_svg_element(&elem.name) {
-                return "svg".to_string();
-            }
-            if is_mathml_element(&elem.name) {
+            if elem.metadata.mathml {
                 return "mathml".to_string();
             }
         }
@@ -336,112 +337,6 @@ pub fn infer_namespace(
 
     // For other parent types, keep the current namespace
     namespace.to_string()
-}
-
-/// Check if an element name is an SVG element.
-fn is_svg_element(name: &str) -> bool {
-    matches!(
-        name,
-        "svg"
-            | "animate"
-            | "animateMotion"
-            | "animateTransform"
-            | "circle"
-            | "clipPath"
-            | "defs"
-            | "desc"
-            | "ellipse"
-            | "feBlend"
-            | "feColorMatrix"
-            | "feComponentTransfer"
-            | "feComposite"
-            | "feConvolveMatrix"
-            | "feDiffuseLighting"
-            | "feDisplacementMap"
-            | "feDistantLight"
-            | "feDropShadow"
-            | "feFlood"
-            | "feFuncA"
-            | "feFuncB"
-            | "feFuncG"
-            | "feFuncR"
-            | "feGaussianBlur"
-            | "feImage"
-            | "feMerge"
-            | "feMergeNode"
-            | "feMorphology"
-            | "feOffset"
-            | "fePointLight"
-            | "feSpecularLighting"
-            | "feSpotLight"
-            | "feTile"
-            | "feTurbulence"
-            | "filter"
-            | "g"
-            | "image"
-            | "line"
-            | "linearGradient"
-            | "marker"
-            | "mask"
-            | "metadata"
-            | "mpath"
-            | "path"
-            | "pattern"
-            | "polygon"
-            | "polyline"
-            | "radialGradient"
-            | "rect"
-            | "set"
-            | "stop"
-            | "switch"
-            | "symbol"
-            | "text"
-            | "textPath"
-            | "title"
-            | "tspan"
-            | "use"
-            | "view"
-    )
-}
-
-/// Check if an element name is a MathML element.
-fn is_mathml_element(name: &str) -> bool {
-    matches!(
-        name,
-        "math"
-            | "mi"
-            | "mo"
-            | "mn"
-            | "ms"
-            | "mtext"
-            | "mspace"
-            | "mrow"
-            | "mfrac"
-            | "msqrt"
-            | "mroot"
-            | "mstyle"
-            | "merror"
-            | "mpadded"
-            | "mphantom"
-            | "mfenced"
-            | "menclose"
-            | "msub"
-            | "msup"
-            | "msubsup"
-            | "munder"
-            | "mover"
-            | "munderover"
-            | "mmultiscripts"
-            | "mtable"
-            | "mtr"
-            | "mtd"
-            | "maligngroup"
-            | "malignmark"
-            | "maction"
-            | "semantics"
-            | "annotation"
-            | "annotation-xml"
-    )
 }
 
 #[cfg(test)]
