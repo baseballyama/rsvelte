@@ -189,6 +189,20 @@ pub struct VisitorContext<'a> {
     /// This is set to true when entering a Component/SvelteComponent, and reset to false
     /// when entering any other element type.
     pub is_direct_child_of_component: bool,
+    /// Stack of slot owner types (Component or CustomElement).
+    /// When entering a component, push SlotOwnerType::Component.
+    /// When entering a custom element (RegularElement with '-' in name), push SlotOwnerType::CustomElement.
+    /// Used to determine if slot attribute is valid - the nearest owner determines behavior.
+    pub slot_owner_ancestors: Vec<SlotOwnerType>,
+}
+
+/// Type of ancestor that can "own" a slot attribute.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SlotOwnerType {
+    /// A component (Component, SvelteComponent, SvelteSelf, SvelteElement)
+    Component,
+    /// A custom element (RegularElement with hyphen in name)
+    CustomElement,
 }
 
 /// Type of AST being analyzed.
@@ -235,6 +249,7 @@ impl<'a> VisitorContext<'a> {
             block_depth_at_element: Vec::new(),
             each_block_stack: Vec::new(),
             is_direct_child_of_component: false,
+            slot_owner_ancestors: Vec::new(),
         }
     }
 

@@ -343,15 +343,12 @@ fn test_validator() {
     );
 
     if failed > 0 {
-        println!("\nFailed tests (first 20):");
-        for result in results.iter().filter(|r| !r.passed && !r.skipped).take(20) {
+        println!("\nFailed tests (all {}):", failed);
+        for result in results.iter().filter(|r| !r.passed && !r.skipped) {
             println!("  - {}", result.name);
             if let Some(err) = &result.error_message {
                 println!("      {}", err);
             }
-        }
-        if failed > 20 {
-            println!("  ... and {} more", failed - 20);
         }
     }
 

@@ -35,8 +35,16 @@ pub fn visit(block: &mut KeyBlock, context: &mut VisitorContext) -> Result<(), A
     let crate::ast::js::Expression::Value(value) = &block.expression;
     walk_js_expression(value, context, &mut block.metadata.expression)?;
 
+    // Clear is_direct_child_of_component since children of control flow blocks
+    // are not direct children of a component
+    let was_direct_child = context.is_direct_child_of_component;
+    context.is_direct_child_of_component = false;
+
     // Visit the fragment
     fragment::analyze(&mut block.fragment, context)?;
+
+    // Restore is_direct_child_of_component
+    context.is_direct_child_of_component = was_direct_child;
 
     Ok(())
 }

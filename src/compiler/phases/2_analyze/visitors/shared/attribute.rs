@@ -56,11 +56,13 @@ pub fn validate_attribute_name(attribute: &AttributeNode) -> Result<(), Analysis
 ///
 /// The slot attribute is only valid:
 /// 1. As a direct child of a component (Component, SvelteComponent, SvelteSelf)
-/// 2. As a direct descendant of a custom element (no component in between)
+/// 2. As a descendant of a custom element (with no component in between)
 ///
-/// If the slot attribute is used inside a component that is itself inside a custom
-/// element, the slot applies to the component, not the custom element, so we need
-/// to check if we're a direct child of that component.
+/// The key insight is that we need to find the NEAREST "slot owner" (component or custom element).
+/// If the nearest owner is a component, we must be its direct child.
+/// If the nearest owner is a custom element, we're always OK.
+///
+/// Corresponds to `validate_slot_attribute` in shared/attribute.js.
 pub fn validate_slot_attribute(
     context: &VisitorContext,
     _attribute: &AttributeNode,
@@ -70,28 +72,21 @@ pub fn validate_slot_attribute(
         return Ok(());
     }
 
-    // Check if we're inside a custom element WITHOUT a component in between
-    // Custom elements have names that contain a hyphen
-    // We need to find the nearest custom element or component
-    // If the nearest is a custom element, OK
-    // If the nearest is a component but we're not a direct child, ERROR
-
-    // First, check if we have any component ancestor (component_depth > 0)
-    // If we do, and we're not a direct child, then the slot would apply to that component
-    // and we'd need to be a direct child
-    if context.component_depth > 0 {
-        // We're inside a component but not a direct child
-        return Err(super::super::super::errors::slot_attribute_invalid_placement());
-    }
-
-    // If we're not inside any component, check if we're inside a custom element
-    for ancestor in &context.element_ancestors {
-        if ancestor.contains('-') {
-            return Ok(());
+    // Find the nearest slot owner (last item in the stack)
+    if let Some(nearest_owner) = context.slot_owner_ancestors.last() {
+        match nearest_owner {
+            super::super::SlotOwnerType::CustomElement => {
+                // Custom element owner - slots are always valid inside custom elements
+                return Ok(());
+            }
+            super::super::SlotOwnerType::Component => {
+                // Component owner - we must be a direct child, but we're not (checked above)
+                return Err(super::super::super::errors::slot_attribute_invalid_placement());
+            }
         }
     }
 
-    // Not in a valid position for slot attribute
+    // No slot owner found - not in a valid position for slot attribute
     Err(super::super::super::errors::slot_attribute_invalid_placement())
 }
 

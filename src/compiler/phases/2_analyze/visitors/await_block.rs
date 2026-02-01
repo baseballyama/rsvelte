@@ -89,6 +89,11 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
     // Increment block depth for child analysis
     context.block_depth += 1;
 
+    // Clear is_direct_child_of_component since children of control flow blocks
+    // are not direct children of a component
+    let was_direct_child = context.is_direct_child_of_component;
+    context.is_direct_child_of_component = false;
+
     // Analyze the pending block (shown while awaiting)
     if let Some(ref mut pending) = block.pending {
         fragment::analyze(pending, context)?;
@@ -105,6 +110,9 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
         // TODO: Create a scope for the error binding if it exists
         fragment::analyze(catch, context)?;
     }
+
+    // Restore is_direct_child_of_component
+    context.is_direct_child_of_component = was_direct_child;
 
     // Decrement block depth
     context.block_depth -= 1;

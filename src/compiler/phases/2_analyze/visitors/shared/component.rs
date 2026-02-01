@@ -26,8 +26,41 @@ pub fn visit_component(
     component: &mut Component,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
+    use crate::ast::template::TemplateNode;
+
     // TODO: Set node.metadata.path = [...context.path]
     // This requires adding metadata to Component nodes
+
+    // Check for snippet_shadowing_prop error
+    // A snippet inside a Component cannot have the same name as an attribute on that Component
+    // This check is done here because the visitor path isn't properly maintained
+    // Corresponds to SnippetBlock.js line 42-55
+    for node in &component.fragment.nodes {
+        if let TemplateNode::SnippetBlock(snippet) = node {
+            // Get snippet name
+            if let Some(snippet_name) = snippet
+                .expression
+                .as_json()
+                .get("name")
+                .and_then(|n| n.as_str())
+            {
+                // Check if any attribute matches the snippet name
+                for attr in &component.attributes {
+                    let attr_name = match attr {
+                        Attribute::Attribute(a) => Some(a.name.as_str()),
+                        Attribute::BindDirective(b) => Some(b.name.as_str()),
+                        _ => None,
+                    };
+
+                    if let Some(name) = attr_name
+                        && name == snippet_name
+                    {
+                        return Err(errors::snippet_shadowing_prop(snippet_name));
+                    }
+                }
+            }
+        }
+    }
 
     // TODO: Link this node to all snippets it could render
     // node.metadata.snippets = new Set()
@@ -141,7 +174,12 @@ pub fn visit_component(
     context.is_direct_child_of_component = true;
     // Track component depth for slot attribute validation
     context.component_depth += 1;
+    // Track that this is a component for slot owner resolution
+    context
+        .slot_owner_ancestors
+        .push(super::super::SlotOwnerType::Component);
     fragment::analyze(&mut component.fragment, context)?;
+    context.slot_owner_ancestors.pop();
     context.component_depth -= 1;
     context.is_direct_child_of_component = was_direct_child;
 

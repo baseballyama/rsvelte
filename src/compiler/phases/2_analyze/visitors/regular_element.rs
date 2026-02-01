@@ -824,6 +824,14 @@ pub fn visit(
     // Track the block depth when entering this element
     context.block_depth_at_element.push(context.block_depth);
 
+    // Track custom elements as slot owners
+    let is_custom_element = element.name.contains('-');
+    if is_custom_element {
+        context
+            .slot_owner_ancestors
+            .push(super::SlotOwnerType::CustomElement);
+    }
+
     // Push this element index to DOM element stack for tracking children
     context.dom_element_stack.push(element_idx);
 
@@ -845,6 +853,11 @@ pub fn visit(
 
     // Pop this element from DOM element stack
     context.dom_element_stack.pop();
+
+    // Pop slot owner if this was a custom element
+    if is_custom_element {
+        context.slot_owner_ancestors.pop();
+    }
 
     // Pop this element from element_ancestors and block depth tracking
     context.element_ancestors.pop();

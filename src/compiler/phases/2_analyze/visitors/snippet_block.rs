@@ -22,6 +22,9 @@ pub fn visit(block: &mut SnippetBlock, context: &mut VisitorContext) -> Result<(
     // Validate and register the snippet
     validate_snippet(block, context)?;
 
+    // Note: snippet_shadowing_prop validation is done in component.rs since the path
+    // is not properly maintained during visitor traversal.
+
     // Increment block depth for child analysis
     context.block_depth += 1;
 

@@ -25,6 +25,12 @@ pub fn visit(attribute: &AttributeNode, context: &mut VisitorContext) -> Result<
     // Walk through all expressions in the attribute value
     visit_attribute_value_expressions(&attribute.value, context)?;
 
+    // Validate slot attribute must be a static value
+    // Corresponds to validate_slot_attribute in shared/attribute.js
+    if attribute.name == "slot" && !is_text_attribute(attribute) {
+        return Err(errors::slot_attribute_invalid());
+    }
+
     // Validate attribute name for invalid characters
     if is_invalid_attribute_name(&attribute.name) {
         return Err(errors::attribute_invalid_name(&attribute.name));
@@ -124,6 +130,24 @@ pub fn visit(attribute: &AttributeNode, context: &mut VisitorContext) -> Result<
     }
 
     Ok(())
+}
+
+/// Check if an attribute value is a single static text node.
+///
+/// Corresponds to `is_text_attribute` in utils/ast.js.
+///
+/// Returns true if the attribute value is:
+/// - A Sequence with exactly one Text part
+fn is_text_attribute(attribute: &AttributeNode) -> bool {
+    match &attribute.value {
+        AttributeValue::Sequence(parts) => {
+            parts.len() == 1 && matches!(&parts[0], AttributeValuePart::Text(_))
+        }
+        // True (boolean attribute) is not a text attribute
+        AttributeValue::True(_) => false,
+        // Expression is not a text attribute
+        AttributeValue::Expression(_) => false,
+    }
 }
 
 /// Visit all JavaScript expressions within an attribute value.

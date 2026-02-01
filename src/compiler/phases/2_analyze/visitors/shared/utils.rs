@@ -370,31 +370,16 @@ pub fn validate_no_const_assignment(
         }
         Some("Identifier") => {
             if let Some(name) = argument.get("name").and_then(|n| n.as_str()) {
-                // Skip validation when inside nested functions (function_depth > 1)
-                // because the binding might be shadowed by a local declaration in
-                // a nested scope that we can't properly track without full scope
-                // chain support during analysis.
-                //
-                // Example that would fail without this check:
-                //   function tooltip() {
-                //       let tooltip = null; // shadows the function name
-                //       tooltip = 1; // valid assignment to local variable
-                //   }
-                //
-                // When function_depth > 1, we're inside a function body where
-                // local variables can shadow outer declarations.
-                if context.function_depth > 1 {
-                    return Ok(());
-                }
-
                 // Use scope chain lookup to find the correct binding
                 // This respects lexical scoping - inner bindings shadow outer ones
+                //
+                // First try current scope, then fall back to root scope
                 let binding_idx = context
                     .analysis
                     .root
                     .get_binding(name, context.scope)
                     .or_else(|| {
-                        // Fallback to root scope declarations for backward compatibility
+                        // Fallback to root scope declarations
                         context.analysis.root.scope.declarations.get(name).copied()
                     });
 

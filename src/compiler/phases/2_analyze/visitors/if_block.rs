@@ -36,6 +36,11 @@ pub fn visit(block: &mut IfBlock, context: &mut VisitorContext) -> Result<(), An
     // Increment block depth for child analysis
     context.block_depth += 1;
 
+    // Clear is_direct_child_of_component since children of control flow blocks
+    // are not direct children of a component
+    let was_direct_child = context.is_direct_child_of_component;
+    context.is_direct_child_of_component = false;
+
     // Analyze the consequent
     fragment::analyze(&mut block.consequent, context)?;
 
@@ -43,6 +48,9 @@ pub fn visit(block: &mut IfBlock, context: &mut VisitorContext) -> Result<(), An
     if let Some(ref mut alternate) = block.alternate {
         fragment::analyze(alternate, context)?;
     }
+
+    // Restore is_direct_child_of_component
+    context.is_direct_child_of_component = was_direct_child;
 
     // Decrement block depth
     context.block_depth -= 1;

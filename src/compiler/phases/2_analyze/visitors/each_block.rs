@@ -91,6 +91,11 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
         child_count,
     }));
 
+    // Clear is_direct_child_of_component since children of control flow blocks
+    // are not direct children of a component
+    let was_direct_child = context.is_direct_child_of_component;
+    context.is_direct_child_of_component = false;
+
     // Visit the body and fallback
     fragment::analyze(&mut block.body, context)?;
 
@@ -100,6 +105,9 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
     if let Some(ref mut fallback) = block.fallback {
         fragment::analyze(fallback, context)?;
     }
+
+    // Restore is_direct_child_of_component
+    context.is_direct_child_of_component = was_direct_child;
 
     // Visit the key expression if present
     if let Some(key) = &block.key {
