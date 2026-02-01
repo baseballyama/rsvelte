@@ -19,12 +19,15 @@ use serde_json::Value;
 /// * `context` - The visitor context
 pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Visit the function with incremented function depth
+    let mut result = Ok(());
     visit_function(context, |ctx| {
         // Visit function body
-        if let Some(body) = node.get("body") {
-            let _ = super::script::walk_js_node(body, ctx);
+        if let Some(body) = node.get("body")
+            && let Err(e) = super::script::walk_js_node(body, ctx)
+        {
+            result = Err(e);
         }
     });
 
-    Ok(())
+    result
 }

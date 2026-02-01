@@ -42,7 +42,7 @@ fn get_sample_files() -> Vec<(String, String)> {
     }
 
     // Sort by size for consistent ordering
-    files.sort_by(|a, b| a.1.len().cmp(&b.1.len()));
+    files.sort_by_key(|a| a.1.len());
 
     // Take a representative sample: small, medium, large
     let mut selected = Vec::new();

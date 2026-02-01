@@ -19,7 +19,6 @@ fn main() {
             } else {
                 println!("No CSS output");
             }
-
         }
         Err(e) => {
             println!("Error: {:?}", e);

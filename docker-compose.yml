@@ -1,0 +1,31 @@
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: svelte-compiler-rust-dev
+    volumes:
+      # Mount source code
+      - .:/workspace
+      # Persist cargo cache for faster builds
+      - cargo-registry:/root/.cargo/registry
+      - cargo-git:/root/.cargo/git
+      # Persist target directory for faster incremental builds
+      - cargo-target:/workspace/target
+    working_dir: /workspace
+    # Keep container running for interactive development
+    stdin_open: true
+    tty: true
+    # Use host network for playground dev server
+    network_mode: host
+    environment:
+      - CARGO_HOME=/root/.cargo
+      - RUST_BACKTRACE=1
+      # Limit parallelism to avoid overwhelming the container
+      - RUST_TEST_THREADS=4
+      - RAYON_NUM_THREADS=4
+
+volumes:
+  cargo-registry:
+  cargo-git:
+  cargo-target:

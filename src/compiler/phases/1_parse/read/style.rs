@@ -1003,8 +1003,7 @@ impl<'a> SelectorParser<'a> {
         let name = self.read_identifier();
 
         // Consume any arguments in parentheses (e.g., ::view-transition-group(foo))
-        // The end position will include these arguments so they can be extracted
-        // from the source during CSS transformation
+        // The arguments are part of the selector and should be included in the span
         if self.current_char() == '(' {
             self.advance(); // consume '('
 
@@ -1026,7 +1025,8 @@ impl<'a> SelectorParser<'a> {
             self.advance(); // consume ')'
         }
 
-        // Record end position AFTER consuming arguments so source preservation works
+        // Record end position AFTER consuming arguments
+        // This ensures the span includes arguments like (foo) in ::view-transition-group(foo)
         let end = self.offset + self.index;
 
         let mut obj = Map::new();

@@ -80,7 +80,7 @@ pub fn analyze_component(
     // Detect store subscriptions and create synthetic bindings
     // This must happen after scopes are created but before template analysis
     // Corresponds to Svelte's store subscription logic in 2-analyze/index.js L348-444
-    store_subscriptions::detect_store_subscriptions(ast, &mut analysis);
+    store_subscriptions::detect_store_subscriptions(ast, &mut analysis)?;
 
     // Analyze scripts (JavaScript AST)
     // In Svelte's implementation, the scope function_depth works as follows:

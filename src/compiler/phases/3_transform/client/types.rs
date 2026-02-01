@@ -395,8 +395,17 @@ impl<'a> ComponentContext<'a> {
         callback_body.extend(inner_after_update);
 
         // Convert the tag expression
+        // Note: For simple identifiers (like props from $props()), the identifier itself
+        // is already a getter function from $.prop(), so we don't need to wrap it in a thunk.
+        // The runtime calls get_tag() which will call the getter function.
         let tag_expr = convert_expression(&elem.tag, self);
-        let get_tag = b::thunk(tag_expr);
+        let get_tag = if matches!(tag_expr, JsExpr::Identifier(_)) {
+            // Simple identifier - likely a prop getter, pass directly
+            tag_expr
+        } else {
+            // Complex expression - wrap in a thunk
+            b::thunk(tag_expr)
+        };
 
         // Build $.element(...) call
         // $.element(anchor, get_tag, is_svg_or_mathml, callback, namespace)

@@ -12,8 +12,8 @@
 
 use oxc_allocator::Allocator;
 
-/// Default indentation string (2 spaces).
-const INDENT_STRING: &str = "  ";
+/// Default indentation string (1 tab, as per Svelte's print output).
+const INDENT_STRING: &str = "\t";
 
 /// Context for building formatted output.
 ///

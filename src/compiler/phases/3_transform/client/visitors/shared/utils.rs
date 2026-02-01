@@ -649,13 +649,12 @@ pub fn build_expression(
     // The dependencies are read first to establish reactivity tracking,
     // then the actual value is computed inside $.untrack() to avoid
     // establishing additional dependencies.
-    //
-    // For now, we look for state getters that were transformed in the expression
-    // and extract them as the leading dependencies in the sequence.
     let mut sequence_exprs = Vec::new();
 
-    // Collect state dependencies from the transformed expression
-    collect_state_getters(&value, &mut sequence_exprs);
+    // Collect state dependencies from the original (pre-transform) expression.
+    // For each identifier with a registered transform, we build a getter.
+    // For props/templates/imports, we wrap in $.deep_read_state().
+    collect_reactive_references(expression, context, &mut sequence_exprs);
 
     if sequence_exprs.is_empty() {
         // No state dependencies found, return value as-is
@@ -677,6 +676,7 @@ pub fn build_expression(
 ///
 /// This walks the expression tree and collects any `$.get(x)` calls,
 /// which represent reads of reactive state variables.
+#[allow(dead_code)]
 fn collect_state_getters(expr: &JsExpr, getters: &mut Vec<JsExpr>) {
     match expr {
         JsExpr::Call(call) => {
@@ -770,6 +770,251 @@ fn collect_state_getters(expr: &JsExpr, getters: &mut Vec<JsExpr>) {
         | JsExpr::TaggedTemplate(_)
         | JsExpr::Chain(_)
         | JsExpr::Void(_) => {}
+    }
+}
+
+/// Collect reactive references from an expression for legacy mode reactivity.
+///
+/// This walks the original (pre-transform) expression and collects identifiers
+/// that have registered transforms. For each, it builds the appropriate getter:
+/// - For props/templates/imports: `$.deep_read_state(getter)`
+/// - For other reactive bindings: just the getter (e.g., `$.get(x)`)
+///
+/// This corresponds to the logic in `build_expression` in the official Svelte compiler:
+/// ```javascript
+/// for (const binding of metadata.references) {
+///     if (binding.kind === 'normal' && binding.declaration_kind !== 'import') {
+///         continue;
+///     }
+///     var getter = build_getter({ ...binding.node }, state);
+///     if (binding.kind === 'bindable_prop' || binding.kind === 'template' ||
+///         binding.declaration_kind === 'import' || ...) {
+///         getter = b.call('$.deep_read_state', getter);
+///     }
+///     sequence.expressions.push(getter);
+/// }
+/// ```
+fn collect_reactive_references(
+    expr: &JsExpr,
+    context: &ComponentContext,
+    getters: &mut Vec<JsExpr>,
+) {
+    // Track already-seen identifiers to avoid duplicates
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    collect_reactive_references_inner(expr, context, getters, &mut seen);
+}
+
+/// Inner recursive function for collecting reactive references.
+fn collect_reactive_references_inner(
+    expr: &JsExpr,
+    context: &ComponentContext,
+    getters: &mut Vec<JsExpr>,
+    seen: &mut std::collections::HashSet<String>,
+) {
+    match expr {
+        JsExpr::Identifier(name) => {
+            // Skip if we've already processed this identifier
+            if seen.contains(name) {
+                return;
+            }
+
+            // Check if this identifier has a transform registered
+            if let Some(transform) = context.state.transform.get(name) {
+                // Only process reactive bindings
+                if !transform.is_reactive {
+                    return;
+                }
+
+                seen.insert(name.clone());
+
+                // Build the getter by applying the read transform
+                let getter = if let Some(read_fn) = transform.read {
+                    read_fn(JsExpr::Identifier(name.clone()))
+                } else {
+                    JsExpr::Identifier(name.clone())
+                };
+
+                // Check if we need to wrap in $.deep_read_state()
+                // This is needed for:
+                // - bindable_prop (props that are sources)
+                // - template bindings
+                // - imports
+                // - $$props / $$restProps
+                //
+                // We detect props by checking if the getter is a function call
+                // (prop sources are accessed as functions: tags() instead of $.get(tags))
+                let needs_deep_read = if name == "$$props" || name == "$$restProps" {
+                    true
+                } else if let Some(binding) = context.state.get_binding(name) {
+                    use crate::compiler::phases::phase2_analyze::scope::{
+                        BindingKind, DeclarationKind,
+                    };
+                    matches!(
+                        binding.kind,
+                        BindingKind::Prop | BindingKind::BindableProp | BindingKind::Template
+                    ) || binding.declaration_kind == DeclarationKind::Import
+                } else {
+                    false
+                };
+
+                let final_getter = if needs_deep_read {
+                    b::svelte_call("deep_read_state", vec![getter])
+                } else {
+                    getter
+                };
+
+                getters.push(final_getter);
+            }
+        }
+
+        JsExpr::Call(call) => {
+            // Recurse into callee and arguments
+            collect_reactive_references_inner(&call.callee, context, getters, seen);
+            for arg in &call.arguments {
+                collect_reactive_references_inner(arg, context, getters, seen);
+            }
+        }
+
+        JsExpr::Member(member) => {
+            collect_reactive_references_inner(&member.object, context, getters, seen);
+            if let JsMemberProperty::Expression(prop) = &member.property {
+                collect_reactive_references_inner(prop, context, getters, seen);
+            }
+        }
+
+        JsExpr::Binary(binary) => {
+            collect_reactive_references_inner(&binary.left, context, getters, seen);
+            collect_reactive_references_inner(&binary.right, context, getters, seen);
+        }
+
+        JsExpr::Logical(logical) => {
+            collect_reactive_references_inner(&logical.left, context, getters, seen);
+            collect_reactive_references_inner(&logical.right, context, getters, seen);
+        }
+
+        JsExpr::Conditional(cond) => {
+            collect_reactive_references_inner(&cond.test, context, getters, seen);
+            collect_reactive_references_inner(&cond.consequent, context, getters, seen);
+            collect_reactive_references_inner(&cond.alternate, context, getters, seen);
+        }
+
+        JsExpr::Array(arr) => {
+            for e in arr.elements.iter().flatten() {
+                collect_reactive_references_inner(e, context, getters, seen);
+            }
+        }
+
+        JsExpr::Object(obj) => {
+            for prop in &obj.properties {
+                match prop {
+                    JsObjectMember::Property(p) => {
+                        collect_reactive_references_inner(&p.value, context, getters, seen);
+                    }
+                    JsObjectMember::SpreadElement(s) => {
+                        collect_reactive_references_inner(s, context, getters, seen);
+                    }
+                }
+            }
+        }
+
+        JsExpr::Assignment(assign) => {
+            collect_reactive_references_inner(&assign.left, context, getters, seen);
+            collect_reactive_references_inner(&assign.right, context, getters, seen);
+        }
+
+        JsExpr::Unary(unary) => {
+            collect_reactive_references_inner(&unary.argument, context, getters, seen);
+        }
+
+        JsExpr::Update(update) => {
+            collect_reactive_references_inner(&update.argument, context, getters, seen);
+        }
+
+        JsExpr::Sequence(seq) => {
+            for expr in &seq.expressions {
+                collect_reactive_references_inner(expr, context, getters, seen);
+            }
+        }
+
+        JsExpr::TemplateLiteral(template) => {
+            for expr in &template.expressions {
+                collect_reactive_references_inner(expr, context, getters, seen);
+            }
+        }
+
+        JsExpr::Arrow(arrow) => {
+            // For arrow functions, we need to process the body to find reactive references
+            // This is important for expressions like: tags.find(t => t.name === tag.name)
+            match &arrow.body {
+                JsArrowBody::Expression(body_expr) => {
+                    collect_reactive_references_inner(body_expr, context, getters, seen);
+                }
+                JsArrowBody::Block(block) => {
+                    for stmt in &block.body {
+                        collect_reactive_references_from_statement(stmt, context, getters, seen);
+                    }
+                }
+            }
+        }
+
+        JsExpr::Function(func) => {
+            // Also process function bodies
+            for stmt in &func.body.body {
+                collect_reactive_references_from_statement(stmt, context, getters, seen);
+            }
+        }
+
+        // Terminal nodes or nodes that don't contain expressions
+        JsExpr::Literal(_)
+        | JsExpr::This
+        | JsExpr::Raw(_)
+        | JsExpr::Spread(_)
+        | JsExpr::New(_)
+        | JsExpr::Class(_)
+        | JsExpr::Yield(_)
+        | JsExpr::Await(_)
+        | JsExpr::TaggedTemplate(_)
+        | JsExpr::Chain(_)
+        | JsExpr::Void(_) => {}
+    }
+}
+
+/// Helper to collect reactive references from statements.
+fn collect_reactive_references_from_statement(
+    stmt: &JsStatement,
+    context: &ComponentContext,
+    getters: &mut Vec<JsExpr>,
+    seen: &mut std::collections::HashSet<String>,
+) {
+    match stmt {
+        JsStatement::Expression(expr_stmt) => {
+            collect_reactive_references_inner(&expr_stmt.expression, context, getters, seen);
+        }
+        JsStatement::Return(ret_stmt) => {
+            if let Some(arg) = &ret_stmt.argument {
+                collect_reactive_references_inner(arg, context, getters, seen);
+            }
+        }
+        JsStatement::VariableDeclaration(var_decl) => {
+            for decl in &var_decl.declarations {
+                if let Some(init) = &decl.init {
+                    collect_reactive_references_inner(init, context, getters, seen);
+                }
+            }
+        }
+        JsStatement::If(if_stmt) => {
+            collect_reactive_references_inner(&if_stmt.test, context, getters, seen);
+            collect_reactive_references_from_statement(&if_stmt.consequent, context, getters, seen);
+            if let Some(alt) = &if_stmt.alternate {
+                collect_reactive_references_from_statement(alt, context, getters, seen);
+            }
+        }
+        JsStatement::Block(block) => {
+            for s in &block.body {
+                collect_reactive_references_from_statement(s, context, getters, seen);
+            }
+        }
+        _ => {}
     }
 }
 

@@ -45,6 +45,15 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         None => return Ok(()),
     };
 
+    // Check for invalid $ or $$ identifiers
+    // Corresponds to Svelte's L266-269 and L351-352 in 2-analyze/index.js
+    if name == "$" || name.starts_with("$$") {
+        // $$ prefixed names except reserved ones ($$props, $$restProps, $$slots) are illegal
+        if name != "$$props" && name != "$$restProps" && name != "$$slots" {
+            return Err(errors::global_reference_invalid(name));
+        }
+    }
+
     // Check for `arguments` outside of functions
     if name == "arguments" {
         let is_in_function = context.js_path.iter().any(|n| {

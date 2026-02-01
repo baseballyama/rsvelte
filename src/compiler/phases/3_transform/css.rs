@@ -767,9 +767,11 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
     }
 
     // If there's control flow (if/each/await/snippet/slot), be conservative.
-    // Our sibling relationship tracking in Phase 2 doesn't fully account for
-    // all the complex sibling relationships that can arise from control flow,
-    // so we skip unused detection to avoid false positives.
+    // The control flow analysis in Phase 2 builds sibling relationships, but it
+    // needs to correctly handle all edge cases (non-exhaustive if blocks, await
+    // blocks without pending, each blocks that might be empty, etc.).
+    // For now, we skip unused detection for control flow to avoid false positives.
+    // TODO: Implement proper control flow analysis that handles all edge cases.
     if ctx.has_control_flow {
         return false;
     }
@@ -1342,6 +1344,23 @@ fn transform_rule_preserving(
         if ws_end <= css_source.len() && ws_start < ws_end {
             output.push_str(&css_source[ws_start..ws_end]);
         }
+    }
+
+    // Check if this is a top-level :global {} block
+    // This is special - we comment out the :global wrapper but keep content unscoped
+    if is_global_block(node) {
+        transform_global_block(
+            node,
+            selector,
+            hash,
+            css_source,
+            css_start,
+            output,
+            specificity_bumped,
+            ctx,
+        );
+        *last_end = node_end;
+        return;
     }
 
     // Check if the rule is empty (no declarations)

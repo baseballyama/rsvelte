@@ -225,9 +225,21 @@ pub fn validate_assignment(
 
     // Handle Identifier assignments
     if let Some(name) = argument.get("name").and_then(|n| n.as_str()) {
-        // Check if there's a binding for this identifier
-        if let Some(binding_idx) = context.analysis.root.scope.declarations.get(name) {
-            let binding = &context.analysis.root.bindings[*binding_idx];
+        // Use scope chain lookup to find the binding (respects lexical scoping)
+        // This is important for snippet parameters which are declared in child scopes
+        let binding_idx = context
+            .analysis
+            .root
+            .get_binding(name, context.scope)
+            .or_else(|| {
+                // Fallback to searching all scopes when scope tracking isn't available
+                // This handles cases like snippet parameters where context.scope may not
+                // be properly updated during template analysis
+                context.analysis.root.find_binding_any_scope(name)
+            });
+
+        if let Some(binding_idx) = binding_idx {
+            let binding = &context.analysis.root.bindings[binding_idx];
 
             // Check for $props.id() assignment
             if context.analysis.runes
@@ -1223,8 +1235,9 @@ pub fn walk_js_expression(
         }
         Some("UpdateExpression") => {
             // Validate assignment before visiting argument
+            // Use validate_assignment to catch snippet parameter assignments and other errors
             if let Some(argument) = expression.get("argument") {
-                validate_no_const_assignment(argument, context, false)?;
+                validate_assignment(argument, context, false)?;
                 walk_js_expression(argument, context, metadata)?;
             }
         }
@@ -1278,8 +1291,9 @@ pub fn walk_js_expression(
         }
         Some("AssignmentExpression") => {
             // Validate assignment before visiting
+            // Use validate_assignment to catch snippet parameter assignments and other errors
             if let Some(left) = expression.get("left") {
-                validate_no_const_assignment(left, context, false)?;
+                validate_assignment(left, context, false)?;
                 walk_js_expression(left, context, metadata)?;
             }
             if let Some(right) = expression.get("right") {

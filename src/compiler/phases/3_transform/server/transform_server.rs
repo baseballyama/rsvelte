@@ -1762,78 +1762,95 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
             }
             AttributeValue::Sequence(parts) => {
-                // Check if it's a single expression (like class='{x}')
-                if parts.len() == 1
-                    && let AttributeValuePart::ExpressionTag(expr_tag) = &parts[0]
-                {
-                    // Dynamic class - need to use $.attr_class()
-                    let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
-                    let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
-                    if expr_end > expr_start && expr_end <= self.source.len() {
-                        let expr = self.source[expr_start..expr_end].trim().to_string();
-                        if let Some(hash) = css_hash {
-                            return Ok(Some(format!(
-                                "${{$.attr_class(`${{{}}}`)\n + \" {}\"}}",
-                                expr, hash
-                            )));
-                        } else {
-                            return Ok(Some(format!("${{$.attr_class(`${{{}}}`)}}", expr)));
+                // Check if we have any dynamic expressions
+                let has_expression = parts
+                    .iter()
+                    .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
+
+                if !has_expression {
+                    // All static text - inline as string attribute
+                    let mut value = String::new();
+                    for part in parts {
+                        if let AttributeValuePart::Text(text) = part {
+                            value.push_str(&escape_attr(&text.data));
                         }
                     }
-                    return Ok(None);
+                    // Normalize whitespace for class attribute
+                    let normalized: String = value.split_whitespace().collect::<Vec<_>>().join(" ");
+                    // Append CSS hash
+                    let final_value = if let Some(hash) = css_hash {
+                        if normalized.is_empty() {
+                            hash.to_string()
+                        } else {
+                            format!("{} {}", normalized, hash)
+                        }
+                    } else {
+                        normalized
+                    };
+                    return Ok(Some(format!(" {}=\"{}\"", name, final_value)));
                 }
 
-                // Collect text and expression parts
+                // Has dynamic expressions - need to use $.attr_class()
+                // Build template literal with $.stringify() for expressions
                 let mut template_parts = Vec::new();
                 let mut current_text = String::new();
 
                 for part in parts {
                     match part {
                         AttributeValuePart::Text(text) => {
-                            current_text.push_str(&escape_attr(&text.data));
+                            // Normalize whitespace for class attributes
+                            let normalized: String =
+                                text.data.split_whitespace().collect::<Vec<_>>().join(" ");
+                            current_text.push_str(&normalized);
                         }
                         AttributeValuePart::ExpressionTag(expr_tag) => {
+                            // Add accumulated text
                             template_parts.push(current_text.clone());
                             current_text.clear();
 
+                            // Add expression wrapped in $.stringify()
                             let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
                             let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
                             if expr_end > expr_start && expr_end <= self.source.len() {
                                 let expr = self.source[expr_start..expr_end].trim().to_string();
-                                template_parts.push(format!("${{{}}}", expr));
+                                template_parts.push(format!("${{$.stringify({})}}", expr));
                             }
                         }
                     }
                 }
-                if !current_text.is_empty() || template_parts.is_empty() {
+                // Add any remaining text
+                if !current_text.is_empty() {
                     template_parts.push(current_text);
                 }
 
-                let mut value = template_parts.join("");
+                let template_content = template_parts.join("");
 
-                // Append CSS hash
+                // Build $.attr_class() call
                 if let Some(hash) = css_hash {
-                    if !value.is_empty() {
-                        value.push(' ');
-                    }
-                    value.push_str(hash);
+                    Ok(Some(format!(
+                        "${{$.attr_class(`{}`, '{}')}}",
+                        template_content, hash
+                    )))
+                } else {
+                    Ok(Some(format!("${{$.attr_class(`{}`)}}", template_content)))
                 }
-
-                Ok(Some(format!(" {}=\"{}\"", name, value)))
             }
             AttributeValue::Expression(expr_tag) => {
-                // Dynamic class expression
+                // Dynamic class expression - use $.attr_class()
                 let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
                 let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
                 if expr_end > expr_start && expr_end <= self.source.len() {
                     let expr = self.source[expr_start..expr_end].trim().to_string();
                     if let Some(hash) = css_hash {
                         Ok(Some(format!(
-                            "${{$.attr_class(`${{{}}}`)\n + \" {}\"}}",
+                            "${{$.attr_class(`${{$.stringify({})}}`, '{}')}}",
                             expr, hash
                         )))
                     } else {
-                        Ok(Some(format!("${{$.attr_class(`${{{}}}`)}}", expr)))
+                        Ok(Some(format!(
+                            "${{$.attr_class(`${{$.stringify({})}}`))}}",
+                            expr
+                        )))
                     }
                 } else {
                     Ok(None)

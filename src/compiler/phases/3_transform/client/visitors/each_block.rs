@@ -494,15 +494,19 @@ fn generate_index_identifier(
 ) -> JsExpr {
     // If the each block contains group bindings or has no explicit index,
     // use the metadata-generated index
-    if metadata.contains_group_binding || node.index.is_none() {
+    if metadata.contains_group_binding {
         if let Some(ref index) = metadata.index {
             b::id(index)
         } else {
             b::id("$$index")
         }
-    } else {
+    } else if let Some(ref index_name) = node.index {
         // Use the node's explicit index name
-        b::id(node.index.as_ref().unwrap().as_str())
+        b::id(index_name.as_str())
+    } else if let Some(ref index) = metadata.index {
+        b::id(index)
+    } else {
+        b::id("$$index")
     }
 }
 

@@ -26,6 +26,36 @@ let ast = parse(source, ParseOptions::default()).unwrap();
 
 ## Development
 
+### Docker (Recommended)
+
+Docker を使用した開発環境を推奨します。セキュリティソフトウェアによるパフォーマンス低下を回避できます。
+
+```bash
+# Docker イメージをビルド
+./docker-dev.sh build
+
+# 開発コンテナを起動
+./docker-dev.sh up
+
+# コンテナ内でシェルを開く
+./docker-dev.sh shell
+
+# コンテナ内でテストを実行
+./docker-dev.sh test
+
+# 任意のコマンドを実行
+./docker-dev.sh run cargo build --release
+
+# コンテナを停止
+./docker-dev.sh down
+```
+
+VS Code を使用している場合は、Dev Containers 拡張機能で「Reopen in Container」を選択すると自動的に開発環境が起動します。
+
+### Local (Alternative)
+
+ローカル環境で開発する場合:
+
 ```bash
 # Build
 cargo build

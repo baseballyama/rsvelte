@@ -42,14 +42,32 @@ When implementing, reference the corresponding file in `svelte/packages/svelte/s
 
 ## Development Workflow
 
-### Setup
+### Docker 開発環境 (必須)
+
+**⚠️ 重要**: すべてのビルドとテストは Docker コンテナ内で実行してください。
+
+```bash
+# 初回セットアップ
+./docker-dev.sh build              # Docker イメージをビルド
+./docker-dev.sh up                 # コンテナを起動
+
+# 開発作業
+./docker-dev.sh shell              # コンテナ内でシェルを開く
+./docker-dev.sh run cargo build    # コマンドを実行
+./docker-dev.sh test               # テストを実行
+
+# VS Code Dev Containers
+# 「Reopen in Container」で自動的に開発環境が起動
+```
+
+### Setup (コンテナ内で実行)
 
 ```bash
 git config core.hooksPath .githooks
 npm run generate-fixtures  # Required before running tests
 ```
 
-### Testing
+### Testing (コンテナ内で実行)
 
 ```bash
 cargo test                          # Run all tests

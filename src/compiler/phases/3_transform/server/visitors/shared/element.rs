@@ -641,9 +641,20 @@ fn is_load_error_element(name: &str) -> bool {
     )
 }
 
-/// Checks if an attribute value is text-only.
+/// Checks if an attribute value is text-only (single Text node).
 fn is_text_attribute(value: &AttributeValue) -> bool {
-    matches!(value, AttributeValue::Sequence(_) | AttributeValue::True(_))
+    use crate::ast::template::AttributeValuePart;
+
+    // An attribute is text-only if:
+    // 1. It's True (boolean attribute)
+    // 2. It's a Sequence with exactly one Text element
+    match value {
+        AttributeValue::True(_) => true,
+        AttributeValue::Sequence(parts) => {
+            parts.len() == 1 && matches!(&parts[0], AttributeValuePart::Text(_))
+        }
+        _ => false,
+    }
 }
 
 // =============================================================================

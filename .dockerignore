@@ -1,0 +1,31 @@
+# Build artifacts
+target/
+pkg/
+
+# Dependencies (will be installed in container)
+node_modules/
+playground/node_modules/
+
+# Git
+.git/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+*.log
+coverage/
+
+# Generated fixtures (will be regenerated)
+fixtures/
+
+# Temporary files
+tmp/
+*.tmp

@@ -5,7 +5,9 @@
 //!
 //! Corresponds to the store subscription logic in Svelte's `2-analyze/index.js` L348-444.
 
+use super::AnalysisError;
 use super::RESERVED;
+use super::errors;
 use super::scope::{Binding, BindingKind, DeclarationKind};
 use super::types::ComponentAnalysis;
 use super::visitors::shared::function::is_rune;
@@ -21,6 +23,10 @@ use rustc_hash::FxHashSet;
 /// a corresponding binding (without the `$` prefix) exists. If so, it creates
 /// a `StoreSub` binding for the `$name` identifier.
 ///
+/// It also validates that `$` and `$$` prefixed names are valid, returning
+/// `global_reference_invalid` errors for invalid references like bare `$` or
+/// lowercase `$xxx` names that don't have corresponding bindings.
+///
 /// # Arguments
 ///
 /// * `ast` - The parsed AST
@@ -28,8 +34,11 @@ use rustc_hash::FxHashSet;
 ///
 /// # Returns
 ///
-/// Returns `Ok(())` on success.
-pub fn detect_store_subscriptions(ast: &Root, analysis: &mut ComponentAnalysis) {
+/// Returns `Ok(())` on success, or an error if invalid $ references are found.
+pub fn detect_store_subscriptions(
+    ast: &Root,
+    analysis: &mut ComponentAnalysis,
+) -> Result<(), AnalysisError> {
     // Collect all $xxx references from the AST
     let mut store_refs: FxHashSet<String> = FxHashSet::default();
 
@@ -52,13 +61,15 @@ pub fn detect_store_subscriptions(ast: &Root, analysis: &mut ComponentAnalysis) 
             continue;
         }
 
-        // Skip $$ prefixed names (internal variables)
+        // Check for invalid $$ references ($$xxx is illegal)
+        // Corresponds to Svelte's L266-269 and L351-352 in 2-analyze/index.js
+        // Note: bare $ detection is handled in Identifier visitor via proper AST analysis
         if ref_name.starts_with("$$") {
-            continue;
+            return Err(errors::global_reference_invalid(&ref_name));
         }
 
-        // Skip just $ or names that don't start with $
-        if ref_name == "$" || !ref_name.starts_with('$') {
+        // Skip names that don't start with $ or bare $
+        if !ref_name.starts_with('$') || ref_name == "$" {
             continue;
         }
 
@@ -107,8 +118,18 @@ pub fn detect_store_subscriptions(ast: &Root, analysis: &mut ComponentAnalysis) 
                 .scope
                 .declarations
                 .insert(ref_name, binding_idx);
+        } else if analysis.runes {
+            // In runes mode, if no binding exists for a lowercase $xxx name,
+            // it's an invalid global reference
+            // Corresponds to Svelte's L398-400 in 2-analyze/index.js
+            if !store_name.is_empty() && store_name.chars().next().is_some_and(|c| c.is_lowercase())
+            {
+                return Err(errors::global_reference_invalid(&ref_name));
+            }
         }
     }
+
+    Ok(())
 }
 
 /// Collect $xxx identifiers from a script block.
@@ -160,6 +181,7 @@ fn collect_dollar_identifiers_from_js(js: &str, refs: &mut FxHashSet<String>) {
                 }
 
                 // Only add if we have more than just $
+                // (bare $ detection is handled separately via proper AST analysis)
                 if ident.len() > 1 {
                     refs.insert(ident);
                 }

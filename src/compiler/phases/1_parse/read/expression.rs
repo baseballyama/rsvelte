@@ -3897,7 +3897,10 @@ fn convert_statement_for_program(
                         Value::Number((func_start as i64).into()),
                     );
                     func_obj.insert("end".to_string(), Value::Number((func_end as i64).into()));
-                    func_obj.insert("loc".to_string(), create_loc(func_start, func_end, line_offsets));
+                    func_obj.insert(
+                        "loc".to_string(),
+                        create_loc(func_start, func_end, line_offsets),
+                    );
 
                     if let Some(id) = &func_decl.id {
                         let id_start = offset + id.span.start as usize;
@@ -3924,7 +3927,8 @@ fn convert_statement_for_program(
                     func_obj.insert("params".to_string(), Value::Array(params));
 
                     if let Some(body) = &func_decl.body {
-                        let body_value = convert_function_body_for_program(body, offset, line_offsets);
+                        let body_value =
+                            convert_function_body_for_program(body, offset, line_offsets);
                         func_obj.insert("body".to_string(), body_value);
                     } else {
                         func_obj.insert("body".to_string(), Value::Null);

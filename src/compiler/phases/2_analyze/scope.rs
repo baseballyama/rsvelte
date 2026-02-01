@@ -61,6 +61,33 @@ impl ScopeRoot {
 
         None
     }
+
+    /// Look up a binding by name, searching all scopes.
+    /// This is a fallback method when we don't know the current scope.
+    /// It searches all scopes and returns the first match found.
+    /// Note: This may return bindings from any scope, not respecting lexical scoping.
+    /// Use `get_binding` when you know the current scope for proper scoping.
+    ///
+    /// # Arguments
+    /// * `name` - The name of the binding to look up
+    ///
+    /// # Returns
+    /// The binding index if found in any scope, or None if not found.
+    pub fn find_binding_any_scope(&self, name: &str) -> Option<usize> {
+        // First check the root scope
+        if let Some(&binding_idx) = self.scope.declarations.get(name) {
+            return Some(binding_idx);
+        }
+
+        // Then search all other scopes
+        for scope in &self.all_scopes {
+            if let Some(&binding_idx) = scope.declarations.get(name) {
+                return Some(binding_idx);
+            }
+        }
+
+        None
+    }
 }
 
 /// A lexical scope containing variable bindings.
