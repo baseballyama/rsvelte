@@ -1986,6 +1986,22 @@ impl Parser<'_> {
                         (expr_start, expr_start),
                     ));
                 }
+                // Check for {#if}, {#each}, {#await}, etc. block tags in attribute value - this is invalid
+                if self.current_char() == '#' {
+                    self.advance(); // consume '#'
+                    let tag_name: String = self
+                        .source
+                        .get(self.index..)
+                        .unwrap_or("")
+                        .chars()
+                        .take_while(|c| c.is_ascii_lowercase())
+                        .collect();
+                    return Err(crate::error::ParseError::svelte(
+                        "block_invalid_placement",
+                        format!("{{#{} ...}} block cannot be in attribute value", tag_name),
+                        (expr_start, expr_start),
+                    ));
+                }
                 // Reset position after whitespace check (we only peeked)
                 self.index = expr_start + 1;
 

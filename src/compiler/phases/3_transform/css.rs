@@ -366,6 +366,33 @@ fn is_global_block(node: &Value) -> bool {
     false
 }
 
+/// Check if a rule starts with :global (with or without arguments)
+/// This includes both `:global { ... }` and `:global(.x) { ... }`
+fn is_global_selector_rule(node: &Value) -> bool {
+    if let Some(prelude) = node.get("prelude")
+        && let Some(children) = prelude.get("children").and_then(|c| c.as_array())
+        && !children.is_empty()
+    {
+        // Check each complex selector - if ANY starts with :global, this is a global block
+        for complex in children {
+            if let Some(relative_selectors) = complex.get("children").and_then(|c| c.as_array())
+                && !relative_selectors.is_empty()
+                && let Some(rel) = relative_selectors.first()
+                && let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array())
+                && !selectors.is_empty()
+                && let Some(sel) = selectors.first()
+            {
+                if sel.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                    && sel.get("name").and_then(|n| n.as_str()) == Some("global")
+                {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
 /// Check if a block contains nested rules (not just declarations)
 fn has_nested_rules(block: &Value) -> bool {
     if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
@@ -1333,6 +1360,7 @@ fn transform_rule_preserving(
     last_end: &mut usize,
     ctx: &CssContext,
     is_nested: bool,
+    is_in_global_block: bool,
 ) {
     let node_start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
     let node_end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
@@ -1478,6 +1506,7 @@ fn transform_block_with_nested_rules(
     output: &mut String,
     specificity_bumped: &mut bool,
     ctx: &CssContext,
+    is_in_global_block: bool,
 ) {
     let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
     let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
