@@ -174,6 +174,7 @@ fn get_loose_identifier(
 ///
 /// # Returns
 /// A parsed `Expression` or an empty identifier in loose mode.
+/// Returns an error message if parsing fails and loose mode is disabled.
 pub fn parse_expression(
     content: &str,
     offset: usize,
@@ -182,13 +183,13 @@ pub fn parse_expression(
     loose: bool,
     disallow_loose: bool,
     opening_token: char,
-) -> Expression {
+) -> Result<Expression, (String, usize)> {
     // Try TypeScript first, then fall back to JavaScript
     let result = parse_expression_with_typescript(content, offset, line_offsets, true)
         .or_else(|| parse_expression_with_typescript(content, offset, line_offsets, false));
 
     if let Some(expr) = result {
-        return expr;
+        return Ok(expr);
     }
 
     // If parsing failed and we're in loose mode (and not disallowed), try loose identifier
@@ -197,11 +198,22 @@ pub fn parse_expression(
         && let Some(loose_expr) =
             get_loose_identifier(template, offset, opening_token, line_offsets)
     {
-        return loose_expr;
+        return Ok(loose_expr);
+    }
+
+    // Check for parse errors and return them when not in loose mode
+    if (!loose || disallow_loose)
+        && let Some(error_msg) = check_js_parse_error(content)
+    {
+        return Err((error_msg, offset));
     }
 
     // Fall back to invalid identifier
-    create_invalid_identifier(offset, offset + content.len(), line_offsets)
+    Ok(create_invalid_identifier(
+        offset,
+        offset + content.len(),
+        line_offsets,
+    ))
 }
 
 /// Parse a JavaScript expression with a known end position.
@@ -222,6 +234,7 @@ pub fn parse_expression(
 ///
 /// # Returns
 /// A parsed `Expression` or an empty identifier in loose mode.
+/// Returns an error message if parsing fails and loose mode is disabled.
 #[allow(clippy::too_many_arguments)]
 pub fn parse_expression_with_end(
     content: &str,
@@ -232,27 +245,33 @@ pub fn parse_expression_with_end(
     loose: bool,
     disallow_loose: bool,
     _opening_token: char,
-) -> Expression {
+) -> Result<Expression, (String, usize)> {
     // Try TypeScript first, then fall back to JavaScript
     let result = parse_expression_with_typescript(content, offset, line_offsets, true)
         .or_else(|| parse_expression_with_typescript(content, offset, line_offsets, false));
 
     if let Some(expr) = result {
-        return expr;
+        return Ok(expr);
     }
 
     // If parsing failed and we're in loose mode (and not disallowed), create invalid identifier
     // with the known end position
     if loose && !disallow_loose {
-        return create_invalid_identifier(offset, end, line_offsets);
+        return Ok(create_invalid_identifier(offset, end, line_offsets));
+    }
+
+    // Check for parse errors and return them when not in loose mode
+    if (!loose || disallow_loose)
+        && let Some(error_msg) = check_js_parse_error(content)
+    {
+        return Err((error_msg, offset));
     }
 
     // Fall back to invalid identifier
-    create_invalid_identifier(offset, end, line_offsets)
+    Ok(create_invalid_identifier(offset, end, line_offsets))
 }
 
 /// Check if JavaScript expression has parse errors. Returns Some(error_message) if there is an error.
-#[allow(dead_code)]
 pub fn check_js_parse_error(content: &str) -> Option<String> {
     let allocator = Allocator::default();
 
@@ -1614,6 +1633,17 @@ pub fn create_identifier_with_character(
         "loc".to_string(),
         create_loc_with_character(start, end, line_offsets),
     );
+    Expression::Value(Value::Object(obj))
+}
+
+/// Create an identifier WITHOUT a loc field.
+/// Used for error recovery when parsing invalid expressions in loose mode.
+pub fn create_empty_identifier(name: &str, start: usize, end: usize) -> Expression {
+    let mut obj = Map::new();
+    obj.insert("type".to_string(), Value::String("Identifier".to_string()));
+    obj.insert("start".to_string(), Value::Number((start as i64).into()));
+    obj.insert("end".to_string(), Value::Number((end as i64).into()));
+    obj.insert("name".to_string(), Value::String(name.to_string()));
     Expression::Value(Value::Object(obj))
 }
 

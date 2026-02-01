@@ -52,6 +52,62 @@ fn quote_prop_name(name: &str) -> String {
     }
 }
 
+/// Extract slot name from a template node's attributes.
+///
+/// If the node has a `slot="..."` attribute, returns that slot name.
+/// Otherwise returns "default".
+fn get_slot_name(node: &TemplateNode) -> String {
+    // Helper to extract slot name from element attributes
+    fn extract_slot_from_attributes(attrs: &[Attribute]) -> Option<String> {
+        for attr in attrs {
+            if let Attribute::Attribute(attr_node) = attr
+                && attr_node.name.as_str() == "slot"
+            {
+                // Extract the slot name value
+                match &attr_node.value {
+                    AttributeValue::True(_) => {
+                        // slot (boolean) - unlikely but handle it
+                        return Some("default".to_string());
+                    }
+                    AttributeValue::Sequence(parts) => {
+                        // slot="name" - text value
+                        if let Some(AttributeValuePart::Text(text)) = parts.first() {
+                            return Some(text.data.to_string());
+                        }
+                    }
+                    AttributeValue::Expression(_) => {
+                        // slot={expr} - dynamic slot names not supported, use default
+                        return None;
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    match node {
+        TemplateNode::RegularElement(elem) => {
+            extract_slot_from_attributes(&elem.attributes).unwrap_or_else(|| "default".to_string())
+        }
+        TemplateNode::Component(comp) => {
+            extract_slot_from_attributes(&comp.attributes).unwrap_or_else(|| "default".to_string())
+        }
+        TemplateNode::SvelteElement(elem) => {
+            extract_slot_from_attributes(&elem.attributes).unwrap_or_else(|| "default".to_string())
+        }
+        TemplateNode::SvelteSelf(elem) => {
+            extract_slot_from_attributes(&elem.attributes).unwrap_or_else(|| "default".to_string())
+        }
+        TemplateNode::SvelteComponent(elem) => {
+            extract_slot_from_attributes(&elem.attributes).unwrap_or_else(|| "default".to_string())
+        }
+        TemplateNode::SvelteFragment(frag) => {
+            extract_slot_from_attributes(&frag.attributes).unwrap_or_else(|| "default".to_string())
+        }
+        _ => "default".to_string(),
+    }
+}
+
 /// Sanitize a name to be a valid JavaScript identifier.
 /// Replaces invalid identifier characters with underscores.
 /// For example, "0" becomes "_", "1foo" becomes "_foo".
@@ -2367,12 +2423,14 @@ impl<'a> ServerCodeGenerator<'a> {
         TransformError,
     > {
         // Pre-allocate based on typical usage patterns
-        let node_count = fragment.nodes.len();
         let mut snippets: Vec<(String, Vec<String>, Vec<OutputPart>)> = Vec::with_capacity(4);
         let mut slot_names: Vec<String> = Vec::with_capacity(4);
-        let mut non_snippet_nodes: Vec<&TemplateNode> = Vec::with_capacity(node_count);
 
-        // Separate snippets from other children
+        // Group children by slot name
+        // Key: slot name, Value: list of nodes for that slot
+        let mut slot_children: FxHashMap<String, Vec<&TemplateNode>> = FxHashMap::default();
+
+        // Separate snippets from other children, and group by slot
         for node in &fragment.nodes {
             if let TemplateNode::SnippetBlock(snippet_block) = node {
                 // Extract snippet name
@@ -2413,12 +2471,28 @@ impl<'a> ServerCodeGenerator<'a> {
 
                 snippets.push((snippet_name, params, body_parts));
             } else {
-                non_snippet_nodes.push(node);
+                // Get the slot name from the node's attributes
+                let slot_name = get_slot_name(node);
+                slot_children.entry(slot_name).or_default().push(node);
             }
         }
 
-        // Now process remaining children (non-snippets)
-        let children = self.generate_children_from_nodes(&non_snippet_nodes)?;
+        // Process default slot children
+        let children = if let Some(default_nodes) = slot_children.remove("default") {
+            self.generate_children_from_nodes(&default_nodes)?
+        } else {
+            None
+        };
+
+        // Process named slot children (non-default) as snippets without params
+        for (slot_name, nodes) in slot_children {
+            // Generate children content for this named slot
+            if let Some(slot_parts) = self.generate_children_from_nodes(&nodes)? {
+                // Add as a snippet with the slot name (no params)
+                slot_names.push(slot_name.clone());
+                snippets.push((slot_name, Vec::new(), slot_parts));
+            }
+        }
 
         Ok((children, snippets, slot_names))
     }
@@ -2857,12 +2931,30 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
+        // Generate fallback content if there's an {:else} clause
+        let fallback = if let Some(ref fallback_fragment) = block.fallback {
+            let mut fallback_generator = ServerCodeGenerator::new(
+                self.component_name.clone(),
+                self.source.clone(),
+                None,
+                None,
+                None,
+                self.use_async,
+            );
+            for node in &fallback_fragment.nodes {
+                fallback_generator.generate_node(node, false)?;
+            }
+            Some(fallback_generator.output_parts)
+        } else {
+            None
+        };
+
         self.output_parts.push(OutputPart::EachBlock {
             iterable,
             context_name,
             index_name,
             body: body_generator.output_parts,
-            fallback: None,
+            fallback,
         });
 
         Ok(())
@@ -4056,17 +4148,26 @@ export default function {component_name}($$renderer{props_param}) {{
                     let call_syntax = if *dynamic { "?." } else { "" };
 
                     if has_snippets || has_children {
-                        // Wrap in a block if we have snippets
-                        if has_snippets {
+                        // Separate snippets into:
+                        // 1. True snippets with params (need hoisting, passed as props)
+                        // 2. Named slot children (no params, go inline in $$slots)
+                        let (true_snippets, slot_children): (
+                            Vec<&(String, Vec<String>, Vec<OutputPart>)>,
+                            Vec<&(String, Vec<String>, Vec<OutputPart>)>,
+                        ) = snippets
+                            .iter()
+                            .partition(|(_, params, _)| !params.is_empty());
+
+                        let has_true_snippets = !true_snippets.is_empty();
+                        let has_slot_children = !slot_children.is_empty();
+
+                        // Wrap in a block if we have true snippets (need hoisting)
+                        if has_true_snippets {
                             body_code.push_str(&format!("{}{{\n", indent));
 
                             // Generate snippet function declarations inside the block
-                            for (snippet_name, params, body_parts) in snippets {
-                                let params_str = if params.is_empty() {
-                                    "$$renderer".to_string()
-                                } else {
-                                    format!("$$renderer, {}", params.join(", "))
-                                };
+                            for (snippet_name, params, body_parts) in &true_snippets {
+                                let params_str = format!("$$renderer, {}", params.join(", "));
                                 body_code.push_str(&format!(
                                     "{}\tfunction {}({}) {{\n",
                                     indent, snippet_name, params_str
@@ -4076,24 +4177,41 @@ export default function {component_name}($$renderer{props_param}) {{
                                 body_code.push_str(&format!("{}\t}}\n\n", indent));
                             }
 
-                            // Component call with snippets as props
+                            // Component call with true snippets as props
                             body_code.push_str(&format!(
                                 "{}\t{}{}($$renderer, {{ ",
                                 indent, name, call_syntax
                             ));
 
-                            // Collect all props including snippet names
+                            // Collect all props including true snippet names
                             let mut all_props: Vec<String> = props.clone();
-                            for (snippet_name, _, _) in snippets {
-                                all_props.push(snippet_name.clone());
+                            for (snippet_name, _, _) in &true_snippets {
+                                all_props.push(snippet_name.to_string());
                             }
 
-                            // Build $$slots object
-                            let slots_str = slot_names
-                                .iter()
-                                .map(|s| format!("{}: true", s))
-                                .collect::<Vec<_>>()
-                                .join(", ");
+                            // Build $$slots object with:
+                            // - true snippets as `name: true`
+                            // - slot children as inline functions
+                            let mut slots_entries: Vec<String> = Vec::new();
+                            for slot_name in slot_names {
+                                // Check if this slot is a slot child (no params)
+                                if let Some((_, _, body_parts)) =
+                                    slot_children.iter().find(|(n, _, _)| n == slot_name)
+                                {
+                                    // Inline function
+                                    let fn_body = Self::build_parts(body_parts, 0);
+                                    let fn_body_trimmed = fn_body.trim();
+                                    slots_entries.push(format!(
+                                        "{}: ($$renderer) => {{\n{}\t\t\t}}",
+                                        slot_name, fn_body_trimmed
+                                    ));
+                                } else {
+                                    // True snippet marker
+                                    slots_entries.push(format!("{}: true", slot_name));
+                                }
+                            }
+
+                            let slots_str = slots_entries.join(", ");
 
                             if all_props.is_empty() {
                                 body_code.push_str(&format!("$$slots: {{ {} }} }});\n", slots_str));
@@ -4107,8 +4225,8 @@ export default function {component_name}($$renderer{props_param}) {{
 
                             // Close the block
                             body_code.push_str(&format!("{}}}\n", indent));
-                        } else if let Some(children_parts) = children {
-                            // Component with children only (no snippets) - multi-line format
+                        } else if has_slot_children && !has_children {
+                            // Only named slot children (no default children, no true snippets)
                             body_code.push_str(&format!(
                                 "{}{}{}($$renderer, {{\n",
                                 indent, name, call_syntax
@@ -4119,16 +4237,57 @@ export default function {component_name}($$renderer{props_param}) {{
                                 body_code.push_str(&format!("{}\t{},\n", indent, prop));
                             }
 
-                            // Children callback
+                            // $$slots with inline functions
+                            body_code.push_str(&format!("{}\t$$slots: {{\n", indent));
+                            for (slot_name, _, body_parts) in &slot_children {
+                                let fn_body = Self::build_parts(body_parts, indent_level + 3);
+                                body_code.push_str(&format!(
+                                    "{}\t\t{}: ($$renderer) => {{\n{}",
+                                    indent, slot_name, fn_body
+                                ));
+                                body_code.push_str(&format!("{}\t\t}}\n", indent));
+                            }
+                            body_code.push_str(&format!("{}\t}}\n", indent));
+                            body_code.push_str(&format!("{}}});\n", indent));
+                        } else if let Some(children_parts) = children {
+                            // Component with children (default slot) and possibly named slots
+                            body_code.push_str(&format!(
+                                "{}{}{}($$renderer, {{\n",
+                                indent, name, call_syntax
+                            ));
+
+                            // Props
+                            for prop in props {
+                                body_code.push_str(&format!("{}\t{},\n", indent, prop));
+                            }
+
+                            // Children callback (default slot)
                             body_code
                                 .push_str(&format!("{}\tchildren: ($$renderer) => {{\n", indent));
                             let children_code = Self::build_parts(children_parts, indent_level + 2);
                             body_code.push_str(&children_code);
                             body_code.push_str(&format!("{}\t}},\n", indent));
 
-                            // Slots marker
-                            body_code
-                                .push_str(&format!("{}\t$$slots: {{ default: true }}\n", indent));
+                            // $$slots with default: true and any named slot children
+                            if has_slot_children {
+                                body_code.push_str(&format!("{}\t$$slots: {{\n", indent));
+                                body_code.push_str(&format!("{}\t\tdefault: true,\n", indent));
+                                for (slot_name, _, body_parts) in &slot_children {
+                                    let fn_body = Self::build_parts(body_parts, indent_level + 3);
+                                    body_code.push_str(&format!(
+                                        "{}\t\t{}: ($$renderer) => {{\n{}",
+                                        indent, slot_name, fn_body
+                                    ));
+                                    body_code.push_str(&format!("{}\t\t}}\n", indent));
+                                }
+                                body_code.push_str(&format!("{}\t}}\n", indent));
+                            } else {
+                                // Only default slot
+                                body_code.push_str(&format!(
+                                    "{}\t$$slots: {{ default: true }}\n",
+                                    indent
+                                ));
+                            }
                             body_code.push_str(&format!("{}}});\n", indent));
                         }
                     } else if has_spreads {
@@ -4198,43 +4357,87 @@ export default function {component_name}($$renderer{props_param}) {{
                     context_name,
                     index_name,
                     body,
-                    ..
+                    fallback,
                 } => {
-                    // Add block marker to current HTML and flush together
-                    current_html.push_str("<!--[-->");
-                    body_code.push_str(&format!(
-                        "{}$$renderer.push(`{}`);\n\n",
-                        indent, current_html
-                    ));
-                    current_html.clear();
+                    // Flush current HTML before each block
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
 
-                    // Array variable
+                    // Array variable - use unique name
                     let index_var = index_name.as_deref().unwrap_or("$$index");
                     body_code.push_str(&format!(
                         "{}const each_array = $.ensure_array_like({});\n\n",
                         indent, iterable
                     ));
 
-                    // For loop
-                    body_code.push_str(&format!(
-                        "{}for (let {} = 0, $$length = each_array.length; {} < $$length; {}++) {{\n",
-                        indent, index_var, index_var, index_var
-                    ));
+                    if fallback.is_some() {
+                        // If there's a fallback, wrap in if-else
+                        body_code.push_str(&format!("{}if (each_array.length !== 0) {{\n", indent));
+                        // Add block marker for non-empty case
+                        body_code
+                            .push_str(&format!("{}\t$$renderer.push('<!--[-->');\n\n", indent));
 
-                    // Context variable (only if there's a context)
-                    if let Some(ctx_name) = context_name {
+                        // For loop (indented)
                         body_code.push_str(&format!(
-                            "{}\tlet {} = each_array[{}];\n\n",
-                            indent, ctx_name, index_var
+                            "{}\tfor (let {} = 0, $$length = each_array.length; {} < $$length; {}++) {{\n",
+                            indent, index_var, index_var, index_var
                         ));
+
+                        // Context variable (only if there's a context)
+                        if let Some(ctx_name) = context_name {
+                            body_code.push_str(&format!(
+                                "{}\t\tlet {} = each_array[{}];\n\n",
+                                indent, ctx_name, index_var
+                            ));
+                        }
+
+                        // Body
+                        let body_code_inner = Self::build_parts(body, indent_level + 2);
+                        body_code.push_str(&body_code_inner);
+
+                        // Close for loop
+                        body_code.push_str(&format!("{}\t}}\n", indent));
+
+                        // Else branch with fallback
+                        body_code.push_str(&format!("{}}} else {{\n", indent));
+                        // Add block marker for empty case (note the !)
+                        body_code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n", indent));
+
+                        // Fallback body
+                        if let Some(fb) = fallback {
+                            let fallback_code = Self::build_parts(fb, indent_level + 1);
+                            body_code.push_str(&fallback_code);
+                        }
+
+                        body_code.push_str(&format!("{}}}\n\n", indent));
+                    } else {
+                        // No fallback - simple for loop with markers
+                        body_code.push_str(&format!("{}$$renderer.push('<!--[-->');\n\n", indent));
+
+                        // For loop
+                        body_code.push_str(&format!(
+                            "{}for (let {} = 0, $$length = each_array.length; {} < $$length; {}++) {{\n",
+                            indent, index_var, index_var, index_var
+                        ));
+
+                        // Context variable (only if there's a context)
+                        if let Some(ctx_name) = context_name {
+                            body_code.push_str(&format!(
+                                "{}\tlet {} = each_array[{}];\n\n",
+                                indent, ctx_name, index_var
+                            ));
+                        }
+
+                        // Body
+                        let body_code_inner = Self::build_parts(body, indent_level + 1);
+                        body_code.push_str(&body_code_inner);
+
+                        // Close for loop
+                        body_code.push_str(&format!("{}}}\n\n", indent));
                     }
-
-                    // Body
-                    let body_code_inner = Self::build_parts(body, indent_level + 1);
-                    body_code.push_str(&body_code_inner);
-
-                    // Close for loop
-                    body_code.push_str(&format!("{}}}\n\n", indent));
 
                     // Add closing marker to current_html to combine with subsequent content
                     current_html.push_str("<!--]-->");

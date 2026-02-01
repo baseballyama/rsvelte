@@ -4,15 +4,68 @@
 //! It corresponds to `svelte/packages/svelte/src/compiler/phases/3-transform/server/visitors/shared/component.js`.
 
 use crate::ast::template::{
-    Attribute, Component, LetDirective, SvelteComponentElement, SvelteElement, TemplateNode,
+    Attribute, AttributeValue, AttributeValuePart, Component, LetDirective, SvelteComponentElement,
+    SvelteElement, TemplateNode,
 };
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use crate::compiler::phases::phase3_transform::server::types::{
     ComponentServerTransformState, TemplateItem,
 };
-use crate::compiler::phases::phase3_transform::shared::is_element_node;
 
 use super::utils::{build_attribute_value, create_async_block, empty_comment};
+
+/// Extracts the slot name from a template node's attributes.
+///
+/// If the node is an element with a `slot="..."` attribute, returns that slot name.
+/// Otherwise returns "default".
+fn get_slot_name(node: &TemplateNode) -> String {
+    // Helper to extract slot name from element attributes
+    fn extract_slot_from_attributes(attrs: &[Attribute]) -> Option<String> {
+        for attr in attrs {
+            if let Attribute::Attribute(attr_node) = attr
+                && attr_node.name.as_str() == "slot"
+            {
+                // Extract the slot name value
+                match &attr_node.value {
+                    AttributeValue::True(_) => {
+                        // slot (boolean) - unlikely but handle it
+                        return Some("default".to_string());
+                    }
+                    AttributeValue::Sequence(parts) => {
+                        // slot="name" - text value
+                        if let Some(AttributeValuePart::Text(text)) = parts.first() {
+                            return Some(text.data.to_string());
+                        }
+                    }
+                    AttributeValue::Expression(_) => {
+                        // slot={expr} - dynamic slot names not supported, use default
+                        return None;
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    match node {
+        TemplateNode::RegularElement(elem) => {
+            extract_slot_from_attributes(&elem.attributes).unwrap_or_else(|| "default".to_string())
+        }
+        TemplateNode::Component(comp) => {
+            extract_slot_from_attributes(&comp.attributes).unwrap_or_else(|| "default".to_string())
+        }
+        TemplateNode::SvelteElement(elem) => {
+            extract_slot_from_attributes(&elem.attributes).unwrap_or_else(|| "default".to_string())
+        }
+        TemplateNode::SvelteSelf(elem) => {
+            extract_slot_from_attributes(&elem.attributes).unwrap_or_else(|| "default".to_string())
+        }
+        TemplateNode::SvelteComponent(elem) => {
+            extract_slot_from_attributes(&elem.attributes).unwrap_or_else(|| "default".to_string())
+        }
+        _ => "default".to_string(),
+    }
+}
 
 /// Builds an inline component for server-side rendering.
 ///
@@ -153,13 +206,7 @@ pub fn build_inline_component<F>(
                 }));
             }
             _ => {
-                let slot_name = "default".to_string();
-
-                // Check for slot attribute
-                if is_element_node(child) {
-                    // TODO: Extract slot name from attributes
-                }
-
+                let slot_name = get_slot_name(child);
                 children.entry(slot_name).or_default().push(child);
             }
         }

@@ -242,14 +242,46 @@ pub fn visit_regular_element(
         }
     }
 
-    // For input elements with bind:value, bind:checked, or bind:group,
-    // add $.remove_input_defaults() call
-    if node.name == "input" && !has_spread {
-        let has_value_binding = bindings.contains_key("value")
-            || bindings.contains_key("checked")
-            || bindings.contains_key("group");
+    // For input elements, add $.remove_input_defaults() call when needed
+    // Reference: RegularElement.js lines 164-190
+    //
+    // The logic is:
+    // 1. Only for input elements
+    // 2. Only if there's NO defaultValue or defaultChecked attribute
+    // 3. AND one of:
+    //    - has_spread
+    //    - has value binding
+    //    - has checked binding
+    //    - has group binding
+    //    - has a non-text value/checked attribute (and no group binding)
+    if node.name == "input" {
+        // Check if there's a value or checked attribute that's not a simple text attribute
+        let has_value_attribute = attributes.iter().any(|attr| {
+            if let Attribute::Attribute(a) = attr {
+                (a.name == "value" || a.name == "checked") && !is_text_attribute(a)
+            } else {
+                false
+            }
+        });
 
-        if has_value_binding {
+        // Check if there's a defaultValue or defaultChecked attribute
+        let has_default_value_attribute = attributes.iter().any(|attr| {
+            if let Attribute::Attribute(a) = attr {
+                a.name == "defaultValue" || a.name == "defaultChecked"
+            } else {
+                false
+            }
+        });
+
+        let should_remove_defaults = !has_default_value_attribute
+            && (has_spread
+                || bindings.contains_key("value")
+                || bindings.contains_key("checked")
+                || bindings.contains_key("group")
+                || (!bindings.contains_key("group") && has_value_attribute));
+
+        if should_remove_defaults && !has_spread {
+            // When has_spread, remove_input_defaults will be called inside set_attributes
             context.state.init.push(b::stmt(b::call(
                 b::member_path("$.remove_input_defaults"),
                 vec![context.state.node.clone()],
