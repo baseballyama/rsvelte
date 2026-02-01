@@ -324,6 +324,8 @@ pub fn normalize_js(js: &str) -> String {
         static ref MARKER_FN: Regex = Regex::new(r"\$\.(comment|text)\(\)").unwrap();
         // Separately handle $$index_N and $$length patterns (can't use \b with $)
         static ref INDEX_SUFFIX: Regex = Regex::new(r"\$\$(index|length)_(\d+)").unwrap();
+        // Normalize $$body_N patterns to $$body (SSR textarea content variables)
+        static ref BODY_SUFFIX: Regex = Regex::new(r"\$\$body_(\d+)").unwrap();
         // Normalize "function (" to "function("
         static ref FUNCTION_SPACE: Regex = Regex::new(r"function\s+\(").unwrap();
         // Normalize spaces after opening brackets and before closing brackets
@@ -346,6 +348,9 @@ pub fn normalize_js(js: &str) -> String {
     // Normalize $$index_N and $$length_N patterns to $$index and $$length
     // In regex replacement, $$ is a literal $, so we need $$$$ for two literal $ chars
     let result = INDEX_SUFFIX.replace_all(&result, "$$$$$1").to_string();
+
+    // Normalize $$body_N patterns to $$body
+    let result = BODY_SUFFIX.replace_all(&result, "$$$$body").to_string();
 
     // Remove Svelte internal flag imports (legacy, async, tracing)
     // These imports depend on compile options, not core compiler logic
