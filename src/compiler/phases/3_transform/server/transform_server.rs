@@ -825,6 +825,10 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Build the object literal for $.attributes()
         let mut object_parts: Vec<String> = Vec::new();
+        // Collect class directives: { className: expression }
+        let mut class_directive_parts: Vec<String> = Vec::new();
+        // Collect style directives: { styleName: expression }
+        let mut style_directive_parts: Vec<String> = Vec::new();
 
         for attr in &element.attributes {
             match attr {
@@ -855,14 +859,90 @@ impl<'a> ServerCodeGenerator<'a> {
                         object_parts.push(format!("{}: {}", bind_name, expr));
                     }
                 }
-                // Skip class/style directives and event handlers for now
-                Attribute::ClassDirective(_) | Attribute::StyleDirective(_) => {}
+                Attribute::ClassDirective(class_dir) => {
+                    // Build class directive: { className: expression }
+                    let class_name = class_dir.name.as_str();
+                    let expr_start = class_dir.expression.start().unwrap_or(0) as usize;
+                    let expr_end = class_dir.expression.end().unwrap_or(0) as usize;
+                    let value = if expr_end > expr_start && expr_end <= self.source.len() {
+                        self.source[expr_start..expr_end].trim().to_string()
+                    } else {
+                        "true".to_string()
+                    };
+                    class_directive_parts.push(format!("{}: {}", class_name, value));
+                }
+                Attribute::StyleDirective(style_dir) => {
+                    // Build style directive: { styleName: expression }
+                    let style_name = style_dir.name.as_str();
+                    let value = match &style_dir.value {
+                        AttributeValue::True(_) => "true".to_string(),
+                        AttributeValue::Expression(expr) => {
+                            let expr_start = expr.expression.start().unwrap_or(0) as usize;
+                            let expr_end = expr.expression.end().unwrap_or(0) as usize;
+                            if expr_end > expr_start && expr_end <= self.source.len() {
+                                self.source[expr_start..expr_end].trim().to_string()
+                            } else {
+                                "true".to_string()
+                            }
+                        }
+                        AttributeValue::Sequence(parts) => {
+                            // For sequences, build a template literal or concatenation
+                            let mut expr_parts: Vec<String> = Vec::new();
+                            for part in parts {
+                                match part {
+                                    AttributeValuePart::Text(text) => {
+                                        let text_start = text.start as usize;
+                                        let text_end = text.end as usize;
+                                        if text_end > text_start && text_end <= self.source.len() {
+                                            expr_parts.push(format!(
+                                                "'{}'",
+                                                &self.source[text_start..text_end]
+                                            ));
+                                        }
+                                    }
+                                    AttributeValuePart::ExpressionTag(expr) => {
+                                        let expr_start =
+                                            expr.expression.start().unwrap_or(0) as usize;
+                                        let expr_end = expr.expression.end().unwrap_or(0) as usize;
+                                        if expr_end > expr_start && expr_end <= self.source.len() {
+                                            expr_parts.push(
+                                                self.source[expr_start..expr_end]
+                                                    .trim()
+                                                    .to_string(),
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                            if expr_parts.len() == 1 {
+                                expr_parts.remove(0)
+                            } else {
+                                expr_parts.join(" + ")
+                            }
+                        }
+                    };
+                    style_directive_parts.push(format!("{}: {}", style_name, value));
+                }
                 Attribute::OnDirective(_) => {}
                 _ => {}
             }
         }
 
         let object_literal = format!("{{ {} }}", object_parts.join(", "));
+
+        // Build class directives object or "void 0"
+        let classes_arg = if class_directive_parts.is_empty() {
+            "void 0".to_string()
+        } else {
+            format!("{{ {} }}", class_directive_parts.join(", "))
+        };
+
+        // Build style directives object or "void 0"
+        let styles_arg = if style_directive_parts.is_empty() {
+            "void 0".to_string()
+        } else {
+            format!("{{ {} }}", style_directive_parts.join(", "))
+        };
 
         // Determine flags for $.attributes() call
         // ELEMENT_IS_NAMESPACED = 1, ELEMENT_PRESERVE_ATTRIBUTE_CASE = 2, ELEMENT_IS_INPUT = 4
@@ -881,11 +961,10 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Add $.attributes() expression with full arguments
         // $.attributes(object, css_hash, classes, styles, flags)
-        // For now, css_hash, classes, and styles are void 0
-        let attributes_call = if flags != 0 {
+        let attributes_call = if flags != 0 || classes_arg != "void 0" || styles_arg != "void 0" {
             format!(
-                "$.attributes({}, void 0, void 0, void 0, {})",
-                object_literal, flags
+                "$.attributes({}, void 0, {}, {}, {})",
+                object_literal, classes_arg, styles_arg, flags
             )
         } else {
             format!("$.attributes({})", object_literal)
@@ -5877,18 +5956,18 @@ fn transform_class_fields_server(script: &str) -> String {
         }
     }
 
-    // 3. Output methods
-    for line in &method_lines {
-        new_class_body.push('\n');
-        new_class_body.push_str(&format!("\t\t{}\n", line));
-    }
-
-    // 4. Output constructor if present
+    // 3. Output constructor if present (before methods)
     if !constructor_lines.is_empty() {
         new_class_body.push('\n');
         for line in &constructor_lines {
             new_class_body.push_str(&format!("\t\t{}\n", line));
         }
+    }
+
+    // 4. Output methods (after constructor)
+    for line in &method_lines {
+        new_class_body.push('\n');
+        new_class_body.push_str(&format!("\t\t{}\n", line));
     }
 
     let before_class = &script[..class_pos];
