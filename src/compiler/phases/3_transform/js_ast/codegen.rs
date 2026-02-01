@@ -67,7 +67,68 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     // and Svelte's output does the same, so we keep this escaping.
     // oxc codegen outputs numbers like .5 instead of 0.5 - add leading zeros
     let code = add_leading_zeros(code);
+    // OXC has a bug where it doesn't escape tabs in string literals
+    // (it escapes newlines but not tabs). Fix this by post-processing.
+    let code = escape_tabs_in_strings(code);
     Ok(code)
+}
+
+/// Escape tab characters inside single/double-quoted string literals.
+///
+/// OXC has a bug where it doesn't escape tabs in string literals
+/// (it escapes newlines with \n but leaves tabs as literal characters).
+/// This function post-processes the output to escape tabs to \t.
+///
+/// Note: Template literals (backtick strings) preserve whitespace,
+/// so we don't escape tabs inside them.
+fn escape_tabs_in_strings(code: String) -> String {
+    let mut result = String::with_capacity(code.len());
+    let chars: Vec<char> = code.chars().collect();
+    let mut i = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    while i < chars.len() {
+        let c = chars[i];
+
+        // Check for string start/end (only single and double quotes, not backticks)
+        if c == '"' || c == '\'' {
+            // Check if this is escaped
+            let escaped = if i > 0 {
+                // Count preceding backslashes
+                let mut bs_count = 0;
+                let mut j = i;
+                while j > 0 && chars[j - 1] == '\\' {
+                    bs_count += 1;
+                    j -= 1;
+                }
+                // Odd number of backslashes means the quote is escaped
+                bs_count % 2 == 1
+            } else {
+                false
+            };
+
+            if !escaped {
+                if !in_string {
+                    in_string = true;
+                    string_char = c;
+                } else if c == string_char {
+                    in_string = false;
+                }
+            }
+        }
+
+        // Escape tab characters inside single/double-quoted strings
+        if in_string && c == '\t' {
+            result.push_str("\\t");
+        } else {
+            result.push(c);
+        }
+
+        i += 1;
+    }
+
+    result
 }
 
 /// Add blank lines to match Svelte's esrap output formatting.
