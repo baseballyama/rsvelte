@@ -312,6 +312,7 @@ fn transform_node_preserving(
                 last_end,
                 ctx,
                 is_nested,
+                false, // not in a global block
             );
         }
         Some("Atrule") => {
@@ -1480,6 +1481,7 @@ fn transform_rule_preserving(
                     output,
                     specificity_bumped,
                     ctx,
+                    false, // not in a global block
                 );
             } else {
                 // Copy the entire block from source (including braces and content)
@@ -1506,7 +1508,7 @@ fn transform_block_with_nested_rules(
     output: &mut String,
     specificity_bumped: &mut bool,
     ctx: &CssContext,
-    is_in_global_block: bool,
+    _is_in_global_block: bool,
 ) {
     let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
     let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
@@ -1560,6 +1562,7 @@ fn transform_block_with_nested_rules(
                             &mut local_last_end,
                             ctx,
                             true, // nested rules use :where() for specificity preservation
+                            false, // not in a global block
                         );
                     }
                 }
