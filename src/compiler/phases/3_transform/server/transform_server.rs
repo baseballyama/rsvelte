@@ -4001,32 +4001,8 @@ export default function {component_name}($$renderer{props_param}) {{
         };
 
         // Normalize the output through oxc parser/codegen
-        if raw_output.contains("<ul>") {
-            eprintln!(
-                "[DEBUG] RAW contains '<ul><!--[-->': {}",
-                raw_output.contains("<ul><!--[-->")
-            );
-            for line in raw_output.lines() {
-                if line.contains("<ul>") || line.contains("<!--[-->") {
-                    eprintln!("[DEBUG] Raw line: {}", line);
-                }
-            }
-        }
         match normalize_js(&raw_output) {
-            Ok(normalized) => {
-                if raw_output.contains("<ul>") {
-                    eprintln!(
-                        "[DEBUG] NORMALIZED contains '<ul><!--[-->': {}",
-                        normalized.contains("<ul><!--[-->")
-                    );
-                    for line in normalized.lines() {
-                        if line.contains("<ul>") || line.contains("<!--[-->") {
-                            eprintln!("[DEBUG] Normalized line: {}", line);
-                        }
-                    }
-                }
-                normalized
-            }
+            Ok(normalized) => normalized,
             Err(_) => raw_output, // Fall back to raw output if parsing fails
         }
     }
