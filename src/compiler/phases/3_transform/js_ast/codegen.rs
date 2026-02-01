@@ -72,6 +72,8 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     // OXC has a bug where it doesn't escape tabs in string literals
     // (it escapes newlines but not tabs). Fix this by post-processing.
     let code = escape_tabs_in_strings(code);
+    // Remove trailing newline to match Svelte compiler output
+    let code = code.trim_end_matches('\n').to_string();
     Ok(code)
 }
 

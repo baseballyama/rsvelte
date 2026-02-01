@@ -148,7 +148,13 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     let mut uses_index = each_node_meta.contains_group_binding || node.index.is_some();
     let key_uses_index = false; // Will be set properly when visiting key
 
+    // Save the current transform map - each block creates a child scope for transforms
+    // This prevents transforms registered for this block's item/index from leaking to
+    // sibling each blocks. Reference: EachBlock.js lines 129-133
+    let saved_transform = context.state.transform.clone();
+
     // Build declarations for the render function body
+    // This will insert transforms for the item and index into context.state.transform
     let declarations = build_declarations(
         node,
         context,
@@ -164,6 +170,9 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     // Visit the each block body to get the body block
     // The Fragment visitor handles template creation and hoisting
     let body_block = visit_fragment(&node.body, context);
+
+    // Restore the original transform map to prevent leaking to sibling blocks
+    context.state.transform = saved_transform;
 
     // Build the key function
     let key_function = build_key_function(node, context, key_uses_index, &index);
