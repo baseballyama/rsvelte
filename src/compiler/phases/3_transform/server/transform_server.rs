@@ -3928,17 +3928,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     slot_names,
                     dynamic,
                 } => {
-                    // Check if current_html content is sibling content (not just parent opening tag)
-                    // Opening tags end with ">", sibling content has text/whitespace after
-                    let has_sibling_content_before =
-                        !current_html.is_empty() && !current_html.ends_with('>');
-
-                    // Add marker before component if there's sibling content before
-                    if *has_prior_content && has_sibling_content_before {
-                        current_html.push_str("<!---->");
-                    }
-
-                    // Flush current HTML
+                    // Flush current HTML before the component call
                     if !current_html.is_empty() {
                         body_code
                             .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
@@ -4079,13 +4069,12 @@ export default function {component_name}($$renderer{props_param}) {{
                     });
 
                     // Add marker after component if:
-                    // - There's sibling content before (has_prior_content with non-tag content), OR
+                    // - There's content before (has_prior_content), OR
                     // - There's content after
-                    // This creates paired markers around the component position
-                    // Note: has_sibling_content_before was computed before flush
-                    let needs_marker_after =
-                        (*has_prior_content && has_sibling_content_before) || has_content_after;
-                    if needs_marker_after {
+                    // This matches the official Svelte compiler behavior when
+                    // skip_hydration_boundaries is false (which is true when
+                    // the fragment is NOT standalone)
+                    if *has_prior_content || has_content_after {
                         current_html.push_str("<!---->");
                     }
                 }
