@@ -63,6 +63,11 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
         .code;
     let code = collapse_short_arrays(code);
     let code = add_blank_lines_for_formatting(code);
+    // oxc codegen escapes </script> to <\/script> in template literals for HTML safety,
+    // but Svelte's output doesn't do this escaping, so we need to unescape it
+    let code = code.replace(r"<\/script>", "</script>");
+    // oxc codegen outputs numbers like .5 instead of 0.5 - add leading zeros
+    let code = add_leading_zeros(code);
     Ok(code)
 }
 
@@ -201,6 +206,54 @@ fn get_indent_level(line: &str) -> usize {
         }
     }
     count
+}
+
+/// Add leading zeros to decimal numbers that start with a dot.
+///
+/// oxc's codegen outputs numbers like `.5` instead of `0.5`.
+/// This function adds leading zeros to match Svelte's esrap output.
+fn add_leading_zeros(code: String) -> String {
+    let mut result = String::with_capacity(code.len() + 100);
+    let chars: Vec<char> = code.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+
+    while i < len {
+        let c = chars[i];
+
+        if c == '.' && i + 1 < len && chars[i + 1].is_ascii_digit() {
+            let prev_char = if i > 0 { chars[i - 1] } else { ' ' };
+
+            if !prev_char.is_ascii_digit()
+                && (prev_char == ' '
+                    || prev_char == '\t'
+                    || prev_char == '\n'
+                    || prev_char == '('
+                    || prev_char == '['
+                    || prev_char == '{'
+                    || prev_char == ','
+                    || prev_char == ':'
+                    || prev_char == '='
+                    || prev_char == '+'
+                    || prev_char == '-'
+                    || prev_char == '*'
+                    || prev_char == '/'
+                    || prev_char == '%'
+                    || prev_char == '<'
+                    || prev_char == '>'
+                    || prev_char == '!'
+                    || prev_char == '&'
+                    || prev_char == '|'
+                    || prev_char == '?'
+                    || prev_char == ';')
+            {
+                result.push('0');
+            }
+        }
+        result.push(c);
+        i += 1;
+    }
+    result
 }
 
 /// Collapse short arrays from multi-line to single-line format.
