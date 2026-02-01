@@ -2,6 +2,7 @@
 //!
 //! Walks the AST and creates a scope tree with bindings.
 
+use super::errors;
 use super::scope::{Binding, BindingKind, DeclarationKind, Scope, ScopeRoot};
 use super::visitors::shared::utils::validate_identifier_name;
 use crate::ast::template::{
@@ -170,6 +171,15 @@ impl<'a> ScopeBuilder<'a> {
         kind: BindingKind,
         declaration_kind: DeclarationKind,
     ) -> usize {
+        // Check for duplicate declaration in the current scope
+        if self.scopes[self.current_scope]
+            .declarations
+            .contains_key(&name)
+        {
+            self.validation_errors
+                .push(errors::declaration_duplicate(&name));
+        }
+
         let idx = self.bindings.len();
         let binding = Binding::with_declaration_kind(
             name.clone(),
