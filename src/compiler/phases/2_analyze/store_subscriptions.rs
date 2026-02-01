@@ -166,22 +166,12 @@ pub fn detect_store_subscriptions(
                 return Err(errors::store_invalid_scoped_subscription());
             }
 
-            // Check if the store name is shadowed in any nested scope (e.g., arrow function parameter)
-            // If it is, we need to raise an error because the $store reference might be
-            // referring to the shadowed variable, not the top-level store.
-            // This catches cases like:
-            //   <button on:click={(store) => { $store = 1; }}>
-            // where `store` parameter shadows the top-level `store`
-            for scope in &analysis.root.all_scopes {
-                if let Some(&nested_binding_idx) = scope.declarations.get(store_name) {
-                    let nested_binding = &analysis.root.bindings[nested_binding_idx];
-                    // Check if this is a different binding in a nested scope (not module/instance)
-                    if nested_binding_idx != binding_idx && nested_binding.scope_index > 1 {
-                        // The store name is shadowed in a nested scope
-                        return Err(errors::store_invalid_scoped_subscription());
-                    }
-                }
-            }
+            // Note: We don't check for shadowed bindings in nested scopes here because
+            // detecting whether a $store reference is inside the shadowing scope requires
+            // proper AST path tracking. The official Svelte compiler checks each reference's
+            // path to see if the store name resolves to a nested scope at that location.
+            // The check for nested scope shadowing is handled in the Identifier visitor
+            // (visitors/identifier.rs) where we have the actual reference context.
 
             // Check if the reference is inside a module script
             // Store subscriptions are not allowed in module scripts

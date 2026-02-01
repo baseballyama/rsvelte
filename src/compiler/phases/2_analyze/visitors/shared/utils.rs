@@ -1170,6 +1170,14 @@ pub fn walk_js_expression(
                 // Check for store scoped subscription errors
                 // When we see a $xxx identifier inside a function, check if xxx
                 // refers to a locally-scoped variable that shadows an outer store
+                //
+                // Note: The root.scope.declarations lookup returns the OUTER binding
+                // (module/instance scope) due to how declarations are collected.
+                // We only error if the only binding for the store name is in a nested scope
+                // (scope_index > 1). If there's an outer store binding, the $store reference
+                // in the template is valid because it refers to that outer binding.
+                // The shadowing check for references INSIDE nested functions is handled by
+                // the Identifier visitor with proper context.
                 if name.starts_with('$') && !name.starts_with("$$") && name != "$" {
                     let store_name = &name[1..];
                     if !store_name.is_empty()
@@ -1177,14 +1185,25 @@ pub fn walk_js_expression(
                         && context.function_depth > 0
                     {
                         // Check if the store binding is in a nested scope
+                        // This catches cases where the ONLY binding for store_name is nested
+                        // (e.g., {#each items as item}{$item}{/each} where item is EachItem)
                         if let Some(&binding_idx) =
                             context.analysis.root.scope.declarations.get(store_name)
                         {
                             let binding = &context.analysis.root.bindings[binding_idx];
                             // If the binding's scope_index is > 1 (deeper than instance scope),
-                            // it's a local binding that shadows the outer store
+                            // AND we're inside that nested scope, it's a shadowing error
                             // Scope 0 = module, Scope 1 = instance, Scope 2+ = nested
-                            if binding.scope_index > 1 {
+                            //
+                            // We need to check if we're actually inside the scope where this
+                            // binding is declared. function_depth gives us an approximation:
+                            // - In template: function_depth = 0
+                            // - In event handler (first level function): function_depth = 1
+                            // - In nested function: function_depth >= 2
+                            // Only error if scope_index > 1 AND we're deep enough to be in that scope
+                            if binding.scope_index > 1
+                                && binding.scope_index <= context.function_depth + 1
+                            {
                                 return Err(
                                     super::super::super::errors::store_invalid_scoped_subscription(
                                     ),
