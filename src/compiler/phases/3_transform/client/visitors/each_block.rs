@@ -456,31 +456,28 @@ fn get_object_name(expr: &Expression) -> Option<String> {
 /// expression when bindings are reassigned, to invalidate the array.
 fn get_collection_id_if_needed(node: &EachBlock, context: &ComponentContext) -> Option<String> {
     // Get the names declared in this each block's scope
-    let mut declared_names: Vec<&str> = Vec::new();
+    let mut declared_names: Vec<String> = Vec::new();
 
-    // Add context pattern name if it's a simple identifier
+    // Add names from context pattern - can be simple identifier or destructuring
     if let Some(ctx) = &node.context {
         let Expression::Value(val) = ctx;
-        if let serde_json::Value::Object(obj) = val
-            && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
-            && let Some(name) = obj.get("name").and_then(|v| v.as_str())
-        {
-            declared_names.push(name);
+        if let serde_json::Value::Object(obj) = val {
+            collect_pattern_names(obj, &mut declared_names);
         }
     }
 
     // Add index name if present
     if let Some(index_name) = &node.index {
-        declared_names.push(index_name.as_str());
+        declared_names.push(index_name.to_string());
     }
 
     // Check if any of these names exist in the parent scope
     // We use the scope's parent field to get the parent scope index
     if let Some(parent_idx) = context.state.scope.parent {
-        for name in declared_names {
+        for name in &declared_names {
             // Look for a binding with this name in the parent scope
             for binding in &context.state.scope_root.bindings {
-                if binding.name == name && binding.scope_index == parent_idx {
+                if &binding.name == name && binding.scope_index == parent_idx {
                     // Found a binding with the same name in the parent scope
                     // This means we have shadowing, so we need a collection_id
                     // Use a simple counter based on the number of bindings
@@ -494,6 +491,54 @@ fn get_collection_id_if_needed(node: &EachBlock, context: &ComponentContext) -> 
     }
 
     None
+}
+
+/// Collect all binding names from a pattern (identifier, object pattern, array pattern).
+fn collect_pattern_names(
+    obj: &serde_json::Map<String, serde_json::Value>,
+    names: &mut Vec<String>,
+) {
+    match obj.get("type").and_then(|v| v.as_str()) {
+        Some("Identifier") => {
+            if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+                names.push(name.to_string());
+            }
+        }
+        Some("ObjectPattern") => {
+            if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
+                for prop in props {
+                    if let Some(prop_obj) = prop.as_object() {
+                        // Get the value part of the property (the binding)
+                        if let Some(value) = prop_obj.get("value").and_then(|v| v.as_object()) {
+                            collect_pattern_names(value, names);
+                        }
+                    }
+                }
+            }
+        }
+        Some("ArrayPattern") => {
+            if let Some(elements) = obj.get("elements").and_then(|e| e.as_array()) {
+                for elem in elements {
+                    if let Some(elem_obj) = elem.as_object() {
+                        collect_pattern_names(elem_obj, names);
+                    }
+                }
+            }
+        }
+        Some("AssignmentPattern") => {
+            // e.g., { a = default } - get the left side
+            if let Some(left) = obj.get("left").and_then(|l| l.as_object()) {
+                collect_pattern_names(left, names);
+            }
+        }
+        Some("RestElement") => {
+            // e.g., ...rest
+            if let Some(arg) = obj.get("argument").and_then(|a| a.as_object()) {
+                collect_pattern_names(arg, names);
+            }
+        }
+        _ => {}
+    }
 }
 
 /// Generate the index identifier.
@@ -709,6 +754,8 @@ fn build_declarations(
 
                     // Register transform for this name that calls the getter
                     // When reading `name`, it should become `name()` (call the getter)
+                    // is_reactive is true because the getter returns a value that depends on
+                    // reactive each block data (the item may be reactive)
                     context.state.transform.insert(
                         name.clone(),
                         IdentifierTransform {
@@ -721,7 +768,9 @@ fn build_declarations(
                             update: None,
                             skip_proxy: false,
                             is_defined: false,
-                            is_reactive: false,
+                            // Getter functions accessing each block items are always reactive
+                            // because they depend on the (potentially reactive) item value
+                            is_reactive: true,
                         },
                     );
                 }
