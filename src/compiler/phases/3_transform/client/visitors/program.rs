@@ -50,7 +50,7 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
         // Handle mutated imports in instance scope
         if let Some(ref _instance) = context.state.analysis.instance {
             // Iterate through scope declarations to find mutated imports
-            for (_name, binding_idx) in &context.state.scope.declarations {
+            for binding_idx in context.state.scope.declarations.values() {
                 if let Some(binding) = context.state.scope_root.bindings.get(*binding_idx) {
                     // Check if this is a mutated import
                     if binding.declaration_kind == DeclarationKind::Import && binding.mutated {
@@ -397,7 +397,7 @@ fn prop_mutate(node: JsExpr, mutation: JsExpr) -> JsExpr {
 mod tests {
     use super::*;
     use crate::compiler::CompileOptions;
-    use crate::compiler::phases::phase2_analyze::scope::{Binding, Scope, ScopeRoot};
+    use crate::compiler::phases::phase2_analyze::scope::ScopeRoot;
     use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
     use std::rc::Rc;
 

@@ -132,6 +132,11 @@ fn transform_client_with_visitors(
     use crate::compiler::phases::phase3_transform::client::visitors::shared::declarations::add_state_transformers;
     add_state_transformers(&mut context);
 
+    // Visit the program to set up transforms for props, store subscriptions, etc.
+    // This handles legacy mode props ($.prop() getters) and store subscriptions
+    use crate::compiler::phases::phase3_transform::client::visitors::program::visit_program;
+    visit_program(&mut context);
+
     // Call the fragment visitor to transform the template
     // This is the root fragment of the component, so is_root_fragment=true
     let template_body = fragment(&ast.fragment, &mut context, true);
