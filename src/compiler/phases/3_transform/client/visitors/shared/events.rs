@@ -222,20 +222,24 @@ pub fn build_event_handler(
     let has_call = expression_has_call(expression);
 
     // Convert the expression to JS
+    // This already applies transforms to assignments inside arrow functions/etc.
     let handler = convert_expression(expression, context);
 
-    // Apply state transforms to the handler
+    // Inline handler (arrow or function expression)
+    // These are already fully processed by convert_expression, including any
+    // assignment transforms (e.g., clicked = true -> clicked(true)).
+    // We DON'T call build_expression on these to avoid double-transforming.
+    if matches!(handler, JsExpr::Arrow(_) | JsExpr::Function(_)) {
+        return handler;
+    }
+
+    // Apply state transforms to non-inline handlers
     // This transforms state variable references (e.g., count += 1 -> $.set(count, $.get(count) + 1))
     use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_expression;
     let mut metadata =
         crate::compiler::phases::phase3_transform::client::types::ExpressionMetadata::default();
     metadata.set_has_state(true); // Conservative: assume handlers may reference state
     let mut handler = build_expression(context, &handler, &metadata);
-
-    // Inline handler (arrow or function expression)
-    if matches!(handler, JsExpr::Arrow(_) | JsExpr::Function(_)) {
-        return handler;
-    }
 
     // Function declared in the script
     if let JsExpr::Identifier(name) = &handler {
