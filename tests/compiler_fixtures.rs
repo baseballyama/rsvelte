@@ -282,6 +282,52 @@ fn test_compiler_snapshot_fixtures() {
     assert_eq!(failed, 0, "{} tests failed", failed);
 }
 
+/// Test that compiled output has real tab characters, not literal \t.
+#[test]
+fn test_compile_output_has_real_tabs() {
+    // Use the actual skip-static-subtree input
+    let input_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("svelte/packages/svelte/tests/snapshot/samples/skip-static-subtree/index.svelte");
+    let input = std::fs::read_to_string(&input_path).expect("Failed to read input file");
+    println!("Input path: {:?}", input_path);
+    println!("Input length: {}", input.len());
+
+    let options = CompileOptions {
+        generate: GenerateMode::Client,
+        filename: Some("test/index.svelte".to_string()),
+        ..Default::default()
+    };
+
+    let result = compile(&input, options).expect("compilation should succeed");
+    let code = &result.js.code;
+
+    // Check for tabs
+    let has_real_tab = code.chars().any(|c| c == '\t');
+    let has_literal_backslash_t = code.contains(r"\t");
+
+    println!("Generated code:\n{}", code);
+    println!("\nHas real tab: {}", has_real_tab);
+    println!("Has literal backslash-t: {}", has_literal_backslash_t);
+
+    // Print character codes around the function body
+    if let Some(pos) = code.find("$$props) {") {
+        let after_brace = &code[pos + "$$props) {".len()..];
+        println!("\nFirst 20 chars after function brace:");
+        for (i, c) in after_brace.chars().take(20).enumerate() {
+            println!("  char[{}]: {:?} (0x{:x})", i, c, c as u32);
+        }
+    }
+
+    assert!(
+        has_real_tab,
+        "Compiled output should contain real tab characters (0x09)"
+    );
+    assert!(
+        !has_literal_backslash_t,
+        "Compiled output should not contain literal \\t"
+    );
+}
+
 /// Test that lists all available snapshot fixtures.
 #[test]
 fn list_snapshot_fixtures() {

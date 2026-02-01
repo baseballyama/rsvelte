@@ -87,34 +87,52 @@ fn escape_tabs_in_strings(code: String) -> String {
     let mut i = 0;
     let mut in_string = false;
     let mut string_char = ' ';
+    let mut in_template_literal = false;
+    let mut template_depth = 0; // Track nested ${...} in template literals
 
     while i < chars.len() {
         let c = chars[i];
 
-        // Check for string start/end (only single and double quotes, not backticks)
-        if c == '"' || c == '\'' {
-            // Check if this is escaped
-            let escaped = if i > 0 {
-                // Count preceding backslashes
-                let mut bs_count = 0;
-                let mut j = i;
-                while j > 0 && chars[j - 1] == '\\' {
-                    bs_count += 1;
-                    j -= 1;
-                }
-                // Odd number of backslashes means the quote is escaped
-                bs_count % 2 == 1
-            } else {
-                false
-            };
+        // Check if this character is escaped (preceded by odd number of backslashes)
+        let is_escaped = if i > 0 {
+            let mut bs_count = 0;
+            let mut j = i;
+            while j > 0 && chars[j - 1] == '\\' {
+                bs_count += 1;
+                j -= 1;
+            }
+            bs_count % 2 == 1
+        } else {
+            false
+        };
 
-            if !escaped {
-                if !in_string {
-                    in_string = true;
-                    string_char = c;
-                } else if c == string_char {
-                    in_string = false;
+        // Handle template literal tracking
+        if !in_string {
+            if c == '`' && !is_escaped {
+                if !in_template_literal {
+                    in_template_literal = true;
+                    template_depth = 0;
+                } else if template_depth == 0 {
+                    in_template_literal = false;
                 }
+            } else if in_template_literal {
+                // Track ${...} nesting in template literals
+                if c == '$' && i + 1 < chars.len() && chars[i + 1] == '{' && !is_escaped {
+                    template_depth += 1;
+                } else if c == '}' && template_depth > 0 {
+                    template_depth -= 1;
+                }
+            }
+        }
+
+        // Check for string start/end (only single and double quotes, not backticks)
+        // Only check when NOT inside a template literal (or when inside ${...} within template)
+        if (!in_template_literal || template_depth > 0) && (c == '"' || c == '\'') && !is_escaped {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char {
+                in_string = false;
             }
         }
 
@@ -224,6 +242,12 @@ fn should_add_blank_line_after(current: &str, next: &str, raw_current: &str) -> 
             // After variable declarations (before non-declaration statements)
             // But only if the current is a declaration and next is NOT a declaration
             if is_var_declaration(current) && !is_var_declaration(next) && is_statement(next) {
+                return true;
+            }
+
+            // Rule 5: After $.reset(...) calls (before var declarations)
+            // This matches Svelte's esrap formatting for element traversal code
+            if current.starts_with("$.reset(") && is_var_declaration(next) {
                 return true;
             }
         }
@@ -1448,6 +1472,29 @@ mod tests {
             code.contains("() => ({") || code.contains("()=>({"),
             "Object literal with getters in arrow function should be wrapped in parentheses: {}",
             code
+        );
+    }
+
+    #[test]
+    fn test_normalize_js_preserves_tabs() {
+        // Test that normalize_js preserves actual tab characters for indentation
+        let input = "function test() {\n\tvar x = 1;\n}";
+        let result = normalize_js(input).unwrap();
+
+        println!("Input: {:?}", input);
+        println!("Output: {:?}", result);
+
+        // Check that the output has a real tab character (0x09), not backslash-t
+        let has_real_tab = result.chars().any(|c| c == '\t');
+        let has_literal_backslash_t = result.contains(r"\t");
+
+        println!("Has real tab: {}", has_real_tab);
+        println!("Has literal backslash-t: {}", has_literal_backslash_t);
+
+        assert!(has_real_tab, "Output should contain real tab characters");
+        assert!(
+            !has_literal_backslash_t,
+            "Output should not contain literal \\t"
         );
     }
 }

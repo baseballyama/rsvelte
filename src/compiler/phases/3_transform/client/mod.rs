@@ -1833,11 +1833,17 @@ fn transform_props_destructuring(
 ) -> Option<String> {
     let trimmed = line.trim();
 
+    // Determine the original declaration keyword (let or const) to preserve it
+    let decl_keyword = if trimmed.starts_with("let ") {
+        "let"
+    } else if trimmed.starts_with("const ") {
+        "const"
+    } else {
+        return None;
+    };
+
     // Check for identifier pattern: let/const props = $props()
-    if (trimmed.starts_with("let ") || trimmed.starts_with("const "))
-        && !trimmed.contains('{')
-        && trimmed.contains("= $props()")
-    {
+    if !trimmed.contains('{') && trimmed.contains("= $props()") {
         // Pattern: let props = $props()
         let decl_start = if trimmed.starts_with("let ") { 4 } else { 6 };
         let eq_pos = trimmed.find('=')?;
@@ -1847,8 +1853,8 @@ fn transform_props_destructuring(
         if prop_source_vars.contains(&var_name.to_string()) {
             // Transform to: let props = $.rest_props($$props, ['$$slots', '$$events', '$$legacy'])
             return Some(format!(
-                "let {} = $.rest_props($$props, ['$$slots', '$$events', '$$legacy']);",
-                var_name
+                "{} {} = $.rest_props($$props, ['$$slots', '$$events', '$$legacy']);",
+                decl_keyword, var_name
             ));
         } else {
             // Read-only rest props - no declaration needed, accessed via $$props directly
@@ -1886,8 +1892,8 @@ fn transform_props_destructuring(
             let flag = if is_exported { 7 } else { 3 };
 
             result.push_str(&format!(
-                "const {} = $.prop($$props, '{}', {}, {});\n",
-                name, name, flag, default_value
+                "{} {} = $.prop($$props, '{}', {}, {});\n",
+                decl_keyword, name, name, flag, default_value
             ));
         } else {
             // No default value - only generate if this is a source prop or exported
@@ -1897,8 +1903,8 @@ fn transform_props_destructuring(
                 // Add 4 (SYNC_READABLE) if exported = 12
                 let flag = if is_exported { 12 } else { 8 };
                 result.push_str(&format!(
-                    "const {} = $.prop($$props, '{}', {});\n",
-                    prop_part, prop_part, flag
+                    "{} {} = $.prop($$props, '{}', {});\n",
+                    decl_keyword, prop_part, prop_part, flag
                 ));
             }
             // Read-only props without defaults are accessed directly via $$props.propName
