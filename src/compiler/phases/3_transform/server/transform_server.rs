@@ -3,6 +3,7 @@
 //! Generates JavaScript code for server-side rendering (SSR).
 
 use super::super::TransformError;
+use super::super::css::render_stylesheet;
 use super::super::js_ast::normalize_js;
 use super::super::shared::{escape_attr, escape_html, is_void_element};
 use crate::ast::template::{
@@ -316,6 +317,16 @@ pub fn transform_server(
         options.experimental.r#async,
     );
 
+    // Handle CSS injection for <svelte:options css="injected" />
+    if analysis.inject_styles && analysis.css.has_css && !analysis.css.hash.is_empty() {
+        // Render the CSS stylesheet with scoping
+        if let Ok(css_output) = render_stylesheet(analysis, &analysis.source, options)
+            && !css_output.code.is_empty()
+        {
+            generator.set_injected_css(analysis.css.hash.clone(), css_output.code);
+        }
+    }
+
     // Use the AST fragment directly (no re-parsing needed)
     generator.generate_component(&ast.fragment)?;
 
@@ -350,6 +361,8 @@ struct ServerCodeGenerator<'a> {
     uses_store_subs: bool,
     /// Whether experimental.async is enabled
     use_async: bool,
+    /// CSS injection info (hash, code) if css="injected"
+    injected_css: Option<(String, String)>,
 }
 
 /// A part of the output - either static HTML or dynamic code.
@@ -524,7 +537,13 @@ impl<'a> ServerCodeGenerator<'a> {
             analysis,
             uses_store_subs,
             use_async,
+            injected_css: None,
         }
+    }
+
+    /// Set the injected CSS info (for css="injected" mode)
+    fn set_injected_css(&mut self, hash: String, code: String) {
+        self.injected_css = Some((hash, code));
     }
 
     /// Transform store subscriptions in an expression.
@@ -3915,6 +3934,21 @@ impl<'a> ServerCodeGenerator<'a> {
             ""
         };
 
+        // Build CSS injection section if needed
+        let (css_const_section, css_add_call) =
+            if let Some((ref hash, ref code)) = self.injected_css {
+                // Escape single quotes in CSS code for JS string
+                let escaped_code = code.replace('\'', "\\'");
+                let css_const = format!(
+                    "const $$css = {{\n\thash: '{}',\n\tcode: '{}'\n}};\n\n",
+                    hash, escaped_code
+                );
+                let css_add = "\t$$renderer.global.css.add($$css);\n".to_string();
+                (css_const, css_add)
+            } else {
+                (String::new(), String::new())
+            };
+
         // Build the final output - handle empty body case
         let has_content = !script_code.is_empty() || !body_code.is_empty();
 
@@ -3944,18 +3978,20 @@ impl<'a> ServerCodeGenerator<'a> {
 
                 format!(
                     r#"{async_import}import * as $ from 'svelte/internal/server';
-{imports_section}{snippets_section}{module_section}
+{imports_section}{snippets_section}{css_const_section}{module_section}
 export default function {component_name}($$renderer{props_param}) {{
-	$$renderer.component(($$renderer) => {{
+{css_add_call}	$$renderer.component(($$renderer) => {{
 {props_declarations}{store_subs_decl}{inner_script}
 {instance_snippets}{inner_body}{bind_props_code}{store_subs_cleanup}	}});
 }}"#,
                     async_import = async_import,
                     imports_section = imports_section,
                     snippets_section = snippets_section,
+                    css_const_section = css_const_section,
                     module_section = module_section,
                     component_name = self.component_name,
                     props_param = props_param,
+                    css_add_call = css_add_call,
                     props_declarations = props_declarations,
                     store_subs_decl = store_subs_decl,
                     inner_script = inner_script,
@@ -3979,15 +4015,17 @@ export default function {component_name}($$renderer{props_param}) {{
 
                 format!(
                     r#"{async_import}import * as $ from 'svelte/internal/server';
-{imports_section}{snippets_section}{module_section}
+{imports_section}{snippets_section}{css_const_section}{module_section}
 export default function {component_name}($$renderer{props_param}) {{
-{props_declarations}{script_section}{instance_snippets}{body_code}{bind_props_code}}}"#,
+{css_add_call}{props_declarations}{script_section}{instance_snippets}{body_code}{bind_props_code}}}"#,
                     async_import = async_import,
                     imports_section = imports_section,
                     snippets_section = snippets_section,
+                    css_const_section = css_const_section,
                     module_section = module_section,
                     component_name = self.component_name,
                     props_param = props_param,
+                    css_add_call = css_add_call,
                     props_declarations = props_declarations,
                     script_section = script_section,
                     instance_snippets = instance_snippets,
@@ -3999,14 +4037,15 @@ export default function {component_name}($$renderer{props_param}) {{
             // Empty body - use single line braces
             // Build $.bind_props() call even for empty body
             let bind_props_code = self.build_bind_props(1);
-            if bind_props_code.is_empty() {
+            if bind_props_code.is_empty() && css_add_call.is_empty() {
                 format!(
                     r#"{async_import}import * as $ from 'svelte/internal/server';
-{imports_section}{snippets_section}{module_section}
+{imports_section}{snippets_section}{css_const_section}{module_section}
 export default function {component_name}($$renderer{props_param}) {{}}"#,
                     async_import = async_import,
                     imports_section = imports_section,
                     snippets_section = snippets_section,
+                    css_const_section = css_const_section,
                     module_section = module_section,
                     component_name = self.component_name,
                     props_param = props_param,
@@ -4014,15 +4053,17 @@ export default function {component_name}($$renderer{props_param}) {{}}"#,
             } else {
                 format!(
                     r#"{async_import}import * as $ from 'svelte/internal/server';
-{imports_section}{snippets_section}{module_section}
+{imports_section}{snippets_section}{css_const_section}{module_section}
 export default function {component_name}($$renderer{props_param}) {{
-{bind_props_code}}}"#,
+{css_add_call}{bind_props_code}}}"#,
                     async_import = async_import,
                     imports_section = imports_section,
                     snippets_section = snippets_section,
+                    css_const_section = css_const_section,
                     module_section = module_section,
                     component_name = self.component_name,
                     props_param = props_param,
+                    css_add_call = css_add_call,
                     bind_props_code = bind_props_code
                 )
             }

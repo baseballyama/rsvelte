@@ -65,10 +65,14 @@ pub fn analyze_component(
 
     // Merge svelte:options from the parsed AST into the analysis
     // This handles cases like <svelte:options runes /> that set runes mode
-    if let Some(ref svelte_options) = ast.options
-        && let Some(runes) = svelte_options.runes
-    {
-        analysis.runes = runes;
+    if let Some(ref svelte_options) = ast.options {
+        if let Some(runes) = svelte_options.runes {
+            analysis.runes = runes;
+        }
+        // Handle <svelte:options css="injected" />
+        if svelte_options.css == Some(crate::ast::template::CssOption::Injected) {
+            analysis.inject_styles = true;
+        }
     }
 
     // Extract script content for Phase 3 (avoids re-parsing)
