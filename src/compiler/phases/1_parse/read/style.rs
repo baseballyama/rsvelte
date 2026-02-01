@@ -1057,8 +1057,12 @@ impl<'a> SelectorParser<'a> {
 
         let name = self.read_identifier();
 
+        // Record end position right after the name, BEFORE any arguments
+        // This matches the official Svelte compiler behavior
+        let end = self.offset + self.index;
+
         // Consume any arguments in parentheses (e.g., ::view-transition-group(foo))
-        // Include arguments in the end position for source preservation during CSS transform
+        // Arguments are consumed but NOT included in the end position
         if self.current_char() == '(' {
             self.advance(); // consume '('
 
@@ -1079,9 +1083,6 @@ impl<'a> SelectorParser<'a> {
 
             self.advance(); // consume ')'
         }
-
-        // Record end position AFTER consuming arguments (if any)
-        let end = self.offset + self.index;
 
         let mut obj = Map::new();
         obj.insert(
