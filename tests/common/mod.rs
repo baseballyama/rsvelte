@@ -1996,6 +1996,15 @@ mod tests {
     }
 
     #[test]
+    fn test_normalize_js_template_literal_leading_space() {
+        // Test that leading whitespace inside template literals is normalized
+        // Note: template literals get converted to single quotes during normalization
+        let input = r#"$$renderer.push(` <select>`);"#;
+        let expected = r#"$$renderer.push('<select>')"#;
+        assert_eq!(normalize_js(input), expected);
+    }
+
+    #[test]
     fn test_normalize_js_preserves_escaped_quotes() {
         // Double quotes inside a double-quoted string become unescaped when converted to single quotes
         // "hello \"world\"" represents the string: hello "world"

@@ -5023,10 +5023,35 @@ export default function {component_name}($$renderer{props_param}) {{
                     // Generate the snippet function call
                     body_code.push_str(&format!("{}{};\n", indent, call_str));
 
-                    // Always add hydration comment marker after render call
-                    // This matches the official Svelte behavior in RenderTag.js
-                    // The empty_comment is pushed unless skip_hydration_boundaries is true
-                    body_code.push_str(&format!("{}$$renderer.push(`<!---->`);\n", indent));
+                    // Add comment marker after render call only if there's content after
+                    // This matches the official Svelte behavior - the hydration marker is
+                    // only added when there's subsequent content in the fragment
+                    let has_content_after = parts[i + 1..].iter().any(|p| {
+                        matches!(
+                            p,
+                            OutputPart::Html(h) if !h.trim().is_empty()
+                        ) || matches!(
+                            p,
+                            OutputPart::Expression(_)
+                                | OutputPart::RawExpression(_)
+                                | OutputPart::HtmlExpression(_)
+                                | OutputPart::Component { .. }
+                                | OutputPart::EachBlock { .. }
+                                | OutputPart::IfBlock { .. }
+                                | OutputPart::AwaitBlock { .. }
+                                | OutputPart::SvelteBoundary { .. }
+                                | OutputPart::SvelteHead { .. }
+                                | OutputPart::TitleElement { .. }
+                                | OutputPart::RenderCall(_)
+                                | OutputPart::SelectElement { .. }
+                                | OutputPart::OptionElement { .. }
+                                | OutputPart::HydrationAnchor
+                        )
+                    });
+
+                    if has_content_after {
+                        current_html.push_str("<!---->");
+                    }
                 }
                 OutputPart::ConstDeclaration(declaration) => {
                     // Flush current HTML before const declaration

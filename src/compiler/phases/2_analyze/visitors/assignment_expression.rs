@@ -7,6 +7,7 @@
 use super::VisitorContext;
 use super::shared::utils::{extract_identifiers, object, validate_assignment};
 use crate::compiler::phases::phase2_analyze::AnalysisError;
+use crate::compiler::phases::phase2_analyze::scope::MutationKind;
 use serde_json::Value;
 
 /// Visit an assignment expression.
@@ -22,6 +23,12 @@ pub fn visit(
     // Validate that we can assign to the left-hand side
     if let Some(left) = node.get("left") {
         validate_assignment(left, context, false)?;
+    }
+
+    // Track mutations/reassignments for all bindings being assigned to.
+    // This is important for prop flags (PROPS_IS_UPDATED) and state tracking.
+    if let Some(left) = node.get("left") {
+        mark_binding_mutation(left, context);
     }
 
     // Track assignments in reactive statements (legacy mode)
@@ -66,4 +73,79 @@ pub fn visit(
     }
 
     Ok(())
+}
+
+/// Mark a binding as mutated or reassigned based on the assignment target.
+///
+/// If the target is a simple Identifier, it's a direct reassignment.
+/// If the target is a MemberExpression, it's a property mutation.
+fn mark_binding_mutation(target: &Value, context: &mut VisitorContext) {
+    let target_type = target.get("type").and_then(|t| t.as_str());
+
+    match target_type {
+        Some("Identifier") => {
+            // Direct assignment: x = value
+            if let Some(name) = target.get("name").and_then(|n| n.as_str()) {
+                // Look up the binding and mark it as reassigned
+                if let Some(binding_idx) = context
+                    .analysis
+                    .root
+                    .get_binding(name, context.scope)
+                    .or_else(|| context.analysis.root.find_binding_any_scope(name))
+                {
+                    let binding = &mut context.analysis.root.bindings[binding_idx];
+                    binding.add_mutation(0, 0, MutationKind::Assignment);
+                }
+            }
+        }
+        Some("MemberExpression") => {
+            // Property mutation: obj.prop = value or obj[key] = value
+            // Find the root identifier of the member expression
+            if let Some(root_name) = get_member_expression_root_name(target)
+                && let Some(binding_idx) = context
+                    .analysis
+                    .root
+                    .get_binding(&root_name, context.scope)
+                    .or_else(|| context.analysis.root.find_binding_any_scope(&root_name))
+            {
+                let binding = &mut context.analysis.root.bindings[binding_idx];
+                binding.add_mutation(0, 0, MutationKind::PropertyMutation);
+            }
+        }
+        Some("ArrayPattern") | Some("ObjectPattern") => {
+            // Destructuring assignment: [a, b] = value or {a, b} = value
+            let identifiers = extract_identifiers(target);
+            for name in identifiers {
+                if let Some(binding_idx) = context
+                    .analysis
+                    .root
+                    .get_binding(&name, context.scope)
+                    .or_else(|| context.analysis.root.find_binding_any_scope(&name))
+                {
+                    let binding = &mut context.analysis.root.bindings[binding_idx];
+                    binding.add_mutation(0, 0, MutationKind::Assignment);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Get the root identifier name from a MemberExpression chain.
+///
+/// For example:
+/// - `obj.prop` => "obj"
+/// - `obj.prop.nested` => "obj"
+/// - `arr[0].prop` => "arr"
+fn get_member_expression_root_name(expr: &Value) -> Option<String> {
+    let expr_type = expr.get("type").and_then(|t| t.as_str())?;
+
+    match expr_type {
+        "Identifier" => expr.get("name").and_then(|n| n.as_str()).map(String::from),
+        "MemberExpression" => {
+            let object = expr.get("object")?;
+            get_member_expression_root_name(object)
+        }
+        _ => None,
+    }
 }

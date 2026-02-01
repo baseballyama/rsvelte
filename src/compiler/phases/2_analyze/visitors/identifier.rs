@@ -54,62 +54,10 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         }
     }
 
-    // Check for scoped store subscription errors
-    // When we're inside a nested function (function_depth > 1 for instance scripts),
-    // a $store reference might refer to a locally-scoped variable that shadows
-    // the outer store, which is invalid.
-    // Corresponds to Svelte's store_invalid_scoped_subscription check in 2-analyze/index.js L376-396
-    //
-    // Note: The official Svelte compiler checks each $store reference's path to see if
-    // the store name resolves to a nested scope at that location. We check if:
-    // 1. We're inside a nested function (function_depth indicates nesting level)
-    // 2. The binding we find for the store name is in that nested scope
-    // This correctly handles cases where a function parameter shadows an outer store:
-    //   <button onclick={(store) => { $store = 1; }}>  // ERROR: store is shadowed
-    // vs cases where the outer store is accessed from within a nested function:
-    //   <button onclick={() => { $store.set(1); }}>    // OK: store is from outer scope
-    if name.starts_with('$') && !name.starts_with("$$") && name != "$" {
-        let store_name = &name[1..];
-        if !store_name.is_empty() && !is_rune(name) {
-            // Check if we're inside a nested scope where a local variable shadows the store
-            // function_depth > 1 means we're inside a nested function (in instance script)
-            // function_depth > 0 means we're inside a function (in module script)
-            let is_nested = context.function_depth > 1
-                || (context.ast_type == super::AstType::Module && context.function_depth > 0);
-
-            if is_nested {
-                // We need to check if the store name resolves to a nested scope binding
-                // at the CURRENT location. This requires looking up the binding starting
-                // from the current scope (approximated by function_depth) and checking
-                // if the resolved binding is in a nested scope.
-                //
-                // The key insight is: if we're at function_depth N and there's a binding
-                // for store_name at scope_index >= 2 (nested scope), and we're inside that
-                // nested scope (function_depth corresponds to nesting), then it's an error.
-                //
-                // For simplicity, we check: if the binding we find has scope_index equal to
-                // or greater than our current function_depth (adjusted for template context),
-                // it means we're inside the scope where that binding is declared.
-                if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(store_name)
-                {
-                    let binding = &context.analysis.root.bindings[binding_idx];
-
-                    // Only error if the binding is in a nested scope (scope_index > 1)
-                    // AND we are inside that scope (function_depth matches the nesting level)
-                    // In practice, scope_index correlates with nesting depth:
-                    // - scope_index 0 = module scope
-                    // - scope_index 1 = instance scope
-                    // - scope_index 2+ = nested function scopes
-                    // function_depth in instance script starts at 1, so function_depth > 1
-                    // means we're inside a nested function.
-                    if binding.scope_index > 1 && binding.scope_index <= context.function_depth + 1
-                    {
-                        return Err(errors::store_invalid_scoped_subscription());
-                    }
-                }
-            }
-        }
-    }
+    // Note: store_invalid_scoped_subscription checks are now handled in
+    // store_subscriptions.rs during the initial store detection phase.
+    // The check there scans all scopes to detect if the store name is
+    // shadowed in any nested scope.
 
     // Check for `arguments` outside of functions
     if name == "arguments" {

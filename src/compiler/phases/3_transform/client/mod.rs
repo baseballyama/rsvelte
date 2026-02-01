@@ -1734,17 +1734,29 @@ fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> String {
             // Remove trailing semicolon from value (after comment removal)
             let value = value.trim_end_matches(';').trim();
 
-            // Calculate flags: PROPS_IS_BINDABLE + PROPS_IS_UPDATED if the binding is updated
-            let flags = calculate_prop_flags(name, analysis);
+            // Check if the value is a "simple expression" that can be passed directly
+            // Non-simple expressions need to be wrapped in a thunk and use PROPS_IS_LAZY_INITIAL
+            let is_simple = is_simple_expression_str(value);
 
-            results.push(format!(
-                "let {} = $.prop($$props, '{}', {}, {});",
-                name, name, flags, value
-            ));
+            // Calculate flags: PROPS_IS_BINDABLE + PROPS_IS_UPDATED + PROPS_IS_LAZY_INITIAL
+            let flags = calculate_prop_flags(name, analysis, !is_simple);
+
+            if is_simple {
+                results.push(format!(
+                    "let {} = $.prop($$props, '{}', {}, {});",
+                    name, name, flags, value
+                ));
+            } else {
+                // Wrap non-simple values in a thunk: () => value
+                results.push(format!(
+                    "let {} = $.prop($$props, '{}', {}, () => {});",
+                    name, name, flags, value
+                ));
+            }
         } else {
             let name = decl;
             // Calculate flags: PROPS_IS_BINDABLE + PROPS_IS_UPDATED if the binding is updated
-            let flags = calculate_prop_flags(name, analysis);
+            let flags = calculate_prop_flags(name, analysis, false);
 
             results.push(format!(
                 "let {} = $.prop($$props, '{}', {});",
@@ -1760,11 +1772,12 @@ fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> String {
 ///
 /// In legacy mode, props use PROPS_IS_BINDABLE (8) by default.
 /// If the binding is updated (reassigned or mutated), PROPS_IS_UPDATED (4) is added.
+/// If the default value is not a simple expression, PROPS_IS_LAZY_INITIAL (16) is added.
 ///
 /// Reference: `get_prop_source()` in
 /// `svelte/packages/svelte/src/compiler/phases/3-transform/client/utils.js`
-fn calculate_prop_flags(name: &str, analysis: &ComponentAnalysis) -> i32 {
-    use crate::compiler::constants::{PROPS_IS_BINDABLE, PROPS_IS_UPDATED};
+fn calculate_prop_flags(name: &str, analysis: &ComponentAnalysis, is_lazy_initial: bool) -> i32 {
+    use crate::compiler::constants::{PROPS_IS_BINDABLE, PROPS_IS_LAZY_INITIAL, PROPS_IS_UPDATED};
 
     let mut flags = PROPS_IS_BINDABLE;
 
@@ -1778,7 +1791,101 @@ fn calculate_prop_flags(name: &str, analysis: &ComponentAnalysis) -> i32 {
         flags |= PROPS_IS_UPDATED;
     }
 
+    // Add PROPS_IS_LAZY_INITIAL if the default value needs to be wrapped in a thunk
+    if is_lazy_initial {
+        flags |= PROPS_IS_LAZY_INITIAL;
+    }
+
     flags
+}
+
+/// Check if a value string represents a "simple expression" that can be passed directly.
+///
+/// Simple expressions don't need to be wrapped in a thunk (factory function).
+/// This matches the official Svelte compiler's `is_simple_expression()` function.
+///
+/// Simple expressions include:
+/// - Literals (numbers, strings, booleans, null, undefined)
+/// - Identifiers (variable references)
+/// - Arrow function expressions
+/// - Function expressions
+/// - Binary and logical expressions where both sides are simple
+/// - Conditional expressions where all parts are simple
+///
+/// Non-simple expressions include:
+/// - Array literals: [1, 2, 3]
+/// - Object literals: { a: 1 }
+/// - Call expressions: foo()
+/// - Template literals with expressions: `${x}`
+fn is_simple_expression_str(value: &str) -> bool {
+    let trimmed = value.trim();
+
+    // Empty is not simple
+    if trimmed.is_empty() {
+        return false;
+    }
+
+    // Array literals are NOT simple
+    if trimmed.starts_with('[') {
+        return false;
+    }
+
+    // Object literals are NOT simple
+    if trimmed.starts_with('{') {
+        return false;
+    }
+
+    // Call expressions are NOT simple (unless it's a no-arg function reference)
+    // e.g., foo() is not simple, but foo is simple
+    if trimmed.ends_with(')') && !trimmed.starts_with("function") && !trimmed.contains("=>") {
+        // Check if it looks like a call expression
+        // Find matching parens
+        let mut depth = 0;
+        for (i, c) in trimmed.char_indices().rev() {
+            match c {
+                ')' => depth += 1,
+                '(' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        // Check if this is a call expression or a function definition
+                        let before = &trimmed[..i];
+                        // If there's a valid identifier before the paren, it's a call
+                        if !before.is_empty()
+                            && !before.ends_with("function")
+                            && !before.contains("=>")
+                        {
+                            return false;
+                        }
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    // Template literals with expressions are NOT simple
+    if trimmed.starts_with('`') && trimmed.contains("${") {
+        return false;
+    }
+
+    // new expressions are NOT simple
+    if trimmed.starts_with("new ") {
+        return false;
+    }
+
+    // Everything else is considered simple:
+    // - Numeric literals: 42, 3.14, -1
+    // - String literals: "hello", 'world'
+    // - Boolean literals: true, false
+    // - null, undefined
+    // - Identifiers: foo, bar
+    // - Arrow functions: () => {}, x => x
+    // - Function expressions: function() {}
+    // - Simple template literals: `hello`
+    // - Binary/logical expressions: a + b, a && b
+    // - Conditional expressions: a ? b : c
+    true
 }
 
 /// Split declarators by comma, handling nested braces, brackets, and parens.
