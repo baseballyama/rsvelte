@@ -3,9 +3,46 @@
 //! Corresponds to utilities in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/utils.js`.
 
+use std::collections::HashSet;
+
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+
+/// Extract all identifier names from a pattern.
+///
+/// This is used to find function parameter names that should shadow
+/// outer variable transforms.
+fn extract_pattern_names(pattern: &JsPattern, names: &mut HashSet<String>) {
+    match pattern {
+        JsPattern::Identifier(name) => {
+            names.insert(name.clone());
+        }
+        JsPattern::Array(array) => {
+            for p in array.elements.iter().flatten() {
+                extract_pattern_names(p, names);
+            }
+        }
+        JsPattern::Object(object) => {
+            for prop in &object.properties {
+                match prop {
+                    JsObjectPatternProperty::Property { value, .. } => {
+                        extract_pattern_names(value, names);
+                    }
+                    JsObjectPatternProperty::Rest(rest) => {
+                        extract_pattern_names(rest, names);
+                    }
+                }
+            }
+        }
+        JsPattern::Rest(inner) => {
+            extract_pattern_names(inner, names);
+        }
+        JsPattern::Assignment(assign) => {
+            extract_pattern_names(&assign.left, names);
+        }
+    }
+}
 
 /// Apply registered transforms to an expression recursively.
 ///
@@ -21,8 +58,29 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 ///
 /// Returns the transformed expression with all applicable transforms applied.
 pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext) -> JsExpr {
+    // Use internal function with empty shadowed set
+    apply_transforms_to_expression_with_shadowed(expr, context, &HashSet::new())
+}
+
+/// Internal helper that tracks shadowed variables.
+fn apply_transforms_to_expression_with_shadowed(
+    expr: &JsExpr,
+    context: &ComponentContext,
+    shadowed: &HashSet<String>,
+) -> JsExpr {
+    // Helper macro for recursive calls with current shadowed set
+    macro_rules! recurse {
+        ($e:expr) => {
+            apply_transforms_to_expression_with_shadowed($e, context, shadowed)
+        };
+    }
+
     match expr {
         JsExpr::Identifier(name) => {
+            // Skip transforms for shadowed variables (function parameters, etc.)
+            if shadowed.contains(name) {
+                return expr.clone();
+            }
             // Check if there's a transform registered for this identifier
             if let Some(transform) = context.state.transform.get(name)
                 && let Some(read_fn) = transform.read
@@ -34,14 +92,12 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
 
         JsExpr::Member(member) => {
             // Apply transform to the object, but not the property (unless computed)
-            let transformed_object = apply_transforms_to_expression(&member.object, context);
+            let transformed_object = recurse!(&member.object);
 
             let transformed_property = match &member.property {
                 JsMemberProperty::Expression(prop_expr) if member.computed => {
                     // For computed properties, also apply transforms
-                    JsMemberProperty::Expression(Box::new(apply_transforms_to_expression(
-                        prop_expr, context,
-                    )))
+                    JsMemberProperty::Expression(Box::new(recurse!(prop_expr)))
                 }
                 _ => member.property.clone(),
             };
@@ -64,7 +120,7 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
             let skip_args_transform = is_svelte_runtime_skip_args_transform(&call.callee);
 
             // Apply transforms to callee and arguments
-            let transformed_callee = apply_transforms_to_expression(&call.callee, context);
+            let transformed_callee = recurse!(&call.callee);
             let transformed_args: Vec<JsExpr> = call
                 .arguments
                 .iter()
@@ -76,7 +132,7 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
                     if skip_args_transform || (is_svelte_set_call && i == 0) {
                         arg.clone()
                     } else {
-                        apply_transforms_to_expression(arg, context)
+                        recurse!(arg)
                     }
                 })
                 .collect();
@@ -89,8 +145,8 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
         }
 
         JsExpr::Binary(binary) => {
-            let transformed_left = apply_transforms_to_expression(&binary.left, context);
-            let transformed_right = apply_transforms_to_expression(&binary.right, context);
+            let transformed_left = recurse!(&binary.left);
+            let transformed_right = recurse!(&binary.right);
 
             JsExpr::Binary(JsBinaryExpression {
                 operator: binary.operator,
@@ -100,8 +156,8 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
         }
 
         JsExpr::Logical(logical) => {
-            let transformed_left = apply_transforms_to_expression(&logical.left, context);
-            let transformed_right = apply_transforms_to_expression(&logical.right, context);
+            let transformed_left = recurse!(&logical.left);
+            let transformed_right = recurse!(&logical.right);
 
             JsExpr::Logical(JsLogicalExpression {
                 operator: logical.operator,
@@ -111,7 +167,7 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
         }
 
         JsExpr::Unary(unary) => {
-            let transformed_arg = apply_transforms_to_expression(&unary.argument, context);
+            let transformed_arg = recurse!(&unary.argument);
 
             JsExpr::Unary(JsUnaryExpression {
                 operator: unary.operator,
@@ -121,9 +177,9 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
         }
 
         JsExpr::Conditional(cond) => {
-            let transformed_test = apply_transforms_to_expression(&cond.test, context);
-            let transformed_consequent = apply_transforms_to_expression(&cond.consequent, context);
-            let transformed_alternate = apply_transforms_to_expression(&cond.alternate, context);
+            let transformed_test = recurse!(&cond.test);
+            let transformed_consequent = recurse!(&cond.consequent);
+            let transformed_alternate = recurse!(&cond.alternate);
 
             JsExpr::Conditional(JsConditionalExpression {
                 test: Box::new(transformed_test),
@@ -136,10 +192,7 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
             let transformed_elements: Vec<Option<JsExpr>> = array
                 .elements
                 .iter()
-                .map(|elem| {
-                    elem.as_ref()
-                        .map(|e| apply_transforms_to_expression(e, context))
-                })
+                .map(|elem| elem.as_ref().map(|e| recurse!(e)))
                 .collect();
 
             JsExpr::Array(JsArrayExpression {
@@ -153,12 +206,12 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
                 .iter()
                 .map(|prop| match prop {
                     JsObjectMember::Property(p) => {
-                        let transformed_value = apply_transforms_to_expression(&p.value, context);
+                        let transformed_value = recurse!(&p.value);
 
                         let transformed_key = match &p.key {
-                            JsPropertyKey::Computed(key_expr) => JsPropertyKey::Computed(Box::new(
-                                apply_transforms_to_expression(key_expr, context),
-                            )),
+                            JsPropertyKey::Computed(key_expr) => {
+                                JsPropertyKey::Computed(Box::new(recurse!(key_expr)))
+                            }
                             other => other.clone(),
                         };
 
@@ -170,9 +223,9 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
                             shorthand: p.shorthand,
                         })
                     }
-                    JsObjectMember::SpreadElement(spread_expr) => JsObjectMember::SpreadElement(
-                        Box::new(apply_transforms_to_expression(spread_expr, context)),
-                    ),
+                    JsObjectMember::SpreadElement(spread_expr) => {
+                        JsObjectMember::SpreadElement(Box::new(recurse!(spread_expr)))
+                    }
                 })
                 .collect();
 
@@ -182,18 +235,29 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
         }
 
         JsExpr::Arrow(arrow) => {
-            // Transform arrow function bodies - state variable transforms should apply
-            // inside inline arrow functions (like event handlers)
+            // Extract parameter names - these shadow any outer transforms
+            let mut new_shadowed = shadowed.clone();
+            for param in &arrow.params {
+                extract_pattern_names(param, &mut new_shadowed);
+            }
+
+            // Transform arrow function bodies with updated shadowed set
             let transformed_body = match &arrow.body {
                 JsArrowBody::Expression(expr_box) => JsArrowBody::Expression(Box::new(
-                    apply_transforms_to_expression(expr_box, context),
+                    apply_transforms_to_expression_with_shadowed(expr_box, context, &new_shadowed),
                 )),
                 JsArrowBody::Block(block) => {
                     // Transform statements in the block
                     let transformed_body: Vec<JsStatement> = block
                         .body
                         .iter()
-                        .map(|stmt| apply_transforms_to_statement(stmt, context))
+                        .map(|stmt| {
+                            apply_transforms_to_statement_with_shadowed(
+                                stmt,
+                                context,
+                                &new_shadowed,
+                            )
+                        })
                         .collect();
                     JsArrowBody::Block(JsBlockStatement {
                         body: transformed_body,
@@ -209,12 +273,20 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
         }
 
         JsExpr::Function(func) => {
-            // Transform function expression bodies
+            // Extract parameter names - these shadow any outer transforms
+            let mut new_shadowed = shadowed.clone();
+            for param in &func.params {
+                extract_pattern_names(param, &mut new_shadowed);
+            }
+
+            // Transform function expression bodies with updated shadowed set
             let transformed_body: Vec<JsStatement> = func
                 .body
                 .body
                 .iter()
-                .map(|stmt| apply_transforms_to_statement(stmt, context))
+                .map(|stmt| {
+                    apply_transforms_to_statement_with_shadowed(stmt, context, &new_shadowed)
+                })
                 .collect();
 
             JsExpr::Function(JsFunctionExpression {
@@ -230,12 +302,14 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
 
         JsExpr::Assignment(assign) => {
             // For assignments, check if the left side is a state variable that needs transform
+            // Skip if the identifier is shadowed
             if let JsExpr::Identifier(name) = assign.left.as_ref()
+                && !shadowed.contains(name)
                 && let Some(transform) = context.state.transform.get(name)
                 && let Some(assign_fn) = transform.assign
             {
                 // Transform the right side first
-                let transformed_right = apply_transforms_to_expression(&assign.right, context);
+                let transformed_right = recurse!(&assign.right);
 
                 // Handle compound assignment operators (+=, -=, etc.)
                 let final_value = match assign.operator {
@@ -296,6 +370,7 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
                 let base_object = get_base_object(assign.left.as_ref());
 
                 if let JsExpr::Identifier(name) = base_object
+                    && !shadowed.contains(&name)
                     && let Some(transform) = context.state.transform.get(&name)
                     && let Some(mutate_fn) = transform.mutate
                 {
@@ -303,7 +378,7 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
                     // The mutate function (e.g., store_sub_mutate) is responsible for
                     // replacing the base identifier with $.untrack($store) as needed.
                     // We only transform the right side of the assignment.
-                    let transformed_right = apply_transforms_to_expression(&assign.right, context);
+                    let transformed_right = recurse!(&assign.right);
 
                     // Create the assignment expression with the original left side
                     // and the transformed right side. The mutate function will handle
@@ -321,19 +396,16 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
             }
 
             // For non-state variables, transform the right side
-            let transformed_right = apply_transforms_to_expression(&assign.right, context);
+            let transformed_right = recurse!(&assign.right);
 
             // For the left side, only transform if it's a member expression object
             let transformed_left = match assign.left.as_ref() {
                 JsExpr::Member(member) => {
-                    let transformed_object =
-                        apply_transforms_to_expression(&member.object, context);
+                    let transformed_object = recurse!(&member.object);
 
                     let transformed_property = match &member.property {
                         JsMemberProperty::Expression(prop_expr) if member.computed => {
-                            JsMemberProperty::Expression(Box::new(apply_transforms_to_expression(
-                                prop_expr, context,
-                            )))
+                            JsMemberProperty::Expression(Box::new(recurse!(prop_expr)))
                         }
                         _ => member.property.clone(),
                     };
@@ -357,11 +429,8 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
         }
 
         JsExpr::Sequence(seq) => {
-            let transformed_exprs: Vec<JsExpr> = seq
-                .expressions
-                .iter()
-                .map(|e| apply_transforms_to_expression(e, context))
-                .collect();
+            let transformed_exprs: Vec<JsExpr> =
+                seq.expressions.iter().map(|e| recurse!(e)).collect();
 
             JsExpr::Sequence(JsSequenceExpression {
                 expressions: transformed_exprs,
@@ -369,12 +438,9 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
         }
 
         JsExpr::New(new_expr) => {
-            let transformed_callee = apply_transforms_to_expression(&new_expr.callee, context);
-            let transformed_args: Vec<JsExpr> = new_expr
-                .arguments
-                .iter()
-                .map(|arg| apply_transforms_to_expression(arg, context))
-                .collect();
+            let transformed_callee = recurse!(&new_expr.callee);
+            let transformed_args: Vec<JsExpr> =
+                new_expr.arguments.iter().map(|arg| recurse!(arg)).collect();
 
             JsExpr::New(JsNewExpression {
                 callee: Box::new(transformed_callee),
@@ -383,7 +449,7 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
         }
 
         JsExpr::Await(inner) => {
-            let transformed = apply_transforms_to_expression(inner, context);
+            let transformed = recurse!(inner);
             JsExpr::Await(Box::new(transformed))
         }
 
@@ -391,7 +457,7 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
             let transformed_arg = yield_expr
                 .argument
                 .as_ref()
-                .map(|arg| Box::new(apply_transforms_to_expression(arg, context)));
+                .map(|arg| Box::new(recurse!(arg)));
 
             JsExpr::Yield(JsYieldExpression {
                 argument: transformed_arg,
@@ -400,13 +466,15 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
         }
 
         JsExpr::Spread(inner) => {
-            let transformed = apply_transforms_to_expression(inner, context);
+            let transformed = recurse!(inner);
             JsExpr::Spread(Box::new(transformed))
         }
 
         JsExpr::Update(update) => {
             // For update expressions, check if the argument has an update transform
+            // Skip if the identifier is shadowed
             if let JsExpr::Identifier(name) = update.argument.as_ref()
+                && !shadowed.contains(name)
                 && let Some(transform) = context.state.transform.get(name)
                 && let Some(update_fn) = transform.update
             {
@@ -417,7 +485,7 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
                 );
             }
             // Otherwise just transform the argument
-            let transformed_arg = apply_transforms_to_expression(&update.argument, context);
+            let transformed_arg = recurse!(&update.argument);
 
             JsExpr::Update(JsUpdateExpression {
                 operator: update.operator,
@@ -427,11 +495,8 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
         }
 
         JsExpr::TemplateLiteral(template) => {
-            let transformed_exprs: Vec<JsExpr> = template
-                .expressions
-                .iter()
-                .map(|e| apply_transforms_to_expression(e, context))
-                .collect();
+            let transformed_exprs: Vec<JsExpr> =
+                template.expressions.iter().map(|e| recurse!(e)).collect();
 
             JsExpr::TemplateLiteral(JsTemplateLiteral {
                 quasis: template.quasis.clone(),
@@ -441,12 +506,12 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
 
         JsExpr::TaggedTemplate(tagged) => {
             // Transform both the tag and the expressions in the quasi
-            let transformed_tag = apply_transforms_to_expression(&tagged.tag, context);
+            let transformed_tag = recurse!(&tagged.tag);
             let transformed_exprs: Vec<JsExpr> = tagged
                 .quasi
                 .expressions
                 .iter()
-                .map(|e| apply_transforms_to_expression(e, context))
+                .map(|e| recurse!(e))
                 .collect();
 
             JsExpr::TaggedTemplate(JsTaggedTemplate {
@@ -526,20 +591,35 @@ fn get_base_object(expr: &JsExpr) -> JsExpr {
 ///
 /// This handles statements that contain expressions, applying transforms
 /// to all expressions within.
+#[allow(dead_code)]
 fn apply_transforms_to_statement(stmt: &JsStatement, context: &ComponentContext) -> JsStatement {
+    apply_transforms_to_statement_with_shadowed(stmt, context, &HashSet::new())
+}
+
+/// Apply transforms to a statement recursively with shadowed variable tracking.
+fn apply_transforms_to_statement_with_shadowed(
+    stmt: &JsStatement,
+    context: &ComponentContext,
+    shadowed: &HashSet<String>,
+) -> JsStatement {
+    // Helper for expression transforms
+    let transform_expr =
+        |e: &JsExpr| apply_transforms_to_expression_with_shadowed(e, context, shadowed);
+
+    // Helper for recursive statement transforms
+    let transform_stmt =
+        |s: &JsStatement| apply_transforms_to_statement_with_shadowed(s, context, shadowed);
+
     match stmt {
         JsStatement::Expression(expr_stmt) => JsStatement::Expression(JsExpressionStatement {
-            expression: Box::new(apply_transforms_to_expression(
-                &expr_stmt.expression,
-                context,
-            )),
+            expression: Box::new(transform_expr(&expr_stmt.expression)),
         }),
 
         JsStatement::Return(ret_stmt) => JsStatement::Return(JsReturnStatement {
             argument: ret_stmt
                 .argument
                 .as_ref()
-                .map(|arg| Box::new(apply_transforms_to_expression(arg, context))),
+                .map(|arg| Box::new(transform_expr(arg))),
         }),
 
         JsStatement::VariableDeclaration(var_decl) => {
@@ -551,7 +631,7 @@ fn apply_transforms_to_statement(stmt: &JsStatement, context: &ComponentContext)
                     init: decl
                         .init
                         .as_ref()
-                        .map(|init| Box::new(apply_transforms_to_expression(init, context))),
+                        .map(|init| Box::new(transform_expr(init))),
                 })
                 .collect();
 
@@ -562,20 +642,17 @@ fn apply_transforms_to_statement(stmt: &JsStatement, context: &ComponentContext)
         }
 
         JsStatement::If(if_stmt) => JsStatement::If(JsIfStatement {
-            test: Box::new(apply_transforms_to_expression(&if_stmt.test, context)),
-            consequent: Box::new(apply_transforms_to_statement(&if_stmt.consequent, context)),
+            test: Box::new(transform_expr(&if_stmt.test)),
+            consequent: Box::new(transform_stmt(&if_stmt.consequent)),
             alternate: if_stmt
                 .alternate
                 .as_ref()
-                .map(|alt| Box::new(apply_transforms_to_statement(alt, context))),
+                .map(|alt| Box::new(transform_stmt(alt))),
         }),
 
         JsStatement::Block(block) => {
-            let transformed_body: Vec<JsStatement> = block
-                .body
-                .iter()
-                .map(|s| apply_transforms_to_statement(s, context))
-                .collect();
+            let transformed_body: Vec<JsStatement> =
+                block.body.iter().map(transform_stmt).collect();
             JsStatement::Block(JsBlockStatement {
                 body: transformed_body,
             })
