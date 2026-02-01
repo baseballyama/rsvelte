@@ -256,26 +256,28 @@ pub fn validate_component(
     let mut seen_names: FxHashSet<String> = FxHashSet::default();
 
     for attr in &component.attributes {
+        // Only check for duplicates on:
+        // - Attribute and BindDirective (treated the same)
+        // - ClassDirective
+        // - StyleDirective
+        // OnDirective can have multiple handlers for the same event
         let attr_name = match attr {
-            Attribute::Attribute(a) => a.name.to_string(),
-            Attribute::BindDirective(b) => b.name.to_string(),
-            Attribute::ClassDirective(c) => format!("class:{}", c.name),
-            Attribute::StyleDirective(s) => format!("style:{}", s.name),
-            Attribute::OnDirective(o) => format!("on:{}", o.name),
-            Attribute::TransitionDirective(t) => format!("transition:{}", t.name),
-            Attribute::AnimateDirective(a) => format!("animate:{}", a.name),
-            Attribute::UseDirective(u) => format!("use:{}", u.name),
-            Attribute::LetDirective(l) => format!("let:{}", l.name),
-            _ => continue,
+            Attribute::Attribute(a) => Some(format!("Attribute{}", a.name)),
+            Attribute::BindDirective(b) => Some(format!("Attribute{}", b.name)), // bind:x and x are duplicates
+            Attribute::ClassDirective(c) => Some(format!("class:{}", c.name)),
+            Attribute::StyleDirective(s) => Some(format!("style:{}", s.name)),
+            _ => None, // Other directives can have duplicates
         };
 
-        if seen_names.contains(&attr_name) {
-            return Err(AnalysisError::validation(
-                "attribute_duplicate",
-                "Attributes need to be unique",
-            ));
+        if let Some(name) = attr_name {
+            if seen_names.contains(&name) {
+                return Err(AnalysisError::validation(
+                    "attribute_duplicate",
+                    "Attributes need to be unique",
+                ));
+            }
+            seen_names.insert(name);
         }
-        seen_names.insert(attr_name);
     }
 
     // Track component bindings

@@ -194,19 +194,15 @@ fn test_ssr() {
     );
 
     if failed > 0 {
-        println!("\nFailed tests (first 10):");
+        println!("\nFailed tests:");
         for result in results
             .iter()
             .filter(|r| !r.skipped && r.passed != Some(true))
-            .take(10)
         {
             println!("  - {}", result.name);
             if let Some(err) = &result.error {
                 println!("      {}", err);
             }
-        }
-        if failed > 10 {
-            println!("  ... and {} more", failed - 10);
         }
     }
 

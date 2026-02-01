@@ -3898,6 +3898,8 @@ impl<'a> ServerCodeGenerator<'a> {
 
         let raw_output = if has_content {
             if needs_component_wrapper {
+                // Build props declarations ($$sanitized_props, $$restProps) - inside wrapper
+                let props_declarations = self.build_props_declarations(2);
                 // Wrap in $$renderer.component() with proper destructuring
                 let inner_script = transform_props_spread(&script_code);
                 let inner_body = Self::build_parts(&self.output_parts, 2);
@@ -3923,7 +3925,7 @@ impl<'a> ServerCodeGenerator<'a> {
 {imports_section}{snippets_section}{module_section}
 export default function {component_name}($$renderer{props_param}) {{
 	$$renderer.component(($$renderer) => {{
-{store_subs_decl}{inner_script}
+{props_declarations}{store_subs_decl}{inner_script}
 {instance_snippets}{inner_body}{bind_props_code}{store_subs_cleanup}	}});
 }}"#,
                     async_import = async_import,
@@ -3932,6 +3934,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     module_section = module_section,
                     component_name = self.component_name,
                     props_param = props_param,
+                    props_declarations = props_declarations,
                     store_subs_decl = store_subs_decl,
                     inner_script = inner_script,
                     instance_snippets = instance_snippets,
@@ -3940,6 +3943,8 @@ export default function {component_name}($$renderer{props_param}) {{
                     store_subs_cleanup = store_subs_cleanup
                 )
             } else {
+                // Build props declarations ($$sanitized_props, $$restProps)
+                let props_declarations = self.build_props_declarations(1);
                 let script_section = if script_code.is_empty() {
                     String::new()
                 } else {
@@ -3954,13 +3959,14 @@ export default function {component_name}($$renderer{props_param}) {{
                     r#"{async_import}import * as $ from 'svelte/internal/server';
 {imports_section}{snippets_section}{module_section}
 export default function {component_name}($$renderer{props_param}) {{
-{script_section}{instance_snippets}{body_code}{bind_props_code}}}"#,
+{props_declarations}{script_section}{instance_snippets}{body_code}{bind_props_code}}}"#,
                     async_import = async_import,
                     imports_section = imports_section,
                     snippets_section = snippets_section,
                     module_section = module_section,
                     component_name = self.component_name,
                     props_param = props_param,
+                    props_declarations = props_declarations,
                     script_section = script_section,
                     instance_snippets = instance_snippets,
                     body_code = body_code,
@@ -4175,10 +4181,23 @@ export default function {component_name}($$renderer{props_param}) {{
                     dynamic,
                 } => {
                     // Flush current HTML before the component call
+                    // For dynamic components, add <!---->  marker before the call
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        if *dynamic {
+                            body_code.push_str(&format!(
+                                "{}$$renderer.push(`{}<!---->`);\n",
+                                indent, current_html
+                            ));
+                        } else {
+                            body_code.push_str(&format!(
+                                "{}$$renderer.push(`{}`);\n",
+                                indent, current_html
+                            ));
+                        }
                         current_html.clear();
+                    } else if *dynamic {
+                        // Even if no prior HTML, dynamic components need a marker
+                        body_code.push_str(&format!("{}$$renderer.push(`<!---->`);\n", indent));
                     }
 
                     // Check if we have snippets or children
@@ -5136,6 +5155,61 @@ export default function {component_name}($$renderer{props_param}) {{
             result.push_str(&body);
 
             result.push_str(&format!("{}}}\n\n", indent));
+        }
+
+        result
+    }
+
+    /// Build props declarations ($$sanitized_props, $$restProps) if needed.
+    /// This is called at the start of the component body.
+    fn build_props_declarations(&self, indent_level: usize) -> String {
+        let analysis = match self.analysis {
+            Some(a) => a,
+            None => return String::new(),
+        };
+
+        let indent = "\t".repeat(indent_level);
+        let mut result = String::new();
+
+        // If uses_props or uses_rest_props, add $$sanitized_props
+        if analysis.uses_props || analysis.uses_rest_props {
+            result.push_str(&format!(
+                "{}const $$sanitized_props = $.sanitize_props($$props);\n",
+                indent
+            ));
+        }
+
+        // If uses_rest_props, add $$restProps
+        if analysis.uses_rest_props {
+            // Collect named props to exclude from rest props
+            let mut named_props: Vec<String> = Vec::new();
+
+            // Add exports (using alias if available)
+            for export in &analysis.exports {
+                let name = export.alias.as_ref().unwrap_or(&export.name);
+                named_props.push(name.clone());
+            }
+
+            // Add bindable props from bindings
+            for binding in &analysis.root.bindings {
+                if binding.kind == BindingKind::BindableProp {
+                    let name = binding.prop_alias.as_ref().unwrap_or(&binding.name);
+                    if !named_props.contains(name) {
+                        named_props.push(name.clone());
+                    }
+                }
+            }
+
+            // Generate: const $$restProps = $.rest_props($$sanitized_props, ['prop1', 'prop2']);
+            let props_array = named_props
+                .iter()
+                .map(|p| format!("'{}'", p))
+                .collect::<Vec<_>>()
+                .join(", ");
+            result.push_str(&format!(
+                "{}const $$restProps = $.rest_props($$sanitized_props, [{}]);\n",
+                indent, props_array
+            ));
         }
 
         result

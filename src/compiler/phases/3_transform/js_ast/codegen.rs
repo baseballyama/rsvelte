@@ -63,9 +63,8 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
         .code;
     let code = collapse_short_arrays(code);
     let code = add_blank_lines_for_formatting(code);
-    // oxc codegen escapes </script> to <\/script> in template literals for HTML safety,
-    // but Svelte's output doesn't do this escaping, so we need to unescape it
-    let code = code.replace(r"<\/script>", "</script>");
+    // Note: oxc codegen escapes </script> to <\/script> in template literals for HTML safety,
+    // and Svelte's output does the same, so we keep this escaping.
     // oxc codegen outputs numbers like .5 instead of 0.5 - add leading zeros
     let code = add_leading_zeros(code);
     Ok(code)
