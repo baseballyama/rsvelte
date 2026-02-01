@@ -75,8 +75,27 @@ enum InputType {
     Module,
 }
 
+/// Check if a test should be skipped based on _config.js.
+fn is_test_skipped(sample_dir: &Path) -> bool {
+    let config_path = sample_dir.join("_config.js");
+    if config_path.exists()
+        && let Ok(content) = fs::read_to_string(&config_path)
+    {
+        // Check for skip: true in the config
+        if content.contains("skip: true") || content.contains("skip:true") {
+            return true;
+        }
+    }
+    false
+}
+
 /// Load a validator test fixture.
 fn load_validator_fixture(sample_dir: &Path) -> Option<ValidatorFixture> {
+    // Check if this test should be skipped
+    if is_test_skipped(sample_dir) {
+        return None;
+    }
+
     let svelte_path = sample_dir.join("input.svelte");
     let module_path = sample_dir.join("input.svelte.js");
     let warnings_path = sample_dir.join("warnings.json");

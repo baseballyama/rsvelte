@@ -4,16 +4,224 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/shared/fragment.js`.
 
+use rustc_hash::FxHashSet;
+
 use super::super::super::AnalysisError;
+use super::super::super::errors;
+use super::super::super::utils::check_graph_for_cycles;
 use super::super::VisitorContext;
-use crate::ast::template::{Fragment, TemplateNode};
+use crate::ast::template::{ConstTag, Fragment, TemplateNode};
 
 /// Analyze a fragment.
 pub fn analyze(fragment: &mut Fragment, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    // Check for cyclical dependencies between ConstTag nodes
+    check_const_tag_cycles(&fragment.nodes)?;
+
     for node in &mut fragment.nodes {
         super::super::visit_node(node, context)?;
     }
     Ok(())
+}
+
+/// Check for cyclical dependencies between ConstTag nodes.
+///
+/// This detects when {@const} declarations form a cycle, e.g.:
+/// {@const a = b}
+/// {@const b = a}
+///
+/// Corresponds to `sort_const_tags` in `3-transform/utils.js`.
+fn check_const_tag_cycles(nodes: &[TemplateNode]) -> Result<(), AnalysisError> {
+    // Collect all ConstTag nodes with their bindings and dependencies
+    let mut const_tags: Vec<(&ConstTag, Vec<String>, FxHashSet<String>)> = Vec::new();
+
+    for node in nodes {
+        if let TemplateNode::ConstTag(tag) = node {
+            let crate::ast::js::Expression::Value(value) = &tag.declaration;
+
+            // The declaration can be either:
+            // 1. A VariableDeclaration (official Svelte structure):
+            //    { type: "VariableDeclaration", declarations: [{ type: "VariableDeclarator", id, init }] }
+            // 2. An AssignmentExpression (what the Rust parser currently produces):
+            //    { type: "AssignmentExpression", left, right }
+
+            let (bindings, deps) = if let Some(declarations) =
+                value.get("declarations").and_then(|d| d.as_array())
+            {
+                // VariableDeclaration structure
+                if let Some(declaration) = declarations.first() {
+                    let bindings = if let Some(id) = declaration.get("id") {
+                        extract_pattern_identifiers(id)
+                    } else {
+                        Vec::new()
+                    };
+                    let deps = if let Some(init) = declaration.get("init") {
+                        extract_expression_identifiers(init)
+                    } else {
+                        FxHashSet::default()
+                    };
+                    (bindings, deps)
+                } else {
+                    (Vec::new(), FxHashSet::default())
+                }
+            } else if value.get("type").and_then(|t| t.as_str()) == Some("AssignmentExpression") {
+                // AssignmentExpression structure
+                let bindings = if let Some(left) = value.get("left") {
+                    extract_pattern_identifiers(left)
+                } else {
+                    Vec::new()
+                };
+                let deps = if let Some(right) = value.get("right") {
+                    extract_expression_identifiers(right)
+                } else {
+                    FxHashSet::default()
+                };
+                (bindings, deps)
+            } else {
+                (Vec::new(), FxHashSet::default())
+            };
+
+            if !bindings.is_empty() {
+                const_tags.push((tag, bindings, deps));
+            }
+        }
+    }
+
+    if const_tags.is_empty() {
+        return Ok(());
+    }
+
+    // Build a map of binding name -> ConstTag index
+    let mut binding_to_tag: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
+    for (idx, (_, bindings, _)) in const_tags.iter().enumerate() {
+        for binding in bindings {
+            binding_to_tag.insert(binding.clone(), idx);
+        }
+    }
+
+    // Build edges: for each tag, create edges from its bindings to its dependencies
+    // that are also ConstTag bindings
+    let mut edges: Vec<(String, String)> = Vec::new();
+    for (_, bindings, deps) in &const_tags {
+        for binding in bindings {
+            for dep in deps {
+                if binding_to_tag.contains_key(dep) {
+                    edges.push((binding.clone(), dep.clone()));
+                }
+            }
+        }
+    }
+
+    // Check for cycles
+    if let Some(cycle) = check_graph_for_cycles::<String>(&edges) {
+        // Format the cycle as "a → b → a"
+        let cycle_str = cycle.join(" → ");
+        return Err(errors::const_tag_cycle(&cycle_str));
+    }
+
+    Ok(())
+}
+
+/// Extract identifier names from a pattern (id of VariableDeclarator).
+fn extract_pattern_identifiers(pattern: &serde_json::Value) -> Vec<String> {
+    let mut names = Vec::new();
+
+    match pattern.get("type").and_then(|t| t.as_str()) {
+        Some("Identifier") => {
+            if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
+                names.push(name.to_string());
+            }
+        }
+        Some("ArrayPattern") => {
+            if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
+                for element in elements {
+                    if !element.is_null() {
+                        names.extend(extract_pattern_identifiers(element));
+                    }
+                }
+            }
+        }
+        Some("ObjectPattern") => {
+            if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
+                for property in properties {
+                    if let Some(value) = property.get("value") {
+                        names.extend(extract_pattern_identifiers(value));
+                    }
+                }
+            }
+        }
+        Some("AssignmentPattern") => {
+            if let Some(left) = pattern.get("left") {
+                names.extend(extract_pattern_identifiers(left));
+            }
+        }
+        Some("RestElement") => {
+            if let Some(argument) = pattern.get("argument") {
+                names.extend(extract_pattern_identifiers(argument));
+            }
+        }
+        _ => {}
+    }
+
+    names
+}
+
+/// Extract all identifier references from an expression.
+fn extract_expression_identifiers(expression: &serde_json::Value) -> FxHashSet<String> {
+    let mut identifiers = FxHashSet::default();
+    collect_expression_identifiers(expression, &mut identifiers);
+    identifiers
+}
+
+/// Recursively collect identifier references from an expression.
+fn collect_expression_identifiers(
+    expression: &serde_json::Value,
+    identifiers: &mut FxHashSet<String>,
+) {
+    if let Some(expr_type) = expression.get("type").and_then(|t| t.as_str()) {
+        match expr_type {
+            "Identifier" => {
+                if let Some(name) = expression.get("name").and_then(|n| n.as_str()) {
+                    identifiers.insert(name.to_string());
+                }
+            }
+            "MemberExpression" => {
+                // Only collect from the object, not the property (unless computed)
+                if let Some(object) = expression.get("object") {
+                    collect_expression_identifiers(object, identifiers);
+                }
+                // If computed, also collect from property
+                if expression
+                    .get("computed")
+                    .and_then(|c| c.as_bool())
+                    .unwrap_or(false)
+                    && let Some(property) = expression.get("property")
+                {
+                    collect_expression_identifiers(property, identifiers);
+                }
+            }
+            _ => {
+                // Recursively walk all object properties and array elements
+                if let Some(obj) = expression.as_object() {
+                    for (key, value) in obj {
+                        // Skip "type" to avoid confusion
+                        if key == "type" {
+                            continue;
+                        }
+                        if value.is_object() {
+                            collect_expression_identifiers(value, identifiers);
+                        } else if let Some(arr) = value.as_array() {
+                            for item in arr {
+                                if item.is_object() {
+                                    collect_expression_identifiers(item, identifiers);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// Mark a subtree as dynamic.

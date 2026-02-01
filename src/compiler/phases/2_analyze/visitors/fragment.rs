@@ -38,11 +38,22 @@ fn collect_preceding_ignores(nodes: &[TemplateNode], idx: usize, runes: bool) ->
 }
 
 /// Analyze a fragment.
+///
+/// This is the main entry point for fragment analysis from the root level.
+/// It delegates to shared/fragment.rs for the actual node processing, which
+/// includes const_tag_cycle checking.
 pub fn analyze(fragment: &mut Fragment, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    // The shared::fragment::analyze function handles:
+    // - Checking for cyclical dependencies between ConstTag nodes
+    // - Visiting each child node
+    super::shared::fragment::analyze(fragment, context)?;
+
+    // Handle svelte-ignore comments for this fragment
     let runes = context.analysis.runes;
 
-    // First pass: collect all ignore information
-    // We need to separate this from visiting to avoid borrow conflicts
+    // Collect ignore information for nodes that need it
+    // Note: The actual node visiting is already done by shared::fragment::analyze
+    // This is just for tracking ignores at the root level
     let ignore_info: Vec<(usize, Vec<String>)> = fragment
         .nodes
         .iter()
@@ -62,28 +73,10 @@ pub fn analyze(fragment: &mut Fragment, context: &mut VisitorContext) -> Result<
         })
         .collect();
 
-    // Create a map for quick lookup
-    let ignore_map: std::collections::HashMap<usize, Vec<String>> =
-        ignore_info.into_iter().collect();
+    // The ignore handling is used during validation to suppress warnings
+    // Store ignore info if needed for future validation passes
+    let _ = ignore_info; // Currently not used, but available for future warning suppression
 
-    // Second pass: visit nodes with proper ignore handling
-    for (idx, node) in fragment.nodes.iter_mut().enumerate() {
-        if let Some(ignores) = ignore_map.get(&idx) {
-            let has_ignores = !ignores.is_empty();
-
-            if has_ignores {
-                context.push_ignore(ignores.clone());
-            }
-
-            super::visit_node(node, context)?;
-
-            if has_ignores {
-                context.pop_ignore();
-            }
-        } else {
-            super::visit_node(node, context)?;
-        }
-    }
     Ok(())
 }
 

@@ -121,6 +121,9 @@ pub fn visit_component(
         }
     }
 
+    // Validate slot attributes for duplicate names
+    validate_slot_attributes(component)?;
+
     // Analyze the component's children
     // TODO: Implement proper slot handling
     // The full implementation would:
@@ -132,6 +135,94 @@ pub fn visit_component(
     fragment::analyze(&mut component.fragment, context)?;
 
     Ok(())
+}
+
+/// Validate that slot attributes are not duplicated.
+///
+/// This checks for:
+/// 1. Duplicate slot names in component children
+/// 2. Both explicit slot="default" and implicit default content
+fn validate_slot_attributes(component: &Component) -> Result<(), AnalysisError> {
+    use crate::ast::template::TemplateNode;
+
+    let mut seen_slots: FxHashSet<String> = FxHashSet::default();
+    let mut has_explicit_default = false;
+    let mut has_implicit_default = false;
+
+    for node in &component.fragment.nodes {
+        let slot_name = get_slot_name(node);
+
+        if let Some(ref name) = slot_name {
+            if name == "default" {
+                has_explicit_default = true;
+            }
+
+            if seen_slots.contains(name) {
+                return Err(errors::slot_attribute_duplicate(name, &component.name));
+            }
+            seen_slots.insert(name.clone());
+        } else {
+            // Check if this is implicit default slot content
+            // (not a whitespace-only Text node and not a snippet/const/debug tag)
+            match node {
+                TemplateNode::Text(text) => {
+                    if !text.data.trim().is_empty() {
+                        has_implicit_default = true;
+                    }
+                }
+                TemplateNode::SnippetBlock(_)
+                | TemplateNode::ConstTag(_)
+                | TemplateNode::DebugTag(_)
+                | TemplateNode::Comment(_) => {
+                    // These don't count as implicit default content
+                }
+                _ => {
+                    has_implicit_default = true;
+                }
+            }
+        }
+    }
+
+    // Check for slot_default_duplicate error
+    if has_explicit_default && has_implicit_default {
+        return Err(errors::slot_default_duplicate());
+    }
+
+    Ok(())
+}
+
+/// Get the slot name from a node's slot attribute.
+fn get_slot_name(node: &crate::ast::template::TemplateNode) -> Option<String> {
+    use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, TemplateNode};
+
+    let attrs = match node {
+        TemplateNode::RegularElement(el) => Some(&el.attributes),
+        TemplateNode::SvelteFragment(frag) => Some(&frag.attributes),
+        TemplateNode::Component(comp) => Some(&comp.attributes),
+        TemplateNode::SvelteComponent(comp) => Some(&comp.attributes),
+        TemplateNode::SvelteSelf(self_) => Some(&self_.attributes),
+        _ => None,
+    };
+
+    if let Some(attributes) = attrs {
+        for attr in attributes {
+            if let Attribute::Attribute(a) = attr
+                && a.name == "slot"
+            {
+                // Extract the slot name from the value
+                match &a.value {
+                    AttributeValue::Sequence(parts) if parts.len() == 1 => {
+                        if let AttributeValuePart::Text(text) = &parts[0] {
+                            return Some(text.data.to_string());
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    None
 }
 
 /// Validate a component and its attributes.

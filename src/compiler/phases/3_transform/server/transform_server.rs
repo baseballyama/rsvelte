@@ -286,6 +286,8 @@ enum OutputPart {
         snippets: Vec<(String, Vec<String>, Vec<OutputPart>)>,
         /// Slot names to add to $$slots
         slot_names: Vec<String>,
+        /// Whether this component is dynamic (could be undefined/null)
+        dynamic: bool,
     },
     /// Component with bind directives - requires do/while settling
     ComponentWithBindings {
@@ -299,6 +301,8 @@ enum OutputPart {
         has_prior_content: bool,
         #[allow(dead_code)] // TODO: Handle children for components with bindings
         children: Option<Vec<OutputPart>>,
+        /// Whether this component is dynamic (could be undefined/null)
+        dynamic: bool,
     },
     Comment,
     /// Each block - produces a for loop
@@ -320,6 +324,10 @@ enum OutputPart {
     /// svelte:element - dynamic element
     SvelteElement {
         tag_expr: String,
+        /// Attributes expression (e.g., "{ class: 'foo' }" or "void 0" for none)
+        attrs_expr: Option<String>,
+        /// Body content (children)
+        body: Vec<OutputPart>,
     },
     /// Select element with value - produces $$renderer.select() call
     SelectElement {
@@ -933,13 +941,13 @@ impl<'a> ServerCodeGenerator<'a> {
             AttributeValue::Sequence(parts) => {
                 // Optimization: if the sequence is a single expression with no text,
                 // return the expression directly without template literal wrapping
-                if parts.len() == 1 {
-                    if let AttributeValuePart::ExpressionTag(expr_tag) = &parts[0] {
-                        let start = expr_tag.expression.start().unwrap_or(0) as usize;
-                        let end = expr_tag.expression.end().unwrap_or(0) as usize;
-                        if end > start && end <= self.source.len() {
-                            return Ok(self.source[start..end].trim().to_string());
-                        }
+                if parts.len() == 1
+                    && let AttributeValuePart::ExpressionTag(expr_tag) = &parts[0]
+                {
+                    let start = expr_tag.expression.start().unwrap_or(0) as usize;
+                    let end = expr_tag.expression.end().unwrap_or(0) as usize;
+                    if end > start && end <= self.source.len() {
+                        return Ok(self.source[start..end].trim().to_string());
                     }
                 }
 
@@ -1019,7 +1027,9 @@ impl<'a> ServerCodeGenerator<'a> {
                         let expr_start = bind.expression.start().unwrap_or(0) as usize;
                         let expr_end = bind.expression.end().unwrap_or(0) as usize;
                         if expr_end > expr_start && expr_end <= self.source.len() {
-                            value_expr = Some(self.source[expr_start..expr_end].trim().to_string());
+                            let raw_expr = self.source[expr_start..expr_end].trim().to_string();
+                            // Transform store subscriptions ($store -> $.store_get())
+                            value_expr = Some(self.transform_store_refs(&raw_expr));
                         }
                     }
                 }
@@ -1065,7 +1075,14 @@ impl<'a> ServerCodeGenerator<'a> {
             break;
         }
 
+        // Skip all whitespace-only text nodes in select elements (not just leading/trailing)
+        // This matches the clean_nodes behavior in the official compiler
         for node in children.iter().take(end_idx).skip(start_idx) {
+            if let TemplateNode::Text(text) = node
+                && text.data.trim().is_empty()
+            {
+                continue;
+            }
             body_generator.generate_node(node, false)?;
         }
 
@@ -2156,6 +2173,10 @@ impl<'a> ServerCodeGenerator<'a> {
         let (children, snippets, slot_names) =
             self.generate_component_children_with_snippets(&component.fragment)?;
 
+        // Check if the component is dynamic (could be undefined/null)
+        // A component is dynamic if it's marked as such in metadata
+        let is_dynamic = component.metadata.dynamic;
+
         // Use ComponentWithBindings if there are any bind directives
         if bindings.is_empty() {
             self.output_parts.push(OutputPart::Component {
@@ -2166,6 +2187,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 children,
                 snippets,
                 slot_names,
+                dynamic: is_dynamic,
             });
         } else {
             self.output_parts.push(OutputPart::ComponentWithBindings {
@@ -2175,6 +2197,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 bindings,
                 has_prior_content,
                 children,
+                dynamic: is_dynamic,
             });
         }
 
@@ -3068,9 +3091,175 @@ impl<'a> ServerCodeGenerator<'a> {
             "null".to_string()
         };
 
-        self.output_parts
-            .push(OutputPart::SvelteElement { tag_expr });
+        // Generate attributes expression if there are any
+        let attrs_expr = self.generate_svelte_element_attrs_expr(elem)?;
+
+        // Generate body content from fragment
+        // Use skip_anchor=true because svelte:element children are in a callback
+        // and don't need an anchor to prevent text fusion
+        let body = self.generate_fragment_body_parts_inner(&elem.fragment, true)?;
+
+        self.output_parts.push(OutputPart::SvelteElement {
+            tag_expr,
+            attrs_expr,
+            body,
+        });
         Ok(())
+    }
+
+    /// Generate attributes expression for svelte:element.
+    fn generate_svelte_element_attrs_expr(
+        &mut self,
+        elem: &SvelteDynamicElement,
+    ) -> Result<Option<String>, TransformError> {
+        // Check if we have any attributes that need to be output
+        let has_relevant_attrs = elem.attributes.iter().any(|attr| {
+            match attr {
+                Attribute::Attribute(_) => true,
+                Attribute::SpreadAttribute(_) => true,
+                Attribute::ClassDirective(_) => true,
+                Attribute::StyleDirective(_) => true,
+                Attribute::BindDirective(bind) => bind.name != "this",
+                _ => false, // Skip event handlers, use directives, etc.
+            }
+        });
+
+        if !has_relevant_attrs {
+            return Ok(None);
+        }
+
+        // Check if we have spread attributes
+        let has_spread = elem
+            .attributes
+            .iter()
+            .any(|attr| matches!(attr, Attribute::SpreadAttribute(_)));
+
+        if has_spread {
+            // Use $.attributes() for spread attributes
+            let attrs_call = self.build_svelte_element_spread_attributes(elem)?;
+            if !attrs_call.is_empty() {
+                Ok(Some(attrs_call))
+            } else {
+                Ok(None)
+            }
+        } else {
+            // Build a simple object for non-spread attributes
+            let mut object_parts: Vec<String> = Vec::new();
+
+            for attr in &elem.attributes {
+                match attr {
+                    Attribute::Attribute(node) => {
+                        let name = node.name.as_str();
+                        let value = self.extract_attribute_value_as_string(node)?;
+                        let quoted_name = quote_prop_name(name);
+                        object_parts.push(format!("{}: {}", quoted_name, value));
+                    }
+                    Attribute::BindDirective(bind) => {
+                        if bind.name == "this" {
+                            continue;
+                        }
+                        let name = bind.name.as_str();
+                        let expr_start = bind.expression.start().unwrap_or(0) as usize;
+                        let expr_end = bind.expression.end().unwrap_or(0) as usize;
+                        if expr_end > expr_start && expr_end <= self.source.len() {
+                            let expr = self.source[expr_start..expr_end].trim().to_string();
+                            let quoted_name = quote_prop_name(name);
+                            object_parts.push(format!("{}: {}", quoted_name, expr));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            if object_parts.is_empty() {
+                Ok(None)
+            } else {
+                Ok(Some(format!("{{ {} }}", object_parts.join(", "))))
+            }
+        }
+    }
+
+    /// Generate attributes for svelte:element.
+    /// This handles spread attributes, class/style directives, and regular attributes.
+    #[allow(dead_code)]
+    fn generate_svelte_element_attributes(
+        &mut self,
+        elem: &SvelteDynamicElement,
+    ) -> Result<Vec<OutputPart>, TransformError> {
+        let mut parts = Vec::new();
+
+        // Check if we have spread attributes
+        let has_spread = elem
+            .attributes
+            .iter()
+            .any(|attr| matches!(attr, Attribute::SpreadAttribute(_)));
+
+        if has_spread {
+            // Use $.attributes() for spread attributes
+            let attributes_call = self.build_svelte_element_spread_attributes(elem)?;
+            if !attributes_call.is_empty() {
+                parts.push(OutputPart::Html(attributes_call));
+            }
+        } else {
+            // Generate inline attributes
+            for attr in &elem.attributes {
+                if let Some(attr_str) = self.generate_attribute_for_element(attr, None)? {
+                    parts.push(OutputPart::Html(attr_str));
+                }
+            }
+        }
+
+        Ok(parts)
+    }
+
+    /// Build $.attributes() call for svelte:element with spread.
+    #[allow(dead_code)]
+    fn build_svelte_element_spread_attributes(
+        &mut self,
+        elem: &SvelteDynamicElement,
+    ) -> Result<String, TransformError> {
+        let mut object_parts: Vec<String> = Vec::new();
+
+        for attr in &elem.attributes {
+            match attr {
+                Attribute::SpreadAttribute(spread) => {
+                    let expr_start = spread.expression.start().unwrap_or(0) as usize;
+                    let expr_end = spread.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let expr = self.source[expr_start..expr_end].trim().to_string();
+                        object_parts.push(format!("...{}", expr));
+                    }
+                }
+                Attribute::Attribute(node) => {
+                    let name = node.name.as_str();
+                    let value = self.extract_attribute_value_as_string(node)?;
+                    let quoted_name = quote_prop_name(name);
+                    object_parts.push(format!("{}: {}", quoted_name, value));
+                }
+                Attribute::BindDirective(bind) => {
+                    let name = bind.name.as_str();
+                    let expr_start = bind.expression.start().unwrap_or(0) as usize;
+                    let expr_end = bind.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let expr = self.source[expr_start..expr_end].trim().to_string();
+                        let quoted_name = quote_prop_name(name);
+                        object_parts.push(format!("{}: {}", quoted_name, expr));
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if object_parts.is_empty() {
+            return Ok(String::new());
+        }
+
+        // Build: $.attributes({ ... }, void 0, void 0, void 0, 4)
+        // The 4 is a flag for dynamic elements
+        Ok(format!(
+            "${{$.attributes({{ {} }}, void 0, void 0, void 0, 4)}}",
+            object_parts.join(", ")
+        ))
     }
 
     fn generate_svelte_boundary(&mut self, boundary: &SvelteElement) -> Result<(), TransformError> {
@@ -3174,6 +3363,17 @@ impl<'a> ServerCodeGenerator<'a> {
         &mut self,
         fragment: &Fragment,
     ) -> Result<Vec<OutputPart>, TransformError> {
+        self.generate_fragment_body_parts_inner(fragment, false)
+    }
+
+    /// Generate body parts from a fragment, optionally skipping the anchor comment.
+    /// The anchor is used to prevent text fusion in the main template, but is not
+    /// needed inside callbacks (like svelte:element children).
+    fn generate_fragment_body_parts_inner(
+        &mut self,
+        fragment: &Fragment,
+        skip_anchor: bool,
+    ) -> Result<Vec<OutputPart>, TransformError> {
         let mut body_generator = ServerCodeGenerator::new(
             self.component_name.clone(),
             self.source.clone(),
@@ -3212,7 +3412,8 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Check if first meaningful content needs an anchor
         // If the first node is Text or ExpressionTag, add <!----> to prevent text fusion
-        if start_idx < end_idx {
+        // Skip this for callbacks (like svelte:element children) since they're isolated
+        if !skip_anchor && start_idx < end_idx {
             let first_node = &nodes[start_idx];
             let needs_anchor = matches!(
                 first_node,
@@ -3501,7 +3702,10 @@ export default function {component_name}($$renderer{props_param}) {{
                     bindings,
                     has_prior_content: _,
                     children: _, // TODO: Handle children for components with bindings
+                    dynamic,
                 } => {
+                    // Use optional chaining for dynamic components
+                    let call_syntax = if *dynamic { "?." } else { "" };
                     // Generate $$settled and $$inner_renderer
                     body_code.push_str(&format!("{}let $$settled = true;\n", indent));
                     body_code.push_str(&format!("{}let $$inner_renderer;\n\n", indent));
@@ -3524,8 +3728,8 @@ export default function {component_name}($$renderer{props_param}) {{
                     // Generate component call - use $.spread_props if spreads exist
                     if !spreads.is_empty() {
                         body_code.push_str(&format!(
-                            "{}\t{}($$renderer, $.spread_props([\n",
-                            indent, name
+                            "{}\t{}{}($$renderer, $.spread_props([\n",
+                            indent, name, call_syntax
                         ));
 
                         // Add spread expressions first
@@ -3560,7 +3764,10 @@ export default function {component_name}($$renderer{props_param}) {{
                         body_code.push_str(&format!("{}\t]));\n", indent));
                     } else {
                         // No spreads, use simple object literal
-                        body_code.push_str(&format!("{}\t{}($$renderer, {{\n", indent, name));
+                        body_code.push_str(&format!(
+                            "{}\t{}{}($$renderer, {{\n",
+                            indent, name, call_syntax
+                        ));
 
                         // Regular props first
                         for prop in props {
@@ -3628,6 +3835,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     children,
                     snippets,
                     slot_names,
+                    dynamic,
                 } => {
                     // Flush current HTML
                     if !current_html.is_empty() {
@@ -3640,6 +3848,9 @@ export default function {component_name}($$renderer{props_param}) {{
                     let has_snippets = !snippets.is_empty();
                     let has_children = children.is_some();
                     let has_spreads = !spreads.is_empty();
+
+                    // Use optional chaining for dynamic components
+                    let call_syntax = if *dynamic { "?." } else { "" };
 
                     if has_snippets || has_children {
                         // Wrap in a block if we have snippets
@@ -3663,7 +3874,10 @@ export default function {component_name}($$renderer{props_param}) {{
                             }
 
                             // Component call with snippets as props
-                            body_code.push_str(&format!("{}\t{}($$renderer, {{ ", indent, name));
+                            body_code.push_str(&format!(
+                                "{}\t{}{}($$renderer, {{ ",
+                                indent, name, call_syntax
+                            ));
 
                             // Collect all props including snippet names
                             let mut all_props: Vec<String> = props.clone();
@@ -3692,7 +3906,10 @@ export default function {component_name}($$renderer{props_param}) {{
                             body_code.push_str(&format!("{}}}\n", indent));
                         } else if let Some(children_parts) = children {
                             // Component with children only (no snippets) - multi-line format
-                            body_code.push_str(&format!("{}{}($$renderer, {{\n", indent, name));
+                            body_code.push_str(&format!(
+                                "{}{}{}($$renderer, {{\n",
+                                indent, name, call_syntax
+                            ));
 
                             // Props
                             for prop in props {
@@ -3715,20 +3932,25 @@ export default function {component_name}($$renderer{props_param}) {{
                         // Has spread attributes - use $.spread_props
                         let spread_args: Vec<String> = spreads.clone();
                         body_code.push_str(&format!(
-                            "{}{}($$renderer, $.spread_props([{}]));\n",
+                            "{}{}{}($$renderer, $.spread_props([{}]));\n",
                             indent,
                             name,
+                            call_syntax,
                             spread_args.join(", ")
                         ));
                     } else {
                         // No children, no snippets, no spreads - simple call
                         if props.is_empty() {
-                            body_code.push_str(&format!("{}{}($$renderer, {{}});\n", indent, name));
+                            body_code.push_str(&format!(
+                                "{}{}{}($$renderer, {{}});\n",
+                                indent, name, call_syntax
+                            ));
                         } else {
                             body_code.push_str(&format!(
-                                "{}{}($$renderer, {{ {} }});\n",
+                                "{}{}{}($$renderer, {{ {} }});\n",
                                 indent,
                                 name,
+                                call_syntax,
                                 props.join(", ")
                             ));
                         }
@@ -3833,7 +4055,11 @@ export default function {component_name}($$renderer{props_param}) {{
                     // Add closing marker to current_html to combine with subsequent content
                     current_html.push_str("<!--]-->");
                 }
-                OutputPart::SvelteElement { tag_expr } => {
+                OutputPart::SvelteElement {
+                    tag_expr,
+                    attrs_expr,
+                    body,
+                } => {
                     // Flush current HTML before svelte:element
                     if !current_html.is_empty() {
                         body_code
@@ -3841,9 +4067,35 @@ export default function {component_name}($$renderer{props_param}) {{
                         current_html.clear();
                     }
 
-                    // Generate $.element call
-                    body_code
-                        .push_str(&format!("{}$.element($$renderer, {});\n", indent, tag_expr));
+                    // Generate $.element call with attributes and body callback
+                    if body.is_empty() && attrs_expr.is_none() {
+                        // No body and no attributes - simple form
+                        body_code
+                            .push_str(&format!("{}$.element($$renderer, {});\n", indent, tag_expr));
+                    } else {
+                        // Build $.element($$renderer, tag, attrs, () => { ... })
+                        let attrs_arg = attrs_expr.as_deref().unwrap_or("void 0");
+
+                        if body.is_empty() {
+                            // No body, just attributes
+                            body_code.push_str(&format!(
+                                "{}$.element($$renderer, {}, {});\n",
+                                indent, tag_expr, attrs_arg
+                            ));
+                        } else {
+                            // Has body - use callback form
+                            body_code.push_str(&format!(
+                                "{}$.element($$renderer, {}, {}, () => {{\n",
+                                indent, tag_expr, attrs_arg
+                            ));
+
+                            // Generate body content
+                            let body_code_inner = Self::build_parts(body, indent_level + 1);
+                            body_code.push_str(&body_code_inner);
+
+                            body_code.push_str(&format!("{}}});\n", indent));
+                        }
+                    }
                 }
                 OutputPart::SelectElement {
                     attrs_obj,
