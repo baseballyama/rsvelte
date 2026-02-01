@@ -794,7 +794,7 @@ fn transform_instance_script_for_visitors(
         // Handle legacy export let declarations
         if has_legacy_export_let && first_line_trimmed.starts_with("export let ") {
             // Use the full statement for multi-line export declarations
-            let transformed = transform_export_let(&statement);
+            let transformed = transform_export_let(&statement, analysis);
             result.push_str(&transformed);
             result.push('\n');
             return;
@@ -1697,9 +1697,7 @@ fn find_derived_property_colon(prop: &str) -> Option<usize> {
     None
 }
 
-fn transform_export_let(line: &str) -> String {
-    use crate::compiler::constants::PROPS_IS_BINDABLE;
-
+fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> String {
     let trimmed = line.trim();
 
     // Pattern: export let name = value; or export let name;
@@ -1709,12 +1707,6 @@ fn transform_export_let(line: &str) -> String {
 
     let rest = trimmed[11..].trim(); // After "export let "
     let rest = rest.trim_end_matches(';').trim();
-
-    // In legacy mode, export let props use PROPS_IS_BINDABLE (8) by default.
-    // Props that have bind: directives should use PROPS_IS_BINDABLE | PROPS_IS_UPDATED (12),
-    // but that requires Phase 2 analysis to track which props are bound.
-    // TODO: Use Phase 2 analysis to detect bound props and add PROPS_IS_UPDATED.
-    let flags = PROPS_IS_BINDABLE;
 
     // Handle multiple declarators: export let a, b, c;
     // Split by comma, but be careful of commas inside default values
@@ -1742,12 +1734,18 @@ fn transform_export_let(line: &str) -> String {
             // Remove trailing semicolon from value (after comment removal)
             let value = value.trim_end_matches(';').trim();
 
+            // Calculate flags: PROPS_IS_BINDABLE + PROPS_IS_UPDATED if the binding is updated
+            let flags = calculate_prop_flags(name, analysis);
+
             results.push(format!(
                 "let {} = $.prop($$props, '{}', {}, {});",
                 name, name, flags, value
             ));
         } else {
             let name = decl;
+            // Calculate flags: PROPS_IS_BINDABLE + PROPS_IS_UPDATED if the binding is updated
+            let flags = calculate_prop_flags(name, analysis);
+
             results.push(format!(
                 "let {} = $.prop($$props, '{}', {});",
                 name, name, flags
@@ -1756,6 +1754,31 @@ fn transform_export_let(line: &str) -> String {
     }
 
     results.join("\n")
+}
+
+/// Calculate the prop flags for a given prop name.
+///
+/// In legacy mode, props use PROPS_IS_BINDABLE (8) by default.
+/// If the binding is updated (reassigned or mutated), PROPS_IS_UPDATED (4) is added.
+///
+/// Reference: `get_prop_source()` in
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/client/utils.js`
+fn calculate_prop_flags(name: &str, analysis: &ComponentAnalysis) -> i32 {
+    use crate::compiler::constants::{PROPS_IS_BINDABLE, PROPS_IS_UPDATED};
+
+    let mut flags = PROPS_IS_BINDABLE;
+
+    // Check if the binding is updated (reassigned or mutated)
+    // This follows the official Svelte compiler logic in get_prop_source():
+    // flags |= PROPS_IS_UPDATED when binding.updated is true
+    if let Some(binding_idx) = analysis.root.find_binding_any_scope(name)
+        && let Some(binding) = analysis.root.bindings.get(binding_idx)
+        && binding.is_updated()
+    {
+        flags |= PROPS_IS_UPDATED;
+    }
+
+    flags
 }
 
 /// Split declarators by comma, handling nested braces, brackets, and parens.
