@@ -908,8 +908,14 @@ impl<'a> ScopeBuilder<'a> {
             TemplateNode::Component(component) => {
                 // Process expressions in component attributes
                 self.process_attributes(&component.attributes);
+                // Create a new scope for component children
+                // This is necessary because each component instance should have
+                // its own scope for snippets. For example, two <Child> instances
+                // can each have a {#snippet children()} without conflicting.
+                let old_scope = self.push_scope();
                 // Visit component children
                 self.visit_fragment(&component.fragment);
+                self.pop_scope(old_scope);
             }
             TemplateNode::ConstTag(tag) => self.visit_const_tag(tag),
             // Handle special Svelte elements that have attributes and fragments
@@ -925,11 +931,17 @@ impl<'a> ScopeBuilder<'a> {
             }
             TemplateNode::SvelteSelf(elem) => {
                 self.process_attributes(&elem.attributes);
+                // Create a new scope for component children (same as Component)
+                let old_scope = self.push_scope();
                 self.visit_fragment(&elem.fragment);
+                self.pop_scope(old_scope);
             }
             TemplateNode::SvelteComponent(elem) => {
                 self.process_attributes(&elem.attributes);
+                // Create a new scope for component children (same as Component)
+                let old_scope = self.push_scope();
                 self.visit_fragment(&elem.fragment);
+                self.pop_scope(old_scope);
             }
             TemplateNode::SvelteElement(elem) => {
                 self.process_attributes(&elem.attributes);

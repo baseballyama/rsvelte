@@ -1822,58 +1822,108 @@ fn get_literal_value(
 /// Returns true for expressions that are known to never be null/undefined, such as:
 /// - Each block indices (always numbers)
 /// - Numeric/boolean literals
-/// - Known non-nullable bindings
+/// - Binary/unary expressions (always produce defined results)
+/// - Non-updated const bindings with defined initial values
 fn is_expression_defined(expr: &crate::ast::js::Expression, context: &ComponentContext) -> bool {
-    use crate::ast::js::Expression;
+    is_expression_defined_json(expr.as_json(), context)
+}
+
+/// Internal helper for checking if a JSON expression is defined.
+fn is_expression_defined_json(json_value: &serde_json::Value, context: &ComponentContext) -> bool {
     use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
-    match expr {
-        Expression::Value(json_value) => {
-            let Some(obj) = json_value.as_object() else {
-                return false;
-            };
-            let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
-                return false;
-            };
+    let Some(obj) = json_value.as_object() else {
+        return false;
+    };
+    let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
+        return false;
+    };
 
-            match expr_type {
-                "Identifier" => {
-                    if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
-                        // First, check if there's a transform with is_defined flag
-                        // This is how we track EachIndex within each block scope
-                        if let Some(transform) = context.state.transform.get(name)
-                            && transform.is_defined
-                        {
-                            return true;
-                        }
+    match expr_type {
+        "Identifier" => {
+            if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+                // Special identifiers
+                if name == "undefined" {
+                    return false;
+                }
 
-                        // Fall back to checking the binding kind
-                        if let Some(binding) = context.state.get_binding(name) {
-                            // EachIndex is always a number, never null/undefined
-                            return matches!(binding.kind, BindingKind::EachIndex);
-                        }
+                // First, check if there's a transform with is_defined flag
+                // This is how we track EachIndex within each block scope
+                if let Some(transform) = context.state.transform.get(name)
+                    && transform.is_defined
+                {
+                    return true;
+                }
+
+                // Check the binding
+                if let Some(binding) = context.state.get_binding(name) {
+                    // EachIndex is always a number, never null/undefined
+                    if matches!(binding.kind, BindingKind::EachIndex) {
+                        return true;
                     }
-                    false
+
                 }
-                "Literal" => {
-                    // Literals are defined unless they're null/undefined
-                    if let Some(value) = obj.get("value") {
-                        return !value.is_null();
-                    }
-                    // If no value field but raw exists, it's likely a valid literal
-                    obj.get("raw").is_some()
-                }
-                "BinaryExpression" | "UnaryExpression" => {
-                    // Arithmetic operations always produce defined results
-                    true
-                }
-                "TemplateLiteral" => {
-                    // Template literals are always strings (defined)
-                    true
-                }
-                _ => false,
             }
+            false
         }
+        "Literal" => {
+            // Literals are defined unless they're null/undefined
+            if let Some(value) = obj.get("value") {
+                return !value.is_null();
+            }
+            // If no value field but raw exists, it's likely a valid literal
+            obj.get("raw").is_some()
+        }
+        "BinaryExpression" => {
+            // Binary expressions always produce defined results (booleans, numbers, strings)
+            true
+        }
+        "UnaryExpression" => {
+            // Check the operator - most produce defined results
+            if let Some(op) = obj.get("operator").and_then(|v| v.as_str()) {
+                // void operator produces undefined
+                if op == "void" {
+                    return false;
+                }
+            }
+            true
+        }
+        "LogicalExpression" => {
+            // Logical expressions might return undefined if right side is undefined
+            // For safety, check both operands
+            if let (Some(left), Some(right)) = (obj.get("left"), obj.get("right")) {
+                return is_expression_defined_json(left, context)
+                    && is_expression_defined_json(right, context);
+            }
+            false
+        }
+        "ConditionalExpression" => {
+            // Ternary: check both consequent and alternate
+            if let (Some(consequent), Some(alternate)) =
+                (obj.get("consequent"), obj.get("alternate"))
+            {
+                return is_expression_defined_json(consequent, context)
+                    && is_expression_defined_json(alternate, context);
+            }
+            false
+        }
+        "TemplateLiteral" => {
+            // Template literals are always strings (defined)
+            true
+        }
+        "ArrayExpression" | "ObjectExpression" => {
+            // Array/object literals are always defined
+            true
+        }
+        "ArrowFunctionExpression" | "FunctionExpression" => {
+            // Functions are always defined
+            true
+        }
+        "CallExpression" | "MemberExpression" => {
+            // These could return undefined, so we can't guarantee they're defined
+            false
+        }
+        _ => false,
     }
 }
 

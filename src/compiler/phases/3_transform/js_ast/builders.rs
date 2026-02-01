@@ -5,6 +5,23 @@
 
 use super::nodes::*;
 
+/// Check if a string is a valid JavaScript identifier.
+fn is_valid_identifier(s: &str) -> bool {
+    if s.is_empty() {
+        return false;
+    }
+
+    // First character must be a letter, underscore, or dollar sign
+    let first_char = s.chars().next().unwrap();
+    if !first_char.is_alphabetic() && first_char != '_' && first_char != '$' {
+        return false;
+    }
+
+    // Remaining characters must be alphanumeric, underscore, or dollar sign
+    s.chars()
+        .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+}
+
 // ============================================================================
 // Identifiers and Literals
 // ============================================================================
@@ -182,9 +199,16 @@ pub fn prop_computed(key: JsExpr, value: JsExpr) -> JsObjectMember {
 }
 
 /// Create a getter property.
+/// If the name is not a valid identifier (e.g., contains hyphens), uses computed property syntax.
 pub fn getter(name: impl Into<String>, body: Vec<JsStatement>) -> JsObjectMember {
+    let name_str = name.into();
+    let (key, computed) = if is_valid_identifier(&name_str) {
+        (JsPropertyKey::Identifier(name_str), false)
+    } else {
+        (JsPropertyKey::Literal(JsLiteral::String(name_str)), true)
+    };
     JsObjectMember::Property(JsProperty {
-        key: JsPropertyKey::Identifier(name.into()),
+        key,
         value: Box::new(JsExpr::Function(JsFunctionExpression {
             id: None,
             params: vec![],
@@ -193,19 +217,26 @@ pub fn getter(name: impl Into<String>, body: Vec<JsStatement>) -> JsObjectMember
             is_generator: false,
         })),
         kind: JsPropertyKind::Get,
-        computed: false,
+        computed,
         shorthand: false,
     })
 }
 
 /// Create a setter property.
+/// If the name is not a valid identifier (e.g., contains hyphens), uses computed property syntax.
 pub fn setter(
     name: impl Into<String>,
     param: impl Into<String>,
     body: Vec<JsStatement>,
 ) -> JsObjectMember {
+    let name_str = name.into();
+    let (key, computed) = if is_valid_identifier(&name_str) {
+        (JsPropertyKey::Identifier(name_str), false)
+    } else {
+        (JsPropertyKey::Literal(JsLiteral::String(name_str)), true)
+    };
     JsObjectMember::Property(JsProperty {
-        key: JsPropertyKey::Identifier(name.into()),
+        key,
         value: Box::new(JsExpr::Function(JsFunctionExpression {
             id: None,
             params: vec![id_pattern(param)],
@@ -214,7 +245,7 @@ pub fn setter(
             is_generator: false,
         })),
         kind: JsPropertyKind::Set,
-        computed: false,
+        computed,
         shorthand: false,
     })
 }
@@ -395,6 +426,43 @@ pub fn call(callee: JsExpr, arguments: Vec<JsExpr>) -> JsExpr {
     JsExpr::Call(JsCallExpression {
         callee: Box::new(callee),
         arguments,
+        optional: false,
+    })
+}
+
+/// Create a call expression with trailing undefined/false arguments stripped.
+///
+/// This matches the behavior of the official Svelte compiler's `b.call()` function
+/// which removes trailing falsy arguments but keeps internal ones as `void 0`.
+#[inline]
+pub fn call_trimmed(callee: JsExpr, arguments: Vec<JsExpr>) -> JsExpr {
+    use super::nodes::JsUnaryOp;
+
+    let mut args = arguments;
+
+    // Remove trailing undefined/void expressions and false boolean literals
+    while let Some(last) = args.last() {
+        let is_falsy = match last {
+            JsExpr::Identifier(name) if name == "undefined" => true,
+            JsExpr::Unary(unary) => {
+                // Check for `void 0` pattern
+                matches!(unary.operator, JsUnaryOp::Void)
+                    && matches!(&*unary.argument, JsExpr::Literal(JsLiteral::Number(n)) if *n == 0.0)
+            }
+            JsExpr::Literal(JsLiteral::Boolean(false)) => true,
+            _ => false,
+        };
+
+        if is_falsy {
+            args.pop();
+        } else {
+            break;
+        }
+    }
+
+    JsExpr::Call(JsCallExpression {
+        callee: Box::new(callee),
+        arguments: args,
         optional: false,
     })
 }
