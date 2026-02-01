@@ -784,14 +784,54 @@ impl<'a> CssParser<'a> {
     }
 
     fn skip_until_block_start(&mut self) {
-        let mut depth = 0;
+        let mut paren_depth = 0;
+        let mut bracket_depth = 0;
+        let mut in_string = false;
+        let mut string_char = '\0';
+
         while !self.is_eof() {
             let c = self.current_char();
+
+            // Handle escape sequences inside strings
+            if c == '\\' && in_string {
+                self.advance();
+                if !self.is_eof() {
+                    self.advance();
+                }
+                continue;
+            }
+
+            // Handle string boundaries
+            if (c == '"' || c == '\'') && !in_string {
+                in_string = true;
+                string_char = c;
+                self.advance();
+                continue;
+            }
+
+            if in_string && c == string_char {
+                in_string = false;
+                string_char = '\0';
+                self.advance();
+                continue;
+            }
+
+            // Skip content inside strings
+            if in_string {
+                self.advance();
+                continue;
+            }
+
+            // Track nesting
             if c == '(' {
-                depth += 1;
+                paren_depth += 1;
             } else if c == ')' {
-                depth -= 1;
-            } else if depth == 0 && c == '{' {
+                paren_depth -= 1;
+            } else if c == '[' {
+                bracket_depth += 1;
+            } else if c == ']' {
+                bracket_depth -= 1;
+            } else if paren_depth == 0 && bracket_depth == 0 && c == '{' {
                 break;
             }
             self.advance();
@@ -980,6 +1020,21 @@ impl<'a> SelectorParser<'a> {
                     Value::String("TypeSelector".to_string()),
                 );
                 obj.insert("name".to_string(), Value::String("*".to_string()));
+                obj.insert("start".to_string(), Value::Number((start as i64).into()));
+                obj.insert("end".to_string(), Value::Number((end as i64).into()));
+                selectors.push(Value::Object(obj));
+            } else if c == '&' {
+                // Nesting selector
+                let start = self.offset + self.index;
+                self.advance();
+                let end = self.offset + self.index;
+
+                let mut obj = Map::new();
+                obj.insert(
+                    "type".to_string(),
+                    Value::String("NestingSelector".to_string()),
+                );
+                obj.insert("name".to_string(), Value::String("&".to_string()));
                 obj.insert("start".to_string(), Value::Number((start as i64).into()));
                 obj.insert("end".to_string(), Value::Number((end as i64).into()));
                 selectors.push(Value::Object(obj));
@@ -1639,11 +1694,44 @@ impl<'a> SelectorParser<'a> {
         let start = self.offset + self.index;
         self.advance(); // consume '['
 
-        // Read until ']'
+        // Read until ']', respecting quoted strings and escape sequences
         let content_start = self.index;
-        while !self.is_eof() && self.current_char() != ']' {
+        let mut in_string = false;
+        let mut string_char = '\0';
+
+        while !self.is_eof() {
+            let c = self.current_char();
+
+            if c == '\\' && in_string {
+                // Escape sequence inside string - skip the backslash and next char
+                self.advance();
+                if !self.is_eof() {
+                    self.advance();
+                }
+                continue;
+            }
+
+            if (c == '"' || c == '\'') && !in_string {
+                in_string = true;
+                string_char = c;
+                self.advance();
+                continue;
+            }
+
+            if in_string && c == string_char {
+                in_string = false;
+                string_char = '\0';
+                self.advance();
+                continue;
+            }
+
+            if c == ']' && !in_string {
+                break;
+            }
+
             self.advance();
         }
+
         let name = self.source[content_start..self.index].to_string();
         self.advance(); // consume ']'
         let end = self.offset + self.index;

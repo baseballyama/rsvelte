@@ -215,7 +215,7 @@ pub fn transform_server(
     analysis: &ComponentAnalysis,
     ast: &Root,
     _source: &str,
-    _options: &CompileOptions,
+    options: &CompileOptions,
 ) -> Result<String, TransformError> {
     let component_name = &analysis.name;
 
@@ -230,6 +230,7 @@ pub fn transform_server(
         instance_script,
         module_script,
         Some(analysis),
+        options.experimental.r#async,
     );
 
     // Use the AST fragment directly (no re-parsing needed)
@@ -264,6 +265,8 @@ struct ServerCodeGenerator<'a> {
     analysis: Option<&'a ComponentAnalysis>,
     /// Whether the component uses store subscriptions (requires $$store_subs variable)
     uses_store_subs: bool,
+    /// Whether experimental.async is enabled
+    use_async: bool,
 }
 
 /// A part of the output - either static HTML or dynamic code.
@@ -395,6 +398,7 @@ impl<'a> ServerCodeGenerator<'a> {
         instance_script: Option<&'a Script>,
         module_script: Option<&'a Script>,
         analysis: Option<&'a ComponentAnalysis>,
+        use_async: bool,
     ) -> Self {
         // Extract constant variables from script
         let constant_vars = if let Some(script) = instance_script {
@@ -432,6 +436,7 @@ impl<'a> ServerCodeGenerator<'a> {
             snippets: Vec::with_capacity(4),
             analysis,
             uses_store_subs,
+            use_async,
         }
     }
 
@@ -936,6 +941,9 @@ impl<'a> ServerCodeGenerator<'a> {
         &self,
         node: &AttributeNode,
     ) -> Result<String, TransformError> {
+        // Check if this is a class attribute - needs whitespace normalization
+        let is_class_attr = node.name.eq_ignore_ascii_case("class");
+
         match &node.value {
             AttributeValue::True(_) => Ok("true".to_string()),
             AttributeValue::Sequence(parts) => {
@@ -956,7 +964,14 @@ impl<'a> ServerCodeGenerator<'a> {
                 for part in parts {
                     match part {
                         AttributeValuePart::Text(text) => {
-                            value.push_str(&text.data);
+                            // Normalize whitespace for class attributes
+                            if is_class_attr {
+                                let normalized: String =
+                                    text.data.split_whitespace().collect::<Vec<_>>().join(" ");
+                                value.push_str(&normalized);
+                            } else {
+                                value.push_str(&text.data);
+                            }
                         }
                         AttributeValuePart::ExpressionTag(expr_tag) => {
                             has_expression = true;
@@ -1045,6 +1060,7 @@ impl<'a> ServerCodeGenerator<'a> {
             None,
             None,
             self.analysis,
+            self.use_async,
         );
 
         // Process children
@@ -1251,6 +1267,7 @@ impl<'a> ServerCodeGenerator<'a> {
             None,
             None,
             None,
+            self.use_async,
         );
 
         // Process children (skip leading/trailing whitespace)
@@ -1679,6 +1696,9 @@ impl<'a> ServerCodeGenerator<'a> {
                 let mut template_parts = Vec::new();
                 let mut current_text = String::new();
 
+                // For style attribute, use $.stringify for expressions
+                let is_style_attr = name == "style";
+
                 for part in parts {
                     match part {
                         AttributeValuePart::Text(text) => {
@@ -1695,7 +1715,12 @@ impl<'a> ServerCodeGenerator<'a> {
                             let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
                             if expr_end > expr_start && expr_end <= self.source.len() {
                                 let expr = self.source[expr_start..expr_end].trim().to_string();
-                                template_parts.push(format!("${{{}}}", expr));
+                                if is_style_attr {
+                                    // For style attributes, wrap expressions in $.stringify()
+                                    template_parts.push(format!("${{$.stringify({})}}", expr));
+                                } else {
+                                    template_parts.push(format!("${{{}}}", expr));
+                                }
                             }
                         }
                     }
@@ -1706,9 +1731,14 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
 
                 if has_expressions {
-                    // Use template literal with $.escape() for each expression
                     let value = template_parts.join("");
-                    Ok(Some(format!(" {}=\"{}\"", name, value)))
+                    if is_style_attr {
+                        // For style attribute with expressions, use $.attr_style()
+                        Ok(Some(format!("${{$.attr_style(`{}`)}}", value)))
+                    } else {
+                        // Use template literal with raw expression
+                        Ok(Some(format!(" {}=\"{}\"", name, value)))
+                    }
                 } else {
                     // Pure text - no expressions
                     let value = template_parts.join("");
@@ -1794,14 +1824,35 @@ impl<'a> ServerCodeGenerator<'a> {
                 // Build template literal with $.stringify() for expressions
                 let mut template_parts = Vec::new();
                 let mut current_text = String::new();
+                let mut is_first_part = true;
 
                 for part in parts {
                     match part {
                         AttributeValuePart::Text(text) => {
-                            // Normalize whitespace for class attributes
-                            let normalized: String =
+                            // Normalize whitespace for class attributes while preserving
+                            // leading/trailing spaces that separate parts
+                            let trimmed: String =
                                 text.data.split_whitespace().collect::<Vec<_>>().join(" ");
-                            current_text.push_str(&normalized);
+
+                            // Check if original text had leading whitespace (important for parts after expressions)
+                            let has_leading_ws = text.data.starts_with(char::is_whitespace);
+                            // Check if original text had trailing whitespace (important for parts before expressions)
+                            let has_trailing_ws = text.data.ends_with(char::is_whitespace);
+
+                            // Add space prefix if needed (for parts that come after expressions)
+                            if has_leading_ws && !is_first_part && !current_text.is_empty() {
+                                current_text.push(' ');
+                            } else if has_leading_ws && !is_first_part && current_text.is_empty() {
+                                // If this is right after an expression, add leading space
+                                current_text.push(' ');
+                            }
+
+                            current_text.push_str(&trimmed);
+
+                            // Add space suffix if needed (for parts before expressions)
+                            if has_trailing_ws && !trimmed.is_empty() {
+                                current_text.push(' ');
+                            }
                         }
                         AttributeValuePart::ExpressionTag(expr_tag) => {
                             // Add accumulated text
@@ -1817,6 +1868,7 @@ impl<'a> ServerCodeGenerator<'a> {
                             }
                         }
                     }
+                    is_first_part = false;
                 }
                 // Add any remaining text
                 if !current_text.is_empty() {
@@ -1848,7 +1900,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         )))
                     } else {
                         Ok(Some(format!(
-                            "${{$.attr_class(`${{$.stringify({})}}`))}}",
+                            "${{$.attr_class(`${{$.stringify({})}}`)}}",
                             expr
                         )))
                     }
@@ -2303,6 +2355,7 @@ impl<'a> ServerCodeGenerator<'a> {
             None,
             None,
             self.analysis,
+            self.use_async,
         );
 
         // Collect non-empty nodes
@@ -2431,6 +2484,7 @@ impl<'a> ServerCodeGenerator<'a> {
             None,
             None,
             None,
+            self.use_async,
         );
 
         // Check if first meaningful content is text/expression
@@ -2590,6 +2644,7 @@ impl<'a> ServerCodeGenerator<'a> {
             None,
             None,
             None,
+            self.use_async,
         );
 
         for node in nodes.iter().take(end_idx).skip(start_idx) {
@@ -2665,6 +2720,7 @@ impl<'a> ServerCodeGenerator<'a> {
             None,
             None,
             None,
+            self.use_async,
         );
 
         // Check if first node is an expression - if so, add comment marker
@@ -2747,6 +2803,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.instance_script,
                 None,
                 None,
+                self.use_async,
             );
             for node in &pending.nodes {
                 pending_generator.generate_node(node, false)?;
@@ -2766,6 +2823,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.instance_script,
                 None,
                 None,
+                self.use_async,
             );
             for node in &then.nodes {
                 then_generator.generate_node(node, false)?;
@@ -2784,6 +2842,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 self.instance_script,
                 None,
                 None,
+                self.use_async,
             );
             for node in &catch.nodes {
                 catch_generator.generate_node(node, false)?;
@@ -2818,6 +2877,7 @@ impl<'a> ServerCodeGenerator<'a> {
             None,
             None,
             None,
+            self.use_async,
         );
 
         for node in &block.fragment.nodes {
@@ -2884,6 +2944,7 @@ impl<'a> ServerCodeGenerator<'a> {
             None,
             None,
             None,
+            self.use_async,
         );
 
         // Collect non-empty nodes
@@ -3350,6 +3411,7 @@ impl<'a> ServerCodeGenerator<'a> {
             None,
             None,
             self.analysis,
+            self.use_async,
         );
 
         // Add <title> tag
@@ -3397,6 +3459,7 @@ impl<'a> ServerCodeGenerator<'a> {
             None,
             None,
             self.analysis,
+            self.use_async,
         );
 
         // Get the nodes and find meaningful content bounds
@@ -3577,6 +3640,13 @@ impl<'a> ServerCodeGenerator<'a> {
         // Build snippet functions
         let snippets_section = self.build_snippets();
 
+        // Build async flag import if experimental.async is enabled
+        let async_import = if self.use_async {
+            "import 'svelte/internal/flags/async';\n"
+        } else {
+            ""
+        };
+
         // Build the final output - handle empty body case
         let has_content = !script_code.is_empty() || !body_code.is_empty();
 
@@ -3603,13 +3673,14 @@ impl<'a> ServerCodeGenerator<'a> {
                 };
 
                 format!(
-                    r#"import * as $ from 'svelte/internal/server';
+                    r#"{async_import}import * as $ from 'svelte/internal/server';
 {imports_section}{snippets_section}{module_section}
 export default function {component_name}($$renderer{props_param}) {{
 	$$renderer.component(($$renderer) => {{
 {store_subs_decl}{inner_script}
 {instance_snippets}{inner_body}{bind_props_code}{store_subs_cleanup}	}});
 }}"#,
+                    async_import = async_import,
                     imports_section = imports_section,
                     snippets_section = snippets_section,
                     module_section = module_section,
@@ -3634,10 +3705,11 @@ export default function {component_name}($$renderer{props_param}) {{
                 let bind_props_code = self.build_bind_props(1);
 
                 format!(
-                    r#"import * as $ from 'svelte/internal/server';
+                    r#"{async_import}import * as $ from 'svelte/internal/server';
 {imports_section}{snippets_section}{module_section}
 export default function {component_name}($$renderer{props_param}) {{
 {script_section}{instance_snippets}{body_code}{bind_props_code}}}"#,
+                    async_import = async_import,
                     imports_section = imports_section,
                     snippets_section = snippets_section,
                     module_section = module_section,
@@ -3655,9 +3727,10 @@ export default function {component_name}($$renderer{props_param}) {{
             let bind_props_code = self.build_bind_props(1);
             if bind_props_code.is_empty() {
                 format!(
-                    r#"import * as $ from 'svelte/internal/server';
+                    r#"{async_import}import * as $ from 'svelte/internal/server';
 {imports_section}{snippets_section}{module_section}
 export default function {component_name}($$renderer{props_param}) {{}}"#,
+                    async_import = async_import,
                     imports_section = imports_section,
                     snippets_section = snippets_section,
                     module_section = module_section,
@@ -3666,10 +3739,11 @@ export default function {component_name}($$renderer{props_param}) {{}}"#,
                 )
             } else {
                 format!(
-                    r#"import * as $ from 'svelte/internal/server';
+                    r#"{async_import}import * as $ from 'svelte/internal/server';
 {imports_section}{snippets_section}{module_section}
 export default function {component_name}($$renderer{props_param}) {{
 {bind_props_code}}}"#,
+                    async_import = async_import,
                     imports_section = imports_section,
                     snippets_section = snippets_section,
                     module_section = module_section,
@@ -3854,6 +3928,16 @@ export default function {component_name}($$renderer{props_param}) {{
                     slot_names,
                     dynamic,
                 } => {
+                    // Check if current_html content is sibling content (not just parent opening tag)
+                    // Opening tags end with ">", sibling content has text/whitespace after
+                    let has_sibling_content_before =
+                        !current_html.is_empty() && !current_html.ends_with('>');
+
+                    // Add marker before component if there's sibling content before
+                    if *has_prior_content && has_sibling_content_before {
+                        current_html.push_str("<!---->");
+                    }
+
                     // Flush current HTML
                     if !current_html.is_empty() {
                         body_code
@@ -3994,8 +4078,14 @@ export default function {component_name}($$renderer{props_param}) {{
                         )
                     });
 
-                    // Add marker if there's content either before or after the component
-                    if *has_prior_content || has_content_after {
+                    // Add marker after component if:
+                    // - There's sibling content before (has_prior_content with non-tag content), OR
+                    // - There's content after
+                    // This creates paired markers around the component position
+                    // Note: has_sibling_content_before was computed before flush
+                    let needs_marker_after =
+                        (*has_prior_content && has_sibling_content_before) || has_content_after;
+                    if needs_marker_after {
                         current_html.push_str("<!---->");
                     }
                 }

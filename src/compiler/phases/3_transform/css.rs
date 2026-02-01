@@ -369,6 +369,7 @@ fn is_global_block(node: &Value) -> bool {
 
 /// Check if a rule starts with :global (with or without arguments)
 /// This includes both `:global { ... }` and `:global(.x) { ... }`
+#[allow(dead_code)]
 fn is_global_selector_rule(node: &Value) -> bool {
     if let Some(prelude) = node.get("prelude")
         && let Some(children) = prelude.get("children").and_then(|c| c.as_array())
@@ -1361,7 +1362,7 @@ fn transform_rule_preserving(
     last_end: &mut usize,
     ctx: &CssContext,
     is_nested: bool,
-    is_in_global_block: bool,
+    _is_in_global_block: bool,
 ) {
     let node_start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
     let node_end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
@@ -1561,7 +1562,7 @@ fn transform_block_with_nested_rules(
                             specificity_bumped,
                             &mut local_last_end,
                             ctx,
-                            true, // nested rules use :where() for specificity preservation
+                            true,  // nested rules use :where() for specificity preservation
                             false, // not in a global block
                         );
                     }
