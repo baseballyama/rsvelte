@@ -1281,8 +1281,11 @@ impl<'a> ServerCodeGenerator<'a> {
         // Check if it has rich content (Components, RenderTags, etc.)
         let is_rich = Self::has_component_or_render_tag(&element.fragment.nodes);
 
-        // Get CSS hash for scoped elements
-        let css_hash = if element.metadata.scoped {
+        // Check if this element has a class attribute
+        let has_class = attrs.iter().any(|(name, _)| name == "class");
+
+        // Get CSS hash for scoped elements - only if they have a class attribute
+        let css_hash = if element.metadata.scoped && has_class {
             self.analysis.and_then(|a| {
                 if !a.css.hash.is_empty() {
                     Some(a.css.hash.clone())
@@ -1379,19 +1382,6 @@ impl<'a> ServerCodeGenerator<'a> {
     }
 
     fn generate_option_element(&mut self, element: &RegularElement) -> Result<(), TransformError> {
-        // Get CSS hash for scoped elements
-        let css_hash = if element.metadata.scoped {
-            self.analysis.and_then(|a| {
-                if !a.css.hash.is_empty() {
-                    Some(a.css.hash.clone())
-                } else {
-                    None
-                }
-            })
-        } else {
-            None
-        };
-
         // Extract attributes as (name, value) pairs
         let mut attrs = Vec::new();
         for attr in &element.attributes {
@@ -1414,6 +1404,22 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
             }
         }
+
+        // Check if this element has a class attribute
+        let has_class = attrs.iter().any(|(name, _)| name == "class");
+
+        // Get CSS hash for scoped elements - only if they have a class attribute
+        let css_hash = if element.metadata.scoped && has_class {
+            self.analysis.and_then(|a| {
+                if !a.css.hash.is_empty() {
+                    Some(a.css.hash.clone())
+                } else {
+                    None
+                }
+            })
+        } else {
+            None
+        };
 
         // Check if we have a synthetic_value_node - if so, pass the value directly
         if let Some(synthetic_value_node) = &element.metadata.synthetic_value_node {
