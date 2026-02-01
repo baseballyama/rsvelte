@@ -335,7 +335,27 @@ fn parse_custom_element_option(
                 (attr.start as usize, attr.end as usize),
             ));
         }
-        _ => {}
+        AttributeValue::Expression(expr) => {
+            let expr_json = expr.expression.as_json();
+
+            // Check for null value (backwards compat - disable custom element)
+            if expr_json.get("type") == Some(&JsonValue::String("Literal".to_string()))
+                && let Some(JsonValue::Null) = expr_json.get("value")
+            {
+                // customElement={null} - skip
+                return Ok(CustomElementOptions {
+                    tag: None,
+                    shadow: None,
+                    props: None,
+                    extend: None,
+                });
+            }
+
+            // Object expression: customElement={{tag: "...", ...}}
+            if expr_json.get("type") == Some(&JsonValue::String("ObjectExpression".to_string())) {
+                return parse_custom_element_object(expr_json, attr);
+            }
+        }
     }
 
     Err(ParseError::svelte(

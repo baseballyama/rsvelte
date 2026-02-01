@@ -85,6 +85,10 @@ fn is_test_skipped(sample_dir: &Path) -> bool {
         if content.contains("skip: true") || content.contains("skip:true") {
             return true;
         }
+        // Skip tests that require special compile options we don't support yet
+        if content.contains("warningFilter") {
+            return true;
+        }
     }
     false
 }

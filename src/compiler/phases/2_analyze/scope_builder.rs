@@ -172,12 +172,17 @@ impl<'a> ScopeBuilder<'a> {
         declaration_kind: DeclarationKind,
     ) -> usize {
         // Check for duplicate declaration in the current scope
-        if self.scopes[self.current_scope]
-            .declarations
-            .contains_key(&name)
-        {
-            self.validation_errors
-                .push(errors::declaration_duplicate(&name));
+        // Note: var redeclarations are allowed in JavaScript, so we only error
+        // if neither the existing nor new declaration is a var
+        if let Some(&existing_idx) = self.scopes[self.current_scope].declarations.get(&name) {
+            let existing_binding = &self.bindings[existing_idx];
+            // Only error if neither declaration is a var
+            if existing_binding.declaration_kind != DeclarationKind::Var
+                && declaration_kind != DeclarationKind::Var
+            {
+                self.validation_errors
+                    .push(errors::declaration_duplicate(&name));
+            }
         }
 
         let idx = self.bindings.len();

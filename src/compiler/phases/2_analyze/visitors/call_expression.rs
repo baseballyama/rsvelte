@@ -427,6 +427,21 @@ fn get_global_keypath(node: &Value, context: &VisitorContext) -> Option<String> 
         return None;
     }
 
+    // For rune-like identifiers (e.g., $state), also check if the non-$ version is bound
+    // If so, it's a store subscription, not a rune
+    if name.starts_with('$') && name.len() > 1 {
+        let store_name = &name[1..];
+        if context
+            .analysis
+            .root
+            .scope
+            .declarations
+            .contains_key(store_name)
+        {
+            return None;
+        }
+    }
+
     Some(format!("{}{}", name, joined))
 }
 
