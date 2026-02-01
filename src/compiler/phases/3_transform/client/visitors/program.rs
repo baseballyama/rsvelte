@@ -100,8 +100,31 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
                     context.state.transform.insert(name.clone(), transform);
                 }
                 BindingKind::Prop | BindingKind::BindableProp => {
-                    // Props need special handling based on whether they're sources
-                    // Will be transformed during visitor traversal
+                    // Props need special handling based on whether they're sources.
+                    // In legacy mode, props created with `export let` become getter functions
+                    // via $.prop(), so reading them should call the getter: foo -> foo()
+                    //
+                    // Corresponds to the prop handling in Program.js:
+                    // context.state.transform[name] = {
+                    //     read: b.call,  // foo -> foo()
+                    //     assign: (node, value) => b.call(node, value),
+                    //     mutate: ...
+                    // };
+                    //
+                    // Check if this prop should be a source (needs transformation)
+                    if is_prop_source_binding(binding, &context.state) {
+                        let transform = IdentifierTransform {
+                            read: Some(prop_read),
+                            assign: Some(prop_assign),
+                            mutate: Some(prop_mutate),
+                            update: None, // Props don't have update transform
+                            skip_proxy: false,
+                            is_defined: false,
+                            is_reactive: true,
+                        };
+
+                        context.state.transform.insert(name.clone(), transform);
+                    }
                 }
                 BindingKind::State | BindingKind::RawState | BindingKind::Derived => {
                     // State variables need $.get() wrapping
@@ -130,18 +153,30 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
 ///
 /// Corresponds to `is_prop_source()` in
 /// `svelte/packages/svelte/src/compiler/phases/3-transform/client/utils.js`.
-#[allow(dead_code)]
+///
+/// A prop is a "source" when it needs the $.prop() wrapping for reactivity.
+/// In legacy mode, ALL props are sources (for coarse-grained reactivity).
+/// In runes mode, only props that are accessors, reassigned, have initial values,
+/// or are updated need to be sources.
 fn is_prop_source_binding(
     binding: &crate::compiler::phases::phase2_analyze::scope::Binding,
     state: &ComponentClientTransformState,
 ) -> bool {
-    // In runes mode, props are sources if they're updated
-    if state.analysis.runes {
-        return binding.is_updated();
+    // In legacy mode (not runes), ALL props are sources
+    // This is because the parent component could be legacy and needs coarse-grained reactivity
+    if !state.analysis.runes {
+        return true;
     }
 
-    // In legacy mode, props are sources if they're reassigned or mutated
-    binding.reassigned || binding.mutated
+    // In runes mode, props are sources if:
+    // - accessors is enabled
+    // - binding is reassigned
+    // - binding has an initial value
+    // - binding is updated (mutated or reassigned)
+    state.analysis.accessors
+        || binding.reassigned
+        || binding.initial.is_some()
+        || binding.is_updated()
 }
 
 // ============================================================================
@@ -299,6 +334,63 @@ fn store_sub_update(operator: JsUpdateOp, argument: JsExpr, prefix: bool) -> JsE
     }
 
     b::call(b::member_path(method), args)
+}
+
+// ============================================================================
+// Prop transform functions
+// ============================================================================
+
+/// Transform a prop read.
+///
+/// In legacy mode, props declared with `export let` become getter functions
+/// via `$.prop()`. Reading them calls the getter: `foo` → `foo()`.
+///
+/// This is equivalent to `b.call` in the official compiler's transform.
+fn prop_read(node: JsExpr) -> JsExpr {
+    b::call(node, vec![])
+}
+
+/// Transform a prop assignment.
+///
+/// Assigns a value to a prop getter by calling it with the value:
+/// `foo = value` → `foo(value)`
+///
+/// # Arguments
+///
+/// * `node` - The prop identifier (e.g., `foo`)
+/// * `value` - The value being assigned
+/// * `_needs_proxy` - Whether the value needs to be proxified (not used for props)
+fn prop_assign(node: JsExpr, value: JsExpr, _needs_proxy: bool) -> JsExpr {
+    b::call(node, vec![value])
+}
+
+/// Transform a prop mutation.
+///
+/// For mutations like `foo.bar = value`, we need to call the getter,
+/// mutate the result, and trigger an update.
+///
+/// In legacy mode with bindable_prop, mutations become:
+/// `foo($.mutate(foo(), mutation))`
+///
+/// # Arguments
+///
+/// * `node` - The prop identifier (e.g., `foo`)
+/// * `mutation` - The mutation expression (e.g., `foo.bar = value`)
+fn prop_mutate(node: JsExpr, mutation: JsExpr) -> JsExpr {
+    // For bindable props in legacy mode, we need to:
+    // 1. Get the current value: foo()
+    // 2. Apply the mutation
+    // 3. Update via: foo($.mutate(foo(), mutation))
+    //
+    // For regular props, just return the mutation
+    // (the prop transformation in the caller handles wrapping)
+    b::call(
+        node.clone(),
+        vec![b::call(
+            b::member_path("$.mutate"),
+            vec![b::call(node, vec![]), mutation],
+        )],
+    )
 }
 
 #[cfg(test)]

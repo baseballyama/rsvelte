@@ -423,6 +423,8 @@ enum OutputPart {
         body: Vec<OutputPart>,
         /// Whether this select has rich content
         is_rich: bool,
+        /// CSS hash for scoped elements
+        css_hash: Option<String>,
     },
     /// Option element - produces $$renderer.option() call
     OptionElement {
@@ -1266,24 +1268,38 @@ impl<'a> ServerCodeGenerator<'a> {
             body_generator.generate_node(node, false)?;
         }
 
-        // Build the attributes object
+        // Build the attributes object - other attrs first, then value
         let mut attr_parts = Vec::new();
-        if let Some(value) = &value_expr {
-            attr_parts.push(format!("value: {}", value));
-        }
         for (name, value) in &attrs {
             attr_parts.push(format!("{}: {}", quote_prop_name(name), value));
+        }
+        if let Some(value) = &value_expr {
+            attr_parts.push(format!("value: {}", value));
         }
         let attrs_obj = format!("{{ {} }}", attr_parts.join(", "));
 
         // Check if it has rich content (Components, RenderTags, etc.)
         let is_rich = Self::has_component_or_render_tag(&element.fragment.nodes);
 
+        // Get CSS hash for scoped elements
+        let css_hash = if element.metadata.scoped {
+            self.analysis.and_then(|a| {
+                if !a.css.hash.is_empty() {
+                    Some(a.css.hash.clone())
+                } else {
+                    None
+                }
+            })
+        } else {
+            None
+        };
+
         // Push SelectElement OutputPart
         self.output_parts.push(OutputPart::SelectElement {
             attrs_obj,
             body: body_generator.output_parts,
             is_rich,
+            css_hash,
         });
 
         Ok(())
@@ -4617,6 +4633,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     attrs_obj,
                     body,
                     is_rich,
+                    css_hash,
                 } => {
                     // Flush current HTML before select element
                     if !current_html.is_empty() {
@@ -4625,19 +4642,41 @@ export default function {component_name}($$renderer{props_param}) {{
                         current_html.clear();
                     }
 
-                    // Generate $$renderer.select() call
-                    body_code.push_str(&format!(
-                        "{}$$renderer.select({}, ($$renderer) => {{\n",
-                        indent, attrs_obj
-                    ));
+                    // Generate $$renderer.select() call with multiline formatting when css_hash is present
+                    if css_hash.is_some() || *is_rich {
+                        body_code.push_str(&format!(
+                            "{}$$renderer.select(\n{}\t{},\n{}\t($$renderer) => {{\n",
+                            indent, indent, attrs_obj, indent
+                        ));
+                    } else {
+                        body_code.push_str(&format!(
+                            "{}$$renderer.select({}, ($$renderer) => {{\n",
+                            indent, attrs_obj
+                        ));
+                    }
 
                     // Body
-                    let body_code_inner = Self::build_parts(body, indent_level + 1);
+                    let body_code_inner = Self::build_parts(body, indent_level + 2);
                     body_code.push_str(&body_code_inner);
 
-                    // Close callback with optional is_rich argument
+                    // Close callback with optional css_hash and is_rich arguments
                     if *is_rich {
-                        body_code.push_str(&format!("{}}}, true);\n", indent));
+                        if let Some(hash) = css_hash {
+                            body_code.push_str(&format!(
+                                "{}\t}},\n{}\t'{}',\n{}\ttrue\n{});\n",
+                                indent, indent, hash, indent, indent
+                            ));
+                        } else {
+                            body_code.push_str(&format!(
+                                "{}\t}},\n{}\ttrue\n{});\n",
+                                indent, indent, indent
+                            ));
+                        }
+                    } else if let Some(hash) = css_hash {
+                        body_code.push_str(&format!(
+                            "{}\t}},\n{}\t'{}'\n{});\n",
+                            indent, indent, hash, indent
+                        ));
                     } else {
                         body_code.push_str(&format!("{}}});\n", indent));
                     }
