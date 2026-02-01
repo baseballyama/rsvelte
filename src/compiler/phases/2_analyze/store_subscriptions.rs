@@ -166,22 +166,21 @@ pub fn detect_store_subscriptions(
                 return Err(errors::store_invalid_scoped_subscription());
             }
 
-            // Check if the store name is shadowed in any nested scope (e.g., arrow function parameter)
-            // If it is, we need to raise an error because the $store reference might be
-            // referring to the shadowed variable, not the top-level store.
-            // This catches cases like:
-            //   <button on:click={(store) => { $store = 1; }}>
-            // where `store` parameter shadows the top-level `store`
-            for scope in &analysis.root.all_scopes {
-                if let Some(&nested_binding_idx) = scope.declarations.get(store_name) {
-                    let nested_binding = &analysis.root.bindings[nested_binding_idx];
-                    // Check if this is a different binding in a nested scope (not module/instance)
-                    if nested_binding_idx != binding_idx && nested_binding.scope_index > 1 {
-                        // The store name is shadowed in a nested scope
-                        return Err(errors::store_invalid_scoped_subscription());
-                    }
-                }
-            }
+            // NOTE: We previously had a check here that errored if the store name was
+            // shadowed in ANY nested scope. This was too aggressive - it would error even
+            // when the $store reference itself was at the top level (e.g., in template).
+            //
+            // The proper context-aware shadowing check is done in walk_js_expression()
+            // in visitors/shared/utils.rs, which tracks function_depth and only errors
+            // when a $store reference is actually INSIDE a scope where the variable is shadowed.
+            //
+            // Example where this matters:
+            //   let store = writable({action: (node, text) => { ... }});
+            //   let text = writable('hello');
+            //   <div use:$store.action={$text}>  <!-- $text here is valid! -->
+            //
+            // The arrow function parameter `text` should NOT cause an error for template
+            // references to $text.
 
             // Check if the reference is inside a module script
             // Store subscriptions are not allowed in module scripts
