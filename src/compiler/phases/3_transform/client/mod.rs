@@ -3618,6 +3618,11 @@ fn transform_state_in_expr(
                             k < chars.len() && chars[k] == ':'
                         };
 
+                        // Check if this is a shorthand property in an object literal (e.g., `{ foo, bar }`)
+                        // Shorthand properties are followed by `,` or `}` inside an object
+                        let is_shorthand_property =
+                            is_shorthand_object_property(&chars, i, var_chars.len());
+
                         if !already_wrapped
                             && !preceded_by_dot
                             && !in_set_first_arg
@@ -3627,6 +3632,7 @@ fn transform_state_in_expr(
                             && !is_assignment_target
                             && !is_getter_setter_name
                             && !is_property_key
+                            && !is_shorthand_property
                         {
                             new_result.push_str(&format!("$.get({})", var));
                             i += var_chars.len();
@@ -3643,6 +3649,106 @@ fn transform_state_in_expr(
     }
 
     result
+}
+
+/// Check if a variable at the given position is a shorthand property in an object literal.
+/// This detects patterns like:
+/// - `{ foo, bar }` - shorthand properties
+/// - `{ foo }` - single shorthand property
+///
+/// The variable should NOT be wrapped with $.get() if it's a shorthand property name,
+/// because `{ $.get(foo) }` is invalid JavaScript.
+fn is_shorthand_object_property(chars: &[char], var_start: usize, var_len: usize) -> bool {
+    let var_end = var_start + var_len;
+
+    // Skip whitespace after the variable
+    let mut k = var_end;
+    while k < chars.len() && chars[k].is_whitespace() {
+        k += 1;
+    }
+
+    if k >= chars.len() {
+        return false;
+    }
+
+    // Check what comes after: `,` or `}` (and NOT `:`)
+    let next_char = chars[k];
+    if next_char != ',' && next_char != '}' {
+        return false;
+    }
+
+    // Now we need to verify this is inside an object literal
+    // by checking what's before the variable
+    // We need to find a matching `{` that's not a block statement
+    // This is tricky, but we can use a simple heuristic:
+    // - Preceded by `{` or `,` (possibly with whitespace)
+    // - And we should verify the context looks like an object literal
+
+    let mut j = var_start;
+    // Skip whitespace before the variable
+    while j > 0 && chars[j - 1].is_whitespace() {
+        j -= 1;
+    }
+
+    if j == 0 {
+        return false;
+    }
+
+    let prev_char = chars[j - 1];
+
+    // Check if preceded by `{` or `,` which suggests object literal context
+    if prev_char == '{' || prev_char == ',' {
+        // Further check: the `{` should be preceded by something that suggests
+        // an object literal, not a block statement
+        // Object literals are preceded by: = : ( [ , return ? : || && ?? !
+        // Block statements are preceded by: ) else do etc.
+
+        if prev_char == '{' {
+            // Check what's before the `{`
+            let mut m = j - 1;
+            while m > 0 && chars[m - 1].is_whitespace() {
+                m -= 1;
+            }
+
+            if m == 0 {
+                // `{` at the start could be a block, not an object
+                return false;
+            }
+
+            let before_brace = chars[m - 1];
+
+            // These suggest object literal context
+            if before_brace == '='
+                || before_brace == ':'
+                || before_brace == '('
+                || before_brace == '['
+                || before_brace == ','
+                || before_brace == '?'
+                || before_brace == '|'
+                || before_brace == '&'
+                || before_brace == '!'
+                || before_brace == 'n'
+            {
+                // 'n' could be the end of 'return'
+                return true;
+            }
+
+            // Check for 'return ' before
+            if m >= 6 {
+                let prefix: String = chars[m - 6..m].iter().collect();
+                if prefix == "return" {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // If preceded by `,`, we're inside an object or array - assume object
+        return true;
+    }
+
+    false
 }
 
 /// Check if a variable at the given position is on the left side of an assignment.

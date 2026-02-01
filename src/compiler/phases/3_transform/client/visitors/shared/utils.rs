@@ -255,12 +255,33 @@ fn apply_transforms_to_expression_with_shadowed(
                             other => other.clone(),
                         };
 
+                        // If the property was shorthand but the value was transformed,
+                        // we can't use shorthand syntax anymore.
+                        // For example, `{ count }` where count is state becomes `{ count: $.get(count) }`
+                        // A shorthand property originally has an Identifier value matching the key.
+                        // If the transformed value is no longer a simple Identifier with the same name,
+                        // we must use the full property syntax.
+                        let is_shorthand = if p.shorthand {
+                            // Check if the transformed value is still a simple identifier matching the key
+                            if let JsExpr::Identifier(name) = &transformed_value {
+                                if let JsPropertyKey::Identifier(key_name) = &p.key {
+                                    name == key_name
+                                } else {
+                                    false
+                                }
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        };
+
                         JsObjectMember::Property(JsProperty {
                             key: transformed_key,
                             value: Box::new(transformed_value),
                             kind: p.kind,
                             computed: p.computed,
-                            shorthand: p.shorthand,
+                            shorthand: is_shorthand,
                         })
                     }
                     JsObjectMember::SpreadElement(spread_expr) => {
