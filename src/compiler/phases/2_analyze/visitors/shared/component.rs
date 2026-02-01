@@ -136,7 +136,10 @@ pub fn visit_component(
     // Set is_direct_child_of_component for svelte:fragment validation
     let was_direct_child = context.is_direct_child_of_component;
     context.is_direct_child_of_component = true;
+    // Track component depth for slot attribute validation
+    context.component_depth += 1;
     fragment::analyze(&mut component.fragment, context)?;
+    context.component_depth -= 1;
     context.is_direct_child_of_component = was_direct_child;
 
     Ok(())
