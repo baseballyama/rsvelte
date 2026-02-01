@@ -290,8 +290,24 @@ pub fn visit_regular_element(
 
         // Determine if we should remove input defaults (for input elements with spreads)
         // This is needed because spreads might contain value-like attributes that override defaults
-        // Reference: RegularElement.js lines 175-186
-        let should_remove_defaults = node.name == "input" || node.name == "select";
+        // Reference: RegularElement.js lines 164-190
+        //
+        // The logic is:
+        // 1. Only for input elements
+        // 2. Only if there's NO defaultValue or defaultChecked attribute
+        // 3. AND one of: has_spread, has value binding, has checked binding, has group binding,
+        //    or has a non-text value/checked attribute
+        let should_remove_defaults = if node.name == "input" {
+            // Check if there's a defaultValue or defaultChecked attribute
+            let has_default_value_attribute = attributes.iter().any(|attr| {
+                matches!(attr, Attribute::Attribute(a) if a.name == "defaultValue" || a.name == "defaultChecked")
+            });
+
+            // If there's a default value attribute, don't remove defaults
+            !has_default_value_attribute
+        } else {
+            false
+        };
 
         build_attribute_effect(
             &attributes,

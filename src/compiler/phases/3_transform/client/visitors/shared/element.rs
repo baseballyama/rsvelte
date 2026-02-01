@@ -765,10 +765,10 @@ pub fn build_attribute_effect(
         }
     }
 
-    context
-        .state
-        .init
-        .push(b::stmt(b::call(b::member_path("$.attribute_effect"), args)));
+    context.state.init.push(b::stmt(b::call_trimmed(
+        b::member_path("$.attribute_effect"),
+        args,
+    )));
 }
 
 /// Check if an attribute node is an event attribute (starts with "on").
