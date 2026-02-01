@@ -1039,11 +1039,14 @@ fn has_sibling_match_in_list(
     false
 }
 
-/// Check if a descendant selector is unused based on DOM structure
-/// Note: Currently unused due to complexity with control flow (snippets, render tags, etc.)
-#[allow(dead_code)]
+/// Check if a descendant selector is unused based on DOM structure.
 fn is_descendant_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> bool {
     if rel_selectors.len() < 2 || ctx.dom_structure.elements.is_empty() {
+        return false;
+    }
+
+    // Don't prune if there are dynamic elements - they could match any type selector
+    if ctx.has_dynamic_elements {
         return false;
     }
 
@@ -1080,26 +1083,32 @@ fn is_descendant_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
         return false;
     }
 
+    // Only handle simple two-selector case for now (parent > child or parent child)
+    if rel_selectors.len() != 2 {
+        return false;
+    }
+
     // Get the parent element type (first selector)
     let parent_tag = get_type_selector_name(&rel_selectors[0]);
-
     if parent_tag.is_none() {
         return false;
     }
-
     let parent_tag = parent_tag.unwrap();
 
-    // Get the child element type (last selector)
-    let last_idx = rel_selectors.len() - 1;
-    let child_tag = get_type_selector_name(&rel_selectors[last_idx]);
-
+    // Get the child element type (second selector)
+    let child_tag = get_type_selector_name(&rel_selectors[1]);
     if child_tag.is_none() {
         return false;
     }
-
     let child_tag = child_tag.unwrap();
 
-    // Check if the parent can contain the child in the DOM structure
+    // Get the combinator between parent and child
+    let combinator = rel_selectors[1]
+        .get("combinator")
+        .and_then(|c| c.get("name"))
+        .and_then(|n| n.as_str())
+        .unwrap_or(" ");
+
     // Find all elements that match the parent
     let parent_indices: Vec<usize> = ctx
         .dom_structure
@@ -1111,18 +1120,26 @@ fn is_descendant_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
         .collect();
 
     if parent_indices.is_empty() {
-        // Parent element doesn't exist
-        return false; // Will be caught by simple selector check
+        // Parent element doesn't exist - will be caught by simple selector check
+        return false;
     }
 
-    // Check if any child element is a descendant of any parent element
+    // Check based on combinator type
     for parent_idx in &parent_indices {
-        if has_descendant_with_tag(ctx, *parent_idx, &child_tag) {
-            return false; // Found a valid parent-child relationship
+        if combinator == ">" {
+            // Child combinator: only direct children
+            if has_direct_child_with_tag(ctx, *parent_idx, &child_tag) {
+                return false; // Found a valid parent > child relationship
+            }
+        } else {
+            // Descendant combinator: any descendant
+            if has_descendant_with_tag(ctx, *parent_idx, &child_tag) {
+                return false; // Found a valid parent child relationship
+            }
         }
     }
 
-    // No valid parent-child relationship found
+    // No valid relationship found
     true
 }
 
@@ -1143,8 +1160,23 @@ fn get_type_selector_name(rel_selector: &Value) -> Option<String> {
         })
 }
 
+/// Check if an element has a direct child with the given tag name
+fn has_direct_child_with_tag(ctx: &CssContext, parent_idx: usize, tag_name: &str) -> bool {
+    let element = &ctx.dom_structure.elements[parent_idx];
+
+    for &child_idx in &element.children_idx {
+        if child_idx < ctx.dom_structure.elements.len() {
+            let child = &ctx.dom_structure.elements[child_idx];
+            if child.tag_name == tag_name {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
 /// Check if an element has a descendant with the given tag name
-#[allow(dead_code)]
 fn has_descendant_with_tag(ctx: &CssContext, parent_idx: usize, tag_name: &str) -> bool {
     let element = &ctx.dom_structure.elements[parent_idx];
 
