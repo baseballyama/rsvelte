@@ -7020,25 +7020,37 @@ fn find_assignment_in_declarator(declarator: &str) -> Option<usize> {
 }
 
 /// Check if a default value is "simple" (can be passed directly to $.fallback).
-/// Simple values: literals (numbers, strings, booleans, null, undefined)
+///
+/// According to the official Svelte compiler's `is_simple_expression()`, simple expressions are:
+/// - Literals (numbers, strings, booleans, null, undefined)
+/// - Identifiers
+/// - Arrow/function expressions
+/// - Conditional expressions (if all parts are simple)
+/// - Binary expressions (like string concatenations: 'a' + 'b')
+/// - Logical expressions (&&, ||, ??)
 fn is_simple_default_value(value: &str) -> bool {
-    let trimmed = value.trim();
+    is_simple_expression_string(value.trim())
+}
 
+/// Recursively check if a string represents a simple expression.
+fn is_simple_expression_string(trimmed: &str) -> bool {
     // Numbers
     if trimmed.parse::<f64>().is_ok() {
         return true;
     }
 
     // Booleans and special values
-    if matches!(trimmed, "true" | "false" | "null" | "undefined") {
+    if matches!(trimmed, "true" | "false" | "null" | "undefined" | "void 0") {
         return true;
     }
 
-    // String literals
-    if (trimmed.starts_with('"') && trimmed.ends_with('"'))
-        || (trimmed.starts_with('\'') && trimmed.ends_with('\''))
-        || (trimmed.starts_with('`') && trimmed.ends_with('`'))
-    {
+    // Simple identifier (variable reference)
+    if is_simple_identifier(trimmed) {
+        return true;
+    }
+
+    // String literals (simple check - complete string)
+    if is_string_literal(trimmed) {
         return true;
     }
 
@@ -7047,5 +7059,275 @@ fn is_simple_default_value(value: &str) -> bool {
         return true;
     }
 
+    // Arrow functions at top level: () => expr, (x) => expr, x => expr
+    // An arrow function starts with either:
+    // 1. An identifier followed by =>: x => ...
+    // 2. A parenthesized parameter list: () => ..., (x) => ..., (x, y) => ...
+    if is_arrow_function(trimmed) {
+        return true;
+    }
+
+    // Binary expressions (like 'a' + 'b')
+    // Split by binary operators and check each part
+    if let Some((left, right)) = split_binary_expression(trimmed) {
+        return is_simple_expression_string(left.trim())
+            && is_simple_expression_string(right.trim());
+    }
+
+    // Logical expressions (a && b, a || b, a ?? b)
+    if let Some((left, right)) = split_logical_expression(trimmed) {
+        return is_simple_expression_string(left.trim())
+            && is_simple_expression_string(right.trim());
+    }
+
+    // Conditional expressions (a ? b : c)
+    if let Some((test, cons, alt)) = split_conditional_expression(trimmed) {
+        return is_simple_expression_string(test.trim())
+            && is_simple_expression_string(cons.trim())
+            && is_simple_expression_string(alt.trim());
+    }
+
     false
+}
+
+/// Check if a string is a valid JavaScript identifier.
+fn is_simple_identifier(s: &str) -> bool {
+    if s.is_empty() {
+        return false;
+    }
+    let mut chars = s.chars();
+    let first = chars.next().unwrap();
+    if !first.is_ascii_alphabetic() && first != '_' && first != '$' {
+        return false;
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
+}
+
+/// Check if a string represents an arrow function at the top level.
+///
+/// Arrow functions can be:
+/// - `x => expr`
+/// - `() => expr`
+/// - `(x) => expr`
+/// - `(x, y) => expr`
+/// - `async x => expr`
+/// - `async () => expr`
+fn is_arrow_function(s: &str) -> bool {
+    let s = s.trim();
+
+    // Handle async prefix
+    let s = s.strip_prefix("async").map(|s| s.trim_start()).unwrap_or(s);
+
+    // Case 1: identifier => ...
+    if let Some(arrow_pos) = find_arrow_at_depth_zero(s) {
+        let before_arrow = s[..arrow_pos].trim();
+        // Check if what's before => is a simple identifier or parenthesized params
+        if is_simple_identifier(before_arrow) {
+            return true;
+        }
+        // Check for parenthesized params like () or (x) or (x, y)
+        if before_arrow.starts_with('(') && before_arrow.ends_with(')') {
+            return true;
+        }
+    }
+    false
+}
+
+/// Find the position of => at depth 0 (not inside parentheses/brackets/strings)
+fn find_arrow_at_depth_zero(s: &str) -> Option<usize> {
+    let chars: Vec<char> = s.chars().collect();
+    let mut depth = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    for i in 0..chars.len().saturating_sub(1) {
+        let c = chars[i];
+
+        // Handle string literals
+        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char {
+                in_string = false;
+            }
+            continue;
+        }
+
+        if in_string {
+            continue;
+        }
+
+        match c {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            '=' if depth == 0 && chars.get(i + 1) == Some(&'>') => {
+                return Some(i);
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Check if a string is a string literal.
+fn is_string_literal(s: &str) -> bool {
+    let trimmed = s.trim();
+    if trimmed.len() < 2 {
+        return false;
+    }
+
+    // Check for each quote type
+    for quote in &['"', '\'', '`'] {
+        if trimmed.starts_with(*quote) && trimmed.ends_with(*quote) {
+            // Verify the string is properly escaped (no unescaped quotes inside)
+            let inner = &trimmed[1..trimmed.len() - 1];
+            let chars: Vec<char> = inner.chars().collect();
+            let mut i = 0;
+            while i < chars.len() {
+                if chars[i] == '\\' && i + 1 < chars.len() {
+                    i += 2; // Skip escaped character
+                } else if chars[i] == *quote {
+                    return false; // Unescaped quote inside
+                } else {
+                    i += 1;
+                }
+            }
+            return true;
+        }
+    }
+    false
+}
+
+/// Split a binary expression by +, -, *, /
+/// Returns None if not a binary expression, or Some((left, right))
+fn split_binary_expression(s: &str) -> Option<(&str, &str)> {
+    // Find the rightmost binary operator at depth 0
+    let chars: Vec<char> = s.chars().collect();
+    let mut depth = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    // Scan from right to left to handle left-associativity correctly
+    for i in (0..chars.len()).rev() {
+        let c = chars[i];
+
+        // Handle string literals
+        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char {
+                in_string = false;
+            }
+            continue;
+        }
+
+        if in_string {
+            continue;
+        }
+
+        match c {
+            ')' | ']' | '}' => depth += 1,
+            '(' | '[' | '{' => depth -= 1,
+            '+' if depth == 0 => {
+                // Make sure it's not ++ or +=
+                let prev = if i > 0 { Some(chars[i - 1]) } else { None };
+                let next = chars.get(i + 1).copied();
+                if prev != Some('+') && next != Some('+') && next != Some('=') {
+                    return Some((&s[..i], &s[i + 1..]));
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Split a logical expression by &&, ||, ??
+fn split_logical_expression(s: &str) -> Option<(&str, &str)> {
+    let chars: Vec<char> = s.chars().collect();
+    let mut depth = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    for i in (0..chars.len().saturating_sub(1)).rev() {
+        let c = chars[i];
+        let next = chars[i + 1];
+
+        // Handle string literals
+        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char {
+                in_string = false;
+            }
+            continue;
+        }
+
+        if in_string {
+            continue;
+        }
+
+        match c {
+            ')' | ']' | '}' => depth += 1,
+            '(' | '[' | '{' => depth -= 1,
+            '&' if next == '&' && depth == 0 => {
+                return Some((&s[..i], &s[i + 2..]));
+            }
+            '|' if next == '|' && depth == 0 => {
+                return Some((&s[..i], &s[i + 2..]));
+            }
+            '?' if next == '?' && depth == 0 => {
+                return Some((&s[..i], &s[i + 2..]));
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Split a conditional expression by ? and :
+fn split_conditional_expression(s: &str) -> Option<(&str, &str, &str)> {
+    let chars: Vec<char> = s.chars().collect();
+    let mut depth = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+    let mut question_pos = None;
+
+    for i in 0..chars.len() {
+        let c = chars[i];
+
+        // Handle string literals
+        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char {
+                in_string = false;
+            }
+            continue;
+        }
+
+        if in_string {
+            continue;
+        }
+
+        match c {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            '?' if depth == 0 && chars.get(i + 1) != Some(&'?') => {
+                if question_pos.is_none() {
+                    question_pos = Some(i);
+                }
+            }
+            ':' if depth == 0 && question_pos.is_some() => {
+                let q = question_pos.unwrap();
+                return Some((&s[..q], &s[q + 1..i], &s[i + 1..]));
+            }
+            _ => {}
+        }
+    }
+    None
 }
