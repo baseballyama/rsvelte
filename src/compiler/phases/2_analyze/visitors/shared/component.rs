@@ -9,6 +9,7 @@ use rustc_hash::FxHashSet;
 use super::super::super::AnalysisError;
 use super::super::super::errors;
 use super::super::VisitorContext;
+use super::super::attribute::visit_attribute_value_expressions;
 use super::fragment;
 use super::utils::validate_assignment;
 use crate::ast::template::{Attribute, Component};
@@ -160,6 +161,44 @@ pub fn visit_component(
 
     // Validate slot attributes for duplicate names
     validate_slot_attributes(component)?;
+
+    // Visit attribute expressions to trigger needs_context detection
+    // This corresponds to the context.visit(attribute, ...) calls in the official Svelte compiler.
+    // The official Svelte walks through all attributes using zimmerframe which triggers
+    // MemberExpression and CallExpression visitors on the expressions inside attributes.
+    for attr in &component.attributes {
+        match attr {
+            Attribute::Attribute(a) => {
+                // Visit expressions in the attribute value
+                visit_attribute_value_expressions(&a.value, context)?;
+            }
+            Attribute::BindDirective(bind) => {
+                // Visit the bind expression
+                super::super::script::walk_js_node(bind.expression.as_json(), context)?;
+            }
+            Attribute::OnDirective(on) => {
+                // Visit the event handler expression if present
+                if let Some(ref expr) = on.expression {
+                    super::super::script::walk_js_node(expr.as_json(), context)?;
+                }
+            }
+            Attribute::SpreadAttribute(spread) => {
+                // Visit the spread expression
+                super::super::script::walk_js_node(spread.expression.as_json(), context)?;
+            }
+            Attribute::AttachTag(attach) => {
+                // Visit the attach expression
+                super::super::script::walk_js_node(attach.expression.as_json(), context)?;
+            }
+            Attribute::LetDirective(_) => {
+                // Let directives don't have expressions to visit for needs_context
+            }
+            _ => {
+                // Other directives (StyleDirective, ClassDirective, etc.) are invalid
+                // on components and were already handled above
+            }
+        }
+    }
 
     // Analyze the component's children
     // TODO: Implement proper slot handling

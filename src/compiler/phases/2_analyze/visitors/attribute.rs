@@ -155,7 +155,7 @@ fn is_text_attribute(attribute: &AttributeNode) -> bool {
 /// This walks through the JS AST of expressions in the attribute value,
 /// triggering visitors for CallExpression, MemberExpression, etc.
 /// which set `needs_context` when appropriate.
-fn visit_attribute_value_expressions(
+pub fn visit_attribute_value_expressions(
     value: &AttributeValue,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {

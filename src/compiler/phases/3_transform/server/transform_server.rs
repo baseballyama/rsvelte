@@ -1165,8 +1165,9 @@ impl<'a> ServerCodeGenerator<'a> {
                             let end = expr_tag.expression.end().unwrap_or(0) as usize;
                             if end > start && end <= self.source.len() {
                                 let expr = self.source[start..end].trim();
-                                // If mixed with text, we need template literal, but for simple case just return
-                                value.push_str(&format!("${{{}}}", expr));
+                                // Wrap expressions in $.stringify() when mixed with text
+                                // This matches the official Svelte build_attribute_value behavior
+                                value.push_str(&format!("${{$.stringify({})}}", expr));
                             }
                         }
                     }
@@ -2411,15 +2412,16 @@ impl<'a> ServerCodeGenerator<'a> {
                                     ) => {
                                         has_expression = true;
                                         // For mixed values with expressions, extract from source
+                                        // and wrap in $.stringify() for proper string conversion
                                         let expr_start =
                                             expr_tag.expression.start().unwrap_or(0) as usize;
                                         let expr_end =
                                             expr_tag.expression.end().unwrap_or(0) as usize;
                                         if expr_end > expr_start && expr_end <= self.source.len() {
-                                            value_str.push_str("${");
+                                            value_str.push_str("${$.stringify(");
                                             value_str
                                                 .push_str(self.source[expr_start..expr_end].trim());
-                                            value_str.push('}');
+                                            value_str.push_str(")}");
                                         }
                                     }
                                 }
@@ -4732,17 +4734,21 @@ export default function {component_name}($$renderer{props_param}) {{
                     let body_code_inner = Self::build_parts(body, indent_level + 2);
                     body_code.push_str(&body_code_inner);
 
-                    // Close callback with optional css_hash and is_rich arguments
+                    // Close callback with optional css_hash, classes, styles, flags and is_rich arguments
+                    // The full signature is: $$renderer.select(attrs, fn, css_hash, classes, styles, flags, is_rich)
+                    // When intermediate arguments are undefined, they must be `void 0`
                     if *is_rich {
                         if let Some(hash) = css_hash {
+                            // With css_hash: select(attrs, fn, 'hash', void 0, void 0, void 0, true)
                             body_code.push_str(&format!(
-                                "{}\t}},\n{}\t'{}',\n{}\ttrue\n{});\n",
-                                indent, indent, hash, indent, indent
+                                "{}\t}},\n{}\t'{}',\n{}\tvoid 0,\n{}\tvoid 0,\n{}\tvoid 0,\n{}\ttrue\n{});\n",
+                                indent, indent, hash, indent, indent, indent, indent, indent
                             ));
                         } else {
+                            // Without css_hash: select(attrs, fn, void 0, void 0, void 0, void 0, true)
                             body_code.push_str(&format!(
-                                "{}\t}},\n{}\ttrue\n{});\n",
-                                indent, indent, indent
+                                "{}\t}},\n{}\tvoid 0,\n{}\tvoid 0,\n{}\tvoid 0,\n{}\tvoid 0,\n{}\ttrue\n{});\n",
+                                indent, indent, indent, indent, indent, indent, indent
                             ));
                         }
                     } else if let Some(hash) = css_hash {
@@ -5010,33 +5016,10 @@ export default function {component_name}($$renderer{props_param}) {{
                     // Generate the snippet function call
                     body_code.push_str(&format!("{}{};\n", indent, call_str));
 
-                    // Add comment marker after render call only if there's content after
-                    let has_content_after = parts[i + 1..].iter().any(|p| {
-                        matches!(
-                            p,
-                            OutputPart::Html(h) if !h.trim().is_empty()
-                        ) || matches!(
-                            p,
-                            OutputPart::Expression(_)
-                                | OutputPart::RawExpression(_)
-                                | OutputPart::HtmlExpression(_)
-                                | OutputPart::Component { .. }
-                                | OutputPart::EachBlock { .. }
-                                | OutputPart::IfBlock { .. }
-                                | OutputPart::AwaitBlock { .. }
-                                | OutputPart::SvelteBoundary { .. }
-                                | OutputPart::SvelteHead { .. }
-                                | OutputPart::TitleElement { .. }
-                                | OutputPart::RenderCall(_)
-                                | OutputPart::SelectElement { .. }
-                                | OutputPart::OptionElement { .. }
-                                | OutputPart::HydrationAnchor
-                        )
-                    });
-
-                    if has_content_after {
-                        current_html.push_str("<!---->");
-                    }
+                    // Always add hydration comment marker after render call
+                    // This matches the official Svelte behavior in RenderTag.js
+                    // The empty_comment is pushed unless skip_hydration_boundaries is true
+                    body_code.push_str(&format!("{}$$renderer.push(`<!---->`);\n", indent));
                 }
                 OutputPart::ConstDeclaration(declaration) => {
                     // Flush current HTML before const declaration
