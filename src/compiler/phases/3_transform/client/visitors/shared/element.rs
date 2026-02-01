@@ -560,7 +560,7 @@ pub fn build_set_class_call(
     )
 }
 
-/// Build a $.set_style() call for an element with style directives.
+/// Build a $.set_style() call for an element with style directives (legacy version).
 ///
 /// Corresponds to `build_set_style` in shared/element.js.
 ///
@@ -588,6 +588,223 @@ pub fn build_set_style_call(
         b::member_path("$.set_style"),
         vec![node_expr, style_attr, prev, style_obj],
     )
+}
+
+/// Build style handling for an element with style attribute and/or style directives.
+///
+/// Corresponds to `build_set_style` in shared/element.js.
+///
+/// This function handles the complete style attribute + style directives processing:
+/// 1. Builds the style value from the attribute with memoization
+/// 2. Creates a `let styles;` declaration if there's state with style directives
+/// 3. Generates `$.set_style(element, style_value, prev, next)` call
+/// 4. Wraps in assignment `styles = $.set_style(...)` if there's state with style directives
+/// 5. Pushes to either init (static) or update (dynamic)
+///
+/// # Arguments
+///
+/// * `node_id` - The identifier for the element (e.g., "div")
+/// * `style_attribute` - The style attribute value (if any), or None for style directives only
+/// * `style_directives` - The style directives (style:color, style:font-size, etc.)
+/// * `context` - The component context
+pub fn build_set_style(
+    node_id: &str,
+    style_attribute: Option<&AttributeValue>,
+    style_directives: &[StyleDirective],
+    context: &mut ComponentContext,
+) {
+    // Build the style value from the attribute with memoization of inner expressions
+    // We need to directly build the value and memoize, rather than use the closure-based
+    // build_attribute_value, because we need access to context.state.memoizer
+    let (style_value, mut has_state) = if let Some(attr_value) = style_attribute {
+        build_style_attribute_value_with_memoization(attr_value, context)
+    } else {
+        // No style attribute - use empty string
+        (b::string(""), false)
+    };
+
+    // Generate previous_id for style directives state tracking
+    let mut previous_id: Option<String> = None;
+    let mut prev: JsExpr = b::empty_object();
+    let mut next: Option<JsExpr> = None;
+
+    if !style_directives.is_empty() {
+        // Build style directives object
+        next = Some(build_style_directives_object(style_directives, context));
+
+        // Check if any style directive has state
+        for directive in style_directives {
+            if super::utils::expression_has_reactive_state(
+                &get_directive_expression(directive),
+                context,
+            ) {
+                has_state = true;
+                break;
+            }
+        }
+
+        if has_state {
+            let id = context.state.memoizer.generate_id("styles");
+            context.state.init.push(b::let_decl(&id, None));
+            prev = b::id(&id);
+            previous_id = Some(id);
+        }
+    }
+
+    // Build the $.set_style call
+    let mut args = vec![b::id(node_id), style_value];
+
+    // Only add prev and next if we have style directives
+    if let Some(next_obj) = next {
+        args.push(prev);
+        args.push(next_obj);
+    }
+
+    let set_style = b::call(b::member_path("$.set_style"), args);
+
+    // Wrap in assignment if we have a previous_id
+    let set_style_expr = if let Some(ref id) = previous_id {
+        b::assign(b::id(id), set_style)
+    } else {
+        set_style
+    };
+
+    // Push to either update (has_state) or init (static)
+    if has_state {
+        context.state.update.push(b::stmt(set_style_expr));
+    } else {
+        context.state.init.push(b::stmt(set_style_expr));
+    }
+}
+
+/// Build a style attribute value with proper memoization of inner expressions.
+///
+/// This function builds the style value while memoizing expressions that contain
+/// function calls. Unlike build_attribute_value which uses a closure, this function
+/// directly accesses the memoizer to avoid borrow checker issues.
+///
+/// For example, `style="background-color: {getColor()};"` produces:
+/// - Value: `\`background-color: ${$0 ?? ''};\``
+/// - The expression `getColor()` is added to memoizer's sync_values
+fn build_style_attribute_value_with_memoization(
+    attr_value: &AttributeValue,
+    context: &mut ComponentContext,
+) -> (JsExpr, bool) {
+    use crate::ast::template::AttributeValuePart;
+    use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+
+    match attr_value {
+        AttributeValue::True(_) => (b::boolean(true), false),
+
+        AttributeValue::Expression(expr_tag) => {
+            // Single expression value
+            let converted = convert_expression(&expr_tag.expression, context);
+            let has_call = super::utils::expression_has_call(&expr_tag.expression);
+            let has_state =
+                super::utils::expression_has_reactive_state(&expr_tag.expression, context);
+
+            // Build the expression with transforms applied
+            let mut metadata = ExpressionMetadata::default();
+            metadata.set_has_state(has_state);
+            metadata.set_has_call(has_call);
+            let built = build_expression(context, &converted, &metadata);
+
+            // Memoize if has call
+            let value = context.state.memoizer.add_memoized(
+                built, has_call, false, // has_await
+                false, // memoize_if_state
+                has_state,
+            );
+
+            (value, has_state || has_call)
+        }
+
+        AttributeValue::Sequence(parts) => {
+            // Template literal with multiple parts
+            let mut quasis = Vec::with_capacity(parts.len() + 1);
+            let mut expressions = Vec::with_capacity(parts.len());
+            let mut has_state = false;
+            let mut current_text = String::new();
+
+            for part in parts {
+                match part {
+                    AttributeValuePart::Text(text) => {
+                        current_text.push_str(&text.data);
+                    }
+                    AttributeValuePart::ExpressionTag(expr_tag) => {
+                        // Push accumulated text as quasi
+                        quasis.push(b::quasi(&current_text, false));
+                        current_text.clear();
+
+                        // Convert and build the expression
+                        let converted = convert_expression(&expr_tag.expression, context);
+                        let has_call = super::utils::expression_has_call(&expr_tag.expression);
+                        let expr_has_state = super::utils::expression_has_reactive_state(
+                            &expr_tag.expression,
+                            context,
+                        );
+
+                        let mut metadata = ExpressionMetadata::default();
+                        metadata.set_has_state(expr_has_state);
+                        metadata.set_has_call(has_call);
+                        let built = build_expression(context, &converted, &metadata);
+
+                        // Memoize the expression if it has a function call
+                        let value = context.state.memoizer.add_memoized(
+                            built,
+                            has_call,
+                            false, // has_await
+                            false, // memoize_if_state
+                            expr_has_state,
+                        );
+
+                        // Add ?? '' for non-defined values
+                        let final_value = b::logical_str("??", value, b::string(""));
+                        expressions.push(final_value);
+
+                        if has_call || expr_has_state {
+                            has_state = true;
+                        }
+                    }
+                }
+            }
+
+            // Push final quasi
+            quasis.push(b::quasi(&current_text, true));
+
+            let value = JsExpr::TemplateLiteral(JsTemplateLiteral {
+                quasis,
+                expressions,
+            });
+            (value, has_state)
+        }
+    }
+}
+
+/// Helper to get the expression from a style directive value.
+fn get_directive_expression(directive: &StyleDirective) -> crate::ast::js::Expression {
+    use crate::ast::js::Expression;
+
+    match &directive.value {
+        AttributeValue::Expression(expr_tag) => expr_tag.expression.clone(),
+        AttributeValue::True(_) => {
+            // For style:color shorthand, create an identifier expression
+            Expression::Value(serde_json::json!({
+                "type": "Identifier",
+                "name": directive.name.to_string()
+            }))
+        }
+        AttributeValue::Sequence(parts) => {
+            // For sequence, check if there are any expression tags
+            for part in parts {
+                if let crate::ast::template::AttributeValuePart::ExpressionTag(expr_tag) = part {
+                    return expr_tag.expression.clone();
+                }
+            }
+            // Static text - return a literal
+            Expression::Value(serde_json::Value::Null)
+        }
+    }
 }
 
 /// Build an attribute effect for elements with spread attributes.

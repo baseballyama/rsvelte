@@ -20,7 +20,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::attribute::{
 };
 use crate::compiler::phases::phase3_transform::client::visitors::bind_directive::bind_directive;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::element::{
-    build_attribute_effect, build_attribute_value, build_set_class, build_set_style_call,
+    build_attribute_effect, build_attribute_value, build_set_class, build_set_style,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::{
     TextOrExpr, is_static_element, process_children,
@@ -371,6 +371,9 @@ pub fn visit_regular_element(
             None
         });
 
+        // Track if style has been handled (when style attribute exists)
+        let mut style_handled = false;
+
         // Check if element needs CSS scoping
         let is_scoped =
             context.state.analysis.css.has_css && !context.state.analysis.css.hash.is_empty();
@@ -394,11 +397,6 @@ pub fn visit_regular_element(
 
                 // Skip class attribute if there are class directives - will be handled separately
                 if name == "class" && !class_directives.is_empty() {
-                    continue;
-                }
-
-                // Skip style attribute if there are style directives - will be handled separately
-                if name == "style" && !style_directives.is_empty() {
                     continue;
                 }
 
@@ -472,11 +470,10 @@ pub fn visit_regular_element(
                         is_scoped,
                     );
                 } else if name == "style" {
-                    // Dynamic style attribute without style directives - handled via build_set_style
+                    // Dynamic style attribute (with or without style directives)
                     let node_id = extract_node_id(&context.state.node);
-                    let node_expr = b::id(&node_id);
-                    let set_style = build_set_style_call(node_expr, &[], context);
-                    context.state.init.push(b::stmt(set_style));
+                    build_set_style(&node_id, Some(&attr.value), &style_directives, context);
+                    style_handled = true;
                 } else if is_custom_element {
                     // Custom element: use $.set_custom_element_data
                     let result =
@@ -556,13 +553,16 @@ pub fn visit_regular_element(
             );
         }
 
-        // Handle style directives (with or without style attribute)
-        if !style_directives.is_empty() {
+        // Handle style directives when there's no style attribute
+        // (If there was a style attribute, it was handled together with style_directives above)
+        if !style_directives.is_empty() && !style_handled {
             let node_id = extract_node_id(&context.state.node);
-            let node_expr = b::id(&node_id);
-
-            let set_style = build_set_style_call(node_expr, &style_directives, context);
-            context.state.init.push(b::stmt(set_style));
+            build_set_style(
+                &node_id,
+                None, // No style attribute
+                &style_directives,
+                context,
+            );
         }
 
         // Event attributes are now handled in the main attribute loop above
