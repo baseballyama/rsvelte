@@ -469,50 +469,33 @@ async function generateRuntimeFixture(sampleDir, outputDir, config) {
 
   const results = {};
 
-  // Check for pre-generated _output files from the official Svelte test suite
-  // These are more reliable than recompiling because they match what the tests expect
-  const officialClientOutput = path.join(sampleDir, '_output', 'client', 'main.svelte.js');
-  const officialServerOutput = path.join(sampleDir, '_output', 'server', 'main.svelte.js');
-
-  // Client compilation - prefer official _output if available
-  if (fs.existsSync(officialClientOutput)) {
-    const officialCode = fs.readFileSync(officialClientOutput, 'utf-8');
-    fs.writeFileSync(path.join(outputDir, 'client.js'), officialCode);
-    results.client = { js: { code: officialCode }, warnings: [] };
-  } else {
-    try {
-      const clientResult = compile(source, {
-        ...compileOptions,
-        generate: 'client',
-        filename: 'main.svelte',
-      });
-      results.client = clientResult;
-      fs.writeFileSync(path.join(outputDir, 'client.js'), clientResult.js.code);
-      if (clientResult.css?.code) {
-        fs.writeFileSync(path.join(outputDir, 'css.css'), clientResult.css.code);
-      }
-    } catch (e) {
-      results.clientError = e.message;
+  // Client compilation
+  try {
+    const clientResult = compile(source, {
+      ...compileOptions,
+      generate: 'client',
+      filename: 'main.svelte',
+    });
+    results.client = clientResult;
+    fs.writeFileSync(path.join(outputDir, 'client.js'), clientResult.js.code);
+    if (clientResult.css?.code) {
+      fs.writeFileSync(path.join(outputDir, 'css.css'), clientResult.css.code);
     }
+  } catch (e) {
+    results.clientError = e.message;
   }
 
-  // Server compilation - prefer official _output if available
-  if (fs.existsSync(officialServerOutput)) {
-    const officialCode = fs.readFileSync(officialServerOutput, 'utf-8');
-    fs.writeFileSync(path.join(outputDir, 'server.js'), officialCode);
-    results.server = { js: { code: officialCode }, warnings: [] };
-  } else {
-    try {
-      const serverResult = compile(source, {
-        ...compileOptions,
-        generate: 'server',
-        filename: 'main.svelte',
-      });
-      results.server = serverResult;
-      fs.writeFileSync(path.join(outputDir, 'server.js'), serverResult.js.code);
-    } catch (e) {
-      results.serverError = e.message;
-    }
+  // Server compilation
+  try {
+    const serverResult = compile(source, {
+      ...compileOptions,
+      generate: 'server',
+      filename: 'main.svelte',
+    });
+    results.server = serverResult;
+    fs.writeFileSync(path.join(outputDir, 'server.js'), serverResult.js.code);
+  } catch (e) {
+    results.serverError = e.message;
   }
 
   const allWarnings = [
