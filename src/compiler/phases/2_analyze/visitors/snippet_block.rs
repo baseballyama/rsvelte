@@ -29,7 +29,9 @@ pub fn visit(block: &mut SnippetBlock, context: &mut VisitorContext) -> Result<(
     context.block_depth += 1;
 
     // Push fragment owner type for const_tag placement validation
-    context.fragment_owner_stack.push(super::FragmentOwnerType::SnippetBlock);
+    context
+        .fragment_owner_stack
+        .push(super::FragmentOwnerType::SnippetBlock);
 
     // Analyze the body
     fragment::analyze(&mut block.body, context)?;

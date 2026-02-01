@@ -4,10 +4,10 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/IfBlock.js`.
 
+use super::super::errors;
 use super::VisitorContext;
 use super::shared::fragment;
-use super::shared::utils::{validate_opening_tag, validate_block_not_empty};
-use super::super::errors;
+use super::shared::utils::{validate_block_not_empty, validate_opening_tag};
 use crate::ast::template::IfBlock;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
@@ -22,10 +22,10 @@ pub fn visit(block: &mut IfBlock, context: &mut VisitorContext) -> Result<(), An
     if let Some(warning) = validate_block_not_empty(Some(&block.consequent))? {
         context.emit_warning(warning);
     }
-    if let Some(ref alternate) = block.alternate {
-        if let Some(warning) = validate_block_not_empty(Some(alternate))? {
-            context.emit_warning(warning);
-        }
+    if let Some(ref alternate) = block.alternate
+        && let Some(warning) = validate_block_not_empty(Some(alternate))?
+    {
+        context.emit_warning(warning);
     }
 
     // In runes mode, validate that the tag starts with '{#' (no whitespace)
@@ -61,7 +61,9 @@ pub fn visit(block: &mut IfBlock, context: &mut VisitorContext) -> Result<(), An
     context.is_direct_child_of_component = false;
 
     // Push fragment owner type for const_tag placement validation
-    context.fragment_owner_stack.push(super::FragmentOwnerType::IfBlock);
+    context
+        .fragment_owner_stack
+        .push(super::FragmentOwnerType::IfBlock);
 
     // Analyze the consequent
     fragment::analyze(&mut block.consequent, context)?;

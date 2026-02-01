@@ -4,10 +4,10 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/KeyBlock.js`.
 
+use super::super::errors;
 use super::VisitorContext;
 use super::shared::fragment;
 use super::shared::utils::{validate_block_not_empty, validate_opening_tag, walk_js_expression};
-use super::super::errors;
 use crate::ast::template::KeyBlock;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
@@ -49,7 +49,9 @@ pub fn visit(block: &mut KeyBlock, context: &mut VisitorContext) -> Result<(), A
     context.is_direct_child_of_component = false;
 
     // Push fragment owner type for const_tag placement validation
-    context.fragment_owner_stack.push(super::FragmentOwnerType::KeyBlock);
+    context
+        .fragment_owner_stack
+        .push(super::FragmentOwnerType::KeyBlock);
 
     // Visit the fragment
     fragment::analyze(&mut block.fragment, context)?;

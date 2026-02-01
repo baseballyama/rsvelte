@@ -21,7 +21,9 @@ pub fn visit(frag: &mut SvelteElement, context: &mut VisitorContext) -> Result<(
     context.analysis.uses_slots = true;
 
     // Push fragment owner type for const_tag placement validation
-    context.fragment_owner_stack.push(super::FragmentOwnerType::SvelteFragment);
+    context
+        .fragment_owner_stack
+        .push(super::FragmentOwnerType::SvelteFragment);
 
     // Analyze children
     fragment::analyze(&mut frag.fragment, context)?;

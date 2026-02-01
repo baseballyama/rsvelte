@@ -446,7 +446,9 @@ pub fn validate_opening_tag(
 /// # Arguments
 ///
 /// * `fragment` - The fragment to check
-pub fn validate_block_not_empty(fragment: Option<&Fragment>) -> Result<Option<warnings::AnalysisWarning>, AnalysisError> {
+pub fn validate_block_not_empty(
+    fragment: Option<&Fragment>,
+) -> Result<Option<warnings::AnalysisWarning>, AnalysisError> {
     if let Some(fragment) = fragment {
         // If the block has exactly one text node that's only whitespace, warn
         if fragment.nodes.len() == 1
@@ -561,9 +563,10 @@ pub fn is_safe_identifier(expression: &Value, context: &VisitorContext) -> bool 
         None => return false,
     };
 
-    // Look up the binding
-    let binding = match context.analysis.root.scope.declarations.get(name) {
-        Some(idx) => &context.analysis.root.bindings[*idx],
+    // Look up the binding by searching all scopes
+    // This mirrors the official Svelte's scope.get(name) which walks up the scope chain
+    let binding = match context.analysis.root.find_binding_any_scope(name) {
+        Some(idx) => &context.analysis.root.bindings[idx],
         None => return true, // No binding means it's a global, which is safe
     };
 

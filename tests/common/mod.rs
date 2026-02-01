@@ -1332,6 +1332,103 @@ fn normalize_string_content_to_single(content: &str) -> String {
     result
 }
 
+/// Normalize string quotes inside template literal expressions (${...}).
+/// Converts double quotes to single quotes within the expression parts.
+fn normalize_quotes_in_template_expressions(content: &str) -> String {
+    let mut result = String::with_capacity(content.len());
+    let chars: Vec<char> = content.chars().collect();
+    let mut i = 0;
+    let mut in_expression = false;
+    let mut brace_depth = 0;
+
+    while i < chars.len() {
+        if !in_expression {
+            // Looking for ${
+            if i + 1 < chars.len() && chars[i] == '$' && chars[i + 1] == '{' {
+                result.push_str("${");
+                in_expression = true;
+                brace_depth = 1;
+                i += 2;
+            } else {
+                result.push(chars[i]);
+                i += 1;
+            }
+        } else {
+            // Inside expression - normalize quotes
+            if chars[i] == '{' {
+                brace_depth += 1;
+                result.push('{');
+                i += 1;
+            } else if chars[i] == '}' {
+                brace_depth -= 1;
+                result.push('}');
+                if brace_depth == 0 {
+                    in_expression = false;
+                }
+                i += 1;
+            } else if chars[i] == '"' {
+                // Double-quoted string inside expression - convert to single-quoted
+                i += 1;
+                result.push('\'');
+                while i < chars.len() {
+                    if chars[i] == '\\' && i + 1 < chars.len() {
+                        if chars[i + 1] == '"' {
+                            // \" -> just use the "
+                            result.push('"');
+                            i += 2;
+                        } else if chars[i + 1] == '\'' {
+                            // \' -> keep escaped
+                            result.push('\\');
+                            result.push('\'');
+                            i += 2;
+                        } else {
+                            result.push(chars[i]);
+                            result.push(chars[i + 1]);
+                            i += 2;
+                        }
+                    } else if chars[i] == '"' {
+                        // End of double-quoted string
+                        result.push('\'');
+                        i += 1;
+                        break;
+                    } else if chars[i] == '\'' {
+                        // Unescaped single quote needs escaping
+                        result.push('\\');
+                        result.push('\'');
+                        i += 1;
+                    } else {
+                        result.push(chars[i]);
+                        i += 1;
+                    }
+                }
+            } else if chars[i] == '\'' {
+                // Single-quoted string inside expression - keep as-is
+                result.push('\'');
+                i += 1;
+                while i < chars.len() {
+                    if chars[i] == '\\' && i + 1 < chars.len() {
+                        result.push(chars[i]);
+                        result.push(chars[i + 1]);
+                        i += 2;
+                    } else if chars[i] == '\'' {
+                        result.push('\'');
+                        i += 1;
+                        break;
+                    } else {
+                        result.push(chars[i]);
+                        i += 1;
+                    }
+                }
+            } else {
+                result.push(chars[i]);
+                i += 1;
+            }
+        }
+    }
+
+    result
+}
+
 /// Normalize all string quotes in JavaScript code.
 /// This handles both double-quoted and single-quoted strings,
 /// converting them all to single-quoted with proper escaping.
@@ -1439,9 +1536,11 @@ fn normalize_all_string_quotes(code: &str) -> String {
                 }
 
                 if has_expression {
-                    // Keep as template literal
+                    // Keep as template literal, but normalize quotes inside expressions
                     result.push('`');
-                    result.push_str(&content);
+                    // Process content to normalize quotes inside ${...} expressions
+                    let normalized_content = normalize_quotes_in_template_expressions(&content);
+                    result.push_str(&normalized_content);
                     result.push('`');
                 } else {
                     // Convert to single-quoted string

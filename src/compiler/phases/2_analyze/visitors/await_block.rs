@@ -8,10 +8,10 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 
+use super::super::errors;
 use super::VisitorContext;
 use super::shared::fragment;
 use super::shared::utils::{validate_block_not_empty, validate_opening_tag};
-use super::super::errors;
 use crate::ast::template::AwaitBlock;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
@@ -107,7 +107,9 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
     context.is_direct_child_of_component = false;
 
     // Push fragment owner type for const_tag placement validation
-    context.fragment_owner_stack.push(super::FragmentOwnerType::AwaitBlock);
+    context
+        .fragment_owner_stack
+        .push(super::FragmentOwnerType::AwaitBlock);
 
     // Analyze the pending block (shown while awaiting)
     if let Some(ref mut pending) = block.pending {

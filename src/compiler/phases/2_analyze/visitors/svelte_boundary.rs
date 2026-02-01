@@ -15,7 +15,9 @@ pub fn visit(
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     // Push fragment owner type for const_tag placement validation
-    context.fragment_owner_stack.push(super::FragmentOwnerType::SvelteBoundary);
+    context
+        .fragment_owner_stack
+        .push(super::FragmentOwnerType::SvelteBoundary);
 
     // Analyze children
     fragment::analyze(&mut boundary.fragment, context)?;

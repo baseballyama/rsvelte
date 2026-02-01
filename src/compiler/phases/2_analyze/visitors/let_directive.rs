@@ -4,8 +4,8 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/LetDirective.js`.
 
-use super::VisitorContext;
 use super::super::errors;
+use super::VisitorContext;
 use crate::ast::template::{LetDirective, TemplateNode};
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
@@ -16,23 +16,20 @@ use crate::compiler::phases::phase2_analyze::AnalysisError;
 /// SvelteComponent, SvelteSelf, SvelteFragment.
 ///
 /// Corresponds to `LetDirective(node, context)` in LetDirective.js.
-pub fn visit(
-    _directive: &LetDirective,
-    context: &mut VisitorContext,
-) -> Result<(), AnalysisError> {
+pub fn visit(_directive: &LetDirective, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Check if parent is a valid element for let: directive
     let parent = context.path.last();
 
-    let is_valid_parent = match parent {
-        Some(TemplateNode::Component(_)) => true,
-        Some(TemplateNode::RegularElement(_)) => true,
-        Some(TemplateNode::SlotElement(_)) => true,
-        Some(TemplateNode::SvelteElement(_)) => true,
-        Some(TemplateNode::SvelteComponent(_)) => true,
-        Some(TemplateNode::SvelteSelf(_)) => true,
-        Some(TemplateNode::SvelteFragment(_)) => true,
-        _ => false,
-    };
+    let is_valid_parent = matches!(
+        parent,
+        Some(TemplateNode::Component(_))
+            | Some(TemplateNode::RegularElement(_))
+            | Some(TemplateNode::SlotElement(_))
+            | Some(TemplateNode::SvelteElement(_))
+            | Some(TemplateNode::SvelteComponent(_))
+            | Some(TemplateNode::SvelteSelf(_))
+            | Some(TemplateNode::SvelteFragment(_))
+    );
 
     if !is_valid_parent {
         return Err(errors::let_directive_invalid_placement());

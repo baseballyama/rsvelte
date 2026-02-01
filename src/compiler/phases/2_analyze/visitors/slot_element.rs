@@ -4,8 +4,8 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/SlotElement.js`.
 
-use super::VisitorContext;
 use super::super::errors;
+use super::VisitorContext;
 use super::shared::fragment;
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, SlotElement};
 use crate::compiler::phases::phase2_analyze::{AnalysisError, warnings};

@@ -157,8 +157,11 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
                     declaration.get("declarations").and_then(|d| d.as_array())
             {
                 for declarator in declarators {
-                    // Extract identifiers and mark them as bindable props
-                    mark_identifiers_as_bindable_props(declarator.get("id"), context);
+                    // Extract identifiers, mark them as bindable props, and add to exports
+                    mark_identifiers_as_bindable_props_and_add_exports(
+                        declarator.get("id"),
+                        context,
+                    );
                 }
                 // Set needs_props since we're using $.prop()
                 context.analysis.needs_props = true;
@@ -177,7 +180,8 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
                 && let Some(local_name) = local.get("name").and_then(|n| n.as_str())
             {
                 // Find and mark the binding as bindable_prop
-                if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(local_name)
+                // Search in all scopes (including instance scope which is a child of root)
+                if let Some(binding_idx) = context.analysis.root.find_binding_any_scope(local_name)
                     && let Some(binding) = context.analysis.root.bindings.get_mut(binding_idx)
                 {
                     // Only mark let/var declarations as bindable props
@@ -208,6 +212,8 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
 }
 
 /// Mark identifiers from a pattern as bindable props (for legacy `export let`).
+/// This version does NOT add to exports - used for `export { x }` specifiers
+/// where exports are already added separately.
 fn mark_identifiers_as_bindable_props(pattern: Option<&Value>, context: &mut VisitorContext) {
     let pattern = match pattern {
         Some(p) => p,
@@ -220,7 +226,8 @@ fn mark_identifiers_as_bindable_props(pattern: Option<&Value>, context: &mut Vis
         Some("Identifier") => {
             if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
                 // Find and update the binding to be a bindable prop
-                if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name)
+                // Search in all scopes (including instance scope which is a child of root)
+                if let Some(binding_idx) = context.analysis.root.find_binding_any_scope(name)
                     && let Some(binding) = context.analysis.root.bindings.get_mut(binding_idx)
                 {
                     binding.kind = BindingKind::BindableProp;
@@ -253,6 +260,74 @@ fn mark_identifiers_as_bindable_props(pattern: Option<&Value>, context: &mut Vis
         }
         Some("AssignmentPattern") => {
             mark_identifiers_as_bindable_props(pattern.get("left"), context);
+        }
+        _ => {}
+    }
+}
+
+/// Mark identifiers from a pattern as bindable props AND add to exports (for legacy `export let x`).
+/// This is used for `export let` declarations where we need both the binding marked
+/// and the export tracked.
+fn mark_identifiers_as_bindable_props_and_add_exports(
+    pattern: Option<&Value>,
+    context: &mut VisitorContext,
+) {
+    let pattern = match pattern {
+        Some(p) => p,
+        None => return,
+    };
+
+    let pattern_type = pattern.get("type").and_then(|t| t.as_str());
+
+    match pattern_type {
+        Some("Identifier") => {
+            if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
+                // Find and update the binding to be a bindable prop
+                // Search in all scopes (including instance scope which is a child of root)
+                if let Some(binding_idx) = context.analysis.root.find_binding_any_scope(name)
+                    && let Some(binding) = context.analysis.root.bindings.get_mut(binding_idx)
+                {
+                    binding.kind = BindingKind::BindableProp;
+                }
+                // Also add to exports
+                context.analysis.exports.push(Export {
+                    name: name.to_string(),
+                    alias: None,
+                });
+            }
+        }
+        Some("ObjectPattern") => {
+            if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
+                for prop in properties {
+                    let prop_type = prop.get("type").and_then(|t| t.as_str());
+                    if prop_type == Some("Property") {
+                        mark_identifiers_as_bindable_props_and_add_exports(
+                            prop.get("value"),
+                            context,
+                        );
+                    } else if prop_type == Some("RestElement") {
+                        mark_identifiers_as_bindable_props_and_add_exports(
+                            prop.get("argument"),
+                            context,
+                        );
+                    }
+                }
+            }
+        }
+        Some("ArrayPattern") => {
+            if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
+                for elem in elements {
+                    if !elem.is_null() {
+                        mark_identifiers_as_bindable_props_and_add_exports(Some(elem), context);
+                    }
+                }
+            }
+        }
+        Some("RestElement") => {
+            mark_identifiers_as_bindable_props_and_add_exports(pattern.get("argument"), context);
+        }
+        Some("AssignmentPattern") => {
+            mark_identifiers_as_bindable_props_and_add_exports(pattern.get("left"), context);
         }
         _ => {}
     }

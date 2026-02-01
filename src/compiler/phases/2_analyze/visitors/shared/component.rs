@@ -218,7 +218,9 @@ pub fn visit_component(
         .slot_owner_ancestors
         .push(super::super::SlotOwnerType::Component);
     // Push fragment owner type for const_tag placement validation
-    context.fragment_owner_stack.push(super::super::FragmentOwnerType::Component);
+    context
+        .fragment_owner_stack
+        .push(super::super::FragmentOwnerType::Component);
     fragment::analyze(&mut component.fragment, context)?;
     context.fragment_owner_stack.pop();
     context.slot_owner_ancestors.pop();

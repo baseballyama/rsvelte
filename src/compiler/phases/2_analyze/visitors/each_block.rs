@@ -106,7 +106,9 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
     context.is_direct_child_of_component = false;
 
     // Push fragment owner type for const_tag placement validation
-    context.fragment_owner_stack.push(super::FragmentOwnerType::EachBlock);
+    context
+        .fragment_owner_stack
+        .push(super::FragmentOwnerType::EachBlock);
 
     // Visit the body and fallback
     fragment::analyze(&mut block.body, context)?;

@@ -868,7 +868,9 @@ pub fn visit(
     context.is_direct_child_of_component = false;
 
     // Push fragment owner type for const_tag placement validation
-    context.fragment_owner_stack.push(super::FragmentOwnerType::RegularElement);
+    context
+        .fragment_owner_stack
+        .push(super::FragmentOwnerType::RegularElement);
 
     // Analyze children
     analyze(&mut element.fragment, context)?;
