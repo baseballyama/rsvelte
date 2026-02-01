@@ -1391,7 +1391,7 @@ fn transform_rule_preserving(
     last_end: &mut usize,
     ctx: &CssContext,
     is_nested: bool,
-    _is_in_global_block: bool,
+    is_in_global_block: bool,
 ) {
     let node_start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
     let node_end = node.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
@@ -1483,6 +1483,7 @@ fn transform_rule_preserving(
             css_start,
             ctx,
             is_nested,
+            is_in_global_block,
         );
         output.push_str(&transformed_selector);
 
@@ -1501,6 +1502,10 @@ fn transform_rule_preserving(
 
             // Check if block contains nested rules that need special handling
             if has_nested_rules(block) {
+                // Check if this rule starts with :global(.x) - if so, nested rules are in a global block context
+                let rule_starts_with_global = is_global_selector_rule(node);
+                let nested_in_global_block = is_in_global_block || rule_starts_with_global;
+
                 // Process the block recursively
                 transform_block_with_nested_rules(
                     block,
@@ -1511,7 +1516,7 @@ fn transform_rule_preserving(
                     output,
                     specificity_bumped,
                     ctx,
-                    false, // not in a global block
+                    nested_in_global_block,
                 );
             } else {
                 // Copy the entire block from source (including braces and content)
@@ -1538,7 +1543,7 @@ fn transform_block_with_nested_rules(
     output: &mut String,
     specificity_bumped: &mut bool,
     ctx: &CssContext,
-    _is_in_global_block: bool,
+    is_in_global_block: bool,
 ) {
     let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
     let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
@@ -1591,8 +1596,8 @@ fn transform_block_with_nested_rules(
                             specificity_bumped,
                             &mut local_last_end,
                             ctx,
-                            true,  // nested rules use :where() for specificity preservation
-                            false, // not in a global block
+                            true, // nested rules use :where() for specificity preservation
+                            is_in_global_block, // pass through global block context
                         );
                     }
                 }
@@ -1840,6 +1845,7 @@ fn transform_selector_list(
     css_start: usize,
     ctx: &CssContext,
     is_nested: bool,
+    is_in_global_block: bool,
 ) -> String {
     let mut result = String::new();
 
@@ -1899,6 +1905,7 @@ fn transform_selector_list(
                     css_source,
                     css_start,
                     is_nested,
+                    is_in_global_block,
                     Some(ctx),
                 ));
                 has_output = true;
@@ -1987,6 +1994,7 @@ fn is_global_like(relative_selector: &Value) -> bool {
 }
 
 /// Transform a complex selector (sequence of relative selectors)
+#[allow(clippy::too_many_arguments)]
 fn transform_complex_selector(
     node: &Value,
     selector: &str,
@@ -1994,12 +2002,14 @@ fn transform_complex_selector(
     css_source: &str,
     css_start: usize,
     is_nested: bool,
+    is_in_global_block: bool,
     ctx: Option<&CssContext>,
 ) -> String {
     let mut result = String::new();
     // Each complex selector resets specificity bumping - first element gets direct class
     // For nested rules, start with bumped=true to use :where() for specificity preservation
-    let mut local_specificity_bumped = is_nested;
+    // EXCEPT when we're inside a :global() block - then start fresh (bumped=false)
+    let mut local_specificity_bumped = is_nested && !is_in_global_block;
     // Track if we've seen a :global() selector - elements AFTER :global() should use direct class
     let mut seen_global = false;
     // Track if the previous selector was scoped - for specificity bumping decisions
@@ -2010,16 +2020,18 @@ fn transform_complex_selector(
     if let Some(children) = node.get("children").and_then(|c| c.as_array()) {
         // Pre-scan: check if ANY RelativeSelector in this ComplexSelector has :global()
         // If so, we use direct class (not :where()) for :is()/:not()/:has() content
-        let has_global_anywhere = children.iter().any(|rs| {
-            if let Some(selectors) = rs.get("selectors").and_then(|s| s.as_array()) {
-                selectors.iter().any(|s| {
-                    s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                        && s.get("name").and_then(|n| n.as_str()) == Some("global")
-                })
-            } else {
-                false
-            }
-        });
+        // Also use direct class if we're inside a :global() block
+        let has_global_anywhere = is_in_global_block
+            || children.iter().any(|rs| {
+                if let Some(selectors) = rs.get("selectors").and_then(|s| s.as_array()) {
+                    selectors.iter().any(|s| {
+                        s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                            && s.get("name").and_then(|n| n.as_str()) == Some("global")
+                    })
+                } else {
+                    false
+                }
+            });
 
         for relative_selector in children {
             // Get combinator
