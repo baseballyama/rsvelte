@@ -6149,6 +6149,76 @@ fn convert_assignment_target_property_for_program(
     }
 }
 
+/// Convert a SimpleAssignmentTarget to JSON (no -1 offset adjustment).
+#[allow(dead_code)]
+fn convert_simple_assignment_target_for_program(
+    target: &oxc_ast::ast::SimpleAssignmentTarget,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Value {
+    use oxc_ast::ast::SimpleAssignmentTarget;
+
+    match target {
+        SimpleAssignmentTarget::AssignmentTargetIdentifier(id) => {
+            let start = offset + id.span.start as usize;
+            let end = offset + id.span.end as usize;
+            create_identifier(&id.name, start, end, line_offsets)
+                .as_json()
+                .clone()
+        }
+        SimpleAssignmentTarget::StaticMemberExpression(member) => {
+            let start = offset + member.span.start as usize;
+            let end = offset + member.span.end as usize;
+
+            let object = convert_expression_for_program(&member.object, offset, line_offsets);
+            let property = create_identifier(
+                &member.property.name,
+                offset + member.property.span.start as usize,
+                offset + member.property.span.end as usize,
+                line_offsets,
+            );
+
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("MemberExpression".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            obj.insert("object".to_string(), object.as_json().clone());
+            obj.insert("property".to_string(), property.as_json().clone());
+            obj.insert("computed".to_string(), Value::Bool(false));
+            obj.insert("optional".to_string(), Value::Bool(member.optional));
+
+            Value::Object(obj)
+        }
+        SimpleAssignmentTarget::ComputedMemberExpression(member) => {
+            let start = offset + member.span.start as usize;
+            let end = offset + member.span.end as usize;
+
+            let object = convert_expression_for_program(&member.object, offset, line_offsets);
+            let property = convert_expression_for_program(&member.expression, offset, line_offsets);
+
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("MemberExpression".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            obj.insert("object".to_string(), object.as_json().clone());
+            obj.insert("property".to_string(), property.as_json().clone());
+            obj.insert("computed".to_string(), Value::Bool(true));
+            obj.insert("optional".to_string(), Value::Bool(member.optional));
+
+            Value::Object(obj)
+        }
+        _ => Value::Null,
+    }
+}
+
 /// Convert an AssignmentTargetMaybeDefault to JSON (no -1 offset adjustment).
 fn convert_assignment_target_maybe_default_for_program(
     target: &oxc_ast::ast::AssignmentTargetMaybeDefault,

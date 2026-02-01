@@ -10,6 +10,7 @@ use super::super::super::AnalysisError;
 use super::super::super::errors;
 use super::super::VisitorContext;
 use super::fragment;
+use super::utils::validate_assignment;
 use crate::ast::template::{Attribute, Component};
 
 /// Visit a component and perform full analysis.
@@ -98,6 +99,8 @@ pub fn visit_component(
                 if bind.name != "this" {
                     context.analysis.uses_component_bindings = true;
                 }
+                // Validate the binding expression (checks for const/import bindings)
+                validate_assignment(bind.expression.as_json(), context, true)?;
             }
             Attribute::OnDirective(on) => {
                 // Validate event handler modifiers
