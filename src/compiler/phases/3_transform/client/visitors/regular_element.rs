@@ -917,6 +917,7 @@ fn is_boolean_attribute(name: &str) -> bool {
 }
 
 /// Check if a name is a DOM property (vs attribute).
+/// Reference: svelte/packages/svelte/src/utils.js DOM_PROPERTIES
 fn is_dom_property(name: &str) -> bool {
     matches!(
         name,
@@ -931,6 +932,14 @@ fn is_dom_property(name: &str) -> bool {
             | "innerHTML"
             | "innerText"
             | "textContent"
+            | "readOnly"
+            | "defaultValue"
+            | "defaultChecked"
+            | "srcObject"
+            | "noValidate"
+            | "allowFullscreen"
+            | "disablePictureInPicture"
+            | "disableRemotePlayback"
     )
 }
 

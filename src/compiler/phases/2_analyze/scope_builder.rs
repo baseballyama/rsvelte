@@ -485,7 +485,6 @@ impl<'a> ScopeBuilder<'a> {
             }
             Expression::UpdateExpression(update_expr) => {
                 // Track the update
-                eprintln!("[DEBUG] Found UpdateExpression, tracking assignment target");
                 self.track_simple_assignment_target(&update_expr.argument);
             }
             Expression::CallExpression(call_expr) => {
@@ -514,18 +513,8 @@ impl<'a> ScopeBuilder<'a> {
                     self.process_binding_pattern(&param.pattern, &None, DeclarationKind::Param);
                 }
 
-                // DEBUG: Track arrow function body processing
-                eprintln!(
-                    "[DEBUG] Processing arrow function body with {} statements",
-                    arrow_func.body.statements.len()
-                );
-
                 // Track updates in arrow function body
                 for stmt in &arrow_func.body.statements {
-                    eprintln!(
-                        "[DEBUG] Processing arrow statement: {:?}",
-                        std::mem::discriminant(stmt)
-                    );
                     self.process_statement(stmt);
                 }
 
@@ -742,10 +731,6 @@ impl<'a> ScopeBuilder<'a> {
     fn track_simple_assignment_target(&mut self, target: &oxc_ast::ast::SimpleAssignmentTarget) {
         match target {
             oxc_ast::ast::SimpleAssignmentTarget::AssignmentTargetIdentifier(ident) => {
-                eprintln!(
-                    "[DEBUG] Tracking update to identifier: {} in scope {}",
-                    ident.name, self.current_scope
-                );
                 self.updates.push(Update {
                     name: ident.name.to_string(),
                     is_direct_assignment: true,

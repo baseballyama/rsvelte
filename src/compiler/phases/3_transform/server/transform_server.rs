@@ -2372,6 +2372,32 @@ impl<'a> ServerCodeGenerator<'a> {
                             }
                         }
                         AttributeValue::Sequence(parts) => {
+                            // Check for special case: sequence with only a single expression
+                            // This happens when attribute is like foo='{bar}' - treat as direct expression
+                            if parts.len() == 1
+                                && let crate::ast::template::AttributeValuePart::ExpressionTag(
+                                    expr_tag,
+                                ) = &parts[0]
+                            {
+                                let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                                let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                                if expr_end > expr_start && expr_end <= self.source.len() {
+                                    let expr_source =
+                                        self.source[expr_start..expr_end].trim().to_string();
+                                    // Check if it's a shorthand property (name equals expression)
+                                    if expr_source == name && is_valid_js_identifier(name) {
+                                        props.push(name.to_string());
+                                    } else {
+                                        props.push(format!(
+                                            "{}: {}",
+                                            quote_prop_name(name),
+                                            expr_source
+                                        ));
+                                    }
+                                    continue;
+                                }
+                            }
+
                             // Handle text or mixed values like name="world"
                             let mut value_str = String::new();
                             let mut has_expression = false;

@@ -950,6 +950,7 @@ fn visit_slot_children(
     // Save the current state
     let saved_init = std::mem::take(&mut context.state.init);
     let saved_update = std::mem::take(&mut context.state.update);
+    let saved_after_update = std::mem::take(&mut context.state.after_update);
     let saved_template = context.state.template.clone();
     let saved_node = context.state.node.clone();
     let saved_hoisted = std::mem::take(&mut context.state.hoisted);
@@ -964,6 +965,10 @@ fn visit_slot_children(
 
     // Track whether we need to auto-append at the end
     let mut needs_auto_append = false;
+
+    // Track close statement ($.append) - this should come AFTER after_update
+    // per Fragment.js order: init -> update -> after_update -> close
+    let mut close_statement: Option<JsStatement> = None;
 
     // Check if single element (mirrors Fragment.js line 47)
     let is_single_element =
@@ -1006,8 +1011,8 @@ fn visit_slot_children(
                 b::var_decl(&id_name, Some(b::call(b::id(&template_name), vec![]))),
             );
 
-            // Add: $.append($$anchor, id);
-            context.state.init.push(b::stmt(b::call(
+            // Track $.append as close statement (added after after_update)
+            close_statement = Some(b::stmt(b::call(
                 b::member_path("$.append"),
                 vec![b::id("$$anchor"), b::id(&id_name)],
             )));
@@ -1126,6 +1131,17 @@ fn visit_slot_children(
             b::member_path("$.template_effect"),
             vec![arrow_fn],
         )));
+    }
+
+    // Add after_update statements (transitions, animations, etc.)
+    // These come after init and update, but before close ($.append)
+    let after_update_stmts = std::mem::replace(&mut context.state.after_update, saved_after_update);
+    result.extend(after_update_stmts);
+
+    // Add close statement ($.append) at the very end
+    // This follows Fragment.js order: init -> update -> after_update -> close
+    if let Some(close) = close_statement {
+        result.push(close);
     }
 
     // Find any text variable from the init statements and add $.append at the end

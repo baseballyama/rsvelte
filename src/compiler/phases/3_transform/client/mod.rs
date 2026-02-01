@@ -651,16 +651,16 @@ fn transform_instance_script_for_visitors(
         .map(|b| b.name.clone())
         .collect();
 
-    // DEBUG: Print bindings info
-    eprintln!("[DEBUG] All bindings:");
-    for b in &analysis.root.bindings {
-        eprintln!(
-            "  - name: {}, kind: {:?}, reassigned: {}",
-            b.name, b.kind, b.reassigned
-        );
-    }
-    eprintln!("[DEBUG] state_vars: {:?}", state_vars);
-    eprintln!("[DEBUG] immutable: {}", analysis.immutable);
+    // DEBUG: Uncomment to print bindings info
+    // eprintln!("[DEBUG] All bindings:");
+    // for b in &analysis.root.bindings {
+    //     eprintln!(
+    //         "  - name: {}, kind: {:?}, reassigned: {}",
+    //         b.name, b.kind, b.reassigned
+    //     );
+    // }
+    // eprintln!("[DEBUG] state_vars: {:?}", state_vars);
+    // eprintln!("[DEBUG] immutable: {}", analysis.immutable);
 
     // Also scan for local $state and $derived declarations in the script
     // These are variables declared inside functions (like inside $effect callbacks)

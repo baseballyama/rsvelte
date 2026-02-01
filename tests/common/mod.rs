@@ -422,8 +422,10 @@ pub fn normalize_js(js: &str) -> String {
     // This is done by replacing " const " with ", " when it appears after another declaration
     let result = normalize_consecutive_declarations(&result);
 
-    // Normalize quotes (double quotes to single)
-    let result = result.replace('"', "'");
+    // Normalize string quotes more carefully
+    // Both `"'"` and `'\''` represent the same string (a single quote character)
+    // We normalize to a consistent representation
+    let result = normalize_all_string_quotes(&result);
 
     // Re-normalize multiple spaces that may have been created by semicolon removal
     // This handles cases like ";;" becoming "  " after semicolon removal
@@ -1236,6 +1238,7 @@ fn convert_scientific_to_decimal(mantissa: &str, exponent: &str) -> String {
 
 /// Normalize string quotes: convert double-quoted strings and simple template literals
 /// (those without expressions) to single-quoted strings.
+/// Also normalizes the content so that different quote escaping produces the same result.
 fn normalize_string_quotes(s: &str) -> String {
     if s.is_empty() {
         return s.to_string();
@@ -1245,19 +1248,27 @@ fn normalize_string_quotes(s: &str) -> String {
     let first = chars.next().unwrap();
 
     if first == '"' {
-        // Convert double-quoted string to single-quoted
-        // The content stays the same, just change outer quotes
-        let mut result = String::with_capacity(s.len());
-        result.push('\'');
-
+        // Double-quoted string - convert to single-quoted
         let rest: String = chars.collect();
         if rest.ends_with('"') {
-            result.push_str(&rest[..rest.len() - 1]);
-            result.push('\'');
+            let content = &rest[..rest.len() - 1];
+            // Convert content: unescape \" and escape ' if needed
+            let normalized_content = normalize_string_content_to_single(content);
+            format!("'{}'", normalized_content)
         } else {
-            result.push_str(&rest);
+            s.to_string()
         }
-        result
+    } else if first == '\'' {
+        // Single-quoted string - normalize the content to ensure consistent escaping
+        let rest: String = chars.collect();
+        if rest.ends_with('\'') {
+            let content = &rest[..rest.len() - 1];
+            // Normalize content for single quotes
+            let normalized_content = normalize_string_content_to_single(content);
+            format!("'{}'", normalized_content)
+        } else {
+            s.to_string()
+        }
     } else if first == '`' {
         // Template literal - convert to single quotes if no expressions (${...})
         let rest: String = chars.collect();
@@ -1270,9 +1281,183 @@ fn normalize_string_quotes(s: &str) -> String {
             s.to_string()
         }
     } else {
-        // Single quote - keep as-is
         s.to_string()
     }
+}
+
+/// Normalize string content for single-quoted output.
+/// This ensures that both `"'"` and `'\''` normalize to the same representation.
+fn normalize_string_content_to_single(content: &str) -> String {
+    let mut result = String::with_capacity(content.len());
+    let chars: Vec<char> = content.chars().collect();
+    let mut i = 0;
+
+    while i < chars.len() {
+        if chars[i] == '\\' && i + 1 < chars.len() {
+            match chars[i + 1] {
+                '"' => {
+                    // Unescape \" -> "
+                    result.push('"');
+                    i += 2;
+                }
+                '\'' => {
+                    // Keep \' as \' (escaped single quote)
+                    result.push('\\');
+                    result.push('\'');
+                    i += 2;
+                }
+                _ => {
+                    // Keep other escape sequences
+                    result.push(chars[i]);
+                    result.push(chars[i + 1]);
+                    i += 2;
+                }
+            }
+        } else if chars[i] == '\'' {
+            // Unescaped single quote - escape it
+            result.push('\\');
+            result.push('\'');
+            i += 1;
+        } else {
+            result.push(chars[i]);
+            i += 1;
+        }
+    }
+
+    result
+}
+
+/// Normalize all string quotes in JavaScript code.
+/// This handles both double-quoted and single-quoted strings,
+/// converting them all to single-quoted with proper escaping.
+/// Also converts simple template literals (without ${...}) to single-quoted strings.
+fn normalize_all_string_quotes(code: &str) -> String {
+    let mut result = String::with_capacity(code.len());
+    let chars: Vec<char> = code.chars().collect();
+    let mut i = 0;
+
+    while i < chars.len() {
+        match chars[i] {
+            '"' => {
+                // Double-quoted string - convert to single-quoted
+                i += 1;
+                let mut content = String::new();
+                while i < chars.len() {
+                    if chars[i] == '\\' && i + 1 < chars.len() {
+                        // Handle escape sequence
+                        if chars[i + 1] == '"' {
+                            // \" -> just "
+                            content.push('"');
+                            i += 2;
+                        } else if chars[i + 1] == '\'' {
+                            // \' -> \'
+                            content.push('\\');
+                            content.push('\'');
+                            i += 2;
+                        } else {
+                            content.push(chars[i]);
+                            content.push(chars[i + 1]);
+                            i += 2;
+                        }
+                    } else if chars[i] == '"' {
+                        // End of string
+                        i += 1;
+                        break;
+                    } else if chars[i] == '\'' {
+                        // Unescaped single quote - needs escaping in single-quoted output
+                        content.push('\\');
+                        content.push('\'');
+                        i += 1;
+                    } else {
+                        content.push(chars[i]);
+                        i += 1;
+                    }
+                }
+                result.push('\'');
+                result.push_str(&content);
+                result.push('\'');
+            }
+            '\'' => {
+                // Single-quoted string - keep but normalize escape sequences
+                i += 1;
+                result.push('\'');
+                while i < chars.len() {
+                    if chars[i] == '\\' && i + 1 < chars.len() {
+                        // Pass through escape sequences
+                        result.push(chars[i]);
+                        result.push(chars[i + 1]);
+                        i += 2;
+                    } else if chars[i] == '\'' {
+                        // End of string
+                        result.push('\'');
+                        i += 1;
+                        break;
+                    } else {
+                        result.push(chars[i]);
+                        i += 1;
+                    }
+                }
+            }
+            '`' => {
+                // Template literal - convert to single-quoted if no expressions
+                i += 1;
+                let mut content = String::new();
+                let mut has_expression = false;
+                let mut brace_depth = 0;
+
+                while i < chars.len() {
+                    if chars[i] == '\\' && i + 1 < chars.len() {
+                        content.push(chars[i]);
+                        content.push(chars[i + 1]);
+                        i += 2;
+                    } else if chars[i] == '$' && i + 1 < chars.len() && chars[i + 1] == '{' {
+                        has_expression = true;
+                        content.push_str("${");
+                        brace_depth += 1;
+                        i += 2;
+                    } else if chars[i] == '{' && brace_depth > 0 {
+                        brace_depth += 1;
+                        content.push('{');
+                        i += 1;
+                    } else if chars[i] == '}' && brace_depth > 0 {
+                        brace_depth -= 1;
+                        content.push('}');
+                        i += 1;
+                    } else if chars[i] == '`' && brace_depth == 0 {
+                        // End of template
+                        i += 1;
+                        break;
+                    } else {
+                        content.push(chars[i]);
+                        i += 1;
+                    }
+                }
+
+                if has_expression {
+                    // Keep as template literal
+                    result.push('`');
+                    result.push_str(&content);
+                    result.push('`');
+                } else {
+                    // Convert to single-quoted string
+                    // Escape any single quotes in content
+                    let escaped_content: String = content
+                        .chars()
+                        .flat_map(|c| if c == '\'' { vec!['\\', '\''] } else { vec![c] })
+                        .collect();
+                    result.push('\'');
+                    result.push_str(&escaped_content);
+                    result.push('\'');
+                }
+            }
+            _ => {
+                result.push(chars[i]);
+                i += 1;
+            }
+        }
+    }
+
+    result
 }
 
 /// Normalize CSS for comparison (replace hashes with placeholder).
@@ -1807,10 +1992,11 @@ mod tests {
 
     #[test]
     fn test_normalize_js_preserves_escaped_quotes() {
-        // Double quotes are replaced with single quotes, but escaped quotes remain
+        // Double quotes inside a double-quoted string become unescaped when converted to single quotes
+        // "hello \"world\"" represents the string: hello "world"
+        // When converted to single quotes: 'hello "world"' (no escaping needed for " inside '')
         let input = r#"const a = "hello \"world\"";"#;
-        // Note: \" becomes \' after double->single quote conversion
-        let expected = r#"const a = 'hello \'world\''"#;
+        let expected = r#"const a = 'hello "world"'"#;
         assert_eq!(normalize_js(input), expected);
     }
 
@@ -1871,8 +2057,9 @@ mod tests {
     #[test]
     fn test_normalize_js_scientific_notation_not_in_template() {
         // Scientific notation is normalized to decimal form everywhere (including template literals)
+        // Template literals without expressions are converted to single-quoted strings
         let input = r#"const msg = `value is 1e3`;"#;
-        let expected = r#"const msg = `value is 1000`"#;
+        let expected = r#"const msg = 'value is 1000'"#;
         assert_eq!(normalize_js(input), expected);
     }
 
