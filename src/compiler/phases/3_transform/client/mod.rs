@@ -331,24 +331,15 @@ fn transform_client_with_visitors(
             let name = &export.name;
             // Getter: return propName()
             exports_code.push_str(&format!(
-                "\tget {}() {{\n\t\treturn {}();\n\t}},\n",
+                "\tget {}() {{\n\t\treturn {}();\n\t}}",
                 name, name
             ));
-            // Blank line between getter and setter (matches official Svelte output)
-            exports_code.push('\n');
-            // Setter: propName($$value) + $.flush() for legacy mode
-            // In legacy mode, setters need $.flush() to trigger updates
-            if analysis.runes {
-                exports_code.push_str(&format!(
-                    "\tset {}($$value) {{\n\t\t{}($$value);\n\t}}",
-                    name, name
-                ));
-            } else {
-                exports_code.push_str(&format!(
-                    "\tset {}($$value) {{\n\t\t{}($$value);\n\t\t$.flush();\n\t}}",
-                    name, name
-                ));
-            }
+            exports_code.push_str(",\n");
+            // Setter: propName($$value)
+            exports_code.push_str(&format!(
+                "\tset {}($$value) {{\n\t\t{}($$value);\n\t}}",
+                name, name
+            ));
             if i < reactive_exports.len() - 1 {
                 exports_code.push_str(",\n");
             } else {
