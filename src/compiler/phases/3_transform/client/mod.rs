@@ -2941,6 +2941,26 @@ fn is_in_function_param_position(chars: &[char], var_start_idx: usize, var_end_i
         before_paren_idx -= 1;
     }
 
+    // Check if it's preceded by a control flow keyword (if, while, for, switch, with, catch)
+    // These are NOT function parameter positions, even though they have (...) { pattern
+    let control_flow_keywords = ["if", "while", "for", "switch", "with", "catch"];
+    for keyword in control_flow_keywords {
+        let kw_len = keyword.len();
+        if before_paren_idx >= kw_len {
+            let prefix: String = chars[before_paren_idx - kw_len..before_paren_idx]
+                .iter()
+                .collect();
+            if prefix == keyword {
+                // Make sure it's a standalone keyword (not part of a larger identifier)
+                let is_standalone = before_paren_idx == kw_len
+                    || !is_identifier_char(chars[before_paren_idx - kw_len - 1]);
+                if is_standalone {
+                    return false;
+                }
+            }
+        }
+    }
+
     // Check if it's preceded by "function " keyword
     if before_paren_idx >= 8 {
         let prefix: String = chars[before_paren_idx - 8..before_paren_idx]
