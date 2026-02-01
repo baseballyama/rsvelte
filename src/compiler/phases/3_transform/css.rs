@@ -455,29 +455,34 @@ fn is_complex_selector_unused(complex: &Value, ctx: &CssContext) -> bool {
 fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
     // Get the relative selectors (like "div > span" has multiple relative selectors)
     if let Some(rel_selectors) = complex.get("children").and_then(|c| c.as_array()) {
-        // If ANY relative selector contains :global() or :host, the entire complex selector is considered used
-        // This matches Svelte's behavior: node.metadata.used ||= node.metadata.is_global || node.metadata.is_global_like
-        let has_global_or_host = rel_selectors.iter().any(|rel| {
-            if let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) {
-                selectors.iter().any(|s| {
-                    s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                        && matches!(
-                            s.get("name").and_then(|n| n.as_str()),
-                            Some("global") | Some("host")
-                        )
-                })
-            } else {
-                false
-            }
-        });
-
-        if has_global_or_host {
-            return false; // Selector is used
-        }
-
-        // Check for :host > element pattern
+        // Check for :host > element pattern FIRST (before the global-like check)
+        // because :host > span can be unused if span is not a root child
         if is_host_child_selector_unused(rel_selectors, ctx) {
             return true;
+        }
+
+        // When a selector contains :global(), we still need to check the NON-global parts.
+        // For example, `:global(.foo) :is(.unused)` should be marked as unused if `.unused`
+        // doesn't exist in the template, even though `:global(.foo)` exists.
+        // Skip checking relative selectors that ARE :global(), but DO check others.
+
+        // Check if the first selector is :host without children (global-like)
+        let first_is_host_only = rel_selectors.len() == 1
+            && rel_selectors.first().is_some_and(|rel| {
+                rel.get("selectors")
+                    .and_then(|s| s.as_array())
+                    .is_some_and(|arr| {
+                        arr.len() == 1
+                            && arr.first().is_some_and(|s| {
+                                s.get("type").and_then(|t| t.as_str())
+                                    == Some("PseudoClassSelector")
+                                    && s.get("name").and_then(|n| n.as_str()) == Some("host")
+                            })
+                    })
+            });
+
+        if first_is_host_only {
+            return false; // :host by itself is always used
         }
 
         // Check for sibling combinator patterns (+ and ~)
@@ -511,7 +516,27 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
                     continue;
                 }
 
+                // Skip relative selectors that are entirely :global() (but still check others)
+                let is_entirely_global = selectors.len() == 1
+                    && selectors.first().is_some_and(|s| {
+                        s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                            && s.get("name").and_then(|n| n.as_str()) == Some("global")
+                    });
+
+                if is_entirely_global {
+                    continue;
+                }
+
                 for sel in selectors {
+                    // Skip :global() selectors themselves, but check other selectors
+                    let is_global_selector = sel.get("type").and_then(|t| t.as_str())
+                        == Some("PseudoClassSelector")
+                        && sel.get("name").and_then(|n| n.as_str()) == Some("global");
+
+                    if is_global_selector {
+                        continue;
+                    }
+
                     if is_simple_selector_unused(sel, ctx) {
                         return true;
                     }
@@ -741,9 +766,13 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
         return false;
     }
 
-    // Note: We no longer skip unused detection for control flow.
-    // Instead, we use the sibling relationship data from Phase 2 analysis
-    // which properly tracks possible siblings across if/each/await branches.
+    // If there's control flow (if/each/await/snippet/slot), be conservative.
+    // Our sibling relationship tracking in Phase 2 doesn't fully account for
+    // all the complex sibling relationships that can arise from control flow,
+    // so we skip unused detection to avoid false positives.
+    if ctx.has_control_flow {
+        return false;
+    }
 
     // Check if this selector uses sibling combinators
     let mut sibling_combinator_found = false;
@@ -1381,12 +1410,16 @@ fn transform_rule_preserving(
 
         // Get the block and process it
         if let Some(block) = node.get("block") {
+            let prelude_end = prelude.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
             let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
             let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
 
-            // Add a single space between selector and block brace
-            // This is consistent with Svelte's output format
-            output.push(' ');
+            // Preserve original whitespace between selector and block brace
+            let ws_start = prelude_end.saturating_sub(css_start);
+            let ws_end = block_start.saturating_sub(css_start);
+            if ws_end <= css_source.len() && ws_start < ws_end {
+                output.push_str(&css_source[ws_start..ws_end]);
+            }
 
             // Check if block contains nested rules that need special handling
             if has_nested_rules(block) {
