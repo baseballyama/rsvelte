@@ -679,11 +679,159 @@ fn build_declarations(
         }
     }
 
-    // Handle destructured context pattern
-    // This is more complex and would involve extract_paths in the full implementation
-    // For now, we handle the simple cases
+    // Handle destructured context pattern (e.g., {#each items as { a, b }})
+    // This corresponds to lines 251-293 in the official EachBlock.js
+    // We create getter functions for each destructured property
+    if let Some(context_expr) = &node.context {
+        let Expression::Value(val) = context_expr;
+        if let serde_json::Value::Object(obj) = val {
+            let ctx_type = obj.get("type").and_then(|v| v.as_str());
+
+            // Only handle destructuring patterns, not simple identifiers (already handled above)
+            if ctx_type == Some("ObjectPattern") || ctx_type == Some("ArrayPattern") {
+                let item_reactive = (flags & EACH_ITEM_REACTIVE) != 0;
+
+                // Build the unwrapped item expression: $.get($$item) if reactive, else $$item
+                let unwrapped_item = if item_reactive {
+                    "$.get($$item)".to_string()
+                } else {
+                    "$$item".to_string()
+                };
+
+                // Extract paths from the destructuring pattern
+                let paths = extract_destructured_paths(obj, &unwrapped_item);
+
+                // For each path, create a getter declaration
+                for (name, expr) in paths {
+                    // Create: let name = () => expr;
+                    // This is a getter function that can be called to get the value
+                    declarations.push(JsStatement::Raw(format!("let {} = () => {};", name, expr)));
+
+                    // Register transform for this name that calls the getter
+                    // When reading `name`, it should become `name()` (call the getter)
+                    context.state.transform.insert(
+                        name.clone(),
+                        IdentifierTransform {
+                            read: Some(|node| {
+                                // Return a call to the getter function
+                                b::call(node, vec![])
+                            }),
+                            assign: None,
+                            mutate: None,
+                            update: None,
+                            skip_proxy: false,
+                            is_defined: false,
+                            is_reactive: false,
+                        },
+                    );
+                }
+            }
+        }
+    }
 
     declarations
+}
+
+/// Extract property paths from a destructuring pattern.
+/// Returns a list of (name, expression) pairs where expression accesses the property.
+fn extract_destructured_paths(
+    obj: &serde_json::Map<String, serde_json::Value>,
+    base_expr: &str,
+) -> Vec<(String, String)> {
+    let mut paths = Vec::new();
+
+    match obj.get("type").and_then(|v| v.as_str()) {
+        Some("ObjectPattern") => {
+            if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
+                for prop in props {
+                    if let Some(prop_obj) = prop.as_object() {
+                        let prop_type = prop_obj.get("type").and_then(|v| v.as_str());
+
+                        if prop_type == Some("Property") {
+                            // Get the key (property name being accessed)
+                            let key = prop_obj.get("key").and_then(|k| k.as_object());
+                            let key_name = key.and_then(|k| k.get("name")).and_then(|n| n.as_str());
+
+                            // Get the value (the binding name or nested pattern)
+                            let value = prop_obj.get("value");
+
+                            if let (Some(key_name), Some(value)) = (key_name, value) {
+                                let prop_expr = format!("{}.{}", base_expr, key_name);
+
+                                if let Some(value_obj) = value.as_object() {
+                                    let value_type = value_obj.get("type").and_then(|v| v.as_str());
+
+                                    if value_type == Some("Identifier") {
+                                        let binding_name = value_obj
+                                            .get("name")
+                                            .and_then(|n| n.as_str())
+                                            .unwrap_or(key_name);
+                                        paths.push((binding_name.to_string(), prop_expr));
+                                    } else if value_type == Some("ObjectPattern")
+                                        || value_type == Some("ArrayPattern")
+                                    {
+                                        let nested =
+                                            extract_destructured_paths(value_obj, &prop_expr);
+                                        paths.extend(nested);
+                                    } else if value_type == Some("AssignmentPattern")
+                                        && let Some(left) =
+                                            value_obj.get("left").and_then(|l| l.as_object())
+                                        && left.get("type").and_then(|t| t.as_str())
+                                            == Some("Identifier")
+                                    {
+                                        let binding_name = left
+                                            .get("name")
+                                            .and_then(|n| n.as_str())
+                                            .unwrap_or(key_name);
+                                        paths.push((binding_name.to_string(), prop_expr));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Some("ArrayPattern") => {
+            if let Some(elements) = obj.get("elements").and_then(|e| e.as_array()) {
+                for (i, elem) in elements.iter().enumerate() {
+                    if elem.is_null() {
+                        continue;
+                    }
+
+                    if let Some(elem_obj) = elem.as_object() {
+                        let elem_type = elem_obj.get("type").and_then(|v| v.as_str());
+                        let index_expr = format!("{}[{}]", base_expr, i);
+
+                        if elem_type == Some("Identifier") {
+                            let binding_name = elem_obj
+                                .get("name")
+                                .and_then(|n| n.as_str())
+                                .unwrap_or("$$unknown");
+                            paths.push((binding_name.to_string(), index_expr));
+                        } else if elem_type == Some("ObjectPattern")
+                            || elem_type == Some("ArrayPattern")
+                        {
+                            let nested = extract_destructured_paths(elem_obj, &index_expr);
+                            paths.extend(nested);
+                        } else if elem_type == Some("AssignmentPattern")
+                            && let Some(left) = elem_obj.get("left").and_then(|l| l.as_object())
+                            && left.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                        {
+                            let binding_name = left
+                                .get("name")
+                                .and_then(|n| n.as_str())
+                                .unwrap_or("$$unknown");
+                            paths.push((binding_name.to_string(), index_expr));
+                        }
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+
+    paths
 }
 
 /// Build the key function for the each block.
