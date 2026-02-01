@@ -75,18 +75,33 @@ impl<'a> ScopeBuilder<'a> {
         ScopeRoot,
         Vec<crate::compiler::phases::phase2_analyze::AnalysisError>,
     ) {
-        // Visit instance script
-        if let Some(ref script) = ast.instance {
-            self.visit_script(script);
-        }
-
-        // Visit module script
+        // Visit module script first (module scope is parent of instance scope)
+        // In Svelte, module and instance scripts are separate scopes, with instance
+        // having module as its parent. This allows the same name to be declared in both.
         if let Some(ref script) = ast.module {
             self.visit_script(script);
         }
 
-        // Visit template
+        // Visit instance script in a child scope of module
+        // This matches Svelte's scope hierarchy where instance scope has module scope as parent
+        // IMPORTANT: We keep the script scope active during template processing so that
+        // template expressions can find bindings declared in the script.
+        let script_scope = if let Some(ref script) = ast.instance {
+            // Create a new scope for instance script with module (scope 0) as parent
+            let old_scope = self.push_scope();
+            self.visit_script(script);
+            Some(old_scope)
+        } else {
+            None
+        };
+
+        // Visit template - still within the script scope so bindings are accessible
         self.visit_fragment(&ast.fragment);
+
+        // Now pop the script scope after template processing is done
+        if let Some(old_scope) = script_scope {
+            self.pop_scope(old_scope);
+        }
 
         // Process all tracked updates to mark bindings as reassigned/mutated
         // Use scope chain lookup to find the correct binding
@@ -470,6 +485,7 @@ impl<'a> ScopeBuilder<'a> {
             }
             Expression::UpdateExpression(update_expr) => {
                 // Track the update
+                eprintln!("[DEBUG] Found UpdateExpression, tracking assignment target");
                 self.track_simple_assignment_target(&update_expr.argument);
             }
             Expression::CallExpression(call_expr) => {
@@ -498,8 +514,18 @@ impl<'a> ScopeBuilder<'a> {
                     self.process_binding_pattern(&param.pattern, &None, DeclarationKind::Param);
                 }
 
+                // DEBUG: Track arrow function body processing
+                eprintln!(
+                    "[DEBUG] Processing arrow function body with {} statements",
+                    arrow_func.body.statements.len()
+                );
+
                 // Track updates in arrow function body
                 for stmt in &arrow_func.body.statements {
+                    eprintln!(
+                        "[DEBUG] Processing arrow statement: {:?}",
+                        std::mem::discriminant(stmt)
+                    );
                     self.process_statement(stmt);
                 }
 
@@ -716,6 +742,10 @@ impl<'a> ScopeBuilder<'a> {
     fn track_simple_assignment_target(&mut self, target: &oxc_ast::ast::SimpleAssignmentTarget) {
         match target {
             oxc_ast::ast::SimpleAssignmentTarget::AssignmentTargetIdentifier(ident) => {
+                eprintln!(
+                    "[DEBUG] Tracking update to identifier: {} in scope {}",
+                    ident.name, self.current_scope
+                );
                 self.updates.push(Update {
                     name: ident.name.to_string(),
                     is_direct_assignment: true,
@@ -965,8 +995,12 @@ impl<'a> ScopeBuilder<'a> {
         // Process expressions in attributes (for tracking updates)
         self.process_attributes(&element.attributes);
 
-        // Elements don't create new scopes, but we visit their children
+        // Create a new scope for element children (matching the official Svelte compiler
+        // where each Fragment creates a child scope). This allows snippets inside elements
+        // to have the same name as snippets at the parent level.
+        let old_scope = self.push_scope();
         self.visit_fragment(&element.fragment);
+        self.pop_scope(old_scope);
     }
 
     /// Process attributes to find expressions containing updates.

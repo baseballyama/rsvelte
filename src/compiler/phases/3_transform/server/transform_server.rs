@@ -4151,6 +4151,7 @@ export default function {component_name}($$renderer{props_param}) {{
                         // Separate snippets into:
                         // 1. True snippets with params (need hoisting, passed as props)
                         // 2. Named slot children (no params, go inline in $$slots)
+                        #[allow(clippy::type_complexity)]
                         let (true_snippets, slot_children): (
                             Vec<&(String, Vec<String>, Vec<OutputPart>)>,
                             Vec<&(String, Vec<String>, Vec<OutputPart>)>,

@@ -615,6 +615,11 @@ pub fn css_type_selector_invalid_placement() -> AnalysisError {
     )
 }
 
+/// Declaration cannot be empty
+pub fn css_empty_declaration() -> AnalysisError {
+    error("css_empty_declaration", "Declaration cannot be empty")
+}
+
 // Attribute-related errors
 
 /// '%name%' is not a valid attribute name
@@ -954,5 +959,21 @@ pub fn attribute_invalid_event_handler() -> AnalysisError {
     error(
         "attribute_invalid_event_handler",
         "Event attribute must be a JavaScript expression, not a string\nhttps://svelte.dev/e/attribute_invalid_event_handler",
+    )
+}
+
+/// A component can only have one instance-level `<script>` element
+pub fn script_duplicate() -> AnalysisError {
+    error(
+        "script_duplicate",
+        "A component can only have one instance-level `<script>` element\nhttps://svelte.dev/e/script_duplicate",
+    )
+}
+
+/// A component can only have one `<script module>` element
+pub fn script_module_duplicate() -> AnalysisError {
+    error(
+        "script_module_duplicate",
+        "A component can only have one `<script module>` element\nhttps://svelte.dev/e/script_module_duplicate",
     )
 }

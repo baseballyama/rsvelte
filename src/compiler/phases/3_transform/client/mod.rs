@@ -646,6 +646,17 @@ fn transform_instance_script_for_visitors(
         .map(|b| b.name.clone())
         .collect();
 
+    // DEBUG: Print bindings info
+    eprintln!("[DEBUG] All bindings:");
+    for b in &analysis.root.bindings {
+        eprintln!(
+            "  - name: {}, kind: {:?}, reassigned: {}",
+            b.name, b.kind, b.reassigned
+        );
+    }
+    eprintln!("[DEBUG] state_vars: {:?}", state_vars);
+    eprintln!("[DEBUG] immutable: {}", analysis.immutable);
+
     // Also scan for local $state and $derived declarations in the script
     // These are variables declared inside functions (like inside $effect callbacks)
     // that aren't tracked in analysis.root.bindings
@@ -3013,12 +3024,55 @@ fn transform_state_in_expr(
 
         // Track whether we're inside a string literal
         let mut in_string: Option<char> = None; // None or Some('\'') or Some('"') or Some('`')
+        // Track whether we're inside a comment
+        let mut in_line_comment = false;
+        let mut in_block_comment = false;
 
         while i < chars.len() {
             let c = chars[i];
 
+            // Handle line comment end (newline)
+            if in_line_comment {
+                new_result.push(c);
+                if c == '\n' {
+                    in_line_comment = false;
+                }
+                i += 1;
+                continue;
+            }
+
+            // Handle block comment end (*/)
+            if in_block_comment {
+                new_result.push(c);
+                if c == '*' && i + 1 < chars.len() && chars[i + 1] == '/' {
+                    new_result.push('/');
+                    i += 2;
+                    in_block_comment = false;
+                    continue;
+                }
+                i += 1;
+                continue;
+            }
+
             // Handle string literal boundaries
             if in_string.is_none() {
+                // Check for comment start (only outside strings)
+                if c == '/' && i + 1 < chars.len() {
+                    if chars[i + 1] == '/' {
+                        // Line comment
+                        in_line_comment = true;
+                        new_result.push(c);
+                        i += 1;
+                        continue;
+                    } else if chars[i + 1] == '*' {
+                        // Block comment (including JSDoc)
+                        in_block_comment = true;
+                        new_result.push(c);
+                        i += 1;
+                        continue;
+                    }
+                }
+
                 if c == '\'' || c == '"' || c == '`' {
                     in_string = Some(c);
                     new_result.push(c);

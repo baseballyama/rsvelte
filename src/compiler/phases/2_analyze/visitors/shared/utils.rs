@@ -1135,6 +1135,34 @@ pub fn is_invalid_attribute_name(name: &str) -> bool {
     REGEX_ILLEGAL_ATTRIBUTE_CHARACTER.is_match(name)
 }
 
+/// Extract the identifier name from a parameter node.
+///
+/// Handles simple identifiers and patterns (extracting the first identifier).
+fn extract_identifier_name(param: &Value) -> Option<String> {
+    match param.get("type").and_then(|t| t.as_str()) {
+        Some("Identifier") => param.get("name").and_then(|n| n.as_str()).map(String::from),
+        Some("AssignmentPattern") => {
+            // Default parameter: param = defaultValue
+            if let Some(left) = param.get("left") {
+                extract_identifier_name(left)
+            } else {
+                None
+            }
+        }
+        Some("RestElement") => {
+            // Rest parameter: ...param
+            if let Some(argument) = param.get("argument") {
+                extract_identifier_name(argument)
+            } else {
+                None
+            }
+        }
+        // For object/array destructuring, we don't extract individual names
+        // as they're more complex patterns
+        _ => None,
+    }
+}
+
 /// Visit a JavaScript expression and track identifier references.
 ///
 /// Corresponds to walking expressions in Svelte's utils.js.
@@ -1154,6 +1182,33 @@ pub fn walk_js_expression(
     match expr_type {
         Some("Identifier") => {
             if let Some(name) = expression.get("name").and_then(|n| n.as_str()) {
+                // Check for store scoped subscription errors
+                // When we see a $xxx identifier inside a function, check if xxx
+                // refers to a locally-scoped variable that shadows an outer store
+                if name.starts_with('$') && !name.starts_with("$$") && name != "$" {
+                    let store_name = &name[1..];
+                    if !store_name.is_empty()
+                        && !super::function::is_rune(name)
+                        && context.function_depth > 0
+                    {
+                        // Check if the store binding is in a nested scope
+                        if let Some(&binding_idx) =
+                            context.analysis.root.scope.declarations.get(store_name)
+                        {
+                            let binding = &context.analysis.root.bindings[binding_idx];
+                            // If the binding's scope_index is > 1 (deeper than instance scope),
+                            // it's a local binding that shadows the outer store
+                            // Scope 0 = module, Scope 1 = instance, Scope 2+ = nested
+                            if binding.scope_index > 1 {
+                                return Err(
+                                    super::super::super::errors::store_invalid_scoped_subscription(
+                                    ),
+                                );
+                            }
+                        }
+                    }
+                }
+
                 // Look up binding
                 if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name) {
                     let binding = &context.analysis.root.bindings[binding_idx];
@@ -1301,10 +1356,63 @@ pub fn walk_js_expression(
             }
         }
         Some("ArrowFunctionExpression") | Some("FunctionExpression") => {
+            // Increment function depth for nested functions
+            // This is important for detecting scoped store subscriptions
+            context.function_depth += 1;
+
+            // Extract parameters and register them as temporary scoped bindings
+            // This allows us to detect when $store refers to a local parameter
+            let mut temp_param_bindings: Vec<(String, usize)> = Vec::new();
+
+            if let Some(params) = expression.get("params").and_then(|p| p.as_array()) {
+                for param in params {
+                    if let Some(param_name) = extract_identifier_name(param) {
+                        // Check if this parameter shadows an existing binding
+                        if let Some(&existing_idx) =
+                            context.analysis.root.scope.declarations.get(&param_name)
+                        {
+                            // Create a temporary binding for the parameter at non-root scope
+                            let temp_binding_idx = context.analysis.root.bindings.len();
+                            let temp_binding = crate::compiler::phases::phase2_analyze::Binding::with_declaration_kind(
+                                param_name.clone(),
+                                crate::compiler::phases::phase2_analyze::BindingKind::Normal,
+                                crate::compiler::phases::phase2_analyze::DeclarationKind::Param,
+                                context.function_depth, // Use function_depth as scope index (non-zero means nested)
+                            );
+                            context.analysis.root.bindings.push(temp_binding);
+
+                            // Temporarily override the binding in the scope
+                            context
+                                .analysis
+                                .root
+                                .scope
+                                .declarations
+                                .insert(param_name.clone(), temp_binding_idx);
+
+                            // Track for cleanup
+                            temp_param_bindings.push((param_name, existing_idx));
+                        }
+                    }
+                }
+            }
+
             // Visit function body
             if let Some(body) = expression.get("body") {
                 walk_js_expression(body, context, metadata)?;
             }
+
+            // Restore original bindings
+            for (param_name, original_idx) in temp_param_bindings {
+                context
+                    .analysis
+                    .root
+                    .scope
+                    .declarations
+                    .insert(param_name, original_idx);
+            }
+
+            // Restore function depth
+            context.function_depth -= 1;
         }
         Some("BlockStatement") => {
             // Visit statements in block

@@ -148,26 +148,11 @@ pub struct Comment {
 // =============================================================================
 
 /// A reactive template expression: `{expression}`.
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ExpressionTag {
     pub start: u32,
     pub end: u32,
     pub expression: Expression,
-}
-
-impl serde::Serialize for ExpressionTag {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeMap;
-        let mut map = serializer.serialize_map(Some(4))?;
-        map.serialize_entry("type", "ExpressionTag")?;
-        map.serialize_entry("start", &self.start)?;
-        map.serialize_entry("end", &self.end)?;
-        map.serialize_entry("expression", &self.expression)?;
-        map.end()
-    }
 }
 
 /// An HTML template expression: `{@html expression}`.
@@ -241,7 +226,7 @@ pub struct AttachTagMetadata {
 }
 
 /// An attach tag: `{@attach expression}`.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AttachTag {
     pub start: u32,
     pub end: u32,
@@ -249,21 +234,6 @@ pub struct AttachTag {
     /// Metadata (not serialized)
     #[serde(skip)]
     pub metadata: AttachTagMetadata,
-}
-
-impl serde::Serialize for AttachTag {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        use serde::ser::SerializeMap;
-        let mut map = serializer.serialize_map(None)?;
-        map.serialize_entry("type", "AttachTag")?;
-        map.serialize_entry("start", &self.start)?;
-        map.serialize_entry("end", &self.end)?;
-        map.serialize_entry("expression", &self.expression)?;
-        map.end()
-    }
 }
 
 // =============================================================================
@@ -500,7 +470,7 @@ pub struct SvelteDynamicElement {
 // =============================================================================
 
 /// An attribute or directive on an element.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum Attribute {
     Attribute(AttributeNode),
@@ -515,6 +485,36 @@ pub enum Attribute {
     AnimateDirective(AnimateDirective),
     UseDirective(UseDirective),
     LetDirective(LetDirective),
+}
+
+impl serde::Serialize for Attribute {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeMap;
+        match self {
+            Attribute::Attribute(node) => node.serialize(serializer),
+            Attribute::SpreadAttribute(spread) => spread.serialize(serializer),
+            Attribute::AttachTag(attach) => {
+                // AttachTag needs type field when serialized as Attribute
+                let mut map = serializer.serialize_map(None)?;
+                map.serialize_entry("type", "AttachTag")?;
+                map.serialize_entry("start", &attach.start)?;
+                map.serialize_entry("end", &attach.end)?;
+                map.serialize_entry("expression", &attach.expression)?;
+                map.end()
+            }
+            Attribute::BindDirective(bind) => bind.serialize(serializer),
+            Attribute::OnDirective(on) => on.serialize(serializer),
+            Attribute::ClassDirective(class) => class.serialize(serializer),
+            Attribute::StyleDirective(style) => style.serialize(serializer),
+            Attribute::TransitionDirective(transition) => transition.serialize(serializer),
+            Attribute::AnimateDirective(animate) => animate.serialize(serializer),
+            Attribute::UseDirective(use_dir) => use_dir.serialize(serializer),
+            Attribute::LetDirective(let_dir) => let_dir.serialize(serializer),
+        }
+    }
 }
 
 /// A regular attribute: `name="value"` or `name={expression}`.
@@ -548,7 +548,7 @@ impl serde::Serialize for AttributeNode {
 }
 
 /// The value of an attribute.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum AttributeValue {
     /// Boolean attribute (no value).
@@ -557,6 +557,27 @@ pub enum AttributeValue {
     Expression(ExpressionTag),
     /// Text or mixed content.
     Sequence(Vec<AttributeValuePart>),
+}
+
+impl serde::Serialize for AttributeValue {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeMap;
+        match self {
+            AttributeValue::True(b) => b.serialize(serializer),
+            AttributeValue::Expression(expr_tag) => {
+                let mut map = serializer.serialize_map(Some(4))?;
+                map.serialize_entry("type", "ExpressionTag")?;
+                map.serialize_entry("start", &expr_tag.start)?;
+                map.serialize_entry("end", &expr_tag.end)?;
+                map.serialize_entry("expression", &expr_tag.expression)?;
+                map.end()
+            }
+            AttributeValue::Sequence(parts) => parts.serialize(serializer),
+        }
+    }
 }
 
 /// A part of an attribute value (text or expression).
@@ -583,7 +604,14 @@ impl serde::Serialize for AttributeValuePart {
                 map.serialize_entry("data", text.data.as_str())?;
                 map.end()
             }
-            AttributeValuePart::ExpressionTag(expr_tag) => expr_tag.serialize(serializer),
+            AttributeValuePart::ExpressionTag(expr_tag) => {
+                let mut map = serializer.serialize_map(Some(4))?;
+                map.serialize_entry("type", "ExpressionTag")?;
+                map.serialize_entry("start", &expr_tag.start)?;
+                map.serialize_entry("end", &expr_tag.end)?;
+                map.serialize_entry("expression", &expr_tag.expression)?;
+                map.end()
+            }
         }
     }
 }

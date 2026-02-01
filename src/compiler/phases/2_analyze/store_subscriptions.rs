@@ -17,6 +17,18 @@ use crate::ast::template::{
 };
 use rustc_hash::FxHashSet;
 
+/// A store reference with location context
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+struct StoreRef {
+    /// The full name including $ (e.g., "$store")
+    name: String,
+    /// Position in source
+    position: usize,
+    /// Whether this is in a module script (vs instance or template)
+    in_module: bool,
+}
+
 /// Detect store subscriptions and create synthetic bindings.
 ///
 /// This function scans the AST for identifiers starting with `$` and checks if
@@ -39,23 +51,46 @@ pub fn detect_store_subscriptions(
     ast: &Root,
     analysis: &mut ComponentAnalysis,
 ) -> Result<(), AnalysisError> {
-    // Collect all $xxx references from the AST
-    let mut store_refs: FxHashSet<String> = FxHashSet::default();
+    // Collect all $xxx references from the AST with context
+    let mut store_refs: Vec<StoreRef> = Vec::new();
+    let mut unique_names: FxHashSet<String> = FxHashSet::default();
 
     // Scan scripts for $xxx identifiers
     if let Some(ref instance) = ast.instance {
-        collect_dollar_refs_from_script(instance, &analysis.source, &mut store_refs);
+        collect_dollar_refs_from_script_with_context(
+            instance,
+            &analysis.source,
+            &mut store_refs,
+            false,
+        );
     }
 
     if let Some(ref module) = ast.module {
-        collect_dollar_refs_from_script(module, &analysis.source, &mut store_refs);
+        collect_dollar_refs_from_script_with_context(
+            module,
+            &analysis.source,
+            &mut store_refs,
+            true,
+        );
     }
 
     // Scan template for $xxx identifiers
-    collect_dollar_refs_from_fragment(&ast.fragment, &analysis.source, &mut store_refs);
+    collect_dollar_refs_from_fragment(&ast.fragment, &analysis.source, &mut unique_names);
+    // Convert unique names from template to StoreRef (not in module)
+    for name in &unique_names {
+        if !store_refs.iter().any(|r| &r.name == name) {
+            store_refs.push(StoreRef {
+                name: name.clone(),
+                position: 0,
+                in_module: false,
+            });
+        }
+    }
 
     // For each $xxx reference, check if xxx binding exists and create StoreSub binding
-    for ref_name in store_refs {
+    for store_ref in &store_refs {
+        let ref_name = &store_ref.name;
+
         // Skip reserved names ($$props, $$restProps, $$slots)
         if RESERVED.contains(&ref_name.as_str()) {
             continue;
@@ -65,7 +100,7 @@ pub fn detect_store_subscriptions(
         // Corresponds to Svelte's L266-269 and L351-352 in 2-analyze/index.js
         // Note: bare $ detection is handled in Identifier visitor via proper AST analysis
         if ref_name.starts_with("$$") {
-            return Err(errors::global_reference_invalid(&ref_name));
+            return Err(errors::global_reference_invalid(ref_name));
         }
 
         // Skip names that don't start with $ or bare $
@@ -84,12 +119,12 @@ pub fn detect_store_subscriptions(
         // Skip runes ($state, $derived, $props, etc.) in runes mode
         // Even if there's a binding with the same name (e.g., `let props = $props()`),
         // in runes mode the $ prefix always refers to the rune, not a store subscription.
-        if analysis.runes && is_rune(&ref_name) {
+        if analysis.runes && is_rune(ref_name) {
             continue;
         }
 
         // Skip runes in legacy mode unless there's a binding for the store name
-        if !analysis.runes && is_rune(&ref_name) {
+        if !analysis.runes && is_rune(ref_name) {
             // Check if there's a binding for the store name (e.g., `state` for `$state`)
             // If there is, it's a store subscription, not a rune
             if !analysis.root.scope.declarations.contains_key(store_name) {
@@ -97,34 +132,73 @@ pub fn detect_store_subscriptions(
             }
         }
 
-        // Check if a binding exists for the store name (xxx)
-        if analysis.root.scope.declarations.contains_key(store_name) {
+        // Check if a binding exists for the store name (xxx) and where it's declared
+        if let Some(&binding_idx) = analysis.root.scope.declarations.get(store_name) {
+            let binding = &analysis.root.bindings[binding_idx];
+
+            // Check if the binding is in a nested scope (not module or instance scope)
+            // This catches cases like {#each items as item} ... {$item} ... {/each}
+            // where `item` is declared in the each block scope, not at top level
+            //
+            // In our scope structure:
+            // - Scope 0 = module scope (always exists)
+            // - Scope 1 = instance script scope (when there's an instance script)
+            // - Scope 2+ = nested scopes (each blocks, snippets, etc.)
+            //
+            // Store subscriptions are only valid when the store binding is in
+            // the module scope (0) or instance scope (1).
+            if binding.scope_index > 1 {
+                // This is a scoped subscription - the store is not at top level
+                return Err(errors::store_invalid_scoped_subscription());
+            }
+
+            // Check for bindings that represent local variables (EachItem, SnippetParam, etc.)
+            // These are inherently scoped even if scope_index might be 0 due to how
+            // declarations are collected into root scope
+            if matches!(
+                binding.kind,
+                BindingKind::EachItem
+                    | BindingKind::EachIndex
+                    | BindingKind::SnippetParam
+                    | BindingKind::AwaitThen
+                    | BindingKind::AwaitCatch
+            ) {
+                return Err(errors::store_invalid_scoped_subscription());
+            }
+
+            // Check if the reference is inside a module script
+            // Store subscriptions are not allowed in module scripts
+            // Corresponds to Svelte's L410-420 in 2-analyze/index.js
+            if store_ref.in_module {
+                return Err(errors::store_invalid_subscription());
+            }
+
             // Check if we already have a binding for $xxx
-            if analysis.root.scope.declarations.contains_key(&ref_name) {
+            if analysis.root.scope.declarations.contains_key(ref_name) {
                 continue;
             }
 
             // Create a synthetic StoreSub binding
-            let binding_idx = analysis.root.bindings.len();
-            let binding = Binding::with_declaration_kind(
+            let new_binding_idx = analysis.root.bindings.len();
+            let new_binding = Binding::with_declaration_kind(
                 ref_name.clone(),
                 BindingKind::StoreSub,
                 DeclarationKind::Synthetic,
                 0, // Root scope
             );
-            analysis.root.bindings.push(binding);
+            analysis.root.bindings.push(new_binding);
             analysis
                 .root
                 .scope
                 .declarations
-                .insert(ref_name, binding_idx);
+                .insert(ref_name.clone(), new_binding_idx);
         } else if analysis.runes {
             // In runes mode, if no binding exists for a lowercase $xxx name,
             // it's an invalid global reference
             // Corresponds to Svelte's L398-400 in 2-analyze/index.js
             if !store_name.is_empty() && store_name.chars().next().is_some_and(|c| c.is_lowercase())
             {
-                return Err(errors::global_reference_invalid(&ref_name));
+                return Err(errors::global_reference_invalid(ref_name));
             }
         }
     }
@@ -132,7 +206,83 @@ pub fn detect_store_subscriptions(
     Ok(())
 }
 
+/// Collect $xxx identifiers from a script block with context.
+fn collect_dollar_refs_from_script_with_context(
+    script: &Script,
+    source: &str,
+    refs: &mut Vec<StoreRef>,
+    in_module: bool,
+) {
+    let start = script.content.start().unwrap_or(0) as usize;
+    let end = script.content.end().unwrap_or(0) as usize;
+
+    if end <= start || end > source.len() {
+        return;
+    }
+
+    let content = &source[start..end];
+    collect_dollar_identifiers_from_js_with_context(content, start, refs, in_module);
+}
+
+/// Collect $xxx identifiers from a JavaScript string with context.
+fn collect_dollar_identifiers_from_js_with_context(
+    js: &str,
+    base_offset: usize,
+    refs: &mut Vec<StoreRef>,
+    in_module: bool,
+) {
+    // Simple regex-like scanning for $xxx identifiers
+    // We look for $ followed by valid identifier characters
+    let chars: Vec<char> = js.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+
+    while i < len {
+        // Check for $ that could start an identifier
+        if chars[i] == '$' {
+            // Check if this is a valid identifier start (not part of a larger identifier)
+            let prev_is_ident_char = if i > 0 {
+                is_identifier_char(chars[i - 1])
+            } else {
+                false
+            };
+
+            if !prev_is_ident_char {
+                let ident_start = i;
+                // Collect the identifier
+                let mut ident = String::from("$");
+                i += 1;
+
+                // Allow for $$ prefix
+                if i < len && chars[i] == '$' {
+                    ident.push('$');
+                    i += 1;
+                }
+
+                // Collect identifier characters
+                while i < len && is_identifier_char(chars[i]) {
+                    ident.push(chars[i]);
+                    i += 1;
+                }
+
+                // Only add if we have more than just $
+                // (bare $ detection is handled separately via proper AST analysis)
+                if ident.len() > 1 {
+                    refs.push(StoreRef {
+                        name: ident,
+                        position: base_offset + ident_start,
+                        in_module,
+                    });
+                }
+                continue;
+            }
+        }
+        i += 1;
+    }
+}
+
 /// Collect $xxx identifiers from a script block.
+#[allow(dead_code)]
 fn collect_dollar_refs_from_script(script: &Script, source: &str, refs: &mut FxHashSet<String>) {
     let start = script.content.start().unwrap_or(0) as usize;
     let end = script.content.end().unwrap_or(0) as usize;

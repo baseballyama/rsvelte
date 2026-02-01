@@ -116,11 +116,34 @@ fn analyze_rule(
         validate_selectors(prelude, is_nested)?;
     }
 
-    // Analyze children (nested rules)
+    // Analyze children (nested rules and declarations)
     if let Some(block) = node.get("block")
         && let Some(children) = block.get("children").and_then(|c| c.as_array())
     {
         for child in children {
+            // Check for empty declarations
+            // Note: CSS custom properties (--foo: ;) are allowed to have empty values
+            // Only report error for non-custom properties with empty values
+            if let Some(child_type) = child.get("type").and_then(|t| t.as_str())
+                && child_type == "Declaration"
+            {
+                let property = child.get("property").and_then(|p| p.as_str()).unwrap_or("");
+                let is_custom_property = property.starts_with("--");
+
+                // Check if the declaration value is empty (null or empty string)
+                let value = child.get("value");
+                let is_empty = match value {
+                    None => true,
+                    Some(v) if v.is_null() => true,
+                    Some(v) if v.as_str() == Some("") => true,
+                    _ => false,
+                };
+
+                // Only error for empty values on non-custom properties
+                if is_empty && !is_custom_property {
+                    return Err(errors::css_empty_declaration());
+                }
+            }
             // Children of a rule are nested rules
             analyze_css_node(child, analysis, true)?;
         }

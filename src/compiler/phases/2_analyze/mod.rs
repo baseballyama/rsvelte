@@ -82,13 +82,16 @@ pub fn analyze_component(
     // Corresponds to Svelte's store subscription logic in 2-analyze/index.js L348-444
     store_subscriptions::detect_store_subscriptions(ast, &mut analysis)?;
 
-    // Analyze scripts (JavaScript AST)
+    // Validate and analyze scripts (JavaScript AST)
     // In Svelte's implementation, the scope function_depth works as follows:
     // - Module scope: function_depth = 0
     // - Instance scope: function_depth = 1 (child of module scope, not porous)
     // - Functions inside instance: function_depth = 2, etc.
     // We mirror this by setting the initial function_depth based on ast_type.
     if let Some(ref instance) = ast.instance {
+        // Validate script attributes - warn for unknown attributes
+        validate_script_attributes(&instance.attributes, &mut analysis);
+
         let script_ast = instance.content.as_json();
         let mut context = visitors::VisitorContext::new(&mut analysis);
         context.ast_type = visitors::AstType::Instance;
@@ -98,6 +101,9 @@ pub fn analyze_component(
     }
 
     if let Some(ref module) = ast.module {
+        // Validate script attributes - warn for unknown attributes
+        validate_script_attributes(&module.attributes, &mut analysis);
+
         let script_ast = module.content.as_json();
         let mut context = visitors::VisitorContext::new(&mut analysis);
         context.ast_type = visitors::AstType::Module;
@@ -132,6 +138,21 @@ pub fn analyze_component(
     }
 
     Ok(analysis)
+}
+
+/// Validate script attributes and emit warnings for unknown ones.
+fn validate_script_attributes(
+    attributes: &[crate::ast::template::AttributeNode],
+    analysis: &mut ComponentAnalysis,
+) {
+    // Known script attributes: lang, generics, module, context
+    const KNOWN_ATTRS: &[&str] = &["lang", "generics", "module", "context"];
+
+    for attr in attributes {
+        if !KNOWN_ATTRS.contains(&attr.name.as_str()) {
+            analysis.warnings.push(warnings::script_unknown_attribute());
+        }
+    }
 }
 
 /// Mark all RegularElement nodes in the fragment as scoped.

@@ -592,6 +592,16 @@ pub fn element_invalid_self_closing_tag(name: &str) -> AnalysisWarning {
     )
 }
 
+// Script warnings
+
+/// Unrecognized script attribute
+pub fn script_unknown_attribute() -> AnalysisWarning {
+    warning(
+        "script_unknown_attribute",
+        "Unrecognized attribute — should be one of `generics`, `lang` or `module`. If this exists for a preprocessor, ensure that the preprocessor removes it\nhttps://svelte.dev/e/script_unknown_attribute",
+    )
+}
+
 // Component warnings
 
 /// Component name starts with a lowercase letter - will be treated as an HTML element

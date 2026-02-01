@@ -47,5 +47,11 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         }
     }
 
+    // Visit the body of the labeled statement
+    // This is important for analyzing expressions inside reactive statements
+    if let Some(body) = node.get("body") {
+        super::script::walk_js_node(body, context)?;
+    }
+
     Ok(())
 }

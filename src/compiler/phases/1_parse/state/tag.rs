@@ -677,7 +677,16 @@ impl Parser<'_> {
             self.options.loose,
             false,
             '{',
-        );
+        )
+        .unwrap_or_else(|(_, pos)| {
+            // Return an invalid identifier on parse error (empty name)
+            super::super::expression::create_identifier_with_character(
+                "",
+                pos,
+                adjusted_end,
+                &self.line_offsets,
+            )
+        });
 
         // Parse 'then' value if present
         if has_then {
@@ -1444,6 +1453,10 @@ impl Parser<'_> {
             disallow_loose,
             opening_token,
         )
+        .unwrap_or_else(|(_, pos)| {
+            // Return an invalid identifier on parse error (empty name, no loc field)
+            super::super::expression::create_empty_identifier("", pos, pos + trimmed.len())
+        })
     }
 
     /// Parse a JavaScript expression and return as Expression.

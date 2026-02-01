@@ -54,6 +54,52 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         }
     }
 
+    // Check for scoped store subscription errors
+    // When we're inside a nested function (function_depth > 1 for instance scripts),
+    // a $store reference might refer to a locally-scoped variable that shadows
+    // the outer store, which is invalid.
+    // Corresponds to Svelte's store_invalid_scoped_subscription check in 2-analyze/index.js L376-396
+    if name.starts_with('$') && !name.starts_with("$$") && name != "$" {
+        let store_name = &name[1..];
+        if !store_name.is_empty() && !is_rune(name) {
+            // Check if we're inside a nested scope where a local variable shadows the store
+            // function_depth > 1 means we're inside a nested function (in instance script)
+            // function_depth > 0 means we're inside a function (in module script)
+            let is_nested = context.function_depth > 1
+                || (context.ast_type == super::AstType::Module && context.function_depth > 0);
+
+            if is_nested {
+                // Check if there's a local binding that shadows the store
+                // We detect this by checking if the binding's scope_index is > 1
+                // (not in module scope 0 or instance scope 1)
+                if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(store_name)
+                {
+                    let binding = &context.analysis.root.bindings[binding_idx];
+
+                    // If the binding is in a nested scope (deeper than instance scope),
+                    // it's a scoped subscription error because the local variable
+                    // shadows the potential outer store
+                    if binding.scope_index > 1 {
+                        return Err(errors::store_invalid_scoped_subscription());
+                    }
+                }
+
+                // Also check all_scopes to see if there's a nested binding that shadows
+                // This handles cases where both outer and inner bindings exist
+                for (scope_idx, scope) in context.analysis.root.all_scopes.iter().enumerate() {
+                    if scope_idx <= 1 {
+                        continue; // Skip module and instance scopes
+                    }
+                    if scope.declarations.contains_key(store_name) {
+                        // There's a binding for this name in a nested scope
+                        // If we're in that nested scope or deeper, it shadows the outer store
+                        return Err(errors::store_invalid_scoped_subscription());
+                    }
+                }
+            }
+        }
+    }
+
     // Check for `arguments` outside of functions
     if name == "arguments" {
         let is_in_function = context.js_path.iter().any(|n| {

@@ -160,7 +160,8 @@ impl Parser<'_> {
         // In loose mode, treat as an unclosed element and continue
 
         // Handle script and style tags specially
-        if name == "script" {
+        // Only treat as Svelte script if at root level (not inside another element)
+        if name == "script" && !self.is_inside_element() {
             return self.parse_script_tag(start, attributes);
         }
 
@@ -571,6 +572,15 @@ impl Parser<'_> {
                 }
             )
         })
+    }
+
+    /// Check if inside any HTML element (not at root level).
+    /// A script/style tag at root level is a Svelte script/style.
+    /// A script/style tag inside an element is an HTML script/style.
+    pub fn is_inside_element(&self) -> bool {
+        self.stack
+            .iter()
+            .any(|entry| matches!(entry, StackEntry::Element { .. }))
     }
 
     /// Check if current position starts a valid closing tag (e.g., `</textarea>` or `</textarea  >`).

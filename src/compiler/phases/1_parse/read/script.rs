@@ -172,9 +172,28 @@ impl Parser<'_> {
             attributes: script_attributes,
         };
 
+        // Check for duplicate scripts
         match context {
-            ScriptContext::Default => self.instance_script = Some(script),
-            ScriptContext::Module => self.module_script = Some(script),
+            ScriptContext::Default => {
+                if self.instance_script.is_some() {
+                    return Err(crate::error::ParseError::svelte(
+                        "script_duplicate",
+                        "A component can only have one instance-level `<script>` element",
+                        (start, end),
+                    ));
+                }
+                self.instance_script = Some(script);
+            }
+            ScriptContext::Module => {
+                if self.module_script.is_some() {
+                    return Err(crate::error::ParseError::svelte(
+                        "script_duplicate",
+                        "A component can only have one `<script module>` element",
+                        (start, end),
+                    ));
+                }
+                self.module_script = Some(script);
+            }
         }
 
         // Return None - script tags don't appear in the fragment
