@@ -177,9 +177,21 @@ fn visit_common(
         // Mark subtree as dynamic
         // In full implementation: mark_subtree_dynamic(context.path)
 
-        // TODO: Visit getter and setter expressions
-        // In the JS version, they visit the body of arrow functions directly
-        // to collect blocker/async info
+        // Visit getter and setter expressions to track assignments and dependencies
+        // This is important for cases like:
+        //   bind:checked={()=>check, (v)=>{ check = v }}
+        // where the setter contains an assignment that marks `check` as reassigned
+        if let Some(expressions) = directive
+            .expression
+            .as_json()
+            .get("expressions")
+            .and_then(|e| e.as_array())
+        {
+            for expr in expressions {
+                // Walk the expression to track mutations (e.g., assignments in setters)
+                super::script::walk_js_node(expr, context)?;
+            }
+        }
 
         // Check for await in the expression
         // TODO: Check node.metadata.expression.has_await
