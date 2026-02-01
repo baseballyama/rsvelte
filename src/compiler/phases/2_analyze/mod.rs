@@ -119,6 +119,17 @@ pub fn analyze_component(
     // Analyze the template using visitors
     visitors::analyze_template(ast, &mut analysis)?;
 
+    // Legacy state promotion: In legacy mode (non-runes), if a binding is:
+    // 1. kind === 'normal' with declaration_kind === 'let'
+    // 2. updated (reassigned or mutated)
+    // 3. referenced in the template (Fragment)
+    // Then promote it to kind === 'state'
+    // This enables reactive updates via $.mutable_source() in the transform phase.
+    // Corresponds to Svelte's 2-analyze/index.js L618-636
+    if !analysis.runes {
+        promote_legacy_state_bindings(&mut analysis);
+    }
+
     // Build sibling relationships for CSS analysis
     // This must happen after template analysis builds the DOM structure
     control_flow::build_sibling_relationships(&mut analysis.css.dom_structure, &ast.fragment);
@@ -156,6 +167,50 @@ fn validate_script_attributes(
         if !KNOWN_ATTRS.contains(&attr.name.as_str()) {
             analysis.warnings.push(warnings::script_unknown_attribute());
         }
+    }
+}
+
+/// Promote bindings to 'state' kind in legacy (non-runes) mode.
+///
+/// In legacy mode, if a binding:
+/// - Has kind 'normal' and declaration_kind 'let'
+/// - Is updated (reassigned or mutated)
+/// - Is referenced in the template (Fragment)
+///
+/// Then it needs to be promoted to 'state' kind so that:
+/// - It gets wrapped in $.mutable_source() in the transform phase
+/// - Template references use $.get() to read the value
+/// - Assignments use $.set() to update the value
+///
+/// This enables reactive updates for variables that are modified
+/// and displayed in the template.
+///
+/// Corresponds to Svelte's 2-analyze/index.js L618-636
+fn promote_legacy_state_bindings(analysis: &mut ComponentAnalysis) {
+    // Iterate over all bindings in the root scope (instance scope)
+    for binding in &mut analysis.root.bindings {
+        // Only consider 'normal' bindings declared with 'let'
+        if binding.kind != BindingKind::Normal {
+            continue;
+        }
+        if binding.declaration_kind != DeclarationKind::Let {
+            continue;
+        }
+
+        // Check if the binding is updated (reassigned or mutated)
+        let is_updated = binding.reassigned || binding.mutated;
+        if !is_updated {
+            continue;
+        }
+
+        // Check if the binding has any template references
+        let has_template_reference = binding.references.iter().any(|r| r.is_template_reference);
+        if !has_template_reference {
+            continue;
+        }
+
+        // Promote to 'state' kind
+        binding.kind = BindingKind::State;
     }
 }
 

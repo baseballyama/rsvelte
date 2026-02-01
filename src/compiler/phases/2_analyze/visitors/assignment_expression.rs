@@ -79,7 +79,10 @@ pub fn visit(
 ///
 /// If the target is a simple Identifier, it's a direct reassignment.
 /// If the target is a MemberExpression, it's a property mutation.
-fn mark_binding_mutation(target: &Value, context: &mut VisitorContext) {
+///
+/// This is public so it can be called from walk_js_expression for assignment
+/// expressions inside templates (e.g., on:click handlers).
+pub fn mark_binding_mutation(target: &Value, context: &mut VisitorContext) {
     let target_type = target.get("type").and_then(|t| t.as_str());
 
     match target_type {

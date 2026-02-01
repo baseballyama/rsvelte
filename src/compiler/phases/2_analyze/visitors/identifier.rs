@@ -118,12 +118,18 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
 
     // Track this reference on the binding itself
     // This is used by the component_name_lowercase warning to check if an import is referenced
+    // Also track if this is a template reference (for legacy state promotion)
     let (start, end) = node
         .get("start")
         .and_then(|s| s.as_u64())
         .zip(node.get("end").and_then(|e| e.as_u64()))
         .unwrap_or((0, 0));
-    context.analysis.root.bindings[binding_idx].add_reference(start as u32, end as u32);
+    let is_template_reference = matches!(context.ast_type, super::AstType::Template);
+    context.analysis.root.bindings[binding_idx].add_reference(
+        start as u32,
+        end as u32,
+        is_template_reference,
+    );
 
     // Handle legacy mode special variables
     if !context.analysis.runes {

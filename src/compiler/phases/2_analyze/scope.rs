@@ -223,6 +223,9 @@ pub struct BindingReference {
     pub start: u32,
     /// End position in source
     pub end: u32,
+    /// Whether this reference is in the template (Fragment)
+    /// Used for legacy mode state promotion
+    pub is_template_reference: bool,
 }
 
 impl Binding {
@@ -283,8 +286,12 @@ impl Binding {
     }
 
     /// Add a reference to this binding
-    pub fn add_reference(&mut self, start: u32, end: u32) {
-        self.references.push(BindingReference { start, end });
+    pub fn add_reference(&mut self, start: u32, end: u32, is_template_reference: bool) {
+        self.references.push(BindingReference {
+            start,
+            end,
+            is_template_reference,
+        });
     }
 
     /// Add a mutation to this binding

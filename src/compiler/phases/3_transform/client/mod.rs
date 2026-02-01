@@ -760,6 +760,21 @@ fn transform_instance_script_for_visitors(
         .map(|b| b.name.clone())
         .collect();
 
+    // Collect legacy state variables (in non-runes mode, State bindings are promoted
+    // from Normal bindings that are updated and referenced in template)
+    // These need $.mutable_source() wrapping
+    let legacy_state_vars: Vec<(String, Option<String>)> = if !analysis.runes {
+        analysis
+            .root
+            .bindings
+            .iter()
+            .filter(|b| matches!(b.kind, BindingKind::State))
+            .map(|b| (b.name.clone(), b.initial.clone()))
+            .collect()
+    } else {
+        Vec::new()
+    };
+
     let mut result = String::new();
 
     // Track if we're inside a multi-line export block
@@ -769,6 +784,7 @@ fn transform_instance_script_for_visitors(
     let mut accumulated_lines: Vec<String> = Vec::new();
 
     // Helper closure to process accumulated lines as a complete statement
+    #[allow(clippy::too_many_arguments)]
     let process_accumulated = |accumulated: &[String],
                                result: &mut String,
                                state_vars: &[String],
@@ -780,6 +796,7 @@ fn transform_instance_script_for_visitors(
                                exported_names: &[String],
                                rest_prop_vars: &[String],
                                read_only_props: &[String],
+                               legacy_state_vars: &[(String, Option<String>)],
                                analysis: &ComponentAnalysis,
                                dev: bool,
                                has_legacy_export_let: bool| {
@@ -856,6 +873,13 @@ fn transform_instance_script_for_visitors(
             transformed
         };
 
+        // Transform legacy state declarations to $.mutable_source() (only in non-runes mode)
+        let transformed = if !analysis.runes && !legacy_state_vars.is_empty() {
+            transform_legacy_state_declarations(&transformed, legacy_state_vars, analysis.immutable)
+        } else {
+            transformed
+        };
+
         result.push_str(&transformed);
         result.push('\n');
     };
@@ -908,6 +932,7 @@ fn transform_instance_script_for_visitors(
                 &exported_names,
                 &rest_prop_vars,
                 &read_only_props,
+                &legacy_state_vars,
                 analysis,
                 dev,
                 has_legacy_export_let,
@@ -930,6 +955,7 @@ fn transform_instance_script_for_visitors(
             &exported_names,
             &rest_prop_vars,
             &read_only_props,
+            &legacy_state_vars,
             analysis,
             dev,
             has_legacy_export_let,
@@ -2488,6 +2514,68 @@ fn transform_state_assignments(
                 // No more assignments found
                 break;
             }
+        }
+    }
+
+    result
+}
+
+/// Transform legacy state declarations to $.mutable_source() calls.
+///
+/// In legacy (non-runes) mode, variables that are:
+/// 1. Declared with `let` (not `const`)
+/// 2. Updated (reassigned or mutated) somewhere in the code
+/// 3. Referenced in the template
+///
+/// Need to be wrapped in $.mutable_source() for reactivity.
+///
+/// Transforms:
+/// - `let state = 'foo'` → `let state = $.mutable_source('foo')`
+/// - `let count = 0` → `let count = $.mutable_source(0)`
+fn transform_legacy_state_declarations(
+    line: &str,
+    legacy_state_vars: &[(String, Option<String>)],
+    immutable: bool,
+) -> String {
+    if legacy_state_vars.is_empty() {
+        return line.to_string();
+    }
+
+    let mut result = line.to_string();
+
+    for (var, _initial) in legacy_state_vars {
+        // Look for `let varname = value` pattern
+        let pattern = format!("let {} = ", var);
+        if let Some(pos) = result.find(&pattern) {
+            // Skip if already wrapped
+            if result[pos + pattern.len()..].starts_with("$.mutable_source(")
+                || result[pos + pattern.len()..].starts_with("$.prop(")
+            {
+                continue;
+            }
+
+            // Find the value expression
+            let after = &result[pos + pattern.len()..];
+            let expr_end = find_statement_end_client(after);
+            let expr = after[..expr_end].trim();
+
+            // Remove trailing semicolon from expr
+            let expr = expr.trim_end_matches(';').trim();
+
+            // Build the replacement
+            let replacement = if immutable {
+                format!("let {} = $.mutable_source({}, true)", var, expr)
+            } else {
+                format!("let {} = $.mutable_source({})", var, expr)
+            };
+
+            // Replace the declaration
+            result = format!(
+                "{}{}{}",
+                &result[..pos],
+                replacement,
+                &result[pos + pattern.len() + expr_end..]
+            );
         }
     }
 

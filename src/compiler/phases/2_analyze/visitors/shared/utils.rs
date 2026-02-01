@@ -1353,11 +1353,16 @@ pub fn walk_js_expression(
             // Use validate_assignment to catch snippet parameter assignments and other errors
             if let Some(left) = expression.get("left") {
                 validate_assignment(left, context, false)?;
+                // Track mutations for all bindings being assigned to
+                // This is important for legacy mode state promotion
+                super::super::assignment_expression::mark_binding_mutation(left, context);
                 walk_js_expression(left, context, metadata)?;
             }
             if let Some(right) = expression.get("right") {
                 walk_js_expression(right, context, metadata)?;
             }
+            // Mark expression as having assignment
+            metadata.set_has_assignment(true);
         }
         Some("ArrowFunctionExpression") | Some("FunctionExpression") => {
             // Increment function depth for nested functions
