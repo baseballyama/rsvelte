@@ -415,6 +415,13 @@ pub fn normalize_js(js: &str) -> String {
     // Remove semicolons for normalization
     let result = result.replace(';', "");
 
+    // Normalize consecutive const/let declarations to treat them as equivalent
+    // This handles: "const a = ... const b = ..." vs "const a = ..., b = ..."
+    // After semicolon removal, we need to normalize:
+    // "const a = ... const b = ..." -> "const a = ..., b = ..."
+    // This is done by replacing " const " with ", " when it appears after another declaration
+    let result = normalize_consecutive_declarations(&result);
+
     // Normalize quotes (double quotes to single)
     let result = result.replace('"', "'");
 
@@ -711,6 +718,30 @@ fn normalize_arrow_braces(code: &str) -> String {
     }
 
     result
+}
+
+/// Normalize consecutive const/let declarations to treat them as equivalent.
+///
+/// This function transforms patterns like:
+/// - "const a = X const b = Y" -> "const a = X, b = Y"
+/// - "let a = X let b = Y" -> "let a = X, b = Y"
+///
+/// This allows us to compare code that uses separate declaration statements
+/// vs code that uses comma-separated declarations in the same statement.
+fn normalize_consecutive_declarations(code: &str) -> String {
+    // Simple replacement: " const " -> ", " when it appears to be a consecutive declaration
+    // We need to be careful not to replace valid uses of const in other contexts
+    let result = code.to_string();
+
+    // Replace "X) const Y = " with "X), Y = " (consecutive const after function param end)
+    // This handles cases like: $.prop($$props, 'a', 3, true) const b = $.prop(...)
+    let result = result
+        .replace(") const ", "), ")
+        // Handle case without space: ")const "
+        .replace(")const ", "), ");
+
+    // Similarly for let
+    result.replace(") let ", "), ").replace(")let ", "), ")
 }
 
 /// Normalize a line while preserving string literal contents.

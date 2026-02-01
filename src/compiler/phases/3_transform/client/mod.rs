@@ -1710,8 +1710,10 @@ fn transform_export_let(line: &str) -> String {
     let rest = trimmed[11..].trim(); // After "export let "
     let rest = rest.trim_end_matches(';').trim();
 
-    // In legacy mode, export let props use PROPS_IS_BINDABLE (8)
-    // because they can be bound from parent components
+    // In legacy mode, export let props use PROPS_IS_BINDABLE (8) by default.
+    // Props that have bind: directives should use PROPS_IS_BINDABLE | PROPS_IS_UPDATED (12),
+    // but that requires Phase 2 analysis to track which props are bound.
+    // TODO: Use Phase 2 analysis to detect bound props and add PROPS_IS_UPDATED.
     let flags = PROPS_IS_BINDABLE;
 
     // Handle multiple declarators: export let a, b, c;
@@ -1884,7 +1886,7 @@ fn transform_props_destructuring(
             let flag = if is_exported { 7 } else { 3 };
 
             result.push_str(&format!(
-                "let {} = $.prop($$props, '{}', {}, {});\n",
+                "const {} = $.prop($$props, '{}', {}, {});\n",
                 name, name, flag, default_value
             ));
         } else {
@@ -1895,7 +1897,7 @@ fn transform_props_destructuring(
                 // Add 4 (SYNC_READABLE) if exported = 12
                 let flag = if is_exported { 12 } else { 8 };
                 result.push_str(&format!(
-                    "let {} = $.prop($$props, '{}', {});\n",
+                    "const {} = $.prop($$props, '{}', {});\n",
                     prop_part, prop_part, flag
                 ));
             }

@@ -6,7 +6,9 @@
 use crate::ast::template::TransitionDirective;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
-use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::parse_directive_name;
+use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
+    apply_transforms_to_expression, parse_directive_name,
+};
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 
@@ -97,9 +99,12 @@ pub fn transition_directive(node: &TransitionDirective, context: &mut ComponentC
     ];
 
     // If expression is provided, add it as a thunk
+    // We apply transforms first so that prop getters like `foo` become `foo()`,
+    // which allows the unthunk optimization to simplify `() => foo()` to `foo`.
     if let Some(ref expr) = node.expression {
         let visited_expr = convert_expression(expr, context);
-        args.push(b::thunk(visited_expr));
+        let transformed_expr = apply_transforms_to_expression(&visited_expr, context);
+        args.push(b::thunk(transformed_expr));
     }
 
     // Build the transition call: $.transition(flags, node, () => name, (() => expr)?)
