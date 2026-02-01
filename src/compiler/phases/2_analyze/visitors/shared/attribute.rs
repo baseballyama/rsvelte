@@ -53,16 +53,29 @@ pub fn validate_attribute_name(attribute: &AttributeNode) -> Result<(), Analysis
 }
 
 /// Validate slot attribute on an element.
+///
+/// The slot attribute is only valid:
+/// 1. As a direct child of a component (Component, SvelteComponent, SvelteSelf)
+/// 2. As a descendant of a custom element
 pub fn validate_slot_attribute(
-    _context: &VisitorContext,
+    context: &VisitorContext,
     _attribute: &AttributeNode,
 ) -> Result<(), AnalysisError> {
-    // TODO: Implement proper slot validation with correct path tracking
-    // For now, skip this validation as the path tracking is incomplete
-    // and causing false positives for components with uppercase tag names.
-    // The slot attribute validation should check that we're inside a component,
-    // svelte:component, or svelte:self element.
-    Ok(())
+    // Check if we're a direct child of a component
+    if context.is_direct_child_of_component {
+        return Ok(());
+    }
+
+    // Check if we're inside a custom element
+    // Custom elements have names that contain a hyphen
+    for ancestor in &context.element_ancestors {
+        if ancestor.contains('-') {
+            return Ok(());
+        }
+    }
+
+    // Not in a valid position for slot attribute
+    Err(super::super::super::errors::slot_attribute_invalid_placement())
 }
 
 /// Check if an attribute is an expression attribute.
