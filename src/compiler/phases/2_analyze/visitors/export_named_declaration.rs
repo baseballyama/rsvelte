@@ -16,6 +16,9 @@ use serde_json::Value;
 /// Checks for `export { x as default }` pattern which is not allowed in components.
 /// Also tracks exported bindings.
 pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    // Get source info to check if this is a re-export (e.g., export { x } from 'y')
+    let has_source = node.get("source").is_some_and(|s| !s.is_null());
+
     // Check for `export { ... as default }` pattern
     // This is always an error in Svelte component scripts
     if let Some(specifiers) = node.get("specifiers").and_then(|s| s.as_array()) {
@@ -32,6 +35,28 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
 
                 if is_default {
                     return Err(errors::module_illegal_default_export());
+                }
+            }
+
+            // Check for export_undefined in module script
+            // Only check if this is not a re-export (no source)
+            if context.ast_type == super::AstType::Module
+                && !has_source
+                && let Some(local) = specifier.get("local")
+                && local.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+            {
+                let local_name = local.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                if !local_name.is_empty() {
+                    // Check if the binding exists in the module scope
+                    let binding_exists = context
+                        .analysis
+                        .root
+                        .scope
+                        .declarations
+                        .contains_key(local_name);
+                    if !binding_exists {
+                        return Err(errors::export_undefined(local_name));
+                    }
                 }
             }
 

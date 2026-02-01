@@ -5545,6 +5545,35 @@ fn convert_expression_for_program(
 
             Expression::Value(Value::Object(obj))
         }
+        OxcExpression::UpdateExpression(update) => {
+            let start = offset + update.span.start as usize;
+            let end = offset + update.span.end as usize;
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("UpdateExpression".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+            let operator = match update.operator {
+                oxc_ast::ast::UpdateOperator::Increment => "++",
+                oxc_ast::ast::UpdateOperator::Decrement => "--",
+            };
+            obj.insert("operator".to_string(), Value::String(operator.to_string()));
+            obj.insert("prefix".to_string(), Value::Bool(update.prefix));
+
+            // Convert the argument (SimpleAssignmentTarget)
+            let argument = convert_simple_assignment_target_for_program(
+                &update.argument,
+                offset,
+                line_offsets,
+            );
+            obj.insert("argument".to_string(), argument);
+
+            Expression::Value(Value::Object(obj))
+        }
         _ => {
             // Fallback: use convert_expression with offset (which internally does -1, so we need to compensate)
             // For simplicity, just create an identifier placeholder
