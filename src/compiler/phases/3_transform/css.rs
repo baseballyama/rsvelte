@@ -2403,16 +2403,37 @@ fn format_simple_selector_with_scope(
         "PseudoElementSelector" => {
             // For pseudo elements, use source preservation to extract the original text
             // including any arguments like ::view-transition-group(foo)
-            // The parser includes arguments in the end position but doesn't store them separately
+            // The parser sets end position to after the name, so we need to scan for arguments
             if let (Some(start), Some(end), Some(css_start)) = (
                 sel.get("start").and_then(|s| s.as_u64()),
                 sel.get("end").and_then(|e| e.as_u64()),
                 css_start,
             ) {
                 let start = start as usize;
-                let end = end as usize;
+                let mut end = end as usize;
                 let src_start = start.saturating_sub(css_start);
-                let src_end = end.saturating_sub(css_start);
+
+                // Check if there are arguments in parentheses after the name
+                let mut src_end = end.saturating_sub(css_start);
+                if src_end < css_source.len() {
+                    let remaining = &css_source[src_end..];
+                    if remaining.starts_with('(') {
+                        // Find the matching closing parenthesis
+                        let mut depth = 0;
+                        for (i, c) in remaining.chars().enumerate() {
+                            if c == '(' {
+                                depth += 1;
+                            } else if c == ')' {
+                                depth -= 1;
+                                if depth == 0 {
+                                    end = end + i + 1; // Include the closing paren
+                                    src_end = end.saturating_sub(css_start);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
 
                 if src_end <= css_source.len() && src_start < src_end {
                     return css_source[src_start..src_end].to_string();
