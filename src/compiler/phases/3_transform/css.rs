@@ -2208,21 +2208,31 @@ fn transform_complex_selector(
                         .and_then(|s| s.as_bool())
                         .unwrap_or(true); // Default to scoping
 
+                    // Check if this relative selector contains a NestingSelector (&)
+                    // If so, skip adding scoping - the & refers to the parent rule which already has scoping
+                    let has_nesting_selector = selectors
+                        .iter()
+                        .any(|s| s.get("type").and_then(|t| t.as_str()) == Some("NestingSelector"));
+
                     // Build the selector parts
                     let mut selector_parts = String::new();
                     let mut last_non_pseudo_idx = None;
 
                     for (idx, sel) in selectors.iter().enumerate() {
                         let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
-                        if sel_type != "PseudoElementSelector" && sel_type != "PseudoClassSelector"
+                        // NestingSelector also counts as non-pseudo for determining where to add scoping
+                        if sel_type != "PseudoElementSelector"
+                            && sel_type != "PseudoClassSelector"
+                            && sel_type != "NestingSelector"
                         {
                             last_non_pseudo_idx = Some(idx);
                         }
                     }
 
-                    // If all selectors are pseudo-classes/elements, add scoping class first
+                    // If all selectors are pseudo-classes/elements (or nesting selectors), add scoping class first
                     // But NOT for :is(), :has(), :host, :root which handle scoping internally or should not be scoped
-                    if needs_scoping && last_non_pseudo_idx.is_none() {
+                    // Also skip if we have a NestingSelector - it inherits scoping from parent
+                    if needs_scoping && last_non_pseudo_idx.is_none() && !has_nesting_selector {
                         // Check if first selector is one that should not have scoping added before it
                         let first_is_internal_scoping = selectors.first().is_some_and(|s| {
                             if s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
@@ -2272,7 +2282,11 @@ fn transform_complex_selector(
 
                         // Add scoping after the last non-pseudo selector
                         // If we're after a :global(), use direct class (not :where()) for the first scoped selector
-                        if needs_scoping && Some(idx) == last_non_pseudo_idx {
+                        // Skip if this relative selector contains a NestingSelector - it inherits scoping from parent
+                        if needs_scoping
+                            && Some(idx) == last_non_pseudo_idx
+                            && !has_nesting_selector
+                        {
                             let should_use_where = local_specificity_bumped && !seen_global;
                             let modifier = get_modifier(selector, &should_use_where);
                             selector_parts.push_str(&modifier);
@@ -2283,8 +2297,8 @@ fn transform_complex_selector(
                     }
 
                     result.push_str(&selector_parts);
-                    // Mark that this selector was scoped
-                    _previous_was_scoped = needs_scoping;
+                    // Mark that this selector was scoped (unless it's a nesting selector)
+                    _previous_was_scoped = needs_scoping && !has_nesting_selector;
                 }
             }
         }
