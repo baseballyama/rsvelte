@@ -108,6 +108,33 @@ fn get_slot_name(node: &TemplateNode) -> String {
     }
 }
 
+/// Extract let directive names from a node's attributes.
+/// Returns a list of let directive names (e.g., `let:thing` -> "thing").
+fn get_let_directives(node: &TemplateNode) -> Vec<String> {
+    fn extract_let_from_attributes(attrs: &[Attribute]) -> Vec<String> {
+        attrs
+            .iter()
+            .filter_map(|attr| {
+                if let Attribute::LetDirective(let_dir) = attr {
+                    Some(let_dir.name.to_string())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    match node {
+        TemplateNode::RegularElement(elem) => extract_let_from_attributes(&elem.attributes),
+        TemplateNode::Component(comp) => extract_let_from_attributes(&comp.attributes),
+        TemplateNode::SvelteElement(elem) => extract_let_from_attributes(&elem.attributes),
+        TemplateNode::SvelteSelf(elem) => extract_let_from_attributes(&elem.attributes),
+        TemplateNode::SvelteComponent(elem) => extract_let_from_attributes(&elem.attributes),
+        TemplateNode::SvelteFragment(frag) => extract_let_from_attributes(&frag.attributes),
+        _ => Vec::new(),
+    }
+}
+
 /// Sanitize a name to be a valid JavaScript identifier.
 /// Replaces invalid identifier characters with underscores.
 /// For example, "0" becomes "_", "1foo" becomes "_foo".
@@ -341,8 +368,10 @@ enum OutputPart {
         spreads: Vec<String>,
         has_prior_content: bool,
         children: Option<Vec<OutputPart>>,
-        /// Snippets defined inside the component (name, params, body)
-        snippets: Vec<(String, Vec<String>, Vec<OutputPart>)>,
+        /// Snippets defined inside the component (name, params, body, is_true_snippet)
+        /// is_true_snippet=true means it's a SnippetBlock (needs hoisting as function)
+        /// is_true_snippet=false means it's a slot child (inline in $$slots with destructured params)
+        snippets: Vec<(String, Vec<String>, Vec<OutputPart>, bool)>,
         /// Slot names to add to $$slots
         slot_names: Vec<String>,
         /// Whether this component is dynamic (could be undefined/null)
@@ -2410,6 +2439,9 @@ impl<'a> ServerCodeGenerator<'a> {
 
     /// Generate component children, extracting snippets as props.
     /// Returns (children_parts, snippets, slot_names)
+    /// Snippets are tuples of (name, params, body_parts, is_true_snippet)
+    /// - is_true_snippet=true means it's a SnippetBlock (needs hoisting)
+    /// - is_true_snippet=false means it's a slot child (inline in $$slots with destructured params)
     #[allow(clippy::type_complexity)]
     fn generate_component_children_with_snippets(
         &mut self,
@@ -2417,18 +2449,20 @@ impl<'a> ServerCodeGenerator<'a> {
     ) -> Result<
         (
             Option<Vec<OutputPart>>,
-            Vec<(String, Vec<String>, Vec<OutputPart>)>,
+            Vec<(String, Vec<String>, Vec<OutputPart>, bool)>,
             Vec<String>,
         ),
         TransformError,
     > {
         // Pre-allocate based on typical usage patterns
-        let mut snippets: Vec<(String, Vec<String>, Vec<OutputPart>)> = Vec::with_capacity(4);
+        // (name, params, body_parts, is_true_snippet)
+        let mut snippets: Vec<(String, Vec<String>, Vec<OutputPart>, bool)> = Vec::with_capacity(4);
         let mut slot_names: Vec<String> = Vec::with_capacity(4);
 
         // Group children by slot name
-        // Key: slot name, Value: list of nodes for that slot
-        let mut slot_children: FxHashMap<String, Vec<&TemplateNode>> = FxHashMap::default();
+        // Key: slot name, Value: (nodes, let_directive_names)
+        let mut slot_children: FxHashMap<String, (Vec<&TemplateNode>, Vec<String>)> =
+            FxHashMap::default();
 
         // Separate snippets from other children, and group by slot
         for node in &fragment.nodes {
@@ -2469,28 +2503,36 @@ impl<'a> ServerCodeGenerator<'a> {
                 };
                 slot_names.push(slot_name);
 
-                snippets.push((snippet_name, params, body_parts));
+                snippets.push((snippet_name, params, body_parts, true)); // true = is_true_snippet
             } else {
-                // Get the slot name from the node's attributes
+                // Get the slot name and let directives from the node's attributes
                 let slot_name = get_slot_name(node);
-                slot_children.entry(slot_name).or_default().push(node);
+                let let_directives = get_let_directives(node);
+                let entry = slot_children.entry(slot_name).or_default();
+                entry.0.push(node);
+                // Merge let directives (usually there's one element with let directives per slot)
+                for let_dir in let_directives {
+                    if !entry.1.contains(&let_dir) {
+                        entry.1.push(let_dir);
+                    }
+                }
             }
         }
 
         // Process default slot children
-        let children = if let Some(default_nodes) = slot_children.remove("default") {
+        let children = if let Some((default_nodes, _let_dirs)) = slot_children.remove("default") {
             self.generate_children_from_nodes(&default_nodes)?
         } else {
             None
         };
 
-        // Process named slot children (non-default) as snippets without params
-        for (slot_name, nodes) in slot_children {
+        // Process named slot children (non-default) as snippets with let directive params
+        for (slot_name, (nodes, let_dirs)) in slot_children {
             // Generate children content for this named slot
             if let Some(slot_parts) = self.generate_children_from_nodes(&nodes)? {
-                // Add as a snippet with the slot name (no params)
+                // Add as a snippet with the slot name and let directive names as params
                 slot_names.push(slot_name.clone());
-                snippets.push((slot_name, Vec::new(), slot_parts));
+                snippets.push((slot_name, let_dirs, slot_parts, false)); // false = not a true snippet
             }
         }
 
@@ -3959,8 +4001,32 @@ export default function {component_name}($$renderer{props_param}) {{
         };
 
         // Normalize the output through oxc parser/codegen
+        if raw_output.contains("<ul>") {
+            eprintln!(
+                "[DEBUG] RAW contains '<ul><!--[-->': {}",
+                raw_output.contains("<ul><!--[-->")
+            );
+            for line in raw_output.lines() {
+                if line.contains("<ul>") || line.contains("<!--[-->") {
+                    eprintln!("[DEBUG] Raw line: {}", line);
+                }
+            }
+        }
         match normalize_js(&raw_output) {
-            Ok(normalized) => normalized,
+            Ok(normalized) => {
+                if raw_output.contains("<ul>") {
+                    eprintln!(
+                        "[DEBUG] NORMALIZED contains '<ul><!--[-->': {}",
+                        normalized.contains("<ul><!--[-->")
+                    );
+                    for line in normalized.lines() {
+                        if line.contains("<ul>") || line.contains("<!--[-->") {
+                            eprintln!("[DEBUG] Normalized line: {}", line);
+                        }
+                    }
+                }
+                normalized
+            }
             Err(_) => raw_output, // Fall back to raw output if parsing fails
         }
     }
@@ -4149,15 +4215,15 @@ export default function {component_name}($$renderer{props_param}) {{
 
                     if has_snippets || has_children {
                         // Separate snippets into:
-                        // 1. True snippets with params (need hoisting, passed as props)
-                        // 2. Named slot children (no params, go inline in $$slots)
+                        // 1. True snippets (SnippetBlocks - need hoisting, passed as props)
+                        // 2. Slot children (inline in $$slots, may have destructured params from let directives)
                         #[allow(clippy::type_complexity)]
                         let (true_snippets, slot_children): (
-                            Vec<&(String, Vec<String>, Vec<OutputPart>)>,
-                            Vec<&(String, Vec<String>, Vec<OutputPart>)>,
+                            Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
+                            Vec<&(String, Vec<String>, Vec<OutputPart>, bool)>,
                         ) = snippets
                             .iter()
-                            .partition(|(_, params, _)| !params.is_empty());
+                            .partition(|(_, _, _, is_true_snippet)| *is_true_snippet);
 
                         let has_true_snippets = !true_snippets.is_empty();
                         let has_slot_children = !slot_children.is_empty();
@@ -4167,7 +4233,7 @@ export default function {component_name}($$renderer{props_param}) {{
                             body_code.push_str(&format!("{}{{\n", indent));
 
                             // Generate snippet function declarations inside the block
-                            for (snippet_name, params, body_parts) in &true_snippets {
+                            for (snippet_name, params, body_parts, _) in &true_snippets {
                                 let params_str = format!("$$renderer, {}", params.join(", "));
                                 body_code.push_str(&format!(
                                     "{}\tfunction {}({}) {{\n",
@@ -4186,26 +4252,35 @@ export default function {component_name}($$renderer{props_param}) {{
 
                             // Collect all props including true snippet names
                             let mut all_props: Vec<String> = props.clone();
-                            for (snippet_name, _, _) in &true_snippets {
+                            for (snippet_name, _, _, _) in &true_snippets {
                                 all_props.push(snippet_name.to_string());
                             }
 
                             // Build $$slots object with:
                             // - true snippets as `name: true`
-                            // - slot children as inline functions
+                            // - slot children as inline functions (with destructured params if they have let directives)
                             let mut slots_entries: Vec<String> = Vec::new();
                             for slot_name in slot_names {
-                                // Check if this slot is a slot child (no params)
-                                if let Some((_, _, body_parts)) =
-                                    slot_children.iter().find(|(n, _, _)| n == slot_name)
+                                // Check if this slot is a slot child
+                                if let Some((_, params, body_parts, _)) =
+                                    slot_children.iter().find(|(n, _, _, _)| n == slot_name)
                                 {
-                                    // Inline function
+                                    // Inline function with optional destructured params
                                     let fn_body = Self::build_parts(body_parts, 0);
                                     let fn_body_trimmed = fn_body.trim();
-                                    slots_entries.push(format!(
-                                        "{}: ($$renderer) => {{\n{}\t\t\t}}",
-                                        slot_name, fn_body_trimmed
-                                    ));
+                                    if params.is_empty() {
+                                        slots_entries.push(format!(
+                                            "{}: ($$renderer) => {{\n{}\t\t\t}}",
+                                            slot_name, fn_body_trimmed
+                                        ));
+                                    } else {
+                                        // Destructured params from let directives
+                                        let params_str = format!("{{ {} }}", params.join(", "));
+                                        slots_entries.push(format!(
+                                            "{}: ($$renderer, {}) => {{\n{}\t\t\t}}",
+                                            slot_name, params_str, fn_body_trimmed
+                                        ));
+                                    }
                                 } else {
                                     // True snippet marker
                                     slots_entries.push(format!("{}: true", slot_name));
@@ -4238,14 +4313,23 @@ export default function {component_name}($$renderer{props_param}) {{
                                 body_code.push_str(&format!("{}\t{},\n", indent, prop));
                             }
 
-                            // $$slots with inline functions
+                            // $$slots with inline functions (with params for let directives)
                             body_code.push_str(&format!("{}\t$$slots: {{\n", indent));
-                            for (slot_name, _, body_parts) in &slot_children {
+                            for (slot_name, params, body_parts, _) in &slot_children {
                                 let fn_body = Self::build_parts(body_parts, indent_level + 3);
-                                body_code.push_str(&format!(
-                                    "{}\t\t{}: ($$renderer) => {{\n{}",
-                                    indent, slot_name, fn_body
-                                ));
+                                if params.is_empty() {
+                                    body_code.push_str(&format!(
+                                        "{}\t\t{}: ($$renderer) => {{\n{}",
+                                        indent, slot_name, fn_body
+                                    ));
+                                } else {
+                                    // Destructured params from let directives
+                                    let params_str = format!("{{ {} }}", params.join(", "));
+                                    body_code.push_str(&format!(
+                                        "{}\t\t{}: ($$renderer, {}) => {{\n{}",
+                                        indent, slot_name, params_str, fn_body
+                                    ));
+                                }
                                 body_code.push_str(&format!("{}\t\t}}\n", indent));
                             }
                             body_code.push_str(&format!("{}\t}}\n", indent));
@@ -4273,12 +4357,21 @@ export default function {component_name}($$renderer{props_param}) {{
                             if has_slot_children {
                                 body_code.push_str(&format!("{}\t$$slots: {{\n", indent));
                                 body_code.push_str(&format!("{}\t\tdefault: true,\n", indent));
-                                for (slot_name, _, body_parts) in &slot_children {
+                                for (slot_name, params, body_parts, _) in &slot_children {
                                     let fn_body = Self::build_parts(body_parts, indent_level + 3);
-                                    body_code.push_str(&format!(
-                                        "{}\t\t{}: ($$renderer) => {{\n{}",
-                                        indent, slot_name, fn_body
-                                    ));
+                                    if params.is_empty() {
+                                        body_code.push_str(&format!(
+                                            "{}\t\t{}: ($$renderer) => {{\n{}",
+                                            indent, slot_name, fn_body
+                                        ));
+                                    } else {
+                                        // Destructured params from let directives
+                                        let params_str = format!("{{ {} }}", params.join(", "));
+                                        body_code.push_str(&format!(
+                                            "{}\t\t{}: ($$renderer, {}) => {{\n{}",
+                                            indent, slot_name, params_str, fn_body
+                                        ));
+                                    }
                                     body_code.push_str(&format!("{}\t\t}}\n", indent));
                                 }
                                 body_code.push_str(&format!("{}\t}}\n", indent));
@@ -4360,24 +4453,27 @@ export default function {component_name}($$renderer{props_param}) {{
                     body,
                     fallback,
                 } => {
-                    // Flush current HTML before each block
-                    if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
-                        current_html.clear();
-                    }
-
                     // Array variable - use unique name
                     let index_var = index_name.as_deref().unwrap_or("$$index");
-                    body_code.push_str(&format!(
-                        "{}const each_array = $.ensure_array_like({});\n\n",
-                        indent, iterable
-                    ));
 
                     if fallback.is_some() {
+                        // For fallback case, flush current HTML WITHOUT marker first
+                        if !current_html.is_empty() {
+                            body_code.push_str(&format!(
+                                "{}$$renderer.push(`{}`);\n",
+                                indent, current_html
+                            ));
+                            current_html.clear();
+                        }
+
+                        body_code.push_str(&format!(
+                            "{}const each_array = $.ensure_array_like({});\n\n",
+                            indent, iterable
+                        ));
+
                         // If there's a fallback, wrap in if-else
                         body_code.push_str(&format!("{}if (each_array.length !== 0) {{\n", indent));
-                        // Add block marker for non-empty case
+                        // Add block marker for non-empty case INSIDE the if
                         body_code
                             .push_str(&format!("{}\t$$renderer.push('<!--[-->');\n\n", indent));
 
@@ -4415,8 +4511,21 @@ export default function {component_name}($$renderer{props_param}) {{
 
                         body_code.push_str(&format!("{}}}\n\n", indent));
                     } else {
-                        // No fallback - simple for loop with markers
-                        body_code.push_str(&format!("{}$$renderer.push('<!--[-->');\n\n", indent));
+                        // No fallback - add opening marker to current_html before flushing
+                        // This combines with any prior content like: `<ul><!--[-->`
+                        current_html.push_str("<!--[-->");
+
+                        // Flush current HTML (including the marker) before each block
+                        body_code.push_str(&format!(
+                            "{}$$renderer.push(`{}`);\n\n",
+                            indent, current_html
+                        ));
+                        current_html.clear();
+
+                        body_code.push_str(&format!(
+                            "{}const each_array = $.ensure_array_like({});\n\n",
+                            indent, iterable
+                        ));
 
                         // For loop
                         body_code.push_str(&format!(
