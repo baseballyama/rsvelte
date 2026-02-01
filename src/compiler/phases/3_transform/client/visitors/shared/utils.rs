@@ -5,6 +5,7 @@
 
 use std::collections::HashSet;
 
+use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
@@ -119,20 +120,35 @@ fn apply_transforms_to_expression_with_shadowed(
             // (e.g., $.untrack, $.store_mutate - these have pre-constructed arguments)
             let skip_args_transform = is_svelte_runtime_skip_args_transform(&call.callee);
 
-            // Check if this is a prop/state call where the callee should NOT be transformed:
+            // Check if this is a prop/store call where the callee should NOT be transformed:
             // 1. Prop setter call: `propName(value)` - callee should stay as `propName`, not `propName()`
             // 2. Prop getter call: `propName()` - callee should stay as `propName`, not `propName()()`
-            // This happens when expression converter already transformed `x` to `x()` for reads
-            // or `x = value` to `x(value)` for writes - we don't want to further transform `x`.
+            // 3. Store subscription: `$store()` - callee should stay as `$store`, not `$store()()`
+            //
+            // IMPORTANT: This does NOT apply to state variables ($state, $derived, etc.)!
+            // For state variables, `read` wraps `x` -> `$.get(x)`, which is different from props/stores
+            // that wrap `x` -> `x()`. State variable calls like `saySomething('Tama')` SHOULD become
+            // `$.get(saySomething)('Tama')`, not `saySomething('Tama')`.
             let skip_callee_transform = if let JsExpr::Identifier(name) = call.callee.as_ref()
                 && !shadowed.contains(name)
                 && let Some(transform) = context.state.transform.get(name)
             {
-                // Skip callee transform if:
-                // - It has a read transform (which would wrap x -> x(), but call is already x(...))
-                // - OR it has an assign transform and this is a setter call (non-empty args)
-                transform.read.is_some()
-                    || (transform.assign.is_some() && !call.arguments.is_empty())
+                // Check if this is a prop or store subscription binding
+                // Only those use the "call as getter" pattern (x -> x())
+                let binding = context.state.get_binding(name);
+                let is_prop_or_store = binding
+                    .map(|b| {
+                        matches!(
+                            b.kind,
+                            BindingKind::Prop | BindingKind::BindableProp | BindingKind::StoreSub
+                        )
+                    })
+                    .unwrap_or(false);
+
+                // Skip callee transform only for props/stores, not for state
+                is_prop_or_store
+                    && (transform.read.is_some()
+                        || (transform.assign.is_some() && !call.arguments.is_empty()))
             } else {
                 false
             };
