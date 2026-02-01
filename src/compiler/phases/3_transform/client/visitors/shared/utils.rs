@@ -2114,17 +2114,28 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                     }
 
                     // For normal bindings:
-                    // - If it's a function, it's not reactive
-                    // - If it's an import, it's potentially reactive (value not known at compile time)
-                    // - Otherwise, check if value might be known
+                    // Match Svelte's logic: has_state is true when:
+                    //   binding.kind !== 'static' &&
+                    //   (binding.kind === 'prop' || ... || !binding.is_function()) &&
+                    //   !context.state.scope.evaluate(node).is_known
+                    //
+                    // We approximate scope.evaluate().is_known by checking:
+                    // 1. For const declarations with literal initial values -> is_known = true
+                    // 2. For let declarations -> is_known = false (they can be reassigned)
+                    // 3. For imports -> is_known = false (we don't know what they'll return)
                     if !binding.is_function() {
-                        // Imports from .svelte.js files can have reactive exports
-                        // Since we can't evaluate if the value is "known", treat imports as reactive
-                        if binding.declaration_kind
-                            == crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Import
-                        {
-                            return true;
-                        }
+                        use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
+
+                        // Check if this is a const declaration with a known value
+                        // (approximation of scope.evaluate().is_known)
+                        let is_known = matches!(binding.declaration_kind, DeclarationKind::Const)
+                            && !binding.reassigned
+                            && !binding.mutated
+                            && binding.initial_is_defined
+                            && is_initial_value_literal_or_known(&binding.initial);
+
+                        // has_state is true when the value is NOT known at compile time
+                        return !is_known;
                     }
 
                     return false;
@@ -2494,6 +2505,42 @@ fn has_member_json(json_value: &serde_json::Value) -> bool {
         }
         _ => false,
     }
+}
+
+/// Check if a binding's initial value is a literal or known compile-time constant.
+///
+/// This approximates Svelte's `scope.evaluate(node).is_known` by checking
+/// if the initial value string represents a literal value like:
+/// - Number literals: "5", "3.14"
+/// - String literals: "'hello'", "\"world\""
+/// - Boolean literals: "true", "false"
+/// - null literal: "null"
+/// - Array/Object literals: "[]", "{}"
+///
+/// This is a heuristic since we only have the string representation.
+#[inline]
+fn is_initial_value_literal_or_known(initial: &Option<String>) -> bool {
+    let Some(s) = initial else {
+        return false;
+    };
+
+    // Check for various literal patterns
+    // Note: The initial string contains the AST type, so we check for literal types
+    if s.contains("Literal") && !s.contains("TemplateLiteral") {
+        // Literal types (NumericLiteral, StringLiteral, BooleanLiteral, NullLiteral)
+        return true;
+    }
+
+    // Empty array/object literals are known
+    if s.contains("ArrayExpression") || s.contains("ObjectExpression") {
+        // These are known but might contain reactive values - be conservative
+        // Only treat empty ones as known
+        if s.contains("\"elements\":[]") || s.contains("\"properties\":[]") {
+            return true;
+        }
+    }
+
+    false
 }
 
 /// Sanitize a template string by escaping special characters.
