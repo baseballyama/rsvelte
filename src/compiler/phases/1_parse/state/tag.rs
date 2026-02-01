@@ -71,9 +71,9 @@ impl Parser<'_> {
         let expr_content = &self.source[expr_start..self.index];
         self.advance(); // consume '}'
 
-        // Parse the expression directly - errors will be handled by parse_js_expression
-        // in loose mode (corresponds to Svelte's read_expression call)
-        let expression = self.parse_js_expression(expr_content.trim(), expr_start);
+        // Parse the expression - propagate JS parse errors when not in loose mode
+        // (corresponds to Svelte's read_expression call which throws on invalid JS)
+        let expression = self.parse_js_expression_strict(expr_content.trim(), expr_start)?;
 
         Ok(Some(TemplateNode::ExpressionTag(ExpressionTag {
             start: start as u32,
@@ -1456,6 +1456,32 @@ impl Parser<'_> {
         .unwrap_or_else(|(_, pos)| {
             // Return an invalid identifier on parse error (empty name, no loc field)
             super::super::expression::create_empty_identifier("", pos, pos + trimmed.len())
+        })
+    }
+
+    /// Parse a JavaScript expression and return as Result, propagating errors.
+    ///
+    /// This is similar to `parse_js_expression_internal` but returns `ParseResult`
+    /// instead of always falling back to an empty identifier on errors.
+    pub fn parse_js_expression_strict(
+        &self,
+        content: &str,
+        offset: usize,
+    ) -> crate::error::ParseResult<Expression> {
+        // Adjust offset for leading whitespace that gets trimmed
+        let leading_ws = content.len() - content.trim_start().len();
+        let trimmed = content.trim();
+        super::super::expression::parse_expression(
+            trimmed,
+            offset + leading_ws,
+            &self.line_offsets,
+            self.source,
+            self.options.loose,
+            false,
+            '{',
+        )
+        .map_err(|(msg, pos)| {
+            crate::error::ParseError::svelte("js_parse_error", msg, (pos, pos + trimmed.len()))
         })
     }
 
