@@ -513,6 +513,16 @@ pub fn slot_element_invalid_name_default() -> AnalysisError {
     )
 }
 
+// Event handler errors
+
+/// Event modifiers other than 'once' can only be used on DOM elements
+pub fn event_handler_invalid_component_modifier() -> AnalysisError {
+    error(
+        "event_handler_invalid_component_modifier",
+        "Event modifiers other than 'once' can only be used on DOM elements\nhttps://svelte.dev/e/event_handler_invalid_component_modifier",
+    )
+}
+
 // Transition/animation directive errors
 
 /// An element can only have one '%name%' directive

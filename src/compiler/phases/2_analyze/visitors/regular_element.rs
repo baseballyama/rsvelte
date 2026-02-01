@@ -208,16 +208,10 @@ fn is_tag_valid_with_parent(child_tag: &str, parent_tag: &str) -> Option<String>
     // This is a simplified version - the full implementation would check the
     // complete disallowed_children map from html-tree-validation.js
     match (parent_tag, child_tag) {
-        ("optgroup", "option" | "#text") => None,
-        ("optgroup", _) => Some(format!(
-            "`<{}>` cannot be a child of `<{}>`. `<{}>` only allows these children: `<option>`, `#text`",
-            child_tag, parent_tag, parent_tag
-        )),
-        ("option", "#text") => None,
-        ("option", _) => Some(format!(
-            "`<{}>` cannot be a child of `<{}>`. `<{}>` only allows these children: `#text`",
-            child_tag, parent_tag, parent_tag
-        )),
+        // Note: option and optgroup do NOT have "only" restrictions because newer browsers
+        // support rich HTML content inside option elements (customizable select elements).
+        // For older browsers, hydration will handle the mismatch.
+        // See: https://html.spec.whatwg.org/multipage/form-elements.html#the-option-element
         ("tr", "th" | "td" | "style" | "script" | "template") => None,
         ("tr", _) => Some(format!(
             "`<{}>` cannot be a child of `<{}>`. `<{}>` only allows these children: `<th>`, `<td>`, `<style>`, `<script>`, `<template>`",
@@ -715,7 +709,7 @@ pub fn visit(
                 && !is_svg(node_name)
                 && !is_mathml(node_name)
             {
-                // Would generate warning: w.element_invalid_self_closing_tag(node, node.name)
+                context.emit_warning(warnings::element_invalid_self_closing_tag(node_name));
             }
         }
     }
@@ -779,6 +773,12 @@ pub fn visit(
                     use_directive::visit(use_dir, context)?;
                 }
             }
+            Attribute::ClassDirective(_) => {
+                // Re-borrow the class directive for the visit call
+                if let Attribute::ClassDirective(class_dir) = &element.attributes[i] {
+                    super::class_directive::visit(class_dir, context)?;
+                }
+            }
             _ => {}
         }
     }
@@ -822,8 +822,21 @@ pub fn visit(
     // Push this element index to DOM element stack for tracking children
     context.dom_element_stack.push(element_idx);
 
+    // Push None to each_block_stack to indicate we're no longer directly in an EachBlock
+    context.each_block_stack.push(None);
+
+    // Clear is_direct_child_of_component since we're now inside an element
+    let was_direct_child = context.is_direct_child_of_component;
+    context.is_direct_child_of_component = false;
+
     // Analyze children
     analyze(&mut element.fragment, context)?;
+
+    // Restore is_direct_child_of_component
+    context.is_direct_child_of_component = was_direct_child;
+
+    // Pop from each_block_stack
+    context.each_block_stack.pop();
 
     // Pop this element from DOM element stack
     context.dom_element_stack.pop();

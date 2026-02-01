@@ -101,9 +101,10 @@ pub fn visit_component(
             }
             Attribute::OnDirective(on) => {
                 // Validate event handler modifiers
-                if on.modifiers.len() > 1 || on.modifiers.iter().any(|m| m.as_str() != "once") {
-                    // TODO: Error - invalid modifiers
-                    // e.event_handler_invalid_component_modifier(attribute)
+                // Only 'once' modifier is allowed on component events
+                let has_invalid_modifiers = on.modifiers.iter().any(|m| m.as_str() != "once");
+                if has_invalid_modifiers {
+                    return Err(errors::event_handler_invalid_component_modifier());
                 }
             }
             Attribute::AttachTag(_) => {
@@ -132,7 +133,11 @@ pub fn visit_component(
     // 3. Visit each slot's content with the correct scope
     //
     // For now, just visit the fragment normally
+    // Set is_direct_child_of_component for svelte:fragment validation
+    let was_direct_child = context.is_direct_child_of_component;
+    context.is_direct_child_of_component = true;
     fragment::analyze(&mut component.fragment, context)?;
+    context.is_direct_child_of_component = was_direct_child;
 
     Ok(())
 }

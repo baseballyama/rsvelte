@@ -8,17 +8,71 @@ use rustc_hash::FxHashSet;
 
 use super::super::super::AnalysisError;
 use super::super::super::errors;
-use super::super::super::utils::check_graph_for_cycles;
+use super::super::super::utils::{check_graph_for_cycles, extract_svelte_ignore};
 use super::super::VisitorContext;
 use crate::ast::template::{ConstTag, Fragment, TemplateNode};
+
+/// Collect svelte-ignore codes from preceding comments in a fragment.
+///
+/// This looks back through the nodes before the current index to find
+/// comments that precede the node (possibly separated by text nodes).
+fn collect_preceding_ignores(nodes: &[TemplateNode], idx: usize, runes: bool) -> Vec<String> {
+    let mut ignores = Vec::new();
+
+    // Look backwards through preceding nodes
+    for i in (0..idx).rev() {
+        match &nodes[i] {
+            TemplateNode::Comment(comment) => {
+                // Extract svelte-ignore codes from this comment
+                let codes = extract_svelte_ignore(&comment.data, runes);
+                ignores.extend(codes);
+            }
+            TemplateNode::Text(text) => {
+                // Only whitespace-only text nodes are OK, continue looking back
+                if text.data.trim().is_empty() {
+                    continue;
+                } else {
+                    break;
+                }
+            }
+            _ => {
+                // Any other node type stops the search
+                break;
+            }
+        }
+    }
+
+    ignores
+}
 
 /// Analyze a fragment.
 pub fn analyze(fragment: &mut Fragment, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Check for cyclical dependencies between ConstTag nodes
     check_const_tag_cycles(&fragment.nodes)?;
 
-    for node in &mut fragment.nodes {
+    let runes = context.analysis.runes;
+
+    // Pre-compute ignore info for each node
+    let nodes_len = fragment.nodes.len();
+    let ignore_info: Vec<Vec<String>> = (0..nodes_len)
+        .map(|idx| collect_preceding_ignores(&fragment.nodes, idx, runes))
+        .collect();
+
+    for (idx, node) in fragment.nodes.iter_mut().enumerate() {
+        // Push ignores for this node
+        let ignores = &ignore_info[idx];
+        let has_ignores = !ignores.is_empty();
+        if has_ignores {
+            context.push_ignore(ignores.clone());
+        }
+
+        // Visit the node
         super::super::visit_node(node, context)?;
+
+        // Pop ignores for this node
+        if has_ignores {
+            context.pop_ignore();
+        }
     }
     Ok(())
 }

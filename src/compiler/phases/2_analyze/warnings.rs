@@ -579,6 +579,19 @@ pub fn node_invalid_placement_ssr(message: &str) -> AnalysisWarning {
     )
 }
 
+// Element warnings
+
+/// Self-closing HTML tags for non-void elements are ambiguous
+pub fn element_invalid_self_closing_tag(name: &str) -> AnalysisWarning {
+    warning(
+        "element_invalid_self_closing_tag",
+        format!(
+            "Self-closing HTML tags for non-void elements are ambiguous — use `<{} ...></{}>` rather than `<{} ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag",
+            name, name, name
+        ),
+    )
+}
+
 // Component warnings
 
 /// Component name starts with a lowercase letter - will be treated as an HTML element

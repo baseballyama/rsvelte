@@ -7,10 +7,10 @@
 use rustc_hash::FxHashSet;
 
 use super::super::{AnalysisError, Binding, BindingKind, errors};
-use super::VisitorContext;
 use super::shared::fragment;
 use super::shared::utils::{validate_block_not_empty, validate_opening_tag, walk_js_expression};
-use crate::ast::template::EachBlock;
+use super::{EachBlockContext, VisitorContext};
+use crate::ast::template::{EachBlock, TemplateNode};
 
 /// Visit an each block.
 ///
@@ -72,8 +72,31 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
     // Increment block depth for child analysis
     context.block_depth += 1;
 
+    // Count non-empty children for animate: validation
+    let child_count = block
+        .body
+        .nodes
+        .iter()
+        .filter(|n| match n {
+            TemplateNode::Comment(_) => false,
+            TemplateNode::ConstTag(_) => false,
+            TemplateNode::Text(text) => !text.data.trim().is_empty(),
+            _ => true,
+        })
+        .count();
+
+    // Push EachBlock context for animate: validation
+    context.each_block_stack.push(Some(EachBlockContext {
+        has_key: block.key.is_some(),
+        child_count,
+    }));
+
     // Visit the body and fallback
     fragment::analyze(&mut block.body, context)?;
+
+    // Pop EachBlock context
+    context.each_block_stack.pop();
+
     if let Some(ref mut fallback) = block.fallback {
         fragment::analyze(fallback, context)?;
     }

@@ -266,7 +266,7 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
             role_static_value.is_some() && !is_presentation_role(role_static_value.unwrap());
         if !is_dynamic_element
             && !is_hidden_from_screen_reader(&node.name, &attribute_map)
-            && (role_static_value.is_none() || is_non_presentation_role)
+            && (!has_role_attr || is_non_presentation_role)
             && !is_interactive_element(&node.name, &attribute_map)
             && !has_spread
         {

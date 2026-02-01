@@ -103,6 +103,15 @@ use super::AnalysisError;
 use super::types::{ComponentAnalysis, CssDomElement, DomStructure, SiblingCertainty};
 use crate::ast::template::{Root, TemplateNode};
 
+/// Information about the current EachBlock context for animate: validation.
+#[derive(Debug, Clone)]
+pub struct EachBlockContext {
+    /// Whether the EachBlock has a key.
+    pub has_key: bool,
+    /// Number of non-empty child elements in the EachBlock body.
+    pub child_count: usize,
+}
+
 /// Context for AST visitor traversal.
 /// Corresponds to AnalysisState in the official compiler.
 pub struct VisitorContext<'a> {
@@ -171,6 +180,15 @@ pub struct VisitorContext<'a> {
     /// should be a warning (SSR) or error.
     /// The value is the block depth at the time the element was entered.
     pub block_depth_at_element: Vec<usize>,
+    /// Stack of EachBlock contexts for animate: validation.
+    /// When entering an EachBlock, we push info about it. When an element is visited,
+    /// it checks if its direct parent is an EachBlock by checking the top of this stack.
+    /// When entering an element, we push None to indicate we're no longer directly in the EachBlock.
+    pub each_block_stack: Vec<Option<EachBlockContext>>,
+    /// Tracks if we're directly inside a component (for svelte:fragment validation).
+    /// This is set to true when entering a Component/SvelteComponent, and reset to false
+    /// when entering any other element type.
+    pub is_direct_child_of_component: bool,
 }
 
 /// Type of AST being analyzed.
@@ -215,6 +233,8 @@ impl<'a> VisitorContext<'a> {
             ignore_stack: Vec::new(),
             element_ancestors: Vec::new(),
             block_depth_at_element: Vec::new(),
+            each_block_stack: Vec::new(),
+            is_direct_child_of_component: false,
         }
     }
 

@@ -146,42 +146,21 @@ pub fn validate_element(
                 validate_attribute_name(attr)?;
             }
             Attribute::AnimateDirective(_directive) => {
-                // Check that we're inside an EachBlock
-                let parent_idx = context.path.len().saturating_sub(2);
-                if parent_idx < context.path.len()
-                    && let Some(parent) = context.path.get(parent_idx)
-                {
-                    let is_each_block =
-                        matches!(parent, crate::ast::template::TemplateNode::EachBlock(_));
-
-                    if !is_each_block {
-                        return Err(errors::animation_invalid_placement());
-                    }
-
-                    // Check for key on the EachBlock
-                    if let crate::ast::template::TemplateNode::EachBlock(each) = parent {
-                        if each.key.is_none() {
+                // Check that we're directly inside an EachBlock using the each_block_stack
+                // The top of the stack should be Some(EachBlockContext) if we're a direct child
+                match context.each_block_stack.last() {
+                    Some(Some(each_ctx)) => {
+                        if !each_ctx.has_key {
                             return Err(errors::animation_missing_key());
                         }
 
-                        // Check that there's only one child element (excluding comments, empty text, const tags)
-                        let non_empty_children = each
-                            .body
-                            .nodes
-                            .iter()
-                            .filter(|n| match n {
-                                crate::ast::template::TemplateNode::Comment(_) => false,
-                                crate::ast::template::TemplateNode::ConstTag(_) => false,
-                                crate::ast::template::TemplateNode::Text(text) => {
-                                    !text.data.trim().is_empty()
-                                }
-                                _ => true,
-                            })
-                            .count();
-
-                        if non_empty_children > 1 {
+                        if each_ctx.child_count > 1 {
                             return Err(errors::animation_invalid_placement());
                         }
+                    }
+                    _ => {
+                        // Not directly inside an EachBlock (either outside or nested in another element)
+                        return Err(errors::animation_invalid_placement());
                     }
                 }
 
@@ -249,10 +228,13 @@ pub fn validate_element(
                             EVENT_MODIFIERS[..EVENT_MODIFIERS.len() - 1].join(", "),
                             EVENT_MODIFIERS.last().unwrap()
                         );
-                        return Err(AnalysisError::Validation(format!(
-                            "Invalid event modifier '{}'. Valid modifiers are: {}",
-                            modifier, list
-                        )));
+                        return Err(AnalysisError::validation(
+                            "event_handler_invalid_modifier",
+                            format!(
+                                "Invalid event modifier '{}'. Valid modifiers are: {}",
+                                modifier, list
+                            ),
+                        ));
                     }
 
                     if modifier == "passive" {
@@ -262,10 +244,13 @@ pub fn validate_element(
                     }
 
                     if has_passive_modifier && !conflicting_passive_modifier.is_empty() {
-                        return Err(AnalysisError::Validation(format!(
-                            "The 'passive' modifier cannot be used with '{}' modifier",
-                            conflicting_passive_modifier
-                        )));
+                        return Err(AnalysisError::validation(
+                            "event_handler_invalid_modifier_combination",
+                            format!(
+                                "The 'passive' and '{}' modifiers cannot be used together",
+                                conflicting_passive_modifier
+                            ),
+                        ));
                     }
                 }
             }
