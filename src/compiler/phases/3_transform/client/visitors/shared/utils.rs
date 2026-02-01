@@ -1861,7 +1861,6 @@ fn is_expression_defined_json(json_value: &serde_json::Value, context: &Componen
                     if matches!(binding.kind, BindingKind::EachIndex) {
                         return true;
                     }
-
                 }
             }
             false

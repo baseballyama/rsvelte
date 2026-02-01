@@ -684,12 +684,11 @@ impl Parser<'_> {
             self.advance_by(4); // consume 'then'
             self.skip_whitespace();
 
-            // Check if there's a value identifier
+            // Check if there's a value identifier/pattern
             if self.current_char() != '}' {
                 let value_start = self.index;
-                while !self.is_eof() && self.current_char() != '}' {
-                    self.advance();
-                }
+                // Parse pattern with brace/bracket matching for destructuring patterns
+                self.skip_pattern_expression();
                 let value_content = &self.source[value_start..self.index];
                 if !value_content.trim().is_empty() {
                     value = Some(super::super::expression::create_identifier_with_character(
@@ -707,12 +706,11 @@ impl Parser<'_> {
             self.advance_by(5); // consume 'catch'
             self.skip_whitespace();
 
-            // Check if there's an error identifier
+            // Check if there's an error identifier/pattern
             if self.current_char() != '}' {
                 let error_start = self.index;
-                while !self.is_eof() && self.current_char() != '}' {
-                    self.advance();
-                }
+                // Parse pattern with brace/bracket matching for destructuring patterns
+                self.skip_pattern_expression();
                 let error_content = &self.source[error_start..self.index];
                 if !error_content.trim().is_empty() {
                     error = Some(super::super::expression::create_identifier_with_character(
@@ -759,12 +757,11 @@ impl Parser<'_> {
             if self.eat_optional("then") {
                 self.skip_whitespace();
 
-                // Check if there's a value identifier
+                // Check if there's a value identifier/pattern
                 if self.current_char() != '}' {
                     let value_start = self.index;
-                    while !self.is_eof() && self.current_char() != '}' {
-                        self.advance();
-                    }
+                    // Parse pattern with brace/bracket matching for destructuring patterns
+                    self.skip_pattern_expression();
                     let value_content = &self.source[value_start..self.index];
                     if !value_content.trim().is_empty() {
                         value = Some(super::super::expression::create_identifier_with_character(
@@ -781,12 +778,11 @@ impl Parser<'_> {
             } else if self.eat_optional("catch") {
                 self.skip_whitespace();
 
-                // Check if there's an error identifier
+                // Check if there's an error identifier/pattern
                 if self.current_char() != '}' {
                     let error_start = self.index;
-                    while !self.is_eof() && self.current_char() != '}' {
-                        self.advance();
-                    }
+                    // Parse pattern with brace/bracket matching for destructuring patterns
+                    self.skip_pattern_expression();
                     let error_content = &self.source[error_start..self.index];
                     if !error_content.trim().is_empty() {
                         error = Some(super::super::expression::create_identifier_with_character(

@@ -372,6 +372,21 @@ fn extract_identifiers_recursive(expr: &Expression, identifiers: &mut Vec<String
             Some("ObjectPattern") => {
                 if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
                     for prop in props {
+                        // Check if this is a RestElement inside the properties
+                        if let Some(prop_type) = prop.get("type").and_then(|t| t.as_str())
+                            && prop_type == "RestElement"
+                        {
+                            // Extract from the argument of RestElement
+                            if let Some(arg) = prop.get("argument") {
+                                extract_identifiers_recursive(
+                                    &Expression::Value(arg.clone()),
+                                    identifiers,
+                                );
+                            }
+                            continue;
+                        }
+
+                        // Regular Property
                         if let Some(value) = prop.get("value") {
                             extract_identifiers_recursive(
                                 &Expression::Value(value.clone()),
@@ -430,14 +445,31 @@ fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
                         .iter()
                         .filter_map(|prop| {
                             let prop_obj = prop.as_object()?;
+                            let prop_type = prop_obj.get("type").and_then(|t| t.as_str())?;
+
+                            // Handle RestElement inside ObjectPattern
+                            if prop_type == "RestElement" {
+                                if let Some(arg) = prop_obj.get("argument") {
+                                    let inner = convert_expression_to_pattern(&Expression::Value(
+                                        arg.clone(),
+                                    ));
+                                    return Some(JsObjectPatternProperty::Rest(Box::new(inner)));
+                                }
+                                return None;
+                            }
+
+                            // Handle regular Property
                             let key = prop_obj.get("key")?.as_object()?;
-                            let key_name = key.get("name")?.as_str()?;
+                            let key_name = key.get("name").and_then(|v| v.as_str());
+                            // For string literal keys like 'prop-1', get the value
+                            let key_value = key.get("value").and_then(|v| v.as_str());
+                            let actual_key = key_name.or(key_value)?;
                             let value = prop_obj.get("value")?;
 
                             let value_pattern = if value.is_object() {
                                 convert_expression_to_pattern(&Expression::Value(value.clone()))
                             } else {
-                                JsPattern::Identifier(key_name.to_string())
+                                JsPattern::Identifier(actual_key.to_string())
                             };
 
                             let shorthand = prop_obj
@@ -445,10 +477,23 @@ fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
                                 .and_then(|s| s.as_bool())
                                 .unwrap_or(false);
 
+                            // Handle computed/string keys
+                            let computed = prop_obj
+                                .get("computed")
+                                .and_then(|c| c.as_bool())
+                                .unwrap_or(false);
+
+                            // For string keys, use Literal
+                            let property_key = if key_name.is_some() {
+                                JsPropertyKey::Identifier(actual_key.to_string())
+                            } else {
+                                JsPropertyKey::Literal(JsLiteral::String(actual_key.to_string()))
+                            };
+
                             Some(JsObjectPatternProperty::Property {
-                                key: JsPropertyKey::Identifier(key_name.to_string()),
+                                key: property_key,
                                 value: value_pattern,
-                                computed: false,
+                                computed,
                                 shorthand,
                             })
                         })

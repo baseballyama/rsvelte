@@ -364,6 +364,58 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Skip a pattern expression, handling nested braces and brackets.
+    ///
+    /// This is used for parsing destructuring patterns in await blocks
+    /// like `{ a, ...rest }` or `[a, b, ...rest]`.
+    ///
+    /// Stops when reaching an unmatched `}` that closes the outer block.
+    pub fn skip_pattern_expression(&mut self) {
+        let mut brace_depth = 0; // { }
+        let mut bracket_depth = 0; // [ ]
+        let mut paren_depth = 0; // ( )
+
+        while !self.is_eof() {
+            let c = self.current_char();
+
+            match c {
+                '{' => brace_depth += 1,
+                '}' => {
+                    if brace_depth == 0 {
+                        // Unmatched } - this closes the outer await/each/etc. block
+                        break;
+                    }
+                    brace_depth -= 1;
+                }
+                '[' => bracket_depth += 1,
+                ']' => {
+                    if bracket_depth > 0 {
+                        bracket_depth -= 1;
+                    }
+                }
+                '(' => paren_depth += 1,
+                ')' => {
+                    if paren_depth > 0 {
+                        paren_depth -= 1;
+                    }
+                }
+                _ => {}
+            }
+
+            self.advance();
+        }
+
+        // Trim trailing whitespace from the pattern
+        while self.index > 0 {
+            let prev_char = self.source.chars().nth(self.index - 1).unwrap_or(' ');
+            if prev_char.is_whitespace() {
+                self.index -= 1;
+            } else {
+                break;
+            }
+        }
+    }
+
     /// Read an identifier.
     pub fn read_identifier(&mut self) -> CompactString {
         let start = self.index;

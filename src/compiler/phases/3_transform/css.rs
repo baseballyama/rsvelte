@@ -383,12 +383,10 @@ fn is_global_selector_rule(node: &Value) -> bool {
                 && let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array())
                 && !selectors.is_empty()
                 && let Some(sel) = selectors.first()
+                && sel.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                && sel.get("name").and_then(|n| n.as_str()) == Some("global")
             {
-                if sel.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                    && sel.get("name").and_then(|n| n.as_str()) == Some("global")
-                {
-                    return true;
-                }
+                return true;
             }
         }
     }
@@ -519,12 +517,11 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
             return true;
         }
 
-        // Note: Descendant selector unused detection is disabled because it doesn't
-        // account for control flow (snippets, render tags, if/each blocks).
-        // TODO: Implement proper CSS pruning that tracks control flow relationships.
-        // if is_descendant_selector_unused(rel_selectors, ctx) {
-        //     return true;
-        // }
+        // Check for descendant/child selectors that don't match the DOM structure
+        // Only enabled when there's no control flow (to avoid false positives)
+        if !ctx.has_control_flow && is_descendant_selector_unused(rel_selectors, ctx) {
+            return true;
+        }
 
         // Original simple check: if any simple selector refers to something that doesn't exist
         for rel in rel_selectors {
