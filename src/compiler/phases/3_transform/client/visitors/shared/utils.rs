@@ -119,8 +119,32 @@ fn apply_transforms_to_expression_with_shadowed(
             // (e.g., $.untrack, $.store_mutate - these have pre-constructed arguments)
             let skip_args_transform = is_svelte_runtime_skip_args_transform(&call.callee);
 
+            // Check if this is a prop/state call where the callee should NOT be transformed:
+            // 1. Prop setter call: `propName(value)` - callee should stay as `propName`, not `propName()`
+            // 2. Prop getter call: `propName()` - callee should stay as `propName`, not `propName()()`
+            // This happens when expression converter already transformed `x` to `x()` for reads
+            // or `x = value` to `x(value)` for writes - we don't want to further transform `x`.
+            let skip_callee_transform = if let JsExpr::Identifier(name) = call.callee.as_ref()
+                && !shadowed.contains(name)
+                && let Some(transform) = context.state.transform.get(name)
+            {
+                // Skip callee transform if:
+                // - It has a read transform (which would wrap x -> x(), but call is already x(...))
+                // - OR it has an assign transform and this is a setter call (non-empty args)
+                transform.read.is_some()
+                    || (transform.assign.is_some() && !call.arguments.is_empty())
+            } else {
+                false
+            };
+
             // Apply transforms to callee and arguments
-            let transformed_callee = recurse!(&call.callee);
+            // Skip callee transform for prop getter/setter calls to avoid double transformation
+            let transformed_callee = if skip_callee_transform {
+                call.callee.as_ref().clone()
+            } else {
+                recurse!(&call.callee)
+            };
+
             let transformed_args: Vec<JsExpr> = call
                 .arguments
                 .iter()

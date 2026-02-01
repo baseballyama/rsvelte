@@ -730,35 +730,50 @@ fn transform_instance_script_for_visitors(
     // Collect exported names from analysis (needed for prop filtering below)
     let exported_names: Vec<String> = analysis.exports.iter().map(|e| e.name.clone()).collect();
 
-    // Collect props that are "sources" (reassigned or mutated - need $.prop() declarations)
-    // Read-only props should be accessed directly via $$props.propName
+    // Collect props that are "sources" (need $.prop() declarations)
+    // In legacy mode (!runes), ALL props are sources for coarse-grained reactivity.
+    // In runes mode, only props that are reassigned, mutated, have initial values, or accessors.
+    // Reference: is_prop_source() in svelte/packages/svelte/src/compiler/phases/3-transform/client/utils.js
     let prop_source_vars: Vec<String> = analysis
         .root
         .bindings
         .iter()
         .filter(|b| {
-            matches!(
+            let is_prop = matches!(
                 b.kind,
                 BindingKind::Prop | BindingKind::BindableProp | BindingKind::RestProp
-            ) && (b.reassigned || b.mutated)
+            );
+            is_prop
+                && (!analysis.runes
+                    || analysis.accessors
+                    || b.reassigned
+                    || b.initial.is_some()
+                    || b.mutated)
         })
         .map(|b| b.name.clone())
         .collect();
 
     // Collect read-only props (props that are not sources and not exported with defaults)
     // These should be accessed directly via $$props.propName
-    let read_only_props: Vec<String> = analysis
-        .root
-        .bindings
-        .iter()
-        .filter(|b| {
-            matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp)
-                && !b.reassigned
-                && !b.mutated
-                && !exported_names.contains(&b.name)
-        })
-        .map(|b| b.name.clone())
-        .collect();
+    // Only applicable in runes mode - in legacy mode all props are sources
+    let read_only_props: Vec<String> = if analysis.runes {
+        analysis
+            .root
+            .bindings
+            .iter()
+            .filter(|b| {
+                matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp)
+                    && !analysis.accessors
+                    && !b.reassigned
+                    && b.initial.is_none()
+                    && !b.mutated
+                    && !exported_names.contains(&b.name)
+            })
+            .map(|b| b.name.clone())
+            .collect()
+    } else {
+        Vec::new() // In legacy mode, no props are read-only
+    };
 
     // Collect legacy state variables (in non-runes mode, State bindings are promoted
     // from Normal bindings that are updated and referenced in template)
@@ -842,6 +857,10 @@ fn transform_instance_script_for_visitors(
             proxy_vars,
             raw_state_vars,
         );
+
+        // Transform prop assignments to prop(prop() + value) syntax
+        // This handles props declared with `export let` in legacy mode
+        let transformed = transform_prop_assignments(&transformed, prop_source_vars);
 
         // Transform store subscription assignments to $.store_set()
         let transformed = transform_store_assignments_client(&transformed, store_sub_vars);
@@ -2512,6 +2531,163 @@ fn transform_state_assignments(
                 }
             } else {
                 // No more assignments found
+                break;
+            }
+        }
+    }
+
+    result
+}
+
+/// Transform prop assignments to getter/setter function call syntax.
+///
+/// Props in legacy mode are declared with $.prop() which returns a getter/setter function.
+/// So `x = value` becomes `x(value)`, and `x += 1` becomes `x(x() + 1)`.
+///
+/// This handles:
+/// - Simple assignment: `x = value` → `x(value)`
+/// - Compound assignment: `x += value` → `x(x() + value)`
+/// - Update expressions: `x++` → `x(x() + 1)`, `++x` → `x(x() + 1)`
+fn transform_prop_assignments(line: &str, prop_vars: &[String]) -> String {
+    if prop_vars.is_empty() {
+        return line.to_string();
+    }
+
+    let mut result = line.to_string();
+
+    for var in prop_vars {
+        // Transform ++varname to varname(varname() + 1) (returns new value, but we don't track that)
+        let pre_inc_pattern = format!("++{}", var);
+        result = replace_with_word_boundary(
+            &result,
+            &pre_inc_pattern,
+            &format!("{}({}() + 1)", var, var),
+            true,
+        );
+
+        // Transform --varname to varname(varname() - 1)
+        let pre_dec_pattern = format!("--{}", var);
+        result = replace_with_word_boundary(
+            &result,
+            &pre_dec_pattern,
+            &format!("{}({}() - 1)", var, var),
+            true,
+        );
+
+        // Transform varname++ to varname(varname() + 1)
+        let post_inc_pattern = format!("{}++", var);
+        result = replace_with_word_boundary(
+            &result,
+            &post_inc_pattern,
+            &format!("{}({}() + 1)", var, var),
+            false,
+        );
+
+        // Transform varname-- to varname(varname() - 1)
+        let post_dec_pattern = format!("{}--", var);
+        result = replace_with_word_boundary(
+            &result,
+            &post_dec_pattern,
+            &format!("{}({}() - 1)", var, var),
+            false,
+        );
+
+        // Transform compound assignments: varname += expr to varname(varname() + (expr))
+        for op in &["+=", "-=", "*=", "/=", "%=", "**="] {
+            let pattern = format!("{} {}", var, op);
+            if result.contains(&pattern) {
+                let op_char = &op[..op.len() - 1]; // Remove the '='
+                if let Some(pos) = result.find(&pattern) {
+                    // Skip if this is a member expression (e.g., this.x +=, obj.x +=)
+                    let before = &result[..pos];
+                    if before.ends_with('.') {
+                        continue;
+                    }
+
+                    // Skip if preceded by an identifier character (not a word boundary)
+                    if !before.is_empty() && is_identifier_char(before.chars().last().unwrap()) {
+                        continue;
+                    }
+
+                    let after = &result[pos + pattern.len()..];
+                    // Find the expression (until ; or end, respecting nested braces)
+                    let expr_end = find_statement_end_client(after);
+                    let expr = after[..expr_end].trim();
+                    let replacement = format!("{}({}() {} ({}))", var, var, op_char, expr);
+                    result = format!(
+                        "{}{}{}",
+                        &result[..pos],
+                        replacement,
+                        &result[pos + pattern.len() + expr_end..]
+                    );
+                }
+            }
+        }
+
+        // Transform logical assignment operators: varname ??= expr to varname(varname() ?? (expr))
+        for (op, op_without_eq) in &[("??=", "??"), ("&&=", "&&"), ("||=", "||")] {
+            let pattern = format!("{} {}", var, op);
+            if let Some(pos) = result.find(&pattern) {
+                let before = &result[..pos];
+                if before.ends_with('.') {
+                    continue;
+                }
+
+                if !before.is_empty() && is_identifier_char(before.chars().last().unwrap()) {
+                    continue;
+                }
+
+                let after = &result[pos + pattern.len()..];
+                let expr_end = find_statement_end_client(after);
+                let expr = after[..expr_end].trim();
+                let replacement = format!("{}({}() {} ({}))", var, var, op_without_eq, expr);
+                result = format!(
+                    "{}{}{}",
+                    &result[..pos],
+                    replacement,
+                    &result[pos + pattern.len() + expr_end..]
+                );
+            }
+        }
+
+        // Transform simple assignment: varname = expr to varname(expr)
+        // But not if it's a declaration (let/const/var varname = ...)
+        let assignment_pattern = format!("{} = ", var);
+        let mut search_start = 0;
+        while !result.contains(&format!("let {} = ", var))
+            && !result.contains(&format!("const {} = ", var))
+            && !result.contains(&format!("var {} = ", var))
+        {
+            if let Some(relative_pos) = result[search_start..].find(&assignment_pattern) {
+                let pos = search_start + relative_pos;
+
+                // Check that it's not part of a comparison (==, ===)
+                let before = &result[..pos];
+                if before.ends_with('=') || before.ends_with('!') || before.ends_with('.') {
+                    search_start = pos + assignment_pattern.len();
+                    continue;
+                }
+
+                // Skip if preceded by an identifier character
+                if !before.is_empty() && is_identifier_char(before.chars().last().unwrap()) {
+                    search_start = pos + assignment_pattern.len();
+                    continue;
+                }
+
+                let after = &result[pos + assignment_pattern.len()..];
+                let expr_end = find_statement_end_client(after);
+                let expr = &after[..expr_end];
+                let replacement = format!("{}({})", var, expr.trim());
+
+                let new_result = format!(
+                    "{}{}{}",
+                    &result[..pos],
+                    replacement,
+                    &result[pos + assignment_pattern.len() + expr_end..]
+                );
+                search_start = pos + replacement.len();
+                result = new_result;
+            } else {
                 break;
             }
         }
