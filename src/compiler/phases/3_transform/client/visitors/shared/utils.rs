@@ -2120,16 +2120,22 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                     //   !context.state.scope.evaluate(node).is_known
                     //
                     // We approximate scope.evaluate().is_known by checking:
-                    // 1. For const declarations with literal initial values -> is_known = true
-                    // 2. For let declarations -> is_known = false (they can be reassigned)
-                    // 3. For imports -> is_known = false (we don't know what they'll return)
+                    // 1. For const/let declarations with literal initial values -> is_known = true if never reassigned/mutated
+                    // 2. For imports -> is_known = false (we don't know what they'll return)
                     if !binding.is_function() {
                         use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
 
-                        // Check if this is a const declaration with a known value
+                        // Check if this is a declaration with a known value
                         // (approximation of scope.evaluate().is_known)
-                        let is_known = matches!(binding.declaration_kind, DeclarationKind::Const)
-                            && !binding.reassigned
+                        // Both const and let declarations can be "known" if they:
+                        // - Are never reassigned
+                        // - Are never mutated
+                        // - Have an initial value that's defined
+                        // - Have an initial value that's a literal or known value
+                        let is_known = matches!(
+                            binding.declaration_kind,
+                            DeclarationKind::Const | DeclarationKind::Let
+                        ) && !binding.reassigned
                             && !binding.mutated
                             && binding.initial_is_defined
                             && is_initial_value_literal_or_known(&binding.initial);
@@ -2524,14 +2530,37 @@ fn is_initial_value_literal_or_known(initial: &Option<String>) -> bool {
         return false;
     };
 
-    // Check for various literal patterns
-    // Note: The initial string contains the AST type, so we check for literal types
+    // The initial string can be either:
+    // 1. A raw literal value like "'world'", "42", "true", "null"
+    // 2. An AST JSON string containing "Literal" type
+
+    // Check for AST JSON format (contains "Literal" type)
     if s.contains("Literal") && !s.contains("TemplateLiteral") {
         // Literal types (NumericLiteral, StringLiteral, BooleanLiteral, NullLiteral)
         return true;
     }
 
-    // Empty array/object literals are known
+    // Check for raw literal formats
+    let trimmed = s.trim();
+
+    // String literal: starts and ends with quotes
+    if (trimmed.starts_with('\'') && trimmed.ends_with('\''))
+        || (trimmed.starts_with('"') && trimmed.ends_with('"'))
+    {
+        return true;
+    }
+
+    // Number literal: all digits (possibly with decimal)
+    if trimmed.parse::<f64>().is_ok() {
+        return true;
+    }
+
+    // Boolean/null literals
+    if matches!(trimmed, "true" | "false" | "null" | "undefined") {
+        return true;
+    }
+
+    // Empty array/object literals from AST format
     if s.contains("ArrayExpression") || s.contains("ObjectExpression") {
         // These are known but might contain reactive values - be conservative
         // Only treat empty ones as known

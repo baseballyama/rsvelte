@@ -281,7 +281,7 @@ impl<'a> ScopeBuilder<'a> {
             Statement::FunctionDeclaration(func_decl) => {
                 if let Some(id) = &func_decl.id {
                     let name = id.name.to_string();
-                    self.declare_binding(name, BindingKind::Normal, DeclarationKind::Const);
+                    self.declare_binding(name, BindingKind::Normal, DeclarationKind::Function);
                 }
                 // Create a new scope for the function body
                 let old_scope = self.push_scope();
@@ -785,7 +785,7 @@ impl<'a> ScopeBuilder<'a> {
             Declaration::FunctionDeclaration(func_decl) => {
                 if let Some(id) = &func_decl.id {
                     let name = id.name.to_string();
-                    self.declare_binding(name, BindingKind::Normal, DeclarationKind::Const);
+                    self.declare_binding(name, BindingKind::Normal, DeclarationKind::Function);
                 }
             }
             Declaration::ClassDeclaration(class_decl) => {
