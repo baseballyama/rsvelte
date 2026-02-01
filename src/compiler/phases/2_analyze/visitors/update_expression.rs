@@ -5,6 +5,7 @@
 //! Corresponds to Svelte's `2-analyze/visitors/UpdateExpression.js`.
 
 use super::VisitorContext;
+use super::assignment_expression::mark_binding_mutation;
 use super::shared::utils::validate_assignment;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 use serde_json::Value;
@@ -24,6 +25,9 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     // Validate that we can assign to the argument
     if let Some(argument) = node.get("argument") {
         validate_assignment(argument, context, false)?;
+
+        // Mark the binding as reassigned (++/-- is a form of assignment)
+        mark_binding_mutation(argument, context);
     }
 
     // Track assignments in reactive statements (legacy mode)
