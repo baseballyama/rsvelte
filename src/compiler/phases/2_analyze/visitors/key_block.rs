@@ -7,6 +7,7 @@
 use super::VisitorContext;
 use super::shared::fragment;
 use super::shared::utils::{validate_block_not_empty, validate_opening_tag, walk_js_expression};
+use super::super::errors;
 use crate::ast::template::KeyBlock;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
@@ -18,8 +19,15 @@ use crate::compiler::phases::phase2_analyze::AnalysisError;
 ///
 /// Corresponds to `KeyBlock(node, context)` in KeyBlock.js.
 pub fn visit(block: &mut KeyBlock, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    // Check if inside a textarea (logic blocks not allowed)
+    if context.element_ancestors.iter().any(|a| a == "textarea") {
+        return Err(errors::block_invalid_placement("{#key ...}"));
+    }
+
     // Validate that the block is not empty (warn if only whitespace)
-    validate_block_not_empty(Some(&block.fragment))?;
+    if let Some(warning) = validate_block_not_empty(Some(&block.fragment))? {
+        context.emit_warning(warning);
+    }
 
     // In runes mode, validate that the tag starts with '{#' (no whitespace)
     if context.analysis.runes {
@@ -40,8 +48,14 @@ pub fn visit(block: &mut KeyBlock, context: &mut VisitorContext) -> Result<(), A
     let was_direct_child = context.is_direct_child_of_component;
     context.is_direct_child_of_component = false;
 
+    // Push fragment owner type for const_tag placement validation
+    context.fragment_owner_stack.push(super::FragmentOwnerType::KeyBlock);
+
     // Visit the fragment
     fragment::analyze(&mut block.fragment, context)?;
+
+    // Pop fragment owner type
+    context.fragment_owner_stack.pop();
 
     // Restore is_direct_child_of_component
     context.is_direct_child_of_component = was_direct_child;

@@ -2,7 +2,7 @@
 //!
 //! Corresponds to Svelte's `2-analyze/visitors/shared/utils.js`.
 
-use super::super::super::{Binding, BindingKind, DeclarationKind, Scope, errors};
+use super::super::super::{Binding, BindingKind, DeclarationKind, Scope, errors, warnings};
 use super::super::{AnalysisError, VisitorContext};
 use crate::ast::template::{Fragment, TemplateNode};
 use lazy_static::lazy_static;
@@ -441,21 +441,23 @@ pub fn validate_opening_tag(
 ///
 /// Corresponds to `validate_block_not_empty` in utils.js.
 ///
+/// Returns Some(warning) if the block is "empty" (only whitespace), None otherwise.
+///
 /// # Arguments
 ///
 /// * `fragment` - The fragment to check
-pub fn validate_block_not_empty(fragment: Option<&Fragment>) -> Result<(), AnalysisError> {
+pub fn validate_block_not_empty(fragment: Option<&Fragment>) -> Result<Option<warnings::AnalysisWarning>, AnalysisError> {
     if let Some(fragment) = fragment {
         // If the block has exactly one text node that's only whitespace, warn
         if fragment.nodes.len() == 1
             && let TemplateNode::Text(text) = &fragment.nodes[0]
+            && !text.raw.is_empty()
             && text.raw.trim().is_empty()
         {
-            // TODO: Add warning system
-            // w.block_empty(node)
+            return Ok(Some(warnings::block_empty()));
         }
     }
-    Ok(())
+    Ok(None)
 }
 
 /// Ensure that a variable declaration doesn't conflict with module imports.

@@ -11,6 +11,7 @@ use regex::Regex;
 use super::VisitorContext;
 use super::shared::fragment;
 use super::shared::utils::{validate_block_not_empty, validate_opening_tag};
+use super::super::errors;
 use crate::ast::template::AwaitBlock;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
@@ -29,10 +30,21 @@ static REGEX_CATCH_BLOCK: LazyLock<Regex> =
 /// * `block` - The await block to analyze
 /// * `context` - The visitor context
 pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    // Check if inside a textarea (logic blocks not allowed)
+    if context.element_ancestors.iter().any(|a| a == "textarea") {
+        return Err(errors::block_invalid_placement("{#await ...}"));
+    }
+
     // Validate that blocks are not empty (only whitespace)
-    validate_block_not_empty(block.pending.as_ref())?;
-    validate_block_not_empty(block.then.as_ref())?;
-    validate_block_not_empty(block.catch.as_ref())?;
+    if let Some(warning) = validate_block_not_empty(block.pending.as_ref())? {
+        context.emit_warning(warning);
+    }
+    if let Some(warning) = validate_block_not_empty(block.then.as_ref())? {
+        context.emit_warning(warning);
+    }
+    if let Some(warning) = validate_block_not_empty(block.catch.as_ref())? {
+        context.emit_warning(warning);
+    }
 
     // In runes mode, validate opening tag syntax
     if context.analysis.runes {
@@ -94,6 +106,9 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
     let was_direct_child = context.is_direct_child_of_component;
     context.is_direct_child_of_component = false;
 
+    // Push fragment owner type for const_tag placement validation
+    context.fragment_owner_stack.push(super::FragmentOwnerType::AwaitBlock);
+
     // Analyze the pending block (shown while awaiting)
     if let Some(ref mut pending) = block.pending {
         fragment::analyze(pending, context)?;
@@ -110,6 +125,9 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
         // TODO: Create a scope for the error binding if it exists
         fragment::analyze(catch, context)?;
     }
+
+    // Pop fragment owner type
+    context.fragment_owner_stack.pop();
 
     // Restore is_direct_child_of_component
     context.is_direct_child_of_component = was_direct_child;

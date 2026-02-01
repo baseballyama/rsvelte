@@ -28,8 +28,14 @@ pub fn visit(block: &mut SnippetBlock, context: &mut VisitorContext) -> Result<(
     // Increment block depth for child analysis
     context.block_depth += 1;
 
+    // Push fragment owner type for const_tag placement validation
+    context.fragment_owner_stack.push(super::FragmentOwnerType::SnippetBlock);
+
     // Analyze the body
     fragment::analyze(&mut block.body, context)?;
+
+    // Pop fragment owner type
+    context.fragment_owner_stack.pop();
 
     // Decrement block depth
     context.block_depth -= 1;

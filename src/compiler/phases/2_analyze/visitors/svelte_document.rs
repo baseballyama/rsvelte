@@ -31,10 +31,24 @@ pub fn visit(document: &SvelteElement, context: &mut VisitorContext) -> Result<(
         ));
     }
 
-    // Validate bind directives
+    // Validate attributes - check for invalid ones
     for attr in &document.attributes {
-        if let Attribute::BindDirective(bind) = attr {
-            bind_directive::visit_with_svelte_element(bind, "svelte:document", context)?;
+        match attr {
+            Attribute::BindDirective(bind) => {
+                bind_directive::visit_with_svelte_element(bind, "svelte:document", context)?;
+            }
+            Attribute::OnDirective(_) => {
+                // on: directives are allowed
+            }
+            Attribute::LetDirective(_) => {
+                // let: directives are NOT allowed on svelte:document
+                return Err(errors::let_directive_invalid_placement());
+            }
+            Attribute::SpreadAttribute(_) => {
+                // Spread attributes are NOT allowed on svelte:document
+                return Err(errors::illegal_element_attribute("svelte:document"));
+            }
+            _ => {}
         }
     }
 

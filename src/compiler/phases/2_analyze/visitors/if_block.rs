@@ -6,13 +6,32 @@
 
 use super::VisitorContext;
 use super::shared::fragment;
+use super::shared::utils::{validate_opening_tag, validate_block_not_empty};
+use super::super::errors;
 use crate::ast::template::IfBlock;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
 /// Visit an if block.
 pub fn visit(block: &mut IfBlock, context: &mut VisitorContext) -> Result<(), AnalysisError> {
-    // TODO: validate_block_not_empty for consequent and alternate
-    // TODO: validate_opening_tag if in runes mode
+    // Check if inside a textarea (logic blocks not allowed)
+    if context.element_ancestors.iter().any(|a| a == "textarea") {
+        return Err(errors::block_invalid_placement("{#if ...}"));
+    }
+
+    // Validate block is not empty (warn if only whitespace)
+    if let Some(warning) = validate_block_not_empty(Some(&block.consequent))? {
+        context.emit_warning(warning);
+    }
+    if let Some(ref alternate) = block.alternate {
+        if let Some(warning) = validate_block_not_empty(Some(alternate))? {
+            context.emit_warning(warning);
+        }
+    }
+
+    // In runes mode, validate that the tag starts with '{#' (no whitespace)
+    if context.analysis.runes {
+        validate_opening_tag(block.start as usize, &context.analysis.source, '#')?;
+    }
 
     // Mark that we have control flow affecting sibling relationships
     // This corresponds to mark_subtree_dynamic(context.path) in the JS version
@@ -41,6 +60,9 @@ pub fn visit(block: &mut IfBlock, context: &mut VisitorContext) -> Result<(), An
     let was_direct_child = context.is_direct_child_of_component;
     context.is_direct_child_of_component = false;
 
+    // Push fragment owner type for const_tag placement validation
+    context.fragment_owner_stack.push(super::FragmentOwnerType::IfBlock);
+
     // Analyze the consequent
     fragment::analyze(&mut block.consequent, context)?;
 
@@ -48,6 +70,9 @@ pub fn visit(block: &mut IfBlock, context: &mut VisitorContext) -> Result<(), An
     if let Some(ref mut alternate) = block.alternate {
         fragment::analyze(alternate, context)?;
     }
+
+    // Pop fragment owner type
+    context.fragment_owner_stack.pop();
 
     // Restore is_direct_child_of_component
     context.is_direct_child_of_component = was_direct_child;

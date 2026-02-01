@@ -538,6 +538,25 @@ pub fn visit(
             }
         }
 
+        // Check for logic blocks inside textarea (not allowed)
+        for node in &element.fragment.nodes {
+            match node {
+                TemplateNode::IfBlock(_) => {
+                    return Err(errors::block_invalid_placement("{#if ...}"));
+                }
+                TemplateNode::EachBlock(_) => {
+                    return Err(errors::block_invalid_placement("{#each ...}"));
+                }
+                TemplateNode::AwaitBlock(_) => {
+                    return Err(errors::block_invalid_placement("{#await ...}"));
+                }
+                TemplateNode::KeyBlock(_) => {
+                    return Err(errors::block_invalid_placement("{#key ...}"));
+                }
+                _ => {}
+            }
+        }
+
         if element.fragment.nodes.len() > 1
             || !matches!(element.fragment.nodes[0], TemplateNode::Text(_))
         {
@@ -784,6 +803,12 @@ pub fn visit(
                     super::class_directive::visit(class_dir, context)?;
                 }
             }
+            Attribute::StyleDirective(_) => {
+                // Re-borrow the style directive for the visit call
+                if let Attribute::StyleDirective(style_dir) = &element.attributes[i] {
+                    super::style_directive::visit(style_dir, context)?;
+                }
+            }
             _ => {}
         }
     }
@@ -842,8 +867,14 @@ pub fn visit(
     let was_direct_child = context.is_direct_child_of_component;
     context.is_direct_child_of_component = false;
 
+    // Push fragment owner type for const_tag placement validation
+    context.fragment_owner_stack.push(super::FragmentOwnerType::RegularElement);
+
     // Analyze children
     analyze(&mut element.fragment, context)?;
+
+    // Pop fragment owner type
+    context.fragment_owner_stack.pop();
 
     // Restore is_direct_child_of_component
     context.is_direct_child_of_component = was_direct_child;

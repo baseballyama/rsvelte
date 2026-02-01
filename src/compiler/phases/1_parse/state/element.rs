@@ -1057,14 +1057,13 @@ impl Parser<'_> {
                         self.index,
                     )
                 } else {
-                    // Plain quoted string - skip
-                    while !self.is_eof() && self.current_char() != quote {
-                        self.advance();
-                    }
-                    if self.current_char() == quote {
-                        self.advance();
-                    }
-                    (None, self.index)
+                    // Plain quoted string without expression is invalid for directives
+                    let error_pos = self.index - 1; // Position at the opening quote
+                    return Err(crate::error::ParseError::svelte(
+                        "directive_invalid_value",
+                        "Directive value must be a JavaScript expression enclosed in curly braces\nhttps://svelte.dev/e/directive_invalid_value",
+                        (error_pos, error_pos),
+                    ));
                 }
             } else if self.eat_optional("{") {
                 // Expression in braces

@@ -5,9 +5,10 @@
 //! Corresponds to Svelte's `2-analyze/visitors/ConstTag.js`.
 
 use super::super::AnalysisError;
-use super::VisitorContext;
+use super::super::errors;
+use super::{FragmentOwnerType, VisitorContext};
 use super::shared::utils::{validate_opening_tag, walk_js_expression};
-use crate::ast::template::{ConstTag, TemplateNode};
+use crate::ast::template::ConstTag;
 
 /// Visit a const tag.
 ///
@@ -21,48 +22,27 @@ pub fn visit(tag: &mut ConstTag, context: &mut VisitorContext) -> Result<(), Ana
         validate_opening_tag(tag.start as usize, &context.analysis.source, '@')?;
     }
 
-    // Validate placement: {@const} must be a direct child of Fragment,
-    // and the Fragment must be a child of specific block types
-    if context.path.len() >= 2 {
-        let _parent = context.path.last();
-        let _grand_parent = context.path.get(context.path.len() - 2);
+    // Validate placement: {@const} must be a direct child of specific block types
+    // Get the current fragment owner from the stack
+    let fragment_owner = context.fragment_owner_stack.last().copied();
 
-        // TODO: Validate const tag placement
-        // Parent must be a Fragment, but Fragment is not a TemplateNode variant
-        // This needs to be implemented properly by checking the actual AST structure
-        // For now, skip this validation
-    }
+    let is_valid_placement = match fragment_owner {
+        Some(FragmentOwnerType::IfBlock) => true,
+        Some(FragmentOwnerType::EachBlock) => true,
+        Some(FragmentOwnerType::AwaitBlock) => true,
+        Some(FragmentOwnerType::KeyBlock) => true,
+        Some(FragmentOwnerType::SnippetBlock) => true,
+        Some(FragmentOwnerType::SvelteFragment) => true,
+        Some(FragmentOwnerType::SvelteBoundary) => true,
+        Some(FragmentOwnerType::Component) => true,
+        // RegularElement and SvelteElement are allowed only if they have a slot attribute
+        // But we can't easily check that here, so we disallow them
+        // The official Svelte checks the path to see if the grandparent has a slot attribute
+        _ => false,
+    };
 
-    // TODO: Re-enable validation when we properly handle Fragment checks
-    if false {
-        // Grand parent must be one of the allowed types
-        let valid_grand_parent = match None as Option<&TemplateNode> {
-            Some(TemplateNode::IfBlock(_)) => true,
-            Some(TemplateNode::SvelteFragment(_)) => true,
-            Some(TemplateNode::Component(_)) => true,
-            Some(TemplateNode::SvelteComponent(_)) => true,
-            Some(TemplateNode::EachBlock(_)) => true,
-            Some(TemplateNode::AwaitBlock(_)) => true,
-            Some(TemplateNode::SnippetBlock(_)) => true,
-            Some(TemplateNode::SvelteBoundary(_)) => true,
-            Some(TemplateNode::KeyBlock(_)) => true,
-            // RegularElement and SvelteElement are allowed only if they have a slot attribute
-            Some(TemplateNode::RegularElement(element)) => {
-                element.attributes.iter().any(|attr| {
-                    matches!(attr, crate::ast::template::Attribute::Attribute(a) if a.name == "slot")
-                })
-            }
-            Some(TemplateNode::SvelteElement(element)) => {
-                element.attributes.iter().any(|attr| {
-                    matches!(attr, crate::ast::template::Attribute::Attribute(a) if a.name == "slot")
-                })
-            }
-            _ => false,
-        };
-
-        if !valid_grand_parent {
-            // TODO: return Err(errors::const_tag_invalid_placement());
-        }
+    if !is_valid_placement {
+        return Err(errors::const_tag_invalid_placement());
     }
 
     // Visit the declaration expression

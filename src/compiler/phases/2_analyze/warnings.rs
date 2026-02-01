@@ -614,3 +614,11 @@ pub fn component_name_lowercase(name: &str) -> AnalysisWarning {
         ),
     )
 }
+
+/// Empty block warning
+pub fn block_empty() -> AnalysisWarning {
+    warning(
+        "block_empty",
+        "Empty block\nhttps://svelte.dev/e/block_empty",
+    )
+}

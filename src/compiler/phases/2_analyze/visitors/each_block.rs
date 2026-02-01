@@ -20,12 +20,21 @@ use crate::ast::template::{EachBlock, TemplateNode};
 ///
 /// Corresponds to `EachBlock(node, context)` in EachBlock.js.
 pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+    // Check if inside a textarea (logic blocks not allowed)
+    if context.element_ancestors.iter().any(|a| a == "textarea") {
+        return Err(errors::block_invalid_placement("{#each ...}"));
+    }
+
     // Validate that the tag starts with '{#' (no whitespace in runes mode)
     validate_opening_tag(block.start as usize, &context.analysis.source, '#')?;
 
     // Validate that the body and fallback are not empty (warn if only whitespace)
-    validate_block_not_empty(Some(&block.body))?;
-    validate_block_not_empty(block.fallback.as_ref())?;
+    if let Some(warning) = validate_block_not_empty(Some(&block.body))? {
+        context.emit_warning(warning);
+    }
+    if let Some(warning) = validate_block_not_empty(block.fallback.as_ref())? {
+        context.emit_warning(warning);
+    }
 
     // Check if the context identifier is a rune name (invalid)
     if let Some(ref context_expr) = block.context {
@@ -96,6 +105,9 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
     let was_direct_child = context.is_direct_child_of_component;
     context.is_direct_child_of_component = false;
 
+    // Push fragment owner type for const_tag placement validation
+    context.fragment_owner_stack.push(super::FragmentOwnerType::EachBlock);
+
     // Visit the body and fallback
     fragment::analyze(&mut block.body, context)?;
 
@@ -105,6 +117,9 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
     if let Some(ref mut fallback) = block.fallback {
         fragment::analyze(fallback, context)?;
     }
+
+    // Pop fragment owner type
+    context.fragment_owner_stack.pop();
 
     // Restore is_direct_child_of_component
     context.is_direct_child_of_component = was_direct_child;

@@ -194,6 +194,11 @@ pub struct VisitorContext<'a> {
     /// When entering a custom element (RegularElement with '-' in name), push SlotOwnerType::CustomElement.
     /// Used to determine if slot attribute is valid - the nearest owner determines behavior.
     pub slot_owner_ancestors: Vec<SlotOwnerType>,
+    /// Stack of fragment owner types.
+    /// Used for const_tag placement validation - const tags must be direct children of
+    /// specific fragment owners (IfBlock, EachBlock, AwaitBlock, KeyBlock, SnippetBlock,
+    /// Component, SvelteFragment, SvelteBoundary, or elements with slot attribute).
+    pub fragment_owner_stack: Vec<FragmentOwnerType>,
 }
 
 /// Type of ancestor that can "own" a slot attribute.
@@ -203,6 +208,40 @@ pub enum SlotOwnerType {
     Component,
     /// A custom element (RegularElement with hyphen in name)
     CustomElement,
+}
+
+/// Type of parent that owns the current fragment being visited.
+/// Used for const_tag placement validation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FragmentOwnerType {
+    /// Root fragment (top-level)
+    Root,
+    /// Inside a RegularElement
+    RegularElement,
+    /// Inside a Component (or SvelteComponent, SvelteSelf)
+    Component,
+    /// Inside an IfBlock branch
+    IfBlock,
+    /// Inside an EachBlock body or fallback
+    EachBlock,
+    /// Inside an AwaitBlock branch (pending, then, catch)
+    AwaitBlock,
+    /// Inside a KeyBlock
+    KeyBlock,
+    /// Inside a SnippetBlock
+    SnippetBlock,
+    /// Inside a SvelteFragment
+    SvelteFragment,
+    /// Inside a SvelteBoundary
+    SvelteBoundary,
+    /// Inside a SvelteElement
+    SvelteElement,
+    /// Inside a SlotElement
+    SlotElement,
+    /// Inside a SvelteHead
+    SvelteHead,
+    /// Inside a TitleElement
+    TitleElement,
 }
 
 /// Type of AST being analyzed.
@@ -250,6 +289,7 @@ impl<'a> VisitorContext<'a> {
             each_block_stack: Vec::new(),
             is_direct_child_of_component: false,
             slot_owner_ancestors: Vec::new(),
+            fragment_owner_stack: vec![FragmentOwnerType::Root],
         }
     }
 

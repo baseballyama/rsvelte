@@ -20,8 +20,14 @@ pub fn visit(frag: &mut SvelteElement, context: &mut VisitorContext) -> Result<(
     // svelte:fragment is used for named slots
     context.analysis.uses_slots = true;
 
+    // Push fragment owner type for const_tag placement validation
+    context.fragment_owner_stack.push(super::FragmentOwnerType::SvelteFragment);
+
     // Analyze children
     fragment::analyze(&mut frag.fragment, context)?;
+
+    // Pop fragment owner type
+    context.fragment_owner_stack.pop();
 
     Ok(())
 }

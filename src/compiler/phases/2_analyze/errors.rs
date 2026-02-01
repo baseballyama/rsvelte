@@ -384,7 +384,7 @@ pub fn state_invalid_export() -> AnalysisError {
 pub fn const_tag_invalid_placement() -> AnalysisError {
     error(
         "const_tag_invalid_placement",
-        "{@const} tag can only be used as a direct child of {#if}, {#each}, {#await}, {#key}, {#snippet}, or a component/element with a slot attribute",
+        "`{@const}` must be the immediate child of `{#snippet}`, `{#if}`, `{:else if}`, `{:else}`, `{#each}`, `{:then}`, `{:catch}`, `<svelte:fragment>`, `<svelte:boundary>` or `<Component>`\nhttps://svelte.dev/e/const_tag_invalid_placement",
     )
 }
 
@@ -393,7 +393,7 @@ pub fn block_unexpected_character(expected: &str) -> AnalysisError {
     error(
         "block_unexpected_character",
         format!(
-            "Block must start with '{{{{{}' (no whitespace after '{{{{')",
+            "Expected a `{}` character immediately following the opening bracket\nhttps://svelte.dev/e/block_unexpected_character",
             expected
         ),
     )
@@ -975,5 +975,89 @@ pub fn script_module_duplicate() -> AnalysisError {
     error(
         "script_module_duplicate",
         "A component can only have one `<script module>` element\nhttps://svelte.dev/e/script_module_duplicate",
+    )
+}
+
+/// `let:` directive at invalid position
+pub fn let_directive_invalid_placement() -> AnalysisError {
+    error(
+        "let_directive_invalid_placement",
+        "`let:` directive at invalid position\nhttps://svelte.dev/e/let_directive_invalid_placement",
+    )
+}
+
+/// `<svelte:element>` or `<svelte:window>` cannot have spread attributes
+pub fn illegal_element_attribute(element: &str) -> AnalysisError {
+    error(
+        "illegal_element_attribute",
+        format!(
+            "`<{}>` cannot have spread attributes\nhttps://svelte.dev/e/illegal_element_attribute",
+            element
+        ),
+    )
+}
+
+/// `{@debug ...}` arguments must be identifiers
+pub fn debug_tag_invalid_arguments() -> AnalysisError {
+    error(
+        "debug_tag_invalid_arguments",
+        "{@debug ...} arguments must be identifiers, not arbitrary expressions\nhttps://svelte.dev/e/debug_tag_invalid_arguments",
+    )
+}
+
+/// Title element can only contain text and `{expression}`
+pub fn title_invalid_content() -> AnalysisError {
+    error(
+        "title_invalid_content",
+        "`<title>` can only contain text and {tags}\nhttps://svelte.dev/e/title_invalid_content",
+    )
+}
+
+/// Logic block or expression inside textarea
+pub fn block_invalid_placement(thing: &str) -> AnalysisError {
+    error(
+        "block_invalid_placement",
+        format!(
+            "{} block cannot be inside <textarea>\nhttps://svelte.dev/e/block_invalid_placement",
+            thing
+        ),
+    )
+}
+
+/// Style directive modifier invalid
+pub fn style_directive_invalid_modifier() -> AnalysisError {
+    error(
+        "style_directive_invalid_modifier",
+        "`style:` directive can only use the `important` modifier\nhttps://svelte.dev/e/style_directive_invalid_modifier",
+    )
+}
+
+/// Directive value must be an expression
+pub fn directive_invalid_value() -> AnalysisError {
+    error(
+        "directive_invalid_value",
+        "Directive value must be a JavaScript expression enclosed in curly braces\nhttps://svelte.dev/e/directive_invalid_value",
+    )
+}
+
+/// `bind:value` on wrong element
+pub fn bind_invalid_value(element: &str) -> AnalysisError {
+    error(
+        "bind_invalid_value",
+        format!(
+            "`bind:value` can only be used on `<input>`, `<textarea>` or `<select>`, not `<{}>`\nhttps://svelte.dev/e/bind_invalid_value",
+            element
+        ),
+    )
+}
+
+/// TypeScript feature invalid
+pub fn typescript_invalid_feature(feature: &str) -> AnalysisError {
+    error(
+        "typescript_invalid_feature",
+        format!(
+            "TypeScript {} are not supported in Svelte components\nhttps://svelte.dev/e/typescript_invalid_feature",
+            feature
+        ),
     )
 }

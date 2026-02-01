@@ -7,7 +7,7 @@
 use super::super::errors;
 use super::VisitorContext;
 use super::shared::fragment;
-use crate::ast::template::TitleElement;
+use crate::ast::template::{TemplateNode, TitleElement};
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
 /// Visit a title element.
@@ -15,6 +15,18 @@ pub fn visit(title: &mut TitleElement, context: &mut VisitorContext) -> Result<(
     // Check for illegal attributes - title cannot have any attributes or directives
     if !title.attributes.is_empty() {
         return Err(errors::title_illegal_attribute());
+    }
+
+    // Check that all children are Text or ExpressionTag
+    for child in &title.fragment.nodes {
+        match child {
+            TemplateNode::Text(_) | TemplateNode::ExpressionTag(_) => {
+                // These are allowed
+            }
+            _ => {
+                return Err(errors::title_invalid_content());
+            }
+        }
     }
 
     // Analyze children
