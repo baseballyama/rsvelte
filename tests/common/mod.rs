@@ -340,6 +340,9 @@ pub fn normalize_js(js: &str) -> String {
         static ref SVELTE_FLAGS_IMPORT: Regex = Regex::new(r#"import\s+['"]svelte/internal/flags/(legacy|async|tracing)['"];\s*"#).unwrap();
         // Normalize $.head() hash values - these are implementation-specific
         static ref HEAD_HASH: Regex = Regex::new(r"\$\.head\('[a-zA-Z0-9]+',").unwrap();
+        // Normalize import/export quote style - from "path" to 'path'
+        // Match import ... from "..." or export ... from "..."
+        static ref IMPORT_DOUBLE_QUOTE: Regex = Regex::new(r#"(import[^;]+from\s+)"([^"]+)""#).unwrap();
     }
 
     // Normalize variable suffixes
@@ -358,6 +361,11 @@ pub fn normalize_js(js: &str) -> String {
 
     // Normalize $.head() hash values to a consistent value
     let result = HEAD_HASH.replace_all(&result, "$.head('hash',").to_string();
+
+    // Normalize import quote style (double quotes to single quotes)
+    let result = IMPORT_DOUBLE_QUOTE
+        .replace_all(&result, "$1'$2'")
+        .to_string();
 
     // Normalize function names in default exports (Main, Component, etc. -> Component)
     let result = FUNCTION_NAME

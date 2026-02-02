@@ -342,13 +342,54 @@ fn transform_client_with_visitors(
                 name, name
             ));
             exports_code.push_str(",\n");
-            // Setter: propName($$value); $.flush();
-            // The $.flush() is required for legacy mode exports to ensure
-            // synchronous updates to bound values propagate correctly
-            exports_code.push_str(&format!(
-                "\tset {}($$value) {{\n\t\t{}($$value);\n\t\t$.flush();\n\t}}",
-                name, name
-            ));
+
+            // Find the binding to determine the setter format
+            // Reference: transform-client.js lines 296-303
+            let binding = analysis.root.bindings.iter().find(|b| b.name == *name);
+
+            if let Some(binding) = binding {
+                match binding.kind {
+                    // For prop/bindable_prop: propName($$value) - no flush
+                    // Reference: transform-client.js lines 296-297
+                    BindingKind::Prop | BindingKind::BindableProp => {
+                        exports_code.push_str(&format!(
+                            "\tset {}($$value) {{\n\t\t{}($$value);\n\t}}",
+                            name, name
+                        ));
+                    }
+                    // For state: $.set(name, $.proxy($$value))
+                    // Reference: transform-client.js lines 300-302
+                    BindingKind::State => {
+                        exports_code.push_str(&format!(
+                            "\tset {}($$value) {{\n\t\t$.set({}, $.proxy($$value));\n\t}}",
+                            name, name
+                        ));
+                    }
+                    // For raw_state: $.set(name, $$value)
+                    // Reference: transform-client.js lines 300-302
+                    BindingKind::RawState => {
+                        exports_code.push_str(&format!(
+                            "\tset {}($$value) {{\n\t\t$.set({}, $$value);\n\t}}",
+                            name, name
+                        ));
+                    }
+                    // For let/var declarations (normal binding): direct assignment
+                    // Reference: transform-client.js lines 286-290
+                    _ => {
+                        exports_code.push_str(&format!(
+                            "\tset {}($$value) {{\n\t\t{} = $$value;\n\t}}",
+                            name, name
+                        ));
+                    }
+                }
+            } else {
+                // Fallback: direct assignment
+                exports_code.push_str(&format!(
+                    "\tset {}($$value) {{\n\t\t{} = $$value;\n\t}}",
+                    name, name
+                ));
+            }
+
             if i < reactive_exports.len() - 1 {
                 exports_code.push_str(",\n");
             } else {
