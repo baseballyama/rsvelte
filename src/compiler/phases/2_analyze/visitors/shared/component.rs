@@ -112,19 +112,25 @@ pub fn visit_component(
     // Validate attributes
     for attr in &component.attributes {
         match attr {
-            Attribute::Attribute(_) => {
-                // TODO: Validate attribute
-                // if (context.state.analysis.runes) {
-                //     validate_attribute(attribute, node);
-                //     if (is_expression_attribute(attribute)) {
-                //         disallow_unparenthesized_sequences(
-                //             get_attribute_expression(attribute),
-                //             context.state.analysis.source
-                //         );
-                //     }
-                // }
-                // validate_attribute_name(attribute);
-                // if (attribute.name === 'slot') {
+            Attribute::Attribute(attr) => {
+                // In runes mode, validate sequence expressions
+                use super::attribute::{
+                    get_attribute_expression, is_expression_attribute,
+                    is_unparenthesized_sequence_expression,
+                };
+
+                if context.analysis.runes
+                    && is_expression_attribute(attr)
+                    && let Some(expression_tag) = get_attribute_expression(attr)
+                    && is_unparenthesized_sequence_expression(
+                        expression_tag,
+                        &context.analysis.source,
+                    )
+                {
+                    return Err(errors::attribute_invalid_sequence_expression());
+                }
+                // TODO: validate_attribute_name(attribute);
+                // TODO: if (attribute.name === 'slot') {
                 //     validate_slot_attribute(context, attribute, true);
                 // }
             }

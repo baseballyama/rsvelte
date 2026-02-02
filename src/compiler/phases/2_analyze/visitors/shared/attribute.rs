@@ -152,3 +152,51 @@ pub enum AttributeChunk<'a> {
     Text(&'a crate::ast::template::Text),
     Expression(&'a crate::ast::template::ExpressionTag),
 }
+
+/// Check if an expression is an unparenthesized sequence expression.
+///
+/// In runes mode, sequence expressions like `foo={x, y, z}` are not allowed
+/// unless they are wrapped in parentheses: `foo={(x, y, z)}`.
+///
+/// Corresponds to `disallow_unparenthesized_sequences` in utils/ast.js.
+pub fn is_unparenthesized_sequence_expression(
+    expression_tag: &ExpressionTag,
+    source: &str,
+) -> bool {
+    // Check if it's a SequenceExpression
+    if let Some(expr_type) = expression_tag.expression.node_type()
+        && expr_type == "SequenceExpression"
+    {
+        // Check if it's parenthesized by looking at the source before the expression start
+        if let Some(start) = expression_tag.expression.start() {
+            let mut i = start as usize;
+            // Walk backwards from the expression start to find '(' or '{'
+            while i > 0 {
+                i -= 1;
+                if i >= source.len() {
+                    break;
+                }
+                let ch = source.chars().nth(i);
+                match ch {
+                    Some('(') => {
+                        // Expression is parenthesized
+                        return false;
+                    }
+                    Some('{') => {
+                        // Found opening brace without parenthesis - unparenthesized
+                        return true;
+                    }
+                    Some(c) if c.is_whitespace() => {
+                        // Skip whitespace
+                        continue;
+                    }
+                    _ => {
+                        // Some other character - continue looking
+                        continue;
+                    }
+                }
+            }
+        }
+    }
+    false
+}
