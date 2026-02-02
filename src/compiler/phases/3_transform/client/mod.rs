@@ -5326,6 +5326,9 @@ fn transform_class_fields_client(script: &str) -> String {
     }
 
     // Parse each line for field definitions
+    // Also track non-rune fields that need to be preserved
+    let mut non_rune_fields: Vec<String> = Vec::new();
+
     for line in fields_section.lines() {
         let trimmed = line.trim();
         if trimmed.is_empty() {
@@ -5356,6 +5359,10 @@ fn transform_class_fields_client(script: &str) -> String {
             && let Some(field) = parse_state_field(trimmed, "$derived")
         {
             fields.push(field);
+        }
+        // Preserve non-rune class members (private fields, regular fields, etc.)
+        else {
+            non_rune_fields.push(line.to_string());
         }
     }
 
@@ -5459,6 +5466,15 @@ fn transform_class_fields_client(script: &str) -> String {
                     field.name, private_name
                 ));
             }
+        }
+    }
+
+    // Add non-rune fields (private fields, regular fields without $state/$derived)
+    // These need to be preserved in their original form
+    for field_line in &non_rune_fields {
+        new_class_body.push_str(field_line);
+        if !field_line.ends_with('\n') {
+            new_class_body.push('\n');
         }
     }
 
