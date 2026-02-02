@@ -561,6 +561,8 @@ impl<'a> ComponentContext<'a> {
     /// in a special way.
     fn visit_special_element(&mut self, element: &crate::ast::template::SvelteElement, id: &str) {
         use crate::ast::template::Attribute;
+        use crate::compiler::phases::phase3_transform::client::visitors::attribute::is_event_attribute;
+        use crate::compiler::phases::phase3_transform::client::visitors::shared::events::build_event;
         use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
         use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 
@@ -585,7 +587,31 @@ impl<'a> ComponentContext<'a> {
                     // Handle bind: directives on special elements
                     self.visit_bind_directive(bind_dir, None);
                 }
-                // TODO: Handle other directive types as needed
+                Attribute::Attribute(_attr_node) => {
+                    // Handle event attributes like onclick={...} on special elements
+                    if let Some(event_attr) = is_event_attribute(attribute) {
+                        // Extract event name (remove "on" prefix)
+                        let mut event_name = &event_attr.name[2..];
+                        let mut capture = false;
+
+                        // Check if this is a capture event (e.g., "clickcapture")
+                        if event_name.ends_with("capture") && event_name.len() > 7 {
+                            event_name = &event_name[..event_name.len() - 7];
+                            capture = true;
+                        }
+
+                        // Extract and convert the handler expression
+                        let handler = extract_event_handler(&event_attr.value, self);
+
+                        // Build the $.event() call
+                        // For special elements, events are never delegated and always go to init
+                        let passive = is_passive_event(event_name);
+                        let event_call =
+                            build_event(event_name, &self.state.node, handler, capture, passive);
+                        self.state.init.push(b::stmt(event_call));
+                    }
+                }
+                // Other directive types are not typically used on special elements
                 _ => {}
             }
         }
@@ -614,6 +640,26 @@ impl<'a> ComponentContext<'a> {
         use crate::compiler::phases::phase3_transform::client::visitors::bind_directive::bind_directive as visit_bind_directive_impl;
         visit_bind_directive_impl(bind_directive, self, parent)
     }
+}
+
+/// Extract an event handler from an attribute value.
+///
+/// This helper extracts the expression from an event attribute and builds
+/// the appropriate event handler expression.
+fn extract_event_handler(
+    value: &crate::ast::template::AttributeValue,
+    context: &mut ComponentContext,
+) -> JsExpr {
+    use crate::compiler::phases::phase3_transform::client::visitors::attribute::{
+        build_event_handler, extract_expression_tag,
+    };
+    let expr_tag = extract_expression_tag(value);
+    build_event_handler(expr_tag, context)
+}
+
+/// Check if an event is passive.
+fn is_passive_event(name: &str) -> Option<bool> {
+    crate::compiler::phases::phase3_transform::client::visitors::attribute::is_passive_event(name)
 }
 
 /// Result of visiting a node.

@@ -2589,3 +2589,36 @@ fn test_normalize_js_generated_var_suffixes() {
         "Variables with numeric suffixes should normalize to the same as without"
     );
 }
+
+#[test]
+fn test_normalize_event_delegation_4_multiline_objects() {
+    // Test that $$events objects with different formatting normalize the same
+    let actual = r#"Component(node, {
+		$$events: { click: [() => console.log('div main 1'), () => console.log('div main 2')] },
+		children: ($$anchor, $$slotProps) => {
+			var button = root();
+		}
+	});"#;
+
+    let expected = r#"Component(node, {
+		$$events: {
+			click: [
+				() => console.log('div main 1'),
+				() => console.log('div main 2')
+			]
+		},
+
+		children: ($$anchor, $$slotProps) => {
+			var button = root();
+		}
+	});"#;
+
+    let norm_actual = normalize_js(actual);
+    let norm_expected = normalize_js(expected);
+    println!("Actual normalized: {}", norm_actual);
+    println!("Expected normalized: {}", norm_expected);
+    assert_eq!(
+        norm_actual, norm_expected,
+        "Object formatting should not affect normalization"
+    );
+}

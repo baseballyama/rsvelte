@@ -1397,4 +1397,164 @@ const test = new Test();
             }
         }
     }
+
+    /// Test that multiple on:click directives on a component compile correctly.
+    #[test]
+    fn debug_multiple_on_click() {
+        let source = r#"<script>
+import Component from "./Component.svelte";
+</script>
+
+<Component on:click={() => console.log("a")} on:click={() => console.log("b")}>
+test
+</Component>"#;
+
+        let options = CompileOptions {
+            dev: false,
+            ..Default::default()
+        };
+
+        let result = compile(source, options);
+        match result {
+            Ok(output) => {
+                println!(
+                    "\n=== COMPILED CLIENT OUTPUT ===\n{}\n=== END ===\n",
+                    output.js.code
+                );
+            }
+            Err(e) => {
+                panic!("Compilation error: {:?}", e);
+            }
+        }
+    }
+
+    /// Test that svelte:window with onclick compiles correctly.
+    #[test]
+    fn debug_svelte_window_onclick() {
+        let source = r#"<svelte:window onclick="{() => console.log('window main')}" />"#;
+
+        let options = CompileOptions {
+            dev: false,
+            ..Default::default()
+        };
+
+        let result = compile(source, options);
+        match result {
+            Ok(output) => {
+                println!(
+                    "\n=== COMPILED CLIENT OUTPUT ===\n{}\n=== END ===\n",
+                    output.js.code
+                );
+            }
+            Err(e) => {
+                panic!("Compilation error: {:?}", e);
+            }
+        }
+    }
+
+    /// Test full event-attribute-delegation-4 test case.
+    #[test]
+    fn debug_event_attribute_delegation_4() {
+        let source = r#"<script>
+	import Component from "./Component.svelte";
+	import Sub from "./sub.svelte";
+</script>
+
+<svelte:window onclick="{() => console.log('window main')}" />
+<svelte:document onclick="{() => console.log('document main')}" />
+
+<Component on:click={() => console.log('div main 1')} on:click={() => console.log('div main 2')}>
+	<button onclick={() => console.log('button main')}>main</button>
+</Component>
+
+<Sub />"#;
+
+        let options = CompileOptions {
+            dev: false,
+            ..Default::default()
+        };
+
+        let result = compile(source, options);
+        match result {
+            Ok(output) => {
+                println!(
+                    "\n=== COMPILED CLIENT OUTPUT ===\n{}\n=== END ===\n",
+                    output.js.code
+                );
+            }
+            Err(e) => {
+                panic!("Compilation error: {:?}", e);
+            }
+        }
+    }
+
+    /// Test the normalization of the event-attribute-delegation-4 actual vs expected
+    #[test]
+    fn debug_event_delegation_4_normalization() {
+        // Read the actual and expected files from the fixtures directory
+        let actual = std::fs::read_to_string(
+            "/workspace/fixtures/123c48d38d1a/runtime-runes/event-attribute-delegation-4/_actual/client.js",
+        );
+        let expected = std::fs::read_to_string(
+            "/workspace/fixtures/123c48d38d1a/runtime-runes/event-attribute-delegation-4/client.js",
+        );
+
+        if let (Ok(actual_content), Ok(expected_content)) = (actual, expected) {
+            println!("\n=== ACTUAL RAW ===\n{}\n=== END ===\n", actual_content);
+            println!(
+                "\n=== EXPECTED RAW ===\n{}\n=== END ===\n",
+                expected_content
+            );
+
+            // Normalize both
+            fn normalize_js(js: &str) -> String {
+                js.lines()
+                    .filter(|line| {
+                        let trimmed = line.trim();
+                        !trimmed.is_empty()
+                            && !trimmed.starts_with("import 'svelte/internal/flags/")
+                    })
+                    .map(|line| line.replace('"', "'"))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            }
+
+            let actual_normalized = normalize_js(&actual_content);
+            let expected_normalized = normalize_js(&expected_content);
+
+            println!(
+                "\n=== ACTUAL NORMALIZED ===\n{}\n=== END ===\n",
+                actual_normalized
+            );
+            println!(
+                "\n=== EXPECTED NORMALIZED ===\n{}\n=== END ===\n",
+                expected_normalized
+            );
+
+            // Check each line
+            let actual_lines: Vec<&str> = actual_normalized.lines().collect();
+            let expected_lines: Vec<&str> = expected_normalized.lines().collect();
+
+            for (i, (a, e)) in actual_lines.iter().zip(expected_lines.iter()).enumerate() {
+                if a != e {
+                    println!(
+                        "Line {} differs:\n  Actual:   '{}'\n  Expected: '{}'",
+                        i + 1,
+                        a,
+                        e
+                    );
+                }
+            }
+
+            if actual_lines.len() != expected_lines.len() {
+                println!(
+                    "Line count differs: actual={}, expected={}",
+                    actual_lines.len(),
+                    expected_lines.len()
+                );
+            }
+        } else {
+            println!("Could not read files");
+        }
+    }
 }

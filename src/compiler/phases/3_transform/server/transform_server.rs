@@ -642,13 +642,18 @@ impl<'a> ServerCodeGenerator<'a> {
         let nodes: Vec<_> = fragment.nodes.iter().collect();
         let len = nodes.len();
 
-        // Find indices of first and last non-whitespace nodes
-        let first_meaningful_idx = nodes
-            .iter()
-            .position(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()));
-        let last_meaningful_idx = nodes
-            .iter()
-            .rposition(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()));
+        // Helper to check if a node is "meaningful" for SSR output purposes
+        // SvelteWindow, SvelteDocument, SvelteBody don't render anything in SSR
+        let is_ssr_meaningful = |n: &&TemplateNode| {
+            !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty())
+                && !matches!(n, TemplateNode::SvelteWindow(_))
+                && !matches!(n, TemplateNode::SvelteDocument(_))
+                && !matches!(n, TemplateNode::SvelteBody(_))
+        };
+
+        // Find indices of first and last non-whitespace nodes (excluding SSR-invisible elements)
+        let first_meaningful_idx = nodes.iter().position(is_ssr_meaningful);
+        let last_meaningful_idx = nodes.iter().rposition(is_ssr_meaningful);
 
         // If the first meaningful node is a Text or ExpressionTag, add <!---->
         // to prevent text fusion during hydration
@@ -695,6 +700,27 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
                 // Skip whitespace before SvelteHead
                 if i + 1 < len && matches!(nodes[i + 1], TemplateNode::SvelteHead(_)) {
+                    continue;
+                }
+                // Skip whitespace around SvelteWindow (these don't render in SSR)
+                if i > 0 && matches!(nodes[i - 1], TemplateNode::SvelteWindow(_)) {
+                    continue;
+                }
+                if i + 1 < len && matches!(nodes[i + 1], TemplateNode::SvelteWindow(_)) {
+                    continue;
+                }
+                // Skip whitespace around SvelteDocument (these don't render in SSR)
+                if i > 0 && matches!(nodes[i - 1], TemplateNode::SvelteDocument(_)) {
+                    continue;
+                }
+                if i + 1 < len && matches!(nodes[i + 1], TemplateNode::SvelteDocument(_)) {
+                    continue;
+                }
+                // Skip whitespace around SvelteBody (these don't render in SSR)
+                if i > 0 && matches!(nodes[i - 1], TemplateNode::SvelteBody(_)) {
+                    continue;
+                }
+                if i + 1 < len && matches!(nodes[i + 1], TemplateNode::SvelteBody(_)) {
                     continue;
                 }
             }
@@ -1980,12 +2006,8 @@ impl<'a> ServerCodeGenerator<'a> {
                             let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
                             if expr_end > expr_start && expr_end <= self.source.len() {
                                 let expr = self.source[expr_start..expr_end].trim().to_string();
-                                if is_style_attr {
-                                    // For style attributes, wrap expressions in $.stringify()
-                                    template_parts.push(format!("${{$.stringify({})}}", expr));
-                                } else {
-                                    template_parts.push(format!("${{{}}}", expr));
-                                }
+                                // All attributes with expressions need $.stringify() for proper value coercion
+                                template_parts.push(format!("${{$.stringify({})}}", expr));
                             }
                         }
                     }
@@ -2001,8 +2023,9 @@ impl<'a> ServerCodeGenerator<'a> {
                         // For style attribute with expressions, use $.attr_style()
                         Ok(Some(format!("${{$.attr_style(`{}`)}}", value)))
                     } else {
-                        // Use template literal with raw expression
-                        Ok(Some(format!(" {}=\"{}\"", name, value)))
+                        // For other attributes with expressions, use $.attr()
+                        // This ensures proper escaping and handling of special values
+                        Ok(Some(format!("${{$.attr('{}', `{}`)}}", name, value)))
                     }
                 } else {
                     // Pure text - no expressions

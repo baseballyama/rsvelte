@@ -208,11 +208,7 @@ pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContex
         context.state.init.push(b::stmt(assignment));
     } else {
         // Non-delegated event: use $.event()
-        let passive = if is_passive_event(event_name) {
-            Some(true)
-        } else {
-            None
-        };
+        let passive = is_passive_event(event_name);
 
         let event_call = build_event(event_name, &context.state.node, handler, capture, passive);
         let statement = b::stmt(event_call);
@@ -241,7 +237,7 @@ pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContex
 /// Extract the expression tag from an attribute value.
 ///
 /// Handles both direct ExpressionTag and single-element Sequence cases.
-fn extract_expression_tag(
+pub fn extract_expression_tag(
     value: &crate::ast::template::AttributeValue,
 ) -> &crate::ast::template::ExpressionTag {
     use crate::ast::template::{AttributeValue, AttributeValuePart};
@@ -271,7 +267,7 @@ fn extract_expression_tag(
 ///
 /// `build_event_handler` in
 /// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/events.js`.
-fn build_event_handler(
+pub fn build_event_handler(
     expr_tag: &crate::ast::template::ExpressionTag,
     context: &mut ComponentContext,
 ) -> crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr {
@@ -437,8 +433,12 @@ fn is_capture_event(name: &str) -> bool {
 ///     return PASSIVE_EVENTS.includes(name);
 /// }
 /// ```
-fn is_passive_event(name: &str) -> bool {
-    matches!(name, "touchstart" | "touchmove")
+pub fn is_passive_event(name: &str) -> Option<bool> {
+    if matches!(name, "touchstart" | "touchmove") {
+        Some(true)
+    } else {
+        None
+    }
 }
 
 /// Check if an expression contains a function call.
@@ -476,10 +476,10 @@ mod tests {
 
     #[test]
     fn test_is_passive_event() {
-        assert!(is_passive_event("touchstart"));
-        assert!(is_passive_event("touchmove"));
-        assert!(!is_passive_event("click"));
-        assert!(!is_passive_event("scroll"));
+        assert_eq!(is_passive_event("touchstart"), Some(true));
+        assert_eq!(is_passive_event("touchmove"), Some(true));
+        assert_eq!(is_passive_event("click"), None);
+        assert_eq!(is_passive_event("scroll"), None);
     }
 
     #[test]
