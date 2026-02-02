@@ -363,6 +363,38 @@ impl<'a> CssParser<'a> {
         Value::Object(obj)
     }
 
+    fn create_empty_relative_selector_with_combinator(
+        &self,
+        comb: char,
+        comb_start: usize,
+        comb_end: usize,
+    ) -> Value {
+        let mut obj = Map::new();
+        obj.insert(
+            "type".to_string(),
+            Value::String("RelativeSelector".to_string()),
+        );
+
+        let mut comb_obj = Map::new();
+        comb_obj.insert("type".to_string(), Value::String("Combinator".to_string()));
+        comb_obj.insert("name".to_string(), Value::String(comb.to_string()));
+        comb_obj.insert(
+            "start".to_string(),
+            Value::Number((comb_start as i64).into()),
+        );
+        comb_obj.insert("end".to_string(), Value::Number((comb_end as i64).into()));
+        obj.insert("combinator".to_string(), Value::Object(comb_obj));
+
+        obj.insert("selectors".to_string(), Value::Array(Vec::new()));
+        obj.insert(
+            "start".to_string(),
+            Value::Number((comb_start as i64).into()),
+        );
+        obj.insert("end".to_string(), Value::Number((comb_end as i64).into()));
+
+        Value::Object(obj)
+    }
+
     fn parse_relative_selectors_with_combinators(
         &self,
         text: &str,
@@ -498,7 +530,18 @@ impl<'a> CssParser<'a> {
                 let rel_selector =
                     self.create_relative_selector(selector_text, selector_offset, last_combinator);
                 result.push(rel_selector);
+            } else if let Some((comb, comb_start, comb_end)) = last_combinator {
+                // Trailing combinator with no selector after it - create empty RelativeSelector
+                // This allows CSS validation to detect invalid selectors like "p > "
+                let rel_selector =
+                    self.create_empty_relative_selector_with_combinator(comb, comb_start, comb_end);
+                result.push(rel_selector);
             }
+        } else if let Some((comb, comb_start, comb_end)) = last_combinator {
+            // Trailing combinator with no selector after it
+            let rel_selector =
+                self.create_empty_relative_selector_with_combinator(comb, comb_start, comb_end);
+            result.push(rel_selector);
         }
 
         // If no selectors were found, create one for the whole text
