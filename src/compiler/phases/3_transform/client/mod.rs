@@ -906,6 +906,7 @@ fn transform_instance_script_for_visitors(
             non_reactive_state_vars,
             proxy_vars,
             raw_state_vars,
+            analysis.runes,
         );
 
         // Transform prop assignments to prop(prop() + value) syntax
@@ -2377,6 +2378,7 @@ fn transform_state_assignments(
     non_reactive_vars: &[String],
     proxy_vars: &[String],
     raw_state_vars: &[String],
+    is_runes: bool,
 ) -> String {
     let mut result = line.to_string();
 
@@ -2558,8 +2560,10 @@ fn transform_state_assignments(
                         wrap_state_vars_in_expr(expr, state_vars, non_reactive_vars, proxy_vars);
                     // Check if the value needs proxying (could be an object/array)
                     // $state.raw() variables never need proxy wrapping
+                    // Proxy flag is only added in runes mode
                     let is_raw_state = raw_state_vars.contains(var);
-                    let needs_proxy = !is_raw_state && expression_needs_proxy(expr.trim());
+                    let needs_proxy =
+                        is_runes && !is_raw_state && expression_needs_proxy(expr.trim());
 
                     let replacement = if needs_proxy {
                         format!("$.set({}, {}, true)", var, wrapped_expr)

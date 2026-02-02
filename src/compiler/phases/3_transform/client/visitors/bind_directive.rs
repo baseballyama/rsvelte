@@ -339,7 +339,7 @@ fn build_special_binding_call(
         }
 
         // bind:this
-        "this" => build_bind_this_call(&node_expr, get, set),
+        "this" => build_bind_this_call_for_context(&node_expr, get, set, context),
 
         // Content editable bindings
         "textContent" | "innerHTML" | "innerText" => {
@@ -432,7 +432,73 @@ fn build_group_binding_call(
     )
 }
 
-/// Build a bind:this call.
+/// Build a bind:this call with context awareness for props.
+///
+/// For props (created via `$.prop()`), the getter should be `() => prop()` and
+/// the setter should be `($$value) => prop($$value)` because props are getter/setter
+/// functions.
+///
+/// For regular variables, the getter is `() => expr` and setter is `($$value) => expr = $$value`.
+fn build_bind_this_call_for_context(
+    value: &JsExpr,
+    get: &JsExpr,
+    set: &Option<JsExpr>,
+    context: &ComponentContext,
+) -> JsExpr {
+    // Check if expression is a sequence (getter/setter pair)
+    if let Some(setter) = set {
+        // Already have getter/setter pair
+        b::call(
+            b::member_path("$.bind_this"),
+            vec![value.clone(), setter.clone(), get.clone()],
+        )
+    } else {
+        // Check if this is a simple identifier that's a prop
+        let is_prop = if let JsExpr::Identifier(name) = get {
+            if let Some(binding) = context.state.get_binding(name) {
+                use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+                matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp)
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        if is_prop {
+            // For props, use function call syntax
+            // getter: () => prop()
+            // setter: ($$value) => prop($$value)
+            let getter = b::arrow(vec![], b::call(get.clone(), vec![]));
+            let setter = b::arrow(
+                vec![b::id_pattern("$$value")],
+                b::call(get.clone(), vec![b::id("$$value")]),
+            );
+
+            b::call(
+                b::member_path("$.bind_this"),
+                vec![value.clone(), setter, getter],
+            )
+        } else {
+            // For regular variables, use assignment syntax
+            // getter: () => expr
+            // setter: ($$value) => expr = $$value
+            let getter = b::arrow(vec![], get.clone());
+            let setter = b::arrow(
+                vec![b::id_pattern("$$value")],
+                b::assign(get.clone(), b::id("$$value")),
+            );
+
+            b::call(
+                b::member_path("$.bind_this"),
+                vec![value.clone(), setter, getter],
+            )
+        }
+    }
+}
+
+/// Build a bind:this call (legacy - without context).
+#[allow(dead_code)]
 fn build_bind_this_call(value: &JsExpr, get: &JsExpr, set: &Option<JsExpr>) -> JsExpr {
     // Check if expression is a sequence (getter/setter pair)
     if let Some(setter) = set {
