@@ -2745,6 +2745,88 @@ fn transform_prop_assignments(line: &str, prop_vars: &[String]) -> String {
                 break;
             }
         }
+
+        // Transform member mutations: varname.prop = value to varname(varname().prop = value, true)
+        // This is needed for bindable props in legacy mode
+        // Pattern: varname.something = value (but not varname.something.deeper = value which is handled by the above)
+        let member_pattern = format!("{}.", var);
+        let mut member_search_start = 0;
+
+        while let Some(relative_pos) = result[member_search_start..].find(&member_pattern) {
+            let pos = member_search_start + relative_pos;
+
+            // Check that this is a word boundary (not part of another identifier)
+            let before = &result[..pos];
+            if !before.is_empty() && is_identifier_char(before.chars().last().unwrap()) {
+                member_search_start = pos + member_pattern.len();
+                continue;
+            }
+
+            // Find the assignment in this member expression
+            let after_member = &result[pos + member_pattern.len()..];
+
+            // Find the property name and equals sign
+            // Example: "parentElement = node.parentElement"
+            // We need to find where the property ends and where = is
+            let mut prop_end = 0;
+            let mut eq_pos = None;
+            let after_member_chars: Vec<char> = after_member.chars().collect();
+            for (i, c) in after_member.char_indices() {
+                if c == '=' {
+                    // Check it's not == or ===
+                    // We need char index for checking neighbors
+                    let char_idx = after_member[..i].chars().count();
+                    if char_idx > 0 && after_member_chars.get(char_idx - 1) == Some(&'=') {
+                        continue;
+                    }
+                    if after_member_chars.get(char_idx + 1) == Some(&'=') {
+                        continue;
+                    }
+                    eq_pos = Some(i);
+                    // Find where the property name ends (scan backwards from =)
+                    let before_eq = after_member[..i].trim_end();
+                    prop_end = before_eq.len();
+                    break;
+                }
+            }
+
+            // If we found an assignment
+            if let Some(eq_idx) = eq_pos {
+                // Check if this is already wrapped
+                if before.ends_with(&format!("{}({}().", var, var)) {
+                    member_search_start = pos + member_pattern.len();
+                    continue;
+                }
+
+                let prop_name = after_member[..prop_end].trim();
+                let after_eq_raw = &after_member[eq_idx + 1..];
+                let leading_whitespace = after_eq_raw.len() - after_eq_raw.trim_start().len();
+                let after_eq = after_eq_raw.trim_start();
+
+                // Find the value expression end
+                let value_end = find_statement_end_client(after_eq);
+                let value = after_eq[..value_end].trim();
+
+                // Wrap with prop(prop().prop = value, true)
+                let replacement = format!("{}({}().{} = {}, true)", var, var, prop_name, value);
+
+                // Calculate the original content length:
+                // member_pattern.len() + eq_idx + 1 (for '=') + leading_whitespace + value_end
+                let original_len =
+                    member_pattern.len() + eq_idx + 1 + leading_whitespace + value_end;
+
+                let new_result = format!(
+                    "{}{}{}",
+                    &result[..pos],
+                    replacement,
+                    &result[pos + original_len..]
+                );
+                member_search_start = pos + replacement.len();
+                result = new_result;
+            } else {
+                member_search_start = pos + member_pattern.len();
+            }
+        }
     }
 
     result
