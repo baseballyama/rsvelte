@@ -89,6 +89,19 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         }
     }
 
+    // Check for invalid state/derived exports in VariableDeclarations
+    // This applies to BOTH instance and module scripts
+    // Corresponds to Svelte's check in ExportNamedDeclaration.js
+    if let Some(declaration) = node.get("declaration")
+        && declaration.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration")
+        && let Some(declarators) = declaration.get("declarations").and_then(|d| d.as_array())
+    {
+        for declarator in declarators {
+            // Extract identifiers from the pattern and check bindings
+            check_export_bindings(declarator.get("id"), context)?;
+        }
+    }
+
     // In runes mode, handle export declarations - only for instance script
     if context.analysis.runes
         && context.ast_type == super::AstType::Instance
@@ -308,4 +321,71 @@ fn extract_identifiers_and_add_exports(pattern: Option<&Value>, context: &mut Vi
         }
         _ => {}
     }
+}
+
+/// Check export bindings for invalid derived or reassigned state exports.
+/// This applies to both instance and module scripts.
+fn check_export_bindings(
+    pattern: Option<&Value>,
+    context: &VisitorContext,
+) -> Result<(), AnalysisError> {
+    let pattern = match pattern {
+        Some(p) => p,
+        None => return Ok(()),
+    };
+
+    let pattern_type = pattern.get("type").and_then(|t| t.as_str());
+
+    match pattern_type {
+        Some("Identifier") => {
+            if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
+                // Look up the binding
+                if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name) {
+                    let binding = &context.analysis.root.bindings[binding_idx];
+
+                    // Cannot export derived state
+                    if binding.kind == BindingKind::Derived {
+                        return Err(errors::derived_invalid_export());
+                    }
+
+                    // Cannot export reassigned state
+                    if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
+                        && binding.reassigned
+                    {
+                        return Err(errors::state_invalid_export());
+                    }
+                }
+            }
+        }
+        Some("ObjectPattern") => {
+            if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
+                for prop in properties {
+                    let prop_type = prop.get("type").and_then(|t| t.as_str());
+                    if prop_type == Some("Property") {
+                        check_export_bindings(prop.get("value"), context)?;
+                    } else if prop_type == Some("RestElement") {
+                        check_export_bindings(prop.get("argument"), context)?;
+                    }
+                }
+            }
+        }
+        Some("ArrayPattern") => {
+            if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
+                for elem in elements {
+                    if !elem.is_null() {
+                        check_export_bindings(Some(elem), context)?;
+                    }
+                }
+            }
+        }
+        Some("RestElement") => {
+            check_export_bindings(pattern.get("argument"), context)?;
+        }
+        Some("AssignmentPattern") => {
+            check_export_bindings(pattern.get("left"), context)?;
+        }
+        _ => {}
+    }
+
+    Ok(())
 }

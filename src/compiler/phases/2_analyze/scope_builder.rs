@@ -639,9 +639,45 @@ impl<'a> ScopeBuilder<'a> {
                 // Process class body to find assignments in methods, getters, setters, etc.
                 self.process_class_body(&class_expr.body);
             }
-            // Leaf expressions that don't contain assignments
-            Expression::Identifier(_)
-            | Expression::BooleanLiteral(_)
+            // Handle identifiers - check for store subscription scoping errors
+            Expression::Identifier(ident) => {
+                // Check for $xxx references inside nested scopes where xxx is locally declared
+                let name = ident.name.as_str();
+                if name.starts_with('$')
+                    && !name.starts_with("$$")
+                    && name.len() > 1
+                    && self.function_depth > 0
+                {
+                    let store_name = &name[1..];
+
+                    // Look up the store name in the current scope chain
+                    // Start from current scope and traverse up
+                    let mut scope_idx = self.current_scope;
+                    loop {
+                        let scope = &self.scopes[scope_idx];
+                        if scope.declarations.contains_key(store_name) {
+                            // Found a binding for the store name
+                            // If this scope is neither module (0) nor instance (1),
+                            // and we're inside that scope (not just above it),
+                            // it's a shadowing error
+                            if scope_idx > 1 {
+                                // The store name is declared in a nested scope
+                                // This means the $store reference would refer to this
+                                // local variable, not the outer store - that's an error
+                                self.validation_errors
+                                    .push(errors::store_invalid_scoped_subscription());
+                            }
+                            break;
+                        }
+                        if let Some(parent) = scope.parent {
+                            scope_idx = parent;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
+            Expression::BooleanLiteral(_)
             | Expression::NullLiteral(_)
             | Expression::NumericLiteral(_)
             | Expression::StringLiteral(_)
@@ -659,8 +695,38 @@ impl<'a> ScopeBuilder<'a> {
     fn track_assignment_target(&mut self, target: &oxc_ast::ast::AssignmentTarget) {
         match target {
             oxc_ast::ast::AssignmentTarget::AssignmentTargetIdentifier(ident) => {
+                let name = ident.name.as_str();
+
+                // Check for $xxx assignments inside nested scopes where xxx is locally declared
+                if name.starts_with('$')
+                    && !name.starts_with("$$")
+                    && name.len() > 1
+                    && self.function_depth > 0
+                {
+                    let store_name = &name[1..];
+
+                    // Look up the store name in the current scope chain
+                    let mut scope_idx = self.current_scope;
+                    loop {
+                        let scope = &self.scopes[scope_idx];
+                        if scope.declarations.contains_key(store_name) {
+                            // Found a binding for the store name in a nested scope
+                            if scope_idx > 1 {
+                                self.validation_errors
+                                    .push(errors::store_invalid_scoped_subscription());
+                            }
+                            break;
+                        }
+                        if let Some(parent) = scope.parent {
+                            scope_idx = parent;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+
                 self.updates.push(Update {
-                    name: ident.name.to_string(),
+                    name: name.to_string(),
                     is_direct_assignment: true,
                     scope_idx: self.current_scope,
                 });
