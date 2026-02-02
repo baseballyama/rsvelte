@@ -6,7 +6,6 @@
 
 use super::super::AnalysisError;
 use super::super::types::EventDirectiveInfo;
-use super::super::warnings;
 use super::VisitorContext;
 use super::shared::fragment::mark_subtree_dynamic;
 use super::shared::utils::walk_js_expression;
@@ -16,34 +15,18 @@ use crate::ast::template::{OnDirective, TemplateNode};
 ///
 /// In Svelte 5 (runes mode), on: directives are deprecated in favor of event attributes.
 /// This visitor:
-/// 1. Warns about deprecated usage on RegularElement/SvelteElement
-/// 2. Tracks the first event directive (for detecting mixed syntax)
-/// 3. Marks the subtree as dynamic
-/// 4. Walks the expression to track dependencies
+/// 1. Tracks the first event directive (for detecting mixed syntax)
+/// 2. Marks the subtree as dynamic
+/// 3. Walks the expression to track dependencies
+///
+/// Note: The event_directive_deprecated warning is emitted by the parent element visitor
+/// (RegularElement, SvelteElement) because this visitor doesn't have access to the parent type.
 ///
 /// Corresponds to `OnDirective(node, context)` in OnDirective.js.
 pub fn visit(
     directive: &mut OnDirective,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
-    // In runes mode, warn about deprecated event directive usage
-    // Only warn for RegularElement and SvelteElement (not components)
-    if context.analysis.runes {
-        let parent_type = context.path.last().map(|node| match node {
-            TemplateNode::RegularElement(_) => Some("RegularElement"),
-            TemplateNode::SvelteElement(_) => Some("SvelteElement"),
-            _ => None,
-        });
-
-        // Don't warn on component events; these might not be under the author's control
-        // so the warning would be unactionable
-        if let Some(Some(parent_type)) = parent_type
-            && (parent_type == "RegularElement" || parent_type == "SvelteElement")
-        {
-            context.emit_warning(warnings::event_directive_deprecated(&directive.name));
-        }
-    }
-
     // Track the first event directive node (for error reporting about mixed syntax)
     // This is used to detect when both on: directives and event attributes are used
     let parent = context.path.last();
