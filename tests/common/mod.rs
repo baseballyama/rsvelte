@@ -1512,7 +1512,34 @@ fn normalize_all_string_quotes(code: &str) -> String {
         }
     }
 
-    result
+    // Post-process: normalize whitespace in CSS-like strings (e.g., code: '...')
+    // This handles minor whitespace differences in minified CSS between implementations
+    let css_code_re = Regex::new(r"code:\s*'([^']*)'").unwrap();
+    css_code_re
+        .replace_all(&result, |caps: &regex::Captures| {
+            let css = &caps[1];
+            // Normalize whitespace: collapse multiple spaces, normalize around }, {, and ,
+            let normalized = css
+                .chars()
+                .fold((String::new(), false), |(mut acc, last_was_space), c| {
+                    if c.is_whitespace() {
+                        if !last_was_space && !acc.ends_with('}') && !acc.ends_with(',') {
+                            acc.push(' ');
+                        }
+                        (acc, true)
+                    } else {
+                        if last_was_space && (c == '.' || c == '#') {
+                            // Remove space before selectors after } or ,
+                            // (the space was already not added due to ends_with checks)
+                        }
+                        acc.push(c);
+                        (acc, false)
+                    }
+                })
+                .0;
+            format!("code: '{}'", normalized)
+        })
+        .to_string()
 }
 
 /// Normalize CSS for comparison (replace hashes with placeholder).

@@ -158,11 +158,48 @@ fn minify_css(css: &str) -> String {
                 // Only add a space if:
                 // - Not after certain characters that don't need space
                 // - Not at the start
+                // But DO add space after '}' or ',' when followed by a selector (to match official Svelte behavior)
+                // Skip over comments when looking for next meaningful character
                 let last_char = result.chars().last();
-                if !matches!(
-                    last_char,
-                    Some('{') | Some('}') | Some(';') | Some(':') | Some(',') | None
-                ) {
+                let next_nonws = {
+                    let mut j = i + 1;
+                    loop {
+                        // Skip whitespace
+                        while j < chars.len() && chars[j].is_whitespace() {
+                            j += 1;
+                        }
+                        // Skip comments
+                        if j + 1 < chars.len() && chars[j] == '/' && chars[j + 1] == '*' {
+                            j += 2;
+                            while j + 1 < chars.len() && !(chars[j] == '*' && chars[j + 1] == '/') {
+                                j += 1;
+                            }
+                            if j + 1 < chars.len() {
+                                j += 2; // skip */
+                            }
+                            continue;
+                        }
+                        break;
+                    }
+                    if j < chars.len() {
+                        Some(&chars[j])
+                    } else {
+                        None
+                    }
+                };
+                let keep_space = matches!(
+                    (last_char, next_nonws),
+                    (Some('}'), Some('.'))
+                        | (Some('}'), Some('#'))
+                        | (Some(','), Some('.'))
+                        | (Some(','), Some('#'))
+                );
+                if keep_space
+                    || !matches!(
+                        last_char,
+                        Some('{') | Some('}') | Some(';') | Some(':') | Some(',') | None
+                    )
+                {
                     result.push(' ');
                 }
                 last_was_space = true;

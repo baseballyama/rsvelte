@@ -362,11 +362,11 @@ pub fn validate_component(
         }
     }
 
-    // Track component bindings
+    // Track component bindings (excluding bind:this which doesn't need the settling loop)
     let has_bindings = component
         .attributes
         .iter()
-        .any(|attr| matches!(attr, Attribute::BindDirective(_)));
+        .any(|attr| matches!(attr, Attribute::BindDirective(bind) if bind.name != "this"));
 
     if has_bindings {
         context.analysis.uses_component_bindings = true;

@@ -398,7 +398,7 @@ enum OutputPart {
         spreads: Vec<String>,
         bindings: Vec<(String, String)>, // (prop_name, variable_name)
         #[allow(dead_code)]
-        // Always true for component bindings - comment marker added via build_parts_with_prefix
+        // Always true for component bindings - comment marker handled in build_parts
         has_prior_content: bool,
         #[allow(dead_code)] // TODO: Handle children for components with bindings
         children: Option<Vec<OutputPart>>,
@@ -3943,6 +3943,10 @@ impl<'a> ServerCodeGenerator<'a> {
         let analysis_uses_props = self.analysis.map(|a| a.uses_props).unwrap_or(false);
         let analysis_uses_rest_props = self.analysis.map(|a| a.uses_rest_props).unwrap_or(false);
         let analysis_uses_slots = self.analysis.map(|a| a.uses_slots).unwrap_or(false);
+        let uses_component_bindings = self
+            .analysis
+            .map(|a| a.uses_component_bindings)
+            .unwrap_or(false);
 
         // Process instance script content if present
         let (
@@ -4128,11 +4132,35 @@ export default function {component_name}($$renderer{props_param}) {{
                 // Build $.bind_props() call (at top level of component function)
                 let bind_props_code = self.build_bind_props(1);
 
+                // If the component uses component bindings, wrap the body in $$render_inner loop
+                let body_section = if uses_component_bindings {
+                    // Wrap body_code in $$settled/$$render_inner pattern
+                    format!(
+                        r#"	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {{
+{body_code}	}}
+
+	do {{
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	}} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+"#,
+                        body_code = body_code.replace("\t", "\t\t") // Increase indentation
+                    )
+                } else {
+                    body_code.clone()
+                };
+
                 format!(
                     r#"{async_import}import * as $ from 'svelte/internal/server';
 {imports_section}{snippets_section}{css_const_section}{module_section}
 export default function {component_name}($$renderer{props_param}) {{
-{css_add_call}{props_declarations}{script_section}{instance_snippets}{body_code}{bind_props_code}}}"#,
+{css_add_call}{props_declarations}{script_section}{instance_snippets}{body_section}{bind_props_code}}}"#,
                     async_import = async_import,
                     imports_section = imports_section,
                     snippets_section = snippets_section,
@@ -4144,7 +4172,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     props_declarations = props_declarations,
                     script_section = script_section,
                     instance_snippets = instance_snippets,
-                    body_code = body_code,
+                    body_section = body_section,
                     bind_props_code = bind_props_code
                 )
             }
@@ -4226,77 +4254,38 @@ export default function {component_name}($$renderer{props_param}) {{
                     children: _, // TODO: Handle children for components with bindings
                     dynamic,
                 } => {
-                    // Use optional chaining for dynamic components
-                    let call_syntax = if *dynamic { "?." } else { "" };
-                    // Generate $$settled and $$inner_renderer
-                    body_code.push_str(&format!("{}let $$settled = true;\n", indent));
-                    body_code.push_str(&format!("{}let $$inner_renderer;\n\n", indent));
+                    // Component with bindings - just generate the component call with getter/setters.
+                    // The $$settled/$$render_inner loop is handled at the component level in build().
 
-                    // Start $$render_inner function
-                    body_code.push_str(&format!(
-                        "{}function $$render_inner($$renderer) {{\n",
-                        indent
-                    ));
-
-                    // Flush any prior HTML content inside $$render_inner (e.g., button before component)
+                    // Flush any prior HTML content
                     if !current_html.is_empty() {
-                        body_code.push_str(&format!(
-                            "{}\t$$renderer.push(`{}`);\n",
-                            indent, current_html
-                        ));
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
                         current_html.clear();
                     }
+
+                    // Use optional chaining for dynamic components
+                    let call_syntax = if *dynamic { "?." } else { "" };
 
                     // Generate component call - use $.spread_props if spreads exist
                     if !spreads.is_empty() {
                         body_code.push_str(&format!(
-                            "{}\t{}{}($$renderer, $.spread_props([\n",
+                            "{}{}{}($$renderer, $.spread_props([\n",
                             indent, name, call_syntax
                         ));
 
                         // Add spread expressions first
                         for spread in spreads {
-                            body_code.push_str(&format!("{}\t\t{},\n", indent, spread));
+                            body_code.push_str(&format!("{}\t{},\n", indent, spread));
                         }
 
                         // Then add explicit props and bindings as an object
-                        body_code.push_str(&format!("{}\t\t{{\n", indent));
+                        body_code.push_str(&format!("{}\t{{\n", indent));
 
-                        for prop in props {
-                            body_code.push_str(&format!("{}\t\t\t{},\n", indent, prop));
-                        }
-
-                        for (prop_name, var_name) in bindings {
-                            body_code
-                                .push_str(&format!("{}\t\t\tget {}() {{\n", indent, prop_name));
-                            body_code
-                                .push_str(&format!("{}\t\t\t\treturn {};\n", indent, var_name));
-                            body_code.push_str(&format!("{}\t\t\t}},\n\n", indent));
-                            body_code.push_str(&format!(
-                                "{}\t\t\tset {}($$value) {{\n",
-                                indent, prop_name
-                            ));
-                            body_code
-                                .push_str(&format!("{}\t\t\t\t{} = $$value;\n", indent, var_name));
-                            body_code.push_str(&format!("{}\t\t\t\t$$settled = false;\n", indent));
-                            body_code.push_str(&format!("{}\t\t\t}}\n", indent));
-                        }
-
-                        body_code.push_str(&format!("{}\t\t}}\n", indent));
-                        body_code.push_str(&format!("{}\t]));\n", indent));
-                    } else {
-                        // No spreads, use simple object literal
-                        body_code.push_str(&format!(
-                            "{}\t{}{}($$renderer, {{\n",
-                            indent, name, call_syntax
-                        ));
-
-                        // Regular props first
                         for prop in props {
                             body_code.push_str(&format!("{}\t\t{},\n", indent, prop));
                         }
 
-                        // Generate getter/setter for each binding
                         for (prop_name, var_name) in bindings {
                             body_code.push_str(&format!("{}\t\tget {}() {{\n", indent, prop_name));
                             body_code.push_str(&format!("{}\t\t\treturn {};\n", indent, var_name));
@@ -4311,44 +4300,43 @@ export default function {component_name}($$renderer{props_param}) {{
                             body_code.push_str(&format!("{}\t\t}}\n", indent));
                         }
 
-                        body_code.push_str(&format!("{}\t}});\n", indent));
+                        body_code.push_str(&format!("{}\t}}\n", indent));
+                        body_code.push_str(&format!("{}]));\n", indent));
+                    } else {
+                        // No spreads, use simple object literal
+                        body_code.push_str(&format!(
+                            "{}{}{}($$renderer, {{\n",
+                            indent, name, call_syntax
+                        ));
+
+                        // Regular props first
+                        for prop in props {
+                            body_code.push_str(&format!("{}\t{},\n", indent, prop));
+                        }
+
+                        // Generate getter/setter for each binding
+                        for (prop_name, var_name) in bindings {
+                            body_code.push_str(&format!("{}get {}() {{\n", indent, prop_name));
+                            body_code.push_str(&format!("{}\treturn {};\n", indent, var_name));
+                            body_code.push_str(&format!("{}}},\n\n", indent));
+                            body_code
+                                .push_str(&format!("{}set {}($$value) {{\n", indent, prop_name));
+                            body_code.push_str(&format!("{}\t{} = $$value;\n", indent, var_name));
+                            body_code.push_str(&format!("{}\t$$settled = false;\n", indent));
+                            body_code.push_str(&format!("{}}}\n", indent));
+                        }
+
+                        body_code.push_str(&format!("{}}});\n", indent));
                     }
 
-                    // Process remaining parts inside $$render_inner with comment marker
-                    let remaining_parts = &parts[i + 1..];
-                    if !remaining_parts.is_empty() {
-                        // Build remaining parts with comment marker prefix
-                        let inner_code = Self::build_parts_with_prefix(
-                            remaining_parts,
-                            indent_level + 1,
-                            "<!---->",
-                            each_counter,
-                        );
-                        body_code.push_str(&inner_code);
+                    // Add <!---->  marker for content after binding component (hydration boundary)
+                    // Only add if there's more content after this component
+                    let has_more_content = parts[i + 1..]
+                        .iter()
+                        .any(|p| !matches!(p, OutputPart::Html(s) if s.trim().is_empty()));
+                    if has_more_content {
+                        current_html.push_str("<!---->");
                     }
-
-                    // Close $$render_inner function
-                    body_code.push_str(&format!("{}}}\n\n", indent));
-
-                    // Generate do/while loop
-                    body_code.push_str(&format!("{}do {{\n", indent));
-                    body_code.push_str(&format!("{}\t$$settled = true;\n", indent));
-                    body_code.push_str(&format!(
-                        "{}\t$$inner_renderer = $$renderer.copy();\n",
-                        indent
-                    ));
-                    body_code.push_str(&format!("{}\t$$render_inner($$inner_renderer);\n", indent));
-                    body_code.push_str(&format!("{}}} while (!$$settled);\n\n", indent));
-
-                    // Subsume the inner renderer
-                    body_code.push_str(&format!(
-                        "{}$$renderer.subsume($$inner_renderer);\n",
-                        indent
-                    ));
-
-                    // Skip remaining parts since they're already processed
-                    i = parts.len();
-                    continue;
                 }
                 OutputPart::Component {
                     name,
@@ -5154,35 +5142,10 @@ export default function {component_name}($$renderer{props_param}) {{
                     // Generate the snippet function call
                     body_code.push_str(&format!("{}{};\n", indent, call_str));
 
-                    // Add comment marker after render call only if there's content after
-                    // This matches the official Svelte behavior - the hydration marker is
-                    // only added when there's subsequent content in the fragment
-                    let has_content_after = parts[i + 1..].iter().any(|p| {
-                        matches!(
-                            p,
-                            OutputPart::Html(h) if !h.trim().is_empty()
-                        ) || matches!(
-                            p,
-                            OutputPart::Expression(_)
-                                | OutputPart::RawExpression(_)
-                                | OutputPart::HtmlExpression(_)
-                                | OutputPart::Component { .. }
-                                | OutputPart::EachBlock { .. }
-                                | OutputPart::IfBlock { .. }
-                                | OutputPart::AwaitBlock { .. }
-                                | OutputPart::SvelteBoundary { .. }
-                                | OutputPart::SvelteHead { .. }
-                                | OutputPart::TitleElement { .. }
-                                | OutputPart::RenderCall(_)
-                                | OutputPart::SelectElement { .. }
-                                | OutputPart::OptionElement { .. }
-                                | OutputPart::HydrationAnchor
-                        )
-                    });
-
-                    if has_content_after {
-                        current_html.push_str("<!---->");
-                    }
+                    // Add hydration boundary marker after render call
+                    // Official Svelte adds empty_comment after RenderTag unless skip_hydration_boundaries is true
+                    // We always add it here to match the official behavior for most cases
+                    current_html.push_str("<!---->");
                 }
                 OutputPart::ConstDeclaration(declaration) => {
                     // Flush current HTML before const declaration
@@ -5215,58 +5178,6 @@ export default function {component_name}($$renderer{props_param}) {{
                 OutputPart::HydrationAnchor => {
                     // Add <!> marker to current HTML (hydration anchor for Components/RenderTags/HtmlTags in select/optgroup)
                     current_html.push_str("<!>");
-                }
-            }
-            i += 1;
-        }
-
-        // Flush remaining HTML
-        if !current_html.is_empty() {
-            body_code.push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
-        }
-
-        body_code
-    }
-
-    /// Build output parts with an HTML prefix (for comment markers inside $$render_inner).
-    fn build_parts_with_prefix(
-        parts: &[OutputPart],
-        indent_level: usize,
-        prefix: &str,
-        each_counter: &mut usize,
-    ) -> String {
-        let mut body_code = String::new();
-        let mut current_html = String::from(prefix);
-        let indent = "\t".repeat(indent_level);
-
-        let mut i = 0;
-        while i < parts.len() {
-            let part = &parts[i];
-            match part {
-                OutputPart::Html(html) => {
-                    // Collapse consecutive spaces: if current_html ends with space and html is just a space
-                    if !(current_html.ends_with(' ') && html == " ") {
-                        current_html.push_str(html);
-                    }
-                }
-                OutputPart::Expression(expr) => {
-                    current_html.push_str(&format!("${{$.escape({})}}", expr));
-                }
-                OutputPart::RawExpression(expr) => {
-                    // Raw expressions don't need escaping (e.g., $.attributes())
-                    current_html.push_str(&format!("${{{}}}", expr));
-                }
-                _ => {
-                    // For other parts, flush and delegate to build_parts
-                    if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
-                        current_html.clear();
-                    }
-                    let remaining = &parts[i..];
-                    let remaining_code = Self::build_parts(remaining, indent_level, each_counter);
-                    body_code.push_str(&remaining_code);
-                    return body_code;
                 }
             }
             i += 1;

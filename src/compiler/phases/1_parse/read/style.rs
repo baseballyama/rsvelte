@@ -321,7 +321,10 @@ impl<'a> CssParser<'a> {
             .into_iter()
             .filter(|(s, _)| !s.trim().is_empty())
             .map(|(selector, selector_offset)| {
-                self.parse_complex_selector(selector.trim(), selector_offset)
+                // Adjust offset for leading whitespace when trimming
+                let leading_ws = selector.len() - selector.trim_start().len();
+                let adjusted_offset = selector_offset + leading_ws;
+                self.parse_complex_selector(selector.trim(), adjusted_offset)
             })
             .collect();
 
