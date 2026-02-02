@@ -69,6 +69,14 @@ pub fn analyze_component(
         if let Some(runes) = svelte_options.runes {
             analysis.runes = runes;
         }
+        // Handle <svelte:options accessors />
+        if let Some(accessors) = svelte_options.accessors {
+            analysis.accessors = accessors;
+        }
+        // Handle <svelte:options immutable />
+        if let Some(immutable) = svelte_options.immutable {
+            analysis.immutable = immutable;
+        }
         // Handle <svelte:options css="injected" />
         if svelte_options.css == Some(crate::ast::template::CssOption::Injected) {
             analysis.inject_styles = true;

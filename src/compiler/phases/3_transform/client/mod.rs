@@ -245,11 +245,26 @@ fn transform_client_with_visitors(
         })
         .count();
 
+    // Count bindable props that need $$exports when accessors is enabled
+    // These are props created via `export let x` that become BindableProp
+    // Reference: transform-client.js lines 280-306
+    let bindable_prop_count = if analysis.accessors {
+        analysis
+            .root
+            .bindings
+            .iter()
+            .filter(|b| matches!(b.kind, BindingKind::BindableProp))
+            .count()
+    } else {
+        0
+    };
+
     let should_inject_context = options.dev
         || analysis.needs_context
         || !analysis.reactive_statements.is_empty()
         || has_reactive_statements  // Reactive $: statements detected in script
-        || reactive_export_count > 0;
+        || reactive_export_count > 0
+        || bindable_prop_count > 0;
     // Note: needs_store_cleanup does NOT require context injection ($.push/$.pop)
     // Store subscriptions are independent of the component context
 
@@ -334,11 +349,13 @@ fn transform_client_with_visitors(
         component_body.push(b::stmt(b::call(b::member_path("$.init"), init_args)));
     }
 
-    // Generate $$exports object if there are reactive exports
+    // Generate $$exports object if there are reactive exports or bindable props with accessors
     // Only include exports that need getter/setter (reactive exports)
     // Reference: transform-client.js lines 280-306
-    if reactive_export_count > 0 {
-        let reactive_exports: Vec<_> = analysis
+    let needs_exports = reactive_export_count > 0 || bindable_prop_count > 0;
+    if needs_exports {
+        // Collect all export names from analysis.exports
+        let mut reactive_export_names: Vec<String> = analysis
             .exports
             .iter()
             .filter(|export| {
@@ -364,11 +381,23 @@ fn transform_client_with_visitors(
                     false
                 }
             })
+            .map(|e| e.name.clone())
             .collect();
 
+        // Add bindable props when accessors is enabled
+        // These are props created via `export let x` that become BindableProp
+        if analysis.accessors {
+            for binding in &analysis.root.bindings {
+                if matches!(binding.kind, BindingKind::BindableProp)
+                    && !reactive_export_names.contains(&binding.name)
+                {
+                    reactive_export_names.push(binding.name.clone());
+                }
+            }
+        }
+
         let mut exports_code = String::from("var $$exports = {\n");
-        for (i, export) in reactive_exports.iter().enumerate() {
-            let name = &export.name;
+        for (i, name) in reactive_export_names.iter().enumerate() {
             // Getter: return propName()
             exports_code.push_str(&format!(
                 "\tget {}() {{\n\t\treturn {}();\n\t}}",
@@ -382,11 +411,11 @@ fn transform_client_with_visitors(
 
             if let Some(binding) = binding {
                 match binding.kind {
-                    // For prop/bindable_prop: propName($$value) - no flush
+                    // For prop/bindable_prop: propName($$value); $.flush()
                     // Reference: transform-client.js lines 296-297
                     BindingKind::Prop | BindingKind::BindableProp => {
                         exports_code.push_str(&format!(
-                            "\tset {}($$value) {{\n\t\t{}($$value);\n\t}}",
+                            "\tset {}($$value) {{\n\t\t{}($$value);\n\t\t$.flush();\n\t}}",
                             name, name
                         ));
                     }
@@ -423,7 +452,7 @@ fn transform_client_with_visitors(
                 ));
             }
 
-            if i < reactive_exports.len() - 1 {
+            if i < reactive_export_names.len() - 1 {
                 exports_code.push_str(",\n");
             } else {
                 exports_code.push('\n');
@@ -439,7 +468,7 @@ fn transform_client_with_visitors(
     // Add $.pop at the end if injecting context
     // Reference: transform-client.js lines 433-454
     if should_inject_context {
-        if reactive_export_count > 0 {
+        if needs_exports {
             if needs_store_cleanup {
                 // var $$pop = $.pop($$exports);
                 component_body.push(JsStatement::Raw(
@@ -466,7 +495,7 @@ fn transform_client_with_visitors(
     if needs_store_cleanup {
         component_body.push(b::stmt(b::call(b::id("$$cleanup"), vec![])));
 
-        if reactive_export_count > 0 {
+        if needs_exports {
             // return $$pop;
             component_body.push(JsStatement::Return(
                 super::js_ast::nodes::JsReturnStatement {
@@ -2236,10 +2265,14 @@ fn calculate_prop_flags(name: &str, analysis: &ComponentAnalysis, is_lazy_initia
 
     let mut flags = PROPS_IS_BINDABLE;
 
-    // Check if the binding is updated (reassigned or mutated)
+    // Check if the binding is updated (reassigned or mutated) OR if accessors is enabled
     // This follows the official Svelte compiler logic in get_prop_source():
-    // flags |= PROPS_IS_UPDATED when binding.updated is true
-    if let Some(binding_idx) = analysis.root.find_binding_any_scope(name)
+    // flags |= PROPS_IS_UPDATED when binding.updated is true or accessors is true
+    // When accessors is enabled, all bindable props need to be treated as updatable
+    // for the $$exports getter/setter pattern to work correctly
+    if analysis.accessors {
+        flags |= PROPS_IS_UPDATED;
+    } else if let Some(binding_idx) = analysis.root.find_binding_any_scope(name)
         && let Some(binding) = analysis.root.bindings.get(binding_idx)
         && binding.is_updated()
     {
