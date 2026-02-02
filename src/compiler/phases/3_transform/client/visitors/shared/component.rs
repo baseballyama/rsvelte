@@ -301,41 +301,106 @@ pub fn build_component(
     // Add memoized deriveds (let $0 = $.derived(() => ...) statements)
     statements.extend(memoizer.deriveds(context.state.analysis.runes));
 
-    // Build the component instantiation
-    if !custom_css_props.is_empty() {
-        // Handle custom CSS properties with wrapper element
-        build_with_css_props(
-            &mut statements,
-            context,
-            &anchor,
-            &custom_css_props,
-            &component_name,
-            is_component_dynamic,
-            &intermediate_name,
-            &binding_initializers,
-            &props_expression,
-            bind_this.as_ref(),
-        );
-    } else {
-        // Normal component instantiation
-        context.state.template.push_comment(None);
+    // Create the component call function
+    // This follows the official Svelte pattern where a closure `fn` is progressively wrapped
+    let build_call_for_anchor = |anchor_expr: JsExpr,
+                                 props: &JsExpr,
+                                 component_name: &str,
+                                 is_dynamic: bool,
+                                 intermediate: &str,
+                                 bind: Option<&Expression>,
+                                 ctx: &mut ComponentContext|
+     -> JsExpr {
+        let callee = if is_dynamic {
+            b::id(intermediate)
+        } else {
+            b::member_path(component_name)
+        };
 
-        let component_call = build_component_call(
-            &anchor,
-            &component_name,
-            is_component_dynamic,
-            &intermediate_name,
-            &props_expression,
-            bind_this.as_ref(),
-            context,
-        );
+        let call = b::call(callee, vec![anchor_expr, props.clone()]);
 
-        if is_component_dynamic {
-            // Wrap in $.component() for dynamic components
-            let inner_call = build_inner_component_call(
-                &component_name,
-                &intermediate_name,
+        if let Some(bind_expr) = bind {
+            build_bind_this_call(bind_expr, call, ctx)
+        } else {
+            call
+        }
+    };
+
+    // If component is dynamic, wrap the call in $.component()
+    // This wrapping happens BEFORE the CSS props check, matching the official behavior
+    if is_component_dynamic {
+        statements.extend(binding_initializers.clone());
+
+        if !custom_css_props.is_empty() {
+            // Handle custom CSS properties with wrapper element for dynamic component
+            let is_svg = context.state.metadata.namespace == "svg";
+            let wrapper_element = if is_svg { "g" } else { "svelte-css-wrapper" };
+
+            context
+                .state
+                .template
+                .push_element(wrapper_element.to_string(), 0);
+
+            if !is_svg {
+                context
+                    .state
+                    .template
+                    .set_prop("style".to_string(), Some("display: contents".to_string()));
+            }
+
+            context.state.template.push_comment(None);
+            context.state.template.pop_element();
+
+            // Add CSS props call
+            statements.push(b::stmt(b::call(
+                b::member_path("$.css_props"),
+                vec![
+                    anchor.clone(),
+                    b::thunk(b::object(custom_css_props.clone())),
+                ],
+            )));
+
+            // Build the inner component call that will be inside $.component()
+            let component_anchor = b::member(anchor.clone(), "lastChild");
+            let inner_call = build_call_for_anchor(
+                b::id("$$anchor"),
                 &props_expression,
+                &component_name,
+                true,
+                &intermediate_name,
+                bind_this.as_ref(),
+                context,
+            );
+
+            let dynamic_call = b::call(
+                b::member_path("$.component"),
+                vec![
+                    component_anchor,
+                    b::thunk(build_component_expression(&node, &component_name, context)),
+                    b::arrow_block(
+                        vec![b::id_pattern("$$anchor"), b::id_pattern(&intermediate_name)],
+                        vec![b::stmt(inner_call)],
+                    ),
+                ],
+            );
+
+            statements.push(b::stmt(dynamic_call));
+
+            // Add reset call
+            statements.push(b::stmt(b::call(
+                b::member_path("$.reset"),
+                vec![anchor.clone()],
+            )));
+        } else {
+            // Normal dynamic component without CSS props
+            context.state.template.push_comment(None);
+
+            let inner_call = build_call_for_anchor(
+                b::id("$$anchor"),
+                &props_expression,
+                &component_name,
+                true,
+                &intermediate_name,
                 bind_this.as_ref(),
                 context,
             );
@@ -347,18 +412,45 @@ pub fn build_component(
                     b::thunk(build_component_expression(&node, &component_name, context)),
                     b::arrow_block(
                         vec![b::id_pattern("$$anchor"), b::id_pattern(&intermediate_name)],
-                        {
-                            let mut body = binding_initializers.clone();
-                            body.push(b::stmt(inner_call));
-                            body
-                        },
+                        vec![b::stmt(inner_call)],
                     ),
                 ],
             );
 
             statements.push(add_svelte_meta(dynamic_call));
+        }
+    } else {
+        // Static component
+        statements.extend(binding_initializers.clone());
+
+        if !custom_css_props.is_empty() {
+            // Handle custom CSS properties with wrapper element for static component
+            build_with_css_props(
+                &mut statements,
+                context,
+                &anchor,
+                &custom_css_props,
+                &component_name,
+                false,
+                &intermediate_name,
+                &[],
+                &props_expression,
+                bind_this.as_ref(),
+            );
         } else {
-            statements.extend(binding_initializers);
+            // Normal static component instantiation
+            context.state.template.push_comment(None);
+
+            let component_call = build_call_for_anchor(
+                anchor.clone(),
+                &props_expression,
+                &component_name,
+                false,
+                &intermediate_name,
+                bind_this.as_ref(),
+                context,
+            );
+
             statements.push(add_svelte_meta(component_call));
         }
     }
@@ -471,11 +563,41 @@ fn process_regular_attribute(
 
     // Handle custom CSS properties (--var)
     if attr.name.starts_with("--") {
-        let result = build_attribute_value(&attr.value, context, |value, _metadata| {
-            // CSS property values don't need state transforms
-            value
-        });
-        custom_css_props.push(b::prop(attr.name.as_str(), result.value));
+        // Build the attribute value with potential memoization
+        // This matches the official Svelte behavior where CSS prop values
+        // can be memoized if they contain function calls with state
+        let result = build_attribute_value(&attr.value, context, |value, _metadata| value);
+
+        // Check if this value needs memoization
+        let has_call = super::utils::expression_has_call(&get_original_expression(&attr.value));
+        let _has_await = false; // TODO: detect await
+
+        // For CSS props, memoization happens when there's a call with state
+        let final_value = if has_call && result.has_state {
+            // Add to memoizer - this creates a derived variable
+            let memo_id = memoizer.add(
+                result.value.clone(),
+                true,  // has_call
+                false, // has_await
+                false, // memoize_if_state
+                true,  // has_state
+            );
+
+            // If memoization happened (memo_id is $N), wrap in $.get()
+            if let JsExpr::Identifier(name) = &memo_id {
+                if name.starts_with('$') && name.chars().skip(1).all(|c| c.is_ascii_digit()) {
+                    b::call(b::member_path("$.get"), vec![memo_id])
+                } else {
+                    result.value
+                }
+            } else {
+                result.value
+            }
+        } else {
+            result.value
+        };
+
+        custom_css_props.push(b::prop(attr.name.as_str(), final_value));
         return;
     }
 
@@ -1396,24 +1518,6 @@ fn build_component_expression(
             // Self reference - use current component
             b::id(&context.state.analysis.name)
         }
-    }
-}
-
-/// Build the inner component call (without $.component wrapper).
-fn build_inner_component_call(
-    _component_name: &str,
-    intermediate_name: &str,
-    props_expression: &JsExpr,
-    bind_this: Option<&Expression>,
-    context: &mut ComponentContext,
-) -> JsExpr {
-    let callee = b::id(intermediate_name);
-    let call = b::call(callee, vec![b::id("$$anchor"), props_expression.clone()]);
-
-    if let Some(bind_expr) = bind_this {
-        build_bind_this_call(bind_expr, call, context)
-    } else {
-        call
     }
 }
 

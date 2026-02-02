@@ -439,6 +439,11 @@ pub fn normalize_js(js: &str) -> String {
     // Normalize undefined representation (void 0 -> undefined)
     let result = result.replace("void 0", "undefined");
 
+    // Normalize escaped script tags in template literals
+    // Both `</script>` and `<\/script>` are valid - normalize to unescaped form
+    let result = result.replace("<\\/script>", "</script>");
+    let result = result.replace(r"<\/script>", "</script>");
+
     // Remove semicolons for normalization
     let result = result.replace(';', "");
 

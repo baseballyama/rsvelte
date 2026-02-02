@@ -156,18 +156,41 @@ impl<'a> ComponentContext<'a> {
 
     fn visit_svelte_component(
         &mut self,
-        _comp: &crate::ast::template::SvelteComponentElement,
+        comp: &crate::ast::template::SvelteComponentElement,
     ) -> TransformResult {
-        // TODO: Implement <svelte:component> transformation
-        TransformResult::None
+        // Use build_component from the shared utilities
+        use crate::compiler::phases::phase3_transform::client::visitors::shared::component::{
+            ComponentNode, build_component,
+        };
+
+        // For svelte:component, we use '$$component' as the component name
+        let stmt = build_component(
+            ComponentNode::SvelteComponent(comp.clone()),
+            "$$component".to_string(),
+            self,
+        );
+
+        TransformResult::Statement(stmt)
     }
 
     fn visit_svelte_self(
         &mut self,
-        _self_node: &crate::ast::template::SvelteElement,
+        self_node: &crate::ast::template::SvelteElement,
     ) -> TransformResult {
-        // TODO: Implement <svelte:self> transformation
-        TransformResult::None
+        // Use build_component from the shared utilities
+        use crate::compiler::phases::phase3_transform::client::visitors::shared::component::{
+            ComponentNode, build_component,
+        };
+
+        // For svelte:self, we use the component's own name for self-reference
+        let component_name = self.state.analysis.name.clone();
+        let stmt = build_component(
+            ComponentNode::SvelteSelf(self_node.clone()),
+            component_name,
+            self,
+        );
+
+        TransformResult::Statement(stmt)
     }
 
     fn visit_svelte_element(

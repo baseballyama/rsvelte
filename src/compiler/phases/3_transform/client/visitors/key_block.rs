@@ -21,13 +21,17 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 /// });
 /// ```
 pub fn key_block(node: &KeyBlock, context: &mut ComponentContext) -> TransformResult {
+    use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
+
     // Add a comment marker to the template for hydration
     context.state.template.push_comment(None);
 
     // Build the key expression
     // TODO: Handle async expressions with blockers
+    // We need to apply transforms (e.g., $.get() for reactive variables)
     let expression = convert_expression(&node.expression, context);
-    let key = b::arrow(vec![], expression);
+    let transformed_expression = apply_transforms_to_expression(&expression, context);
+    let key = b::arrow(vec![], transformed_expression);
 
     // Visit the fragment - this returns a BlockStatement
     // The fragment function handles template hoisting internally
