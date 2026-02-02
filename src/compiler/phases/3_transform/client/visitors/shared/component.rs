@@ -1508,10 +1508,12 @@ fn build_component_expression(
     match node {
         ComponentNode::Component(_) => {
             // For dynamic component identified by name
-            b::member_path(component_name)
+            // Apply transforms to handle derived values (const B = $derived(A) -> $.get(B))
+            let id_expr = b::id(component_name);
+            super::utils::apply_transforms_to_expression(&id_expr, context)
         }
         ComponentNode::SvelteComponent(comp) => {
-            // Use the `this` expression
+            // Use the `this` expression - already handles transforms via convert_expression
             convert_expression(&comp.expression, context)
         }
         ComponentNode::SvelteSelf(_) => {

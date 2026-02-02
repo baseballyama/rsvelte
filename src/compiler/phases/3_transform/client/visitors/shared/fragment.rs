@@ -83,15 +83,35 @@ fn has_dynamic_children(nodes: &[TemplateNode]) -> bool {
                     return true;
                 }
 
-                // Check for attributes that cannot be set statically (need runtime code)
-                // Note: img loading does NOT need runtime code - it can be static in template
+                // Check for attributes and directives that need runtime handling
+                // Any directive (bind:, on:, use:, class:, style:, transition:, animate:)
+                // makes the element non-static
                 for attr in &elem.attributes {
-                    if let Attribute::Attribute(a) = attr {
-                        if cannot_be_set_statically(&a.name) {
-                            return true;
+                    match attr {
+                        Attribute::Attribute(a) => {
+                            if cannot_be_set_statically(&a.name) {
+                                return true;
+                            }
+                            // Event attributes make it non-static
+                            if a.name.starts_with("on") {
+                                return true;
+                            }
+                            // option value needs special handling
+                            if elem.name == "option" && a.name == "value" {
+                                return true;
+                            }
                         }
-                        // option value needs special handling
-                        if elem.name == "option" && a.name == "value" {
+                        // All directives require runtime handling
+                        Attribute::BindDirective(_)
+                        | Attribute::OnDirective(_)
+                        | Attribute::ClassDirective(_)
+                        | Attribute::StyleDirective(_)
+                        | Attribute::TransitionDirective(_)
+                        | Attribute::AnimateDirective(_)
+                        | Attribute::UseDirective(_)
+                        | Attribute::LetDirective(_)
+                        | Attribute::SpreadAttribute(_)
+                        | Attribute::AttachTag(_) => {
                             return true;
                         }
                     }
