@@ -356,9 +356,14 @@ impl<'a> ScopeBuilder<'a> {
                 self.process_statement(&for_of_stmt.body);
             }
             Statement::BlockStatement(block_stmt) => {
+                // Block statements create a new scope for `let` and `const` declarations
+                // This is important for correctly handling scoping in blocks like:
+                // $: { let d = 'dd'; } where d should not conflict with outer d
+                let old_scope = self.push_scope();
                 for stmt in &block_stmt.body {
                     self.process_statement(stmt);
                 }
+                self.pop_scope(old_scope);
             }
             Statement::ReturnStatement(return_stmt) => {
                 if let Some(ref argument) = return_stmt.argument {
@@ -1083,15 +1088,10 @@ impl<'a> ScopeBuilder<'a> {
         // Each blocks create a new scope for the item and index
         let old_scope = self.push_scope();
 
-        // Declare the item binding
-        if let Some(context) = block.context.as_ref()
-            && let Some(name) = context.as_json().get("name").and_then(|n| n.as_str())
-        {
-            self.declare_binding(
-                name.to_string(),
-                BindingKind::EachItem,
-                DeclarationKind::Const,
-            );
+        // Declare the item binding(s) - handle destructuring patterns
+        if let Some(context) = block.context.as_ref() {
+            let context_json = context.as_json();
+            self.declare_bindings_from_pattern(context_json, BindingKind::EachItem);
         }
 
         // Declare the index binding if present
@@ -1112,6 +1112,55 @@ impl<'a> ScopeBuilder<'a> {
         }
 
         self.pop_scope(old_scope);
+    }
+
+    /// Declare bindings from a pattern (handles destructuring).
+    ///
+    /// This is used for EachBlock context, AwaitBlock value/error, and SnippetBlock parameters.
+    fn declare_bindings_from_pattern(&mut self, pattern: &serde_json::Value, kind: BindingKind) {
+        let pattern_type = pattern.get("type").and_then(|t| t.as_str());
+
+        match pattern_type {
+            Some("Identifier") => {
+                if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
+                    self.declare_binding(name.to_string(), kind, DeclarationKind::Const);
+                }
+            }
+            Some("ObjectPattern") => {
+                if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
+                    for prop in properties {
+                        let prop_type = prop.get("type").and_then(|t| t.as_str());
+                        if prop_type == Some("RestElement") {
+                            if let Some(argument) = prop.get("argument") {
+                                self.declare_bindings_from_pattern(argument, kind);
+                            }
+                        } else if let Some(value) = prop.get("value") {
+                            self.declare_bindings_from_pattern(value, kind);
+                        }
+                    }
+                }
+            }
+            Some("ArrayPattern") => {
+                if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
+                    for elem in elements {
+                        if !elem.is_null() {
+                            self.declare_bindings_from_pattern(elem, kind);
+                        }
+                    }
+                }
+            }
+            Some("RestElement") => {
+                if let Some(argument) = pattern.get("argument") {
+                    self.declare_bindings_from_pattern(argument, kind);
+                }
+            }
+            Some("AssignmentPattern") => {
+                if let Some(left) = pattern.get("left") {
+                    self.declare_bindings_from_pattern(left, kind);
+                }
+            }
+            _ => {}
+        }
     }
 
     /// Visit an if block.
@@ -1136,15 +1185,9 @@ impl<'a> ScopeBuilder<'a> {
         if let Some(ref then) = block.then {
             let old_scope = self.push_scope();
 
-            // Declare the then value binding
-            if let Some(ref value) = block.value
-                && let Some(name) = value.as_json().get("name").and_then(|n| n.as_str())
-            {
-                self.declare_binding(
-                    name.to_string(),
-                    BindingKind::AwaitThen,
-                    DeclarationKind::Const,
-                );
+            // Declare the then value binding(s) - handle destructuring patterns
+            if let Some(ref value) = block.value {
+                self.declare_bindings_from_pattern(value.as_json(), BindingKind::AwaitThen);
             }
 
             self.visit_fragment(then);
@@ -1155,15 +1198,9 @@ impl<'a> ScopeBuilder<'a> {
         if let Some(ref catch) = block.catch {
             let old_scope = self.push_scope();
 
-            // Declare the error binding
-            if let Some(ref error) = block.error
-                && let Some(name) = error.as_json().get("name").and_then(|n| n.as_str())
-            {
-                self.declare_binding(
-                    name.to_string(),
-                    BindingKind::AwaitCatch,
-                    DeclarationKind::Const,
-                );
+            // Declare the error binding(s) - handle destructuring patterns
+            if let Some(ref error) = block.error {
+                self.declare_bindings_from_pattern(error.as_json(), BindingKind::AwaitCatch);
             }
 
             self.visit_fragment(catch);
@@ -1198,15 +1235,9 @@ impl<'a> ScopeBuilder<'a> {
 
         let old_scope = self.push_scope();
 
-        // Declare snippet parameters
+        // Declare snippet parameters - handle destructuring patterns
         for param in &block.parameters {
-            if let Some(name) = param.as_json().get("name").and_then(|n| n.as_str()) {
-                self.declare_binding(
-                    name.to_string(),
-                    BindingKind::SnippetParam,
-                    DeclarationKind::Param,
-                );
-            }
+            self.declare_bindings_from_pattern(param.as_json(), BindingKind::SnippetParam);
         }
 
         // Visit body

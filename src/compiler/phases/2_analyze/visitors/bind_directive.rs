@@ -239,32 +239,39 @@ fn visit_common(
         == Some("Identifier")
     {
         // bind:this also works for regular variables, so skip validation for it
-        // Note: For undefined variables, we allow the binding to proceed
-        // This may occur when the variable is defined elsewhere (e.g., in module scope)
-        // or when there are scoping issues that need to be resolved separately.
-        if directive.name != "this"
-            && let Some(binding) = binding
-        {
-            // In runes mode, check binding kind strictly
-            // In legacy mode, `let` declarations are allowed for bindings
-            // (their `updated` flag will be set during template analysis)
-            let valid_kind = matches!(
-                binding.kind,
-                crate::compiler::phases::phase2_analyze::BindingKind::State
-                    | crate::compiler::phases::phase2_analyze::BindingKind::RawState
-                    | crate::compiler::phases::phase2_analyze::BindingKind::Prop
-                    | crate::compiler::phases::phase2_analyze::BindingKind::BindableProp
-                    | crate::compiler::phases::phase2_analyze::BindingKind::EachItem
-                    | crate::compiler::phases::phase2_analyze::BindingKind::StoreSub
-                    // Legacy mode: allow let declarations (Normal kind)
-                    | crate::compiler::phases::phase2_analyze::BindingKind::Normal
-                    | crate::compiler::phases::phase2_analyze::BindingKind::Let
-            ) || binding.mutated;
+        if directive.name != "this" {
+            // In the official Svelte, if there's no binding, or the binding is not a valid type,
+            // it should error with bind_invalid_value
+            // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/BindDirective.js L193-207
+            let is_valid = if let Some(binding) = binding {
+                // In runes mode, check binding kind strictly
+                // In legacy mode, `let` declarations are allowed for bindings
+                // (their `updated` flag will be set during template analysis)
+                let valid_kind = matches!(
+                    binding.kind,
+                    crate::compiler::phases::phase2_analyze::BindingKind::State
+                        | crate::compiler::phases::phase2_analyze::BindingKind::RawState
+                        | crate::compiler::phases::phase2_analyze::BindingKind::Prop
+                        | crate::compiler::phases::phase2_analyze::BindingKind::BindableProp
+                        | crate::compiler::phases::phase2_analyze::BindingKind::EachItem
+                        | crate::compiler::phases::phase2_analyze::BindingKind::StoreSub
+                        // Legacy mode: allow let declarations (Normal kind)
+                        | crate::compiler::phases::phase2_analyze::BindingKind::Normal
+                        | crate::compiler::phases::phase2_analyze::BindingKind::Let
+                );
+                // Also valid if the binding has been updated (reassigned/mutated)
+                valid_kind || binding.reassigned || binding.mutated
+            } else {
+                // No binding found - this is an error (undefined variable)
+                false
+            };
 
-            if !valid_kind {
+            if !is_valid {
                 return Err(AnalysisError::ValidationWithCode {
                     code: "bind_invalid_value".to_string(),
-                    message: "Cannot bind to this value".to_string(),
+                    message:
+                        "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value"
+                            .to_string(),
                 });
             }
         }
