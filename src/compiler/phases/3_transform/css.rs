@@ -332,7 +332,62 @@ fn transform_node_preserving(
     }
 }
 
+/// Check if a rule is empty (no declarations, and any nested rules are either unused or empty).
+/// This follows the official Svelte implementation's is_empty() function.
+fn is_rule_empty(rule: &Value, ctx: &CssContext, is_in_global_block: bool) -> bool {
+    let block = match rule.get("block") {
+        Some(b) => b,
+        None => return true,
+    };
+
+    let children = match block.get("children").and_then(|c| c.as_array()) {
+        Some(c) => c,
+        None => return true,
+    };
+
+    for child in children {
+        let child_type = child.get("type").and_then(|t| t.as_str()).unwrap_or("");
+
+        match child_type {
+            "Declaration" => return false, // Has a declaration, not empty
+            "Rule" => {
+                // Check if the nested rule is used
+                let is_used = if let Some(prelude) = child.get("prelude") {
+                    check_selector_unused(prelude, ctx) == UnusedStatus::Used
+                } else {
+                    true
+                };
+
+                // If it's used (or we're in a global block) AND not empty, then parent is not empty
+                if (is_used || is_in_global_block) && !is_rule_empty(child, ctx, is_in_global_block)
+                {
+                    return false;
+                }
+            }
+            "Atrule" => {
+                // At-rules with blocks that have children are not empty
+                if let Some(atrule_block) = child.get("block") {
+                    if atrule_block
+                        .get("children")
+                        .and_then(|c| c.as_array())
+                        .is_some_and(|atrule_children| !atrule_children.is_empty())
+                    {
+                        return false;
+                    }
+                } else {
+                    // At-rule without block (like @import) is not empty
+                    return false;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    true
+}
+
 /// Check if a block has any actual declarations (not just comments)
+#[allow(dead_code)]
 fn has_declarations(block: &Value) -> bool {
     if let Some(children) = block.get("children").and_then(|c| c.as_array()) {
         children.iter().any(|child| {
@@ -1096,11 +1151,22 @@ fn is_descendant_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
     let parent_tag = parent_tag.unwrap();
 
     // Get the child element type (second selector)
+    // If the child is just a pseudo-class like :not(.foo), it implicitly matches any element
     let child_tag = get_type_selector_name(&rel_selectors[1]);
-    if child_tag.is_none() {
+
+    // Check if the second selector is a pure pseudo-class (like :not())
+    // that matches any element type
+    let is_universal_pseudo = if child_tag.is_none() {
+        // Check if it's a :not() pseudo-class without a type selector
+        is_universal_pseudo_selector(&rel_selectors[1])
+    } else {
+        false
+    };
+
+    // If no child type and not a universal pseudo, we can't determine usage
+    if child_tag.is_none() && !is_universal_pseudo {
         return false;
     }
-    let child_tag = child_tag.unwrap();
 
     // Get the combinator between parent and child
     let combinator = rel_selectors[1]
@@ -1126,15 +1192,43 @@ fn is_descendant_selector_unused(rel_selectors: &[Value], ctx: &CssContext) -> b
 
     // Check based on combinator type
     for parent_idx in &parent_indices {
-        if combinator == ">" {
-            // Child combinator: only direct children
-            if has_direct_child_with_tag(ctx, *parent_idx, &child_tag) {
-                return false; // Found a valid parent > child relationship
+        if is_universal_pseudo {
+            // Universal pseudo (like :not()) matches any element
+            // Check if parent has any children at all
+            if combinator == ">" {
+                // Child combinator: only direct children
+                if has_any_direct_child(ctx, *parent_idx) {
+                    return false; // Found a potential match
+                }
+            } else {
+                // Descendant combinator: any descendant
+                if has_any_descendant(ctx, *parent_idx) {
+                    return false; // Found a potential match
+                }
             }
-        } else {
-            // Descendant combinator: any descendant
-            if has_descendant_with_tag(ctx, *parent_idx, &child_tag) {
-                return false; // Found a valid parent child relationship
+        } else if let Some(ref child_tag) = child_tag {
+            // Universal selector (*) matches any element
+            let is_universal = child_tag == "*";
+
+            if is_universal {
+                // * matches any element
+                if combinator == ">" {
+                    if has_any_direct_child(ctx, *parent_idx) {
+                        return false;
+                    }
+                } else if has_any_descendant(ctx, *parent_idx) {
+                    return false;
+                }
+            } else if combinator == ">" {
+                // Child combinator: only direct children
+                if has_direct_child_with_tag(ctx, *parent_idx, child_tag) {
+                    return false; // Found a valid parent > child relationship
+                }
+            } else {
+                // Descendant combinator: any descendant
+                if has_descendant_with_tag(ctx, *parent_idx, child_tag) {
+                    return false; // Found a valid parent child relationship
+                }
             }
         }
     }
@@ -1193,6 +1287,52 @@ fn has_descendant_with_tag(ctx: &CssContext, parent_idx: usize, tag_name: &str) 
         }
     }
 
+    false
+}
+
+/// Check if an element has any direct children (elements, not text nodes)
+fn has_any_direct_child(ctx: &CssContext, parent_idx: usize) -> bool {
+    let element = &ctx.dom_structure.elements[parent_idx];
+    !element.children_idx.is_empty()
+}
+
+/// Check if an element has any descendants (elements, not text nodes)
+fn has_any_descendant(ctx: &CssContext, parent_idx: usize) -> bool {
+    let element = &ctx.dom_structure.elements[parent_idx];
+
+    for &child_idx in &element.children_idx {
+        if child_idx < ctx.dom_structure.elements.len() {
+            return true;
+        }
+    }
+
+    false
+}
+
+/// Check if a relative selector is a universal pseudo-class (like :not())
+/// that implicitly matches any element type
+fn is_universal_pseudo_selector(rel_selector: &Value) -> bool {
+    if let Some(selectors) = rel_selector.get("selectors").and_then(|s| s.as_array()) {
+        // Must have at least one selector
+        if selectors.is_empty() {
+            return false;
+        }
+
+        // Check if all selectors are pseudo-classes/elements (no type selector)
+        let all_pseudo = selectors.iter().all(|s| {
+            let sel_type = s.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            sel_type == "PseudoClassSelector" || sel_type == "PseudoElementSelector"
+        });
+
+        if all_pseudo {
+            // Check if the first is :not, :is, :where (which match any element)
+            let first = &selectors[0];
+            if first.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector") {
+                let name = first.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                return matches!(name, "not" | "is" | "where" | "has");
+            }
+        }
+    }
     false
 }
 
@@ -1422,13 +1562,8 @@ fn transform_rule_preserving(
         return;
     }
 
-    // Check if the rule is empty (no declarations)
-    let is_empty = node
-        .get("block")
-        .map(|block| !has_declarations(block))
-        .unwrap_or(false);
-
-    if is_empty {
+    // Check if the rule is empty (no declarations, or all nested rules are unused/empty)
+    if is_rule_empty(node, ctx, is_in_global_block) {
         // Comment out empty rules
         output.push_str("/* (empty) ");
 
