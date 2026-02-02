@@ -37,7 +37,27 @@ struct CssContext<'a> {
 pub fn render_stylesheet(
     analysis: &ComponentAnalysis,
     source: &str,
+    options: &CompileOptions,
+) -> Result<CssOutput, TransformError> {
+    render_stylesheet_internal(analysis, source, options, false)
+}
+
+/// Render the stylesheet for a component with optional minification.
+/// Used for injected CSS in SSR which should be minified.
+pub fn render_stylesheet_minified(
+    analysis: &ComponentAnalysis,
+    source: &str,
+    options: &CompileOptions,
+) -> Result<CssOutput, TransformError> {
+    render_stylesheet_internal(analysis, source, options, true)
+}
+
+/// Internal implementation of render_stylesheet with minification option.
+fn render_stylesheet_internal(
+    analysis: &ComponentAnalysis,
+    source: &str,
     _options: &CompileOptions,
+    minify: bool,
 ) -> Result<CssOutput, TransformError> {
     if !analysis.css.has_css || analysis.css.hash.is_empty() {
         return Ok(CssOutput {
@@ -76,6 +96,11 @@ pub fn render_stylesheet(
             code = replace_animation_keyframes(&code, hash, &keyframes);
         }
 
+        // Minify if requested (for injected CSS in SSR)
+        if minify {
+            code = minify_css(&code);
+        }
+
         Ok(CssOutput { code, map: None })
     } else {
         Ok(CssOutput {
@@ -83,6 +108,88 @@ pub fn render_stylesheet(
             map: None,
         })
     }
+}
+
+/// Minify CSS by removing unnecessary whitespace and comments.
+/// This is a simple minification for injected CSS in SSR.
+fn minify_css(css: &str) -> String {
+    let mut result = String::with_capacity(css.len());
+    let chars: Vec<char> = css.chars().collect();
+    let mut i = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+    let mut last_was_space = true; // Start true to trim leading whitespace
+
+    while i < chars.len() {
+        let c = chars[i];
+
+        // Track string literals
+        if (c == '"' || c == '\'') && (i == 0 || chars[i - 1] != '\\') {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char {
+                in_string = false;
+            }
+        }
+
+        // In strings, preserve everything
+        if in_string {
+            result.push(c);
+            last_was_space = false;
+            i += 1;
+            continue;
+        }
+
+        // Skip CSS comments
+        if c == '/' && i + 1 < chars.len() && chars[i + 1] == '*' {
+            // Find end of comment
+            let mut j = i + 2;
+            while j + 1 < chars.len() && !(chars[j] == '*' && chars[j + 1] == '/') {
+                j += 1;
+            }
+            i = j + 2; // Skip past */
+            continue;
+        }
+
+        // Collapse whitespace
+        if c.is_whitespace() {
+            if !last_was_space {
+                // Only add a space if:
+                // - Not after certain characters that don't need space
+                // - Not at the start
+                let last_char = result.chars().last();
+                if !matches!(
+                    last_char,
+                    Some('{') | Some('}') | Some(';') | Some(':') | Some(',') | None
+                ) {
+                    result.push(' ');
+                }
+                last_was_space = true;
+            }
+            i += 1;
+            continue;
+        }
+
+        // Remove space before certain characters (but preserve space before '{')
+        if matches!(c, '}' | ':' | ';' | ',') {
+            // Remove trailing space before these characters
+            if result.ends_with(' ') {
+                result.pop();
+            }
+        }
+
+        result.push(c);
+        last_was_space = false;
+        i += 1;
+    }
+
+    // Trim trailing whitespace
+    while result.ends_with(' ') || result.ends_with('\n') || result.ends_with('\t') {
+        result.pop();
+    }
+
+    result
 }
 
 /// Collect all keyframe names defined in the stylesheet
