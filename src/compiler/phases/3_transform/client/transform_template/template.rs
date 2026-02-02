@@ -276,7 +276,9 @@ fn stringify_children(children: &[Node]) -> String {
 
                 // Special case: preserve single-space placeholder for dynamic text nodes
                 // This is used when there's an expression tag that will be replaced at runtime
-                if normalized == " " && children.len() == 1 {
+                // Important: Preserve the space regardless of position - it's a placeholder that
+                // should not be trimmed (unlike regular whitespace)
+                if normalized == " " {
                     result.push(' ');
                     continue;
                 }
