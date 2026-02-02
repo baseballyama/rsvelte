@@ -241,12 +241,15 @@ pub fn visit_component(
 /// This checks for:
 /// 1. Duplicate slot names in component children
 /// 2. Both explicit slot="default" and implicit default content
+/// 3. snippet_conflict: {#snippet children()} used alongside other content
 fn validate_slot_attributes(component: &Component) -> Result<(), AnalysisError> {
     use crate::ast::template::TemplateNode;
 
     let mut seen_slots: FxHashSet<String> = FxHashSet::default();
     let mut has_explicit_default = false;
     let mut has_implicit_default = false;
+    let mut has_children_snippet = false;
+    let mut has_other_content = false;
 
     for node in &component.fragment.nodes {
         let slot_name = get_slot_name(node);
@@ -261,12 +264,25 @@ fn validate_slot_attributes(component: &Component) -> Result<(), AnalysisError> 
             }
             seen_slots.insert(name.clone());
         } else {
+            // Check if this is a {#snippet children()} block
+            if let TemplateNode::SnippetBlock(snippet) = node
+                && let Some(name) = snippet
+                    .expression
+                    .as_json()
+                    .get("name")
+                    .and_then(|n| n.as_str())
+                && name == "children"
+            {
+                has_children_snippet = true;
+            }
+
             // Check if this is implicit default slot content
             // (not a whitespace-only Text node and not a snippet/const/debug tag)
             match node {
                 TemplateNode::Text(text) => {
                     if !text.data.trim().is_empty() {
                         has_implicit_default = true;
+                        has_other_content = true;
                     }
                 }
                 TemplateNode::SnippetBlock(_)
@@ -277,9 +293,16 @@ fn validate_slot_attributes(component: &Component) -> Result<(), AnalysisError> 
                 }
                 _ => {
                     has_implicit_default = true;
+                    has_other_content = true;
                 }
             }
         }
+    }
+
+    // Check for snippet_conflict: cannot have both {#snippet children()} and other content
+    // Corresponds to SnippetBlock.js lines 59-73
+    if has_children_snippet && has_other_content {
+        return Err(errors::snippet_conflict());
     }
 
     // Check for slot_default_duplicate error
