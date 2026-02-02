@@ -249,8 +249,9 @@ fn transform_client_with_visitors(
         || analysis.needs_context
         || !analysis.reactive_statements.is_empty()
         || has_reactive_statements  // Reactive $: statements detected in script
-        || reactive_export_count > 0
-        || needs_store_cleanup; // Store subscriptions need context
+        || reactive_export_count > 0;
+    // Note: needs_store_cleanup does NOT require context injection ($.push/$.pop)
+    // Store subscriptions are independent of the component context
 
     // Check if there are any prop bindings (Prop or BindableProp) that require $$props
     // This is needed for legacy mode where props are accessed via $.prop($$props, 'name', flags)
@@ -986,6 +987,10 @@ fn transform_instance_script_for_visitors(
 
         // Transform store subscription assignments to $.store_set()
         let transformed = transform_store_assignments_client(&transformed, store_sub_vars);
+
+        // Transform store subscription reads to $store()
+        // e.g., `const answer = $foo` -> `const answer = $foo()`
+        let transformed = transform_store_reads_client(&transformed, store_sub_vars);
 
         // Wrap state variable reads in $.get() for ALL statements including declarations.
         // This handles cases like:
@@ -3359,6 +3364,83 @@ fn transform_store_assignments_client(line: &str, store_sub_vars: &[String]) -> 
         // Transform member expression mutations: $store.prop.value++ or $store[0].value++
         // These need $.store_mutate(store, $.untrack($store).prop.value++, $.untrack($store))
         result = transform_store_member_mutations(&result, store_sub, store_name);
+    }
+
+    result
+}
+
+/// Transform store subscription reads to $store() calls.
+///
+/// In the client runtime, store subscriptions like $count are getter functions.
+/// So `const answer = $foo` must become `const answer = $foo()`.
+///
+/// This is similar to `transform_prop_reads_in_expr` but for store subscriptions.
+fn transform_store_reads_client(line: &str, store_sub_vars: &[String]) -> String {
+    if store_sub_vars.is_empty() {
+        return line.to_string();
+    }
+
+    let mut result = line.to_string();
+
+    for store_sub in store_sub_vars {
+        // Use word boundary matching to replace identifier references
+        // But avoid replacing function calls that already have ()
+        let mut new_result = String::with_capacity(result.len() * 2);
+        let chars: Vec<char> = result.chars().collect();
+        let mut i = 0;
+
+        while i < chars.len() {
+            // Check if we're at the start of the identifier
+            let remaining = &result[result
+                .char_indices()
+                .nth(i)
+                .map(|(idx, _)| idx)
+                .unwrap_or(i)..];
+            if remaining.starts_with(store_sub) {
+                // Check character before (must be non-identifier char or start of string)
+                let before_ok = if i == 0 {
+                    true
+                } else {
+                    let prev_char = chars[i - 1];
+                    !prev_char.is_alphanumeric() && prev_char != '_' && prev_char != '$'
+                };
+
+                // Check character after (must be non-identifier char)
+                let after_idx = i + store_sub.len();
+                let after_ok = if after_idx >= chars.len() {
+                    true
+                } else {
+                    let next_char = chars[after_idx];
+                    !next_char.is_alphanumeric() && next_char != '_' && next_char != '$'
+                };
+
+                // Check if it's NOT already followed by ()
+                let is_already_call = if after_idx < chars.len() {
+                    // Skip whitespace
+                    let mut check_idx = after_idx;
+                    while check_idx < chars.len() && chars[check_idx].is_whitespace() {
+                        check_idx += 1;
+                    }
+                    check_idx < chars.len() && chars[check_idx] == '('
+                } else {
+                    false
+                };
+
+                if before_ok && after_ok && !is_already_call {
+                    // Replace with store_sub()
+                    new_result.push_str(store_sub);
+                    new_result.push_str("()");
+                    i += store_sub.len();
+                    continue;
+                }
+            }
+
+            // No match, just copy the character
+            new_result.push(chars[i]);
+            i += 1;
+        }
+
+        result = new_result;
     }
 
     result
