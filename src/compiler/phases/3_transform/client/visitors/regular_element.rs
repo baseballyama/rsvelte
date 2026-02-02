@@ -9,11 +9,13 @@
 #![allow(dead_code)]
 
 use crate::ast::template::{
-    AttachTag, Attribute, AttributeNode, AttributeValue, BindDirective, Fragment, OnDirective,
-    RegularElement as RegularElementNode, TemplateNode, TransitionDirective, UseDirective,
+    AnimateDirective, AttachTag, Attribute, AttributeNode, AttributeValue, BindDirective, Fragment,
+    OnDirective, RegularElement as RegularElementNode, TemplateNode, TransitionDirective,
+    UseDirective,
 };
 use crate::compiler::phases::phase3_transform::client::transform_template::Template;
 use crate::compiler::phases::phase3_transform::client::types::*;
+use crate::compiler::phases::phase3_transform::client::visitors::animate_directive::animate_directive;
 use crate::compiler::phases::phase3_transform::client::visitors::attach_tag::attach_tag;
 use crate::compiler::phases::phase3_transform::client::visitors::attribute::{
     is_event_attribute, visit_event_attribute,
@@ -83,6 +85,7 @@ pub fn visit_regular_element(
     let mut style_directives = Vec::with_capacity(4);
     let mut on_directives: Vec<OnDirective> = Vec::with_capacity(4);
     let mut transition_directives: Vec<TransitionDirective> = Vec::with_capacity(2);
+    let mut animate_directives: Vec<AnimateDirective> = Vec::with_capacity(2);
     let mut use_directives: Vec<UseDirective> = Vec::with_capacity(2);
     let mut attach_tags: Vec<AttachTag> = Vec::with_capacity(2);
     let mut bindings: FxHashMap<String, BindDirective> = FxHashMap::default();
@@ -130,6 +133,9 @@ pub fn visit_regular_element(
             }
             Attribute::TransitionDirective(dir) => {
                 transition_directives.push(dir.clone());
+            }
+            Attribute::AnimateDirective(dir) => {
+                animate_directives.push(dir.clone());
             }
             Attribute::BindDirective(dir) => {
                 bindings.insert(dir.name.to_string(), dir.clone());
@@ -182,6 +188,27 @@ pub fn visit_regular_element(
         let after_update_before = context.state.after_update.len();
 
         transition_directive(trans_directive, context);
+
+        // Move any statements added to context.state to element_state instead
+        while context.state.init.len() > init_before {
+            if let Some(stmt) = context.state.init.pop() {
+                element_state_init.insert(0, stmt);
+            }
+        }
+        while context.state.after_update.len() > after_update_before {
+            if let Some(stmt) = context.state.after_update.pop() {
+                element_state_after_update.insert(0, stmt);
+            }
+        }
+    }
+
+    // Process animate directives into element_state
+    for anim_directive in &animate_directives {
+        // Store current init length to capture any statements added by animate_directive
+        let init_before = context.state.init.len();
+        let after_update_before = context.state.after_update.len();
+
+        animate_directive(anim_directive, context);
 
         // Move any statements added to context.state to element_state instead
         while context.state.init.len() > init_before {
@@ -916,6 +943,27 @@ fn is_boolean_attribute(name: &str) -> bool {
     )
 }
 
+/// Normalize attribute name to DOM property name.
+/// Reference: svelte/packages/svelte/src/utils.js ATTRIBUTE_ALIASES and normalize_attribute
+fn normalize_attribute(name: &str) -> &str {
+    let lower = name.to_lowercase();
+    match lower.as_str() {
+        "formnovalidate" => "formNoValidate",
+        "ismap" => "isMap",
+        "nomodule" => "noModule",
+        "playsinline" => "playsInline",
+        "readonly" => "readOnly",
+        "defaultvalue" => "defaultValue",
+        "defaultchecked" => "defaultChecked",
+        "srcobject" => "srcObject",
+        "novalidate" => "noValidate",
+        "allowfullscreen" => "allowFullscreen",
+        "disablepictureinpicture" => "disablePictureInPicture",
+        "disableremoteplayback" => "disableRemotePlayback",
+        _ => name,
+    }
+}
+
 /// Check if a name is a DOM property (vs attribute).
 /// Reference: svelte/packages/svelte/src/utils.js DOM_PROPERTIES
 fn is_dom_property(name: &str) -> bool {
@@ -955,10 +1003,13 @@ fn extract_node_id(expr: &JsExpr) -> String {
 fn build_element_attribute_update(
     element: &RegularElementNode,
     node_id: &str,
-    name: &str,
+    attr_name: &str,
     value: JsExpr,
     attributes: &[Attribute],
 ) -> JsExpr {
+    // Normalize attribute name to DOM property name (e.g., readonly -> readOnly)
+    let name = normalize_attribute(attr_name);
+
     // Special case: muted (Firefox needs property assignment)
     if name == "muted" {
         return b::assign(b::member(b::id(node_id), "muted"), value);
@@ -1023,8 +1074,8 @@ fn build_element_attribute_update(
         return b::assign(b::member(b::id(node_id), name), value);
     }
 
-    // Regular attribute
-    let set_fn = if name.starts_with("xlink") {
+    // Regular attribute (use original attr_name for HTML attribute)
+    let set_fn = if attr_name.starts_with("xlink") {
         "$.set_xlink_attribute"
     } else {
         "$.set_attribute"
@@ -1032,7 +1083,7 @@ fn build_element_attribute_update(
 
     b::call(
         b::member_path(set_fn),
-        vec![b::id(node_id), b::string(name), value],
+        vec![b::id(node_id), b::string(attr_name), value],
     )
 }
 
