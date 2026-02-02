@@ -1432,6 +1432,42 @@ fn normalize_all_string_quotes(code: &str) -> String {
                         // End of template
                         i += 1;
                         break;
+                    } else if brace_depth > 0 && chars[i] == '"' {
+                        // Inside expression: normalize double quotes to single quotes
+                        // This handles cases like `${$.attr("test")}` vs `${$.attr('test')}`
+                        i += 1;
+                        let mut string_content = String::new();
+                        while i < chars.len() {
+                            if chars[i] == '\\' && i + 1 < chars.len() {
+                                if chars[i + 1] == '"' {
+                                    // Unescape \"
+                                    string_content.push('"');
+                                } else if chars[i + 1] == '\'' {
+                                    // Keep escaped single quote
+                                    string_content.push('\\');
+                                    string_content.push('\'');
+                                } else {
+                                    string_content.push(chars[i]);
+                                    string_content.push(chars[i + 1]);
+                                }
+                                i += 2;
+                            } else if chars[i] == '"' {
+                                // End of string
+                                i += 1;
+                                break;
+                            } else if chars[i] == '\'' {
+                                // Escape single quotes
+                                string_content.push('\\');
+                                string_content.push('\'');
+                                i += 1;
+                            } else {
+                                string_content.push(chars[i]);
+                                i += 1;
+                            }
+                        }
+                        content.push('\'');
+                        content.push_str(&string_content);
+                        content.push('\'');
                     } else {
                         content.push(chars[i]);
                         i += 1;
