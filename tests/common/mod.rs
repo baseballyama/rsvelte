@@ -343,10 +343,16 @@ pub fn normalize_js(js: &str) -> String {
         // Normalize import/export quote style - from "path" to 'path'
         // Match import ... from "..." or export ... from "..."
         static ref IMPORT_DOUBLE_QUOTE: Regex = Regex::new(r#"(import[^;]+from\s+)"([^"]+)""#).unwrap();
+        // Remove block comments (including JSDoc)
+        // This uses (?s) flag for DOTALL mode to match across newlines
+        static ref BLOCK_COMMENT: Regex = Regex::new(r"(?s)/\*.*?\*/").unwrap();
     }
 
+    // Remove block comments (including JSDoc) before other processing
+    let result = BLOCK_COMMENT.replace_all(js, "").to_string();
+
     // Normalize variable suffixes
-    let result = VAR_SUFFIX.replace_all(js, "$1").to_string();
+    let result = VAR_SUFFIX.replace_all(&result, "$1").to_string();
 
     // Normalize $$index_N and $$length_N patterns to $$index and $$length
     // In regex replacement, $$ is a literal $, so we need $$$$ for two literal $ chars
@@ -2363,6 +2369,102 @@ fn test_normalize_js_nested_if_with_tabs() {
         normalized_expected, normalized_actual,
         "Nested if with tabs should normalize to the same output"
     );
+}
+
+#[test]
+fn test_normalize_js_if_with_complex_condition() {
+    // Test case from action-context with $.get(count) condition
+    let expected = r#"$.if(node, ($$render) => {
+        if ($.get(count) < 2) $$render(consequent);
+    });"#;
+
+    let actual = r#"$.if(node, ($$render) => {
+        if ($.get(count) < 2) {
+            $$render(consequent);
+        }
+    });"#;
+
+    let normalized_expected = normalize_js(expected);
+    let normalized_actual = normalize_js(actual);
+    println!("Expected normalized: {}", normalized_expected);
+    println!("Actual normalized: {}", normalized_actual);
+    assert_eq!(
+        normalized_expected, normalized_actual,
+        "If with complex condition should normalize to the same output\nExpected:\n{}\n\nActual:\n{}",
+        normalized_expected, normalized_actual
+    );
+}
+
+#[test]
+fn test_normalize_js_action_context_pattern() {
+    // Exact pattern from action-context test
+    let expected = r#"$.if(node, ($$render) => {
+			if ($.get(count) < 2) $$render(consequent);
+		});"#;
+
+    let actual = r#"$.if(node, ($$render) => {
+			if ($.get(count) < 2) {
+				$$render(consequent);
+			}
+
+		});"#;
+
+    let normalized_expected = normalize_js(expected);
+    let normalized_actual = normalize_js(actual);
+    println!("Expected normalized: {}", normalized_expected);
+    println!("Actual normalized: {}", normalized_actual);
+    assert_eq!(
+        normalized_expected, normalized_actual,
+        "Action context pattern should normalize to the same output\nExpected:\n{}\n\nActual:\n{}",
+        normalized_expected, normalized_actual
+    );
+}
+
+#[test]
+fn test_normalize_js_action_context_full_files() {
+    // Test with actual file contents
+    use std::fs;
+
+    let actual =
+        fs::read_to_string("fixtures/123c48d38d1a/runtime-runes/action-context/_actual/client.js")
+            .expect("Could not read actual file");
+    let expected =
+        fs::read_to_string("fixtures/123c48d38d1a/runtime-runes/action-context/client.js")
+            .expect("Could not read expected file");
+
+    let normalized_actual = normalize_js(&actual);
+    let normalized_expected = normalize_js(&expected);
+
+    if normalized_actual != normalized_expected {
+        // Find first difference
+        let mut diff_pos = 0;
+        for (i, (a, e)) in normalized_actual
+            .chars()
+            .zip(normalized_expected.chars())
+            .enumerate()
+        {
+            if a != e {
+                diff_pos = i;
+                break;
+            }
+        }
+
+        let start = diff_pos.saturating_sub(50);
+        let end_actual = std::cmp::min(diff_pos + 50, normalized_actual.len());
+        let end_expected = std::cmp::min(diff_pos + 50, normalized_expected.len());
+
+        println!("First difference at position {}", diff_pos);
+        println!(
+            "Actual around diff: ...{}...",
+            &normalized_actual[start..end_actual]
+        );
+        println!(
+            "Expected around diff: ...{}...",
+            &normalized_expected[start..end_expected]
+        );
+
+        panic!("Normalized outputs differ");
+    }
 }
 
 // Note: This test is disabled because whitespace INSIDE template literals is significant
