@@ -665,7 +665,12 @@ fn process_bind_directive(
     intermediate_name: &str,
     component_name: &str,
 ) {
-    let expression = convert_expression(&bind.expression, context);
+    // Convert the expression without transforms first
+    let raw_expression = convert_expression(&bind.expression, context);
+
+    // Apply transforms to get the proper getter expression (e.g., $store.value -> $store().value)
+    let transformed_expression =
+        super::utils::apply_transforms_to_expression(&raw_expression, context);
 
     // Handle bind:this specially
     if bind.name.as_str() == "this" {
@@ -674,7 +679,7 @@ fn process_bind_directive(
     }
 
     // Check if expression is a sequence (getter/setter pair)
-    if let JsExpr::Sequence(seq) = &expression
+    if let JsExpr::Sequence(seq) = &transformed_expression
         && seq.expressions.len() == 2
     {
         let get = seq.expressions[0].clone();
@@ -706,11 +711,14 @@ fn process_bind_directive(
         return;
     }
 
-    // Check if it's a store subscription
+    // Check if it's a direct store subscription (identifier like $store)
     let is_store_sub = is_store_subscription(&bind.expression, context);
 
+    // Check if this is a store member expression (e.g., $store.value)
+    let is_store_member = is_store_member_expression(&bind.expression, context);
+
     // Check if this is a state source binding that needs $.get/$.set
-    let is_state_binding = if let JsExpr::Identifier(name) = &expression {
+    let is_state_binding = if let JsExpr::Identifier(name) = &raw_expression {
         if let Some(binding) = context.state.get_binding(name) {
             crate::compiler::phases::phase3_transform::client::utils::is_state_source(
                 binding,
@@ -724,32 +732,53 @@ fn process_bind_directive(
     };
 
     // Create getter
+    // For store subscriptions and store member expressions, use the transformed expression
+    // which already has $store -> $store() applied
     let getter_body = if is_store_sub {
         vec![
             b::stmt(b::call(b::member_path("$.mark_store_binding"), vec![])),
-            b::return_value(expression.clone()),
+            b::return_value(transformed_expression.clone()),
         ]
     } else if is_state_binding {
         // For state bindings, use $.get()
         vec![b::return_value(b::call(
             b::member_path("$.get"),
-            vec![expression.clone()],
+            vec![raw_expression.clone()],
         ))]
     } else {
-        vec![b::return_value(expression.clone())]
+        // Use transformed expression for other cases (includes store member expressions)
+        vec![b::return_value(transformed_expression.clone())]
     };
 
     let getter = b::getter(bind.name.as_str(), getter_body);
 
     // Create setter
+    // For store member expressions, we need to use $.store_mutate
     let setter_body = if is_state_binding {
         // For state bindings, use $.set(value, $$value, true)
         vec![b::stmt(b::call(
             b::member_path("$.set"),
-            vec![expression.clone(), b::id("$$value"), b::boolean(true)],
+            vec![raw_expression.clone(), b::id("$$value"), b::boolean(true)],
         ))]
+    } else if is_store_member {
+        // For store member expressions like $store.value, we need:
+        // $.store_mutate(store, $.untrack($store).value = $$value, $.untrack($store))
+        let store_info = get_store_info_from_member(&bind.expression);
+        if let Some((store_name, store_prefix)) = store_info {
+            let untrack_call = b::call(b::member_path("$.untrack"), vec![b::id(&store_prefix)]);
+            // Build the assignment with $.untrack($store) as the base
+            let assignment_expr =
+                build_store_member_assignment(&raw_expression, &store_prefix, b::id("$$value"));
+            vec![b::stmt(b::call(
+                b::member_path("$.store_mutate"),
+                vec![b::id(&store_name), assignment_expr, untrack_call],
+            ))]
+        } else {
+            // Fallback to simple assignment
+            vec![b::stmt(b::assign(raw_expression.clone(), b::id("$$value")))]
+        }
     } else {
-        vec![b::stmt(b::assign(expression.clone(), b::id("$$value")))]
+        vec![b::stmt(b::assign(raw_expression.clone(), b::id("$$value")))]
     };
 
     let setter = b::setter(bind.name.as_str(), "$$value", setter_body);
@@ -767,6 +796,94 @@ fn process_bind_directive(
             component_name,
             binding_initializers,
         );
+    }
+}
+
+/// Check if expression is a member expression where the object is a store subscription.
+/// E.g., $store.value or $store.nested.value
+fn is_store_member_expression(expr: &Expression, context: &ComponentContext) -> bool {
+    match expr {
+        Expression::Value(val) => {
+            if let Some(obj) = val.as_object()
+                && let Some("MemberExpression") = obj.get("type").and_then(|t| t.as_str())
+            {
+                // Get the root object of the member expression chain
+                let root = get_member_expression_root(obj);
+                if let Some(root_obj) = root
+                    && let Some("Identifier") = root_obj.get("type").and_then(|t| t.as_str())
+                    && let Some(name) = root_obj.get("name").and_then(|n| n.as_str())
+                    && let Some(binding) = context.state.get_binding(name)
+                {
+                    return binding.kind
+                        == crate::compiler::phases::phase2_analyze::scope::BindingKind::StoreSub;
+                }
+            }
+            false
+        }
+    }
+}
+
+/// Get the root object of a member expression chain.
+fn get_member_expression_root(
+    obj: &serde_json::Map<String, serde_json::Value>,
+) -> Option<&serde_json::Map<String, serde_json::Value>> {
+    let object = obj.get("object")?;
+    if let Some(inner_obj) = object.as_object() {
+        if inner_obj.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
+            return get_member_expression_root(inner_obj);
+        }
+        return Some(inner_obj);
+    }
+    None
+}
+
+/// Get the store name and store prefix ($store) from a member expression.
+/// Returns (store_name, $store_name) e.g., ("a", "$a")
+fn get_store_info_from_member(expr: &Expression) -> Option<(String, String)> {
+    match expr {
+        Expression::Value(val) => {
+            if let Some(obj) = val.as_object()
+                && let Some("MemberExpression") = obj.get("type").and_then(|t| t.as_str())
+            {
+                let root = get_member_expression_root(obj)?;
+                if let Some("Identifier") = root.get("type").and_then(|t| t.as_str())
+                    && let Some(name) = root.get("name").and_then(|n| n.as_str())
+                    && name.starts_with('$')
+                {
+                    // $store -> store
+                    let store_name = name[1..].to_string();
+                    return Some((store_name, name.to_string()));
+                }
+            }
+            None
+        }
+    }
+}
+
+/// Build an assignment expression for store member mutation.
+/// Replaces the store prefix ($store) with $.untrack($store) in the member expression.
+fn build_store_member_assignment(expr: &JsExpr, store_prefix: &str, value: JsExpr) -> JsExpr {
+    // Build the left side by replacing $store with $.untrack($store)
+    let left = replace_store_with_untrack(expr, store_prefix);
+    b::assign(left, value)
+}
+
+/// Replace the store identifier in an expression with $.untrack($store).
+fn replace_store_with_untrack(expr: &JsExpr, store_prefix: &str) -> JsExpr {
+    match expr {
+        JsExpr::Identifier(name) if name == store_prefix => {
+            b::call(b::member_path("$.untrack"), vec![b::id(store_prefix)])
+        }
+        JsExpr::Member(member) => {
+            let new_object = replace_store_with_untrack(&member.object, store_prefix);
+            JsExpr::Member(JsMemberExpression {
+                object: Box::new(new_object),
+                property: member.property.clone(),
+                computed: member.computed,
+                optional: member.optional,
+            })
+        }
+        _ => expr.clone(),
     }
 }
 

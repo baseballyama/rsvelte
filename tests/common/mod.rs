@@ -335,7 +335,8 @@ pub fn normalize_js(js: &str) -> String {
         // This handles cases like `\` <select>\`` vs `\`<select>\``
         static ref TEMPLATE_HTML_WHITESPACE: Regex = Regex::new(r"`\s+<").unwrap();
         // Normalize multiple spaces between HTML tags/content in template literals
-        static ref MULTI_SPACE_HTML: Regex = Regex::new(r">\s{2,}<").unwrap();
+        // Also normalize single/multiple spaces between tags to be consistent
+        static ref MULTI_SPACE_HTML: Regex = Regex::new(r">\s+<").unwrap();
         // Remove Svelte internal flag imports (legacy, async, tracing) - these depend on compile options
         static ref SVELTE_FLAGS_IMPORT: Regex = Regex::new(r#"import\s+['"]svelte/internal/flags/(legacy|async|tracing)['"];\s*"#).unwrap();
         // Normalize $.head() hash values - these are implementation-specific
