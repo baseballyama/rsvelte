@@ -163,9 +163,13 @@ impl<'a> CssParser<'a> {
                 break;
             }
 
-            // Check for comments
+            // Check for comments (CSS and HTML)
             if self.match_str("/*") {
                 self.skip_block_comment();
+                continue;
+            }
+            if self.match_str("<!--") {
+                self.skip_html_comment();
                 continue;
             }
 
@@ -847,6 +851,14 @@ impl<'a> CssParser<'a> {
             self.advance();
         }
         self.advance_by(2); // consume '*/'
+    }
+
+    fn skip_html_comment(&mut self) {
+        self.advance_by(4); // consume '<!--'
+        while !self.is_eof() && !self.match_str("-->") {
+            self.advance();
+        }
+        self.advance_by(3); // consume '-->'
     }
 
     fn is_eof(&self) -> bool {
