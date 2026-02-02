@@ -563,9 +563,9 @@ pub fn is_safe_identifier(expression: &Value, context: &VisitorContext) -> bool 
         None => return false,
     };
 
-    // Look up the binding
-    let binding = match context.analysis.root.scope.declarations.get(name) {
-        Some(idx) => &context.analysis.root.bindings[*idx],
+    // Look up the binding - search all scopes
+    let binding = match context.analysis.root.find_binding_any_scope(name) {
+        Some(idx) => &context.analysis.root.bindings[idx],
         None => return true, // No binding means it's a global, which is safe
     };
 

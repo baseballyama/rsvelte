@@ -86,6 +86,16 @@ pub fn analyze_component(
     // Corresponds to Svelte's store subscription logic in 2-analyze/index.js L348-444
     store_subscriptions::detect_store_subscriptions(ast, &mut analysis)?;
 
+    // Handle legacy mode exports
+    // In non-runes mode, every exported `let` or `var` becomes a prop (bindable_prop),
+    // and everything else becomes an export
+    // This MUST happen BEFORE the script visitor walk so that is_safe_identifier
+    // correctly identifies bindable_prop bindings and sets needs_context = true
+    // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js L562-616
+    if !analysis.runes {
+        process_legacy_exports(ast, &mut analysis);
+    }
+
     // Validate and analyze scripts (JavaScript AST)
     // In Svelte's implementation, the scope function_depth works as follows:
     // - Module scope: function_depth = 0
@@ -183,6 +193,194 @@ fn validate_script_attributes(
             analysis.warnings.push(warnings::script_unknown_attribute());
         }
     }
+}
+
+/// Process legacy mode exports.
+///
+/// In non-runes mode, every exported `let` or `var` becomes a prop (bindable_prop),
+/// and everything else (const, function, class) becomes an export.
+///
+/// This must happen after script analysis but before template analysis.
+///
+/// Corresponds to Svelte's 2-analyze/index.js L562-616
+fn process_legacy_exports(ast: &Root, analysis: &mut ComponentAnalysis) {
+    let Some(ref instance) = ast.instance else {
+        return;
+    };
+
+    let script_ast = instance.content.as_json();
+
+    // Get the body array from the Program node
+    let Some(body) = script_ast.get("body").and_then(|v| v.as_array()) else {
+        return;
+    };
+
+    for node in body {
+        // Check if this is an ExportNamedDeclaration
+        let node_type = node.get("type").and_then(|v| v.as_str());
+        if node_type != Some("ExportNamedDeclaration") {
+            continue;
+        }
+
+        analysis.needs_props = true;
+
+        // Check if there's a declaration
+        if let Some(declaration) = node.get("declaration") {
+            if declaration.is_null() {
+                // Handle export specifiers (export { a, b as c })
+                if let Some(specifiers) = node.get("specifiers").and_then(|v| v.as_array()) {
+                    for specifier in specifiers {
+                        let local_name = specifier
+                            .get("local")
+                            .and_then(|v| v.get("name"))
+                            .and_then(|v| v.as_str());
+                        let exported_name = specifier
+                            .get("exported")
+                            .and_then(|v| v.get("name"))
+                            .and_then(|v| v.as_str());
+
+                        let (Some(local), Some(exported)) = (local_name, exported_name) else {
+                            continue;
+                        };
+
+                        // Find the binding for this local name
+                        if let Some(binding_idx) = analysis.root.find_binding_any_scope(local) {
+                            let binding = &mut analysis.root.bindings[binding_idx];
+
+                            // If it's a var or let declaration, make it a bindable prop
+                            if binding.declaration_kind == DeclarationKind::Var
+                                || binding.declaration_kind == DeclarationKind::Let
+                            {
+                                binding.kind = BindingKind::BindableProp;
+
+                                // If exported with a different name, set the alias
+                                if exported != local {
+                                    binding.prop_alias = Some(exported.to_string());
+                                }
+                            } else {
+                                // For const/function/class, add to exports
+                                analysis.exports.push(types::Export {
+                                    name: local.to_string(),
+                                    alias: if exported != local {
+                                        Some(exported.to_string())
+                                    } else {
+                                        None
+                                    },
+                                });
+                            }
+                        } else {
+                            // Binding not found, treat as an export
+                            analysis.exports.push(types::Export {
+                                name: local.to_string(),
+                                alias: if exported != local {
+                                    Some(exported.to_string())
+                                } else {
+                                    None
+                                },
+                            });
+                        }
+                    }
+                }
+                continue;
+            }
+
+            let decl_type = declaration.get("type").and_then(|v| v.as_str());
+
+            match decl_type {
+                Some("FunctionDeclaration") | Some("ClassDeclaration") => {
+                    // export function foo() {} or export class Foo {}
+                    if let Some(name) = declaration
+                        .get("id")
+                        .and_then(|v| v.get("name"))
+                        .and_then(|v| v.as_str())
+                    {
+                        analysis.exports.push(types::Export {
+                            name: name.to_string(),
+                            alias: None,
+                        });
+                    }
+                }
+                Some("VariableDeclaration") => {
+                    let kind = declaration.get("kind").and_then(|v| v.as_str());
+
+                    if let Some(declarations) =
+                        declaration.get("declarations").and_then(|v| v.as_array())
+                    {
+                        for declarator in declarations {
+                            // Extract all identifiers from the pattern (handles destructuring)
+                            let identifiers =
+                                extract_identifiers_from_pattern(declarator.get("id"));
+
+                            if kind == Some("const") {
+                                // export const x = 1 -> add to exports
+                                for name in identifiers {
+                                    analysis.exports.push(types::Export { name, alias: None });
+                                }
+                            } else {
+                                // export let x = 1 or export var x = 1 -> make bindable prop
+                                for name in identifiers {
+                                    if let Some(binding_idx) =
+                                        analysis.root.find_binding_any_scope(&name)
+                                    {
+                                        analysis.root.bindings[binding_idx].kind =
+                                            BindingKind::BindableProp;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+/// Extract identifier names from a pattern (handles destructuring).
+fn extract_identifiers_from_pattern(pattern: Option<&serde_json::Value>) -> Vec<String> {
+    let Some(pattern) = pattern else {
+        return Vec::new();
+    };
+
+    let mut identifiers = Vec::new();
+
+    match pattern.get("type").and_then(|v| v.as_str()) {
+        Some("Identifier") => {
+            if let Some(name) = pattern.get("name").and_then(|v| v.as_str()) {
+                identifiers.push(name.to_string());
+            }
+        }
+        Some("ObjectPattern") => {
+            if let Some(properties) = pattern.get("properties").and_then(|v| v.as_array()) {
+                for prop in properties {
+                    // Handle RestElement in object pattern
+                    if prop.get("type").and_then(|v| v.as_str()) == Some("RestElement") {
+                        identifiers.extend(extract_identifiers_from_pattern(prop.get("argument")));
+                    } else {
+                        identifiers.extend(extract_identifiers_from_pattern(prop.get("value")));
+                    }
+                }
+            }
+        }
+        Some("ArrayPattern") => {
+            if let Some(elements) = pattern.get("elements").and_then(|v| v.as_array()) {
+                for elem in elements {
+                    if !elem.is_null() {
+                        identifiers.extend(extract_identifiers_from_pattern(Some(elem)));
+                    }
+                }
+            }
+        }
+        Some("RestElement") => {
+            identifiers.extend(extract_identifiers_from_pattern(pattern.get("argument")));
+        }
+        Some("AssignmentPattern") => {
+            identifiers.extend(extract_identifiers_from_pattern(pattern.get("left")));
+        }
+        _ => {}
+    }
+
+    identifiers
 }
 
 /// Promote bindings to 'state' kind in legacy (non-runes) mode.
