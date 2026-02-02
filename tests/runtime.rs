@@ -145,7 +145,6 @@ fn run_runtime_fixture_test(category: &str, fixture: &RuntimeFixture) -> TestRes
             filename: Some("main.svelte".to_string()),
             css: CssMode::External,
             experimental: ExperimentalOptions { r#async: use_async },
-            // Let runes mode be auto-detected from source (matches official compiler behavior)
             ..Default::default()
         };
 

@@ -119,6 +119,21 @@ pub fn analyze_component(
     // Analyze the template using visitors
     visitors::analyze_template(ast, &mut analysis)?;
 
+    // Auto-detect runes mode if not explicitly set
+    // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js L449-451
+    // const runes = options.runes ?? (has_await || instance.has_await ||
+    //     Array.from(module.scope.references.keys()).some(is_rune));
+    //
+    // If options.runes is not explicitly set (None), we detect runes mode by checking:
+    // 1. If any bindings are rune-based ($state, $derived, etc.)
+    // This must happen after scope/binding analysis but before legacy state promotion.
+    if options.runes.is_none() && !analysis.runes {
+        let has_rune_bindings = analysis.root.bindings.iter().any(|b| b.is_rune());
+        if has_rune_bindings {
+            analysis.runes = true;
+        }
+    }
+
     // Legacy state promotion: In legacy mode (non-runes), if a binding is:
     // 1. kind === 'normal' with declaration_kind === 'let'
     // 2. updated (reassigned or mutated)

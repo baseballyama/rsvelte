@@ -1394,7 +1394,17 @@ pub fn parse_directive_name(name: &str) -> JsExpr {
         return b::id("unknown");
     }
 
-    let mut expression = b::id(parts[0]);
+    // Check if the first part is a store reference (starts with $)
+    // If so, we need to call it as a function: $store -> $store()
+    // This is because store subscriptions are generated as getter functions:
+    //   const $store = () => $.store_get(store, '$store', $$stores);
+    let first_part = parts[0];
+    let mut expression = if first_part.starts_with('$') && first_part.len() > 1 {
+        // It's a store reference - call it as a function to get the value
+        b::call(b::id(first_part), vec![])
+    } else {
+        b::id(first_part)
+    };
 
     for part in &parts[1..] {
         // Check if the part is a valid identifier

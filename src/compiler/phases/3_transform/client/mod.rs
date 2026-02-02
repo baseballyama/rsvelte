@@ -335,9 +335,11 @@ fn transform_client_with_visitors(
                 name, name
             ));
             exports_code.push_str(",\n");
-            // Setter: propName($$value)
+            // Setter: propName($$value); $.flush();
+            // The $.flush() is required for legacy mode exports to ensure
+            // synchronous updates to bound values propagate correctly
             exports_code.push_str(&format!(
-                "\tset {}($$value) {{\n\t\t{}($$value);\n\t}}",
+                "\tset {}($$value) {{\n\t\t{}($$value);\n\t\t$.flush();\n\t}}",
                 name, name
             ));
             if i < reactive_exports.len() - 1 {

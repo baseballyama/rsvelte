@@ -535,6 +535,19 @@ fn collect_dollar_refs_from_attributes(
                 }
             }
             Attribute::UseDirective(use_dir) => {
+                // Check if the directive name contains a store reference
+                // e.g., use:$store.action should create a subscription for $store
+                if use_dir.name.starts_with('$') {
+                    // Extract the store name (before the first . if present)
+                    let store_name = if let Some(dot_pos) = use_dir.name.find('.') {
+                        &use_dir.name[..dot_pos]
+                    } else {
+                        use_dir.name.as_str()
+                    };
+                    if store_name.len() > 1 {
+                        refs.insert(store_name.to_string());
+                    }
+                }
                 if let Some(ref expr) = use_dir.expression {
                     collect_dollar_refs_from_expression(expr, source, refs);
                 }
