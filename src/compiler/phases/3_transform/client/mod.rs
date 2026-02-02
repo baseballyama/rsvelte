@@ -4150,31 +4150,69 @@ fn is_shadowed_by_function_param(chars: &[char], var_start: usize, var_name: &st
                                             m -= 1;
                                         }
 
-                                        // Check for function keyword or identifier (method name)
-                                        if m > 0 {
-                                            // Check for "function" keyword
-                                            if m >= 8 {
+                                        // Check for control flow keywords (if, while, for, switch, with, catch)
+                                        // These are NOT function definitions
+                                        let control_flow_keywords =
+                                            ["if", "while", "for", "switch", "with", "catch"];
+                                        let mut is_control_flow = false;
+                                        for keyword in control_flow_keywords {
+                                            let kw_len = keyword.len();
+                                            if m >= kw_len {
                                                 let prefix: String =
-                                                    chars[m - 8..m].iter().collect();
-                                                if prefix == "function" {
+                                                    chars[m - kw_len..m].iter().collect();
+                                                if prefix == keyword {
+                                                    // Make sure it's a standalone keyword
+                                                    let is_standalone = m == kw_len
+                                                        || !is_identifier_char(
+                                                            chars[m - kw_len - 1],
+                                                        );
+                                                    if is_standalone {
+                                                        is_control_flow = true;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        if is_control_flow {
+                                            // This is a control flow statement, not a function
+                                            // Continue scanning backwards for more scopes
+                                            // Don't return true here
+                                        } else {
+                                            // Check for function keyword or identifier (method name)
+                                            if m > 0 {
+                                                // Check for "function" keyword
+                                                if m >= 8 {
+                                                    let prefix: String =
+                                                        chars[m - 8..m].iter().collect();
+                                                    if prefix == "function" {
+                                                        return true;
+                                                    }
+                                                }
+
+                                                // Check for identifier (method name or arrow function)
+                                                // m is now pointing after the last non-whitespace char before (
+                                                // For "update(foo)", m would be at 'e'+1, so chars[m-1] = 'e'
+                                                if is_identifier_char(chars[m - 1]) {
+                                                    // Could be a method definition like `update(count) {`
                                                     return true;
                                                 }
                                             }
 
-                                            // Check for identifier (method name or arrow function)
-                                            // m is now pointing after the last non-whitespace char before (
-                                            // For "update(foo)", m would be at 'e'+1, so chars[m-1] = 'e'
-                                            if is_identifier_char(chars[m - 1]) {
-                                                // Could be a method definition like `update(count) {`
+                                            // Check for arrow function pattern: (params) => {
+                                            // If the ( is not preceded by any identifier or function keyword,
+                                            // and there's => between ) and {, it could be an arrow function
+                                            // However, we should only return true if we can confirm it's a function
+                                            // Just having () doesn't make it a function - it could be grouping
+
+                                            // Check if there's => between ) and {
+                                            let between_paren_and_brace: String =
+                                                chars[close_paren_idx + 1..i].iter().collect();
+                                            if between_paren_and_brace.trim().starts_with("=>") {
+                                                // It's an arrow function
                                                 return true;
                                             }
                                         }
-
-                                        // Check for arrow function pattern: (params) => {
-                                        // But we're at {, so this would be `(params) => {`
-                                        // The `=>` would be between ) and {
-                                        // This case is already covered by finding params in parens before {
-                                        return true;
                                     }
                                 }
                             }
@@ -5744,5 +5782,55 @@ fn test_derived_object_literal_double_wrap() {
         result2.contains("$.derived(() => ({"),
         "Object literal should still be wrapped in parentheses: {}",
         result2
+    );
+}
+
+#[test]
+fn test_mutation_wrap_state_vars() {
+    // Test the mutation case: $.set(pending, pending.filter(...), true)
+    // The second `pending` should be wrapped with $.get()
+    let input = "$.set(pending, pending.filter((p) => p !== id), true)";
+    let state_vars = vec!["pending".to_string()];
+
+    let result = wrap_state_vars_in_expr(input, &state_vars, &[], &[]);
+
+    // The expected output is:
+    // $.set(pending, $.get(pending).filter((p) => p !== id), true)
+    // First `pending` after $.set( should NOT be wrapped (it's the target)
+    // Second `pending` should be wrapped with $.get()
+    assert!(
+        result.contains("$.get(pending).filter"),
+        "Second pending should be wrapped with $.get(): {}",
+        result
+    );
+    assert!(
+        result.starts_with("$.set(pending,"),
+        "First pending should NOT be wrapped: {}",
+        result
+    );
+}
+
+#[test]
+fn test_mutation_wrap_state_vars_in_context() {
+    // Test with nested function context - state vars inside arrow function body
+    // should still be wrapped even when inside if statement conditions.
+    // This tests the fix for is_shadowed_by_function_param incorrectly detecting
+    // variables inside if() conditions as shadowed parameters.
+    let input = r#"const togglePending = () => {
+    if ($.get(pending).includes(id)) {
+        $.set(pending, pending.filter((p) => p !== id), true);
+    } else {
+        $.set(pending, [...$.get(pending), id], true);
+    }
+};"#;
+    let state_vars = vec!["pending".to_string()];
+
+    let result = wrap_state_vars_in_expr(input, &state_vars, &[], &[]);
+
+    // Both $.set second args should have $.get(pending)
+    assert!(
+        result.contains("$.set(pending, $.get(pending).filter"),
+        "Second pending in filter should be wrapped with $.get(): {}",
+        result
     );
 }

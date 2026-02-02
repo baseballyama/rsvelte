@@ -1385,6 +1385,7 @@ fn try_transform_assignment(
     context: &mut ComponentContext,
 ) -> Option<JsExpr> {
     use crate::compiler::phases::phase3_transform::client::visitors::shared::assignment_helpers::build_assignment_value;
+    use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
     use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 
     // Extract the root identifier from the left-hand side
@@ -1399,8 +1400,13 @@ fn try_transform_assignment(
         && name == &root_name
         && let Some(assign_fn) = transform.assign
     {
+        // Apply transforms to the right-hand side before building the assignment value.
+        // This ensures that state variables used in the RHS (e.g., `pending` in `pending.filter(...)`)
+        // are wrapped with `$.get()`.
+        let transformed_right = apply_transforms_to_expression(right, context);
+
         // Build the assignment value (expand compound operators)
-        let value = build_assignment_value(operator, left, right);
+        let value = build_assignment_value(operator, left, &transformed_right);
 
         // Determine if proxy is needed
         // Check skip_proxy flag on the transform (for $state.raw)
@@ -1439,8 +1445,12 @@ fn try_transform_assignment(
 
     // Case: Mutation (root identifier !== left, i.e., member expression assignment)
     if let Some(mutate_fn) = transform.mutate {
-        // Build the mutation expression
-        let mutation_expr = b::assign_op(operator, left.clone(), right.clone());
+        // Apply transforms to both sides of the mutation expression
+        let transformed_left = apply_transforms_to_expression(left, context);
+        let transformed_right = apply_transforms_to_expression(right, context);
+
+        // Build the mutation expression with transformed expressions
+        let mutation_expr = b::assign_op(operator, transformed_left, transformed_right);
 
         return Some(mutate_fn(b::id(&root_name), mutation_expr));
     }
