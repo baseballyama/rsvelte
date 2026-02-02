@@ -3,7 +3,7 @@
 //! Generates JavaScript code for server-side rendering (SSR).
 
 use super::super::TransformError;
-use super::super::css::render_stylesheet;
+use super::super::css::render_stylesheet_minified;
 use super::super::js_ast::normalize_js;
 use super::super::shared::{escape_attr, escape_html, is_void_element};
 use crate::ast::template::{
@@ -319,8 +319,8 @@ pub fn transform_server(
 
     // Handle CSS injection for <svelte:options css="injected" />
     if analysis.inject_styles && analysis.css.has_css && !analysis.css.hash.is_empty() {
-        // Render the CSS stylesheet with scoping
-        if let Ok(css_output) = render_stylesheet(analysis, &analysis.source, options)
+        // Render the CSS stylesheet with scoping and minification for SSR
+        if let Ok(css_output) = render_stylesheet_minified(analysis, &analysis.source, options)
             && !css_output.code.is_empty()
         {
             generator.set_injected_css(analysis.css.hash.clone(), css_output.code);
@@ -586,6 +586,53 @@ impl<'a> ServerCodeGenerator<'a> {
             // Replace $store with $.store_get($$store_subs ??= {}, '$store', store)
             // We need to be careful to only replace complete identifiers, not substrings
             result = replace_store_identifier(&result, name, store_name);
+        }
+
+        result
+    }
+
+    /// Transform store subscriptions in script content.
+    /// This is used for the instance script where store references like `$page`
+    /// need to be transformed to `$.store_get($$store_subs ??= {}, '$page', page)`.
+    fn transform_store_refs_in_script(&self, script: &str) -> String {
+        if !self.uses_store_subs {
+            return script.to_string();
+        }
+
+        let analysis = match self.analysis {
+            Some(a) => a,
+            None => return script.to_string(),
+        };
+
+        // Collect store subscription names from the analysis
+        let store_sub_names: Vec<&str> = analysis
+            .root
+            .bindings
+            .iter()
+            .filter(|b| matches!(b.kind, BindingKind::StoreSub))
+            .map(|b| b.name.as_str())
+            .collect();
+
+        if store_sub_names.is_empty() {
+            return script.to_string();
+        }
+
+        let mut result = script.to_string();
+
+        // Transform each store subscription
+        for name in store_sub_names {
+            // Skip if it doesn't start with $
+            if !name.starts_with('$') {
+                continue;
+            }
+
+            // Get the store variable name (without $)
+            let store_name = &name[1..];
+
+            // Replace $store with $.store_get($$store_subs ??= {}, '$store', store)
+            // We need to be careful to only replace complete identifiers, not substrings
+            // Also need to skip store assignments which are handled separately
+            result = replace_store_identifier_in_script(&result, name, store_name);
         }
 
         result
@@ -3837,7 +3884,8 @@ impl<'a> ServerCodeGenerator<'a> {
     }
 
     fn build(self) -> String {
-        let body_code = Self::build_parts(&self.output_parts, 1);
+        let mut each_counter: usize = 0;
+        let body_code = Self::build_parts(&self.output_parts, 1, &mut each_counter);
 
         // Process module script content (context="module") if present
         // Module script runs at module level, outside the component function
@@ -3909,6 +3957,9 @@ impl<'a> ServerCodeGenerator<'a> {
             let rest = transform_class_fields_server(&rest);
 
             let transformed = transform_script_content(&rest);
+
+            // Transform store subscriptions in script content ($store -> $.store_get())
+            let transformed = self.transform_store_refs_in_script(&transformed);
 
             (
                 transformed,
@@ -3993,7 +4044,8 @@ impl<'a> ServerCodeGenerator<'a> {
                 let props_declarations = self.build_props_declarations(2);
                 // Wrap in $$renderer.component() with proper destructuring
                 let inner_script = transform_props_spread(&script_code);
-                let inner_body = Self::build_parts(&self.output_parts, 2);
+                let mut each_counter: usize = 0;
+                let inner_body = Self::build_parts(&self.output_parts, 2, &mut each_counter);
                 // Build instance-level snippets (cannot be hoisted)
                 let instance_snippets = self.build_instance_snippets(2);
                 // Build $.bind_props() call (inside $$renderer.component())
@@ -4111,7 +4163,7 @@ export default function {component_name}($$renderer{props_param}) {{
         }
     }
 
-    fn build_parts(parts: &[OutputPart], indent_level: usize) -> String {
+    fn build_parts(parts: &[OutputPart], indent_level: usize, each_counter: &mut usize) -> String {
         let mut body_code = String::new();
         let mut current_html = String::new();
         let indent = "\t".repeat(indent_level);
@@ -4242,6 +4294,7 @@ export default function {component_name}($$renderer{props_param}) {{
                             remaining_parts,
                             indent_level + 1,
                             "<!---->",
+                            each_counter,
                         );
                         body_code.push_str(&inner_code);
                     }
@@ -4333,7 +4386,8 @@ export default function {component_name}($$renderer{props_param}) {{
                                     "{}\tfunction {}({}) {{\n",
                                     indent, snippet_name, params_str
                                 ));
-                                let snippet_body = Self::build_parts(body_parts, indent_level + 2);
+                                let snippet_body =
+                                    Self::build_parts(body_parts, indent_level + 2, each_counter);
                                 body_code.push_str(&snippet_body);
                                 body_code.push_str(&format!("{}\t}}\n\n", indent));
                             }
@@ -4360,7 +4414,7 @@ export default function {component_name}($$renderer{props_param}) {{
                                     slot_children.iter().find(|(n, _, _, _)| n == slot_name)
                                 {
                                     // Inline function with optional destructured params
-                                    let fn_body = Self::build_parts(body_parts, 0);
+                                    let fn_body = Self::build_parts(body_parts, 0, each_counter);
                                     let fn_body_trimmed = fn_body.trim();
                                     if params.is_empty() {
                                         slots_entries.push(format!(
@@ -4410,7 +4464,8 @@ export default function {component_name}($$renderer{props_param}) {{
                             // $$slots with inline functions (with params for let directives)
                             body_code.push_str(&format!("{}\t$$slots: {{\n", indent));
                             for (slot_name, params, body_parts, _) in &slot_children {
-                                let fn_body = Self::build_parts(body_parts, indent_level + 3);
+                                let fn_body =
+                                    Self::build_parts(body_parts, indent_level + 3, each_counter);
                                 if params.is_empty() {
                                     body_code.push_str(&format!(
                                         "{}\t\t{}: ($$renderer) => {{\n{}",
@@ -4443,7 +4498,8 @@ export default function {component_name}($$renderer{props_param}) {{
                             // Children callback (default slot)
                             body_code
                                 .push_str(&format!("{}\tchildren: ($$renderer) => {{\n", indent));
-                            let children_code = Self::build_parts(children_parts, indent_level + 2);
+                            let children_code =
+                                Self::build_parts(children_parts, indent_level + 2, each_counter);
                             body_code.push_str(&children_code);
                             body_code.push_str(&format!("{}\t}},\n", indent));
 
@@ -4452,7 +4508,11 @@ export default function {component_name}($$renderer{props_param}) {{
                                 body_code.push_str(&format!("{}\t$$slots: {{\n", indent));
                                 body_code.push_str(&format!("{}\t\tdefault: true,\n", indent));
                                 for (slot_name, params, body_parts, _) in &slot_children {
-                                    let fn_body = Self::build_parts(body_parts, indent_level + 3);
+                                    let fn_body = Self::build_parts(
+                                        body_parts,
+                                        indent_level + 3,
+                                        each_counter,
+                                    );
                                     if params.is_empty() {
                                         body_code.push_str(&format!(
                                             "{}\t\t{}: ($$renderer) => {{\n{}",
@@ -4547,8 +4607,28 @@ export default function {component_name}($$renderer{props_param}) {{
                     body,
                     fallback,
                 } => {
-                    // Array variable - use unique name
-                    let index_var = index_name.as_deref().unwrap_or("$$index");
+                    // Generate unique array variable name: each_array, each_array_1, each_array_2, ...
+                    let array_var = if *each_counter == 0 {
+                        "each_array".to_string()
+                    } else {
+                        format!("each_array_{}", each_counter)
+                    };
+
+                    // Generate unique index variable name if not explicitly provided
+                    // $$index, $$index_1, $$index_2, ...
+                    let index_var = match index_name {
+                        Some(name) => name.clone(),
+                        None => {
+                            if *each_counter == 0 {
+                                "$$index".to_string()
+                            } else {
+                                format!("$$index_{}", each_counter)
+                            }
+                        }
+                    };
+
+                    // Increment counter for the next each block
+                    *each_counter += 1;
 
                     if fallback.is_some() {
                         // For fallback case, flush current HTML WITHOUT marker first
@@ -4561,32 +4641,34 @@ export default function {component_name}($$renderer{props_param}) {{
                         }
 
                         body_code.push_str(&format!(
-                            "{}const each_array = $.ensure_array_like({});\n\n",
-                            indent, iterable
+                            "{}const {} = $.ensure_array_like({});\n\n",
+                            indent, array_var, iterable
                         ));
 
                         // If there's a fallback, wrap in if-else
-                        body_code.push_str(&format!("{}if (each_array.length !== 0) {{\n", indent));
+                        body_code
+                            .push_str(&format!("{}if ({}.length !== 0) {{\n", indent, array_var));
                         // Add block marker for non-empty case INSIDE the if
                         body_code
                             .push_str(&format!("{}\t$$renderer.push('<!--[-->');\n\n", indent));
 
                         // For loop (indented)
                         body_code.push_str(&format!(
-                            "{}\tfor (let {} = 0, $$length = each_array.length; {} < $$length; {}++) {{\n",
-                            indent, index_var, index_var, index_var
+                            "{}\tfor (let {} = 0, $$length = {}.length; {} < $$length; {}++) {{\n",
+                            indent, index_var, array_var, index_var, index_var
                         ));
 
                         // Context variable (only if there's a context)
                         if let Some(ctx_name) = context_name {
                             body_code.push_str(&format!(
-                                "{}\t\tlet {} = each_array[{}];\n\n",
-                                indent, ctx_name, index_var
+                                "{}\t\tlet {} = {}[{}];\n\n",
+                                indent, ctx_name, array_var, index_var
                             ));
                         }
 
                         // Body
-                        let body_code_inner = Self::build_parts(body, indent_level + 2);
+                        let body_code_inner =
+                            Self::build_parts(body, indent_level + 2, each_counter);
                         body_code.push_str(&body_code_inner);
 
                         // Close for loop
@@ -4599,7 +4681,8 @@ export default function {component_name}($$renderer{props_param}) {{
 
                         // Fallback body
                         if let Some(fb) = fallback {
-                            let fallback_code = Self::build_parts(fb, indent_level + 1);
+                            let fallback_code =
+                                Self::build_parts(fb, indent_level + 1, each_counter);
                             body_code.push_str(&fallback_code);
                         }
 
@@ -4610,33 +4693,32 @@ export default function {component_name}($$renderer{props_param}) {{
                         current_html.push_str("<!--[-->");
 
                         // Flush current HTML (including the marker) before each block
-                        body_code.push_str(&format!(
-                            "{}$$renderer.push(`{}`);\n\n",
-                            indent, current_html
-                        ));
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
                         current_html.clear();
 
                         body_code.push_str(&format!(
-                            "{}const each_array = $.ensure_array_like({});\n\n",
-                            indent, iterable
+                            "{}const {} = $.ensure_array_like({});\n\n",
+                            indent, array_var, iterable
                         ));
 
                         // For loop
                         body_code.push_str(&format!(
-                            "{}for (let {} = 0, $$length = each_array.length; {} < $$length; {}++) {{\n",
-                            indent, index_var, index_var, index_var
+                            "{}for (let {} = 0, $$length = {}.length; {} < $$length; {}++) {{\n",
+                            indent, index_var, array_var, index_var, index_var
                         ));
 
                         // Context variable (only if there's a context)
                         if let Some(ctx_name) = context_name {
                             body_code.push_str(&format!(
-                                "{}\tlet {} = each_array[{}];\n\n",
-                                indent, ctx_name, index_var
+                                "{}\tlet {} = {}[{}];\n\n",
+                                indent, ctx_name, array_var, index_var
                             ));
                         }
 
                         // Body
-                        let body_code_inner = Self::build_parts(body, indent_level + 1);
+                        let body_code_inner =
+                            Self::build_parts(body, indent_level + 1, each_counter);
                         body_code.push_str(&body_code_inner);
 
                         // Close for loop
@@ -4664,6 +4746,7 @@ export default function {component_name}($$renderer{props_param}) {{
                         consequent_body,
                         alternate_body,
                         indent_level,
+                        each_counter,
                     );
                     body_code.push_str(&if_code);
 
@@ -4705,7 +4788,8 @@ export default function {component_name}($$renderer{props_param}) {{
                             ));
 
                             // Generate body content
-                            let body_code_inner = Self::build_parts(body, indent_level + 1);
+                            let body_code_inner =
+                                Self::build_parts(body, indent_level + 1, each_counter);
                             body_code.push_str(&body_code_inner);
 
                             body_code.push_str(&format!("{}}});\n", indent));
@@ -4739,7 +4823,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     }
 
                     // Body
-                    let body_code_inner = Self::build_parts(body, indent_level + 2);
+                    let body_code_inner = Self::build_parts(body, indent_level + 2, each_counter);
                     body_code.push_str(&body_code_inner);
 
                     // Close callback with optional css_hash, classes, styles, flags and is_rich arguments
@@ -4806,7 +4890,8 @@ export default function {component_name}($$renderer{props_param}) {{
                         ));
 
                         // Body
-                        let body_code_inner = Self::build_parts(body, indent_level + 2);
+                        let body_code_inner =
+                            Self::build_parts(body, indent_level + 2, each_counter);
                         body_code.push_str(&body_code_inner);
 
                         // Close callback with remaining args
@@ -4822,7 +4907,8 @@ export default function {component_name}($$renderer{props_param}) {{
                         ));
 
                         // Body
-                        let body_code_inner = Self::build_parts(body, indent_level + 2);
+                        let body_code_inner =
+                            Self::build_parts(body, indent_level + 2, each_counter);
                         body_code.push_str(&body_code_inner);
 
                         // Close callback with CSS hash
@@ -4837,7 +4923,8 @@ export default function {component_name}($$renderer{props_param}) {{
                         ));
 
                         // Body
-                        let body_code_inner = Self::build_parts(body, indent_level + 1);
+                        let body_code_inner =
+                            Self::build_parts(body, indent_level + 1, each_counter);
                         body_code.push_str(&body_code_inner);
 
                         // Close callback
@@ -4869,7 +4956,8 @@ export default function {component_name}($$renderer{props_param}) {{
                         body_code.push_str(&format!("{}\t() => {{}},\n", indent));
                     } else {
                         body_code.push_str(&format!("{}\t() => {{\n", indent));
-                        let pending_code = Self::build_parts(pending_body, indent_level + 2);
+                        let pending_code =
+                            Self::build_parts(pending_body, indent_level + 2, each_counter);
                         body_code.push_str(&pending_code);
                         body_code.push_str(&format!("{}\t}},\n", indent));
                     }
@@ -4887,7 +4975,8 @@ export default function {component_name}($$renderer{props_param}) {{
                         } else {
                             body_code.push_str(&format!("{}\t({}) => {{\n", indent, then_param));
                         }
-                        let then_code = Self::build_parts(then_body, indent_level + 2);
+                        let then_code =
+                            Self::build_parts(then_body, indent_level + 2, each_counter);
                         body_code.push_str(&then_code);
                         body_code.push_str(&format!("{}\t}}", indent));
                     }
@@ -4909,7 +4998,8 @@ export default function {component_name}($$renderer{props_param}) {{
                                 body_code
                                     .push_str(&format!("{}\t({}) => {{\n", indent, catch_param));
                             }
-                            let catch_code = Self::build_parts(catch_body, indent_level + 2);
+                            let catch_code =
+                                Self::build_parts(catch_body, indent_level + 2, each_counter);
                             body_code.push_str(&catch_code);
                             body_code.push_str(&format!("{}\t}}", indent));
                         }
@@ -4941,7 +5031,8 @@ export default function {component_name}($$renderer{props_param}) {{
                     // Render the body in a block (always add block even if empty)
                     body_code.push_str(&format!("{}{{\n", indent));
                     if !body.is_empty() {
-                        let body_code_inner = Self::build_parts(body, indent_level + 1);
+                        let body_code_inner =
+                            Self::build_parts(body, indent_level + 1, each_counter);
                         body_code.push_str(&body_code_inner);
                     }
                     body_code.push_str(&format!("{}}}\n\n", indent));
@@ -4964,7 +5055,8 @@ export default function {component_name}($$renderer{props_param}) {{
                     ));
 
                     if !body.is_empty() {
-                        let body_code_inner = Self::build_parts(body, indent_level + 1);
+                        let body_code_inner =
+                            Self::build_parts(body, indent_level + 1, each_counter);
                         body_code.push_str(&body_code_inner);
                     }
 
@@ -4982,7 +5074,8 @@ export default function {component_name}($$renderer{props_param}) {{
                     body_code.push_str(&format!("{}$$renderer.title(($$renderer) => {{\n", indent));
 
                     if !body.is_empty() {
-                        let body_code_inner = Self::build_parts(body, indent_level + 1);
+                        let body_code_inner =
+                            Self::build_parts(body, indent_level + 1, each_counter);
                         body_code.push_str(&body_code_inner);
                     }
 
@@ -5085,7 +5178,8 @@ export default function {component_name}($$renderer{props_param}) {{
                     // Generate the block scope
                     body_code.push_str(&format!("{}{{\n", indent));
                     if !body.is_empty() {
-                        let body_code_inner = Self::build_parts(body, indent_level + 1);
+                        let body_code_inner =
+                            Self::build_parts(body, indent_level + 1, each_counter);
                         body_code.push_str(&body_code_inner);
                     }
                     body_code.push_str(&format!("{}}}\n", indent));
@@ -5107,7 +5201,12 @@ export default function {component_name}($$renderer{props_param}) {{
     }
 
     /// Build output parts with an HTML prefix (for comment markers inside $$render_inner).
-    fn build_parts_with_prefix(parts: &[OutputPart], indent_level: usize, prefix: &str) -> String {
+    fn build_parts_with_prefix(
+        parts: &[OutputPart],
+        indent_level: usize,
+        prefix: &str,
+        each_counter: &mut usize,
+    ) -> String {
         let mut body_code = String::new();
         let mut current_html = String::from(prefix);
         let indent = "\t".repeat(indent_level);
@@ -5137,7 +5236,7 @@ export default function {component_name}($$renderer{props_param}) {{
                         current_html.clear();
                     }
                     let remaining = &parts[i..];
-                    let remaining_code = Self::build_parts(remaining, indent_level);
+                    let remaining_code = Self::build_parts(remaining, indent_level, each_counter);
                     body_code.push_str(&remaining_code);
                     return body_code;
                 }
@@ -5161,6 +5260,7 @@ export default function {component_name}($$renderer{props_param}) {{
         consequent_body: &[OutputPart],
         alternate_body: &Option<Vec<OutputPart>>,
         indent_level: usize,
+        each_counter: &mut usize,
     ) -> String {
         let mut code = String::new();
         let indent = "\t".repeat(indent_level);
@@ -5172,7 +5272,7 @@ export default function {component_name}($$renderer{props_param}) {{
         code.push_str(&format!("{}\t$$renderer.push('<!--[-->');\n", indent));
 
         // Generate consequent body
-        let consequent_code = Self::build_parts(consequent_body, indent_level + 1);
+        let consequent_code = Self::build_parts(consequent_body, indent_level + 1, each_counter);
         code.push_str(&consequent_code);
 
         // Close consequent block
@@ -5200,6 +5300,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     nested_consequent,
                     nested_alternate,
                     indent_level + 1,
+                    each_counter,
                 );
                 code.push_str(&nested_if_code);
                 code.push('\n');
@@ -5220,7 +5321,7 @@ export default function {component_name}($$renderer{props_param}) {{
             code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n", indent));
 
             // Generate alternate body
-            let alternate_code = Self::build_parts(alt_body, indent_level + 1);
+            let alternate_code = Self::build_parts(alt_body, indent_level + 1, each_counter);
             code.push_str(&alternate_code);
 
             // Close else block
@@ -5254,8 +5355,9 @@ export default function {component_name}($$renderer{props_param}) {{
 
             result.push_str(&format!("function {}({}) {{\n", snippet.name, params));
 
-            // Generate body
-            let body = Self::build_parts(&snippet.body_parts, 1);
+            // Generate body - snippets have their own counter scope
+            let mut snippet_counter: usize = 0;
+            let body = Self::build_parts(&snippet.body_parts, 1, &mut snippet_counter);
             result.push_str(&body);
 
             result.push_str("}\n\n");
@@ -5287,8 +5389,10 @@ export default function {component_name}($$renderer{props_param}) {{
                 indent, snippet.name, params
             ));
 
-            // Generate body
-            let body = Self::build_parts(&snippet.body_parts, indent_level + 1);
+            // Generate body - snippets have their own counter scope
+            let mut snippet_counter: usize = 0;
+            let body =
+                Self::build_parts(&snippet.body_parts, indent_level + 1, &mut snippet_counter);
             result.push_str(&body);
 
             result.push_str(&format!("{}}}\n\n", indent));
@@ -6013,6 +6117,8 @@ fn transform_script_content(script: &str) -> String {
     // $state.snapshot(x) becomes $.snapshot(x) - it's a runtime helper
     let script = script.replace("$state.snapshot(", "$.snapshot(");
     let script = transform_rune_call_multiline(&script, "$state.raw(");
+    // Transform array destructuring with $state() BEFORE generic $state() handling
+    let script = transform_array_destructure_state(&script);
     let script = transform_rune_call_multiline(&script, "$state(");
     let script = transform_rune_call_multiline(&script, "$derived.by(");
     let script = transform_rune_call_multiline(&script, "$derived(");
@@ -6136,6 +6242,174 @@ fn format_js_line(line: &str) -> String {
     }
 
     result
+}
+
+/// Transform array destructuring with $state() in server-side rendering.
+/// Transforms `let [a, b] = $state([x, y])` to:
+/// `let tmp = [x, y], $$array = $.to_array(tmp, 2), a = $$array[0], b = $$array[1]`
+fn transform_array_destructure_state(script: &str) -> String {
+    use regex::Regex;
+    use std::sync::LazyLock;
+
+    // Match patterns like: let [a, b, ...] = $state(expr)
+    // The pattern captures: the array pattern and the value inside $state()
+    static ARRAY_DESTRUCT_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"(?m)^(\s*)(let|const)\s+\[([^\]]+)\]\s*=\s*\$state\(").unwrap()
+    });
+
+    let mut result = script.to_string();
+    let mut offset = 0;
+
+    for cap in ARRAY_DESTRUCT_RE.captures_iter(script) {
+        let full_match = cap.get(0).unwrap();
+        let indent = cap.get(1).unwrap().as_str();
+        let _keyword = cap.get(2).unwrap().as_str(); // let or const
+        let array_pattern = cap.get(3).unwrap().as_str();
+
+        // Find the closing parenthesis of $state()
+        let start_pos = full_match.end();
+        let remaining = &script[start_pos..];
+        if let Some(paren_end) = find_matching_paren_for_state(remaining) {
+            // Extract the value inside $state()
+            let value = &remaining[..paren_end].trim();
+
+            // Parse the array pattern to get variable names and detect rest element
+            let (vars, has_rest) = parse_array_pattern(array_pattern);
+
+            // Build the transformed code
+            let mut transformed = format!("{}let tmp = {},\n", indent, value);
+
+            // Only add count argument if no rest element
+            if has_rest {
+                transformed.push_str(&format!("{}\t$$array = $.to_array(tmp)", indent));
+            } else {
+                transformed.push_str(&format!(
+                    "{}\t$$array = $.to_array(tmp, {})",
+                    indent,
+                    vars.len()
+                ));
+            }
+
+            // Add variable declarations
+            for (i, var) in vars.iter().enumerate() {
+                let var = var.trim();
+                if var.starts_with("...") {
+                    // Rest element: ...rest = $$array.slice(i)
+                    let rest_name = var.trim_start_matches("...");
+                    transformed.push_str(&format!(
+                        ",\n{}\t{} = $$array.slice({})",
+                        indent, rest_name, i
+                    ));
+                } else if var.contains('=') {
+                    // Default value: name = default
+                    // For simplicity, just use $$array[i] ?? default
+                    let parts: Vec<&str> = var.splitn(2, '=').collect();
+                    let name = parts[0].trim();
+                    let default = parts.get(1).map(|s| s.trim()).unwrap_or("void 0");
+                    transformed.push_str(&format!(
+                        ",\n{}\t{} = $$array[{}] ?? {}",
+                        indent, name, i, default
+                    ));
+                } else {
+                    // Simple variable
+                    transformed.push_str(&format!(",\n{}\t{} = $$array[{}]", indent, var, i));
+                }
+            }
+
+            // Replace in result, accounting for offset changes
+            let match_start = full_match.start() + offset;
+            let match_end = start_pos + paren_end + offset;
+            result = format!(
+                "{}{}{}",
+                &result[..match_start],
+                transformed,
+                &result[match_end + 1..] // +1 to skip the closing paren
+            );
+
+            // Update offset for next replacement
+            let old_len = full_match.len() + paren_end + 1;
+            let new_len = transformed.len();
+            offset = offset + new_len - old_len;
+        }
+    }
+
+    result
+}
+
+/// Parse an array pattern like "a, b, ...rest" into a list of variable names
+/// Returns (variables, has_rest_element)
+fn parse_array_pattern(pattern: &str) -> (Vec<&str>, bool) {
+    let mut vars = Vec::new();
+    let mut has_rest = false;
+    let mut depth = 0;
+    let mut start = 0;
+
+    for (i, c) in pattern.char_indices() {
+        match c {
+            '[' | '(' | '{' => depth += 1,
+            ']' | ')' | '}' => depth -= 1,
+            ',' if depth == 0 => {
+                let var = pattern[start..i].trim();
+                if !var.is_empty() {
+                    if var.starts_with("...") {
+                        has_rest = true;
+                    }
+                    vars.push(var);
+                }
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+
+    // Don't forget the last element
+    let var = pattern[start..].trim();
+    if !var.is_empty() {
+        if var.starts_with("...") {
+            has_rest = true;
+        }
+        vars.push(var);
+    }
+
+    (vars, has_rest)
+}
+
+/// Find the matching closing parenthesis for $state(
+/// Returns the index of ')' relative to the start of the input
+fn find_matching_paren_for_state(s: &str) -> Option<usize> {
+    let mut depth = 1;
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    for (i, c) in s.char_indices() {
+        // Handle string literals
+        if (c == '"' || c == '\'' || c == '`') && (i == 0 || s.as_bytes()[i - 1] != b'\\') {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char {
+                in_string = false;
+            }
+            continue;
+        }
+
+        if in_string {
+            continue;
+        }
+
+        match c {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    None
 }
 
 fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
@@ -6760,6 +7034,96 @@ fn replace_store_identifier(expr: &str, store_ref: &str, store_name: &str) -> St
     result
 }
 
+/// Replace store identifier in script content with $.store_get() call.
+/// Similar to replace_store_identifier but also skips when:
+/// - The store is on the left side of an assignment (handled by transform_store_assignments)
+/// - Already inside a $.store_set or $.store_get call
+fn replace_store_identifier_in_script(script: &str, store_ref: &str, store_name: &str) -> String {
+    let mut result = String::with_capacity(script.len() * 2);
+    let chars: Vec<char> = script.chars().collect();
+    let store_ref_chars: Vec<char> = store_ref.chars().collect();
+    let store_ref_len = store_ref_chars.len();
+    let mut i = 0;
+
+    while i < chars.len() {
+        // Check if we're at the start of the store reference
+        if i + store_ref_len <= chars.len() {
+            let mut matches = true;
+            for (j, ref_char) in store_ref_chars.iter().enumerate() {
+                if chars[i + j] != *ref_char {
+                    matches = false;
+                    break;
+                }
+            }
+
+            if matches {
+                // Check if this is a complete identifier (not part of a larger identifier)
+                let prev_is_ident = if i > 0 {
+                    is_js_identifier_char(chars[i - 1])
+                } else {
+                    false
+                };
+                let next_is_ident = if i + store_ref_len < chars.len() {
+                    is_js_identifier_char(chars[i + store_ref_len])
+                } else {
+                    false
+                };
+
+                // Check if followed by an assignment operator (skip - handled by transform_store_assignments)
+                let mut j = i + store_ref_len;
+                while j < chars.len() && chars[j].is_whitespace() {
+                    j += 1;
+                }
+                let is_assignment = j < chars.len()
+                    && (chars[j] == '='
+                        || (j + 1 < chars.len()
+                            && chars[j + 1] == '='
+                            && (chars[j] == '+'
+                                || chars[j] == '-'
+                                || chars[j] == '*'
+                                || chars[j] == '/'
+                                || chars[j] == '%'))
+                        || (chars[j] == '+' && j + 1 < chars.len() && chars[j + 1] == '+')
+                        || (chars[j] == '-' && j + 1 < chars.len() && chars[j + 1] == '-'));
+
+                // Skip if it's an assignment - these are handled by transform_store_assignments
+                // Exception: != and == are not assignments
+                let is_comparison = j < chars.len()
+                    && chars[j] == '='
+                    && ((j + 1 < chars.len() && chars[j + 1] == '=')
+                        || (i > 0
+                            && (chars[i - 1] == '!'
+                                || chars[i - 1] == '='
+                                || chars[i - 1] == '<'
+                                || chars[i - 1] == '>')));
+
+                // Only replace if it's a standalone identifier and not an assignment target
+                if !prev_is_ident && !next_is_ident && (!is_assignment || is_comparison) {
+                    // Check if we're already inside a $.store_set or $.store_get call
+                    let preceding: String = result.chars().collect();
+                    let is_in_store_call =
+                        preceding.ends_with("$.store_set(") || preceding.ends_with("$.store_get(");
+
+                    if !is_in_store_call {
+                        // Replace with $.store_get() call
+                        result.push_str(&format!(
+                            "$.store_get($$store_subs ??= {{}}, '{}', {})",
+                            store_ref, store_name
+                        ));
+                        i += store_ref_len;
+                        continue;
+                    }
+                }
+            }
+        }
+
+        result.push(chars[i]);
+        i += 1;
+    }
+
+    result
+}
+
 /// Check if a character is a valid JavaScript identifier character.
 fn is_js_identifier_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_' || c == '$'
@@ -6816,6 +7180,11 @@ fn transform_store_assignments(script: &str) -> String {
         // Skip if we're inside a $.store_set call
         let preceding = &result[..start];
         if preceding.ends_with("$.store_set(") || preceding.ends_with("$.store_get(") {
+            continue;
+        }
+
+        // Skip if preceded by $ (this is $$array or similar internal variable, not a store)
+        if preceding.ends_with('$') {
             continue;
         }
 
