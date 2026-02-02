@@ -395,6 +395,33 @@ impl<'a> CssParser<'a> {
         Value::Object(obj)
     }
 
+    /// Check if text contains only whitespace and CSS comments (no actual selector content)
+    fn is_only_whitespace_and_comments(text: &str) -> bool {
+        let chars: Vec<char> = text.chars().collect();
+        let mut i = 0;
+        while i < chars.len() {
+            let c = chars[i];
+            if c.is_whitespace() {
+                i += 1;
+                continue;
+            }
+            // Check for CSS comment
+            if c == '/' && i + 1 < chars.len() && chars[i + 1] == '*' {
+                i += 2; // skip /*
+                while i + 1 < chars.len() && !(chars[i] == '*' && chars[i + 1] == '/') {
+                    i += 1;
+                }
+                if i + 1 < chars.len() {
+                    i += 2; // skip */
+                }
+                continue;
+            }
+            // Found non-whitespace, non-comment character
+            return false;
+        }
+        true
+    }
+
     fn parse_relative_selectors_with_combinators(
         &self,
         text: &str,
@@ -408,6 +435,18 @@ impl<'a> CssParser<'a> {
 
         while i < chars.len() {
             let c = chars[i];
+
+            // Skip CSS comments
+            if c == '/' && i + 1 < chars.len() && chars[i + 1] == '*' {
+                i += 2; // skip /*
+                while i + 1 < chars.len() && !(chars[i] == '*' && chars[i + 1] == '/') {
+                    i += 1;
+                }
+                if i + 1 < chars.len() {
+                    i += 2; // skip */
+                }
+                continue;
+            }
 
             // Skip content in parentheses
             if c == '(' {
@@ -482,6 +521,20 @@ impl<'a> CssParser<'a> {
                 while j < chars.len() && chars[j].is_whitespace() {
                     j += 1;
                 }
+                // Also skip comments in look-ahead
+                while j + 1 < chars.len() && chars[j] == '/' && chars[j + 1] == '*' {
+                    j += 2; // skip /*
+                    while j + 1 < chars.len() && !(chars[j] == '*' && chars[j + 1] == '/') {
+                        j += 1;
+                    }
+                    if j + 1 < chars.len() {
+                        j += 2; // skip */
+                    }
+                    // Skip whitespace after comment
+                    while j < chars.len() && chars[j].is_whitespace() {
+                        j += 1;
+                    }
+                }
                 if j < chars.len() && !matches!(chars[j], '+' | '>' | '~' | ')' | ']') {
                     // Check if next is a selector start
                     if chars[j].is_alphabetic()
@@ -494,7 +547,11 @@ impl<'a> CssParser<'a> {
                     {
                         // This is a descendant combinator (space)
                         let selector_text = text[current_start..i].trim();
-                        if !selector_text.is_empty() {
+                        // Only treat as descendant if there's actual selector content before the whitespace
+                        // (not just whitespace and comments)
+                        if !selector_text.is_empty()
+                            && !Self::is_only_whitespace_and_comments(selector_text)
+                        {
                             let selector_offset = base_offset + current_start;
                             let rel_selector = self.create_relative_selector(
                                 selector_text,

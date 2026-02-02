@@ -489,6 +489,9 @@ fn is_rule_empty(rule: &Value, ctx: &CssContext, is_in_global_block: bool) -> bo
         None => return true,
     };
 
+    // Check if this rule contains :global (without arguments), which creates a global block context
+    let this_is_global_block = is_in_global_block || selector_contains_global_block(rule);
+
     for child in children {
         let child_type = child.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
@@ -503,7 +506,8 @@ fn is_rule_empty(rule: &Value, ctx: &CssContext, is_in_global_block: bool) -> bo
                 };
 
                 // If it's used (or we're in a global block) AND not empty, then parent is not empty
-                if (is_used || is_in_global_block) && !is_rule_empty(child, ctx, is_in_global_block)
+                if (is_used || this_is_global_block)
+                    && !is_rule_empty(child, ctx, this_is_global_block)
                 {
                     return false;
                 }
@@ -586,6 +590,33 @@ fn is_global_selector_rule(node: &Value) -> bool {
                 && sel.get("name").and_then(|n| n.as_str()) == Some("global")
             {
                 return true;
+            }
+        }
+    }
+    false
+}
+
+/// Check if a rule's selector contains `:global` without arguments anywhere
+/// This handles cases like `p :global { ... }` where :global is not the first selector
+fn selector_contains_global_block(node: &Value) -> bool {
+    if let Some(prelude) = node.get("prelude")
+        && let Some(children) = prelude.get("children").and_then(|c| c.as_array())
+    {
+        for complex in children {
+            if let Some(relative_selectors) = complex.get("children").and_then(|c| c.as_array()) {
+                for rel in relative_selectors {
+                    if let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) {
+                        for sel in selectors {
+                            if sel.get("type").and_then(|t| t.as_str())
+                                == Some("PseudoClassSelector")
+                                && sel.get("name").and_then(|n| n.as_str()) == Some("global")
+                                && sel.get("args").is_none()
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -738,6 +769,22 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
                 });
 
                 if starts_with_host {
+                    continue;
+                }
+
+                // Skip relative selectors containing :root (they're global-like)
+                // :root.foo, .foo:root, :root.unknown should all be kept
+                // unless :root is combined with :has (which needs to check inner selectors)
+                let has_root = selectors.iter().any(|s| {
+                    s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                        && s.get("name").and_then(|n| n.as_str()) == Some("root")
+                });
+                let has_has = selectors.iter().any(|s| {
+                    s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                        && s.get("name").and_then(|n| n.as_str()) == Some("has")
+                });
+
+                if has_root && !has_has {
                     continue;
                 }
 
@@ -1781,9 +1828,11 @@ fn transform_rule_preserving(
 
             // Check if block contains nested rules that need special handling
             if has_nested_rules(block) {
-                // Check if this rule starts with :global(.x) - if so, nested rules are in a global block context
+                // Check if this rule contains :global - if so, nested rules are in a global block context
                 let rule_starts_with_global = is_global_selector_rule(node);
-                let nested_in_global_block = is_in_global_block || rule_starts_with_global;
+                let rule_contains_global_block = selector_contains_global_block(node);
+                let nested_in_global_block =
+                    is_in_global_block || rule_starts_with_global || rule_contains_global_block;
 
                 // Process the block recursively
                 transform_block_with_nested_rules(
