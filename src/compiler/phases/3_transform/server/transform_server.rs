@@ -4115,6 +4115,7 @@ export default function {component_name}($$renderer{props_param}) {{
         let mut body_code = String::new();
         let mut current_html = String::new();
         let indent = "\t".repeat(indent_level);
+        let mut textarea_body_count: usize = 0;
 
         let mut i = 0;
         while i < parts.len() {
@@ -4997,6 +4998,15 @@ export default function {component_name}($$renderer{props_param}) {{
                         current_html.clear();
                     }
 
+                    // Generate unique variable name for each textarea body
+                    // First one: $$body, subsequent: $$body_1, $$body_2, etc.
+                    let var_name = if textarea_body_count == 0 {
+                        "$$body".to_string()
+                    } else {
+                        format!("$$body_{}", textarea_body_count)
+                    };
+                    textarea_body_count += 1;
+
                     // Generate:
                     // const $$body = $.escape(expr);
                     //
@@ -5004,12 +5014,12 @@ export default function {component_name}($$renderer{props_param}) {{
                     //     $$renderer.push(`${$$body}`);
                     // } else {}
                     body_code.push_str(&format!(
-                        "{}const $$body = $.escape({});\n\n",
-                        indent, value_expr
+                        "{}const {} = $.escape({});\n\n",
+                        indent, var_name, value_expr
                     ));
                     body_code.push_str(&format!(
-                        "{}if ($$body) {{\n{}\t$$renderer.push(`${{$$body}}`);\n{}}} else {{}}\n\n",
-                        indent, indent, indent
+                        "{}if ({}) {{\n{}\t$$renderer.push(`${{{}}}`);\n{}}} else {{}}\n\n",
+                        indent, var_name, indent, var_name, indent
                     ));
                 }
                 OutputPart::RenderCall(call_str) => {
