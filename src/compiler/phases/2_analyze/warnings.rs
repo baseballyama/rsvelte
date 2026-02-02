@@ -622,3 +622,16 @@ pub fn block_empty() -> AnalysisWarning {
         "Empty block\nhttps://svelte.dev/e/block_empty",
     )
 }
+
+// Event directive warnings
+
+/// Using `on:name` to listen to the event is deprecated. Use the event attribute `onname` instead.
+pub fn event_directive_deprecated(name: &str) -> AnalysisWarning {
+    warning(
+        "event_directive_deprecated",
+        format!(
+            "Using `on:{}` to listen to the {} event is deprecated. Use the event attribute `on{}` instead\nhttps://svelte.dev/e/event_directive_deprecated",
+            name, name, name
+        ),
+    )
+}

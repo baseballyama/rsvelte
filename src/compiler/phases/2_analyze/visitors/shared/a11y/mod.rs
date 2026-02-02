@@ -280,15 +280,21 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
     }
 
     // no-noninteractive-tabindex
+    // Check: if tabindex exists AND (value is dynamic/None OR value is >= 0)
+    // This matches the official Svelte implementation: (tab_index_value === null || Number(tab_index_value) >= 0)
     if !is_dynamic_element
         && !is_interactive_element(&node.name, &attribute_map)
         && !role_static_value.is_some_and(is_interactive_roles)
         && let Some(tab_index) = attribute_map.get("tabindex")
-        && let Some(tab_index_value) = get_static_value(tab_index)
-        && let Ok(num) = tab_index_value.parse::<i32>()
-        && num >= 0
     {
-        warnings.push(w::a11y_no_noninteractive_tabindex());
+        let tab_index_value = get_static_value(tab_index);
+        let should_warn = tab_index_value.is_none()  // Dynamic value (like {0})
+            || tab_index_value
+                .and_then(|v| v.parse::<i32>().ok())
+                .is_some_and(|num| num >= 0);
+        if should_warn {
+            warnings.push(w::a11y_no_noninteractive_tabindex());
+        }
     }
 
     // no-noninteractive-element-interactions

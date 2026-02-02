@@ -6,6 +6,7 @@
 
 use super::super::AnalysisError;
 use super::super::types::EventDirectiveInfo;
+use super::super::warnings;
 use super::VisitorContext;
 use super::shared::fragment::mark_subtree_dynamic;
 use super::shared::utils::walk_js_expression;
@@ -39,12 +40,7 @@ pub fn visit(
         if let Some(Some(parent_type)) = parent_type
             && (parent_type == "RegularElement" || parent_type == "SvelteElement")
         {
-            // TODO: Add warning system
-            // w.event_directive_deprecated(node, node.name);
-            // For now, we can't emit warnings as the warning system isn't implemented
-            // When implemented, this should emit:
-            // "Using `on:{name}` to listen to the {name} event is deprecated.
-            //  Use the event attribute `on{name}` instead"
+            context.emit_warning(warnings::event_directive_deprecated(&directive.name));
         }
     }
 
