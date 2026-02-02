@@ -4077,7 +4077,18 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         // Generate only the meaningful nodes
+        // Track when we've just output a TitleElement to trim leading whitespace from next text
+        let mut just_had_title = false;
         for node in &nodes[start_idx..end_idx] {
+            // If we just had a title and this is a text node, trim leading whitespace
+            if just_had_title && let TemplateNode::Text(text) = node {
+                let mut modified_text = text.clone();
+                modified_text.data = modified_text.data.trim_start().to_string().into();
+                body_generator.generate_node(&TemplateNode::Text(modified_text), false)?;
+                just_had_title = false;
+                continue;
+            }
+            just_had_title = matches!(node, TemplateNode::TitleElement(_));
             body_generator.generate_node(node, false)?;
         }
 
