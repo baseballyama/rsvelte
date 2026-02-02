@@ -268,7 +268,7 @@ mod tests {
         ctx.newline();
         ctx.indent();
         ctx.write("line2");
-        assert_eq!(ctx.to_string(), "line1\n  line2");
+        assert_eq!(ctx.to_string(), "line1\n\tline2");
     }
 
     #[test]
@@ -280,7 +280,7 @@ mod tests {
         ctx.newline();
         ctx.dedent();
         ctx.write("line2");
-        assert_eq!(ctx.to_string(), "  line1\nline2");
+        assert_eq!(ctx.to_string(), "\tline1\nline2");
     }
 
     #[test]
@@ -348,7 +348,7 @@ mod tests {
 
         assert_eq!(
             ctx.to_string(),
-            "level0\n  level1\n    level2\n  level1\nlevel0"
+            "level0\n\tlevel1\n\t\tlevel2\n\tlevel1\nlevel0"
         );
     }
 }

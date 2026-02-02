@@ -1196,7 +1196,7 @@ mod tests {
             true,
         );
 
-        assert_eq!(ctx.to_string(), "\n  line1\n  line2\n");
+        assert_eq!(ctx.to_string(), "\n\tline1\n\tline2\n");
         assert!(ctx.multiline);
     }
 
@@ -1207,7 +1207,7 @@ mod tests {
 
         block(&mut ctx, |c| c.write("content"), false);
 
-        assert_eq!(ctx.to_string(), "\n  content\n");
+        assert_eq!(ctx.to_string(), "\n\tcontent\n");
         assert!(ctx.multiline);
     }
 

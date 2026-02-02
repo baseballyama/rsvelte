@@ -29,8 +29,16 @@ pub fn visit(block: &mut IfBlock, context: &mut VisitorContext) -> Result<(), An
     }
 
     // In runes mode, validate that the tag starts with '{#' (no whitespace)
+    // But skip validation for else-if blocks which start with '{:'
     if context.analysis.runes {
-        validate_opening_tag(block.start as usize, &context.analysis.source, '#')?;
+        let start = block.start as usize;
+        if start + 1 < context.analysis.source.len() {
+            let chars: Vec<char> = context.analysis.source[start..].chars().take(2).collect();
+            // Only validate if this is not an else-if block (which starts with {:)
+            if chars.len() >= 2 && chars[1] != ':' {
+                validate_opening_tag(start, &context.analysis.source, '#')?;
+            }
+        }
     }
 
     // Mark that we have control flow affecting sibling relationships

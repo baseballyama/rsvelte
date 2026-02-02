@@ -603,7 +603,7 @@ mod tests {
             ]
         });
         visit_block(&mut ctx, &node);
-        assert_eq!(ctx.to_string(), "{\n  color: red;\n  font-size: 16px;\n}");
+        assert_eq!(ctx.to_string(), "{\n\tcolor: red;\n\tfont-size: 16px;\n}");
     }
 
     #[test]
@@ -675,6 +675,6 @@ mod tests {
             }
         });
         visit_rule(&mut ctx, &node);
-        assert_eq!(ctx.to_string(), "div {\n  color: blue;\n}");
+        assert_eq!(ctx.to_string(), "div {\n\tcolor: blue;\n}");
     }
 }
