@@ -1106,8 +1106,17 @@ fn visit_slot_children(
                 context,
             );
 
+            // Add $.next() before var text = $.text() when is_text_first is true
+            // This skips over the comment marker inserted during SSR for hydration
+            if cleaned.is_text_first {
+                context
+                    .state
+                    .init
+                    .insert(0, b::stmt(b::call(b::member_path("$.next"), vec![])));
+            }
+
             context.state.init.insert(
-                0,
+                if cleaned.is_text_first { 1 } else { 0 },
                 b::var_decl(
                     &text_id_name,
                     Some(b::call(b::member_path("$.text"), vec![])),
