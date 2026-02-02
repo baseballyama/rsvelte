@@ -44,11 +44,17 @@ pub fn visit(block: &mut SnippetBlock, context: &mut VisitorContext) -> Result<(
 
     // Determine if the snippet can be hoisted to module level.
     // A snippet can be hoisted if:
-    // 1. It's at the root level (block_depth == 0)
+    // 1. It's at the root level of the template (directly inside root Fragment)
     // 2. It doesn't reference any instance-level state (only uses parameters or globals)
     //
     // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/SnippetBlock.js
-    let is_root_level = context.block_depth == 0;
+    // The official compiler checks: context.path.length === 1 && context.path[0].type === 'Fragment'
+    // This means the snippet must be directly inside the root fragment, not inside any:
+    // - Regular elements (like <div>, <svg>)
+    // - Control flow blocks (like {#if}, {#each})
+    // - Component elements
+    let is_root_level =
+        context.element_depth == 0 && context.block_depth == 0 && context.component_depth == 0;
 
     // Check if the snippet body only references its own parameters (not instance state)
     let can_hoist = is_root_level && can_hoist_snippet(block);
