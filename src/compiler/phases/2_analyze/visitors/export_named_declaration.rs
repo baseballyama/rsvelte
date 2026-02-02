@@ -60,9 +60,11 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
                 }
             }
 
-            // Track the exported binding - only for instance script
+            // Track the exported binding - only for instance script in runes mode
             // Module script exports are handled differently (they're emitted directly)
-            if context.ast_type == super::AstType::Instance
+            // Reference: ExportSpecifier.js - exports are only tracked in runes mode
+            if context.analysis.runes
+                && context.ast_type == super::AstType::Instance
                 && let Some(local) = specifier.get("local")
             {
                 let local_name = local.get("name").and_then(|n| n.as_str()).unwrap_or("");
