@@ -235,11 +235,9 @@ fn is_tag_valid_with_parent(child_tag: &str, parent_tag: &str) -> Option<String>
             "`<{}>` cannot be a child of `<{}>`. `<{}>` only allows these children: `<caption>`, `<colgroup>`, `<tbody>`, `<thead>`, `<tfoot>`, `<style>`, `<script>`, `<template>`",
             child_tag, parent_tag, parent_tag
         )),
-        ("select", "option" | "optgroup" | "#text" | "hr" | "script" | "template") => None,
-        ("select", _) => Some(format!(
-            "`<{}>` cannot be a child of `<{}>`. `<{}>` only allows these children: `<option>`, `<optgroup>`, `#text`, `<hr>`, `<script>`, `<template>`",
-            child_tag, parent_tag, parent_tag
-        )),
+        // Note: <select> is not restricted here because HTML5 customizable select elements
+        // allow <button> and other elements inside <select>. The official Svelte compiler
+        // does not have <select> in the disallowed_children map.
         _ => {
             // Check special child tags that require specific parents
             match child_tag {

@@ -1152,6 +1152,75 @@ fn extract_identifier_name(param: &Value) -> Option<String> {
     }
 }
 
+/// Get the rune name from a callee expression, if it's a rune call.
+///
+/// Returns Some(rune_name) for runes like "$state", "$derived", "$state.raw", etc.
+/// Returns None if not a rune.
+fn get_rune_name(callee: &Value, context: &VisitorContext) -> Option<String> {
+    // Handle simple identifier runes like $state, $derived
+    if callee.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
+        if let Some(name) = callee.get("name").and_then(|n| n.as_str()) {
+            // Check if it starts with $ and is a known rune
+            if super::function::is_rune(name) {
+                // Make sure it's not shadowed by a binding
+                if !context.analysis.root.scope.declarations.contains_key(name) {
+                    return Some(name.to_string());
+                }
+            }
+        }
+        return None;
+    }
+
+    // Handle member expression runes like $state.raw, $derived.by
+    if callee.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
+        // Must not be computed
+        if callee
+            .get("computed")
+            .and_then(|c| c.as_bool())
+            .unwrap_or(false)
+        {
+            return None;
+        }
+
+        // Get the object and property
+        let object = callee.get("object")?;
+        let property = callee.get("property")?;
+
+        // Object must be an Identifier
+        if object.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
+            return None;
+        }
+
+        let obj_name = object.get("name").and_then(|n| n.as_str())?;
+
+        // Property must be an Identifier
+        if property.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
+            return None;
+        }
+
+        let prop_name = property.get("name").and_then(|n| n.as_str())?;
+
+        // Form the full rune name
+        let full_name = format!("{}.{}", obj_name, prop_name);
+
+        // Check if it's a known rune
+        if super::function::is_rune(&full_name) {
+            // Make sure the base is not shadowed
+            if !context
+                .analysis
+                .root
+                .scope
+                .declarations
+                .contains_key(obj_name)
+            {
+                return Some(full_name);
+            }
+        }
+    }
+
+    None
+}
+
 /// Visit a JavaScript expression and track identifier references.
 ///
 /// Corresponds to walking expressions in Svelte's utils.js.
@@ -1262,14 +1331,25 @@ pub fn walk_js_expression(
             // Check if the callee is safe (doesn't require component context)
             // Corresponds to CallExpression.js line 30-33
             if let Some(callee) = expression.get("callee") {
-                // Only check if it's not a rune
-                let is_rune = callee.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                    && callee
-                        .get("name")
-                        .and_then(|n| n.as_str())
-                        .is_some_and(|name| name.starts_with('$'));
+                // Check if this is a rune call
+                let rune_name = get_rune_name(callee, context);
 
-                if !is_rune && !is_safe_identifier(callee, context) {
+                // Validate rune placement
+                // $state, $state.raw, $derived, $derived.by can only be used in specific contexts
+                // In template expressions (like {@const}), they should not be allowed
+                if let Some(ref rune) = rune_name
+                    && matches!(
+                        rune.as_str(),
+                        "$state" | "$state.raw" | "$derived" | "$derived.by"
+                    )
+                {
+                    // These runes are not valid in template expressions
+                    // They can only be used in VariableDeclarator, PropertyDefinition,
+                    // or constructor AssignmentExpression
+                    return Err(errors::state_invalid_placement(rune));
+                }
+
+                if rune_name.is_none() && !is_safe_identifier(callee, context) {
                     context.analysis.needs_context = true;
                 }
 
