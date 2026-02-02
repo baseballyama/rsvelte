@@ -13,8 +13,8 @@ use compact_str::CompactString;
 
 use crate::ast::js::Expression;
 use crate::ast::template::{
-    AwaitBlock, ConstTag, EachBlock, ExpressionTag, Fragment, FragmentType, HtmlTag, IfBlock,
-    KeyBlock, RenderTag, SnippetBlock, TemplateNode,
+    AwaitBlock, ConstTag, DebugTag, EachBlock, ExpressionTag, Fragment, FragmentType, HtmlTag,
+    IfBlock, KeyBlock, RenderTag, SnippetBlock, TemplateNode,
 };
 use crate::error::ParseResult;
 
@@ -1406,8 +1406,74 @@ impl Parser<'_> {
                     metadata: Default::default(),
                 })))
             }
-            "debug" | "attach" => {
-                // Skip to closing brace
+            "debug" => {
+                // Parse {@debug} tag
+                // {@debug} with no args means "debug all"
+                // {@debug x, y, z} debugs specific identifiers
+                self.skip_whitespace();
+
+                let identifiers: Vec<Expression> = if self.current_char() == '}' {
+                    // {@debug} - no identifiers (debug all)
+                    Vec::new()
+                } else {
+                    // Read expression content up to closing brace
+                    let expr_start = self.index;
+                    let mut depth = 1;
+                    while !self.is_eof() && depth > 0 {
+                        let ch = self.current_char();
+                        match ch {
+                            '{' => depth += 1,
+                            '}' => depth -= 1,
+                            _ => {}
+                        }
+                        if depth > 0 {
+                            self.advance();
+                        }
+                    }
+                    let expr_end = self.index;
+                    let expr_content = self.source[expr_start..expr_end].trim();
+
+                    if expr_content.is_empty() {
+                        Vec::new()
+                    } else {
+                        // Parse as expression
+                        let expression = self.parse_js_expression(expr_content, expr_start);
+
+                        // Extract identifiers from the expression
+                        // If it's a SequenceExpression (comma-separated), extract each one
+                        // Otherwise treat as single identifier
+                        let Expression::Value(ref value) = expression;
+                        let expr_type = value.get("type").and_then(|t| t.as_str());
+
+                        if expr_type == Some("SequenceExpression") {
+                            // Extract expressions from sequence
+                            if let Some(expressions) =
+                                value.get("expressions").and_then(|e| e.as_array())
+                            {
+                                expressions
+                                    .iter()
+                                    .map(|e| Expression::Value(e.clone()))
+                                    .collect()
+                            } else {
+                                vec![expression]
+                            }
+                        } else {
+                            vec![expression]
+                        }
+                    }
+                };
+
+                self.advance(); // consume '}'
+
+                Ok(Some(TemplateNode::DebugTag(DebugTag {
+                    start: start as u32,
+                    end: self.index as u32,
+                    identifiers,
+                    metadata: Default::default(),
+                })))
+            }
+            "attach" => {
+                // Skip to closing brace (attach not fully implemented yet)
                 while !self.is_eof() && self.current_char() != '}' {
                     self.advance();
                 }
