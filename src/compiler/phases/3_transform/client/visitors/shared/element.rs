@@ -17,6 +17,45 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::{
 
 use super::utils::build_expression;
 
+/// Check if a class attribute value needs to be wrapped in $.clsx().
+///
+/// Corresponds to the condition in Attribute.js for setting needs_clsx:
+/// - The value is a single Expression (not a Sequence or True)
+/// - The expression type is NOT Literal, TemplateLiteral, or BinaryExpression
+///
+/// This is needed for class={x} where x is a variable, array, or object,
+/// because Svelte's clsx function normalizes these to proper class strings.
+fn needs_clsx(attr_value: &AttributeValue) -> bool {
+    // Helper to check if an expression type needs clsx
+    let expr_needs_clsx = |expr_type: &str| -> bool {
+        // Needs clsx if NOT a simple literal, template literal, or binary expression
+        !matches!(
+            expr_type,
+            "Literal" | "TemplateLiteral" | "BinaryExpression"
+        )
+    };
+
+    match attr_value {
+        AttributeValue::Expression(expr_tag) => {
+            // Get expression type
+            let expr_type = expr_tag.expression.node_type().unwrap_or("");
+            expr_needs_clsx(expr_type)
+        }
+        // Also check for Sequence with single ExpressionTag (for quoted expressions like class="{x}")
+        AttributeValue::Sequence(parts) if parts.len() == 1 => {
+            if let AttributeValuePart::ExpressionTag(expr_tag) = &parts[0] {
+                let expr_type = expr_tag.expression.node_type().unwrap_or("");
+                expr_needs_clsx(expr_type)
+            } else {
+                // Single text part doesn't need clsx
+                false
+            }
+        }
+        // Multiple parts (mixed text and expressions) or True don't need clsx
+        _ => false,
+    }
+}
+
 /// Build an attribute value expression.
 ///
 /// Corresponds to `build_attribute_value` in
@@ -434,8 +473,17 @@ pub fn build_set_class(
 ) {
     // Build the class value from the attribute
     let (mut class_value, mut has_state) = if let Some(attr_value) = class_attribute {
+        // Check if we need to wrap in $.clsx() before building the value
+        let should_clsx = needs_clsx(attr_value);
+
         let result = build_attribute_value(attr_value, context, |expr, _| expr);
-        (result.value, result.has_state)
+        let value = if should_clsx {
+            // Wrap in $.clsx() for dynamic class expressions
+            b::call(b::member_path("$.clsx"), vec![result.value])
+        } else {
+            result.value
+        };
+        (value, result.has_state)
     } else {
         // No class attribute - use empty string
         (b::string(""), false)

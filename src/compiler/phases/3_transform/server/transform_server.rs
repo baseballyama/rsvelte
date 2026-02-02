@@ -43,6 +43,45 @@ fn is_valid_js_identifier(name: &str) -> bool {
     true
 }
 
+/// Check if a class attribute value needs to be wrapped in $.clsx().
+///
+/// Corresponds to the condition in Attribute.js for setting needs_clsx:
+/// - The value is a single Expression (not a Sequence or True)
+/// - The expression type is NOT Literal, TemplateLiteral, or BinaryExpression
+///
+/// This is needed for class={x} where x is a variable, array, or object,
+/// because Svelte's clsx function normalizes these to proper class strings.
+fn needs_clsx(attr_value: &AttributeValue) -> bool {
+    // Helper to check if an expression type needs clsx
+    let expr_needs_clsx = |expr_type: &str| -> bool {
+        // Needs clsx if NOT a simple literal, template literal, or binary expression
+        !matches!(
+            expr_type,
+            "Literal" | "TemplateLiteral" | "BinaryExpression"
+        )
+    };
+
+    match attr_value {
+        AttributeValue::Expression(expr_tag) => {
+            // Get expression type
+            let expr_type = expr_tag.expression.node_type().unwrap_or("");
+            expr_needs_clsx(expr_type)
+        }
+        // Also check for Sequence with single ExpressionTag (for quoted expressions like class="{x}")
+        AttributeValue::Sequence(parts) if parts.len() == 1 => {
+            if let AttributeValuePart::ExpressionTag(expr_tag) = &parts[0] {
+                let expr_type = expr_tag.expression.node_type().unwrap_or("");
+                expr_needs_clsx(expr_type)
+            } else {
+                // Single text part doesn't need clsx
+                false
+            }
+        }
+        // Multiple parts (mixed text and expressions) or True don't need clsx
+        _ => false,
+    }
+}
+
 /// Quote a property name if needed for JavaScript object literal syntax.
 /// Returns the name as-is if it's a valid identifier, or quoted if it contains special characters.
 fn quote_prop_name(name: &str) -> String {
@@ -2234,16 +2273,23 @@ impl<'a> ServerCodeGenerator<'a> {
                 let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
                 if expr_end > expr_start && expr_end <= self.source.len() {
                     let expr = self.source[expr_start..expr_end].trim().to_string();
+
+                    // Check if we need to wrap in $.clsx() for dynamic class expressions
+                    let should_clsx = needs_clsx(&node.value);
+                    let value_expr = if should_clsx {
+                        format!("$.clsx({})", expr)
+                    } else {
+                        // For simple literals, use template literal with stringify
+                        format!("`${{$.stringify({})}}`", expr)
+                    };
+
                     if let Some(hash) = css_hash {
                         Ok(Some(format!(
-                            "${{$.attr_class(`${{$.stringify({})}}`, '{}')}}",
-                            expr, hash
+                            "${{$.attr_class({}, '{}')}}",
+                            value_expr, hash
                         )))
                     } else {
-                        Ok(Some(format!(
-                            "${{$.attr_class(`${{$.stringify({})}}`)}}",
-                            expr
-                        )))
+                        Ok(Some(format!("${{$.attr_class({})}}", value_expr)))
                     }
                 } else {
                     Ok(None)
