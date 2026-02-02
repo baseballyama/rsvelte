@@ -18,8 +18,8 @@ use common::{
     write_actual_output,
 };
 use svelte_compiler_rust::{
-    CompileOptions, GenerateMode, ParseOptions, compile, compiler::CssMode, convert_to_legacy,
-    parse,
+    CompileOptions, ExperimentalOptions, GenerateMode, ParseOptions, compile, compiler::CssMode,
+    convert_to_legacy, parse,
 };
 
 // ============================================================================
@@ -855,12 +855,18 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         let mut server_ok = true;
         let mut error_msg = None;
 
+        // Enable experimental.async for runtime-runes tests (fixtures were generated with it enabled)
+        let is_runtime_runes = category == "runtime-runes";
+
         // Test client
         if let Some(expected) = &expected_client {
             let options = CompileOptions {
                 generate: GenerateMode::Client,
                 filename: Some("main.svelte".to_string()),
                 css: CssMode::External,
+                experimental: ExperimentalOptions {
+                    r#async: is_runtime_runes,
+                },
                 ..Default::default()
             };
 
@@ -890,6 +896,9 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
                 generate: GenerateMode::Server,
                 filename: Some("main.svelte".to_string()),
                 css: CssMode::External,
+                experimental: ExperimentalOptions {
+                    r#async: is_runtime_runes,
+                },
                 ..Default::default()
             };
 

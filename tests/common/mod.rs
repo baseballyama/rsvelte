@@ -346,6 +346,9 @@ pub fn normalize_js(js: &str) -> String {
         // Remove block comments (including JSDoc)
         // This uses (?s) flag for DOTALL mode to match across newlines
         static ref BLOCK_COMMENT: Regex = Regex::new(r"(?s)/\*.*?\*/").unwrap();
+        // Normalize object method property: `key: function(...args) {` -> `key(...args) {`
+        // This makes `{ click: function(...args) { } }` equivalent to `{ click(...args) { } }`
+        static ref METHOD_PROPERTY: Regex = Regex::new(r"(\w+):\s*function\s*\(").unwrap();
     }
 
     // Remove block comments (including JSDoc) before other processing
@@ -402,6 +405,10 @@ pub fn normalize_js(js: &str) -> String {
 
     // Normalize "function (" to "function("
     let result = FUNCTION_SPACE.replace_all(&result, "function(").to_string();
+
+    // Normalize object method property syntax: `key: function(` -> `key(`
+    // This makes `{ click: function(...args) { } }` equivalent to `{ click(...args) { } }`
+    let result = METHOD_PROPERTY.replace_all(&result, "$1(").to_string();
 
     // Normalize spaces after ( [ { and before ) ] }
     let result = SPACE_AFTER_OPEN.replace_all(&result, "$1").to_string();
