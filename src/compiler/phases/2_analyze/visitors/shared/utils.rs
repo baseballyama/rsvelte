@@ -1385,12 +1385,17 @@ pub fn walk_js_expression(
                             context.analysis.root.scope.declarations.get(&param_name)
                         {
                             // Create a temporary binding for the parameter at non-root scope
+                            // We use function_depth + 1 as scope_index so that even the first
+                            // level of function nesting (function_depth = 1) creates a binding
+                            // with scope_index = 2, which is > 1 (nested scope).
+                            // This ensures $store references inside functions that shadow
+                            // the store variable will trigger store_invalid_scoped_subscription.
                             let temp_binding_idx = context.analysis.root.bindings.len();
                             let temp_binding = crate::compiler::phases::phase2_analyze::Binding::with_declaration_kind(
                                 param_name.clone(),
                                 crate::compiler::phases::phase2_analyze::BindingKind::Normal,
                                 crate::compiler::phases::phase2_analyze::DeclarationKind::Param,
-                                context.function_depth, // Use function_depth as scope index (non-zero means nested)
+                                context.function_depth + 1, // +1 ensures first level nesting (depth=1) creates scope_index=2
                             );
                             context.analysis.root.bindings.push(temp_binding);
 
