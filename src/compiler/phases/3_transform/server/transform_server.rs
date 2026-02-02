@@ -5839,8 +5839,10 @@ fn extract_constant_vars(script: &str) -> FxHashMap<String, String> {
                 let name = rest[..eq_idx].trim();
                 let value = rest[eq_idx + 1..].trim().trim_end_matches(';');
 
+                // Handle string literals (single quotes, double quotes, and template literals)
                 if (value.starts_with('\'') && value.ends_with('\''))
                     || (value.starts_with('"') && value.ends_with('"'))
+                    || (value.starts_with('`') && value.ends_with('`') && !value.contains("${"))
                 {
                     let content = &value[1..value.len() - 1];
                     constants.insert(name.to_string(), content.to_string());
