@@ -363,6 +363,9 @@ struct ServerCodeGenerator<'a> {
     use_async: bool,
     /// CSS injection info (hash, code) if css="injected"
     injected_css: Option<(String, String)>,
+    /// Whether to skip hydration boundaries (empty comment markers after RenderTags/Components)
+    /// This is true when the current fragment is "standalone" (contains only a single RenderTag/Component)
+    skip_hydration_boundaries: bool,
 }
 
 /// A part of the output - either static HTML or dynamic code.
@@ -480,7 +483,12 @@ enum OutputPart {
         value_expr: String,
     },
     /// Render tag call - calls a snippet function
-    RenderCall(String),
+    RenderCall {
+        call_str: String,
+        /// Whether to skip the hydration boundary marker after the call
+        /// This is true when the RenderTag is the only child in a fragment (standalone)
+        skip_boundary: bool,
+    },
     /// Const declaration - produces const variable
     ConstDeclaration(String),
     /// Block scope - wraps content in { } JavaScript block
@@ -538,6 +546,25 @@ impl<'a> ServerCodeGenerator<'a> {
             uses_store_subs,
             use_async,
             injected_css: None,
+            skip_hydration_boundaries: false,
+        }
+    }
+
+    /// Create a generator for a child fragment with the given skip_hydration_boundaries flag
+    fn new_child_generator(&self, skip_hydration_boundaries: bool) -> Self {
+        Self {
+            component_name: self.component_name.clone(),
+            source: self.source.clone(),
+            output_parts: Vec::with_capacity(32),
+            instance_script: None,
+            module_script: None,
+            constant_vars: self.constant_vars.clone(),
+            snippets: Vec::new(),
+            analysis: None,
+            uses_store_subs: self.uses_store_subs,
+            use_async: self.use_async,
+            injected_css: None,
+            skip_hydration_boundaries,
         }
     }
 
@@ -654,6 +681,10 @@ impl<'a> ServerCodeGenerator<'a> {
         // Find indices of first and last non-whitespace nodes (excluding SSR-invisible elements)
         let first_meaningful_idx = nodes.iter().position(is_ssr_meaningful);
         let last_meaningful_idx = nodes.iter().rposition(is_ssr_meaningful);
+
+        // Check if the root fragment is standalone (only a single RenderTag/Component)
+        // to determine if we should skip hydration boundaries
+        self.skip_hydration_boundaries = Self::is_standalone_fragment(&fragment.nodes);
 
         // If the first meaningful node is a Text or ExpressionTag, add <!---->
         // to prevent text fusion during hydration
@@ -1720,6 +1751,28 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
         false
+    }
+
+    /// Check if a fragment is "standalone" - contains only a single RenderTag or Component
+    /// (after trimming whitespace-only text nodes and comments).
+    /// When standalone, hydration boundaries can be skipped because the parent's anchors are sufficient.
+    fn is_standalone_fragment(nodes: &[TemplateNode]) -> bool {
+        // Filter out whitespace-only text nodes and comments
+        let meaningful_nodes: Vec<_> = nodes
+            .iter()
+            .filter(|n| match n {
+                TemplateNode::Text(text) => !text.data.trim().is_empty(),
+                TemplateNode::Comment(_) => false,
+                _ => true,
+            })
+            .collect();
+
+        // Standalone if there's exactly one node and it's a RenderTag or Component
+        meaningful_nodes.len() == 1
+            && matches!(
+                meaningful_nodes[0],
+                TemplateNode::RenderTag(_) | TemplateNode::Component(_)
+            )
     }
 
     fn generate_attribute_for_element(
@@ -2845,22 +2898,39 @@ impl<'a> ServerCodeGenerator<'a> {
             body_generator.output_parts.push(OutputPart::Comment);
         }
 
-        let mut is_first = true;
-        for node in nodes.iter().take(end_idx).skip(start_idx) {
-            // For the first text node, normalize leading whitespace
-            if is_first && let TemplateNode::Text(text) = node {
-                // Normalize: trim leading whitespace, keep content
-                let normalized = text.data.trim_start();
+        let nodes_to_process: Vec<_> = nodes
+            .iter()
+            .skip(start_idx)
+            .take(end_idx - start_idx)
+            .collect();
+        let num_nodes = nodes_to_process.len();
+
+        for (i, node) in nodes_to_process.iter().enumerate() {
+            let is_first = i == 0;
+            let is_last = i == num_nodes - 1;
+
+            // For text nodes, normalize whitespace
+            if let TemplateNode::Text(text) = node {
+                let mut normalized = text.data.to_string();
+
+                // Trim leading whitespace from first node
+                if is_first {
+                    normalized = normalized.trim_start().to_string();
+                }
+
+                // Trim trailing whitespace from last node
+                if is_last {
+                    normalized = normalized.trim_end().to_string();
+                }
+
                 if !normalized.is_empty() {
                     body_generator
                         .output_parts
-                        .push(OutputPart::Html(escape_html(normalized)));
+                        .push(OutputPart::Html(escape_html(&normalized)));
                 }
-                is_first = false;
                 continue;
             }
             body_generator.generate_node(node, false)?;
-            is_first = false;
         }
 
         Ok(Some(body_generator.output_parts))
@@ -2983,17 +3053,21 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
-        // Generate body parts
-        let mut body_generator = ServerCodeGenerator::new(
-            self.component_name.clone(),
-            self.source.clone(),
-            None,
-            None,
-            None,
-            self.use_async,
-        );
+        // Collect trimmed nodes (owned) - nodes is Vec<&TemplateNode> so we need to clone
+        let trimmed_nodes: Vec<TemplateNode> = nodes
+            .iter()
+            .take(end_idx)
+            .skip(start_idx)
+            .map(|n| (*n).clone())
+            .collect();
 
-        for node in nodes.iter().take(end_idx).skip(start_idx) {
+        // Check if this fragment is standalone (only contains a single RenderTag/Component)
+        let is_standalone = Self::is_standalone_fragment(&trimmed_nodes);
+
+        // Generate body parts with the appropriate skip_hydration_boundaries flag
+        let mut body_generator = self.new_child_generator(is_standalone);
+
+        for node in &trimmed_nodes {
             body_generator.generate_node(node, false)?;
         }
 
@@ -3059,15 +3133,20 @@ impl<'a> ServerCodeGenerator<'a> {
             break;
         }
 
-        // Generate body parts
-        let mut body_generator = ServerCodeGenerator::new(
-            self.component_name.clone(),
-            self.source.clone(),
-            None,
-            None,
-            None,
-            self.use_async,
-        );
+        // Collect trimmed body nodes (owned)
+        let trimmed_body_nodes: Vec<TemplateNode> = body_nodes
+            .iter()
+            .skip(start_idx)
+            .take(end_idx - start_idx)
+            .copied()
+            .cloned()
+            .collect();
+
+        // Check if this fragment is standalone (only contains a single RenderTag/Component)
+        let is_standalone = Self::is_standalone_fragment(&trimmed_body_nodes);
+
+        // Generate body parts with the appropriate skip_hydration_boundaries flag
+        let mut body_generator = self.new_child_generator(is_standalone);
 
         // Check if first node is text or expression - if so, add comment marker
         // This prevents text from being fused with surroundings (hydration marker)
@@ -3533,7 +3612,10 @@ impl<'a> ServerCodeGenerator<'a> {
         };
 
         // Add the render call
-        self.output_parts.push(OutputPart::RenderCall(call_str));
+        self.output_parts.push(OutputPart::RenderCall {
+            call_str,
+            skip_boundary: self.skip_hydration_boundaries,
+        });
 
         Ok(())
     }
@@ -3863,28 +3945,36 @@ impl<'a> ServerCodeGenerator<'a> {
         let nodes: Vec<_> = fragment.nodes.iter().collect();
         let len = nodes.len();
 
-        // Find first non-whitespace node
+        // Find first meaningful node (skip whitespace-only text and comments)
         let mut start_idx = 0;
         while start_idx < len {
-            if let TemplateNode::Text(text) = nodes[start_idx]
-                && text.data.trim().is_empty()
-            {
-                start_idx += 1;
-                continue;
+            match nodes[start_idx] {
+                TemplateNode::Text(text) if text.data.trim().is_empty() => {
+                    start_idx += 1;
+                    continue;
+                }
+                TemplateNode::Comment(_) => {
+                    start_idx += 1;
+                    continue;
+                }
+                _ => break,
             }
-            break;
         }
 
-        // Find last non-whitespace node
+        // Find last meaningful node (skip whitespace-only text and comments)
         let mut end_idx = len;
         while end_idx > start_idx {
-            if let TemplateNode::Text(text) = nodes[end_idx - 1]
-                && text.data.trim().is_empty()
-            {
-                end_idx -= 1;
-                continue;
+            match nodes[end_idx - 1] {
+                TemplateNode::Text(text) if text.data.trim().is_empty() => {
+                    end_idx -= 1;
+                    continue;
+                }
+                TemplateNode::Comment(_) => {
+                    end_idx -= 1;
+                    continue;
+                }
+                _ => break,
             }
-            break;
         }
 
         // Check if first meaningful content needs an anchor
@@ -4599,7 +4689,7 @@ export default function {component_name}($$renderer{props_param}) {{
                                 | OutputPart::SvelteBoundary { .. }
                                 | OutputPart::SvelteHead { .. }
                                 | OutputPart::TitleElement { .. }
-                                | OutputPart::RenderCall(_)
+                                | OutputPart::RenderCall { .. }
                         )
                     });
 
@@ -5131,7 +5221,10 @@ export default function {component_name}($$renderer{props_param}) {{
                         indent, var_name, indent, var_name, indent
                     ));
                 }
-                OutputPart::RenderCall(call_str) => {
+                OutputPart::RenderCall {
+                    call_str,
+                    skip_boundary,
+                } => {
                     // Flush current HTML before render call
                     if !current_html.is_empty() {
                         body_code
@@ -5142,10 +5235,11 @@ export default function {component_name}($$renderer{props_param}) {{
                     // Generate the snippet function call
                     body_code.push_str(&format!("{}{};\n", indent, call_str));
 
-                    // Add hydration boundary marker after render call
+                    // Add hydration boundary marker after render call only if not in a standalone context
                     // Official Svelte adds empty_comment after RenderTag unless skip_hydration_boundaries is true
-                    // We always add it here to match the official behavior for most cases
-                    current_html.push_str("<!---->");
+                    if !skip_boundary {
+                        current_html.push_str("<!---->");
+                    }
                 }
                 OutputPart::ConstDeclaration(declaration) => {
                     // Flush current HTML before const declaration
