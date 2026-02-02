@@ -174,10 +174,22 @@ fn transform_client_with_visitors(
             ));
         }
 
+        // Check if the store comes from a prop - if so, we need to call it as a function
+        // e.g., count() instead of count
+        let is_prop_store = analysis.root.bindings.iter().any(|b| {
+            b.name == store_name && matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp)
+        });
+
         // Generate: const $store = () => $.store_get(store, "$store", $$stores);
+        // or: const $store = () => $.store_get(store(), "$store", $$stores); for prop stores
+        let store_access = if is_prop_store {
+            format!("{}()", store_name)
+        } else {
+            store_name.to_string()
+        };
         let getter_code = format!(
             "const {} = () => $.store_get({}, \"{}\", $$stores);",
-            store_sub_name, store_name, store_sub_name
+            store_sub_name, store_access, store_sub_name
         );
         // Insert getter BEFORE setup_stores (at position getter_count to maintain sorted order)
         store_setup.insert(getter_count, JsStatement::Raw(getter_code));
