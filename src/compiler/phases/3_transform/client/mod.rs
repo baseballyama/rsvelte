@@ -1295,6 +1295,16 @@ fn transform_client_runes_with_skip_and_state(
         }
     }
 
+    // Transform $effect.pre(x) to $.user_pre_effect(x) - MUST be before $effect transformation
+    if result.contains("$effect.pre(") {
+        result = result.replace("$effect.pre(", "$.user_pre_effect(");
+    }
+
+    // Transform $effect.root(x) to $.effect_root(x)
+    if result.contains("$effect.root(") {
+        result = result.replace("$effect.root(", "$.effect_root(");
+    }
+
     // Transform $effect(x) to $.user_effect(x)
     if result.contains("$effect(") {
         result = result.replace("$effect(", "$.user_effect(");

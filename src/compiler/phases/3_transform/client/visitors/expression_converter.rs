@@ -474,10 +474,12 @@ fn should_proxy_json(value: &Value) -> bool {
         "UnaryExpression" | "BinaryExpression" => false,
         // Template literals are strings
         "TemplateLiteral" => false,
-        // `undefined` identifier doesn't need proxy
+        // Identifiers might need proxy (could reference objects/arrays),
+        // EXCEPT for `undefined` which is a primitive
         "Identifier" => {
             if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
-                name == "undefined"
+                // undefined doesn't need proxy, everything else does
+                name != "undefined"
             } else {
                 true
             }
@@ -1404,12 +1406,30 @@ fn try_transform_assignment(
         // Check skip_proxy flag on the transform (for $state.raw)
         let skip_proxy = transform.skip_proxy;
 
+        // Check if the binding kind excludes proxy (Derived, Prop, etc.)
+        use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+        let binding = context.state.get_binding(name);
+        let binding_kind_excludes_proxy = binding
+            .map(|b| {
+                matches!(
+                    b.kind,
+                    BindingKind::Prop
+                        | BindingKind::BindableProp
+                        | BindingKind::Derived
+                        | BindingKind::StoreSub
+                        | BindingKind::RawState
+                )
+            })
+            .unwrap_or(false);
+
         // Determine if proxy is needed based on:
         // 1. Not skipped (not $state.raw)
-        // 2. In runes mode
-        // 3. Non-coercive operator (=, ||=, &&=, ??=)
-        // 4. Right side should be proxied (not a primitive)
+        // 2. Binding kind doesn't exclude proxy (not Derived, Prop, etc.)
+        // 3. In runes mode
+        // 4. Non-coercive operator (=, ||=, &&=, ??=)
+        // 5. Right side should be proxied (not a primitive)
         let needs_proxy = !skip_proxy
+            && !binding_kind_excludes_proxy
             && context.state.analysis.runes
             && is_non_coercive_operator(operator)
             && should_proxy_value(right_json);
@@ -1476,10 +1496,12 @@ fn should_proxy_value(value: Option<&Value>) -> bool {
         "UnaryExpression" | "BinaryExpression" => false,
         // Template literals are strings (primitives)
         "TemplateLiteral" => false,
-        // `undefined` identifier doesn't need proxy
+        // Identifiers might need proxy (could reference objects/arrays),
+        // EXCEPT for `undefined` which is a primitive
         "Identifier" => {
             if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
-                name == "undefined"
+                // undefined doesn't need proxy, everything else does
+                name != "undefined"
             } else {
                 true
             }

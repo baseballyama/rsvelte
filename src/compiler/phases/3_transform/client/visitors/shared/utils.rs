@@ -45,6 +45,50 @@ fn extract_pattern_names(pattern: &JsPattern, names: &mut HashSet<String>) {
     }
 }
 
+/// Determine if a value should be wrapped in $.proxy() for deep reactivity.
+///
+/// This mirrors the official Svelte compiler's `should_proxy` function from
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/client/utils.js`.
+///
+/// Returns `false` for expressions that are known to be primitives or functions:
+/// - Literals (strings, numbers, booleans, null)
+/// - Template literals (strings)
+/// - Arrow functions and function expressions
+/// - Unary expressions (e.g., !x, -x, typeof x)
+/// - Binary expressions (e.g., a + b, a && b)
+/// - The `undefined` identifier
+///
+/// Returns `true` for everything else, conservatively assuming it could be an object.
+/// This is because even an identifier could reference an object (e.g., each block loop var).
+fn should_proxy_expr(expr: &JsExpr) -> bool {
+    match expr {
+        // Primitives don't need proxy
+        JsExpr::Literal(_) => false,
+
+        // Template literals are strings (primitives)
+        JsExpr::TemplateLiteral(_) => false,
+
+        // Functions don't need proxy
+        JsExpr::Arrow(_) | JsExpr::Function(_) => false,
+
+        // Unary and binary expressions result in primitives
+        JsExpr::Unary(_) | JsExpr::Binary(_) | JsExpr::Logical(_) => false,
+
+        // `undefined` identifier doesn't need proxy
+        JsExpr::Identifier(name) if name == "undefined" => false,
+
+        // Everything else might need proxy:
+        // - Identifiers (could reference objects, arrays, or each block variables)
+        // - Object expressions
+        // - Array expressions
+        // - Call expressions (could return objects)
+        // - Member expressions (could be object properties)
+        // - Conditional expressions (could return objects)
+        // etc.
+        _ => true,
+    }
+}
+
 /// Apply registered transforms to an expression recursively.
 ///
 /// This function walks through the expression tree and applies any registered
@@ -408,17 +452,33 @@ fn apply_transforms_to_expression_with_shadowed(
                 };
 
                 // Use the assign transform to wrap in $.set()
-                // The third parameter (needs_proxy) should be true for:
-                // - Object literals
-                // - Array literals
-                // - Function calls (could return objects)
-                // This is because $.set() needs to know if it should proxify the value
-                // However, if skip_proxy is set (e.g., for $state.raw), never use proxy
+                // The third parameter (needs_proxy) determines if the value should be proxified.
+                //
+                // This follows the official Svelte compiler's should_proxy() logic:
+                // - Returns false for: Literal, TemplateLiteral, ArrowFunction, FunctionExpression,
+                //   UnaryExpression, BinaryExpression, and `undefined` identifier
+                // - Returns true for everything else (conservatively assumes it could be an object)
+                //
+                // However, we also check additional conditions from AssignmentExpression.js:
+                // - Skip proxy if transform.skip_proxy is true (e.g., for $state.raw)
+                // - Skip proxy for prop, bindable_prop, derived, store_sub bindings
+                let binding = context.state.get_binding(name);
+                let binding_kind_excludes_proxy = binding
+                    .map(|b| {
+                        matches!(
+                            b.kind,
+                            BindingKind::Prop
+                                | BindingKind::BindableProp
+                                | BindingKind::Derived
+                                | BindingKind::StoreSub
+                                | BindingKind::RawState
+                        )
+                    })
+                    .unwrap_or(false);
+
                 let needs_proxy = !transform.skip_proxy
-                    && matches!(
-                        assign.right.as_ref(),
-                        JsExpr::Object(_) | JsExpr::Array(_) | JsExpr::Call(_)
-                    );
+                    && !binding_kind_excludes_proxy
+                    && should_proxy_expr(&assign.right);
 
                 return assign_fn(JsExpr::Identifier(name.clone()), final_value, needs_proxy);
             }
