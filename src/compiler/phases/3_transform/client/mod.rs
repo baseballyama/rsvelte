@@ -162,10 +162,10 @@ fn transform_client_with_visitors(
         .collect();
     store_sub_bindings.sort();
 
-    for store_sub_name in store_sub_bindings {
+    for (getter_count, store_sub_name) in store_sub_bindings.into_iter().enumerate() {
         let store_name = &store_sub_name[1..]; // e.g., "store"
 
-        // First store_sub binding - add setup_stores call
+        // First store_sub binding - add setup_stores call at the end
         if store_setup.is_empty() {
             needs_store_cleanup = true;
             // const [$$stores, $$cleanup] = $.setup_stores();
@@ -179,8 +179,8 @@ fn transform_client_with_visitors(
             "const {} = () => $.store_get({}, \"{}\", $$stores);",
             store_sub_name, store_name, store_sub_name
         );
-        // Insert getter BEFORE setup_stores (reverse order, will be unshifted)
-        store_setup.insert(0, JsStatement::Raw(getter_code));
+        // Insert getter BEFORE setup_stores (at position getter_count to maintain sorted order)
+        store_setup.insert(getter_count, JsStatement::Raw(getter_code));
     }
 
     // Determine if we need context injection ($.push/$.pop)
