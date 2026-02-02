@@ -313,7 +313,7 @@ pub fn thunk(expr: JsExpr) -> JsExpr {
 /// Optimize `(arg) => func(arg)` to `func` and `() => func()` to `func`.
 ///
 /// Corresponds to `unthunk` in Svelte's builders.js.
-fn unthunk(expr: JsExpr) -> JsExpr {
+pub fn unthunk(expr: JsExpr) -> JsExpr {
     // Only optimize arrow functions
     let JsExpr::Arrow(arrow) = &expr else {
         return expr;

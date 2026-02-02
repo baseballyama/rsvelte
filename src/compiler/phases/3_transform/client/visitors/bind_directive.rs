@@ -639,13 +639,10 @@ fn build_getter_setter(
         (get, Some(set))
     } else if is_prop_var {
         // For props, the getter calls the prop function and the setter passes a value
-        // get = () => prop()
-        // set = ($$value) => prop($$value)
+        // get = () => prop() -> unthunk -> prop
+        // set = ($$value) => prop($$value) -> unthunk -> prop
+        // Since both get and set simplify to the same thing (prop), set is omitted
         // This matches the official Svelte compiler behavior where props are getters/setters
-        //
-        // IMPORTANT: We use b::arrow directly instead of b::thunk because b::thunk applies
-        // the unthunk optimization which would convert `() => prop()` to just `prop`.
-        // The official Svelte compiler does NOT apply this optimization for bind_this getters.
         let get_call = b::call(expr.clone(), vec![]);
         let get = if dev {
             b::function_expr(
@@ -654,8 +651,8 @@ fn build_getter_setter(
                 vec![b::return_value(get_call)],
             )
         } else {
-            // Use arrow directly instead of thunk to prevent unthunk optimization
-            b::arrow(vec![], get_call)
+            // thunk already applies unthunk, so () => prop() becomes prop
+            b::thunk(get_call)
         };
 
         let set_call = b::call(expr.clone(), vec![b::id("$$value")]);
@@ -666,10 +663,22 @@ fn build_getter_setter(
                 vec![b::stmt(set_call)],
             )
         } else {
-            b::arrow(vec![b::id_pattern("$$value")], set_call)
+            // Apply unthunk to simplify ($$value) => prop($$value) to prop
+            b::unthunk(b::arrow(vec![b::id_pattern("$$value")], set_call))
         };
 
-        (get, Some(set))
+        // If get and set are the same (both simplified to the prop identifier),
+        // omit the set argument (the official compiler does this optimization)
+        // We compare by checking if both are identifiers with the same name
+        let same_identifier = match (&get, &set) {
+            (JsExpr::Identifier(get_name), JsExpr::Identifier(set_name)) => get_name == set_name,
+            _ => false,
+        };
+        if !dev && same_identifier {
+            (get, None)
+        } else {
+            (get, Some(set))
+        }
     } else if dev {
         // Dev mode: named functions
         // get = function get() { return expression; }

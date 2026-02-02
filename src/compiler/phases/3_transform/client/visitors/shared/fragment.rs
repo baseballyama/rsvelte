@@ -439,6 +439,13 @@ fn push_static_element_to_template(node: &TemplateNode, template: &mut Template)
             // Push the element opening tag
             template.push_element(elem.name.to_string(), elem.start);
 
+            // Handle <noscript> - it's rendered empty (children are stripped)
+            // This matches the behavior in visit_regular_element
+            if elem.name == "noscript" {
+                template.pop_element();
+                return;
+            }
+
             // Add attributes
             for attr in &elem.attributes {
                 if let Attribute::Attribute(a) = attr {
