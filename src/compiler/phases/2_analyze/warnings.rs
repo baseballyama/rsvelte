@@ -594,6 +594,14 @@ pub fn element_invalid_self_closing_tag(name: &str) -> AnalysisWarning {
 
 // Script warnings
 
+/// `context="module"` is deprecated, use the `module` attribute instead
+pub fn script_context_deprecated() -> AnalysisWarning {
+    warning(
+        "script_context_deprecated",
+        "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated",
+    )
+}
+
 /// Unrecognized script attribute
 pub fn script_unknown_attribute() -> AnalysisWarning {
     warning(

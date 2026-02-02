@@ -118,6 +118,21 @@ pub fn analyze_component(
         // Validate script attributes - warn for unknown attributes
         validate_script_attributes(&module.attributes, &mut analysis);
 
+        // In runes mode, warn if `context="module"` syntax is used instead of `module` attribute
+        // We detect this by checking if context is Module but there's no "module" attribute
+        // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/Script.js
+        if analysis.runes
+            && module.context == crate::ast::template::ScriptContext::Module
+            && !module
+                .attributes
+                .iter()
+                .any(|attr| attr.name.as_str() == "module")
+        {
+            analysis
+                .warnings
+                .push(warnings::script_context_deprecated());
+        }
+
         let script_ast = module.content.as_json();
         let mut context = visitors::VisitorContext::new(&mut analysis);
         context.ast_type = visitors::AstType::Module;
