@@ -375,15 +375,11 @@ pub fn build_class_directives_object(
         }
 
         // Convert the expression using the expression converter
-        // This handles the full conversion including:
-        // - props -> props() transform for prop bindings
-        // - Literal values, etc.
-        //
-        // Note: We do NOT call apply_transforms_to_expression here because
-        // convert_expression already handles the props -> props() transform.
-        // Calling apply_transforms_to_expression would cause double transformation
-        // (e.g., foo() -> foo()()).
         let expression = convert_expression(&directive.expression, context);
+
+        // Apply transforms to handle prop -> prop() calls in legacy mode
+        // This ensures props are called as functions: { foo: foo() } instead of { foo }
+        let expression = super::utils::apply_transforms_to_expression(&expression, context);
 
         properties.push(b::prop(directive.name.to_string(), expression));
     }

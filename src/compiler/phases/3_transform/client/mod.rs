@@ -183,6 +183,19 @@ fn transform_client_with_visitors(
         store_setup.insert(getter_count, JsStatement::Raw(getter_code));
     }
 
+    // Detect reactive statements ($:) in the instance script
+    // Since analysis.reactive_statements is not populated yet, we scan the script directly
+    let has_reactive_statements = if let Some(ref content) = analysis.instance_script_content {
+        // Check for $: at the start of a line (with possible leading whitespace)
+        content.raw.lines().any(|line| {
+            let trimmed = line.trim();
+            trimmed.starts_with("$:")
+                && (trimmed.len() == 2 || !trimmed.chars().nth(2).unwrap_or(' ').is_alphanumeric())
+        })
+    } else {
+        false
+    };
+
     // Determine if we need context injection ($.push/$.pop)
     // Reference: transform-client.js lines 280-306, 366-370
     // Only count exports that need getter/setter (reactive exports)
@@ -223,6 +236,7 @@ fn transform_client_with_visitors(
     let should_inject_context = options.dev
         || analysis.needs_context
         || !analysis.reactive_statements.is_empty()
+        || has_reactive_statements  // Reactive $: statements detected in script
         || reactive_export_count > 0
         || needs_store_cleanup; // Store subscriptions need context
 
@@ -287,6 +301,12 @@ fn transform_client_with_visitors(
             // Parse transformed script as raw JavaScript statement
             component_body.push(JsStatement::Raw(trimmed.to_string()));
         }
+    }
+
+    // Add $.legacy_pre_effect_reset() after all reactive statements
+    // Reference: transform-client.js - this is called after all legacy_pre_effect() calls
+    if has_reactive_statements && !analysis.runes {
+        component_body.push(JsStatement::Raw("$.legacy_pre_effect_reset();".to_string()));
     }
 
     // Add $.init() for legacy (non-runes) components that need context
@@ -893,6 +913,22 @@ fn transform_instance_script_for_visitors(
         // Join all accumulated lines into a single statement
         let statement = accumulated.join("\n");
         let first_line_trimmed = accumulated[0].trim();
+
+        // Handle $: reactive statements in legacy (non-runes) mode
+        // Transform `$: c = a + b;` to `$.legacy_pre_effect(() => (...deps), () => { c(a() + b()); })`
+        if !analysis.runes && first_line_trimmed.starts_with("$:") {
+            let transformed = transform_reactive_statement(
+                &statement,
+                state_vars,
+                non_reactive_state_vars,
+                proxy_vars,
+                prop_assignment_transform_vars,
+                analysis,
+            );
+            result.push_str(&transformed);
+            result.push('\n');
+            return;
+        }
 
         // Handle legacy export let declarations
         if has_legacy_export_let && first_line_trimmed.starts_with("export let ") {
@@ -1826,6 +1862,277 @@ fn find_derived_property_colon(prop: &str) -> Option<usize> {
         }
     }
     None
+}
+
+/// Transform a `$:` reactive statement to `$.legacy_pre_effect()` call.
+///
+/// In legacy mode (Svelte 4), reactive statements like `$: c = a + b;` are transformed to:
+/// ```javascript
+/// $.legacy_pre_effect(() => ($.deep_read_state(a()), $.deep_read_state(b())), () => {
+///     c(a() + b());
+/// });
+/// ```
+///
+/// The first thunk contains the dependencies (for tracking), wrapped in `$.deep_read_state()`.
+/// The second thunk contains the body of the reactive statement.
+///
+/// Reference: `LabeledStatement.js` in `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/`
+#[allow(clippy::too_many_arguments)]
+fn transform_reactive_statement(
+    statement: &str,
+    state_vars: &[String],
+    non_reactive_state_vars: &[String],
+    proxy_vars: &[String],
+    prop_assignment_transform_vars: &[String],
+    _analysis: &ComponentAnalysis,
+) -> String {
+    let trimmed = statement.trim();
+
+    // Extract the body after `$:`
+    // Handle both `$: body` and `$:\n body` formats
+    let body = if let Some(stripped) = trimmed.strip_prefix("$:") {
+        stripped.trim()
+    } else {
+        return statement.to_string();
+    };
+
+    // Remove trailing semicolon if present
+    let body = body.trim_end_matches(';').trim();
+
+    if body.is_empty() {
+        return String::new();
+    }
+
+    // Collect dependencies from the body
+    // Dependencies are prop variables that should be wrapped in $.deep_read_state()
+    let mut dependencies: Vec<String> = Vec::new();
+
+    // Props are dependencies that need tracking
+    for prop_name in prop_assignment_transform_vars {
+        // Check if this prop is referenced in the body (but not on the left side of assignment)
+        if body_references_identifier(body, prop_name) {
+            dependencies.push(prop_name.clone());
+        }
+    }
+
+    // State vars are also dependencies
+    for state_var in state_vars {
+        if !non_reactive_state_vars.contains(state_var)
+            && body_references_identifier(body, state_var)
+        {
+            dependencies.push(state_var.clone());
+        }
+    }
+
+    // Transform the body - apply prop transformations
+    // For `$: c = a + b;`, the body should become `c(a() + b());`
+    // This involves:
+    // 1. Transform prop reads to prop() calls
+    // 2. Transform prop assignments to prop(value) calls
+    let transformed_body;
+
+    // First, check if this is an assignment statement: `c = expr`
+    if let Some(eq_pos) = find_assignment_position(body) {
+        let lhs = body[..eq_pos].trim();
+        let rhs = body[eq_pos + 1..].trim();
+
+        // If the LHS is a prop variable, transform to prop(value) call
+        if prop_assignment_transform_vars.contains(&lhs.to_string()) {
+            // Transform the RHS - wrap prop references in prop() calls
+            let transformed_rhs = transform_prop_reads_in_expr(rhs, prop_assignment_transform_vars);
+            // Also wrap state vars in $.get() calls
+            let transformed_rhs = wrap_state_vars_in_expr(
+                &transformed_rhs,
+                state_vars,
+                non_reactive_state_vars,
+                proxy_vars,
+            );
+
+            transformed_body = format!("{}({})", lhs, transformed_rhs);
+        } else {
+            // Regular assignment - still transform prop reads on RHS
+            let transformed_rhs = transform_prop_reads_in_expr(rhs, prop_assignment_transform_vars);
+            let transformed_rhs = wrap_state_vars_in_expr(
+                &transformed_rhs,
+                state_vars,
+                non_reactive_state_vars,
+                proxy_vars,
+            );
+            transformed_body = format!("{} = {}", lhs, transformed_rhs);
+        }
+    } else {
+        // Not an assignment - just transform reads
+        let temp = transform_prop_reads_in_expr(body, prop_assignment_transform_vars);
+        transformed_body =
+            wrap_state_vars_in_expr(&temp, state_vars, non_reactive_state_vars, proxy_vars);
+    }
+
+    // Build the dependency thunk
+    // Each dependency becomes $.deep_read_state(prop())
+    let deps_expr = if dependencies.is_empty() {
+        "".to_string()
+    } else {
+        dependencies
+            .iter()
+            .map(|dep| format!("$.deep_read_state({}())", dep))
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+
+    // Build the $.legacy_pre_effect() call
+    // The dependency expression is always wrapped in parentheses to support:
+    // 1. Multiple deps: () => (dep1, dep2) - sequence expression
+    // 2. Single dep: () => (dep) - keeps consistent formatting with expected output
+    let deps_thunk = if deps_expr.is_empty() {
+        "() => {}".to_string()
+    } else {
+        format!("() => ({})", deps_expr)
+    };
+
+    // Debug: uncomment to trace
+    // eprintln!("[DEBUG transform_reactive_statement] body: {}", body);
+    // eprintln!("[DEBUG transform_reactive_statement] deps_expr: {}", deps_expr);
+    // eprintln!("[DEBUG transform_reactive_statement] deps_thunk: {}", deps_thunk);
+    // eprintln!("[DEBUG transform_reactive_statement] transformed_body: {}", transformed_body);
+
+    format!(
+        "$.legacy_pre_effect({}, () => {{\n\t{};\n}});",
+        deps_thunk, transformed_body
+    )
+}
+
+/// Check if a body references an identifier (not on left side of assignment).
+fn body_references_identifier(body: &str, identifier: &str) -> bool {
+    // Simple check - look for the identifier as a word boundary
+    // This is not perfect but good enough for most cases
+    let pattern = format!(r"\b{}\b", regex::escape(identifier));
+    if let Ok(re) = regex::Regex::new(&pattern) {
+        // Check if identifier appears in the body
+        if re.is_match(body) {
+            // Make sure it's not only on the left side of an assignment
+            if let Some(eq_pos) = find_assignment_position(body) {
+                let lhs = &body[..eq_pos];
+                let rhs = &body[eq_pos + 1..];
+                // Check RHS - if identifier is there, it's a dependency
+                if re.is_match(rhs) {
+                    return true;
+                }
+                // Check LHS but only if identifier is NOT the whole LHS
+                if re.is_match(lhs) && lhs.trim() != identifier {
+                    return true;
+                }
+                return false;
+            }
+            return true;
+        }
+    }
+    false
+}
+
+/// Find the position of the assignment operator (=) that's not part of ==, ===, !=, !==
+fn find_assignment_position(expr: &str) -> Option<usize> {
+    let chars: Vec<char> = expr.chars().collect();
+    let mut i = 0;
+    let mut depth = 0;
+
+    while i < chars.len() {
+        let c = chars[i];
+        match c {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            '=' if depth == 0 => {
+                // Check it's not ==, ===, !=, !==, <=, >=, =>
+                let prev = if i > 0 { Some(chars[i - 1]) } else { None };
+                let next = chars.get(i + 1).copied();
+
+                if prev != Some('=')
+                    && prev != Some('!')
+                    && prev != Some('<')
+                    && prev != Some('>')
+                    && next != Some('=')
+                    && next != Some('>')
+                {
+                    return Some(i);
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Transform prop reads in an expression to prop() calls.
+///
+/// For example, `a + b` where `a` and `b` are props becomes `a() + b()`.
+fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> String {
+    let mut result = expr.to_string();
+
+    for prop_name in prop_vars {
+        // Use word boundary matching to replace identifier references
+        // But avoid replacing function calls that already have ()
+        // Note: Rust's regex crate doesn't support lookahead, so we use a different approach:
+        // Match the identifier and check the context manually
+
+        let mut new_result = String::with_capacity(result.len() * 2);
+        let chars: Vec<char> = result.chars().collect();
+        let mut i = 0;
+
+        while i < chars.len() {
+            // Check if we're at the start of the identifier
+            let remaining = &result[result
+                .char_indices()
+                .nth(i)
+                .map(|(idx, _)| idx)
+                .unwrap_or(i)..];
+            if remaining.starts_with(prop_name) {
+                // Check character before (must be non-identifier char or start of string)
+                let before_ok = if i == 0 {
+                    true
+                } else {
+                    let prev_char = chars[i - 1];
+                    !prev_char.is_alphanumeric() && prev_char != '_' && prev_char != '$'
+                };
+
+                // Check character after (must be non-identifier char)
+                let after_idx = i + prop_name.len();
+                let after_ok = if after_idx >= chars.len() {
+                    true
+                } else {
+                    let next_char = chars[after_idx];
+                    !next_char.is_alphanumeric() && next_char != '_' && next_char != '$'
+                };
+
+                // Check if it's NOT already followed by ()
+                let is_already_call = if after_idx < chars.len() {
+                    // Skip whitespace
+                    let mut check_idx = after_idx;
+                    while check_idx < chars.len() && chars[check_idx].is_whitespace() {
+                        check_idx += 1;
+                    }
+                    check_idx < chars.len() && chars[check_idx] == '('
+                } else {
+                    false
+                };
+
+                if before_ok && after_ok && !is_already_call {
+                    // Replace with prop_name()
+                    new_result.push_str(prop_name);
+                    new_result.push_str("()");
+                    i += prop_name.len();
+                    continue;
+                }
+            }
+
+            // No match, just copy the character
+            new_result.push(chars[i]);
+            i += 1;
+        }
+
+        result = new_result;
+    }
+
+    result
 }
 
 fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> String {
@@ -5276,6 +5583,37 @@ mod tests {
             result.contains("$.derived(() => ({"),
             "Object literal should be wrapped in parentheses: {}",
             result
+        );
+    }
+
+    #[test]
+    fn test_transform_prop_reads_in_expr() {
+        // Test that prop reads are transformed to prop() calls
+        let prop_vars = vec!["a".to_string(), "b".to_string()];
+
+        // Simple expression
+        let result = transform_prop_reads_in_expr("a + b", &prop_vars);
+        println!("Input: 'a + b'");
+        println!("Result: '{}'", result);
+        assert_eq!(
+            result, "a() + b()",
+            "Should transform 'a + b' to 'a() + b()'"
+        );
+
+        // Don't double-transform
+        let result2 = transform_prop_reads_in_expr("a() + b()", &prop_vars);
+        println!("Input: 'a() + b()'");
+        println!("Result: '{}'", result2);
+        assert_eq!(result2, "a() + b()", "Should not double-transform");
+
+        // Multiplication
+        let prop_vars2 = vec!["c".to_string()];
+        let result3 = transform_prop_reads_in_expr("c * c", &prop_vars2);
+        println!("Input: 'c * c'");
+        println!("Result: '{}'", result3);
+        assert_eq!(
+            result3, "c() * c()",
+            "Should transform 'c * c' to 'c() * c()'"
         );
     }
 }
