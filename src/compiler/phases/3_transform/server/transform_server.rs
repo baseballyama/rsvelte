@@ -3100,12 +3100,28 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         // Collect trimmed nodes (owned) - nodes is Vec<&TemplateNode> so we need to clone
-        let trimmed_nodes: Vec<TemplateNode> = nodes
+        let mut trimmed_nodes: Vec<TemplateNode> = nodes
             .iter()
             .take(end_idx)
             .skip(start_idx)
             .map(|n| (*n).clone())
             .collect();
+
+        // Trim leading whitespace from first text node and trailing whitespace from last text node
+        // This handles cases like `{#if cond}\nmid\n{/if}` which should output `mid` not ` mid `
+        if !trimmed_nodes.is_empty() {
+            // Trim leading whitespace from first text node
+            if let TemplateNode::Text(ref mut text) = trimmed_nodes[0] {
+                let trimmed_data = text.data.trim_start().to_string();
+                text.data = trimmed_data.into();
+            }
+            // Trim trailing whitespace from last text node
+            let last_idx = trimmed_nodes.len() - 1;
+            if let TemplateNode::Text(ref mut text) = trimmed_nodes[last_idx] {
+                let trimmed_data = text.data.trim_end().to_string();
+                text.data = trimmed_data.into();
+            }
+        }
 
         // Check if this fragment is standalone (only contains a single RenderTag/Component)
         let is_standalone = Self::is_standalone_fragment(&trimmed_nodes);
@@ -3180,13 +3196,29 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         // Collect trimmed body nodes (owned)
-        let trimmed_body_nodes: Vec<TemplateNode> = body_nodes
+        let mut trimmed_body_nodes: Vec<TemplateNode> = body_nodes
             .iter()
             .skip(start_idx)
             .take(end_idx - start_idx)
             .copied()
             .cloned()
             .collect();
+
+        // Trim leading whitespace from first text node and trailing whitespace from last text node
+        // This handles cases like `{#each items as item}\ncontent\n{/each}`
+        if !trimmed_body_nodes.is_empty() {
+            // Trim leading whitespace from first text node
+            if let TemplateNode::Text(ref mut text) = trimmed_body_nodes[0] {
+                let trimmed_data = text.data.trim_start().to_string();
+                text.data = trimmed_data.into();
+            }
+            // Trim trailing whitespace from last text node
+            let last_idx = trimmed_body_nodes.len() - 1;
+            if let TemplateNode::Text(ref mut text) = trimmed_body_nodes[last_idx] {
+                let trimmed_data = text.data.trim_end().to_string();
+                text.data = trimmed_data.into();
+            }
+        }
 
         // Check if this fragment is standalone (only contains a single RenderTag/Component)
         let is_standalone = Self::is_standalone_fragment(&trimmed_body_nodes);
