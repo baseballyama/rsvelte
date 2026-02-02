@@ -702,12 +702,20 @@ fn has_content(element: &RegularElement) -> bool {
                 }
             }
             TemplateNode::RegularElement(el) => {
+                // <img alt="..."> is considered content
                 if el.name == "img"
                     && el
                         .attributes
                         .iter()
                         .any(|a| matches!(a, AttributeNode::Attribute(attr) if attr.name == "alt"))
                 {
+                    return true;
+                }
+
+                // <selectedcontent> is a special element used in customizable select dropdowns
+                // and should be considered as valid content for buttons inside <select>
+                // Reference: https://developer.chrome.com/blog/customizable-select
+                if el.name == "selectedcontent" {
                     return true;
                 }
 
