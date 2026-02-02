@@ -121,6 +121,7 @@ pub struct AttributeValueResult {
 /// Build a template chunk from text and expression parts.
 ///
 /// Creates a template literal like `foo ${expr} bar`.
+/// If all expressions can be evaluated at compile time, returns a string literal.
 fn build_template_chunk<F>(
     values: &[AttributeValuePart],
     context: &mut ComponentContext,
@@ -129,6 +130,8 @@ fn build_template_chunk<F>(
 where
     F: FnMut(JsExpr, &ExpressionMetadata) -> JsExpr,
 {
+    use super::utils::get_literal_value;
+
     // Pre-allocate for typical attribute value complexity
     let mut quasis = Vec::with_capacity(4);
     let mut expressions = Vec::with_capacity(4);
@@ -142,7 +145,17 @@ where
             }
 
             AttributeValuePart::ExpressionTag(expr_tag) => {
-                // Push the accumulated text as a quasi
+                // Try to evaluate at compile time (constant folding)
+                if let Some(lit_value) = get_literal_value(&expr_tag.expression, context) {
+                    // Successfully evaluated - fold into current text
+                    if let Some(val) = lit_value {
+                        current_text.push_str(&val);
+                    }
+                    // For None (null/undefined), we just skip adding to the string
+                    continue;
+                }
+
+                // Cannot fold - push the accumulated text as a quasi
                 quasis.push(b::quasi(&current_text, false));
                 current_text.clear();
 
@@ -164,6 +177,15 @@ where
 
     // Push the final text
     quasis.push(b::quasi(&current_text, true));
+
+    // If no expressions remain (all were folded), return a simple string
+    if expressions.is_empty() {
+        let all_text: String = quasis.iter().map(|q| q.cooked.as_str()).collect();
+        return AttributeValueResult {
+            value: b::string(&all_text),
+            has_state: false,
+        };
+    }
 
     AttributeValueResult {
         value: JsExpr::TemplateLiteral(JsTemplateLiteral {

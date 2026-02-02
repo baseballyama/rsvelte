@@ -840,10 +840,15 @@ impl<'a> ComponentClientTransformState<'a> {
         }
     }
 
-    /// Get a binding by name from the current scope.
+    /// Get a binding by name from the current scope or parent scopes.
     pub fn get_binding(&self, name: &str) -> Option<&Binding> {
-        let index = self.scope.declarations.get(name)?;
-        self.scope_root.bindings.get(*index)
+        // First check current scope
+        if let Some(&index) = self.scope.declarations.get(name) {
+            return self.scope_root.bindings.get(index);
+        }
+        // Fall back to searching all scopes (including parent chain)
+        let index = self.scope_root.find_binding_any_scope(name)?;
+        self.scope_root.bindings.get(index)
     }
 }
 

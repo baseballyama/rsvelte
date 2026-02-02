@@ -95,7 +95,7 @@ fn visit_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<(), An
         // Non-rune variable declaration - set initial value for constant folding
         for path in &paths {
             if let Some(name) = path.get("name").and_then(|n| n.as_str())
-                && let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name)
+                && let Some(binding_idx) = context.analysis.root.find_binding_any_scope(name)
             {
                 let binding = &mut context.analysis.root.bindings[binding_idx];
                 binding.initial = extract_literal_string(init);

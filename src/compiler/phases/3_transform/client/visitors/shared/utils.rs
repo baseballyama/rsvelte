@@ -1794,7 +1794,7 @@ pub fn build_template_chunk(
 /// - `Some(Some(value))` - expression evaluates to a non-null/undefined string value
 /// - `Some(None)` - expression evaluates to null/undefined (should be omitted)
 /// - `None` - expression cannot be evaluated at compile time
-fn get_literal_value(
+pub(crate) fn get_literal_value(
     expr: &crate::ast::js::Expression,
     context: &ComponentContext,
 ) -> Option<Option<String>> {
