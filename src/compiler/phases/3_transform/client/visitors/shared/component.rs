@@ -963,9 +963,6 @@ fn visit_slot_children(
     // The slot function signature is ($$anchor, $$slotProps) => { ... }
     context.state.node = b::id("$$anchor");
 
-    // Track whether we need to auto-append at the end
-    let mut needs_auto_append = false;
-
     // Track close statement ($.append) - this should come AFTER after_update
     // per Fragment.js order: init -> update -> after_update -> close
     let mut close_statement: Option<JsStatement> = None;
@@ -1074,35 +1071,133 @@ fn visit_slot_children(
             )));
         }
     } else {
-        // For non-standalone cases, use process_children to handle text+expression sequences
-        // This properly handles cases like `clicks: {count}` which needs:
-        // - Empty $.text() node
-        // - $.template_effect() wrapping the dynamic text update
-        // - $.append($$anchor, text) to add to DOM
+        // For non-standalone cases, follow Fragment.js pattern:
+        // 1. Create fragment variable
+        // 2. Use process_children with $.first_child(fragment) as initial expression
+        // 3. Check if template is single comment -> use $.comment()
+        // 4. Otherwise create unique template
+        // 5. Add $.append($$anchor, fragment) at end
         use crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::process_children;
 
-        // Add $.next() at the beginning to position properly
-        context
-            .state
-            .init
-            .push(b::stmt(b::call(b::member_path("$.next"), vec![])));
+        // Generate fragment id
+        let fragment_id_name = context.state.memoizer.generate_id("fragment");
+        let fragment_id = b::id(&fragment_id_name);
 
-        // Use process_children for proper text+expression handling
-        process_children(
-            &cleaned.trimmed,
-            move |_is_text| {
-                // This creates the text node
-                b::call(b::member_path("$.text"), vec![])
-            },
-            false, // not an element context
-            context,
-        );
+        // Check for use_space_template pattern: text + expression tags only
+        let use_space_template = cleaned
+            .trimmed
+            .iter()
+            .any(|node| matches!(node, TemplateNode::ExpressionTag(_)))
+            && cleaned
+                .trimmed
+                .iter()
+                .all(|node| matches!(node, TemplateNode::Text(_) | TemplateNode::ExpressionTag(_)));
 
-        // After process_children, look for the text node variable and add append
-        // We need to find the variable that was created
-        // For now, add a generic append using the last created text id
-        // This is a simplified approach - full implementation would track the ID properly
-        needs_auto_append = true;
+        if use_space_template {
+            // Special case — we can use `$.text` instead of creating a unique template
+            let text_id_name = context.state.memoizer.generate_id("text");
+            let text_id = b::id(&text_id_name);
+
+            let text_id_clone = text_id.clone();
+            process_children(
+                &cleaned.trimmed,
+                move |_is_text| text_id_clone.clone(),
+                false,
+                context,
+            );
+
+            context.state.init.insert(
+                0,
+                b::var_decl(
+                    &text_id_name,
+                    Some(b::call(b::member_path("$.text"), vec![])),
+                ),
+            );
+
+            close_statement = Some(b::stmt(b::call(
+                b::member_path("$.append"),
+                vec![b::id("$$anchor"), text_id],
+            )));
+        } else {
+            // Standard case: use fragment with $.first_child pattern
+            let fragment_id_for_closure = fragment_id.clone();
+            process_children(
+                &cleaned.trimmed,
+                move |is_text: bool| {
+                    if is_text {
+                        b::call(
+                            b::member_path("$.first_child"),
+                            vec![
+                                fragment_id_for_closure.clone(),
+                                b::literal(JsLiteral::Boolean(true)),
+                            ],
+                        )
+                    } else {
+                        b::call(
+                            b::member_path("$.first_child"),
+                            vec![fragment_id_for_closure.clone()],
+                        )
+                    }
+                },
+                false,
+                context,
+            );
+
+            // Check if template is single comment node
+            // This is common for slot content that only contains blocks like {#if}
+            use crate::compiler::phases::phase3_transform::client::transform_template::types::Node;
+
+            if context.state.template.nodes.len() == 1
+                && matches!(context.state.template.nodes.first(), Some(Node::Comment(_)))
+            {
+                // Special case — we can use `$.comment` instead of creating a unique template
+                context.state.init.insert(
+                    0,
+                    b::var_decl(
+                        &fragment_id_name,
+                        Some(b::call(b::member_path("$.comment"), vec![])),
+                    ),
+                );
+            } else {
+                // Standard template case
+                let template_name = context.state.memoizer.generate_id("root");
+
+                let namespace = match context.state.metadata.namespace.as_str() {
+                    "svg" => Namespace::Svg,
+                    "mathml" => Namespace::Mathml,
+                    _ => Namespace::Html,
+                };
+
+                // Build the template expression
+                let mut flags = 1u32; // TEMPLATE_FRAGMENT
+                if context.state.template.needs_import_node {
+                    flags |= 2; // TEMPLATE_USE_IMPORT_NODE
+                }
+
+                let html_expr = context.state.template.as_html();
+                let template_expr = b::call(
+                    b::member(b::id("$"), format!("from_{}", namespace.as_str())),
+                    vec![html_expr, b::number(flags as f64)],
+                );
+                context
+                    .state
+                    .hoisted
+                    .push(b::var_decl(&template_name, Some(template_expr)));
+
+                context.state.init.insert(
+                    0,
+                    b::var_decl(
+                        &fragment_id_name,
+                        Some(b::call(b::id(&template_name), vec![])),
+                    ),
+                );
+            }
+
+            close_statement = Some(b::stmt(b::call(
+                b::member_path("$.append"),
+                vec![b::id("$$anchor"), fragment_id],
+            )));
+        }
     }
 
     // Collect the generated init statements
@@ -1142,31 +1237,6 @@ fn visit_slot_children(
     // This follows Fragment.js order: init -> update -> after_update -> close
     if let Some(close) = close_statement {
         result.push(close);
-    }
-
-    // Find any text variable from the init statements and add $.append at the end
-    // This ensures append happens after template_effect
-    // Only do this for cases where process_children was used, not for single text nodes
-    // (single text nodes already include their own append)
-    if needs_auto_append {
-        let mut text_var_name: Option<String> = None;
-        for stmt in result.iter() {
-            if let JsStatement::VariableDeclaration(var_decl) = stmt
-                && let Some(first_decl) = var_decl.declarations.first()
-                && let JsPattern::Identifier(name) = &first_decl.id
-                && name.starts_with("text")
-            {
-                text_var_name = Some(name.clone());
-            }
-        }
-
-        // Add $.append($$anchor, text) at the end if we found a text variable
-        if let Some(name) = text_var_name {
-            result.push(b::stmt(b::call(
-                b::member_path("$.append"),
-                vec![b::id("$$anchor"), b::id(&name)],
-            )));
-        }
     }
 
     // Merge hoisted (slot template declarations) into global hoisted

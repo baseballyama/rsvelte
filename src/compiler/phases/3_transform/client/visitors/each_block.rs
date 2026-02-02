@@ -480,11 +480,7 @@ fn get_collection_id_if_needed(node: &EachBlock, context: &ComponentContext) -> 
                 if &binding.name == name && binding.scope_index == parent_idx {
                     // Found a binding with the same name in the parent scope
                     // This means we have shadowing, so we need a collection_id
-                    // Use a simple counter based on the number of bindings
-                    return Some(format!(
-                        "$$array_{}",
-                        context.state.scope_root.bindings.len()
-                    ));
+                    return Some("$$array".to_string());
                 }
             }
         }
