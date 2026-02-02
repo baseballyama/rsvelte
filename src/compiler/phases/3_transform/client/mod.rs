@@ -152,28 +152,35 @@ fn transform_client_with_visitors(
     let mut store_setup: Vec<JsStatement> = Vec::new();
     let mut needs_store_cleanup = false;
 
-    for binding in &analysis.root.bindings {
-        if matches!(binding.kind, BindingKind::StoreSub) {
-            let store_sub_name = &binding.name; // e.g., "$store"
-            let store_name = &store_sub_name[1..]; // e.g., "store"
+    // Collect store sub bindings and sort by name for consistent output
+    let mut store_sub_bindings: Vec<&str> = analysis
+        .root
+        .bindings
+        .iter()
+        .filter(|b| matches!(b.kind, BindingKind::StoreSub))
+        .map(|b| b.name.as_str())
+        .collect();
+    store_sub_bindings.sort();
 
-            // First store_sub binding - add setup_stores call
-            if store_setup.is_empty() {
-                needs_store_cleanup = true;
-                // const [$$stores, $$cleanup] = $.setup_stores();
-                store_setup.push(JsStatement::Raw(
-                    "const [$$stores, $$cleanup] = $.setup_stores();".to_string(),
-                ));
-            }
+    for store_sub_name in store_sub_bindings {
+        let store_name = &store_sub_name[1..]; // e.g., "store"
 
-            // Generate: const $store = () => $.store_get(store, "$store", $$stores);
-            let getter_code = format!(
-                "const {} = () => $.store_get({}, \"{}\", $$stores);",
-                store_sub_name, store_name, store_sub_name
-            );
-            // Insert getter BEFORE setup_stores (reverse order, will be unshifted)
-            store_setup.insert(0, JsStatement::Raw(getter_code));
+        // First store_sub binding - add setup_stores call
+        if store_setup.is_empty() {
+            needs_store_cleanup = true;
+            // const [$$stores, $$cleanup] = $.setup_stores();
+            store_setup.push(JsStatement::Raw(
+                "const [$$stores, $$cleanup] = $.setup_stores();".to_string(),
+            ));
         }
+
+        // Generate: const $store = () => $.store_get(store, "$store", $$stores);
+        let getter_code = format!(
+            "const {} = () => $.store_get({}, \"{}\", $$stores);",
+            store_sub_name, store_name, store_sub_name
+        );
+        // Insert getter BEFORE setup_stores (reverse order, will be unshifted)
+        store_setup.insert(0, JsStatement::Raw(getter_code));
     }
 
     // Determine if we need context injection ($.push/$.pop)
