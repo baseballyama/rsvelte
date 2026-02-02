@@ -988,6 +988,7 @@ fn is_dom_property(name: &str) -> bool {
             | "allowFullscreen"
             | "disablePictureInPicture"
             | "disableRemotePlayback"
+            | "indeterminate"
     )
 }
 
