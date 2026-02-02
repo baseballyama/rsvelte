@@ -1123,6 +1123,14 @@ impl<'a> ScopeBuilder<'a> {
         match pattern_type {
             Some("Identifier") => {
                 if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
+                    // Check for invalid $state/$derived usage in each context
+                    // This matches Svelte's check in EachBlock.js:
+                    // if (id?.type === 'Identifier' && (id.name === '$state' || id.name === '$derived'))
+                    if kind == BindingKind::EachItem && (name == "$state" || name == "$derived") {
+                        self.validation_errors
+                            .push(super::errors::state_invalid_placement(name));
+                        return;
+                    }
                     self.declare_binding(name.to_string(), kind, DeclarationKind::Const);
                 }
             }

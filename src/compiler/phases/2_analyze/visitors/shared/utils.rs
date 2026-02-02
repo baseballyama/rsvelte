@@ -386,6 +386,12 @@ pub fn validate_no_const_assignment(
                 if let Some(idx) = binding_idx {
                     let binding = &context.analysis.root.bindings[idx];
 
+                    // Check for snippet parameter assignment - must come before const check
+                    // Corresponds to Svelte's: if (binding?.kind === 'snippet') { e.snippet_parameter_assignment(node); }
+                    if binding.kind == BindingKind::SnippetParam {
+                        return Err(errors::snippet_parameter_assignment());
+                    }
+
                     if binding.declaration_kind == DeclarationKind::Import
                         || (binding.declaration_kind == DeclarationKind::Const
                             && binding.kind != BindingKind::EachItem)

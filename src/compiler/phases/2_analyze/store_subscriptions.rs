@@ -50,6 +50,7 @@ struct StoreRef {
 pub fn detect_store_subscriptions(
     ast: &Root,
     analysis: &mut ComponentAnalysis,
+    options_runes: Option<bool>,
 ) -> Result<(), AnalysisError> {
     // Collect all $xxx references from the AST with context
     let mut store_refs: Vec<StoreRef> = Vec::new();
@@ -208,9 +209,10 @@ pub fn detect_store_subscriptions(
                 .scope
                 .declarations
                 .insert(ref_name.clone(), new_binding_idx);
-        } else if analysis.runes {
-            // In runes mode, if no binding exists for a lowercase $xxx name,
-            // it's an invalid global reference
+        } else if options_runes != Some(false) {
+            // When options.runes is not explicitly false (i.e., undefined/auto or true),
+            // if no binding exists for a lowercase $xxx name, it's an invalid global reference.
+            // This matches Svelte's behavior: `if (options.runes !== false) { ... }`
             // Corresponds to Svelte's L398-400 in 2-analyze/index.js
             if !store_name.is_empty() && store_name.chars().next().is_some_and(|c| c.is_lowercase())
             {

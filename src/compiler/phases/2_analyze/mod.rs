@@ -84,7 +84,7 @@ pub fn analyze_component(
     // Detect store subscriptions and create synthetic bindings
     // This must happen after scopes are created but before template analysis
     // Corresponds to Svelte's store subscription logic in 2-analyze/index.js L348-444
-    store_subscriptions::detect_store_subscriptions(ast, &mut analysis)?;
+    store_subscriptions::detect_store_subscriptions(ast, &mut analysis, options.runes)?;
 
     // Handle legacy mode exports
     // In non-runes mode, every exported `let` or `var` becomes a prop (bindable_prop),
@@ -158,6 +158,12 @@ pub fn analyze_component(
     // Build sibling relationships for CSS analysis
     // This must happen after template analysis builds the DOM structure
     control_flow::build_sibling_relationships(&mut analysis.css.dom_structure, &ast.fragment);
+
+    // Check for mixing slot and render tag syntax
+    // Corresponds to Svelte's 2-analyze/index.js check for slot_snippet_conflict
+    if analysis.uses_render_tags && analysis.uses_slots {
+        return Err(errors::slot_snippet_conflict());
+    }
 
     // Analyze CSS if present
     if let Some(ref stylesheet) = ast.css {
