@@ -115,6 +115,17 @@ impl Parser<'_> {
                     (name_start, name_end),
                 ));
             }
+        } else if !name.is_empty() && !self.options.loose {
+            // Validate element/component names
+            // regex_valid_element_name: /^(?:![a-zA-Z]+|[a-zA-Z](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?|[a-zA-Z][a-zA-Z0-9]*:[a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9])$/
+            // regex_valid_component_name: /^(?:\p{Lu}[$\u200c\u200d\p{ID_Continue}.]*|\p{ID_Start}[$\u200c\u200d\p{ID_Continue}]*(?:\.[$\u200c\u200d\p{ID_Continue}]+)+)$/u
+            if !is_valid_element_name(&name) && !is_valid_component_name(&name) {
+                return Err(crate::error::ParseError::svelte(
+                    "tag_invalid_name",
+                    "Expected a valid element or component name. Components must have a valid variable name or dot notation expression\nhttps://svelte.dev/e/tag_invalid_name",
+                    (name_start, name_end),
+                ));
+            }
         }
 
         if name.is_empty() {
@@ -2206,4 +2217,152 @@ impl Parser<'_> {
             ..Default::default()
         })
     }
+}
+
+/// Check if a name is a valid HTML element name.
+/// Based on: /^(?:![a-zA-Z]+|[a-zA-Z](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?|[a-zA-Z][a-zA-Z0-9]*:[a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9])$/
+fn is_valid_element_name(name: &str) -> bool {
+    if name.is_empty() {
+        return false;
+    }
+
+    let chars: Vec<char> = name.chars().collect();
+
+    // Check for doctype-like: !DOCTYPE, etc.
+    if chars[0] == '!' {
+        return chars.len() > 1 && chars[1..].iter().all(|c| c.is_ascii_alphabetic());
+    }
+
+    // Must start with a letter
+    if !chars[0].is_ascii_alphabetic() {
+        return false;
+    }
+
+    // Check for namespaced element (e.g., svg:rect)
+    if let Some(colon_pos) = name.find(':') {
+        let before_colon = &name[..colon_pos];
+        let after_colon = &name[colon_pos + 1..];
+
+        // Before colon: [a-zA-Z][a-zA-Z0-9]*
+        let before_chars: Vec<char> = before_colon.chars().collect();
+        if before_chars.is_empty() || !before_chars[0].is_ascii_alphabetic() {
+            return false;
+        }
+        if !before_chars[1..].iter().all(|c| c.is_ascii_alphanumeric()) {
+            return false;
+        }
+
+        // After colon: [a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9]
+        let after_chars: Vec<char> = after_colon.chars().collect();
+        if after_chars.is_empty() || !after_chars[0].is_ascii_alphabetic() {
+            return false;
+        }
+        if after_chars.len() == 1 {
+            return true;
+        }
+        // Must end with alphanumeric
+        if !after_chars.last().unwrap().is_ascii_alphanumeric() {
+            return false;
+        }
+        // Middle can be alphanumeric or hyphen
+        return after_chars[1..after_chars.len() - 1]
+            .iter()
+            .all(|c| c.is_ascii_alphanumeric() || *c == '-');
+    }
+
+    // Simple element name: [a-zA-Z](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?
+    if chars.len() == 1 {
+        return true; // Single letter is valid
+    }
+
+    // Must end with alphanumeric
+    if !chars.last().unwrap().is_ascii_alphanumeric() {
+        return false;
+    }
+
+    // Middle can be alphanumeric or hyphen
+    chars[1..chars.len() - 1]
+        .iter()
+        .all(|c| c.is_ascii_alphanumeric() || *c == '-')
+}
+
+/// Check if a name is a valid Svelte component name.
+/// Based on: /^(?:\p{Lu}[$\u200c\u200d\p{ID_Continue}.]*|\p{ID_Start}[$\u200c\u200d\p{ID_Continue}]*(?:\.[$\u200c\u200d\p{ID_Continue}]+)+)$/u
+///
+/// Simplified implementation that handles the common cases:
+/// 1. Uppercase starting names: Component, MyComponent, Cæжαकン中
+/// 2. Dot notation: foo.Bar, a.b.C
+fn is_valid_component_name(name: &str) -> bool {
+    if name.is_empty() {
+        return false;
+    }
+
+    let chars: Vec<char> = name.chars().collect();
+
+    // Check for uppercase-starting component (e.g., Component, MyComponent)
+    // Also supports Unicode uppercase letters (e.g., Wunderschön, Cæжαकン中)
+    if chars[0].is_uppercase() {
+        // Rest can be identifier characters, $, or .
+        return chars[1..].iter().all(|c| is_component_name_char(*c));
+    }
+
+    // Check for dot-notation component (e.g., foo.Bar, a.b.C)
+    // Must start with a valid identifier start character
+    if !is_identifier_start(chars[0]) {
+        return false;
+    }
+
+    // Split by dots
+    let parts: Vec<&str> = name.split('.').collect();
+    if parts.len() < 2 {
+        return false; // Must have at least one dot for non-uppercase start
+    }
+
+    // Each part must be a valid identifier
+    for (i, part) in parts.iter().enumerate() {
+        if part.is_empty() {
+            return false;
+        }
+        let part_chars: Vec<char> = part.chars().collect();
+
+        // First part must start with identifier start
+        if i == 0 {
+            if !is_identifier_start(part_chars[0]) {
+                return false;
+            }
+        } else {
+            // Subsequent parts can start with identifier continue, $
+            let first = part_chars[0];
+            if !is_identifier_continue(first) && first != '$' {
+                return false;
+            }
+        }
+
+        // Rest of part must be identifier continue or $
+        if !part_chars[1..]
+            .iter()
+            .all(|c| is_identifier_continue(*c) || *c == '$')
+        {
+            return false;
+        }
+    }
+
+    true
+}
+
+/// Check if a character can start a JavaScript identifier.
+/// Simplified version of Unicode ID_Start.
+fn is_identifier_start(c: char) -> bool {
+    c.is_alphabetic() || c == '_' || c == '$'
+}
+
+/// Check if a character can continue a JavaScript identifier.
+/// Simplified version of Unicode ID_Continue.
+fn is_identifier_continue(c: char) -> bool {
+    c.is_alphanumeric() || c == '_' || c == '$' || c == '\u{200c}' || c == '\u{200d}'
+}
+
+/// Check if a character is valid in a component name (after the first char).
+fn is_component_name_char(c: char) -> bool {
+    is_identifier_continue(c) || c == '.'
 }
