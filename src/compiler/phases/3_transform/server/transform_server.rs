@@ -999,6 +999,11 @@ impl<'a> ServerCodeGenerator<'a> {
                 if let TemplateNode::Text(text) = child {
                     let data = &text.data;
                     if data.trim().is_empty() {
+                        // For select/optgroup elements, skip all whitespace-only text nodes
+                        // (they should not produce any output, not even spaces)
+                        if name == "select" || name == "optgroup" {
+                            continue;
+                        }
                         // Whitespace-only text: add space only if between content elements
                         if has_output_content
                             && last_content.is_some()
