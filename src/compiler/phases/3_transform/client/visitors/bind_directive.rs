@@ -600,6 +600,9 @@ fn build_getter_setter(
     // If so, we need to wrap with $.get() and $.set()
     let is_state_var = is_state_variable(original_expr, context);
 
+    // Check if this is a prop (uses getter/setter functions like prop() and prop(value))
+    let is_prop_var = is_prop_variable(original_expr, context);
+
     // In dev mode, create named functions for better stack traces
     // In prod mode, optimize for brevity
     let dev = context.state.dev;
@@ -623,6 +626,39 @@ fn build_getter_setter(
             b::member_path("$.set"),
             vec![expr.clone(), b::id("$$value")],
         );
+        let set = if dev {
+            b::function_expr(
+                Some("set".to_string()),
+                vec![b::id_pattern("$$value")],
+                vec![b::stmt(set_call)],
+            )
+        } else {
+            b::arrow(vec![b::id_pattern("$$value")], set_call)
+        };
+
+        (get, Some(set))
+    } else if is_prop_var {
+        // For props, the getter calls the prop function and the setter passes a value
+        // get = () => prop()
+        // set = ($$value) => prop($$value)
+        // This matches the official Svelte compiler behavior where props are getters/setters
+        //
+        // IMPORTANT: We use b::arrow directly instead of b::thunk because b::thunk applies
+        // the unthunk optimization which would convert `() => prop()` to just `prop`.
+        // The official Svelte compiler does NOT apply this optimization for bind_this getters.
+        let get_call = b::call(expr.clone(), vec![]);
+        let get = if dev {
+            b::function_expr(
+                Some("get".to_string()),
+                vec![],
+                vec![b::return_value(get_call)],
+            )
+        } else {
+            // Use arrow directly instead of thunk to prevent unthunk optimization
+            b::arrow(vec![], get_call)
+        };
+
+        let set_call = b::call(expr.clone(), vec![b::id("$$value")]);
         let set = if dev {
             b::function_expr(
                 Some("set".to_string()),
@@ -684,6 +720,36 @@ fn is_state_variable(expr: &Expression, context: &ComponentContext) -> bool {
                     binding.kind,
                     BindingKind::State | BindingKind::Derived | BindingKind::RawState
                 );
+            }
+            false
+        }
+    }
+}
+
+/// Check if an expression is a prop variable (export let ... in legacy mode).
+///
+/// Props in legacy mode are wrapped in `$.prop()` which returns a getter/setter function.
+/// Reading a prop becomes `prop()` and setting becomes `prop(value)`.
+fn is_prop_variable(expr: &Expression, context: &ComponentContext) -> bool {
+    match expr {
+        Expression::Value(val) => {
+            if let Some(obj) = val.as_object()
+                && let Some(expr_type) = obj.get("type").and_then(|v| v.as_str())
+                && expr_type == "Identifier"
+                && let Some(name) = obj.get("name").and_then(|v| v.as_str())
+            {
+                // Check if there's a transform registered for this prop
+                // Props have a transform with both read and assign functions
+                if let Some(transform) = context.state.transform.get(name) {
+                    // Also verify it's actually a prop by checking the binding kind
+                    if let Some(binding) = context.state.get_binding(name) {
+                        use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+                        return matches!(
+                            binding.kind,
+                            BindingKind::Prop | BindingKind::BindableProp
+                        ) && transform.read.is_some();
+                    }
+                }
             }
             false
         }
