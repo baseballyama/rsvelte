@@ -612,6 +612,36 @@ pub fn visit_regular_element(
         context.state.options.preserve_comments,
     );
 
+    // Check if there are any SnippetBlocks in the fragment
+    // This affects how we handle child state
+    let has_snippet_blocks = node
+        .fragment
+        .nodes
+        .iter()
+        .any(|n| matches!(n, TemplateNode::SnippetBlock(_)));
+
+    // If there are snippets, we need to create a child state and wrap everything in a block
+    // This matches the JS implementation which creates a child_state with empty init/update/after_update/snippets
+    let (saved_init, saved_update, saved_after_update, saved_snippets) = if has_snippet_blocks {
+        let init = std::mem::take(&mut context.state.init);
+        let update = std::mem::take(&mut context.state.update);
+        let after_update = std::mem::take(&mut context.state.after_update);
+        let snippets = std::mem::take(&mut context.state.snippets);
+        (Some(init), Some(update), Some(after_update), Some(snippets))
+    } else {
+        (None, None, None, None)
+    };
+
+    // Process hoisted nodes (e.g., SnippetBlocks inside this element)
+    // We increment the nesting level so place_snippet_declaration knows we're not at root
+    context.state.template_nesting_level += 1;
+
+    for hoisted_node in &cleaned.hoisted {
+        context.visit_node(hoisted_node, None);
+    }
+
+    // Note: we keep nesting level incremented while processing children below
+
     // Check if we can use textContent optimization
     // This applies when:
     // 1. All children are Text or ExpressionTag
@@ -809,14 +839,47 @@ pub fn visit_regular_element(
         }
     }
 
-    // Now merge element_state statements AFTER child processing
-    // This ensures: child navigation -> $.reset -> element directives
-    // Matches JS: context.state.init.push(...child_state.init, ...element_state.init)
-    context.state.init.extend(element_state_init);
-    context
-        .state
-        .after_update
-        .extend(element_state_after_update);
+    // Now handle element_state and (if snippets) child_state merging
+    if has_snippet_blocks {
+        // Wrap children in `{...}` to avoid declaration conflicts
+        // This matches the JS implementation at lines 440-459 in RegularElement.js
+        let child_snippets = std::mem::take(&mut context.state.snippets);
+        let child_init = std::mem::take(&mut context.state.init);
+        let child_update = std::mem::take(&mut context.state.update);
+        let child_after_update = std::mem::take(&mut context.state.after_update);
+
+        // Restore the saved state
+        context.state.init = saved_init.unwrap_or_default();
+        context.state.update = saved_update.unwrap_or_default();
+        context.state.after_update = saved_after_update.unwrap_or_default();
+        context.state.snippets = saved_snippets.unwrap_or_default();
+
+        // Build the block with: snippets, child_init, element_state_init, update effect, after_update
+        let mut block_body = Vec::new();
+        block_body.extend(child_snippets);
+        block_body.extend(child_init);
+        block_body.extend(element_state_init);
+
+        // Add template_effect for update statements
+        if !child_update.is_empty() {
+            block_body.push(b::stmt(b::call(
+                b::member_path("$.template_effect"),
+                vec![b::arrow_block(vec![], child_update)],
+            )));
+        }
+
+        block_body.extend(child_after_update);
+        block_body.extend(element_state_after_update);
+
+        context.state.init.push(b::block(block_body));
+    } else {
+        // No snippets - merge element_state directly (original behavior)
+        context.state.init.extend(element_state_init);
+        context
+            .state
+            .after_update
+            .extend(element_state_after_update);
+    }
 
     // Handle special value attribute for option/select
     // This must happen after child processing but before pop_element
@@ -862,6 +925,9 @@ pub fn visit_regular_element(
             }
         }
     }
+
+    // Decrement nesting level (we incremented it before processing hoisted nodes)
+    context.state.template_nesting_level -= 1;
 
     context.state.template.pop_element();
     TransformResult::None

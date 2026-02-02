@@ -129,15 +129,17 @@ fn build_assignment(
         // Build the assignment value (expand compound operators)
         let value = build_assignment_value(operator, left, right);
 
-        // TODO: Determine if this is a primitive assignment by checking path
-        // For now, conservatively assume it's not primitive
-        let is_primitive = false;
-
         // Determine if proxy is needed
-        // TODO: Pass Expression to should_proxy instead of using placeholder
-        let needs_proxy =
-            !is_primitive && context.state.analysis.runes && is_non_coercive_operator(operator);
-        // && should_proxy(right_expr, context.state.scope)
+        // Proxy is needed when:
+        // 1. In runes mode
+        // 2. Using non-coercive operator (=, ||=, &&=, ??=)
+        // 3. The value might be an object/array (checked via should_proxy_js_expr)
+        // 4. The transform doesn't have skip_proxy set
+        let skip_proxy = t.skip_proxy;
+        let needs_proxy = !skip_proxy
+            && context.state.analysis.runes
+            && is_non_coercive_operator(operator)
+            && should_proxy_js_expr(right);
 
         return Some(assign_fn(object.clone(), value, needs_proxy));
     }

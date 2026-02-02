@@ -401,7 +401,7 @@ fn get_snippet_name(expr: &Expression) -> String {
 /// Snippets are placed based on:
 /// - Top-level snippets that can be hoisted -> module_level_snippets
 /// - Top-level snippets that can't be hoisted -> instance_level_snippets
-/// - Non-top-level snippets -> init (within the current block)
+/// - Non-top-level snippets -> snippets (within the child_state, to be wrapped in a block)
 fn place_snippet_declaration(
     node: &SnippetBlock,
     context: &mut ComponentContext,
@@ -409,9 +409,8 @@ fn place_snippet_declaration(
 ) {
     // Check if this is a top-level snippet
     // In the JS version, this is: context.path.length === 1 && context.path[0].type === 'Fragment'
-    // Since we don't have a Fragment variant in TemplateNode, we check if the path is empty or has only one element
-    // (meaning we're at the root level of the component)
-    let is_at_root = context.path.is_empty() || context.path.len() == 1;
+    // We use template_nesting_level to track this: 0 means we're at component root
+    let is_at_root = context.state.template_nesting_level == 0;
 
     if is_at_root {
         // Use metadata.can_hoist from the analyze phase - this is authoritative
@@ -424,7 +423,10 @@ fn place_snippet_declaration(
             context.state.instance_level_snippets.push(declaration);
         }
     } else {
-        context.state.init.push(declaration);
+        // Non-top-level snippets go to the `snippets` array
+        // This matches the JS: context.state.snippets.push(declaration)
+        // The parent (e.g., RegularElement) will wrap these in a block
+        context.state.snippets.push(declaration);
     }
 }
 

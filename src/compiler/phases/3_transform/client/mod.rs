@@ -780,7 +780,7 @@ fn transform_instance_script_for_visitors(
     // Collect exported names from analysis (needed for prop filtering below)
     let exported_names: Vec<String> = analysis.exports.iter().map(|e| e.name.clone()).collect();
 
-    // Collect props that are "sources" (need $.prop() declarations)
+    // Collect props that are "sources" (need $.prop() or $.rest_props() declarations)
     // In legacy mode (!runes), ALL props are sources for coarse-grained reactivity.
     // In runes mode, only props that are reassigned, mutated, have initial values, or accessors.
     // Reference: is_prop_source() in svelte/packages/svelte/src/compiler/phases/3-transform/client/utils.js
@@ -793,6 +793,26 @@ fn transform_instance_script_for_visitors(
                 b.kind,
                 BindingKind::Prop | BindingKind::BindableProp | BindingKind::RestProp
             );
+            is_prop
+                && (!analysis.runes
+                    || analysis.accessors
+                    || b.reassigned
+                    || b.initial.is_some()
+                    || b.mutated)
+        })
+        .map(|b| b.name.clone())
+        .collect();
+
+    // Collect props that need assignment transformation ($.prop() getter/setter pattern)
+    // This EXCLUDES RestProp bindings which use $.rest_props() and don't need
+    // the getter/setter transformation.
+    let prop_assignment_transform_vars: Vec<String> = analysis
+        .root
+        .bindings
+        .iter()
+        .filter(|b| {
+            // Only Prop and BindableProp need assignment transformation - NOT RestProp
+            let is_prop = matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp);
             is_prop
                 && (!analysis.runes
                     || analysis.accessors
@@ -858,6 +878,7 @@ fn transform_instance_script_for_visitors(
                                raw_state_vars: &[String],
                                store_sub_vars: &[String],
                                prop_source_vars: &[String],
+                               prop_assignment_transform_vars: &[String],
                                exported_names: &[String],
                                rest_prop_vars: &[String],
                                read_only_props: &[String],
@@ -911,7 +932,9 @@ fn transform_instance_script_for_visitors(
 
         // Transform prop assignments to prop(prop() + value) syntax
         // This handles props declared with `export let` in legacy mode
-        let transformed = transform_prop_assignments(&transformed, prop_source_vars);
+        // Note: We use prop_assignment_transform_vars which excludes RestProp bindings
+        // because rest_props use $.rest_props() which returns a plain object, not getter/setter
+        let transformed = transform_prop_assignments(&transformed, prop_assignment_transform_vars);
 
         // Transform store subscription assignments to $.store_set()
         let transformed = transform_store_assignments_client(&transformed, store_sub_vars);
@@ -999,6 +1022,7 @@ fn transform_instance_script_for_visitors(
                 &raw_state_vars,
                 &store_sub_vars,
                 &prop_source_vars,
+                &prop_assignment_transform_vars,
                 &exported_names,
                 &rest_prop_vars,
                 &read_only_props,
@@ -1022,6 +1046,7 @@ fn transform_instance_script_for_visitors(
             &raw_state_vars,
             &store_sub_vars,
             &prop_source_vars,
+            &prop_assignment_transform_vars,
             &exported_names,
             &rest_prop_vars,
             &read_only_props,
@@ -2375,8 +2400,8 @@ fn is_inside_string_literal(code: &str, pos: usize) -> bool {
 fn transform_state_assignments(
     line: &str,
     state_vars: &[String],
-    non_reactive_vars: &[String],
-    proxy_vars: &[String],
+    _non_reactive_vars: &[String],
+    _proxy_vars: &[String],
     raw_state_vars: &[String],
     is_runes: bool,
 ) -> String {
@@ -2441,13 +2466,10 @@ fn transform_state_assignments(
                     // Find the expression (until ; or end, respecting nested braces)
                     let expr_end = find_statement_end_client(after);
                     let expr = after[..expr_end].trim();
-                    // Wrap state variables in the expression with $.get()
-                    let wrapped_expr =
-                        wrap_state_vars_in_expr(expr, state_vars, non_reactive_vars, proxy_vars);
-                    let replacement = format!(
-                        "$.set({}, $.get({}) {} ({}))",
-                        var, var, op_char, wrapped_expr
-                    );
+                    // Don't wrap here - let the later wrap_state_vars_in_expr call handle it
+                    // so it can properly detect function parameter shadowing
+                    let replacement =
+                        format!("$.set({}, $.get({}) {} ({}))", var, var, op_char, expr);
                     result = format!(
                         "{}{}{}",
                         &result[..pos],
@@ -2479,12 +2501,11 @@ fn transform_state_assignments(
                 // Find the expression (until ; or end, respecting nested braces)
                 let expr_end = find_statement_end_client(after);
                 let expr = after[..expr_end].trim();
-                // Wrap state variables in the expression with $.get()
-                let wrapped_expr =
-                    wrap_state_vars_in_expr(expr, state_vars, non_reactive_vars, proxy_vars);
+                // Don't wrap here - let the later wrap_state_vars_in_expr call handle it
+                // so it can properly detect function parameter shadowing
                 let replacement = format!(
                     "$.set({}, $.get({}) {} ({}))",
-                    var, var, op_without_eq, wrapped_expr
+                    var, var, op_without_eq, expr
                 );
                 result = format!(
                     "{}{}{}",
@@ -2555,9 +2576,12 @@ fn transform_state_assignments(
 
                 // Check it's not already wrapped
                 if !expr.starts_with("$.") {
-                    // Wrap state variables in the expression with $.get()
-                    let wrapped_expr =
-                        wrap_state_vars_in_expr(expr, state_vars, non_reactive_vars, proxy_vars);
+                    // DON'T wrap state variables here - let the later wrap_state_vars_in_expr
+                    // call handle it, since that call has the full statement context and can
+                    // properly detect function parameter shadowing.
+                    // The later call in process_accumulated will handle $.get() wrapping
+                    // after we've created the $.set() call.
+
                     // Check if the value needs proxying (could be an object/array)
                     // $state.raw() variables never need proxy wrapping
                     // Proxy flag is only added in runes mode
@@ -2566,9 +2590,9 @@ fn transform_state_assignments(
                         is_runes && !is_raw_state && expression_needs_proxy(expr.trim());
 
                     let replacement = if needs_proxy {
-                        format!("$.set({}, {}, true)", var, wrapped_expr)
+                        format!("$.set({}, {}, true)", var, expr)
                     } else {
-                        format!("$.set({}, {})", var, wrapped_expr)
+                        format!("$.set({}, {})", var, expr)
                     };
 
                     let new_result = format!(
@@ -3628,8 +3652,7 @@ fn is_shadowed_by_function_param(chars: &[char], var_start: usize, var_name: &st
     // If we find a function with this variable as a parameter, it's shadowed.
     // We need to track brace depth to understand scope nesting.
 
-    let var_chars: Vec<char> = var_name.chars().collect();
-    let var_len = var_chars.len();
+    let var_len = var_name.len();
 
     // Track brace depth as we scan backwards
     let mut brace_depth = 0;
@@ -3657,6 +3680,7 @@ fn is_shadowed_by_function_param(chars: &[char], var_start: usize, var_name: &st
 
                 // Check for `)` which would indicate a function parameter list
                 if j > 0 && chars[j - 1] == ')' {
+                    let close_paren_idx = j - 1; // Save the `)` position
                     j -= 1; // Move past the )
 
                     // Now find the matching (
@@ -3680,7 +3704,10 @@ fn is_shadowed_by_function_param(chars: &[char], var_start: usize, var_name: &st
                         // by looking for `function`, method shorthand, or arrow function pattern
 
                         // First, check if our variable is in the parameter list
-                        let param_text: String = chars[open_idx + 1..i].iter().collect::<String>();
+                        // Extract text between ( and ) - not including the parens themselves
+                        let param_text: String = chars[open_idx + 1..close_paren_idx]
+                            .iter()
+                            .collect::<String>();
 
                         // Check if var_name appears as a standalone identifier in the parameter list
                         // We need to handle patterns like: (_, count), (count), (count = default)
@@ -3724,6 +3751,8 @@ fn is_shadowed_by_function_param(chars: &[char], var_start: usize, var_name: &st
                                             }
 
                                             // Check for identifier (method name or arrow function)
+                                            // m is now pointing after the last non-whitespace char before (
+                                            // For "update(foo)", m would be at 'e'+1, so chars[m-1] = 'e'
                                             if is_identifier_char(chars[m - 1]) {
                                                 // Could be a method definition like `update(count) {`
                                                 return true;
@@ -4324,6 +4353,12 @@ fn expression_needs_proxy(expr: &str) -> bool {
         return true;
     }
 
+    // Member expressions (foo.bar, foo.bar.baz) could return objects/arrays
+    // They need proxy because the returned value type is unknown
+    if is_member_expression(trimmed) {
+        return true;
+    }
+
     false
 }
 
@@ -4340,6 +4375,52 @@ fn is_simple_identifier(expr: &str) -> bool {
     // All chars must be alphanumeric, underscore, or $
     expr.chars()
         .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+}
+
+/// Check if an expression is a member expression (e.g., foo.bar, foo.bar.baz)
+/// but not a function call (foo.bar()).
+fn is_member_expression(expr: &str) -> bool {
+    let trimmed = expr.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+
+    // Must start with an identifier character
+    let first_char = trimmed.chars().next().unwrap();
+    if !first_char.is_alphabetic() && first_char != '_' && first_char != '$' {
+        return false;
+    }
+
+    // Check if it contains at least one dot and all parts are valid identifiers
+    // Also ensure it doesn't end with () which would make it a function call
+    if !trimmed.contains('.') {
+        return false;
+    }
+
+    // If it ends with ), it's likely a function call, not a pure member expression
+    if trimmed.ends_with(')') {
+        return false;
+    }
+
+    // Check that all parts separated by . are valid identifiers
+    for part in trimmed.split('.') {
+        let part = part.trim();
+        if part.is_empty() {
+            return false;
+        }
+        let first = part.chars().next().unwrap();
+        if !first.is_alphabetic() && first != '_' && first != '$' {
+            return false;
+        }
+        if !part
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+        {
+            return false;
+        }
+    }
+
+    true
 }
 
 /// Check if an expression is a function expression (arrow function or function keyword).

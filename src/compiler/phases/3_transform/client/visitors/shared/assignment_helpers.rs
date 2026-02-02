@@ -140,23 +140,16 @@ pub fn should_proxy(expr: &Expression, _scope: &Scope) -> Option<bool> {
         _ => {}
     }
 
-    // Recursively check unary expressions
+    // Unary expressions result in primitives, so no proxy needed
+    // e.g., !foo, -foo, typeof foo, etc.
     if node_type == "UnaryExpression" {
-        let json = expr.as_json();
-        let _argument = json.get("argument")?;
-        // TODO: Convert JSON back to Expression for recursion
-        // For now, return true (needs proxy)
-        return Some(true);
+        return Some(false);
     }
 
-    // Recursively check binary expressions
+    // Binary expressions result in primitives, so no proxy needed
+    // e.g., a + b, a === b, a && b, etc.
     if node_type == "BinaryExpression" {
-        let json = expr.as_json();
-        let _left = json.get("left")?;
-        let _right = json.get("right")?;
-        // TODO: Convert JSON back to Expression for recursion
-        // For now, return true (needs proxy)
-        return Some(true);
+        return Some(false);
     }
 
     // Check if identifier is a state binding
@@ -175,6 +168,90 @@ pub fn should_proxy(expr: &Expression, _scope: &Scope) -> Option<bool> {
 
     // Default: needs proxy
     Some(true)
+}
+
+/// Determines if a JsExpr value needs to be proxied for deep reactivity.
+///
+/// This is the JsExpr equivalent of `should_proxy`. It analyzes the expression
+/// type to determine if the value could be an object or array that needs
+/// reactive proxy wrapping.
+///
+/// # Arguments
+///
+/// * `expr` - The JsExpr to analyze
+///
+/// # Returns
+///
+/// `true` if the value should be proxied, `false` otherwise.
+///
+/// # Examples
+///
+/// ```ignore
+/// // Primitives don't need proxy:
+/// // "hello" -> false
+/// // 42 -> false
+///
+/// // Functions don't need proxy:
+/// // () => x -> false
+///
+/// // Binary/unary expressions produce primitives:
+/// // a + b -> false
+/// // !foo -> false
+///
+/// // Objects and unknown values need proxy:
+/// // { a: 1 } -> true
+/// // foo.bar -> true (might be an object)
+/// ```
+pub fn should_proxy_js_expr(expr: &JsExpr) -> bool {
+    match expr {
+        // Literals don't need proxy (primitives)
+        JsExpr::Literal(_) => false,
+
+        // Template literals are strings (primitives)
+        JsExpr::TemplateLiteral(_) => false,
+
+        // Functions don't need proxy
+        JsExpr::Arrow(_) | JsExpr::Function(_) => false,
+
+        // Unary expressions result in primitives
+        JsExpr::Unary(_) => false,
+
+        // Binary expressions result in primitives
+        JsExpr::Binary(_) => false,
+
+        // Logical expressions result in one of the operands, which might be an object
+        JsExpr::Logical(_) => true,
+
+        // Identifiers: 'undefined' doesn't need proxy, others might be objects
+        JsExpr::Identifier(name) => name != "undefined",
+
+        // Sequence expressions return the last value
+        JsExpr::Sequence(seq) => {
+            if let Some(last) = seq.expressions.last() {
+                should_proxy_js_expr(last)
+            } else {
+                false
+            }
+        }
+
+        // Conditional expressions might return objects
+        JsExpr::Conditional(_) => true,
+
+        // Call expressions might return objects
+        JsExpr::Call(_) => true,
+
+        // Member expressions access properties which might be objects
+        JsExpr::Member(_) => true,
+
+        // Object and array literals definitely need proxy
+        JsExpr::Object(_) | JsExpr::Array(_) => true,
+
+        // Assignment expressions return the assigned value
+        JsExpr::Assignment(assign) => should_proxy_js_expr(&assign.right),
+
+        // Default: assume proxy needed for safety
+        _ => true,
+    }
 }
 
 /// Builds the right-hand side value for an assignment based on the operator.

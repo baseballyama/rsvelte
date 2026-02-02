@@ -324,7 +324,7 @@ pub fn process_children<F>(
     };
 
     // Main loop
-    for node in nodes {
+    for node in nodes.iter() {
         match node {
             TemplateNode::Text(text) => {
                 sequence.push(TextOrExpr::Text(text.clone()));

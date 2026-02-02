@@ -780,6 +780,16 @@ pub struct ComponentClientTransformState<'a> {
     /// A controlled each block is one that is the only child of a static element.
     /// This flag is set in fragment.rs process_children and checked in each_block.rs.
     pub is_controlled_each: bool,
+
+    /// Local snippets for child processing (used when processing element children).
+    /// In the JS version, this is `child_state.snippets`.
+    /// When snippets are defined inside elements, they go here instead of init.
+    pub snippets: Vec<JsStatement>,
+
+    /// Nesting level for template nodes (elements, blocks, etc.).
+    /// This is used by place_snippet_declaration to determine if a snippet is at root level.
+    /// A value of 0 means we're at the component root, >0 means inside an element/block.
+    pub template_nesting_level: usize,
 }
 
 impl<'a> ComponentClientTransformState<'a> {
@@ -825,6 +835,8 @@ impl<'a> ComponentClientTransformState<'a> {
             snippet_names: ImHashSet::new(),
             in_direct_assignment_lhs: false,
             is_controlled_each: false,
+            snippets: Vec::new(),
+            template_nesting_level: 0,
         }
     }
 

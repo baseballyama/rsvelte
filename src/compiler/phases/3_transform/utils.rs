@@ -322,20 +322,36 @@ pub fn infer_namespace(
         return "html".to_string();
     }
 
-    // For non-element parents (fragments, etc.), check the child elements
-    for node in nodes {
-        if let TemplateNode::RegularElement(elem) = node {
-            // Use the metadata to determine namespace
-            if elem.metadata.svg {
-                return "svg".to_string();
-            }
-            if elem.metadata.mathml {
-                return "mathml".to_string();
+    // Re-evaluate namespace for fragments/snippets based on child content
+    // This matches the JS behavior at lines 326-339 of utils.js:
+    // For SnippetBlock, Component, SvelteComponent, etc., the namespace is
+    // re-evaluated based on what elements are in the children
+    let should_reevaluate = match parent {
+        Some(TemplateNode::SnippetBlock(_)) => true,
+        Some(TemplateNode::Component(_)) => true,
+        Some(TemplateNode::SvelteComponent(_)) => true,
+        None => true, // Fragment/Root case
+        _ => false,
+    };
+
+    if should_reevaluate {
+        // Check child elements to determine namespace
+        for node in nodes {
+            if let TemplateNode::RegularElement(elem) = node {
+                // Use the metadata to determine namespace
+                if elem.metadata.svg {
+                    return "svg".to_string();
+                }
+                if elem.metadata.mathml {
+                    return "mathml".to_string();
+                }
+                // If first element is plain HTML, use html namespace
+                return "html".to_string();
             }
         }
     }
 
-    // For other parent types, keep the current namespace
+    // For other parent types or no elements found, keep the current namespace
     namespace.to_string()
 }
 
