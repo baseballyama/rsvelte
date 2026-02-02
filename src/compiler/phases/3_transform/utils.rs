@@ -3,7 +3,7 @@
 //! Corresponds to utilities in:
 //! - `svelte/packages/svelte/src/compiler/phases/3-transform/utils.js`
 
-use crate::ast::template::TemplateNode;
+use crate::ast::template::{RegularElement, TemplateNode};
 use crate::compiler::phases::phase2_analyze::scope::Scope;
 use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
 use compact_str::CompactString;
@@ -322,6 +322,13 @@ pub fn infer_namespace(
         return "html".to_string();
     }
 
+    // If we already have a non-html namespace set (e.g., svg from parent element),
+    // trust it instead of re-evaluating. This handles cases like IfBlock inside SVG
+    // where the path doesn't include the SVG parent during transform phase.
+    if namespace == "svg" || namespace == "mathml" {
+        return namespace.to_string();
+    }
+
     // Re-evaluate namespace for fragments/snippets based on child content
     // This matches the JS behavior at lines 326-339 of utils.js:
     // For SnippetBlock, Component, SvelteComponent, etc., the namespace is
@@ -353,6 +360,40 @@ pub fn infer_namespace(
 
     // For other parent types or no elements found, keep the current namespace
     namespace.to_string()
+}
+
+/// Determine the namespace for children of a regular element.
+///
+/// Corresponds to `determine_namespace_for_children` in
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/utils.js`.
+///
+/// This function determines the correct namespace (html, svg, mathml) for child
+/// elements based on the parent element's metadata.
+///
+/// # Arguments
+///
+/// * `node` - The parent regular element
+/// * `namespace` - The current namespace (unused but kept for API compatibility)
+///
+/// # Returns
+///
+/// Returns the namespace string ("html", "svg", or "mathml") that children should use.
+pub fn determine_namespace_for_children(node: &RegularElement, _namespace: &str) -> String {
+    // foreignObject resets to html namespace
+    if node.name == "foreignObject" {
+        return "html".to_string();
+    }
+
+    // Use metadata set during analysis phase
+    if node.metadata.svg {
+        return "svg".to_string();
+    }
+
+    if node.metadata.mathml {
+        "mathml".to_string()
+    } else {
+        "html".to_string()
+    }
 }
 
 #[cfg(test)]

@@ -34,7 +34,9 @@ use crate::compiler::phases::phase3_transform::client::visitors::transition_dire
 use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::{JsExpr, JsStatement};
-use crate::compiler::phases::phase3_transform::utils::clean_nodes;
+use crate::compiler::phases::phase3_transform::utils::{
+    clean_nodes, determine_namespace_for_children,
+};
 // Note: can_delegate_event and is_capture_event are used in attribute.rs for event delegation
 use rustc_hash::FxHashMap;
 
@@ -600,6 +602,15 @@ pub fn visit_regular_element(
     let preserve_whitespace =
         context.state.preserve_whitespace || node.name == "pre" || node.name == "textarea";
 
+    // Determine namespace for children (handles svg, mathml, foreignObject)
+    let child_namespace = determine_namespace_for_children(node, &context.state.metadata.namespace);
+
+    // Save and update namespace for children
+    let saved_namespace = std::mem::replace(
+        &mut context.state.metadata.namespace,
+        child_namespace.clone(),
+    );
+
     let parent_node = TemplateNode::RegularElement(node.clone());
     let cleaned = clean_nodes(
         Some(&parent_node),
@@ -928,6 +939,9 @@ pub fn visit_regular_element(
 
     // Decrement nesting level (we incremented it before processing hoisted nodes)
     context.state.template_nesting_level -= 1;
+
+    // Restore namespace after processing children
+    context.state.metadata.namespace = saved_namespace;
 
     context.state.template.pop_element();
     TransformResult::None
