@@ -99,18 +99,31 @@ fn visit_on_directive(
 ///
 /// Processes attributes other than OnDirective.
 fn visit_attribute(
-    _attribute: &Attribute,
-    _state: &ComponentClientTransformState,
-    _context: &mut ComponentContext,
+    attribute: &Attribute,
+    state: &ComponentClientTransformState,
+    context: &mut ComponentContext,
 ) -> TransformResult {
-    // TODO: Implement attribute transformation
-    // This would handle:
-    // - BindDirective
-    // - ClassDirective
-    // - StyleDirective
-    // - UseDirective
-    // - TransitionDirective
-    // - AnimateDirective
-    // etc.
-    TransformResult::None
+    // Create a new context with the special element's node
+    let old_node = context.state.node.clone();
+    context.state.node = state.node.clone();
+
+    let result = match attribute {
+        Attribute::UseDirective(use_directive) => {
+            // Handle use: directives on special elements
+            let stmt = super::super::use_directive::use_directive(use_directive, context);
+            context.state.init.push(stmt);
+            TransformResult::None
+        }
+        // TODO: Handle other directive types as needed
+        // - BindDirective
+        // - ClassDirective
+        // - StyleDirective
+        // - TransitionDirective
+        // - AnimateDirective
+        _ => TransformResult::None,
+    };
+
+    // Restore the original node
+    context.state.node = old_node;
+    result
 }

@@ -120,6 +120,12 @@ impl<'a> ComponentContext<'a> {
 
             TemplateNode::SvelteHead(head) => self.visit_svelte_head(head),
 
+            TemplateNode::SvelteBody(body) => self.visit_svelte_body(body),
+
+            TemplateNode::SvelteWindow(window) => self.visit_svelte_window(window),
+
+            TemplateNode::SvelteDocument(document) => self.visit_svelte_document(document),
+
             // Other node types - TODO: implement
             _ => TransformResult::None,
         };
@@ -526,6 +532,66 @@ impl<'a> ComponentContext<'a> {
         use crate::compiler::phases::phase3_transform::client::visitors::svelte_head::svelte_head as visit_svelte_head_impl;
         visit_svelte_head_impl(head, self);
         TransformResult::None
+    }
+
+    fn visit_svelte_body(&mut self, body: &crate::ast::template::SvelteElement) -> TransformResult {
+        self.visit_special_element(body, "$.document.body");
+        TransformResult::None
+    }
+
+    fn visit_svelte_window(
+        &mut self,
+        window: &crate::ast::template::SvelteElement,
+    ) -> TransformResult {
+        self.visit_special_element(window, "$.window");
+        TransformResult::None
+    }
+
+    fn visit_svelte_document(
+        &mut self,
+        document: &crate::ast::template::SvelteElement,
+    ) -> TransformResult {
+        self.visit_special_element(document, "$.document");
+        TransformResult::None
+    }
+
+    /// Visit a special element (svelte:body, svelte:window, svelte:document).
+    ///
+    /// These elements bind to global objects and have their attributes processed
+    /// in a special way.
+    fn visit_special_element(&mut self, element: &crate::ast::template::SvelteElement, id: &str) {
+        use crate::ast::template::Attribute;
+        use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
+        use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
+        // Save the current node and set it to the special element's reference
+        let old_node = std::mem::replace(&mut self.state.node, b::member_path(id));
+
+        // Process all attributes on the element
+        for attribute in &element.attributes {
+            match attribute {
+                Attribute::UseDirective(use_dir) => {
+                    // Handle use: directives on special elements
+                    let stmt = use_directive(use_dir, self);
+                    self.state.init.push(stmt);
+                }
+                Attribute::OnDirective(on_dir) => {
+                    // Handle on: directives on special elements
+                    if let TransformResult::Expression(expr) = self.visit_on_directive(on_dir) {
+                        self.state.init.push(b::stmt(expr));
+                    }
+                }
+                Attribute::BindDirective(bind_dir) => {
+                    // Handle bind: directives on special elements
+                    self.visit_bind_directive(bind_dir, None);
+                }
+                // TODO: Handle other directive types as needed
+                _ => {}
+            }
+        }
+
+        // Restore the original node
+        self.state.node = old_node;
     }
 
     pub fn visit_on_directive(

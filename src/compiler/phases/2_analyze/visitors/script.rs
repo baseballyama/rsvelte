@@ -273,5 +273,39 @@ fn visit_children(node: &Value, context: &mut VisitorContext) -> Result<(), Anal
         walk_js_node(argument, context)?;
     }
 
+    // Visit expressions (SequenceExpression, TemplateLiteral)
+    if let Some(expressions) = node.get("expressions").and_then(|e| e.as_array()) {
+        for expr in expressions {
+            walk_js_node(expr, context)?;
+        }
+    }
+
+    // Visit quasis (TemplateLiteral)
+    if let Some(quasis) = node.get("quasis").and_then(|q| q.as_array()) {
+        for quasi in quasis {
+            walk_js_node(quasi, context)?;
+        }
+    }
+
+    // Visit callee (CallExpression, NewExpression)
+    // Note: These should be handled by their own visitors, but add fallback
+    if node_type != Some("CallExpression")
+        && node_type != Some("NewExpression")
+        && let Some(callee) = node.get("callee")
+    {
+        walk_js_node(callee, context)?;
+    }
+
+    // Visit params (FunctionDeclaration, FunctionExpression, ArrowFunctionExpression)
+    // Note: Parameters should be in scope, but we need to walk default values
+    if let Some(params) = node.get("params").and_then(|p| p.as_array()) {
+        for param in params {
+            // Walk default values in AssignmentPattern
+            if let Some(right) = param.get("right") {
+                walk_js_node(right, context)?;
+            }
+        }
+    }
+
     Ok(())
 }
