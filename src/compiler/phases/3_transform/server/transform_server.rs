@@ -1764,7 +1764,12 @@ impl<'a> ServerCodeGenerator<'a> {
             }
 
             // For bind directives on server, output as $.attr() call
-            Ok(Some(format!("${{$.attr('{}', {})}}", name, expr)))
+            // Use third true argument for boolean attributes like checked
+            if name == "checked" {
+                Ok(Some(format!("${{$.attr('{}', {}, true)}}", name, expr)))
+            } else {
+                Ok(Some(format!("${{$.attr('{}', {})}}", name, expr)))
+            }
         } else {
             Ok(None)
         }
@@ -7038,6 +7043,7 @@ fn replace_store_identifier(expr: &str, store_ref: &str, store_name: &str) -> St
 /// Similar to replace_store_identifier but also skips when:
 /// - The store is on the left side of an assignment (handled by transform_store_assignments)
 /// - Already inside a $.store_set or $.store_get call
+/// - Inside a string literal (single, double, or template)
 fn replace_store_identifier_in_script(script: &str, store_ref: &str, store_name: &str) -> String {
     let mut result = String::with_capacity(script.len() * 2);
     let chars: Vec<char> = script.chars().collect();
@@ -7045,7 +7051,33 @@ fn replace_store_identifier_in_script(script: &str, store_ref: &str, store_name:
     let store_ref_len = store_ref_chars.len();
     let mut i = 0;
 
+    // Track string literal state
+    let mut in_string = false;
+    let mut string_char = ' ';
+
     while i < chars.len() {
+        let c = chars[i];
+
+        // Handle string literal boundaries
+        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char {
+                in_string = false;
+            }
+            result.push(c);
+            i += 1;
+            continue;
+        }
+
+        // Skip replacements inside string literals
+        if in_string {
+            result.push(c);
+            i += 1;
+            continue;
+        }
+
         // Check if we're at the start of the store reference
         if i + store_ref_len <= chars.len() {
             let mut matches = true;
