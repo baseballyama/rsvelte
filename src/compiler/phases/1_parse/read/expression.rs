@@ -2339,7 +2339,31 @@ fn create_array_expression(
         .elements
         .iter()
         .map(|elem| match elem {
-            oxc_ast::ast::ArrayExpressionElement::SpreadElement(_) => Value::Null,
+            oxc_ast::ast::ArrayExpressionElement::SpreadElement(spread) => {
+                let spread_start = offset + spread.span.start as usize - 1;
+                let spread_end = offset + spread.span.end as usize - 1;
+                let mut spread_obj = Map::new();
+                spread_obj.insert(
+                    "type".to_string(),
+                    Value::String("SpreadElement".to_string()),
+                );
+                spread_obj.insert(
+                    "start".to_string(),
+                    Value::Number((spread_start as i64).into()),
+                );
+                spread_obj.insert("end".to_string(), Value::Number((spread_end as i64).into()));
+                spread_obj.insert(
+                    "loc".to_string(),
+                    create_loc(spread_start, spread_end, line_offsets),
+                );
+                spread_obj.insert(
+                    "argument".to_string(),
+                    convert_expression(&spread.argument, offset, line_offsets)
+                        .as_json()
+                        .clone(),
+                );
+                Value::Object(spread_obj)
+            }
             oxc_ast::ast::ArrayExpressionElement::Elision(_) => Value::Null,
             _ => {
                 let expr = elem.to_expression();
@@ -5062,7 +5086,32 @@ fn convert_expression_for_program(
                 .arguments
                 .iter()
                 .map(|arg| match arg {
-                    oxc_ast::ast::Argument::SpreadElement(_) => Value::Null,
+                    oxc_ast::ast::Argument::SpreadElement(spread) => {
+                        let spread_start = offset + spread.span.start as usize;
+                        let spread_end = offset + spread.span.end as usize;
+                        let mut spread_obj = Map::new();
+                        spread_obj.insert(
+                            "type".to_string(),
+                            Value::String("SpreadElement".to_string()),
+                        );
+                        spread_obj.insert(
+                            "start".to_string(),
+                            Value::Number((spread_start as i64).into()),
+                        );
+                        spread_obj
+                            .insert("end".to_string(), Value::Number((spread_end as i64).into()));
+                        spread_obj.insert(
+                            "loc".to_string(),
+                            create_loc(spread_start, spread_end, line_offsets),
+                        );
+                        spread_obj.insert(
+                            "argument".to_string(),
+                            convert_expression_for_program(&spread.argument, offset, line_offsets)
+                                .as_json()
+                                .clone(),
+                        );
+                        Value::Object(spread_obj)
+                    }
                     _ => {
                         let expr = arg.to_expression();
                         convert_expression_for_program(expr, offset, line_offsets)
@@ -5380,7 +5429,32 @@ fn convert_expression_for_program(
                 .arguments
                 .iter()
                 .map(|arg| match arg {
-                    oxc_ast::ast::Argument::SpreadElement(_) => Value::Null,
+                    oxc_ast::ast::Argument::SpreadElement(spread) => {
+                        let spread_start = offset + spread.span.start as usize;
+                        let spread_end = offset + spread.span.end as usize;
+                        let mut spread_obj = Map::new();
+                        spread_obj.insert(
+                            "type".to_string(),
+                            Value::String("SpreadElement".to_string()),
+                        );
+                        spread_obj.insert(
+                            "start".to_string(),
+                            Value::Number((spread_start as i64).into()),
+                        );
+                        spread_obj
+                            .insert("end".to_string(), Value::Number((spread_end as i64).into()));
+                        spread_obj.insert(
+                            "loc".to_string(),
+                            create_loc(spread_start, spread_end, line_offsets),
+                        );
+                        spread_obj.insert(
+                            "argument".to_string(),
+                            convert_expression_for_program(&spread.argument, offset, line_offsets)
+                                .as_json()
+                                .clone(),
+                        );
+                        Value::Object(spread_obj)
+                    }
                     _ => {
                         let expr = arg.to_expression();
                         convert_expression_for_program(expr, offset, line_offsets)

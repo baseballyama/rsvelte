@@ -382,6 +382,11 @@ impl<'a> CssParser<'a> {
                 let mut depth = 1;
                 i += 1;
                 while i < chars.len() && depth > 0 {
+                    // Handle escaped characters
+                    if chars[i] == '\\' && i + 1 < chars.len() {
+                        i += 2; // Skip backslash and next char
+                        continue;
+                    }
                     if chars[i] == '(' {
                         depth += 1;
                     } else if chars[i] == ')' {
@@ -397,6 +402,11 @@ impl<'a> CssParser<'a> {
                 let mut depth = 1;
                 i += 1;
                 while i < chars.len() && depth > 0 {
+                    // Handle escaped characters
+                    if chars[i] == '\\' && i + 1 < chars.len() {
+                        i += 2; // Skip backslash and next char
+                        continue;
+                    }
                     if chars[i] == '[' {
                         depth += 1;
                     } else if chars[i] == ']' {
@@ -572,6 +582,12 @@ impl<'a> CssParser<'a> {
         let bytes = text.as_bytes();
         let mut i = 0;
         while i < bytes.len() {
+            // Handle escaped characters
+            if bytes[i] == b'\\' && i + 1 < bytes.len() {
+                i += 2; // Skip backslash and next char
+                continue;
+            }
+
             // Handle comments
             if i + 1 < bytes.len() && bytes[i] == b'/' && bytes[i + 1] == b'*' {
                 in_comment = true;
@@ -799,8 +815,9 @@ impl<'a> CssParser<'a> {
         while !self.is_eof() {
             let c = self.current_char();
 
-            // Handle escape sequences inside strings
-            if c == '\\' && in_string {
+            // Handle escape sequences (both inside and outside strings)
+            // CSS allows escapes like .abc\) or \31 23
+            if c == '\\' {
                 self.advance();
                 if !self.is_eof() {
                     self.advance();
@@ -1507,6 +1524,11 @@ impl<'a> SelectorParser<'a> {
                 let mut depth = 1;
                 i += 1;
                 while i < chars.len() && depth > 0 {
+                    // Handle escaped characters
+                    if chars[i] == '\\' && i + 1 < chars.len() {
+                        i += 2; // Skip backslash and next char
+                        continue;
+                    }
                     if chars[i] == '(' {
                         depth += 1;
                     } else if chars[i] == ')' {
