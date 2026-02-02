@@ -3229,9 +3229,32 @@ fn is_incomplete_expression(expr: &str) -> bool {
     let mut brace_depth = 0;
     let mut in_string = false;
     let mut string_char = ' ';
+    let mut in_block_comment = false;
     let chars: Vec<char> = expr.chars().collect();
 
-    for (i, &c) in chars.iter().enumerate() {
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+
+        // Handle block comment start/end
+        if !in_string {
+            if !in_block_comment && c == '/' && i + 1 < chars.len() && chars[i + 1] == '*' {
+                in_block_comment = true;
+                i += 2;
+                continue;
+            }
+            if in_block_comment && c == '*' && i + 1 < chars.len() && chars[i + 1] == '/' {
+                in_block_comment = false;
+                i += 2;
+                continue;
+            }
+        }
+
+        if in_block_comment {
+            i += 1;
+            continue;
+        }
+
         // Handle string literals
         if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
             if !in_string {
@@ -3240,10 +3263,12 @@ fn is_incomplete_expression(expr: &str) -> bool {
             } else if c == string_char {
                 in_string = false;
             }
+            i += 1;
             continue;
         }
 
         if in_string {
+            i += 1;
             continue;
         }
 
@@ -3256,10 +3281,11 @@ fn is_incomplete_expression(expr: &str) -> bool {
             '}' => brace_depth -= 1,
             _ => {}
         }
+        i += 1;
     }
 
-    // If any depth is non-zero, the expression is incomplete
-    paren_depth != 0 || bracket_depth != 0 || brace_depth != 0
+    // If any depth is non-zero, or we're still inside a block comment, the expression is incomplete
+    paren_depth != 0 || bracket_depth != 0 || brace_depth != 0 || in_block_comment
 }
 
 /// Wrap state variable references with $.get() in an expression.
@@ -3420,6 +3446,146 @@ fn is_in_function_param_position(chars: &[char], var_start_idx: usize, var_end_i
                 }
             }
             m += 1;
+        }
+    }
+
+    false
+}
+
+/// Check if a variable at the given position is shadowed by a function parameter.
+/// This detects when an inner function/method has a parameter with the same name,
+/// which shadows the outer variable within that function's scope.
+///
+/// For example, in:
+/// ```js
+/// let count = $state(0);
+/// function action(_, count) {
+///     update(count) {
+///         console.log(count);  // <- this `count` refers to update's parameter
+///     }
+/// }
+/// ```
+/// The `count` inside `update` is shadowed by `update`'s parameter.
+fn is_shadowed_by_function_param(chars: &[char], var_start: usize, var_name: &str) -> bool {
+    // Strategy: scan backwards from var_start to find the nearest enclosing function scope.
+    // If we find a function with this variable as a parameter, it's shadowed.
+    // We need to track brace depth to understand scope nesting.
+
+    let var_chars: Vec<char> = var_name.chars().collect();
+    let var_len = var_chars.len();
+
+    // Track brace depth as we scan backwards
+    let mut brace_depth = 0;
+    let mut i = var_start;
+
+    while i > 0 {
+        i -= 1;
+        let c = chars[i];
+
+        if c == '}' {
+            brace_depth += 1;
+        } else if c == '{' {
+            if brace_depth > 0 {
+                brace_depth -= 1;
+            } else {
+                // Found an opening brace at our scope level
+                // Check if this is a function body with our variable as a parameter
+                // Look backwards to find the closing paren of the parameter list
+
+                // Skip whitespace before the {
+                let mut j = i;
+                while j > 0 && chars[j - 1].is_whitespace() {
+                    j -= 1;
+                }
+
+                // Check for `)` which would indicate a function parameter list
+                if j > 0 && chars[j - 1] == ')' {
+                    j -= 1; // Move past the )
+
+                    // Now find the matching (
+                    let mut paren_depth = 0;
+                    let mut open_paren_idx = None;
+                    while j > 0 {
+                        j -= 1;
+                        if chars[j] == ')' {
+                            paren_depth += 1;
+                        } else if chars[j] == '(' {
+                            if paren_depth == 0 {
+                                open_paren_idx = Some(j);
+                                break;
+                            }
+                            paren_depth -= 1;
+                        }
+                    }
+
+                    if let Some(open_idx) = open_paren_idx {
+                        // Check if this is a function declaration/expression
+                        // by looking for `function`, method shorthand, or arrow function pattern
+
+                        // First, check if our variable is in the parameter list
+                        let param_text: String = chars[open_idx + 1..i].iter().collect::<String>();
+
+                        // Check if var_name appears as a standalone identifier in the parameter list
+                        // We need to handle patterns like: (_, count), (count), (count = default)
+                        let param_chars: Vec<char> = param_text.chars().collect();
+                        let mut k = 0;
+                        while k < param_chars.len() {
+                            // Skip whitespace
+                            while k < param_chars.len() && param_chars[k].is_whitespace() {
+                                k += 1;
+                            }
+
+                            if k + var_len <= param_chars.len() {
+                                let potential_match: String =
+                                    param_chars[k..k + var_len].iter().collect();
+                                if potential_match == var_name {
+                                    // Check boundaries
+                                    let before_ok =
+                                        k == 0 || !is_identifier_char(param_chars[k - 1]);
+                                    let after_ok = k + var_len >= param_chars.len()
+                                        || !is_identifier_char(param_chars[k + var_len]);
+
+                                    if before_ok && after_ok {
+                                        // Found the variable in the parameter list!
+                                        // Now verify this is actually a function definition
+
+                                        // Check what's before the opening paren
+                                        let mut m = open_idx;
+                                        while m > 0 && chars[m - 1].is_whitespace() {
+                                            m -= 1;
+                                        }
+
+                                        // Check for function keyword or identifier (method name)
+                                        if m > 0 {
+                                            // Check for "function" keyword
+                                            if m >= 8 {
+                                                let prefix: String =
+                                                    chars[m - 8..m].iter().collect();
+                                                if prefix == "function" {
+                                                    return true;
+                                                }
+                                            }
+
+                                            // Check for identifier (method name or arrow function)
+                                            if is_identifier_char(chars[m - 1]) {
+                                                // Could be a method definition like `update(count) {`
+                                                return true;
+                                            }
+                                        }
+
+                                        // Check for arrow function pattern: (params) => {
+                                        // But we're at {, so this would be `(params) => {`
+                                        // The `=>` would be between ) and {
+                                        // This case is already covered by finding params in parens before {
+                                        return true;
+                                    }
+                                }
+                            }
+                            k += 1;
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -3623,6 +3789,9 @@ fn transform_state_in_expr(
                         let is_shorthand_property =
                             is_shorthand_object_property(&chars, i, var_chars.len());
 
+                        // Check if this variable is shadowed by a function parameter in an inner scope
+                        let is_shadowed = is_shadowed_by_function_param(&chars, i, var);
+
                         if !already_wrapped
                             && !preceded_by_dot
                             && !in_set_first_arg
@@ -3633,6 +3802,7 @@ fn transform_state_in_expr(
                             && !is_getter_setter_name
                             && !is_property_key
                             && !is_shorthand_property
+                            && !is_shadowed
                         {
                             new_result.push_str(&format!("$.get({})", var));
                             i += var_chars.len();
