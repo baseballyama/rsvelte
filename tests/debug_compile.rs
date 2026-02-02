@@ -1349,4 +1349,52 @@ const test = new Test();
             }
         }
     }
+
+    #[test]
+    fn debug_bind_this_legacy_mode() {
+        // Test bind:this in legacy (non-runes) mode
+        // Expected: let container = $.mutable_source(); $.bind_this(div, ($$value) => $.set(container, $$value), () => $.get(container));
+        // The binding should be promoted to 'state' kind and use $.set/$.get
+        let source = r#"<script>
+    let container;
+</script>
+
+<div bind:this={container}>Hello</div>"#;
+
+        let options = CompileOptions {
+            dev: false,
+            filename: Some("main.svelte".to_string()),
+            ..Default::default()
+        };
+
+        match compile(source, options) {
+            Ok(result) => {
+                println!(
+                    "\n=== BIND:THIS LEGACY MODE OUTPUT ===\n{}\n=== END ===",
+                    result.js.code
+                );
+                // Check for expected patterns
+                if result.js.code.contains("$.mutable_source") {
+                    println!("PASS: Found $.mutable_source()");
+                } else {
+                    println!(
+                        "WARN: $.mutable_source() NOT found - binding may not be promoted to state"
+                    );
+                }
+                if result.js.code.contains("$.set(container") {
+                    println!("PASS: Found $.set(container, ...)");
+                } else {
+                    println!("WARN: $.set() NOT found - setter may not be using state function");
+                }
+                if result.js.code.contains("$.get(container") {
+                    println!("PASS: Found $.get(container)");
+                } else {
+                    println!("WARN: $.get() NOT found - getter may not be using state function");
+                }
+            }
+            Err(e) => {
+                println!("\n=== ERROR ===\n{:?}\n=== END ===", e);
+            }
+        }
+    }
 }

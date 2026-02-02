@@ -2720,18 +2720,18 @@ fn transform_legacy_state_declarations(
     let mut result = line.to_string();
 
     for (var, _initial) in legacy_state_vars {
-        // Look for `let varname = value` pattern
-        let pattern = format!("let {} = ", var);
-        if let Some(pos) = result.find(&pattern) {
+        // First, try to match `let varname = value` pattern
+        let pattern_with_init = format!("let {} = ", var);
+        if let Some(pos) = result.find(&pattern_with_init) {
             // Skip if already wrapped
-            if result[pos + pattern.len()..].starts_with("$.mutable_source(")
-                || result[pos + pattern.len()..].starts_with("$.prop(")
+            if result[pos + pattern_with_init.len()..].starts_with("$.mutable_source(")
+                || result[pos + pattern_with_init.len()..].starts_with("$.prop(")
             {
                 continue;
             }
 
             // Find the value expression
-            let after = &result[pos + pattern.len()..];
+            let after = &result[pos + pattern_with_init.len()..];
             let expr_end = find_statement_end_client(after);
             let expr = after[..expr_end].trim();
 
@@ -2750,7 +2750,28 @@ fn transform_legacy_state_declarations(
                 "{}{}{}",
                 &result[..pos],
                 replacement,
-                &result[pos + pattern.len() + expr_end..]
+                &result[pos + pattern_with_init.len() + expr_end..]
+            );
+            continue;
+        }
+
+        // Then, try to match `let varname;` pattern (declaration without initializer)
+        // This handles cases like `let container;` which should become `let container = $.mutable_source();`
+        let pattern_no_init = format!("let {};", var);
+        if let Some(pos) = result.find(&pattern_no_init) {
+            // Build the replacement - no initial value, so pass nothing to $.mutable_source()
+            let replacement = if immutable {
+                format!("let {} = $.mutable_source(undefined, true);", var)
+            } else {
+                format!("let {} = $.mutable_source();", var)
+            };
+
+            // Replace the declaration
+            result = format!(
+                "{}{}{}",
+                &result[..pos],
+                replacement,
+                &result[pos + pattern_no_init.len()..]
             );
         }
     }
@@ -3921,13 +3942,50 @@ fn is_shorthand_object_property(chars: &[char], var_start: usize, var_len: usize
     false
 }
 
-/// Check if a variable at the given position is on the left side of an assignment.
+/// Check if a variable at the given position is on the left side of an assignment
+/// or is a variable declaration.
 /// This detects patterns like:
 /// - `varname = expr` - simple assignment
 /// - `varname += expr` - compound assignment
+/// - `let varname;` - declaration without initializer
+/// - `let varname = expr` - declaration with initializer
 ///
-/// The variable should NOT be wrapped with $.get() if it's an assignment target.
+/// The variable should NOT be wrapped with $.get() if it's an assignment target
+/// or a declaration.
 fn is_on_left_side_of_assignment(chars: &[char], var_start: usize, var_len: usize) -> bool {
+    // Check if preceded by `let `, `const `, or `var ` (variable declaration)
+    // This handles cases like `let container;` or `let container = expr`
+    // The keyword includes the trailing space, so "let " has length 4.
+    // For input like "let container;", var_start is at 'c' (position 4),
+    // so we check chars[0..4] which should equal "let ".
+    let is_declaration = {
+        // Check for declaration keywords directly before the variable
+        // No need to skip whitespace - the keyword pattern includes the space
+        let check_keyword = |keyword: &str| -> bool {
+            let kw_len = keyword.len();
+            if var_start >= kw_len {
+                let prefix: String = chars[var_start - kw_len..var_start].iter().collect();
+                if prefix == keyword {
+                    // Make sure it's a standalone keyword (not part of a larger identifier)
+                    // i.e., either at start of string or preceded by non-identifier char
+                    var_start == kw_len
+                        || (var_start > kw_len
+                            && !is_identifier_char(chars[var_start - kw_len - 1]))
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        };
+
+        check_keyword("let ") || check_keyword("const ") || check_keyword("var ")
+    };
+
+    if is_declaration {
+        return true;
+    }
+
     let var_end = var_start + var_len;
 
     // Skip whitespace after the variable

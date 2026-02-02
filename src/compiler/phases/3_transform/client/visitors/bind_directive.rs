@@ -665,7 +665,11 @@ fn build_getter_setter(
     }
 }
 
-/// Check if an expression is a state variable ($state or $derived).
+/// Check if an expression is a state variable ($state, $derived, or legacy state).
+///
+/// In legacy mode, variables that are updated (reassigned/mutated) and referenced
+/// in the template are promoted to `state` kind during analysis. This enables
+/// them to be wrapped in `$.mutable_source()` and use `$.get()`/`$.set()`.
 fn is_state_variable(expr: &Expression, context: &ComponentContext) -> bool {
     match expr {
         Expression::Value(val) => {

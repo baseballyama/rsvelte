@@ -303,8 +303,11 @@ fn visit_common(
         // if inside_rest { w.bind_invalid_each_rest(binding.node, binding.node.name); }
     }
 
-    // TODO: Visit child expressions with expression metadata
-    // context.next({ ...context.state, expression: node.metadata.expression });
+    // Visit child expressions to add template references
+    // This is important for legacy mode state promotion - bindings need template references
+    // to be promoted from 'normal' to 'state' kind.
+    // Corresponds to: context.next({ ...context.state, expression: node.metadata.expression });
+    super::script::walk_js_node(directive.expression.as_json(), context)?;
 
     // TODO: Check for await in expression
     // if node.metadata.expression.has_await { return Err(errors::illegal_await_expression()); }
