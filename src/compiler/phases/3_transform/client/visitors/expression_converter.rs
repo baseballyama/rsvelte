@@ -169,10 +169,15 @@ fn convert_literal(
 
 /// Convert a MemberExpression node.
 ///
-/// This also handles the rest_prop → $$props optimization:
-/// When accessing a property on a rest_prop binding (e.g., `props.a` where `let props = $props()`),
-/// we transform the object to `$$props` for read access, but NOT for direct property assignments
-/// (e.g., `props.a = true` stays as-is, but `props.a.b = true` becomes `$$props.a.b = true`).
+/// This also handles:
+/// 1. The rest_prop → $$props optimization:
+///    When accessing a property on a rest_prop binding (e.g., `props.a` where `let props = $props()`),
+///    we transform the object to `$$props` for read access, but NOT for direct property assignments
+///    (e.g., `props.a = true` stays as-is, but `props.a.b = true` becomes `$$props.a.b = true`).
+///
+/// 2. Private state field access (MemberExpression.js from official compiler):
+///    Rewrite `this.#foo` as `this.#foo.v` inside a constructor for `$state` fields,
+///    otherwise wrap with `$.get(this.#foo)`.
 #[inline]
 fn convert_member_expression(
     obj: &serde_json::Map<String, Value>,
@@ -187,6 +192,62 @@ fn convert_member_expression(
         .get("optional")
         .and_then(|o| o.as_bool())
         .unwrap_or(false);
+
+    // Handle private state field access: this.#foo -> this.#foo.v (in constructor) or $.get(this.#foo)
+    // Reference: MemberExpression.js in official Svelte compiler
+    if let Some(prop_obj) = obj.get("property").and_then(|p| p.as_object())
+        && let Some("PrivateIdentifier") = prop_obj.get("type").and_then(|t| t.as_str())
+        && let Some(prop_name) = prop_obj.get("name").and_then(|n| n.as_str())
+    {
+        let field_name = format!("#{}", prop_name);
+        // Extract field info before using context mutably
+        let field_info = context
+            .state
+            .state_fields
+            .get(&field_name)
+            .map(|f| (f.field_type.clone(), context.state.in_constructor));
+
+        if let Some((field_type, in_constructor)) = field_info {
+            // Build the base member expression (this.#foo)
+            let object = obj
+                .get("object")
+                .map(|o| Box::new(convert_json_value(o, context)))
+                .unwrap_or_else(|| Box::new(JsExpr::Identifier("unknown".to_string())));
+
+            let base_member = JsExpr::Member(JsMemberExpression {
+                object,
+                property: JsMemberProperty::PrivateIdentifier(prop_name.to_string()),
+                computed: false,
+                optional,
+            });
+
+            // If in constructor and field is $state or $state.raw, use .v accessor
+            if in_constructor && (field_type == "$state" || field_type == "$state.raw") {
+                return JsExpr::Member(JsMemberExpression {
+                    object: Box::new(base_member),
+                    property: JsMemberProperty::Identifier("v".to_string()),
+                    computed: false,
+                    optional: false,
+                });
+            } else if field_type == "$state"
+                || field_type == "$state.raw"
+                || field_type == "$derived"
+                || field_type == "$derived.by"
+            {
+                // Outside constructor, use $.get(this.#foo)
+                return JsExpr::Call(JsCallExpression {
+                    callee: Box::new(JsExpr::Member(JsMemberExpression {
+                        object: Box::new(JsExpr::Identifier("$".to_string())),
+                        property: JsMemberProperty::Identifier("get".to_string()),
+                        computed: false,
+                        optional: false,
+                    })),
+                    arguments: vec![base_member],
+                    optional: false,
+                });
+            }
+        }
+    }
 
     // Check if the object is a rest_prop identifier and should be transformed to $$props
     let should_transform_to_props =
@@ -222,12 +283,20 @@ fn convert_member_expression(
             .map(|p| JsMemberProperty::Expression(Box::new(convert_json_value(p, context))))
             .unwrap_or(JsMemberProperty::Identifier("unknown".to_string()))
     } else {
-        obj.get("property")
-            .and_then(|p| p.as_object())
-            .and_then(|p| p.get("name"))
-            .and_then(|n| n.as_str())
-            .map(|n| JsMemberProperty::Identifier(n.to_string()))
-            .unwrap_or(JsMemberProperty::Identifier("unknown".to_string()))
+        // Check if property is a PrivateIdentifier
+        if let Some(prop_obj) = obj.get("property").and_then(|p| p.as_object())
+            && let Some("PrivateIdentifier") = prop_obj.get("type").and_then(|t| t.as_str())
+            && let Some(prop_name) = prop_obj.get("name").and_then(|n| n.as_str())
+        {
+            JsMemberProperty::PrivateIdentifier(prop_name.to_string())
+        } else {
+            obj.get("property")
+                .and_then(|p| p.as_object())
+                .and_then(|p| p.get("name"))
+                .and_then(|n| n.as_str())
+                .map(|n| JsMemberProperty::Identifier(n.to_string()))
+                .unwrap_or(JsMemberProperty::Identifier("unknown".to_string()))
+        }
     };
 
     JsExpr::Member(JsMemberExpression {

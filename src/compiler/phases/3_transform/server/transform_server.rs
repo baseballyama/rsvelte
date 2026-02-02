@@ -4894,12 +4894,6 @@ export default function {component_name}($$renderer{props_param}) {{
                             Self::build_parts(body, indent_level + 2, each_counter);
                         body_code.push_str(&body_code_inner);
 
-                        // Add trailing hydration marker for rich option content
-                        // This is needed for proper hydration of options with dynamic content
-                        let inner_indent = "\t".repeat(indent_level + 2);
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`<!---->`);\n", inner_indent));
-
                         // Close callback with remaining args
                         body_code.push_str(&format!(
                             "{}\t}},\n{}\tvoid 0,\n{}\tvoid 0,\n{}\tvoid 0,\n{}\tvoid 0,\n{}\ttrue\n{});\n",

@@ -5215,6 +5215,18 @@ fn transform_constructor_assignment(line: &str, fields: &[ClassStateField]) -> S
                     // Use private_backing_name for the output
                     return format!("$.set(this.#{}, {});", field.private_backing_name, value);
                 }
+
+                // Handle member access on private state field: this.#name.prop = value
+                // -> this.#name.v.prop = value (in constructor, we use .v for direct access)
+                // Reference: MemberExpression.js - in constructor for $state fields, use .v
+                let member_pattern = format!("this.#{}.", field.name);
+                if result.contains(&member_pattern)
+                    && (field.rune_type == "$state" || field.rune_type == "$state.raw")
+                {
+                    let with_v = format!("this.#{}.v.", field.private_backing_name);
+                    result = result.replace(&member_pattern, &with_v);
+                    return result;
+                }
             }
         }
     }
