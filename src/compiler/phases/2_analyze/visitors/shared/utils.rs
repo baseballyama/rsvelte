@@ -21,6 +21,182 @@ lazy_static! {
         Regex::new(r"(^[0-9\-.])|([\^$@%&#?!|()\[\]{}*+~;])").unwrap();
 }
 
+/// Check if there's a variable declaration for the given name in the current function's
+/// scope chain by looking at the JS AST path.
+///
+/// This walks the js_path looking for FunctionDeclaration/FunctionExpression/ArrowFunctionExpression
+/// nodes and checks if their bodies contain a VariableDeclaration with the given name.
+///
+/// This is used to detect if a component-level constant is being shadowed by a local variable.
+fn has_shadowing_declaration_in_path(js_path: &[Value], name: &str) -> bool {
+    // Walk the path from innermost to outermost
+    for node in js_path.iter().rev() {
+        let node_type = node.get("type").and_then(|t| t.as_str());
+
+        match node_type {
+            Some("FunctionDeclaration")
+            | Some("FunctionExpression")
+            | Some("ArrowFunctionExpression") => {
+                // Check if this function declares a variable with the given name
+                if let Some(body) = node.get("body")
+                    && has_variable_declaration(body, name)
+                {
+                    return true;
+                }
+                // Also check function parameters
+                if let Some(params) = node.get("params").and_then(|p| p.as_array()) {
+                    for param in params {
+                        if param_declares_name(param, name) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+/// Check if a function body (BlockStatement or Expression) declares a variable with the given name.
+fn has_variable_declaration(body: &Value, name: &str) -> bool {
+    let body_type = body.get("type").and_then(|t| t.as_str());
+
+    if body_type == Some("BlockStatement") {
+        // Check all statements in the body
+        if let Some(statements) = body.get("body").and_then(|b| b.as_array()) {
+            for stmt in statements {
+                if statement_declares_name(stmt, name) {
+                    return true;
+                }
+            }
+        }
+    }
+    // Arrow function with expression body - no variable declarations
+    false
+}
+
+/// Check if a statement declares a variable with the given name (only let/var, not const).
+fn statement_declares_name(stmt: &Value, name: &str) -> bool {
+    let stmt_type = stmt.get("type").and_then(|t| t.as_str());
+
+    match stmt_type {
+        Some("VariableDeclaration") => {
+            // Only check let and var (not const, which shouldn't shadow)
+            let kind = stmt.get("kind").and_then(|k| k.as_str());
+            if (kind == Some("let") || kind == Some("var"))
+                && let Some(decls) = stmt.get("declarations").and_then(|d| d.as_array())
+            {
+                for decl in decls {
+                    if declarator_declares_name(decl, name) {
+                        return true;
+                    }
+                }
+            }
+        }
+        Some("FunctionDeclaration") => {
+            // Named function declarations also create bindings
+            if let Some(id) = stmt.get("id")
+                && let Some(n) = id.get("name").and_then(|n| n.as_str())
+                && n == name
+            {
+                return true;
+            }
+            // But don't recurse into the function body - that's a different scope
+        }
+        Some("BlockStatement")
+        | Some("IfStatement")
+        | Some("ForStatement")
+        | Some("WhileStatement") => {
+            // Check nested statements, but this is a simplified check
+            // For proper scoping we'd need to respect block scopes for let/const
+            if let Some(body) = stmt.get("body") {
+                if let Some(stmts) = body.as_array() {
+                    for s in stmts {
+                        if statement_declares_name(s, name) {
+                            return true;
+                        }
+                    }
+                } else if statement_declares_name(body, name) {
+                    return true;
+                }
+            }
+            // For if statements, check consequent and alternate
+            if let Some(consequent) = stmt.get("consequent")
+                && statement_declares_name(consequent, name)
+            {
+                return true;
+            }
+            if let Some(alternate) = stmt.get("alternate")
+                && statement_declares_name(alternate, name)
+            {
+                return true;
+            }
+        }
+        _ => {}
+    }
+    false
+}
+
+/// Check if a variable declarator declares a variable with the given name.
+fn declarator_declares_name(decl: &Value, name: &str) -> bool {
+    if let Some(id) = decl.get("id") {
+        return pattern_declares_name(id, name);
+    }
+    false
+}
+
+/// Check if a pattern (Identifier, ObjectPattern, ArrayPattern) declares a variable with the given name.
+fn pattern_declares_name(pattern: &Value, name: &str) -> bool {
+    let pattern_type = pattern.get("type").and_then(|t| t.as_str());
+
+    match pattern_type {
+        Some("Identifier") => pattern.get("name").and_then(|n| n.as_str()) == Some(name),
+        Some("ObjectPattern") => {
+            if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
+                for prop in properties {
+                    if let Some(value) = prop.get("value")
+                        && pattern_declares_name(value, name)
+                    {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        Some("ArrayPattern") => {
+            if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
+                for elem in elements {
+                    if !elem.is_null() && pattern_declares_name(elem, name) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        Some("AssignmentPattern") => {
+            // let { foo = default } = obj; - check the left side
+            if let Some(left) = pattern.get("left") {
+                return pattern_declares_name(left, name);
+            }
+            false
+        }
+        Some("RestElement") => {
+            // let [...rest] = arr; - check the argument
+            if let Some(argument) = pattern.get("argument") {
+                return pattern_declares_name(argument, name);
+            }
+            false
+        }
+        _ => false,
+    }
+}
+
+/// Check if a function parameter declares a variable with the given name.
+fn param_declares_name(param: &Value, name: &str) -> bool {
+    pattern_declares_name(param, name)
+}
+
 /// Get the name from an AST node (Identifier, Literal, or PrivateIdentifier).
 ///
 /// Corresponds to `get_name` in nodes.js.
@@ -390,6 +566,34 @@ pub fn validate_no_const_assignment(
                     // Corresponds to Svelte's: if (binding?.kind === 'snippet') { e.snippet_parameter_assignment(node); }
                     if binding.kind == BindingKind::SnippetParam {
                         return Err(errors::snippet_parameter_assignment());
+                    }
+
+                    // When inside a nested function (function_depth > 1), check if there's
+                    // a local binding shadowing this one in the current function's scope chain.
+                    //
+                    // Our scope tracking doesn't accurately follow function scopes during AST
+                    // traversal, so when we look up a binding by name, we might find a
+                    // component-level binding when there's actually a function-local binding
+                    // that shadows it.
+                    //
+                    // Example:
+                    //   function foo() { let x = 1; x = 2; }  // function-local x
+                    //   const x = foo();                       // component-level const x
+                    //
+                    // When validating `x = 2` inside foo, we find the outer const x, but we
+                    // should skip validation because there's a local let x that shadows it.
+                    //
+                    // We detect this by walking the js_path (AST ancestors) looking for a
+                    // function that declares a variable with the same name.
+                    if context.function_depth > 1 && binding.scope_index <= 1 {
+                        // Check if there's a shadowing binding in the current function's scope
+                        // by looking for variable declarations in ancestor function bodies
+                        let has_local_shadowing =
+                            has_shadowing_declaration_in_path(&context.js_path, name);
+                        if has_local_shadowing {
+                            // Skip validation - there's a local variable that shadows the const
+                            return Ok(());
+                        }
                     }
 
                     if binding.declaration_kind == DeclarationKind::Import
