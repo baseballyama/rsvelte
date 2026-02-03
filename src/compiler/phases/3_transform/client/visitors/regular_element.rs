@@ -1312,18 +1312,30 @@ fn build_element_special_value_attribute(
     // Apply transforms to the value expression (e.g., $.get() wrapping for reactive variables)
     let transformed_value = apply_transforms_to_expression(&value, context);
 
+    // Check if the value is defined (i.e., guaranteed to not be undefined)
+    // For simplicity, we assume values that involve reactive state ($.get() calls) might be undefined
+    // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/RegularElement.js L755-756
+    let value_is_defined = !has_state;
+
     // node.__value = transformed_value
     let assignment = b::assign(
         b::member(b::id(node_id), "__value"),
         transformed_value.clone(),
     );
 
-    // For non-synthetic values: node.value = node.__value = transformed_value
+    // For non-synthetic values: node.value = (node.__value = transformed_value) ?? ''
+    // If value is defined, skip the ?? '' fallback
     // For synthetic values: just node.__value = transformed_value
     let update = if synthetic {
         b::stmt(assignment)
     } else {
-        b::stmt(b::assign(b::member(b::id(node_id), "value"), assignment))
+        let inner = if value_is_defined {
+            assignment
+        } else {
+            // Wrap with ?? '' for potentially undefined values
+            b::binary_str("??", assignment, b::string(""))
+        };
+        b::stmt(b::assign(b::member(b::id(node_id), "value"), inner))
     };
 
     if has_state {
