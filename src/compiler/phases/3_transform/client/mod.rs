@@ -4824,6 +4824,138 @@ fn is_on_left_side_of_assignment(chars: &[char], var_start: usize, var_len: usiz
         return true;
     }
 
+    // Check if the variable is inside a destructuring pattern in a declaration
+    // e.g., `let { a } = ...` or `let [a, b] = ...` or `const { x: { y: a } } = ...`
+    // We walk backwards tracking brace/bracket depth to find the opening `{` or `[`,
+    // then check if it's preceded by a declaration keyword.
+    let is_in_destructuring_declaration = {
+        let mut j = var_start;
+        let mut brace_depth = 0;
+        let mut bracket_depth = 0;
+        let mut in_string: Option<char> = None;
+
+        // Walk backwards from the variable position
+        while j > 0 {
+            j -= 1;
+            let c = chars[j];
+
+            // Handle string boundaries (walking backwards)
+            if in_string.is_none() && (c == '\'' || c == '"' || c == '`') {
+                // Check if this quote is escaped
+                let mut backslashes = 0;
+                let mut k = j;
+                while k > 0 && chars[k - 1] == '\\' {
+                    backslashes += 1;
+                    k -= 1;
+                }
+                if backslashes % 2 == 0 {
+                    in_string = Some(c);
+                }
+                continue;
+            } else if in_string == Some(c) {
+                // Check if this quote is escaped
+                let mut backslashes = 0;
+                let mut k = j;
+                while k > 0 && chars[k - 1] == '\\' {
+                    backslashes += 1;
+                    k -= 1;
+                }
+                if backslashes % 2 == 0 {
+                    in_string = None;
+                }
+                continue;
+            }
+
+            // Skip if inside a string
+            if in_string.is_some() {
+                continue;
+            }
+
+            match c {
+                '}' => brace_depth += 1,
+                '{' => {
+                    if brace_depth > 0 {
+                        brace_depth -= 1;
+                    } else {
+                        // Found the opening brace at our depth level
+                        // Check if it's preceded by a declaration keyword
+                        let mut k = j;
+                        // Skip whitespace before the brace
+                        while k > 0 && chars[k - 1].is_whitespace() {
+                            k -= 1;
+                        }
+                        // Check for declaration keywords (without trailing space since we've
+                        // already skipped the whitespace between keyword and brace)
+                        if k >= 3 {
+                            let prefix: String = chars[k - 3..k].iter().collect();
+                            if prefix == "let" || prefix == "var" {
+                                // Make sure it's a standalone keyword
+                                if k == 3 || !is_identifier_char(chars[k - 4]) {
+                                    return true;
+                                }
+                            }
+                        }
+                        if k >= 5 {
+                            let prefix: String = chars[k - 5..k].iter().collect();
+                            if prefix == "const" {
+                                // Make sure it's a standalone keyword
+                                if k == 5 || !is_identifier_char(chars[k - 6]) {
+                                    return true;
+                                }
+                            }
+                        }
+                        // Not a destructuring declaration, stop searching
+                        break;
+                    }
+                }
+                ']' => bracket_depth += 1,
+                '[' => {
+                    if bracket_depth > 0 {
+                        bracket_depth -= 1;
+                    } else {
+                        // Found the opening bracket at our depth level
+                        // Check if it's preceded by a declaration keyword
+                        let mut k = j;
+                        // Skip whitespace before the bracket
+                        while k > 0 && chars[k - 1].is_whitespace() {
+                            k -= 1;
+                        }
+                        // Check for declaration keywords (without trailing space since we've
+                        // already skipped the whitespace between keyword and bracket)
+                        if k >= 3 {
+                            let prefix: String = chars[k - 3..k].iter().collect();
+                            if prefix == "let" || prefix == "var" {
+                                // Make sure it's a standalone keyword
+                                if k == 3 || !is_identifier_char(chars[k - 4]) {
+                                    return true;
+                                }
+                            }
+                        }
+                        if k >= 5 {
+                            let prefix: String = chars[k - 5..k].iter().collect();
+                            if prefix == "const" {
+                                // Make sure it's a standalone keyword
+                                if k == 5 || !is_identifier_char(chars[k - 6]) {
+                                    return true;
+                                }
+                            }
+                        }
+                        // Not a destructuring declaration, stop searching
+                        break;
+                    }
+                }
+                // Stop at statement boundaries if we're not inside a destructuring
+                ';' | '\n' if brace_depth == 0 && bracket_depth == 0 => break,
+                _ => {}
+            }
+        }
+        false
+    };
+
+    if is_in_destructuring_declaration {
+        return true;
+    }
+
     let var_end = var_start + var_len;
 
     // Skip whitespace after the variable
