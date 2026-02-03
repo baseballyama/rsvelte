@@ -15,6 +15,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::element
 use crate::compiler::phases::phase3_transform::client::visitors::shared::events::build_event_handler;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
 
 /// Component node types.
@@ -205,7 +206,8 @@ pub fn build_component(
     }
 
     // Group children by slot and process snippets
-    let mut children: FxHashMap<String, Vec<&TemplateNode>> = FxHashMap::default();
+    // Use IndexMap to preserve insertion order (matches JavaScript object key order)
+    let mut children: IndexMap<String, Vec<&TemplateNode>> = IndexMap::new();
 
     for child in &fragment.nodes {
         if let TemplateNode::SnippetBlock(snippet) = child {
