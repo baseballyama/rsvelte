@@ -215,6 +215,15 @@ fn should_add_blank_line_after(current: &str, next: &str, raw_current: &str) -> 
         return true;
     }
 
+    // Rule 2b: After top-level function closing brace (before export default function)
+    if !raw_current.starts_with('\t')
+        && !raw_current.starts_with(' ')
+        && current == "}"
+        && (next.starts_with("export default function ") || next.starts_with("export function "))
+    {
+        return true;
+    }
+
     // Rule 3 & 4: Inside functions (indented code)
     if raw_current.starts_with('\t') || raw_current.starts_with("  ") {
         let current_indent = get_indent_level(raw_current);
@@ -237,6 +246,8 @@ fn should_add_blank_line_after(current: &str, next: &str, raw_current: &str) -> 
             if current == "}"
                 && (next.starts_with("function ")
                     || next.starts_with("async function ")
+                    || next.starts_with("export default function ")
+                    || next.starts_with("export function ")
                     || is_var_declaration(next)
                     || is_statement(next))
             {
@@ -252,6 +263,33 @@ fn should_add_blank_line_after(current: &str, next: &str, raw_current: &str) -> 
             // Rule 5: After $.reset(...) calls (before var declarations)
             // This matches Svelte's esrap formatting for element traversal code
             if current.starts_with("$.reset(") && is_var_declaration(next) {
+                return true;
+            }
+
+            // Rule 5b: After $.reset(...) calls (before multi-line template_effect)
+            // Blank line only when template_effect uses block form: () => { ... }
+            if current.starts_with("$.reset(")
+                && next.starts_with("$.template_effect(")
+                && !next.ends_with(");")
+            {
+                return true;
+            }
+
+            // Rule 6: After callback function closures `});` (before $. method calls)
+            // This matches Svelte's esrap formatting for each blocks
+            if current == "});" && is_statement(next) {
+                return true;
+            }
+
+            // Rule 7: After $.next(); calls (before var declarations)
+            // This matches Svelte's esrap formatting for text-first fragments
+            if current.starts_with("$.next(") && is_var_declaration(next) {
+                return true;
+            }
+
+            // Rule 8: After $.push(...); calls (before other statements)
+            // This matches Svelte's esrap formatting for component initialization
+            if current.starts_with("$.push(") && is_statement(next) {
                 return true;
             }
         }
@@ -276,6 +314,7 @@ fn is_statement(line: &str) -> bool {
         && !line.starts_with("//")
         && !line.starts_with("/*")
         && line != "}"
+        && line != "});"
 }
 
 /// Get the indentation level (number of tabs or equivalent spaces)
