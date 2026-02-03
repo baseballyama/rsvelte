@@ -1015,7 +1015,14 @@ impl JsCodegen {
     }
 
     fn emit_call_expression(&mut self, call: &JsCallExpression) {
-        let needs_parens = matches!(call.callee.as_ref(), JsExpr::Arrow(_) | JsExpr::Function(_));
+        // Need parentheses for callees that have lower precedence than function calls:
+        // - Arrow functions: (() => x)()
+        // - Function expressions: (function() {})()
+        // - Await expressions: (await x)()
+        let needs_parens = matches!(
+            call.callee.as_ref(),
+            JsExpr::Arrow(_) | JsExpr::Function(_) | JsExpr::Await(_)
+        );
         if needs_parens {
             self.output.push('(');
         }

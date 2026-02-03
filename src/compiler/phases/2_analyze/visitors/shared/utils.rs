@@ -1586,6 +1586,14 @@ pub fn walk_js_expression(
                 walk_js_expression(argument, context, metadata)?;
             }
         }
+        Some("AwaitExpression") => {
+            // Mark expression as containing await
+            metadata.set_has_await(true);
+            // Visit argument
+            if let Some(argument) = expression.get("argument") {
+                walk_js_expression(argument, context, metadata)?;
+            }
+        }
         Some("UpdateExpression") => {
             // Validate assignment before visiting argument
             // Use validate_assignment to catch snippet parameter assignments and other errors

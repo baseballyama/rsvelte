@@ -197,8 +197,9 @@ pub struct ComponentAnalysis {
     /// Whether the component uses accessors mode
     pub accessors: bool,
 
-    /// Await expressions needing context preservation (pickled awaits)
-    pub pickled_awaits: FxHashSet<String>,
+    /// Await expressions needing context preservation (pickled awaits).
+    /// Stores the start position of each await expression that needs $.save() wrapping.
+    pub pickled_awaits: FxHashSet<u32>,
 
     /// Identifiers that make up bind:group expressions -> internal group binding name
     /// Maps from (key, bindings) to the generated identifier

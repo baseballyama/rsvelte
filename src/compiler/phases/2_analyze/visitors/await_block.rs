@@ -11,7 +11,7 @@ use regex::Regex;
 use super::super::errors;
 use super::VisitorContext;
 use super::shared::fragment;
-use super::shared::utils::{validate_block_not_empty, validate_opening_tag};
+use super::shared::utils::{validate_block_not_empty, validate_opening_tag, walk_js_expression};
 use crate::ast::template::AwaitBlock;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
@@ -92,11 +92,10 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
     // This is used for CSS scoping analysis
     context.analysis.css.has_control_flow = true;
 
-    // Note: In the JS version, they call:
-    // context.visit(node.expression, { ...context.state, expression: node.metadata.expression });
-    // However, we don't have a generic visit system for expressions yet,
-    // and the expression is a serde_json::Value, so we'll skip this for now.
-    // TODO: Implement expression visitor when we have the visitor infrastructure
+    // Visit the expression to populate metadata (has_await, has_state, dependencies, etc.)
+    // In the JS version: context.visit(node.expression, { ...context.state, expression: node.metadata.expression });
+    let crate::ast::js::Expression::Value(value) = &block.expression;
+    walk_js_expression(value, context, &mut block.metadata.expression)?;
 
     // Increment block depth for child analysis
     context.block_depth += 1;
