@@ -853,6 +853,23 @@ fn process_bind_directive(
         false
     };
 
+    // Check if this is a prop binding in legacy mode that needs function call syntax
+    // In legacy mode, props are wrapped in $.prop() which returns a getter/setter function
+    // So setting a prop should be `prop(value)` not `prop = value`
+    let is_prop_binding = if let JsExpr::Identifier(name) = &raw_expression {
+        if let Some(binding) = context.state.get_binding(name) {
+            !context.state.analysis.runes
+                && crate::compiler::phases::phase3_transform::client::utils::is_prop_source(
+                    binding,
+                    context.state.analysis,
+                )
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
     // Create getter
     // For store subscriptions and store member expressions, use the transformed expression
     // which already has $store -> $store() applied
@@ -881,6 +898,13 @@ fn process_bind_directive(
         vec![b::stmt(b::call(
             b::member_path("$.set"),
             vec![raw_expression.clone(), b::id("$$value"), b::boolean(true)],
+        ))]
+    } else if is_prop_binding {
+        // For props in legacy mode, call the prop function with the value
+        // prop($$value) instead of prop = $$value
+        vec![b::stmt(b::call(
+            raw_expression.clone(),
+            vec![b::id("$$value")],
         ))]
     } else if is_store_member {
         // For store member expressions like $store.value, we need:
@@ -1513,8 +1537,10 @@ fn build_component_expression(
             super::utils::apply_transforms_to_expression(&id_expr, context)
         }
         ComponentNode::SvelteComponent(comp) => {
-            // Use the `this` expression - already handles transforms via convert_expression
-            convert_expression(&comp.expression, context)
+            // Use the `this` expression
+            // First convert to JsExpr, then apply transforms to handle props and state
+            let expr = convert_expression(&comp.expression, context);
+            super::utils::apply_transforms_to_expression(&expr, context)
         }
         ComponentNode::SvelteSelf(_) => {
             // Self reference - use current component

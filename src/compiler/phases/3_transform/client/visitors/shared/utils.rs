@@ -1805,26 +1805,28 @@ pub fn build_template_chunk(
                     // Convert Expression to JsExpr using the proper converter
                     let converted_expr = convert_expression(&expr_tag.expression, context);
 
-                    // Check if the expression references reactive state, contains calls, or has member expressions
+                    // Check if the expression references reactive state, contains calls, member expressions, or await
                     let expr_has_state =
                         expression_has_reactive_state(&expr_tag.expression, context);
                     let expr_has_call = expression_has_call(&expr_tag.expression);
                     let expr_has_member = expression_has_member(&expr_tag.expression);
+                    let expr_has_await = expression_has_await(&expr_tag.expression);
 
                     // Build the expression with transforms applied (e.g., $.get() wrapping)
                     let mut expr_metadata = ExpressionMetadata::default();
                     expr_metadata.set_has_state(expr_has_state);
                     expr_metadata.set_has_call(expr_has_call);
                     expr_metadata.set_has_member_expression(expr_has_member);
+                    expr_metadata.set_has_await(expr_has_await);
 
                     let built_expr = build_expression(context, &converted_expr, &expr_metadata);
 
-                    // Memoize if expression contains a call
+                    // Memoize if expression contains a call or await
                     // This matches Svelte's behavior of replacing function calls with $0, $1, etc.
                     let value = context.state.memoizer.add_memoized(
                         built_expr,
                         expr_has_call,
-                        false, // has_await
+                        expr_has_await,
                         false, // memoize_if_state
                         expr_has_state,
                     );
@@ -2623,6 +2625,126 @@ fn has_member_json(json_value: &serde_json::Value) -> bool {
                     if let Some(value) = prop.as_object().and_then(|p| p.get("value"))
                         && has_member_json(value)
                     {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        _ => false,
+    }
+}
+
+/// Check if an expression contains an await expression.
+///
+/// Returns true if the expression contains an AwaitExpression at any level.
+#[inline]
+pub fn expression_has_await(expr: &crate::ast::js::Expression) -> bool {
+    use crate::ast::js::Expression;
+
+    match expr {
+        Expression::Value(json_value) => has_await_json(json_value),
+    }
+}
+
+/// Internal helper that checks for AwaitExpression in JSON values.
+#[inline]
+fn has_await_json(json_value: &serde_json::Value) -> bool {
+    let Some(obj) = json_value.as_object() else {
+        return false;
+    };
+    let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
+        return false;
+    };
+
+    match expr_type {
+        "AwaitExpression" => true,
+        "CallExpression" => {
+            if let Some(callee) = obj.get("callee")
+                && has_await_json(callee)
+            {
+                return true;
+            }
+            if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+                for arg in args {
+                    if has_await_json(arg) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        "MemberExpression" => {
+            if let Some(object) = obj.get("object") {
+                return has_await_json(object);
+            }
+            false
+        }
+        "BinaryExpression" | "LogicalExpression" => {
+            if let Some(left) = obj.get("left")
+                && has_await_json(left)
+            {
+                return true;
+            }
+            if let Some(right) = obj.get("right")
+                && has_await_json(right)
+            {
+                return true;
+            }
+            false
+        }
+        "UnaryExpression" => {
+            if let Some(argument) = obj.get("argument") {
+                return has_await_json(argument);
+            }
+            false
+        }
+        "ConditionalExpression" => {
+            for field in ["test", "consequent", "alternate"] {
+                if let Some(val) = obj.get(field)
+                    && has_await_json(val)
+                {
+                    return true;
+                }
+            }
+            false
+        }
+        "TemplateLiteral" => {
+            if let Some(exprs) = obj.get("expressions").and_then(|v| v.as_array()) {
+                for expr_val in exprs {
+                    if has_await_json(expr_val) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        "ArrayExpression" => {
+            if let Some(elements) = obj.get("elements").and_then(|v| v.as_array()) {
+                for elem in elements {
+                    if has_await_json(elem) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        "ObjectExpression" => {
+            if let Some(properties) = obj.get("properties").and_then(|v| v.as_array()) {
+                for prop in properties {
+                    if let Some(value) = prop.as_object().and_then(|p| p.get("value"))
+                        && has_await_json(value)
+                    {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        "SequenceExpression" => {
+            if let Some(expressions) = obj.get("expressions").and_then(|v| v.as_array()) {
+                for expr_val in expressions {
+                    if has_await_json(expr_val) {
                         return true;
                     }
                 }

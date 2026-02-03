@@ -1376,7 +1376,7 @@ impl Memoizer {
         let thunks: Vec<JsExpr> = self
             .async_entries
             .iter()
-            .map(|memo| b::thunk(memo.expression.clone()))
+            .map(|memo| b::async_thunk(memo.expression.clone()))
             .collect();
 
         Some(b::array(thunks))
