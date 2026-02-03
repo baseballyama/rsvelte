@@ -673,6 +673,17 @@ fn extract_literal_string(node: &Value) -> Option<String> {
             // For other identifiers, we can't fold them at this stage
             None
         }
+        "TemplateLiteral" => {
+            // Handle template literals without expressions
+            // A TemplateLiteral with no expressions is a known value at compile time
+            let expressions = node.get("expressions").and_then(|e| e.as_array())?;
+            if expressions.is_empty() {
+                // Return the JSON string representation for is_initial_value_literal_or_known
+                // to recognize it as a known value
+                return Some(node.to_string());
+            }
+            None
+        }
         _ => None,
     }
 }

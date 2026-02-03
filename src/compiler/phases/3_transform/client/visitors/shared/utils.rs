@@ -1967,7 +1967,37 @@ pub(crate) fn get_literal_value(
                         "true" => Some(Some("true".to_string())),
                         "false" => Some(Some("false".to_string())),
                         "null" | "undefined" => Some(None),
-                        _ => None,
+                        _ => {
+                            // Check for TemplateLiteral JSON format (from binding.initial)
+                            // Template literals without expressions are known compile-time values
+                            if init.contains("\"type\":\"TemplateLiteral\"")
+                                && init.contains("\"expressions\":[]")
+                            {
+                                // Extract the cooked value from the quasis
+                                // Format: {"type":"TemplateLiteral",...,"quasis":[{"value":{"cooked":"..."}}]}
+                                let quasis = serde_json::from_str::<serde_json::Value>(init)
+                                    .ok()
+                                    .and_then(|parsed| {
+                                        parsed.get("quasis").and_then(|q| q.as_array().cloned())
+                                    });
+
+                                if let Some(quasis) = quasis {
+                                    // Collect all cooked values from quasis
+                                    let mut result = String::new();
+                                    for quasi in quasis {
+                                        if let Some(cooked) = quasi
+                                            .get("value")
+                                            .and_then(|v| v.get("cooked"))
+                                            .and_then(|c| c.as_str())
+                                        {
+                                            result.push_str(cooked);
+                                        }
+                                    }
+                                    return Some(Some(result));
+                                }
+                            }
+                            None
+                        }
                     }
                 }
                 "LogicalExpression" => {
@@ -2782,6 +2812,12 @@ fn is_initial_value_literal_or_known(initial: &Option<String>) -> bool {
         return true;
     }
 
+    // Check for TemplateLiteral without expressions (pure string template)
+    // A TemplateLiteral with no expressions is a known value at compile time
+    if s.contains("TemplateLiteral") && s.contains("\"expressions\":[]") {
+        return true;
+    }
+
     // Check for raw literal formats
     let trimmed = s.trim();
 
@@ -2901,5 +2937,50 @@ mod tests {
             }
             _ => panic!("Expected expression statement"),
         }
+    }
+
+    #[test]
+    fn test_is_initial_value_literal_or_known() {
+        // Test string literal
+        assert!(is_initial_value_literal_or_known(&Some(
+            "'hello'".to_string()
+        )));
+        assert!(is_initial_value_literal_or_known(&Some(
+            "\"world\"".to_string()
+        )));
+
+        // Test number literal
+        assert!(is_initial_value_literal_or_known(&Some("42".to_string())));
+        assert!(is_initial_value_literal_or_known(&Some("3.14".to_string())));
+
+        // Test boolean literal
+        assert!(is_initial_value_literal_or_known(&Some("true".to_string())));
+        assert!(is_initial_value_literal_or_known(&Some(
+            "false".to_string()
+        )));
+
+        // Test null/undefined
+        assert!(is_initial_value_literal_or_known(&Some("null".to_string())));
+        assert!(is_initial_value_literal_or_known(&Some(
+            "undefined".to_string()
+        )));
+
+        // Test TemplateLiteral without expressions (JSON format)
+        let template_literal_json = r#"{"type":"TemplateLiteral","expressions":[],"quasis":[{"type":"TemplateElement","value":{"raw":"hello","cooked":"hello"}}]}"#;
+        assert!(is_initial_value_literal_or_known(&Some(
+            template_literal_json.to_string()
+        )));
+
+        // Test TemplateLiteral WITH expressions - should be false
+        let template_literal_with_expr = r#"{"type":"TemplateLiteral","expressions":[{"type":"Identifier","name":"foo"}],"quasis":[]}"#;
+        assert!(!is_initial_value_literal_or_known(&Some(
+            template_literal_with_expr.to_string()
+        )));
+
+        // Test None
+        assert!(!is_initial_value_literal_or_known(&None));
+
+        // Test regular identifier - should be false
+        assert!(!is_initial_value_literal_or_known(&Some("foo".to_string())));
     }
 }
