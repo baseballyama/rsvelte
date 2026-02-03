@@ -83,5 +83,6 @@ pub mod on_directive;
 pub mod program;
 pub mod svelte_boundary;
 pub mod svelte_head;
+pub mod title_element;
 pub mod transition_directive;
 pub mod use_directive;

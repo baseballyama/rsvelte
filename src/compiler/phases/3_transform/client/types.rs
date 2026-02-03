@@ -126,6 +126,8 @@ impl<'a> ComponentContext<'a> {
 
             TemplateNode::SvelteDocument(document) => self.visit_svelte_document(document),
 
+            TemplateNode::TitleElement(title) => self.visit_title_element(title),
+
             // Other node types - TODO: implement
             _ => TransformResult::None,
         };
@@ -554,6 +556,15 @@ impl<'a> ComponentContext<'a> {
     fn visit_svelte_head(&mut self, head: &crate::ast::template::SvelteElement) -> TransformResult {
         use crate::compiler::phases::phase3_transform::client::visitors::svelte_head::svelte_head as visit_svelte_head_impl;
         visit_svelte_head_impl(head, self);
+        TransformResult::None
+    }
+
+    fn visit_title_element(
+        &mut self,
+        title: &crate::ast::template::TitleElement,
+    ) -> TransformResult {
+        use crate::compiler::phases::phase3_transform::client::visitors::title_element::title_element as visit_title_element_impl;
+        visit_title_element_impl(title, self);
         TransformResult::None
     }
 
