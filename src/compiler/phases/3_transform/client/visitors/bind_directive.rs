@@ -14,7 +14,9 @@
 //! - Window/document bindings (scrollX, scrollY, online, etc.)
 
 use crate::ast::js::Expression;
-use crate::ast::template::{Attribute, BindDirective, TemplateNode};
+use crate::ast::template::{
+    Attribute, AttributeValue, AttributeValuePart, BindDirective, TemplateNode,
+};
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
@@ -404,12 +406,16 @@ fn build_bind_property_call(
 }
 
 /// Build a group binding call.
+///
+/// This corresponds to the 'group' case in BindDirective.js (lines 214-255).
+/// When the parent element has a `value` attribute that is not a text attribute,
+/// we need to include the value expression in the getter for dependency tracking.
 fn build_group_binding_call(
     node: &JsExpr,
     get: &JsExpr,
     set: &Option<JsExpr>,
-    _parent: Option<&TemplateNode>,
-    context: &ComponentContext,
+    parent: Option<&TemplateNode>,
+    context: &mut ComponentContext,
 ) -> JsExpr {
     // TODO: Handle metadata.parent_each_blocks for index tracking
     // For now, use an empty array for indexes
@@ -436,7 +442,42 @@ fn build_group_binding_call(
         b::id(&group_name)
     };
 
-    let group_getter = get.clone();
+    // We need to additionally invoke the value attribute signal to register it as a dependency,
+    // so that when the value is updated, the group binding is updated
+    // See: svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/BindDirective.js L223-243
+    let mut group_getter = get.clone();
+
+    if let Some(TemplateNode::RegularElement(elem)) = parent {
+        // Find the value attribute that is not a text attribute and not true
+        let value_attr = elem.attributes.iter().find_map(|attr| {
+            if let Attribute::Attribute(a) = attr {
+                if a.name.as_str() == "value"
+                    && !is_text_attribute_value(&a.value)
+                    && !matches!(&a.value, AttributeValue::True(_))
+                {
+                    Some(&a.value)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        });
+
+        if let Some(value) = value_attr {
+            // Build the value expression for dependency tracking
+            let value_expr = build_value_expression(value, context);
+
+            // Create a getter that first evaluates the value expression (for dependency tracking),
+            // then returns the group expression
+            // () => { value_expr; return get_expr; }
+            group_getter = b::thunk_block(vec![
+                b::stmt(value_expr),
+                b::return_value(unwrap_thunk(get)),
+            ]);
+        }
+    }
+
     let set_or_get = set.clone().unwrap_or_else(|| get.clone());
 
     b::call(
@@ -449,6 +490,75 @@ fn build_group_binding_call(
             set_or_get,
         ],
     )
+}
+
+/// Check if an attribute value is a text attribute (single static text).
+/// Corresponds to `is_text_attribute` in svelte/packages/svelte/src/compiler/utils/ast.js
+fn is_text_attribute_value(value: &AttributeValue) -> bool {
+    matches!(value, AttributeValue::Sequence(parts) if parts.len() == 1 && matches!(parts.first(), Some(AttributeValuePart::Text(_))))
+}
+
+/// Unwrap a thunk expression (arrow function with no params) to get its body expression.
+fn unwrap_thunk(expr: &JsExpr) -> JsExpr {
+    match expr {
+        JsExpr::Arrow(arrow) if arrow.params.is_empty() => match &arrow.body {
+            JsArrowBody::Expression(body) => (**body).clone(),
+            JsArrowBody::Block(block) => {
+                // If it's a block with a single return statement, extract the value
+                if let Some(JsStatement::Return(ret)) = block.body.first()
+                    && let Some(arg) = &ret.argument
+                {
+                    return (**arg).clone();
+                }
+                expr.clone()
+            }
+        },
+        _ => expr.clone(),
+    }
+}
+
+/// Build a value expression from an attribute value.
+/// This builds the expression and applies necessary transforms for dependency tracking.
+fn build_value_expression(value: &AttributeValue, context: &mut ComponentContext) -> JsExpr {
+    use super::shared::utils::build_expression;
+    use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+
+    match value {
+        AttributeValue::Expression(expr_tag) => {
+            // Convert the expression
+            let converted = convert_expression(&expr_tag.expression, context);
+
+            // Check for reactive state
+            let has_state =
+                super::shared::utils::expression_has_reactive_state(&expr_tag.expression, context);
+
+            // Build the expression with transforms applied
+            let mut metadata = ExpressionMetadata::default();
+            metadata.set_has_state(has_state);
+
+            build_expression(context, &converted, &metadata)
+        }
+        AttributeValue::Sequence(parts) => {
+            // For sequences (e.g., value="{name}"), find the first expression
+            for part in parts {
+                if let AttributeValuePart::ExpressionTag(expr_tag) = part {
+                    let converted = convert_expression(&expr_tag.expression, context);
+                    let has_state = super::shared::utils::expression_has_reactive_state(
+                        &expr_tag.expression,
+                        context,
+                    );
+
+                    let mut metadata = ExpressionMetadata::default();
+                    metadata.set_has_state(has_state);
+
+                    return build_expression(context, &converted, &metadata);
+                }
+            }
+            // Fallback for text-only sequences (shouldn't reach here due to is_text_attribute check)
+            b::undefined()
+        }
+        AttributeValue::True(_) => b::boolean(true),
+    }
 }
 
 /// Build a bind:this call with context awareness for props.
