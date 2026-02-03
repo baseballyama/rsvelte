@@ -306,6 +306,16 @@ fn transform_client_with_visitors(
     // Reference: transform-client.js line 379
     component_body.extend(store_setup);
 
+    // Add binding group declarations
+    // Reference: transform-client.js lines 273-277
+    // const group_binding_declarations = [];
+    // for (const group of analysis.binding_groups.values()) {
+    //     group_binding_declarations.push(b.const(group.name, b.array([])));
+    // }
+    for group_name in analysis.binding_groups.values() {
+        component_body.push(b::const_decl(group_name, b::empty_array()));
+    }
+
     // Add CSS styles injection if needed
     if analysis.css.has_css && analysis.inject_styles {
         // $.append_styles($$anchor, $$css)

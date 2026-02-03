@@ -441,7 +441,7 @@ fn transform_node_preserving(
     specificity_bumped: &mut bool,
     last_end: &mut usize,
     ctx: &CssContext,
-    is_nested: bool,
+    parent_has_local_selectors: bool,
 ) {
     match node.get("type").and_then(|t| t.as_str()) {
         Some("Rule") => {
@@ -455,7 +455,7 @@ fn transform_node_preserving(
                 specificity_bumped,
                 last_end,
                 ctx,
-                is_nested,
+                parent_has_local_selectors,
                 false, // not in a global block
             );
         }
@@ -631,6 +631,95 @@ fn has_nested_rules(block: &Value) -> bool {
             .any(|child| child.get("type").and_then(|t| t.as_str()) == Some("Rule"))
     } else {
         false
+    }
+}
+
+/// Check if a rule has local selectors (i.e., selectors that need scoping)
+/// A rule has local selectors if any of its complex selectors is NOT entirely global/global-like
+fn rule_has_local_selectors(node: &Value) -> bool {
+    if let Some(prelude) = node.get("prelude")
+        && let Some(children) = prelude.get("children").and_then(|c| c.as_array())
+    {
+        for complex in children {
+            if !is_complex_selector_global_like(complex) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Check if a complex selector is entirely global or global-like
+/// This means all its relative selectors are either :global() or global-like (:root, :host, etc.)
+fn is_complex_selector_global_like(complex: &Value) -> bool {
+    if let Some(relative_selectors) = complex.get("children").and_then(|c| c.as_array()) {
+        for rel in relative_selectors {
+            if !is_relative_selector_global_like(rel) {
+                return false;
+            }
+        }
+        true
+    } else {
+        true // Empty selector list is considered global-like
+    }
+}
+
+/// Check if a relative selector is global or global-like
+fn is_relative_selector_global_like(rel: &Value) -> bool {
+    if let Some(selectors) = rel.get("selectors").and_then(|s| s.as_array()) {
+        if selectors.is_empty() {
+            return true;
+        }
+
+        // Check if the first selector is :global
+        let first = &selectors[0];
+        let first_type = first.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        let first_name = first.get("name").and_then(|n| n.as_str()).unwrap_or("");
+
+        // :global() is global
+        if first_type == "PseudoClassSelector" && first_name == "global" {
+            return true;
+        }
+
+        // :host is global-like
+        if first_type == "PseudoClassSelector" && first_name == "host" {
+            return true;
+        }
+
+        // Check for :root (without :has)
+        let has_root = selectors.iter().any(|s| {
+            s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                && s.get("name").and_then(|n| n.as_str()) == Some("root")
+        });
+        let has_has = selectors.iter().any(|s| {
+            s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                && s.get("name").and_then(|n| n.as_str()) == Some("has")
+        });
+        if has_root && !has_has {
+            return true;
+        }
+
+        // Check if all selectors are pseudo and first is view-transition*
+        let all_pseudo = selectors.iter().all(|s| {
+            let sel_type = s.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            sel_type == "PseudoClassSelector" || sel_type == "PseudoElementSelector"
+        });
+        if all_pseudo && first_type == "PseudoElementSelector" {
+            let view_transition_names = [
+                "view-transition",
+                "view-transition-group",
+                "view-transition-old",
+                "view-transition-new",
+                "view-transition-image-pair",
+            ];
+            if view_transition_names.contains(&first_name) {
+                return true;
+            }
+        }
+
+        false
+    } else {
+        true
     }
 }
 
@@ -1721,7 +1810,7 @@ fn transform_rule_preserving(
     specificity_bumped: &mut bool,
     last_end: &mut usize,
     ctx: &CssContext,
-    is_nested: bool,
+    parent_has_local_selectors: bool,
     is_in_global_block: bool,
 ) {
     let node_start = node.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
@@ -1808,7 +1897,7 @@ fn transform_rule_preserving(
             css_source,
             css_start,
             ctx,
-            is_nested,
+            parent_has_local_selectors,
             is_in_global_block,
         );
         output.push_str(&transformed_selector);
@@ -1834,6 +1923,12 @@ fn transform_rule_preserving(
                 let nested_in_global_block =
                     is_in_global_block || rule_starts_with_global || rule_contains_global_block;
 
+                // Check if this rule has local selectors for specificity bumping in nested rules
+                // If the current rule has local selectors, or any parent had local selectors,
+                // then nested rules should use :where() for specificity preservation
+                let current_has_local = rule_has_local_selectors(node);
+                let nested_parent_has_local = parent_has_local_selectors || current_has_local;
+
                 // Process the block recursively
                 transform_block_with_nested_rules(
                     block,
@@ -1845,6 +1940,7 @@ fn transform_rule_preserving(
                     specificity_bumped,
                     ctx,
                     nested_in_global_block,
+                    nested_parent_has_local,
                 );
             } else {
                 // Copy the entire block from source (including braces and content)
@@ -1872,6 +1968,7 @@ fn transform_block_with_nested_rules(
     specificity_bumped: &mut bool,
     ctx: &CssContext,
     is_in_global_block: bool,
+    parent_has_local_selectors: bool,
 ) {
     let block_start = block.get("start").and_then(|s| s.as_u64()).unwrap_or(0) as usize;
     let block_end = block.get("end").and_then(|e| e.as_u64()).unwrap_or(0) as usize;
@@ -1924,8 +2021,8 @@ fn transform_block_with_nested_rules(
                             specificity_bumped,
                             &mut local_last_end,
                             ctx,
-                            true, // nested rules use :where() for specificity preservation
-                            is_in_global_block, // pass through global block context
+                            parent_has_local_selectors, // use :where() only if parent has local selectors
+                            is_in_global_block,         // pass through global block context
                         );
                     }
                 }
@@ -2172,7 +2269,7 @@ fn transform_selector_list(
     css_source: &str,
     css_start: usize,
     ctx: &CssContext,
-    is_nested: bool,
+    parent_has_local_selectors: bool,
     is_in_global_block: bool,
 ) -> String {
     let mut result = String::new();
@@ -2232,7 +2329,7 @@ fn transform_selector_list(
                     specificity_bumped,
                     css_source,
                     css_start,
-                    is_nested,
+                    parent_has_local_selectors,
                     is_in_global_block,
                     Some(ctx),
                 ));
@@ -2329,7 +2426,7 @@ fn transform_complex_selector(
     _specificity_bumped: &mut bool,
     css_source: &str,
     css_start: usize,
-    is_nested: bool,
+    parent_has_local_selectors: bool,
     is_in_global_block: bool,
     ctx: Option<&CssContext>,
 ) -> String {
@@ -2337,7 +2434,8 @@ fn transform_complex_selector(
     // Each complex selector resets specificity bumping - first element gets direct class
     // For nested rules, start with bumped=true to use :where() for specificity preservation
     // EXCEPT when we're inside a :global() block - then start fresh (bumped=false)
-    let mut local_specificity_bumped = is_nested && !is_in_global_block;
+    // Also, if parent rule doesn't have local selectors (like :root), don't bump
+    let mut local_specificity_bumped = parent_has_local_selectors && !is_in_global_block;
     // Track if we've seen a :global() selector - elements AFTER :global() should use direct class
     let mut seen_global = false;
     // Track if the previous selector was scoped - for specificity bumping decisions
@@ -2558,22 +2656,26 @@ fn transform_complex_selector(
                     }
 
                     // If all selectors are pseudo-classes/elements (or nesting selectors), add scoping class first
-                    // But NOT for :is(), :has(), :host, :root which handle scoping internally or should not be scoped
+                    // Following the official Svelte implementation:
+                    // - For :root and :host, do NOT add scoping (they are global-like)
+                    // - For :is, the scoping is handled internally
+                    // - For other pseudo-classes like :has, :not, :hover, etc., prepend the scoping class
                     // Also skip if we have a NestingSelector - it inherits scoping from parent
                     if needs_scoping && last_non_pseudo_idx.is_none() && !has_nesting_selector {
                         // Check if first selector is one that should not have scoping added before it
-                        let first_is_internal_scoping = selectors.first().is_some_and(|s| {
+                        let first_is_global_like = selectors.first().is_some_and(|s| {
                             if s.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
                             {
                                 let name = s.get("name").and_then(|n| n.as_str()).unwrap_or("");
-                                // These pseudo-classes handle scoping internally or should not be scoped
-                                name == "is" || name == "has" || name == "host" || name == "root"
+                                // Only :root, :host should NOT have scoping added before them
+                                // :is handles scoping internally via its arguments
+                                name == "is" || name == "host" || name == "root"
                             } else {
                                 false
                             }
                         });
 
-                        if !first_is_internal_scoping {
+                        if !first_is_global_like {
                             let modifier = get_modifier(selector, &local_specificity_bumped);
                             selector_parts.push_str(&modifier);
                             local_specificity_bumped = true;

@@ -366,7 +366,7 @@ fn build_special_binding_call(
         ),
 
         // Group binding (radio/checkbox groups)
-        "group" => build_group_binding_call(&node_expr, get, set, parent),
+        "group" => build_group_binding_call(&node_expr, get, set, parent, context),
 
         // Unknown binding
         _ => {
@@ -409,13 +409,32 @@ fn build_group_binding_call(
     get: &JsExpr,
     set: &Option<JsExpr>,
     _parent: Option<&TemplateNode>,
+    context: &ComponentContext,
 ) -> JsExpr {
     // TODO: Handle metadata.parent_each_blocks for index tracking
     // For now, use an empty array for indexes
     let indexes = b::empty_array();
 
-    // TODO: Get binding_group_name from metadata
-    let binding_group_name = b::id("$$binding_group");
+    // Get binding_group_name from analysis.binding_groups
+    // If not found, create one called "binding_group"
+    // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/BindDirective.js L248
+    let binding_group_name = if context.state.analysis.binding_groups.is_empty() {
+        // No binding groups registered - use default name "binding_group"
+        // This shouldn't happen in well-analyzed code, but handle gracefully
+        b::id("binding_group")
+    } else {
+        // Use the first binding group name (for simple cases with single bind:group)
+        // TODO: Properly track which binding group this belongs to via node.metadata
+        let group_name = context
+            .state
+            .analysis
+            .binding_groups
+            .values()
+            .next()
+            .cloned()
+            .unwrap_or_else(|| "binding_group".to_string());
+        b::id(&group_name)
+    };
 
     let group_getter = get.clone();
     let set_or_get = set.clone().unwrap_or_else(|| get.clone());
