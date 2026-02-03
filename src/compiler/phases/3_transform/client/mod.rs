@@ -3459,12 +3459,33 @@ fn transform_store_reads_client(line: &str, store_sub_vars: &[String]) -> String
                     false
                 };
 
+                // Check if this is inside $.untrack() - don't transform there
+                // $.untrack expects a getter function, so $store should remain $store
+                let is_inside_untrack = {
+                    // Look back for "$.untrack(" pattern
+                    let prefix = &new_result;
+                    let untrack_pattern = "$.untrack(";
+                    if prefix.ends_with(untrack_pattern) {
+                        true
+                    } else {
+                        // Also check for whitespace before the identifier
+                        prefix.trim_end().ends_with(untrack_pattern)
+                    }
+                };
+
                 if before_ok && after_ok && !is_already_call {
-                    // Replace with store_sub()
-                    new_result.push_str(store_sub);
-                    new_result.push_str("()");
-                    i += store_sub.len();
-                    continue;
+                    if is_inside_untrack {
+                        // Inside $.untrack(), keep as $store (don't add parentheses)
+                        new_result.push_str(store_sub);
+                        i += store_sub.len();
+                        continue;
+                    } else {
+                        // Replace with store_sub()
+                        new_result.push_str(store_sub);
+                        new_result.push_str("()");
+                        i += store_sub.len();
+                        continue;
+                    }
                 }
             }
 

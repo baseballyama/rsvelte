@@ -605,6 +605,35 @@ fn apply_transforms_to_expression_with_shadowed(
                     update.prefix,
                 );
             }
+
+            // Check for store subscription mutation case: when updating a member expression
+            // where the base object is a store subscription (e.g., $store[0].value++)
+            // This applies only to store subscriptions (identifiers starting with $)
+            // which need the special $.store_mutate() transformation.
+            if let JsExpr::Member(_) = update.argument.as_ref() {
+                let base_object = get_base_object(update.argument.as_ref());
+
+                if let JsExpr::Identifier(name) = base_object
+                    && name.starts_with('$')  // Only store subscriptions
+                    && !shadowed.contains(&name)
+                    && let Some(transform) = context.state.transform.get(&name)
+                    && let Some(mutate_fn) = transform.mutate
+                {
+                    // Keep the original update expression, the mutate function
+                    // (store_sub_mutate) will replace the base identifier
+                    // with $.untrack($store)
+                    let full_update = JsExpr::Update(JsUpdateExpression {
+                        operator: update.operator,
+                        argument: update.argument.clone(),
+                        prefix: update.prefix,
+                    });
+
+                    // Apply the mutate transform
+                    // e.g., $store[0].value++ -> $.store_mutate(store, $.untrack($store)[0].value++, $.untrack($store))
+                    return mutate_fn(JsExpr::Identifier(name.clone()), full_update);
+                }
+            }
+
             // Otherwise just transform the argument
             let transformed_arg = recurse!(&update.argument);
 
