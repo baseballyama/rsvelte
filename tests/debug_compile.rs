@@ -1557,4 +1557,52 @@ test
             println!("Could not read files");
         }
     }
+
+    #[test]
+    fn debug_async_component_exports() {
+        use svelte_compiler_rust::compiler::ExperimentalOptions;
+
+        let source = r#"<script>
+	import Child from './Child.svelte';
+
+	let child;
+</script>
+
+<Child bind:this={child} />
+<button onclick={() => {
+	child.foo();
+	child.bar();
+}}>log</button>
+"#;
+
+        let options = CompileOptions {
+            dev: false,
+            filename: Some("main.svelte".to_string()),
+            experimental: ExperimentalOptions { r#async: true },
+            ..Default::default()
+        };
+
+        match compile(source, options) {
+            Ok(result) => {
+                println!(
+                    "\n=== COMPILED CLIENT OUTPUT ===\n{}\n=== END ===",
+                    result.js.code
+                );
+
+                // Check if bind_this uses $.get and $.set
+                if result.js.code.contains("$.set(child,")
+                    && result.js.code.contains("$.get(child)")
+                {
+                    println!("\nSUCCESS: bind_this uses $.get() and $.set()");
+                } else if result.js.code.contains("child = $$value") {
+                    println!(
+                        "\nFAILURE: bind_this uses direct assignment instead of $.get()/$.set()"
+                    );
+                }
+            }
+            Err(e) => {
+                println!("\n=== ERROR ===\n{:?}\n=== END ===", e);
+            }
+        }
+    }
 }

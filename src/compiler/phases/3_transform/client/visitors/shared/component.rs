@@ -1570,14 +1570,51 @@ fn build_bind_this_call(
         );
     }
 
-    // Simple expression - create getter and setter
-    let getter = b::arrow(vec![], expression.clone());
-    let setter = b::arrow(
-        vec![b::id_pattern("$$value")],
-        b::assign(expression, b::id("$$value")),
-    );
+    // Check if this is a simple identifier that needs $.get()/$.set() wrappers
+    // This includes legacy mode state variables (BindingKind::State) that will be
+    // transformed to $.mutable_source()
+    let needs_get_set = if let JsExpr::Identifier(name) = &expression {
+        // In legacy mode, check if this variable is a state variable
+        use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+        !context.state.analysis.runes
+            && context
+                .state
+                .analysis
+                .root
+                .bindings
+                .iter()
+                .any(|b| b.name == *name && matches!(b.kind, BindingKind::State))
+    } else {
+        false
+    };
 
-    b::call(b::member_path("$.bind_this"), vec![value, setter, getter])
+    if needs_get_set {
+        // For legacy state variables ($.mutable_source), use $.get() and $.set()
+        // getter: () => $.get(expr)
+        // setter: ($$value) => $.set(expr, $$value)
+        let getter = b::arrow(
+            vec![],
+            b::call(b::member_path("$.get"), vec![expression.clone()]),
+        );
+        let setter = b::arrow(
+            vec![b::id_pattern("$$value")],
+            b::call(
+                b::member_path("$.set"),
+                vec![expression.clone(), b::id("$$value")],
+            ),
+        );
+
+        b::call(b::member_path("$.bind_this"), vec![value, setter, getter])
+    } else {
+        // Simple expression - create getter and setter with assignment
+        let getter = b::arrow(vec![], expression.clone());
+        let setter = b::arrow(
+            vec![b::id_pattern("$$value")],
+            b::assign(expression, b::id("$$value")),
+        );
+
+        b::call(b::member_path("$.bind_this"), vec![value, setter, getter])
+    }
 }
 
 /// Build component with CSS props wrapper.

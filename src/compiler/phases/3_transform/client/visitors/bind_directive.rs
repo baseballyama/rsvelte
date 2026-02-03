@@ -465,6 +465,31 @@ fn build_bind_this_call_for_context(
             false
         };
 
+        // Check if this variable is a state variable that needs $.get() and $.set() wrappers
+        // This includes:
+        // 1. Variables with state transforms registered (runes mode $state, $derived)
+        // 2. Variables with BindingKind::State (legacy mode mutable_source)
+        let has_state_transform = if let JsExpr::Identifier(name) = get {
+            // Check transform map first (runes mode)
+            if context.state.transform.get(name).is_some() {
+                true
+            } else {
+                // In legacy mode, check analysis.root.bindings for State binding kind
+                // This handles variables that will be wrapped in $.mutable_source()
+                use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+                !context.state.analysis.runes
+                    && context
+                        .state
+                        .analysis
+                        .root
+                        .bindings
+                        .iter()
+                        .any(|b| b.name == *name && matches!(b.kind, BindingKind::State))
+            }
+        } else {
+            false
+        };
+
         if is_prop {
             // For props, use function call syntax
             // getter: () => prop()
@@ -479,8 +504,22 @@ fn build_bind_this_call_for_context(
                 b::member_path("$.bind_this"),
                 vec![value.clone(), setter, getter],
             )
+        } else if has_state_transform {
+            // For state variables ($.mutable_source, $.state), use $.get() and $.set()
+            // getter: () => $.get(expr)
+            // setter: ($$value) => $.set(expr, $$value)
+            let getter = b::arrow(vec![], b::call(b::member_path("$.get"), vec![get.clone()]));
+            let setter = b::arrow(
+                vec![b::id_pattern("$$value")],
+                b::call(b::member_path("$.set"), vec![get.clone(), b::id("$$value")]),
+            );
+
+            b::call(
+                b::member_path("$.bind_this"),
+                vec![value.clone(), setter, getter],
+            )
         } else {
-            // For regular variables, use assignment syntax
+            // For regular variables (no transform), use assignment syntax
             // getter: () => expr
             // setter: ($$value) => expr = $$value
             let getter = b::arrow(vec![], get.clone());
