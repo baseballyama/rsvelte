@@ -33,6 +33,11 @@ pub fn visit(
         return Err(errors::svelte_element_missing_this());
     }
 
+    // Analyze the 'this' expression to track template references
+    // This is crucial for legacy state promotion to work correctly
+    let Expression::Value(tag_value) = &element.tag;
+    super::script::walk_js_node(tag_value, context)?;
+
     // Check for invalid bindings on svelte:element
     // bind:value, bind:files, bind:group can only be used with specific elements
     for attr in &element.attributes {

@@ -967,6 +967,17 @@ fn transform_instance_script_for_visitors(
                 prop_assignment_transform_vars,
                 analysis,
             );
+            // Also apply state assignment transformations to the reactive statement body
+            // This handles cases like: `$: selected ? component = Sub : component = banana`
+            // where state variables are assigned inside conditional expressions
+            let transformed = transform_state_assignments(
+                &transformed,
+                state_vars,
+                non_reactive_state_vars,
+                proxy_vars,
+                raw_state_vars,
+                analysis.runes,
+            );
             result.push_str(&transformed);
             result.push('\n');
             return;
@@ -2922,7 +2933,10 @@ fn transform_state_assignments(
 
                 let after = &result[pos + assignment_pattern.len()..];
                 // Find the expression (until ; or end of line, respecting nested braces)
-                let expr_end = find_statement_end_client(after);
+                // If this assignment is inside a ternary expression, also stop at `:`
+                let before_for_ternary = &result[..pos];
+                let in_ternary = is_inside_ternary_expression(before_for_ternary);
+                let expr_end = find_assignment_expr_end(after, in_ternary);
                 let expr = after[..expr_end].trim();
 
                 // Debug output
@@ -3859,6 +3873,162 @@ fn find_statement_end_client(s: &str) -> usize {
             ';' if depth == 0 => return i,
             // Newline at depth 0 ends the statement (JavaScript ASI)
             '\n' if depth == 0 => return i,
+            _ => {}
+        }
+    }
+
+    s.len()
+}
+
+/// Check if a position is inside a ternary expression by looking at the "before" string.
+/// Returns true if there's an unmatched `?` that would indicate we're in a ternary branch.
+/// This function looks at the current block context (since the last `{`) to properly handle
+/// ternaries inside arrow function bodies.
+fn is_inside_ternary_expression(before: &str) -> bool {
+    // Find the start of the current block context by looking for the last unmatched `{`
+    // We need to track depth to find where the current block starts
+    let chars: Vec<char> = before.chars().collect();
+
+    // First, find the position of the last block start (unmatched `{`)
+    let mut block_start = 0;
+    let mut temp_depth = 0;
+    let mut temp_in_string = false;
+    let mut temp_string_char = ' ';
+
+    for (i, &c) in chars.iter().enumerate() {
+        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+            if !temp_in_string {
+                temp_in_string = true;
+                temp_string_char = c;
+            } else if c == temp_string_char {
+                temp_in_string = false;
+            }
+            continue;
+        }
+
+        if temp_in_string {
+            continue;
+        }
+
+        match c {
+            '{' => {
+                temp_depth += 1;
+                // Remember this as a potential block start
+                block_start = i + 1;
+            }
+            '}' => {
+                if temp_depth > 0 {
+                    temp_depth -= 1;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Now analyze the portion from block_start to the end
+    let context = if block_start > 0 && block_start < before.len() {
+        &before[block_start..]
+    } else {
+        before
+    };
+
+    // Check for unmatched ternary `?` in the context
+    let context_chars: Vec<char> = context.chars().collect();
+    let mut paren_depth = 0;
+    let mut ternary_depth = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    for (i, &c) in context_chars.iter().enumerate() {
+        if (c == '"' || c == '\'' || c == '`') && (i == 0 || context_chars[i - 1] != '\\') {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char {
+                in_string = false;
+            }
+            continue;
+        }
+
+        if in_string {
+            continue;
+        }
+
+        match c {
+            '(' | '[' => paren_depth += 1,
+            ')' | ']' => {
+                if paren_depth > 0 {
+                    paren_depth -= 1;
+                }
+            }
+            // Only count ? as ternary when at paren depth 0
+            '?' if paren_depth == 0 => {
+                // Check it's not optional chaining (?.)
+                if i + 1 < context_chars.len() && context_chars[i + 1] != '.' {
+                    ternary_depth += 1;
+                }
+            }
+            ':' if paren_depth == 0 && ternary_depth > 0 => {
+                ternary_depth -= 1;
+            }
+            _ => {}
+        }
+    }
+
+    ternary_depth > 0
+}
+
+/// Find the end of an assignment expression.
+/// This is similar to find_statement_end_client but also stops at `:` when inside a ternary expression.
+fn find_assignment_expr_end(s: &str, in_ternary: bool) -> usize {
+    let mut depth = 0;
+    let chars: Vec<char> = s.chars().collect();
+    let mut in_string = false;
+    let mut string_char = ' ';
+    let mut nested_ternary_depth = 0;
+
+    for (i, &c) in chars.iter().enumerate() {
+        // Handle string literals
+        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char {
+                in_string = false;
+            }
+            continue;
+        }
+
+        if in_string {
+            continue;
+        }
+
+        match c {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => {
+                if depth > 0 {
+                    depth -= 1;
+                } else {
+                    // At depth 0, a closing brace/bracket/paren ends the expression
+                    return i;
+                }
+            }
+            ';' if depth == 0 => return i,
+            '\n' if depth == 0 => return i,
+            // Track nested ternaries
+            '?' if depth == 0 => {
+                // Check it's not optional chaining (?.)
+                if i + 1 < chars.len() && chars[i + 1] != '.' {
+                    nested_ternary_depth += 1;
+                }
+            }
+            // Stop at `:` when in a ternary and not in a nested ternary
+            ':' if depth == 0 && in_ternary && nested_ternary_depth == 0 => {
+                return i;
+            }
+            ':' if depth == 0 && nested_ternary_depth > 0 => {
+                nested_ternary_depth -= 1;
+            }
             _ => {}
         }
     }
