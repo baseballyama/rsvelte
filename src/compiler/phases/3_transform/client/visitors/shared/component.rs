@@ -896,11 +896,36 @@ fn process_bind_directive(
     // Create setter
     // For store member expressions, we need to use $.store_mutate
     let setter_body = if is_state_binding {
-        // For state bindings, use $.set(value, $$value, true)
-        vec![b::stmt(b::call(
-            b::member_path("$.set"),
-            vec![raw_expression.clone(), b::id("$$value"), b::boolean(true)],
-        ))]
+        // For state bindings, use $.set(value, $$value[, true])
+        // The third argument (proxy flag) should only be added when:
+        // 1. We're in runes mode
+        // 2. The binding is NOT raw_state (which opts out of deep reactivity)
+        // 3. The binding is NOT derived
+        // 4. The binding is NOT a prop or bindable_prop
+        // This matches the official Svelte compiler's AssignmentExpression visitor logic
+        let needs_proxy = if let JsExpr::Identifier(name) = &raw_expression {
+            if let Some(binding) = context.state.get_binding(name) {
+                use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+                context.state.analysis.runes
+                    && !matches!(
+                        binding.kind,
+                        BindingKind::RawState
+                            | BindingKind::Derived
+                            | BindingKind::Prop
+                            | BindingKind::BindableProp
+                    )
+            } else {
+                // If we can't find the binding, default to using proxy in runes mode
+                context.state.analysis.runes
+            }
+        } else {
+            context.state.analysis.runes
+        };
+        let mut set_args = vec![raw_expression.clone(), b::id("$$value")];
+        if needs_proxy {
+            set_args.push(b::boolean(true));
+        }
+        vec![b::stmt(b::call(b::member_path("$.set"), set_args))]
     } else if is_prop_binding {
         // For props in legacy mode, call the prop function with the value
         // prop($$value) instead of prop = $$value
@@ -1611,8 +1636,15 @@ fn build_bind_this_call(
                 binding.kind,
                 BindingKind::State | BindingKind::Derived | BindingKind::RawState
             );
-            // Proxy flag is needed for $state (deep reactivity) but not $derived or $state.raw
-            let proxy = is_state && matches!(binding.kind, BindingKind::State);
+            // Proxy flag is needed for $state (deep reactivity) but not $derived, $state.raw,
+            // or legacy mode (non-runes). This matches the official compiler's
+            // AssignmentExpression visitor which checks:
+            // - binding.kind !== 'raw_state'
+            // - binding.kind !== 'derived'
+            // - context.state.analysis.runes
+            let proxy = is_state
+                && context.state.analysis.runes
+                && matches!(binding.kind, BindingKind::State);
             (is_state, proxy)
         } else {
             // Also check transform map (handles cases where binding is registered

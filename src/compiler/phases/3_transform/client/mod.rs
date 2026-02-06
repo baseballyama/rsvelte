@@ -5256,6 +5256,21 @@ fn expression_needs_proxy(expr: &str) -> bool {
         return true;
     }
 
+    // Ternary/conditional expressions (a ? b : c) need proxy if either branch
+    // could produce a proxyable value. In the official Svelte compiler,
+    // ConditionalExpression is not in the list of types that return false from
+    // should_proxy, so it always returns true.
+    // Check for ternary expressions by looking for '?' at the top level
+    if contains_top_level_ternary(trimmed) {
+        return true;
+    }
+
+    // Logical expressions with || or ?? could produce proxyable values
+    // e.g., `expr || { default: true }` or `expr ?? { fallback: 1 }`
+    if contains_top_level_logical_with_proxyable(trimmed) {
+        return true;
+    }
+
     false
 }
 
@@ -5318,6 +5333,110 @@ fn is_member_expression(expr: &str) -> bool {
     }
 
     true
+}
+
+/// Check if an expression contains a top-level ternary operator (? :).
+/// This handles expressions like `$.get(post) ? null : { title: 'hello world' }`.
+/// "Top-level" means not nested inside parentheses, brackets, or braces.
+fn contains_top_level_ternary(expr: &str) -> bool {
+    let mut depth = 0;
+    let bytes = expr.as_bytes();
+    let mut in_string = false;
+    let mut string_char = b'\0';
+
+    let mut i = 0;
+    while i < bytes.len() {
+        let c = bytes[i];
+
+        if in_string {
+            if c == string_char && (i == 0 || bytes[i - 1] != b'\\') {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+
+        match c {
+            b'\'' | b'"' | b'`' => {
+                in_string = true;
+                string_char = c;
+            }
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => {
+                if depth > 0 {
+                    depth -= 1;
+                }
+            }
+            b'?' if depth == 0 => {
+                // Make sure it's not ?. (optional chaining) or ?? (nullish coalescing)
+                if i + 1 < bytes.len() && (bytes[i + 1] == b'.' || bytes[i + 1] == b'?') {
+                    i += 2;
+                    continue;
+                }
+                return true;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    false
+}
+
+/// Check if an expression contains a top-level logical operator (|| or ??)
+/// followed by a proxyable value (object literal, array literal, etc.).
+/// For example: `expr || { default: true }` or `expr ?? [1, 2, 3]`.
+fn contains_top_level_logical_with_proxyable(expr: &str) -> bool {
+    let mut depth = 0;
+    let bytes = expr.as_bytes();
+    let mut in_string = false;
+    let mut string_char = b'\0';
+
+    let mut i = 0;
+    while i < bytes.len() {
+        let c = bytes[i];
+
+        if in_string {
+            if c == string_char && (i == 0 || bytes[i - 1] != b'\\') {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+
+        match c {
+            b'\'' | b'"' | b'`' => {
+                in_string = true;
+                string_char = c;
+            }
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => {
+                if depth > 0 {
+                    depth -= 1;
+                }
+            }
+            b'|' if depth == 0 && i + 1 < bytes.len() && bytes[i + 1] == b'|' => {
+                // Found ||, check if the right side is proxyable
+                let rest = expr[i + 2..].trim();
+                if rest.starts_with('{') || rest.starts_with('[') || rest.starts_with("new ") {
+                    return true;
+                }
+                i += 2;
+                continue;
+            }
+            b'?' if depth == 0 && i + 1 < bytes.len() && bytes[i + 1] == b'?' => {
+                // Found ??, check if right side is proxyable
+                let rest = expr[i + 2..].trim();
+                if rest.starts_with('{') || rest.starts_with('[') || rest.starts_with("new ") {
+                    return true;
+                }
+                i += 2;
+                continue;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    false
 }
 
 /// Check if an expression is a function expression (arrow function or function keyword).

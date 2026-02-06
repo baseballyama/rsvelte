@@ -608,8 +608,12 @@ fn build_bind_this_call_for_context(
                     binding.kind,
                     BindingKind::State | BindingKind::Derived | BindingKind::RawState
                 );
-                // Proxy flag for $state but not $derived or $state.raw
-                let proxy = is_state && matches!(binding.kind, BindingKind::State);
+                // Proxy flag for $state but not $derived, $state.raw, or legacy mode.
+                // This matches the official compiler's AssignmentExpression visitor which
+                // checks context.state.analysis.runes before setting the proxy flag.
+                let proxy = is_state
+                    && context.state.analysis.runes
+                    && matches!(binding.kind, BindingKind::State);
                 (is_state, proxy)
             } else if context.state.transform.get(name).is_some() {
                 (true, false)
