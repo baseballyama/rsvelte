@@ -354,6 +354,7 @@ const RUNES: &[&str] = &[
     "$state",
     "$state.raw",
     "$state.snapshot",
+    "$state.eager",
     "$derived",
     "$derived.by",
     "$props",
@@ -361,6 +362,7 @@ const RUNES: &[&str] = &[
     "$effect.pre",
     "$effect.tracking",
     "$effect.root",
+    "$effect.pending",
     "$inspect",
     "$inspect().with",
     "$host",
@@ -685,6 +687,61 @@ fn transform_rune_call(
                 arguments: converted_args,
                 optional: false,
             })
+        }
+
+        "$effect.pending" => {
+            // $effect.pending() -> $.eager($.pending)
+            JsExpr::Call(JsCallExpression {
+                callee: Box::new(JsExpr::Member(JsMemberExpression {
+                    object: Box::new(JsExpr::Identifier("$".to_string())),
+                    property: JsMemberProperty::Identifier("eager".to_string()),
+                    computed: false,
+                    optional: false,
+                })),
+                arguments: vec![JsExpr::Member(JsMemberExpression {
+                    object: Box::new(JsExpr::Identifier("$".to_string())),
+                    property: JsMemberProperty::Identifier("pending".to_string()),
+                    computed: false,
+                    optional: false,
+                })],
+                optional: false,
+            })
+        }
+
+        "$state.eager" => {
+            // $state.eager(expr) -> $.eager(() => expr)
+            if let Some(arg) = arguments.first() {
+                let converted = convert_json_value(arg, context);
+
+                // Wrap in thunk: () => expr
+                let thunk = JsExpr::Arrow(JsArrowFunction {
+                    params: vec![],
+                    body: JsArrowBody::Expression(Box::new(converted)),
+                    is_async: false,
+                });
+
+                JsExpr::Call(JsCallExpression {
+                    callee: Box::new(JsExpr::Member(JsMemberExpression {
+                        object: Box::new(JsExpr::Identifier("$".to_string())),
+                        property: JsMemberProperty::Identifier("eager".to_string()),
+                        computed: false,
+                        optional: false,
+                    })),
+                    arguments: vec![thunk],
+                    optional: false,
+                })
+            } else {
+                JsExpr::Call(JsCallExpression {
+                    callee: Box::new(JsExpr::Member(JsMemberExpression {
+                        object: Box::new(JsExpr::Identifier("$".to_string())),
+                        property: JsMemberProperty::Identifier("eager".to_string()),
+                        computed: false,
+                        optional: false,
+                    })),
+                    arguments: vec![],
+                    optional: false,
+                })
+            }
         }
 
         "$inspect" | "$inspect().with" => {

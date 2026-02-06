@@ -106,9 +106,9 @@ fn build_assignment(
             let value = build_assignment_value(operator, left, right);
 
             // Check if proxy is needed
-            // TODO: Pass Expression to should_proxy
-            let needs_proxy = field.field_type == "$state" && is_non_coercive_operator(operator);
-            // && should_proxy(right_expr, context.state.scope);
+            let needs_proxy = field.field_type == "$state"
+                && is_non_coercive_operator(operator)
+                && should_proxy_js_expr(right);
 
             // Call $.set() with optional proxy flag
             let mut args = vec![left.clone(), value];

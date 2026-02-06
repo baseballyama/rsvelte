@@ -1414,9 +1414,9 @@ fn transform_client_runes_with_skip_and_state(
         }
     }
 
-    // Transform $effect.pending() to $.eager(() => $.pending()) - MUST be before $effect transformation
+    // Transform $effect.pending() to $.eager($.pending) - MUST be before $effect transformation
     if result.contains("$effect.pending()") {
-        result = result.replace("$effect.pending()", "$.eager(() => $.pending())");
+        result = result.replace("$effect.pending()", "$.eager($.pending)");
     }
 
     // Transform $effect.pre(x) to $.user_pre_effect(x) - MUST be before $effect transformation
