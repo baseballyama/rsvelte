@@ -90,6 +90,8 @@ pub fn escape_js_string(s: &str) -> String {
 }
 
 /// Check if an attribute is a boolean attribute.
+/// Must match the official Svelte compiler's DOM_BOOLEAN_ATTRIBUTES list exactly.
+/// Reference: svelte/packages/svelte/src/utils.js
 pub fn is_boolean_attribute(name: &str) -> bool {
     matches!(
         name,
@@ -102,11 +104,12 @@ pub fn is_boolean_attribute(name: &str) -> bool {
             | "default"
             | "defer"
             | "disabled"
+            | "disablepictureinpicture"
+            | "disableremoteplayback"
             | "formnovalidate"
-            | "hidden"
+            | "indeterminate"
             | "inert"
             | "ismap"
-            | "itemscope"
             | "loop"
             | "multiple"
             | "muted"
@@ -117,7 +120,9 @@ pub fn is_boolean_attribute(name: &str) -> bool {
             | "readonly"
             | "required"
             | "reversed"
+            | "seamless"
             | "selected"
+            | "webkitdirectory"
     )
 }
 

@@ -150,19 +150,129 @@ where
                 if bind.name == "value" && node.get_name() == "select" {
                     continue;
                 }
+                // Skip bind:value for file inputs
+                if bind.name == "value" {
+                    let is_file_input = node.get_attributes().iter().any(|a| {
+                        if let Attribute::Attribute(attr) = a {
+                            if attr.name == "type"
+                                && let AttributeValue::Sequence(parts) = &attr.value
+                            {
+                                return parts.first().is_some_and(|p| {
+                                    matches!(p, AttributeValuePart::Text(t) if t.data == "file")
+                                });
+                            }
+                            false
+                        } else {
+                            false
+                        }
+                    });
+                    if is_file_input {
+                        continue;
+                    }
+                }
                 if bind.name == "this" {
                     continue;
                 }
 
                 // Check if this binding should be omitted in SSR
-                // TODO: Implement binding_properties check
-                let omit_in_ssr = false;
+                // TODO: Full binding_properties check
+                let omit_in_ssr = matches!(
+                    bind.name.as_str(),
+                    "clientWidth"
+                        | "clientHeight"
+                        | "offsetWidth"
+                        | "offsetHeight"
+                        | "contentRect"
+                        | "contentBoxSize"
+                        | "borderBoxSize"
+                        | "devicePixelContentBoxSize"
+                        | "naturalWidth"
+                        | "naturalHeight"
+                        | "videoWidth"
+                        | "videoHeight"
+                        | "duration"
+                        | "buffered"
+                        | "played"
+                        | "seekable"
+                        | "seeking"
+                        | "ended"
+                        | "readyState"
+                        | "currentTime"
+                        | "playbackRate"
+                        | "paused"
+                        | "volume"
+                        | "muted"
+                        | "innerWidth"
+                        | "innerHeight"
+                        | "outerWidth"
+                        | "outerHeight"
+                        | "scrollX"
+                        | "scrollY"
+                        | "online"
+                        | "devicePixelRatio"
+                );
                 if omit_in_ssr {
                     continue;
                 }
 
-                // TODO: Handle bind directives properly
-                // For now, just extract the expression
+                // Convert bind directive expression to a value
+                let expression = convert_expression_simple(&bind.expression);
+
+                // Handle content-editable bindings
+                if matches!(
+                    bind.name.as_str(),
+                    "innerHTML" | "textContent" | "innerText"
+                ) {
+                    content = Some(expression);
+                } else if bind.name == "value" && node.get_name() == "textarea" {
+                    content = Some(JsExpr::Call(JsCallExpression {
+                        callee: Box::new(JsExpr::Member(JsMemberExpression {
+                            object: Box::new(JsExpr::Identifier("$".to_string())),
+                            property: JsMemberProperty::Identifier("escape".to_string()),
+                            computed: false,
+                            optional: false,
+                        })),
+                        arguments: vec![expression],
+                        optional: false,
+                    }));
+                } else if bind.name == "group" {
+                    // bind:group requires special handling with value attribute
+                    // For now, skip group bindings in the simple case
+                    // TODO: Implement full group binding logic
+                    continue;
+                } else {
+                    // General case: treat as a dynamic attribute
+                    let name = get_attribute_name(node, &bind.name);
+
+                    if !has_spread {
+                        // In non-spread path, generate $.attr() call directly
+                        state.template.push(TemplateItem::Expression(JsExpr::Call(
+                            JsCallExpression {
+                                callee: Box::new(JsExpr::Member(JsMemberExpression {
+                                    object: Box::new(JsExpr::Identifier("$".to_string())),
+                                    property: JsMemberProperty::Identifier("attr".to_string()),
+                                    computed: false,
+                                    optional: false,
+                                })),
+                                arguments: if is_boolean_attribute(&name) {
+                                    vec![
+                                        JsExpr::Literal(JsLiteral::String(name.clone())),
+                                        expression,
+                                        JsExpr::Literal(JsLiteral::Boolean(true)),
+                                    ]
+                                } else {
+                                    vec![
+                                        JsExpr::Literal(JsLiteral::String(name.clone())),
+                                        expression,
+                                    ]
+                                },
+                                optional: false,
+                            },
+                        )));
+                    }
+                    // In spread path, the binding expression will be handled by
+                    // the spread object building code
+                }
             }
             Attribute::SpreadAttribute(spread) => {
                 has_spread = true;

@@ -405,22 +405,100 @@ fn should_add_blank_line_after(current: &str, next: &str, raw_current: &str) -> 
                 return true;
             }
 
+            // Rule 11b: After expression statements (ending with `;`) before bare `{` blocks,
+            // `if` statements, `for` statements, and multi-line function calls.
+            // This matches esrap formatting where $$renderer.push() calls are
+            // visually separated from control flow and significant code blocks.
+            if !is_var_declaration(current)
+                && !is_closing_brace(current)
+                && !current.starts_with("function ")
+                && !current.starts_with("async function ")
+                && !current.starts_with("//")
+                && !current.starts_with("/*")
+                && current.ends_with(';')
+                && (next == "{"
+                    || next == "{}"
+                    || next.starts_with("if (")
+                    || next.starts_with("if(")
+                    || next.starts_with("for (")
+                    || next.starts_with("for("))
+            {
+                return true;
+            }
+
+            // Rule 11b2: After expression statements (ending with `;`) before
+            // multi-line function/component calls (lines ending with `{`).
+            // e.g., after `$$renderer.push(...)` before `Foo($$renderer, {`
+            // or `$.await($$renderer, ...)` or `$$renderer.title(($$renderer) => {`
+            if !is_var_declaration(current)
+                && !is_closing_brace(current)
+                && !current.starts_with("function ")
+                && !current.starts_with("async function ")
+                && current.ends_with(';')
+                && next.ends_with(" {")
+                && !next.starts_with("if ")
+                && !next.starts_with("if(")
+                && !next.starts_with("for ")
+                && !next.starts_with("for(")
+                && !next.starts_with("function ")
+                && !next.starts_with("async function ")
+                && !next.starts_with("} else")
+            {
+                return true;
+            }
+
+            // Rule 11c: After var declarations before expression statements that are
+            // NOT simple function calls. This covers patterns like:
+            // let x = ...; \n\n $$renderer.push(...);
+            // const each_array = ...; \n\n for (...)
+            if is_var_declaration(current)
+                && !is_var_declaration(next)
+                && (next.starts_with("$$renderer.push(")
+                    || next.starts_with("$renderer.push(")
+                    || next.starts_with("for (")
+                    || next.starts_with("for("))
+            {
+                return true;
+            }
+
+            // Rule 11d: After `} else {}`, `{}`, or other closing-brace constructs before
+            // $$renderer.push() or $renderer.push() calls. These need a blank line separator.
+            if (current == "} else {}" || current == "{}")
+                && (next.starts_with("$$renderer.push(") || next.starts_with("$renderer.push("))
+            {
+                return true;
+            }
+
+            // Rule 11e: After reactive labels `$: ...;` before $$renderer.push() or other statements
+            // Svelte legacy mode generates `$: x *= 2;` followed by a blank line before $$renderer.push()
+            if current.starts_with("$:")
+                && current.ends_with(';')
+                && (next.starts_with("$$renderer.push(") || next.starts_with("$renderer.push("))
+            {
+                return true;
+            }
+
             // Rule 12: After `},` before next property/method definition in object/class
-            // (get/set/constructor, $$slots, $$legacy, method names, etc.)
+            // (get/set/constructor, $$slots, $$legacy, method names like increment(), etc.)
             if current == "},"
                 && (next.starts_with("get ")
                     || next.starts_with("set ")
                     || next.starts_with("$$slots")
                     || next.starts_with("$$legacy")
-                    || next.starts_with("constructor"))
+                    || next.starts_with("constructor")
+                    || is_method_definition(next))
             {
                 return true;
             }
 
-            // Rule 13: After class field declarations (like `#count = $.state(0);`),
+            // Rule 13: After class field declarations (like `#count = $.state(0);` or `count = 0;`),
             // blank line before methods (get/set/constructor)
-            if current.starts_with('#')
+            if (current.starts_with('#') || current.chars().next().is_some_and(|c| c.is_alphabetic() || c == '_' || c == '$'))
                 && current.ends_with(';')
+                && !is_var_declaration(current)
+                && !current.starts_with("return ")
+                && !current.starts_with("throw ")
+                && !current.contains('(') // Not a function call, just a field declaration
                 && (next.starts_with("get ")
                     || next.starts_with("set ")
                     || next.starts_with("constructor"))
@@ -478,6 +556,41 @@ fn is_statement(line: &str) -> bool {
         && line != "}"
         && line != "});"
         && !is_closing_brace(line)
+}
+
+/// Check if a line is a method definition in an object literal.
+/// Matches patterns like `increment() {`, `foo_bar(arg) {`, `myMethod(a, b) {`
+/// but NOT `$.foo(` or lines starting with keywords.
+fn is_method_definition(line: &str) -> bool {
+    // Must start with an identifier character (letter, _, $)
+    let first = match line.chars().next() {
+        Some(c) => c,
+        None => return false,
+    };
+    if !first.is_alphabetic() && first != '_' && first != '$' {
+        return false;
+    }
+    // Must contain `(` indicating a function call/definition
+    if let Some(paren_pos) = line.find('(') {
+        // The part before ( must be a valid identifier (no dots, no spaces before paren)
+        let before_paren = &line[..paren_pos];
+        // Must not be a known keyword/statement pattern
+        if before_paren == "if"
+            || before_paren == "for"
+            || before_paren == "while"
+            || before_paren == "switch"
+            || before_paren == "return"
+            || before_paren == "throw"
+        {
+            return false;
+        }
+        // All chars before paren should be identifier chars (alphanumeric, _, $)
+        before_paren
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+    } else {
+        false
+    }
 }
 
 /// Collapse single-statement if blocks to inline form.
@@ -738,6 +851,15 @@ fn collapse_short_arrays(code: String) -> String {
 /// };
 /// // Output (Svelte format):
 /// var $$exports = { one, two };
+///
+/// // Also handles objects inside function calls:
+/// // Input:
+/// $.bind_props($$props, {
+///     foo,
+///     bar
+/// });
+/// // Output:
+/// $.bind_props($$props, { foo, bar });
 /// ```
 ///
 /// Objects with getters, setters, or key-value pairs are NOT collapsed.
@@ -750,10 +872,15 @@ fn collapse_short_objects(code: String) -> String {
         let line = lines[i];
         let trimmed = line.trim();
 
-        // Look for a line ending with `= {` or `: {` that starts an object literal
-        // Patterns: `var x = {`, `const x = {`, `let x = {`, or inside expressions
-        if trimmed.ends_with("= {") || trimmed.ends_with(": {") {
-            // Try to find matching closing `};` or `}`
+        // Look for lines ending with `{` that start an object literal
+        // Patterns: `var x = {`, `const x = {`, `let x = {`, `foo(bar, {`, etc.
+        let is_object_start = trimmed.ends_with("= {")
+            || trimmed.ends_with(": {")
+            || trimmed.ends_with(", {")
+            || trimmed.ends_with("({");
+
+        if is_object_start {
+            // Try to find matching closing brace
             let indent_level = line.len() - line.trim_start().len();
             let indent_str = &line[..indent_level];
             let inner_indent = if indent_level > 0 {
@@ -762,21 +889,39 @@ fn collapse_short_objects(code: String) -> String {
                 "\t".to_string()
             };
 
+            // Determine what closing brace patterns to look for based on opening context
+            let is_fn_arg = trimmed.ends_with(", {") || trimmed.ends_with("({");
+
             // Collect all inner lines until we find the closing brace
             let mut properties: Vec<&str> = Vec::new();
             let mut j = i + 1;
-            let mut all_shorthand = true;
+            let mut all_simple = true;
             let mut found_close = false;
 
             while j < lines.len() {
                 let inner_line = lines[j];
                 let inner_trimmed = inner_line.trim();
 
-                // Check if this is the closing brace at the same indent level
-                if (inner_trimmed == "};" || inner_trimmed == "}" || inner_trimmed == "},")
-                    && inner_line.starts_with(indent_str)
-                    && (inner_line.len() - inner_line.trim_start().len()) == indent_level
-                {
+                // Check if this is the closing brace at the correct indent level
+                let is_close = if is_fn_arg {
+                    // For function arguments: closing `});` or `}, ...)` or `}), true);` etc.
+                    // at same indent level
+                    (inner_trimmed == "});"
+                        || inner_trimmed == "})"
+                        || inner_trimmed == "}"
+                        || inner_trimmed == "};"
+                        || inner_trimmed == "},"
+                        || inner_trimmed.starts_with("})")
+                        || inner_trimmed.starts_with("},"))
+                        && inner_line.starts_with(indent_str)
+                        && (inner_line.len() - inner_line.trim_start().len()) == indent_level
+                } else {
+                    (inner_trimmed == "};" || inner_trimmed == "}" || inner_trimmed == "},")
+                        && inner_line.starts_with(indent_str)
+                        && (inner_line.len() - inner_line.trim_start().len()) == indent_level
+                };
+
+                if is_close {
                     found_close = true;
                     break;
                 }
@@ -786,26 +931,23 @@ fn collapse_short_objects(code: String) -> String {
                     break;
                 }
 
-                // Check if property is a simple shorthand identifier (optionally with trailing comma)
+                // Check if property is simple enough to be collapsed to one line.
+                // Allow:
+                // - Shorthand identifiers: `foo,`
+                // - Simple key-value pairs: `key: value,` (no nested objects/functions)
+                // - Spread elements: `...obj,`
+                // Disallow:
+                // - Getters/setters: `get foo() {`
+                // - Methods: `foo() {`
+                // - Multi-line values (the value itself spans multiple lines)
                 let prop = inner_trimmed.trim_end_matches(',');
                 if prop.is_empty()
-                    || prop.contains(':')
-                    || prop.contains('(')
                     || prop.starts_with("get ")
                     || prop.starts_with("set ")
-                    || prop.starts_with("...")
-                    || prop.contains(' ')
+                    || prop.ends_with('{')
+                    || prop.ends_with('}')
                 {
-                    all_shorthand = false;
-                    break;
-                }
-
-                // Verify it's a valid identifier (alphanumeric, _, $)
-                if !prop
-                    .chars()
-                    .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
-                {
-                    all_shorthand = false;
+                    all_simple = false;
                     break;
                 }
 
@@ -813,28 +955,49 @@ fn collapse_short_objects(code: String) -> String {
                 j += 1;
             }
 
-            if found_close && all_shorthand && !properties.is_empty() {
+            if found_close && all_simple && !properties.is_empty() {
                 // Collapse to single line
-                let closing_suffix = lines[j].trim();
-                let suffix = if closing_suffix == "};" {
-                    ";"
-                } else if closing_suffix == "}," {
-                    ","
-                } else {
-                    ""
-                };
+                let closing_line = lines[j].trim();
+
+                // Build the suffix from the closing line (everything after `}`)
+                let suffix = closing_line.strip_prefix('}').unwrap_or("");
 
                 // Get the opening part (everything before the `{`)
                 let open_part = trimmed.trim_end_matches('{').trim_end();
-                result.push_str(indent_str);
-                result.push_str(open_part);
-                result.push_str(" { ");
-                result.push_str(&properties.join(", "));
-                result.push_str(" }");
-                result.push_str(suffix);
-                result.push('\n');
-                i = j + 1;
-                continue;
+
+                // Determine if the opening brace is directly preceded by `(`
+                // e.g., `() => ({` should become `() => ({ ... })` not `() => ( { ... })`
+                let brace_adjacent = trimmed.ends_with("({");
+
+                // Calculate the resulting line length to avoid creating lines that are too long
+                // esrap keeps objects multi-line when the single-line form would be too wide
+                let collapsed = if brace_adjacent {
+                    format!(
+                        "{}{}{{ {} }}{}",
+                        indent_str,
+                        open_part,
+                        properties.join(", "),
+                        suffix
+                    )
+                } else {
+                    format!(
+                        "{}{} {{ {} }}{}",
+                        indent_str,
+                        open_part,
+                        properties.join(", "),
+                        suffix
+                    )
+                };
+
+                // Only collapse if the result is reasonably short.
+                // esrap uses a high threshold (~160 chars visual width) for deciding
+                // whether to keep objects on one line.
+                if collapsed.len() <= 160 {
+                    result.push_str(&collapsed);
+                    result.push('\n');
+                    i = j + 1;
+                    continue;
+                }
             }
         }
 

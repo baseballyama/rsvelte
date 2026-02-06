@@ -1914,11 +1914,14 @@ impl<'a> ServerCodeGenerator<'a> {
             }
 
             // For bind directives on server, output as $.attr() call
-            // Use third true argument for boolean attributes like checked
-            if name == "checked" {
-                Ok(Some(format!("${{$.attr('{}', {}, true)}}", name, expr)))
-            } else {
-                Ok(Some(format!("${{$.attr('{}', {})}}", name, expr)))
+            // Use third true argument for boolean attributes like checked, open, etc.
+            {
+                use crate::compiler::phases::phase3_transform::shared::template::is_boolean_attribute;
+                if is_boolean_attribute(name) {
+                    Ok(Some(format!("${{$.attr('{}', {}, true)}}", name, expr)))
+                } else {
+                    Ok(Some(format!("${{$.attr('{}', {})}}", name, expr)))
+                }
             }
         } else {
             Ok(None)
@@ -6348,6 +6351,36 @@ fn strip_export_specifiers(script: &str) -> String {
     result
 }
 
+/// Strip `export` keyword from function/const/class declarations.
+/// In Svelte components, `export function foo()` is used to export a prop,
+/// but in server-side output, the function should be a regular declaration.
+/// The exported names are handled by `$.bind_props()` instead.
+fn strip_export_from_declarations(script: &str) -> String {
+    let mut result = String::new();
+    for line in script.lines() {
+        let trimmed = line.trim();
+        // Strip "export " from function declarations
+        if trimmed.starts_with("export function ")
+            || trimmed.starts_with("export async function ")
+            || trimmed.starts_with("export const ")
+            || trimmed.starts_with("export class ")
+        {
+            // Preserve leading whitespace
+            let indent = &line[..line.len() - trimmed.len()];
+            let rest = trimmed.strip_prefix("export ").unwrap_or(trimmed);
+            result.push_str(indent);
+            result.push_str(rest);
+        } else {
+            result.push_str(line);
+        }
+        result.push('\n');
+    }
+    if result.ends_with('\n') && !script.ends_with('\n') {
+        result.pop();
+    }
+    result
+}
+
 /// Transform script content for server-side rendering.
 fn transform_script_content(script: &str) -> String {
     let script = script.replace("$props()", "$$props");
@@ -6369,6 +6402,10 @@ fn transform_script_content(script: &str) -> String {
     // Transform export let declarations for legacy/non-runes mode
     // This must be done before other transformations to properly handle props
     let script = transform_export_let_declarations(&script);
+    // Strip `export` keyword from function/const/class declarations
+    // In Svelte, `export function foo()` inside <script> means "export the prop",
+    // but in server output the function should be a regular declaration inside the component.
+    let script = strip_export_from_declarations(&script);
 
     let mut result = String::new();
     let lines: Vec<&str> = script.lines().collect();
@@ -7825,10 +7862,9 @@ fn is_simple_expression_string(trimmed: &str) -> bool {
         return true;
     }
 
-    // Empty array/object literals
-    if trimmed == "[]" || trimmed == "{}" {
-        return true;
-    }
+    // Note: Empty array/object literals are NOT simple - they create new references
+    // each time, so they need lazy initialization with () => [] or () => {}.
+    // This matches the official Svelte compiler behavior.
 
     // Arrow functions at top level: () => expr, (x) => expr, x => expr
     // An arrow function starts with either:
