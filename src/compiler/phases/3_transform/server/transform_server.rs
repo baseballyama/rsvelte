@@ -1811,12 +1811,21 @@ impl<'a> ServerCodeGenerator<'a> {
     /// (after trimming whitespace-only text nodes and comments).
     /// When standalone, hydration boundaries can be skipped because the parent's anchors are sufficient.
     fn is_standalone_fragment(nodes: &[TemplateNode]) -> bool {
-        // Filter out whitespace-only text nodes and comments
+        // Filter out whitespace-only text, comments, and hoisted nodes
+        // (matching clean_nodes behavior in the official compiler)
         let meaningful_nodes: Vec<_> = nodes
             .iter()
             .filter(|n| match n {
                 TemplateNode::Text(text) => !text.data.trim().is_empty(),
                 TemplateNode::Comment(_) => false,
+                // These node types are hoisted out by clean_nodes in the official compiler
+                TemplateNode::SnippetBlock(_) => false,
+                TemplateNode::ConstTag(_) => false,
+                TemplateNode::SvelteBody(_) => false,
+                TemplateNode::SvelteWindow(_) => false,
+                TemplateNode::SvelteDocument(_) => false,
+                TemplateNode::SvelteHead(_) => false,
+                TemplateNode::TitleElement(_) => false,
                 _ => true,
             })
             .collect();
@@ -4093,10 +4102,20 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
+        // Compute standalone-ness for the trimmed fragment
+        let is_standalone = Self::is_standalone_fragment(
+            &nodes[start_idx..end_idx]
+                .iter()
+                .map(|n| (*n).clone())
+                .collect::<Vec<_>>(),
+        );
+        body_generator.skip_hydration_boundaries = is_standalone;
+
         // Check if first meaningful content needs an anchor
         // If the first node is Text or ExpressionTag, add <!----> to prevent text fusion
         // Skip this for callbacks (like svelte:element children) since they're isolated
-        if !skip_anchor && start_idx < end_idx {
+        // Also skip for standalone fragments (single RenderTag/Component)
+        if !skip_anchor && !is_standalone && start_idx < end_idx {
             let first_node = &nodes[start_idx];
             let needs_anchor = matches!(
                 first_node,
