@@ -1012,6 +1012,7 @@ fn transform_instance_script_for_visitors(
             exported_names,
             proxy_vars,
             dev,
+            analysis,
         );
 
         // Skip empty transformations (e.g., read-only $props() with no defaults)
@@ -1178,6 +1179,7 @@ fn transform_client_runes_with_skip_and_state(
     exported_names: &[String],
     proxy_vars: &[String],
     dev: bool,
+    analysis: &ComponentAnalysis,
 ) -> String {
     let mut result = line.to_string();
 
@@ -1514,7 +1516,7 @@ fn transform_client_runes_with_skip_and_state(
     // Transform $props() destructuring to $.prop() calls (only for source props)
     if result.contains("$props()")
         && let Some(transformed) =
-            transform_props_destructuring(&result, prop_source_vars, exported_names)
+            transform_props_destructuring(&result, prop_source_vars, exported_names, analysis)
     {
         return transformed;
     }
@@ -2296,32 +2298,63 @@ fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> String {
 
 /// Calculate the prop flags for a given prop name.
 ///
-/// In legacy mode, props use PROPS_IS_BINDABLE (8) by default.
-/// If the binding is updated (reassigned or mutated), PROPS_IS_UPDATED (4) is added.
-/// If the default value is not a simple expression, PROPS_IS_LAZY_INITIAL (16) is added.
-///
-/// Reference: `get_prop_source()` in
+/// Matches the official Svelte compiler's `get_prop_source()` in
 /// `svelte/packages/svelte/src/compiler/phases/3-transform/client/utils.js`
+///
+/// Flags start at 0 and are built up based on binding and analysis state:
+/// - PROPS_IS_IMMUTABLE (1): if analysis.immutable
+/// - PROPS_IS_RUNES (2): if analysis.runes
+/// - PROPS_IS_UPDATED (4): if accessors, or binding is updated (with immutable-aware logic)
+/// - PROPS_IS_BINDABLE (8): only if binding.kind == BindableProp
+/// - PROPS_IS_LAZY_INITIAL (16): if default value is non-simple
 fn calculate_prop_flags(name: &str, analysis: &ComponentAnalysis, is_lazy_initial: bool) -> i32 {
-    use crate::compiler::constants::{PROPS_IS_BINDABLE, PROPS_IS_LAZY_INITIAL, PROPS_IS_UPDATED};
+    use crate::compiler::constants::{
+        PROPS_IS_BINDABLE, PROPS_IS_IMMUTABLE, PROPS_IS_LAZY_INITIAL, PROPS_IS_RUNES,
+        PROPS_IS_UPDATED,
+    };
+    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
-    let mut flags = PROPS_IS_BINDABLE;
+    let mut flags = 0;
 
-    // Check if the binding is updated (reassigned or mutated) OR if accessors is enabled
-    // This follows the official Svelte compiler logic in get_prop_source():
-    // flags |= PROPS_IS_UPDATED when binding.updated is true or accessors is true
-    // When accessors is enabled, all bindable props need to be treated as updatable
-    // for the $$exports getter/setter pattern to work correctly
-    if analysis.accessors {
-        flags |= PROPS_IS_UPDATED;
-    } else if let Some(binding_idx) = analysis.root.find_binding_any_scope(name)
-        && let Some(binding) = analysis.root.bindings.get(binding_idx)
-        && binding.is_updated()
+    // Look up the binding to check its kind and update status
+    let binding = analysis
+        .root
+        .find_binding_any_scope(name)
+        .and_then(|idx| analysis.root.bindings.get(idx));
+
+    // PROPS_IS_BINDABLE: only if binding.kind == BindableProp
+    if let Some(b) = binding
+        && b.kind == BindingKind::BindableProp
     {
-        flags |= PROPS_IS_UPDATED;
+        flags |= PROPS_IS_BINDABLE;
     }
 
-    // Add PROPS_IS_LAZY_INITIAL if the default value needs to be wrapped in a thunk
+    // PROPS_IS_IMMUTABLE: if analysis.immutable
+    if analysis.immutable {
+        flags |= PROPS_IS_IMMUTABLE;
+    }
+
+    // PROPS_IS_RUNES: if analysis.runes
+    if analysis.runes {
+        flags |= PROPS_IS_RUNES;
+    }
+
+    // PROPS_IS_UPDATED: matches official logic:
+    // if (accessors || (immutable ? (reassigned || (runes && mutated)) : updated))
+    if analysis.accessors {
+        flags |= PROPS_IS_UPDATED;
+    } else if let Some(b) = binding {
+        let is_updated = if analysis.immutable {
+            b.reassigned || (analysis.runes && b.mutated)
+        } else {
+            b.is_updated()
+        };
+        if is_updated {
+            flags |= PROPS_IS_UPDATED;
+        }
+    }
+
+    // PROPS_IS_LAZY_INITIAL: if the default value needs to be wrapped in a thunk
     if is_lazy_initial {
         flags |= PROPS_IS_LAZY_INITIAL;
     }
@@ -2481,15 +2514,20 @@ fn find_line_comment_position(code: &str) -> Option<usize> {
 /// or props that have default values or are exported.
 /// Read-only props are accessed directly via `$$props.propName` without declarations.
 ///
-/// Prop flags:
-/// - 1 = READABLE
-/// - 2 = HAS_DEFAULT
-/// - 4 = SYNC_READABLE (for exported props)
-/// - 8 = WRITABLE
+/// Uses the same flag calculation as `get_prop_source()` from the official Svelte compiler:
+/// - PROPS_IS_IMMUTABLE (1): if analysis.immutable
+/// - PROPS_IS_RUNES (2): if analysis.runes
+/// - PROPS_IS_UPDATED (4): if accessors, or binding is updated
+/// - PROPS_IS_BINDABLE (8): only if binding.kind == BindableProp ($bindable() props)
+/// - PROPS_IS_LAZY_INITIAL (16): if default value is non-simple
+///
+/// Multiple prop declarations are combined into a single `let` statement with
+/// comma-separated declarators, matching the official compiler output format.
 fn transform_props_destructuring(
     line: &str,
     prop_source_vars: &[String],
     exported_names: &[String],
+    analysis: &ComponentAnalysis,
 ) -> Option<String> {
     let trimmed = line.trim();
 
@@ -2532,9 +2570,10 @@ fn transform_props_destructuring(
     let close_brace = trimmed.rfind('}')?;
     let props_str = &trimmed[open_brace + 1..close_brace];
 
-    // Parse each prop - only generate declarations for source props or props with defaults
-    let mut result = String::new();
-    for prop_part in props_str.split(',') {
+    // Parse each prop - collect declarators for combining into a single `let` statement
+    let mut declarators: Vec<String> = Vec::new();
+
+    for prop_part in split_declarators(props_str) {
         let prop_part = prop_part.trim();
         if prop_part.is_empty() {
             continue;
@@ -2545,33 +2584,55 @@ fn transform_props_destructuring(
             let name = prop_part[..eq_pos].trim();
             let default_value = prop_part[eq_pos + 1..].trim();
 
-            // Calculate flag:
-            // - 1 (READABLE) + 2 (HAS_DEFAULT) = 3
-            // - Add 4 (SYNC_READABLE) if exported = 7
-            let is_exported = exported_names.contains(&name.to_string());
-            let flag = if is_exported { 7 } else { 3 };
+            // Check if the default value is a simple expression
+            let is_simple = is_simple_expression_str(default_value);
 
-            result.push_str(&format!(
-                "{} {} = $.prop($$props, '{}', {}, {});\n",
-                decl_keyword, name, name, flag, default_value
-            ));
+            // Calculate flags using the official logic
+            let flags = calculate_prop_flags(name, analysis, !is_simple);
+
+            if is_simple {
+                declarators.push(format!(
+                    "{} = $.prop($$props, '{}', {}, {})",
+                    name, name, flags, default_value
+                ));
+            } else {
+                // Wrap non-simple values in a thunk: () => value
+                declarators.push(format!(
+                    "{} = $.prop($$props, '{}', {}, () => {})",
+                    name, name, flags, default_value
+                ));
+            }
         } else {
             // No default value - only generate if this is a source prop or exported
             let is_exported = exported_names.contains(&prop_part.to_string());
             if prop_source_vars.contains(&prop_part.to_string()) || is_exported {
-                // Flag 8 = WRITABLE for props without default
-                // Add 4 (SYNC_READABLE) if exported = 12
-                let flag = if is_exported { 12 } else { 8 };
-                result.push_str(&format!(
-                    "{} {} = $.prop($$props, '{}', {});\n",
-                    decl_keyword, prop_part, prop_part, flag
+                // Calculate flags using the official logic (no lazy initial for props without defaults)
+                let flags = calculate_prop_flags(prop_part, analysis, false);
+
+                declarators.push(format!(
+                    "{} = $.prop($$props, '{}', {})",
+                    prop_part, prop_part, flags
                 ));
             }
             // Read-only props without defaults are accessed directly via $$props.propName
         }
     }
 
-    Some(result)
+    // Combine all declarators into a single `let` statement with comma separators
+    if declarators.is_empty() {
+        Some(String::new())
+    } else if declarators.len() == 1 {
+        Some(format!("{} {};\n", decl_keyword, declarators[0]))
+    } else {
+        // Multi-prop: combine with comma + newline + tab indent, matching official compiler
+        let mut result = format!("{} {}", decl_keyword, declarators[0]);
+        for decl in &declarators[1..] {
+            result.push_str(",\n\t");
+            result.push_str(decl);
+        }
+        result.push_str(";\n");
+        Some(result)
+    }
 }
 
 /// Transform rest_prop member access to $$props.
@@ -6112,6 +6173,9 @@ mod tests {
     fn test_derived_object_literal_wrapped_in_parens() {
         // Test that object literals in $derived() are wrapped in parentheses
         let input = "let count = $derived({ value: 1 });";
+        let options = crate::compiler::CompileOptions::default();
+        let analysis =
+            crate::compiler::phases::phase2_analyze::types::ComponentAnalysis::new("", &options);
         let result = transform_client_runes_with_skip_and_state(
             input,
             &[],   // skip_state_vars
@@ -6121,6 +6185,7 @@ mod tests {
             &[],   // exported_names
             &[],   // proxy_vars
             false, // dev
+            &analysis,
         );
         println!("Input:  {}", input);
         println!("Result: {}", result);
@@ -6168,6 +6233,10 @@ fn test_derived_object_literal_double_wrap() {
     // Test that the double wrapping preserves parentheses
     let input = "let count = $derived({ value: 1 });";
 
+    let options = crate::compiler::CompileOptions::default();
+    let analysis =
+        crate::compiler::phases::phase2_analyze::types::ComponentAnalysis::new("", &options);
+
     // First transform
     let result1 = transform_client_runes_with_skip_and_state(
         input,
@@ -6178,6 +6247,7 @@ fn test_derived_object_literal_double_wrap() {
         &[],   // exported_names
         &[],   // proxy_vars
         false, // dev
+        &analysis,
     );
     println!("After first transform: {}", result1);
 
