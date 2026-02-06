@@ -7,7 +7,8 @@
 use super::super::errors;
 use super::VisitorContext;
 use super::shared::fragment;
-use super::shared::utils::{validate_block_not_empty, validate_opening_tag};
+use super::shared::utils::{validate_block_not_empty, validate_opening_tag, walk_js_expression};
+use crate::ast::js::Expression;
 use crate::ast::template::IfBlock;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
@@ -95,29 +96,19 @@ pub fn visit(block: &mut IfBlock, context: &mut VisitorContext) -> Result<(), An
 
 /// Analyze the test expression and populate metadata.
 ///
-/// This is a simplified version. A full implementation would walk the JavaScript
-/// AST to detect await expressions, call expressions, member expressions, etc.
+/// Walks the JavaScript AST to detect await expressions, call expressions,
+/// member expressions, assignments, and identifier references.
 fn analyze_test_expression(
-    _test: &crate::ast::js::Expression,
+    test: &Expression,
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     // Get the current expression metadata if set
     if let Some(metadata_ptr) = context.expression {
         let metadata = unsafe { &mut *metadata_ptr };
 
-        // TODO: Walk the JS AST to detect:
-        // - has_await: Check for AwaitExpression nodes
-        // - has_call: Check for CallExpression nodes
-        // - has_member_expression: Check for MemberExpression nodes
-        // - has_assignment: Check for AssignmentExpression nodes
-        // - dependencies: Track identifier references
-        // - references: Track all identifier references
-
-        // For now, just set defaults
-        metadata.set_has_await(false);
-        metadata.set_has_call(false);
-        metadata.set_has_member_expression(false);
-        metadata.set_has_assignment(false);
+        // Walk the JS AST to detect expression features
+        let Expression::Value(json_value) = test;
+        walk_js_expression(json_value, context, metadata)?;
     }
 
     Ok(())

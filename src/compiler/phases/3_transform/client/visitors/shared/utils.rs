@@ -2455,13 +2455,76 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
             }
             false
         }
+        "ChainExpression" => {
+            // Optional chaining (e.g., `item?.name`) - recurse into inner expression
+            if let Some(expression) = obj.get("expression") {
+                return has_reactive_state_json(expression, context);
+            }
+            false
+        }
+        "SequenceExpression" => {
+            // Comma expressions (e.g., `(a, b)`) - check all sub-expressions
+            if let Some(expressions) = obj.get("expressions").and_then(|v| v.as_array()) {
+                for expr_val in expressions {
+                    if has_reactive_state_json(expr_val, context) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        "AssignmentExpression" => {
+            // Assignments (e.g., `a = b`) - check right side
+            if let Some(right) = obj.get("right") {
+                return has_reactive_state_json(right, context);
+            }
+            false
+        }
         "Literal" => {
             // Literals are never reactive
             false
         }
-        _ => {
-            // Unknown expression type - conservatively assume non-reactive
+        "AwaitExpression" => {
+            // Await expressions are always treated as reactive (async)
+            true
+        }
+        "ArrowFunctionExpression" | "FunctionExpression" => {
+            // Function definitions are not reactive by themselves
             false
+        }
+        "ObjectExpression" => {
+            // Check all property values
+            if let Some(properties) = obj.get("properties").and_then(|v| v.as_array()) {
+                for prop in properties {
+                    if let Some(value) = prop.as_object().and_then(|p| p.get("value"))
+                        && has_reactive_state_json(value, context)
+                    {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        "ArrayExpression" => {
+            // Check all elements
+            if let Some(elements) = obj.get("elements").and_then(|v| v.as_array()) {
+                for elem in elements {
+                    if has_reactive_state_json(elem, context) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        "UpdateExpression" => {
+            // ++, -- are always reactive (they mutate state)
+            true
+        }
+        _ => {
+            // Unknown expression type - conservatively assume reactive
+            // (using set_text for a static expression is safe but slower,
+            //  using textContent for a reactive expression is a correctness bug)
+            true
         }
     }
 }

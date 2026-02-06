@@ -64,6 +64,9 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
         .build(&result.program)
         .code;
     let code = collapse_short_arrays(code);
+    // Collapse single-statement if blocks to inline form BEFORE adding blank lines,
+    // since the blank line rules depend on the line structure (e.g. `}` → statement)
+    let code = collapse_single_statement_ifs(code);
     let code = add_blank_lines_for_formatting(code);
     // Note: oxc codegen escapes </script> to <\/script> in template literals for HTML safety,
     // and Svelte's output does the same, so we keep this escaping.
@@ -215,11 +218,12 @@ fn should_add_blank_line_after(current: &str, next: &str, raw_current: &str) -> 
         return true;
     }
 
-    // Rule 2b: After top-level function closing brace (before export default function)
+    // Rule 2b: After top-level closing brace `}` (before any non-empty line)
+    // This handles: closing function → $.delegate(), closing function → next statement
     if !raw_current.starts_with('\t')
         && !raw_current.starts_with(' ')
         && current == "}"
-        && (next.starts_with("export default function ") || next.starts_with("export function "))
+        && !next.is_empty()
     {
         return true;
     }
@@ -243,7 +247,9 @@ fn should_add_blank_line_after(current: &str, next: &str, raw_current: &str) -> 
             }
 
             // After closing brace of function (before next function or var or statement)
+            // But NOT before other closing braces (};, });, etc.)
             if current == "}"
+                && !is_closing_brace(next)
                 && (next.starts_with("function ")
                     || next.starts_with("async function ")
                     || next.starts_with("export default function ")
@@ -256,7 +262,12 @@ fn should_add_blank_line_after(current: &str, next: &str, raw_current: &str) -> 
 
             // After variable declarations (before non-declaration statements)
             // But only if the current is a declaration and next is NOT a declaration
-            if is_var_declaration(current) && !is_var_declaration(next) && is_statement(next) {
+            // Skip if current line ends with `{` (multi-line expression like arrow function)
+            if is_var_declaration(current)
+                && !is_var_declaration(next)
+                && is_statement(next)
+                && !current.ends_with('{')
+            {
                 return true;
             }
 
@@ -275,9 +286,26 @@ fn should_add_blank_line_after(current: &str, next: &str, raw_current: &str) -> 
                 return true;
             }
 
-            // Rule 6: After callback function closures `});` (before $. method calls)
+            // Rule 6: After callback closures `});` (before statements/var decls)
             // This matches Svelte's esrap formatting for each blocks
-            if current == "});" && is_statement(next) {
+            if current == "});"
+                && (is_statement(next) || is_var_declaration(next))
+                && !is_closing_brace(next)
+            {
+                return true;
+            }
+
+            // Rule 6b: After arrow/assignment closures `};`
+            // Add blank line unless next is a closing brace pattern
+            if current == "};" && !is_closing_brace(next) && !next.is_empty() {
+                return true;
+            }
+
+            // Rule 6c: After nested callback closures `}));` (before next statement)
+            if current == "}));"
+                && (is_statement(next) || is_var_declaration(next))
+                && !is_closing_brace(next)
+            {
                 return true;
             }
 
@@ -287,9 +315,34 @@ fn should_add_blank_line_after(current: &str, next: &str, raw_current: &str) -> 
                 return true;
             }
 
-            // Rule 8: After $.push(...); calls (before other statements)
+            // Rule 8: After $.push(...); calls (before any next line)
             // This matches Svelte's esrap formatting for component initialization
-            if current.starts_with("$.push(") && is_statement(next) {
+            // $.push() is always the first statement in a function, followed by user code
+            if current.starts_with("$.push(") {
+                return true;
+            }
+
+            // Rule 9: After $.init(); calls (before var declarations, blocks, or component calls with multiline args)
+            // $.init() gets a blank line before var/let/const, {, and multiline expressions,
+            // but NOT before simple function calls like Component($$anchor, {}), $.next(), $.pop()
+            if current.starts_with("$.init(")
+                && (is_var_declaration(next)
+                    || next == "{"
+                    || next.starts_with("function ")
+                    || next.starts_with("class ")
+                    || next.starts_with("//")
+                    || next.starts_with("/*"))
+            {
+                return true;
+            }
+
+            // Rule 10: After single-line event handler setups: `button.__click = ...;`
+            // Only before var declarations, NOT before $.append or other statements
+            if current.contains(".__")
+                && current.ends_with(';')
+                && !next.contains(".__")
+                && is_var_declaration(next)
+            {
                 return true;
             }
         }
@@ -301,6 +354,17 @@ fn should_add_blank_line_after(current: &str, next: &str, raw_current: &str) -> 
 /// Check if a line is a variable declaration
 fn is_var_declaration(line: &str) -> bool {
     line.starts_with("var ") || line.starts_with("let ") || line.starts_with("const ")
+}
+
+/// Check if a line is a closing brace pattern (should not have blank line before it)
+fn is_closing_brace(line: &str) -> bool {
+    line == "}"
+        || line == "};"
+        || line == "});"
+        || line == "},"
+        || line == "}),"
+        || line == "}));"
+        || line == "}))"
 }
 
 /// Check if a line is a statement (not a declaration)
@@ -315,6 +379,75 @@ fn is_statement(line: &str) -> bool {
         && !line.starts_with("/*")
         && line != "}"
         && line != "});"
+}
+
+/// Collapse single-statement if blocks to inline form.
+///
+/// OXC always adds braces around if bodies, but Svelte's esrap outputs
+/// single-statement ifs without braces:
+///   `if (condition) statement;`
+/// instead of:
+///   `if (condition) {\n\tstatement;\n}`
+///
+/// This only applies to if blocks without else clauses.
+fn collapse_single_statement_ifs(code: String) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result = String::with_capacity(code.len());
+    let mut i = 0;
+
+    while i < lines.len() {
+        if i + 2 < lines.len() {
+            let current = lines[i];
+            let body = lines[i + 1];
+            let closing = lines[i + 2];
+
+            let current_trimmed = current.trim();
+            let closing_trimmed = closing.trim();
+
+            // Check pattern: if (...) { \n single-statement; \n }
+            if current_trimmed.starts_with("if (")
+                && current_trimmed.ends_with(") {")
+                && closing_trimmed == "}"
+            {
+                // Count indent level (tabs)
+                let current_tabs = current.chars().take_while(|c| *c == '\t').count();
+                let body_tabs = body.chars().take_while(|c| *c == '\t').count();
+                let closing_tabs = closing.chars().take_while(|c| *c == '\t').count();
+
+                // Body must be one level deeper, closing at same level
+                if body_tabs == current_tabs + 1
+                    && closing_tabs == current_tabs
+                    // No else follows on closing line or next line
+                    && (i + 3 >= lines.len()
+                        || (!lines[i + 3].trim().starts_with("else")
+                            && !lines[i + 3].trim().starts_with("} else")))
+                    // Single statement body (not a block opener)
+                    && !body.trim().ends_with('{')
+                {
+                    // Extract condition part: everything between "if " and " {"
+                    let if_part = &current_trimmed[3..current_trimmed.len() - 2]; // "(condition)"
+                    let statement = body.trim();
+
+                    // Build inline version
+                    let indent_str: String = "\t".repeat(current_tabs);
+                    result.push_str(&indent_str);
+                    result.push_str("if ");
+                    result.push_str(if_part);
+                    result.push(' ');
+                    result.push_str(statement);
+                    result.push('\n');
+                    i += 3;
+                    continue;
+                }
+            }
+        }
+
+        result.push_str(lines[i]);
+        result.push('\n');
+        i += 1;
+    }
+
+    result
 }
 
 /// Get the indentation level (number of tabs or equivalent spaces)
