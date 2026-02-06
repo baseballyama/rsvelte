@@ -1170,6 +1170,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     let expr_end = spread.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {
                         let expr = self.source[expr_start..expr_end].trim().to_string();
+                        // Transform rune calls in spread expressions
+                        let expr = Self::transform_rune_in_template_expr(&expr);
                         object_parts.push(format!("...{}", expr));
                     }
                 }
@@ -6482,10 +6484,12 @@ fn transform_script_content_inner(script: &str, is_module: bool) -> String {
     let script = script.replace("$effect.pending()", "false");
     // Transform $effect.tracking() - always false on server (effects don't run on server)
     let script = script.replace("$effect.tracking()", "false");
+    // Transform $props.id() to $.props_id($$renderer) on server
+    let script = script.replace("$props.id()", "$.props_id($$renderer)");
     // Note: Order matters - check $state.raw before $state to avoid partial matches
-    // $state.snapshot(x) in script becomes just x on server (no proxied state)
-    // But template expressions keep $.snapshot() via transform_rune_in_template_expr
-    let script = transform_rune_call_multiline(&script, "$state.snapshot(");
+    // $state.snapshot(x) in assignment context (= $state.snapshot(x)) -> unwrap to just x
+    // $state.snapshot(x) in non-assignment context -> $.snapshot(x) (runtime call)
+    let script = transform_state_snapshot_server(&script);
     let script = transform_rune_call_multiline(&script, "$state.raw(");
     // Transform array destructuring with $state() BEFORE generic $state() handling
     let script = transform_array_destructure_state(&script);
@@ -6793,6 +6797,48 @@ fn find_matching_paren_for_state(s: &str) -> Option<usize> {
 
 /// Simple rune call transformation for template expressions.
 /// Transforms `$state.eager(x)` to `x` by finding matching closing paren.
+/// Transform $state.snapshot() in server script content.
+/// In assignment context (= $state.snapshot(x)), unwrap to just x.
+/// In non-assignment context (standalone or expression), replace with $.snapshot(x).
+fn transform_state_snapshot_server(script: &str) -> String {
+    let prefix = "$state.snapshot(";
+    let mut result = script.to_string();
+    let mut search_from = 0;
+
+    while let Some(pos) = result[search_from..].find(prefix) {
+        let abs_pos = search_from + pos;
+        let after_prefix = abs_pos + prefix.len();
+
+        // Find matching closing paren
+        if let Some(content_end) = find_matching_paren_for_state(&result[after_prefix..]) {
+            let content = result[after_prefix..after_prefix + content_end].to_string();
+
+            // Check if this is in assignment context: look backward for '='
+            let before = result[..abs_pos].trim_end();
+            let is_assignment = before.ends_with('=') && !before.ends_with("==");
+
+            if is_assignment {
+                // Unwrap: = $state.snapshot(x) -> = x
+                let end = after_prefix + content_end + 1; // +1 for closing paren
+                result = format!("{}{}{}", &result[..abs_pos], content, &result[end..]);
+                search_from = abs_pos + content.len();
+            } else {
+                // Replace prefix: $state.snapshot( -> $.snapshot(
+                result = format!(
+                    "{}$.snapshot({}",
+                    &result[..abs_pos],
+                    &result[after_prefix..]
+                );
+                search_from = abs_pos + "$.snapshot(".len();
+            }
+        } else {
+            search_from = abs_pos + prefix.len();
+        }
+    }
+
+    result
+}
+
 fn transform_rune_call_simple(expr: &str, prefix: &str) -> String {
     let mut result = String::new();
     let mut i = 0;

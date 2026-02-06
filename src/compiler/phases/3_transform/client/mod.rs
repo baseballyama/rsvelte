@@ -348,21 +348,10 @@ fn transform_client_with_visitors(
         component_body.push(JsStatement::Raw("$.legacy_pre_effect_reset();".to_string()));
     }
 
-    // Add $.init() for legacy (non-runes) components that need context
-    // Reference: transform-client.js line 381-382
-    // IMPORTANT: This must come AFTER instance script content, not before
-    if !analysis.runes && analysis.needs_context {
-        let init_args = if analysis.immutable {
-            vec![b::literal(super::js_ast::nodes::JsLiteral::Boolean(true))]
-        } else {
-            vec![]
-        };
-        component_body.push(b::stmt(b::call(b::member_path("$.init"), init_args)));
-    }
-
     // Generate $$exports object (component_returned_object) from analysis.exports
     // Reference: transform-client.js lines 280-378
     // In the official compiler, component_returned_object is built from ALL analysis.exports.
+    // IMPORTANT: $$exports must come BEFORE $.init() - this matches the official compiler order.
     // For non-dev mode:
     //   - const/function exports (not let/var): simple init property { name } or { alias: name }
     //   - let/var exports: getter/setter pair (but these are BindableProp in legacy mode)
@@ -467,6 +456,18 @@ fn transform_client_with_visitors(
             let exports_code = format!("var $$exports = {{ {} }};", exports_parts.join(", "));
             component_body.push(JsStatement::Raw(exports_code));
         }
+    }
+
+    // Add $.init() for legacy (non-runes) components that need context
+    // Reference: transform-client.js line 381-382
+    // IMPORTANT: This must come AFTER $$exports but BEFORE template body
+    if !analysis.runes && analysis.needs_context {
+        let init_args = if analysis.immutable {
+            vec![b::literal(super::js_ast::nodes::JsLiteral::Boolean(true))]
+        } else {
+            vec![]
+        };
+        component_body.push(b::stmt(b::call(b::member_path("$.init"), init_args)));
     }
 
     // Add template body statements
@@ -618,8 +619,10 @@ fn transform_client_with_visitors(
 
     // Add module script non-import content (exports, declarations, etc.)
     // This comes after module_level_snippets so that `export { foo }` can reference `const foo`
+    // Transform rune calls ($state, $derived, etc.) in module-level script
     if let Some(non_imports) = module_script_non_imports {
-        body.push(JsStatement::Raw(non_imports));
+        let transformed = transform_module_script_runes(&non_imports);
+        body.push(JsStatement::Raw(transformed));
     }
 
     // Add hoisted statements (template declarations, etc.)
@@ -744,6 +747,84 @@ fn extract_proxy_vars(script: &str) -> Vec<String> {
     }
 
     proxy_vars
+}
+
+/// Transform rune calls in module-level script content.
+/// Module-level $state() becomes $.proxy() for objects/arrays or is unwrapped for primitives.
+/// Module-level $state variables are never reassigned (no $.state() wrapper needed).
+fn transform_module_script_runes(script: &str) -> String {
+    let mut result = script.to_string();
+
+    // Transform $state.snapshot(x) to $.snapshot(x)
+    if result.contains("$state.snapshot(") {
+        result = result.replace("$state.snapshot(", "$.snapshot(");
+    }
+
+    // Transform $state.raw(x) to $.state(x)
+    if result.contains("$state.raw(") {
+        result = result.replace("$state.raw(", "$.state(");
+    }
+
+    // Transform $state.frozen(x) to $.state(x)
+    if result.contains("$state.frozen(") {
+        result = result.replace("$state.frozen(", "$.state(");
+    }
+
+    // Transform $state(x) - module-level state is never reassigned
+    // Objects/arrays -> $.proxy(x), primitives -> just x
+    while let Some(pos) = result.find("$state(") {
+        // Make sure this is not $state.something
+        if pos + 7 < result.len() && result.as_bytes()[pos + 6] != b'(' {
+            // This shouldn't happen since we already handled $state.snapshot/raw/frozen
+            break;
+        }
+        let state_start = pos + 7; // after "$state("
+        if let Some(content_end) = find_matching_paren(&result[state_start..]) {
+            let content = result[state_start..state_start + content_end].to_string();
+            let trimmed_content = content.trim();
+            let is_object_or_array =
+                trimmed_content.starts_with('{') || trimmed_content.starts_with('[');
+
+            if is_object_or_array || expression_needs_proxy(trimmed_content) {
+                // Wrap with $.proxy() for deep reactivity
+                result = format!(
+                    "{}$.proxy({}){}",
+                    &result[..pos],
+                    content,
+                    &result[state_start + content_end + 1..]
+                );
+            } else if trimmed_content.is_empty() {
+                // Empty $state() -> void 0
+                result = format!(
+                    "{}void 0{}",
+                    &result[..pos],
+                    &result[state_start + content_end + 1..]
+                );
+            } else {
+                // Primitive - just extract the value
+                result = format!(
+                    "{}{}{}",
+                    &result[..pos],
+                    content,
+                    &result[state_start + content_end + 1..]
+                );
+            }
+        } else {
+            break;
+        }
+    }
+
+    // Transform $derived.by() to $.derived()
+    if result.contains("$derived.by(") {
+        result = result.replace("$derived.by(", "$.derived(");
+    }
+
+    // Transform $derived() to $.derived(() => expr)
+    if result.contains("$derived(") {
+        result = result.replace("$derived(", "$.derived(() => ");
+    }
+
+    result
 }
 
 /// Transform instance script content for the visitor-based code generation.
@@ -1486,6 +1567,11 @@ fn transform_client_runes_with_skip_and_state(
     // Transform $effect(x) to $.user_effect(x)
     if result.contains("$effect(") {
         result = result.replace("$effect(", "$.user_effect(");
+    }
+
+    // Transform $props.id() to $.props_id()
+    if result.contains("$props.id()") {
+        result = result.replace("$props.id()", "$.props_id()");
     }
 
     // Transform $inspect.trace(...) - in non-dev mode, remove the entire statement
