@@ -1364,7 +1364,7 @@ fn build_element_special_value_attribute(
             assignment
         } else {
             // Wrap with ?? '' for potentially undefined values
-            b::binary_str("??", assignment, b::string(""))
+            b::nullish(assignment, b::string(""))
         };
         b::stmt(b::assign(b::member(b::id(node_id), "value"), inner))
     };

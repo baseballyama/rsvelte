@@ -180,15 +180,15 @@ fn transform_client_with_visitors(
             b.name == store_name && matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp)
         });
 
-        // Generate: const $store = () => $.store_get(store, "$store", $$stores);
-        // or: const $store = () => $.store_get(store(), "$store", $$stores); for prop stores
+        // Generate: const $store = () => $.store_get(store, '$store', $$stores);
+        // or: const $store = () => $.store_get(store(), '$store', $$stores); for prop stores
         let store_access = if is_prop_store {
             format!("{}()", store_name)
         } else {
             store_name.to_string()
         };
         let getter_code = format!(
-            "const {} = () => $.store_get({}, \"{}\", $$stores);",
+            "const {} = () => $.store_get({}, '{}', $$stores);",
             store_sub_name, store_access, store_sub_name
         );
         // Insert getter BEFORE setup_stores (at position getter_count to maintain sorted order)
@@ -1401,7 +1401,10 @@ fn transform_client_runes_with_skip_and_state(
                 } else if is_object_literal {
                     format!("$.derived(() => ({}))", wrapped_content)
                 } else {
-                    format!("$.derived(() => {})", wrapped_content)
+                    // Apply unthunk optimization: $.derived(() => name()) -> $.derived(name)
+                    // This matches the official compiler's b.thunk() + unthunk() behavior
+                    let derived_arg = unthunk_string(&wrapped_content);
+                    format!("$.derived({})", derived_arg)
                 };
 
                 result = format!(
@@ -2310,9 +2313,17 @@ fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> String {
                 ));
             } else {
                 // Wrap non-simple values in a thunk: () => value
+                // When value starts with '{', wrap in parens to prevent
+                // OXC from parsing `() => {...}` as arrow with block body
+                // instead of arrow returning object literal
+                let thunk_value = if value.starts_with('{') {
+                    format!("({})", value)
+                } else {
+                    value.to_string()
+                };
                 results.push(format!(
                     "let {} = $.prop($$props, '{}', {}, () => {});",
-                    name, name, flags, value
+                    name, name, flags, thunk_value
                 ));
             }
         } else {
@@ -2631,9 +2642,16 @@ fn transform_props_destructuring(
                 ));
             } else {
                 // Wrap non-simple values in a thunk: () => value
+                // When value starts with '{', wrap in parens to prevent
+                // OXC from parsing `() => {...}` as arrow with block body
+                let thunk_value = if default_value.starts_with('{') {
+                    format!("({})", default_value)
+                } else {
+                    default_value.to_string()
+                };
                 declarators.push(format!(
                     "{} = $.prop($$props, '{}', {}, () => {})",
-                    name, name, flags, default_value
+                    name, name, flags, thunk_value
                 ));
             }
         } else {
@@ -6308,6 +6326,33 @@ fn transform_constructor_assignment(line: &str, fields: &[ClassStateField]) -> S
     }
 
     result
+}
+
+/// Apply the unthunk optimization to a string expression.
+///
+/// Matches the behavior of Svelte's `unthunk()` in builders.js:
+/// - `identifier()` (call with no args to an identifier) -> `identifier`
+///   (the wrapping `() =>` will be added by the caller)
+/// - Otherwise, returns `() => expr`
+///
+/// This is used to optimize `$.derived(() => doubled())` to `$.derived(doubled)`.
+fn unthunk_string(expr: &str) -> String {
+    let trimmed = expr.trim();
+
+    // Check if the expression is a simple call: identifier() or identifier.method()
+    // Pattern: the expr ends with "()" and the part before "()" is a valid identifier
+    if let Some(callee) = trimmed.strip_suffix("()") {
+        let is_simple_identifier = !callee.is_empty()
+            && callee
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '_' || c == '$' || c == '.');
+        if is_simple_identifier {
+            return callee.to_string();
+        }
+    }
+
+    // No optimization possible, wrap in arrow
+    format!("() => {}", expr)
 }
 
 #[cfg(test)]

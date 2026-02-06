@@ -2142,7 +2142,19 @@ impl JsCodegen {
     }
 
     fn emit_logical_expression(&mut self, logical: &JsLogicalExpression) {
+        // Assignment expressions have lower precedence than logical operators
+        // so they need parentheses when used as the left operand: (a = b) ?? c
+        let needs_parens = matches!(
+            logical.left.as_ref(),
+            JsExpr::Assignment(_) | JsExpr::Conditional(_)
+        );
+        if needs_parens {
+            self.output.push('(');
+        }
         self.emit_expression(&logical.left);
+        if needs_parens {
+            self.output.push(')');
+        }
         let _ = write!(self.output, " {} ", logical.operator);
         self.emit_expression(&logical.right);
     }

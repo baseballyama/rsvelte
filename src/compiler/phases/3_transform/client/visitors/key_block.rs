@@ -31,7 +31,7 @@ pub fn key_block(node: &KeyBlock, context: &mut ComponentContext) -> TransformRe
     // We need to apply transforms (e.g., $.get() for reactive variables)
     let expression = convert_expression(&node.expression, context);
     let transformed_expression = apply_transforms_to_expression(&expression, context);
-    let key = b::arrow(vec![], transformed_expression);
+    let key = b::thunk(transformed_expression);
 
     // Visit the fragment - this returns a BlockStatement
     // The fragment function handles template hoisting internally

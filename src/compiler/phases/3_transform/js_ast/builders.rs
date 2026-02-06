@@ -624,6 +624,11 @@ pub fn binary_str(op: &str, left: JsExpr, right: JsExpr) -> JsExpr {
         "&" => JsBinaryOp::BitAnd,
         "in" => JsBinaryOp::In,
         "instanceof" => JsBinaryOp::InstanceOf,
+        "??" | "&&" | "||" => {
+            // These are logical operators, not binary operators.
+            // Redirect to logical_str to avoid silent miscompilation.
+            return logical_str(op, left, right);
+        }
         _ => JsBinaryOp::Add, // Default to addition
     };
     binary(operator, left, right)

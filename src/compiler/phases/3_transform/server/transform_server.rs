@@ -2100,7 +2100,15 @@ impl<'a> ServerCodeGenerator<'a> {
         };
 
         match &node.value {
-            AttributeValue::True(_) => Ok(Some(format!(" {}", name))),
+            AttributeValue::True(_) => {
+                // Boolean attributes like `disabled`, `checked` render without a value: ` disabled`
+                // Non-boolean attributes render with empty string value: ` data-potato=""`
+                if is_boolean_attribute(name) {
+                    Ok(Some(format!(" {}", name)))
+                } else {
+                    Ok(Some(format!(" {}=\"\"", name)))
+                }
+            }
             AttributeValue::Sequence(parts) => {
                 // Check if it's a single expression (like x='{x}')
                 // In this case, treat it the same as AttributeValue::Expression
