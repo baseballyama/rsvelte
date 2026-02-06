@@ -657,6 +657,30 @@ impl<'a> ServerCodeGenerator<'a> {
         result
     }
 
+    /// Transform rune calls in template expressions for server-side rendering.
+    /// Handles: $state.eager(x) -> x, $state.snapshot(x) -> $.snapshot(x),
+    ///          $effect.tracking() -> false, $effect.pending() -> false
+    fn transform_rune_in_template_expr(expr: &str) -> String {
+        let mut result = expr.to_string();
+        // $state.eager(x) -> x (unwrap the rune call)
+        if result.contains("$state.eager(") {
+            result = transform_rune_call_simple(&result, "$state.eager(");
+        }
+        // $state.snapshot(x) -> $.snapshot(x)
+        if result.contains("$state.snapshot(") {
+            result = result.replace("$state.snapshot(", "$.snapshot(");
+        }
+        // $effect.tracking() -> false
+        if result.contains("$effect.tracking()") {
+            result = result.replace("$effect.tracking()", "false");
+        }
+        // $effect.pending() -> false
+        if result.contains("$effect.pending()") {
+            result = result.replace("$effect.pending()", "false");
+        }
+        result
+    }
+
     /// Transform store subscriptions in script content.
     /// This is used for the instance script where store references like `$page`
     /// need to be transformed to `$.store_get($$store_subs ??= {}, '$page', page)`.
@@ -739,6 +763,10 @@ impl<'a> ServerCodeGenerator<'a> {
                 .push(OutputPart::Html("<!---->".to_string()));
         }
 
+        // Track whether we need to trim leading whitespace from the first text node
+        // When an anchor comment is added, the next text should not have a leading space
+        let mut trim_leading_ws = needs_anchor;
+
         for (i, node) in nodes.iter().enumerate() {
             // Skip whitespace-only text at root level
             if let TemplateNode::Text(text) = node
@@ -802,16 +830,48 @@ impl<'a> ServerCodeGenerator<'a> {
                     continue;
                 }
             }
-            // Trim trailing whitespace from the last meaningful text node
-            if last_meaningful_idx.is_some()
-                && i == last_meaningful_idx.unwrap()
-                && let TemplateNode::Text(text) = node
-            {
-                let mut modified_text = text.clone();
-                modified_text.data = modified_text.data.trim_end().to_string().into();
-                self.generate_node(&TemplateNode::Text(modified_text), true)?;
-                continue;
+            // Handle text node modifications:
+            // 1. Trim leading whitespace from the first text after anchor comment
+            // 2. Trim trailing whitespace from the last meaningful text node
+            if let TemplateNode::Text(text) = node {
+                let mut modified_data = text.data.to_string();
+                let mut needs_modification = false;
+
+                // Trim leading whitespace if this is the first text after an anchor comment
+                if trim_leading_ws {
+                    let trimmed = modified_data.trim_start().to_string();
+                    if trimmed != modified_data {
+                        modified_data = trimmed;
+                        needs_modification = true;
+                    }
+                    trim_leading_ws = false;
+                }
+
+                // Trim trailing whitespace from the last meaningful text node
+                if last_meaningful_idx.is_some() && i == last_meaningful_idx.unwrap() {
+                    let trimmed = modified_data.trim_end().to_string();
+                    if trimmed != modified_data {
+                        modified_data = trimmed;
+                        needs_modification = true;
+                    }
+                }
+
+                if needs_modification {
+                    let mut modified_text = text.clone();
+                    modified_text.data = modified_data.into();
+                    self.generate_node(&TemplateNode::Text(modified_text), true)?;
+                    continue;
+                }
+            } else {
+                // Reset trim flag when we hit a non-text, non-whitespace node
+                if trim_leading_ws
+                    && first_meaningful_idx.is_some()
+                    && i >= first_meaningful_idx.unwrap()
+                {
+                    trim_leading_ws = false;
+                }
             }
+
             self.generate_node(node, true)?;
         }
         Ok(())
@@ -2534,6 +2594,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     // Dynamic expression - needs escaping
                     // Transform store subscriptions ($store -> $.store_get())
                     let transformed = self.transform_store_refs(&expr_source);
+                    // Transform rune calls that need server-side handling
+                    let transformed = Self::transform_rune_in_template_expr(&transformed);
                     self.output_parts.push(OutputPart::Expression(transformed));
                 }
             }
@@ -3392,6 +3454,19 @@ impl<'a> ServerCodeGenerator<'a> {
             if let Some(TemplateNode::Text(text)) = fallback_nodes.last_mut() {
                 let trimmed = text.data.trim_end().to_string();
                 text.data = trimmed.into();
+            }
+            // Add comment marker before fallback if first node is text or expression
+            // This matches the behavior of the main each body
+            if let Some(first_node) = fallback_nodes.first() {
+                match first_node {
+                    TemplateNode::Text(text) if !text.data.trim().is_empty() => {
+                        fallback_generator.output_parts.push(OutputPart::Comment);
+                    }
+                    TemplateNode::ExpressionTag(_) => {
+                        fallback_generator.output_parts.push(OutputPart::Comment);
+                    }
+                    _ => {}
+                }
             }
             for node in &fallback_nodes {
                 fallback_generator.generate_node(node, false)?;
@@ -4554,7 +4629,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     props,
                     spreads,
                     bindings,
-                    has_prior_content: _,
+                    has_prior_content,
                     children: _, // TODO: Handle children for components with bindings
                     dynamic,
                 } => {
@@ -4633,12 +4708,12 @@ export default function {component_name}($$renderer{props_param}) {{
                         body_code.push_str(&format!("{}}});\n", indent));
                     }
 
-                    // Add <!---->  marker for content after binding component (hydration boundary)
-                    // Only add if there's more content after this component
+                    // Add <!---->  marker for hydration boundary after binding component
+                    // Add if there's content before OR content after this component
                     let has_more_content = parts[i + 1..]
                         .iter()
                         .any(|p| !matches!(p, OutputPart::Html(s) if s.trim().is_empty()));
-                    if has_more_content {
+                    if *has_prior_content || has_more_content {
                         current_html.push_str("<!---->");
                     }
                 }
@@ -6396,6 +6471,8 @@ fn transform_script_content(script: &str) -> String {
     let script = transform_rune_call_multiline(&script, "$state.eager(");
     // Transform $effect.pending() - always false on server (effects don't run on server)
     let script = script.replace("$effect.pending()", "false");
+    // Transform $effect.tracking() - always false on server (effects don't run on server)
+    let script = script.replace("$effect.tracking()", "false");
     // Note: Order matters - check $state.raw before $state to avoid partial matches
     // $state.snapshot(x) becomes $.snapshot(x) - it's a runtime helper
     let script = script.replace("$state.snapshot(", "$.snapshot(");
@@ -6697,6 +6774,52 @@ fn find_matching_paren_for_state(s: &str) -> Option<usize> {
     }
 
     None
+}
+
+/// Simple rune call transformation for template expressions.
+/// Transforms `$state.eager(x)` to `x` by finding matching closing paren.
+fn transform_rune_call_simple(expr: &str, prefix: &str) -> String {
+    let mut result = String::new();
+    let mut i = 0;
+    let bytes = expr.as_bytes();
+    let prefix_bytes = prefix.as_bytes();
+    let prefix_len = prefix_bytes.len();
+
+    while i < bytes.len() {
+        if i + prefix_len <= bytes.len() && &bytes[i..i + prefix_len] == prefix_bytes {
+            // Found the prefix, find matching closing paren
+            let start = i + prefix_len;
+            let mut depth = 1;
+            let mut end = start;
+            while end < bytes.len() && depth > 0 {
+                match bytes[end] {
+                    b'(' => depth += 1,
+                    b')' => depth -= 1,
+                    b'\'' | b'"' | b'`' => {
+                        let quote = bytes[end];
+                        end += 1;
+                        while end < bytes.len() && bytes[end] != quote {
+                            if bytes[end] == b'\\' {
+                                end += 1;
+                            }
+                            end += 1;
+                        }
+                    }
+                    _ => {}
+                }
+                if depth > 0 {
+                    end += 1;
+                }
+            }
+            // Extract inner content (the argument)
+            result.push_str(&expr[start..end]);
+            i = end + 1; // skip past closing paren
+        } else {
+            result.push(expr.as_bytes()[i] as char);
+            i += 1;
+        }
+    }
+    result
 }
 
 fn transform_rune_call_multiline(script: &str, prefix: &str) -> String {
@@ -7272,8 +7395,9 @@ fn remove_rune_statement(script: &str, rune_prefix: &str) -> String {
                     // For $inspect, output ;; as placeholder (matches official compiler)
                     // Note: OXC normalization will split this into separate lines, but
                     // test normalization should handle this by removing all semicolons
+                    // Add a newline after ;; so subsequent $inspect statements are recognized
                     if rune_prefix.starts_with("$inspect") {
-                        result.push_str(";;");
+                        result.push_str(";;\n");
                     }
                     // Remove leading whitespace/tabs on this line from result
                     // (for $effect and similar that are completely removed)

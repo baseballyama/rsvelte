@@ -356,8 +356,14 @@ pub fn normalize_js(js: &str) -> String {
         // Normalize trailing commas in function calls, arrays, and objects
         // Match comma followed by optional whitespace before closing bracket
         static ref TRAILING_COMMA: Regex = Regex::new(r",\s*([\)\]\}])").unwrap();
-        // Normalize `var` to `let` (Svelte compiler may use either)
-        static ref VAR_DECL: Regex = Regex::new(r"\bvar\b").unwrap();
+        // Normalize `var`/`const` to `let` (Svelte compiler may use different declaration types)
+        static ref VAR_DECL: Regex = Regex::new(r"\b(var|const)\b").unwrap();
+        // Normalize parenthesized string/number literals: ('str') -> 'str', (123) -> 123
+        // OXC removes unnecessary parentheses around literals
+        static ref PAREN_STRING_LIT: Regex = Regex::new(r"\(('(?:[^'\\]|\\.)*')\)").unwrap();
+        static ref PAREN_NUMBER_LIT: Regex = Regex::new(r"\((\d+(?:\.\d+)?)\)").unwrap();
+        // Normalize boolean HTML attributes: readonly="" -> readonly, disabled="" -> disabled, etc.
+        static ref BOOL_ATTR_EMPTY: Regex = Regex::new(r#"\b(readonly|disabled|checked|selected|multiple|hidden|required|autofocus|autoplay|controls|loop|muted|default|defer|async|novalidate|formnovalidate|open|inert|allowfullscreen)=""\b"#).unwrap();
     }
 
     // Remove block comments (including JSDoc) before other processing
@@ -475,6 +481,14 @@ pub fn normalize_js(js: &str) -> String {
     // Both `"'"` and `'\''` represent the same string (a single quote character)
     // We normalize to a consistent representation
     let result = normalize_all_string_quotes(&result);
+
+    // Normalize parenthesized string/number literals: ('str') -> 'str', (123) -> 123
+    // OXC removes unnecessary parentheses around literals
+    let result = PAREN_STRING_LIT.replace_all(&result, "$1").to_string();
+    let result = PAREN_NUMBER_LIT.replace_all(&result, "$1").to_string();
+
+    // Normalize boolean HTML attributes: readonly="" -> readonly
+    let result = BOOL_ATTR_EMPTY.replace_all(&result, "$1").to_string();
 
     // Re-normalize multiple spaces that may have been created by semicolon removal
     // This handles cases like ";;" becoming "  " after semicolon removal
