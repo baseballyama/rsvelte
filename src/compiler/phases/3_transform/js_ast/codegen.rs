@@ -74,12 +74,36 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     let code = add_leading_zeros(code);
     // OXC formats `catch (e)` with a space, but Svelte uses `catch(e)` without space
     let code = code.replace("} catch (", "} catch(");
+    // OXC splits `;;` (inspect placeholder) into two separate lines. Rejoin them.
+    let code = rejoin_double_semicolons(code);
     // OXC has a bug where it doesn't escape tabs in string literals
     // (it escapes newlines but not tabs). Fix this by post-processing.
     let code = escape_tabs_in_strings(code);
     // Remove trailing newline to match Svelte compiler output
     let code = code.trim_end_matches('\n').to_string();
     Ok(code)
+}
+
+/// OXC splits `;;` (used as $inspect placeholder) into two separate empty statements
+/// on different lines. This function rejoins them back to `;;` on a single line.
+fn rejoin_double_semicolons(code: String) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result = Vec::new();
+    let mut i = 0;
+
+    while i < lines.len() {
+        if i + 1 < lines.len() && lines[i].trim() == ";" && lines[i + 1].trim() == ";" {
+            // Get the indentation from the first line
+            let indent = &lines[i][..lines[i].len() - lines[i].trim_start().len()];
+            result.push(format!("{};;", indent));
+            i += 2;
+        } else {
+            result.push(lines[i].to_string());
+            i += 1;
+        }
+    }
+
+    result.join("\n")
 }
 
 /// Escape tab characters inside single/double-quoted string literals.
