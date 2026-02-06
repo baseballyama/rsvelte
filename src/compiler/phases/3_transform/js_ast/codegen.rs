@@ -72,6 +72,8 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     // and Svelte's output does the same, so we keep this escaping.
     // oxc codegen outputs numbers like .5 instead of 0.5 - add leading zeros
     let code = add_leading_zeros(code);
+    // OXC formats `catch (e)` with a space, but Svelte uses `catch(e)` without space
+    let code = code.replace("} catch (", "} catch(");
     // OXC has a bug where it doesn't escape tabs in string literals
     // (it escapes newlines but not tabs). Fix this by post-processing.
     let code = escape_tabs_in_strings(code);
@@ -283,6 +285,12 @@ fn should_add_blank_line_after(current: &str, next: &str, raw_current: &str) -> 
                 && next.starts_with("$.template_effect(")
                 && !next.ends_with(");")
             {
+                return true;
+            }
+
+            // Rule 5c: After do-while closing `} while (...);` (before statements)
+            // This matches Svelte's formatting for $$settled loops
+            if current.starts_with("} while (") && current.ends_with(");") {
                 return true;
             }
 

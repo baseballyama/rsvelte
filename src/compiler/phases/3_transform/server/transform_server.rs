@@ -712,6 +712,7 @@ impl<'a> ServerCodeGenerator<'a> {
         // SvelteWindow, SvelteDocument, SvelteBody don't render anything in SSR
         let is_ssr_meaningful = |n: &&TemplateNode| {
             !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty())
+                && !matches!(n, TemplateNode::Comment(_))
                 && !matches!(n, TemplateNode::SvelteWindow(_))
                 && !matches!(n, TemplateNode::SvelteDocument(_))
                 && !matches!(n, TemplateNode::SvelteBody(_))
@@ -791,6 +792,13 @@ impl<'a> ServerCodeGenerator<'a> {
                     continue;
                 }
                 if i + 1 < len && matches!(nodes[i + 1], TemplateNode::SvelteBody(_)) {
+                    continue;
+                }
+                // Skip whitespace around Comments (these don't render in SSR)
+                if i > 0 && matches!(nodes[i - 1], TemplateNode::Comment(_)) {
+                    continue;
+                }
+                if i + 1 < len && matches!(nodes[i + 1], TemplateNode::Comment(_)) {
                     continue;
                 }
             }
@@ -3157,16 +3165,28 @@ impl<'a> ServerCodeGenerator<'a> {
         // Trim leading whitespace from first text node and trailing whitespace from last text node
         // This handles cases like `{#if cond}\nmid\n{/if}` which should output `mid` not ` mid `
         if !trimmed_nodes.is_empty() {
-            // Trim leading whitespace from first text node
-            if let TemplateNode::Text(ref mut text) = trimmed_nodes[0] {
-                let trimmed_data = text.data.trim_start().to_string();
-                text.data = trimmed_data.into();
+            // Find the first text node (may be after ConstTag or other non-output nodes)
+            for node in trimmed_nodes.iter_mut() {
+                if let TemplateNode::Text(text) = node {
+                    let trimmed_data = text.data.trim_start().to_string();
+                    text.data = trimmed_data.into();
+                    break;
+                }
+                // Skip non-output nodes like ConstTag
+                if !matches!(node, TemplateNode::ConstTag(_)) {
+                    break;
+                }
             }
-            // Trim trailing whitespace from last text node
-            let last_idx = trimmed_nodes.len() - 1;
-            if let TemplateNode::Text(ref mut text) = trimmed_nodes[last_idx] {
-                let trimmed_data = text.data.trim_end().to_string();
-                text.data = trimmed_data.into();
+            // Find the last text node (may be before trailing non-output nodes)
+            for node in trimmed_nodes.iter_mut().rev() {
+                if let TemplateNode::Text(text) = node {
+                    let trimmed_data = text.data.trim_end().to_string();
+                    text.data = trimmed_data.into();
+                    break;
+                }
+                if !matches!(node, TemplateNode::ConstTag(_)) {
+                    break;
+                }
             }
         }
 
@@ -3338,7 +3358,31 @@ impl<'a> ServerCodeGenerator<'a> {
                 None,
                 self.use_async,
             );
-            for node in &fallback_fragment.nodes {
+            // Trim leading/trailing whitespace from fallback fragment nodes
+            let mut fallback_nodes: Vec<TemplateNode> = fallback_fragment.nodes.to_vec();
+            // Skip leading whitespace-only text nodes
+            let start = fallback_nodes
+                .iter()
+                .position(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()))
+                .unwrap_or(fallback_nodes.len());
+            // Skip trailing whitespace-only text nodes
+            let end = fallback_nodes
+                .iter()
+                .rposition(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()))
+                .map(|i| i + 1)
+                .unwrap_or(0);
+            fallback_nodes = fallback_nodes[start..end].to_vec();
+            // Trim leading whitespace from first text node
+            if let Some(TemplateNode::Text(text)) = fallback_nodes.first_mut() {
+                let trimmed = text.data.trim_start().to_string();
+                text.data = trimmed.into();
+            }
+            // Trim trailing whitespace from last text node
+            if let Some(TemplateNode::Text(text)) = fallback_nodes.last_mut() {
+                let trimmed = text.data.trim_end().to_string();
+                text.data = trimmed.into();
+            }
+            for node in &fallback_nodes {
                 fallback_generator.generate_node(node, false)?;
             }
             Some(fallback_generator.output_parts)
@@ -7044,6 +7088,47 @@ fn remove_rune_statement(script: &str, rune_prefix: &str) -> String {
                 // Check if this is preceded only by whitespace/newlines on the current line
                 // (i.e., it's a statement, not part of an expression)
                 let is_statement = is_statement_start(&result);
+
+                if !is_statement && rune_prefix == "$effect.root(" {
+                    // $effect.root() used as an expression (e.g., `const cleanup = $effect.root(...)`)
+                    // Replace with `() => {}` on server (effects don't run on server)
+                    let start = i + prefix_len;
+                    let mut depth = 1;
+                    let mut end = start;
+                    let mut in_string = false;
+                    let mut string_char = ' ';
+
+                    while end < chars.len() && depth > 0 {
+                        let c = chars[end];
+                        if (c == '"' || c == '\'' || c == '`')
+                            && (end == 0 || chars[end - 1] != '\\')
+                        {
+                            if !in_string {
+                                in_string = true;
+                                string_char = c;
+                            } else if c == string_char {
+                                in_string = false;
+                            }
+                        }
+                        if !in_string {
+                            match c {
+                                '(' => depth += 1,
+                                ')' => depth -= 1,
+                                _ => {}
+                            }
+                        }
+                        if depth > 0 {
+                            end += 1;
+                        }
+                    }
+                    // Skip past the closing paren
+                    end += 1;
+
+                    // Replace with () => {}
+                    result.push_str("() => {}");
+                    i = end;
+                    continue;
+                }
 
                 if is_statement {
                     // Find the matching closing paren
