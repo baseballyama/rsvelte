@@ -358,12 +358,15 @@ pub fn normalize_js(js: &str) -> String {
         static ref TRAILING_COMMA: Regex = Regex::new(r",\s*([\)\]\}])").unwrap();
         // Normalize `var`/`const` to `let` (Svelte compiler may use different declaration types)
         static ref VAR_DECL: Regex = Regex::new(r"\b(var|const)\b").unwrap();
-        // Normalize parenthesized string/number literals: ('str') -> 'str', (123) -> 123
+        // Normalize parenthesized string/number/keyword literals: ('str') -> 'str', (123) -> 123, (null) -> null
         // OXC removes unnecessary parentheses around literals
         static ref PAREN_STRING_LIT: Regex = Regex::new(r"\(('(?:[^'\\]|\\.)*')\)").unwrap();
         static ref PAREN_NUMBER_LIT: Regex = Regex::new(r"\((\d+(?:\.\d+)?)\)").unwrap();
+        static ref PAREN_KEYWORD_LIT: Regex = Regex::new(r"\((null|undefined|true|false)\)").unwrap();
         // Normalize boolean HTML attributes: readonly="" -> readonly, disabled="" -> disabled, etc.
         static ref BOOL_ATTR_EMPTY: Regex = Regex::new(r#"\b(readonly|disabled|checked|selected|multiple|hidden|required|autofocus|autoplay|controls|loop|muted|default|defer|async|novalidate|formnovalidate|open|inert|allowfullscreen)=""\b"#).unwrap();
+        // Normalize unicode escapes to characters: \u{73} -> s, \u{41} -> A, etc.
+        static ref UNICODE_ESCAPE: Regex = Regex::new(r"\\u\{([0-9a-fA-F]+)\}").unwrap();
     }
 
     // Remove block comments (including JSDoc) before other processing
@@ -486,9 +489,23 @@ pub fn normalize_js(js: &str) -> String {
     // OXC removes unnecessary parentheses around literals
     let result = PAREN_STRING_LIT.replace_all(&result, "$1").to_string();
     let result = PAREN_NUMBER_LIT.replace_all(&result, "$1").to_string();
+    let result = PAREN_KEYWORD_LIT.replace_all(&result, "$1").to_string();
 
     // Normalize boolean HTML attributes: readonly="" -> readonly
     let result = BOOL_ATTR_EMPTY.replace_all(&result, "$1").to_string();
+
+    // Normalize unicode escapes to their character equivalents
+    let result = UNICODE_ESCAPE
+        .replace_all(&result, |caps: &regex::Captures| {
+            let hex = &caps[1];
+            if let Ok(code_point) = u32::from_str_radix(hex, 16)
+                && let Some(c) = char::from_u32(code_point)
+            {
+                return c.to_string();
+            }
+            caps[0].to_string()
+        })
+        .to_string();
 
     // Re-normalize multiple spaces that may have been created by semicolon removal
     // This handles cases like ";;" becoming "  " after semicolon removal

@@ -4308,7 +4308,7 @@ impl<'a> ServerCodeGenerator<'a> {
             // Extract imports and transform the rest
             // Use extract_imports_module to keep `export { ... }` statements
             let (imports, rest) = extract_imports_module(&raw_script);
-            let transformed = transform_script_content(&rest);
+            let transformed = transform_script_content_module(&rest);
 
             (imports, transformed)
         } else {
@@ -6465,7 +6465,16 @@ fn strip_export_from_declarations(script: &str) -> String {
 }
 
 /// Transform script content for server-side rendering.
+/// If `is_module` is true, export keywords are preserved (module-level exports are real ES exports).
 fn transform_script_content(script: &str) -> String {
+    transform_script_content_inner(script, false)
+}
+
+fn transform_script_content_module(script: &str) -> String {
+    transform_script_content_inner(script, true)
+}
+
+fn transform_script_content_inner(script: &str, is_module: bool) -> String {
     let script = script.replace("$props()", "$$props");
     // Transform $state.eager(x) to just x on server (no reactivity needed)
     let script = transform_rune_call_multiline(&script, "$state.eager(");
@@ -6474,8 +6483,8 @@ fn transform_script_content(script: &str) -> String {
     // Transform $effect.tracking() - always false on server (effects don't run on server)
     let script = script.replace("$effect.tracking()", "false");
     // Note: Order matters - check $state.raw before $state to avoid partial matches
-    // $state.snapshot(x) becomes $.snapshot(x) - it's a runtime helper
-    let script = script.replace("$state.snapshot(", "$.snapshot(");
+    // $state.snapshot(x) becomes just x on server (no proxied state to snapshot)
+    let script = transform_rune_call_multiline(&script, "$state.snapshot(");
     let script = transform_rune_call_multiline(&script, "$state.raw(");
     // Transform array destructuring with $state() BEFORE generic $state() handling
     let script = transform_array_destructure_state(&script);
@@ -6490,7 +6499,12 @@ fn transform_script_content(script: &str) -> String {
     // Strip `export` keyword from function/const/class declarations
     // In Svelte, `export function foo()` inside <script> means "export the prop",
     // but in server output the function should be a regular declaration inside the component.
-    let script = strip_export_from_declarations(&script);
+    // Module-level exports are real ES exports and should be preserved.
+    let script = if is_module {
+        script
+    } else {
+        strip_export_from_declarations(&script)
+    };
 
     let mut result = String::new();
     let lines: Vec<&str> = script.lines().collect();
