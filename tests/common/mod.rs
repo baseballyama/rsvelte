@@ -317,7 +317,7 @@ pub fn normalize_js(js: &str) -> String {
         static ref MULTI_SPACE: Regex = Regex::new(r"[ \t\n]+").unwrap();
         // Normalize compiler-generated variable names with numeric suffixes
         // Include common loop variables like $$index_N and $$length
-        static ref VAR_SUFFIX: Regex = Regex::new(r"\b(root|node|text|button|div|span|p|a|input|form|fragment|consequent|alternate|each|if_block|component|each_array|snippets|spread_props)_(\d+)\b").unwrap();
+        static ref VAR_SUFFIX: Regex = Regex::new(r"\b(root|node|text|button|div|span|p|a|input|form|fragment|consequent|alternate|each|if_block|component|each_array|snippets|spread_props|select|details|summary|h\d|ul|ol|li|thead|tbody|tr|td|th|table|label|textarea|option|img|section|article|nav|header|footer|main|aside|figure|figcaption|video|audio|source|canvas|svg|path|circle|rect|line|polyline|polygon|g|use|defs|symbol|pattern|marker|title|desc|tspan|hr|br|pre|code|blockquote|head|html|body|slot|template|style|script|link|meta|base|area|map|embed|object|param|picture|dialog|menu|fieldset|legend)_(\d+)\b").unwrap();
         // Normalize function names in default exports
         static ref FUNCTION_NAME: Regex = Regex::new(r"(?m)^export default function \w+\(").unwrap();
         // Normalize $.comment() and $.text() to $.marker() (both serve as markers)
@@ -343,13 +343,21 @@ pub fn normalize_js(js: &str) -> String {
         static ref HEAD_HASH: Regex = Regex::new(r"\$\.head\('[a-zA-Z0-9]+',").unwrap();
         // Normalize import/export quote style - from "path" to 'path'
         // Match import ... from "..." or export ... from "..."
-        static ref IMPORT_DOUBLE_QUOTE: Regex = Regex::new(r#"(import[^;]+from\s+)"([^"]+)""#).unwrap();
+        static ref IMPORT_DOUBLE_QUOTE: Regex = Regex::new(r#"((?:import|export)[^;]*from\s+)"([^"]+)""#).unwrap();
         // Remove block comments (including JSDoc)
         // This uses (?s) flag for DOTALL mode to match across newlines
         static ref BLOCK_COMMENT: Regex = Regex::new(r"(?s)/\*.*?\*/").unwrap();
         // Normalize object method property: `key: function(...args) {` -> `key(...args) {`
         // This makes `{ click: function(...args) { } }` equivalent to `{ click(...args) { } }`
         static ref METHOD_PROPERTY: Regex = Regex::new(r"(\w+):\s*function\s*\(").unwrap();
+        // General scientific notation: match patterns like 1e3, 2e3, 1.5e2, 1e6 etc.
+        // Only match when not inside a word (avoid matching identifiers like 'e3')
+        static ref SCIENTIFIC_NOTATION: Regex = Regex::new(r"\b(\d+(?:\.\d+)?)e(\d+)\b").unwrap();
+        // Normalize trailing commas in function calls, arrays, and objects
+        // Match comma followed by optional whitespace before closing bracket
+        static ref TRAILING_COMMA: Regex = Regex::new(r",\s*([\)\]\}])").unwrap();
+        // Normalize `var` to `let` (Svelte compiler may use either)
+        static ref VAR_DECL: Regex = Regex::new(r"\bvar\b").unwrap();
     }
 
     // Remove block comments (including JSDoc) before other processing
@@ -372,7 +380,7 @@ pub fn normalize_js(js: &str) -> String {
     // Normalize $.head() hash values to a consistent value
     let result = HEAD_HASH.replace_all(&result, "$.head('hash',").to_string();
 
-    // Normalize import quote style (double quotes to single quotes)
+    // Normalize import/export quote style (double quotes to single quotes)
     let result = IMPORT_DOUBLE_QUOTE
         .replace_all(&result, "$1'$2'")
         .to_string();
@@ -393,7 +401,7 @@ pub fn normalize_js(js: &str) -> String {
     // Normalize multiple spaces between HTML elements to single space
     let result = MULTI_SPACE_HTML.replace_all(&result, "> <").to_string();
 
-    // First, remove comment lines
+    // First, remove comment lines (both // regular and // @ts-expect-error / @ts-ignore)
     let result: String = result
         .lines()
         .filter(|line| !line.trim().starts_with("//"))
@@ -431,10 +439,12 @@ pub fn normalize_js(js: &str) -> String {
     // Normalize template empty text (handles whitespace differences in HTML templates)
     let result = normalize_template_empty_text(&result);
 
-    // Normalize numeric literals (1e3 -> 1000, etc.)
-    let result = result.replace("1e3", "1000");
-    let result = result.replace("1e4", "10000");
-    let result = result.replace("1e5", "100000");
+    // Normalize general scientific notation (e.g., 1e3 -> 1000, 2e3 -> 2000, 1.5e2 -> 150)
+    let result = SCIENTIFIC_NOTATION
+        .replace_all(&result, |caps: &regex::Captures| {
+            convert_scientific_to_decimal(&caps[1], &caps[2])
+        })
+        .to_string();
 
     // Normalize undefined representation (void 0 -> undefined)
     let result = result.replace("void 0", "undefined");
@@ -446,6 +456,13 @@ pub fn normalize_js(js: &str) -> String {
 
     // Remove semicolons for normalization
     let result = result.replace(';', "");
+
+    // Normalize trailing commas: (a, b,) -> (a, b) and [a, b,] -> [a, b]
+    let result = TRAILING_COMMA.replace_all(&result, "$1").to_string();
+
+    // Normalize `var` to `let` for consistent comparison
+    // The Svelte compiler uses `var` in generated code, but our implementation may use `let`
+    let result = VAR_DECL.replace_all(&result, "let").to_string();
 
     // Normalize consecutive const/let declarations to treat them as equivalent
     // This handles: "const a = ... const b = ..." vs "const a = ..., b = ..."
@@ -2111,10 +2128,7 @@ mod tests {
         assert_eq!(normalize_js(input), expected);
     }
 
-    // Note: Scientific notation conversion (1e3 -> 1000) is not implemented
-    // in the simplified normalization. These tests are marked ignored.
     #[test]
-    #[ignore]
     fn test_normalize_js_scientific_notation_basic() {
         // Basic scientific notation conversions
         let input = "const x = 1e3;";
@@ -2123,7 +2137,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_normalize_js_scientific_notation_decimal() {
         // Scientific notation with decimal mantissa
         let input = "const x = 2.5e2;";
@@ -2132,7 +2145,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_normalize_js_scientific_notation_large() {
         // Larger exponents
         let input = "const x = 1e6;";
@@ -2141,7 +2153,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_normalize_js_scientific_notation_in_expression() {
         // Scientific notation in expressions
         // Note: single-statement braces are removed by if/else brace normalization
@@ -2661,4 +2672,68 @@ fn test_normalize_event_delegation_4_multiline_objects() {
         norm_actual, norm_expected,
         "Object formatting should not affect normalization"
     );
+}
+
+#[test]
+fn test_normalize_js_scientific_notation_2e3() {
+    // Specific case from fixtures: 2e3 should normalize to 2000
+    let input = "$.get(data).items[1].price = 2e3;";
+    let expected = "$.get(data).items[1].price = 2000;";
+    assert_eq!(normalize_js(input), normalize_js(expected));
+}
+
+#[test]
+fn test_normalize_js_trailing_comma() {
+    // Trailing commas in function calls should be removed
+    let a = "foo(a, b,)";
+    let b = "foo(a, b)";
+    assert_eq!(normalize_js(a), normalize_js(b));
+}
+
+#[test]
+fn test_normalize_js_trailing_comma_array() {
+    // Trailing commas in arrays should be removed
+    let a = "[1, 2, 3,]";
+    let b = "[1, 2, 3]";
+    assert_eq!(normalize_js(a), normalize_js(b));
+}
+
+#[test]
+fn test_normalize_js_trailing_comma_object() {
+    // Trailing commas in objects should be removed
+    let a = "{ key: value, }";
+    let b = "{ key: value }";
+    assert_eq!(normalize_js(a), normalize_js(b));
+}
+
+#[test]
+fn test_normalize_js_var_to_let() {
+    // var and let should be treated as equivalent
+    let a = "var x = 1;";
+    let b = "let x = 1;";
+    assert_eq!(normalize_js(a), normalize_js(b));
+}
+
+#[test]
+fn test_normalize_js_var_to_let_in_for() {
+    // var and let in for loops should be equivalent
+    let a = "for (var i = 0; i < 10; i++) {}";
+    let b = "for (let i = 0; i < 10; i++) {}";
+    assert_eq!(normalize_js(a), normalize_js(b));
+}
+
+#[test]
+fn test_normalize_js_export_double_quotes() {
+    // export ... from "..." should be normalized to single quotes like imports
+    let a = r#"export { foo } from "./bar.js";"#;
+    let b = r#"export { foo } from './bar.js';"#;
+    assert_eq!(normalize_js(a), normalize_js(b));
+}
+
+#[test]
+fn test_normalize_js_extended_var_suffix() {
+    // Test that more HTML element variable names are normalized
+    let with_suffix = "var select_1 = root(); var details_2 = $.child(select_1);";
+    let without_suffix = "var select = root(); var details = $.child(select);";
+    assert_eq!(normalize_js(with_suffix), normalize_js(without_suffix));
 }

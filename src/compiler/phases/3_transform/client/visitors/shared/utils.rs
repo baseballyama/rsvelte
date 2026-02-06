@@ -72,7 +72,11 @@ fn should_proxy_expr(expr: &JsExpr) -> bool {
         JsExpr::Arrow(_) | JsExpr::Function(_) => false,
 
         // Unary and binary expressions result in primitives
-        JsExpr::Unary(_) | JsExpr::Binary(_) | JsExpr::Logical(_) => false,
+        JsExpr::Unary(_) | JsExpr::Binary(_) => false,
+
+        // Note: Logical expressions (||, &&, ??) are NOT excluded because they
+        // return one of their operands, which could be an object. This matches
+        // the official Svelte compiler's should_proxy() behavior.
 
         // `undefined` identifier doesn't need proxy
         JsExpr::Identifier(name) if name == "undefined" => false,

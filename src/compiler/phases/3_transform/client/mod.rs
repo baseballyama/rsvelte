@@ -1398,6 +1398,27 @@ fn transform_client_runes_with_skip_and_state(
         }
     }
 
+    // Transform $state.eager(x) to $.eager(() => x) - thunk wrapping
+    if let Some(pos) = result.find("$state.eager(") {
+        let eager_start = pos + 13; // after "$state.eager("
+        if let Some(content_end) = find_matching_paren(&result[eager_start..]) {
+            let content = &result[eager_start..eager_start + content_end];
+            let wrapped_content =
+                wrap_state_vars_in_expr(content, state_vars, non_reactive_vars, proxy_vars);
+            result = format!(
+                "{}$.eager(() => {}){}",
+                &result[..pos],
+                wrapped_content,
+                &result[eager_start + content_end + 1..]
+            );
+        }
+    }
+
+    // Transform $effect.pending() to $.eager(() => $.pending()) - MUST be before $effect transformation
+    if result.contains("$effect.pending()") {
+        result = result.replace("$effect.pending()", "$.eager(() => $.pending())");
+    }
+
     // Transform $effect.pre(x) to $.user_pre_effect(x) - MUST be before $effect transformation
     if result.contains("$effect.pre(") {
         result = result.replace("$effect.pre(", "$.user_pre_effect(");
@@ -6044,7 +6065,17 @@ fn transform_constructor_assignment(line: &str, fields: &[ClassStateField]) -> S
                     let eq_pos = result.find('=').unwrap();
                     let value = result[eq_pos + 1..].trim().trim_end_matches(';');
                     // Use private_backing_name for the output
-                    return format!("$.set(this.#{}, {});", field.private_backing_name, value);
+                    // Add proxy flag (true) for $state fields when value could be an object
+                    // This matches the official compiler's should_proxy() logic
+                    let needs_proxy = field.rune_type == "$state" && expression_needs_proxy(value);
+                    if needs_proxy {
+                        return format!(
+                            "$.set(this.#{}, {}, true);",
+                            field.private_backing_name, value
+                        );
+                    } else {
+                        return format!("$.set(this.#{}, {});", field.private_backing_name, value);
+                    }
                 }
 
                 // Handle member access on private state field: this.#name.prop = value

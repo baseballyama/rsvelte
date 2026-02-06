@@ -6242,6 +6242,10 @@ fn strip_export_specifiers(script: &str) -> String {
 /// Transform script content for server-side rendering.
 fn transform_script_content(script: &str) -> String {
     let script = script.replace("$props()", "$$props");
+    // Transform $state.eager(x) to just x on server (no reactivity needed)
+    let script = transform_rune_call_multiline(&script, "$state.eager(");
+    // Transform $effect.pending() - always false on server (effects don't run on server)
+    let script = script.replace("$effect.pending()", "false");
     // Note: Order matters - check $state.raw before $state to avoid partial matches
     // $state.snapshot(x) becomes $.snapshot(x) - it's a runtime helper
     let script = script.replace("$state.snapshot(", "$.snapshot(");

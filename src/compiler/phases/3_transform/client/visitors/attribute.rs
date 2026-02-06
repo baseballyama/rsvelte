@@ -330,7 +330,7 @@ pub fn build_event_handler(
 
         // Wrap in a function that applies the handler
         let apply_call = b::call(
-            b::member(get_call, "apply"),
+            b::optional_member(get_call, "apply"),
             vec![b::this(), b::id("$$args")],
         );
 
@@ -357,7 +357,7 @@ pub fn build_event_handler(
         )
     } else {
         b::call(
-            b::member(js_expr, "apply"),
+            b::optional_member(js_expr, "apply"),
             vec![b::this(), b::id("$$args")],
         )
     };
