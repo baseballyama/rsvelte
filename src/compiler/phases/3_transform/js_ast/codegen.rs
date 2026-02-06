@@ -315,10 +315,19 @@ fn should_add_blank_line_after(current: &str, next: &str, raw_current: &str) -> 
                 return true;
             }
 
-            // Rule 8: After $.push(...); calls (before any next line)
+            // Rule 8: After $.push(...); calls (before var/let/const, blocks, functions)
             // This matches Svelte's esrap formatting for component initialization
             // $.push() is always the first statement in a function, followed by user code
-            if current.starts_with("$.push(") {
+            // But NOT before simple expression statements like $.init(), $.pop(), set('hello')
+            if current.starts_with("$.push(")
+                && (is_var_declaration(next)
+                    || next == "{"
+                    || next.starts_with("function ")
+                    || next.starts_with("async function ")
+                    || next.starts_with("class ")
+                    || next.starts_with("//")
+                    || next.starts_with("/*"))
+            {
                 return true;
             }
 
@@ -345,6 +354,61 @@ fn should_add_blank_line_after(current: &str, next: &str, raw_current: &str) -> 
             {
                 return true;
             }
+
+            // Rule 11: General rule - after any expression statement ending with `;`,
+            // add blank line before var/let/const declarations.
+            // This covers $.action(), $.bind_this(), Component() calls, $.remove_input_defaults(),
+            // $.set_attribute(), $.attribute_effect(), etc.
+            // Exceptions: var declarations themselves, closing braces, function decls
+            if !is_var_declaration(current)
+                && !is_closing_brace(current)
+                && !current.starts_with("function ")
+                && !current.starts_with("async function ")
+                && !current.starts_with("//")
+                && !current.starts_with("/*")
+                && current.ends_with(';')
+                && is_var_declaration(next)
+            {
+                return true;
+            }
+
+            // Rule 12: After `},` before next property/method definition in object/class
+            // (get/set/constructor, $$slots, $$legacy, method names, etc.)
+            if current == "},"
+                && (next.starts_with("get ")
+                    || next.starts_with("set ")
+                    || next.starts_with("$$slots")
+                    || next.starts_with("$$legacy")
+                    || next.starts_with("constructor"))
+            {
+                return true;
+            }
+
+            // Rule 13: After class field declarations (like `#count = $.state(0);`),
+            // blank line before methods (get/set/constructor)
+            if current.starts_with('#')
+                && current.ends_with(';')
+                && (next.starts_with("get ")
+                    || next.starts_with("set ")
+                    || next.starts_with("constructor"))
+            {
+                return true;
+            }
+
+            // Rule 14: After `});` before `} else` - NO blank line
+            // (handled by adding `} else` to closing_brace check above)
+
+            // Rule 15: Reserved (covered by Rule 6 and 6b/6c for closing braces before $.append)
+
+            // Rule 16: Before `return $.pop(` statements after expression statements
+            // This matches Svelte's pattern for component return values
+            if !is_var_declaration(current)
+                && !is_closing_brace(current)
+                && current.ends_with(';')
+                && next.starts_with("return $.pop(")
+            {
+                return true;
+            }
         }
     }
 
@@ -365,6 +429,7 @@ fn is_closing_brace(line: &str) -> bool {
         || line == "}),"
         || line == "}));"
         || line == "}))"
+        || line.starts_with("} else")
 }
 
 /// Check if a line is a statement (not a declaration)
@@ -379,23 +444,83 @@ fn is_statement(line: &str) -> bool {
         && !line.starts_with("/*")
         && line != "}"
         && line != "});"
+        && !is_closing_brace(line)
 }
 
 /// Collapse single-statement if blocks to inline form.
 ///
 /// OXC always adds braces around if bodies, but Svelte's esrap outputs
-/// single-statement ifs without braces:
-///   `if (condition) statement;`
+/// single-statement ifs without braces for `$$render` calls inside `$.if()` callbacks:
+///   `if (condition) $$render(consequent);`
 /// instead of:
-///   `if (condition) {\n\tstatement;\n}`
+///   `if (condition) {\n\t$$render(consequent);\n}`
 ///
-/// This only applies to if blocks without else clauses.
+/// This ONLY applies to `$$render()` calls, which is the pattern Svelte uses
+/// inside `$.if()` callbacks. Other single-statement ifs keep their braces.
 fn collapse_single_statement_ifs(code: String) -> String {
     let lines: Vec<&str> = code.lines().collect();
     let mut result = String::with_capacity(code.len());
     let mut i = 0;
 
     while i < lines.len() {
+        // First, try to match if/else pattern with $$render calls:
+        // if (condition) {
+        //     $$render(consequent);
+        // } else {
+        //     $$render(alternate, false);
+        // }
+        if i + 4 < lines.len() {
+            let current = lines[i];
+            let body1 = lines[i + 1];
+            let else_line = lines[i + 2];
+            let body2 = lines[i + 3];
+            let closing = lines[i + 4];
+
+            let current_trimmed = current.trim();
+            let else_trimmed = else_line.trim();
+            let closing_trimmed = closing.trim();
+            let body1_trimmed = body1.trim();
+            let body2_trimmed = body2.trim();
+
+            if current_trimmed.starts_with("if (")
+                && current_trimmed.ends_with(") {")
+                && else_trimmed == "} else {"
+                && closing_trimmed == "}"
+                && body1_trimmed.starts_with("$$render(")
+                && body2_trimmed.starts_with("$$render(")
+            {
+                let current_tabs = current.chars().take_while(|c| *c == '\t').count();
+                let body1_tabs = body1.chars().take_while(|c| *c == '\t').count();
+                let else_tabs = else_line.chars().take_while(|c| *c == '\t').count();
+                let body2_tabs = body2.chars().take_while(|c| *c == '\t').count();
+                let closing_tabs = closing.chars().take_while(|c| *c == '\t').count();
+
+                if body1_tabs == current_tabs + 1
+                    && else_tabs == current_tabs
+                    && body2_tabs == current_tabs + 1
+                    && closing_tabs == current_tabs
+                {
+                    let if_part = &current_trimmed[3..current_trimmed.len() - 2];
+
+                    let indent_str: String = "\t".repeat(current_tabs);
+                    result.push_str(&indent_str);
+                    result.push_str("if ");
+                    result.push_str(if_part);
+                    result.push(' ');
+                    result.push_str(body1_trimmed);
+                    result.push_str(" else ");
+                    result.push_str(body2_trimmed);
+                    result.push('\n');
+                    i += 5;
+                    continue;
+                }
+            }
+        }
+
+        // Simple if pattern (no else) with $$render call:
+        // if (condition) {
+        //     $$render(consequent);
+        // }
         if i + 2 < lines.len() {
             let current = lines[i];
             let body = lines[i + 1];
@@ -403,38 +528,32 @@ fn collapse_single_statement_ifs(code: String) -> String {
 
             let current_trimmed = current.trim();
             let closing_trimmed = closing.trim();
+            let body_trimmed = body.trim();
 
-            // Check pattern: if (...) { \n single-statement; \n }
             if current_trimmed.starts_with("if (")
                 && current_trimmed.ends_with(") {")
                 && closing_trimmed == "}"
+                && body_trimmed.starts_with("$$render(")
             {
-                // Count indent level (tabs)
                 let current_tabs = current.chars().take_while(|c| *c == '\t').count();
                 let body_tabs = body.chars().take_while(|c| *c == '\t').count();
                 let closing_tabs = closing.chars().take_while(|c| *c == '\t').count();
 
-                // Body must be one level deeper, closing at same level
                 if body_tabs == current_tabs + 1
                     && closing_tabs == current_tabs
-                    // No else follows on closing line or next line
+                    // No else follows
                     && (i + 3 >= lines.len()
                         || (!lines[i + 3].trim().starts_with("else")
                             && !lines[i + 3].trim().starts_with("} else")))
-                    // Single statement body (not a block opener)
-                    && !body.trim().ends_with('{')
                 {
-                    // Extract condition part: everything between "if " and " {"
-                    let if_part = &current_trimmed[3..current_trimmed.len() - 2]; // "(condition)"
-                    let statement = body.trim();
+                    let if_part = &current_trimmed[3..current_trimmed.len() - 2];
 
-                    // Build inline version
                     let indent_str: String = "\t".repeat(current_tabs);
                     result.push_str(&indent_str);
                     result.push_str("if ");
                     result.push_str(if_part);
                     result.push(' ');
-                    result.push_str(statement);
+                    result.push_str(body_trimmed);
                     result.push('\n');
                     i += 3;
                     continue;
@@ -1087,7 +1206,16 @@ impl JsCodegen {
     fn emit_object_member(&mut self, member: &JsObjectMember) {
         match member {
             JsObjectMember::Property(prop) => {
-                if prop.shorthand
+                // Auto-detect shorthand: Init property where key identifier
+                // matches value identifier (mirrors esrap/astring behavior).
+                let auto_shorthand = !prop.computed
+                    && matches!(prop.kind, JsPropertyKind::Init)
+                    && matches!(
+                        (&prop.key, prop.value.as_ref()),
+                        (JsPropertyKey::Identifier(k), JsExpr::Identifier(v)) if k == v
+                    );
+
+                if (prop.shorthand || auto_shorthand)
                     && let JsPropertyKey::Identifier(name) = &prop.key
                 {
                     self.output.push_str(name);

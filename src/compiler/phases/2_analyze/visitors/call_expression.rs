@@ -275,9 +275,12 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
                 return Err(errors::inspect_trace_generator());
             }
 
-            // TODO: In dev mode, set scope.tracing
-            // For now, just mark that we use tracing
-            context.analysis.tracing = true;
+            // Only set tracing in dev mode, matching the official compiler behavior.
+            // In non-dev mode, $inspect.trace() calls are stripped during code generation.
+            // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/CallExpression.js L213
+            if context.analysis.dev {
+                context.analysis.tracing = true;
+            }
         }
 
         Some("$state.eager") => {

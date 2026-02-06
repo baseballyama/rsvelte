@@ -159,10 +159,41 @@ pub fn analyze_component(
     //
     // If options.runes is not explicitly set (None), we detect runes mode by checking:
     // 1. If any bindings are rune-based ($state, $derived, etc.)
+    // 2. If the template or instance has await expressions
+    // 3. If the instance or module scripts contain rune references ($effect, $inspect, etc.)
+    //    This matches the official compiler's check for rune references in scope.references.
     // This must happen after scope/binding analysis but before legacy state promotion.
     if options.runes.is_none() && !analysis.runes {
         let has_rune_bindings = analysis.root.bindings.iter().any(|b| b.is_rune());
-        if has_rune_bindings {
+        let has_await = fragment_has_await_expression(&ast.fragment);
+        let instance_has_await = ast
+            .instance
+            .as_ref()
+            .map(|inst| {
+                let crate::ast::js::Expression::Value(ref val) = inst.content;
+                json_has_await_expression(val)
+            })
+            .unwrap_or(false);
+        // Check for rune references in instance and module scripts
+        // This catches cases like standalone $effect(...) or $inspect(...) calls
+        // that don't create bindings but indicate runes mode
+        let has_rune_references = ast
+            .instance
+            .as_ref()
+            .map(|inst| {
+                let crate::ast::js::Expression::Value(ref val) = inst.content;
+                json_has_rune_reference(val)
+            })
+            .unwrap_or(false)
+            || ast
+                .module
+                .as_ref()
+                .map(|module| {
+                    let crate::ast::js::Expression::Value(ref val) = module.content;
+                    json_has_rune_reference(val)
+                })
+                .unwrap_or(false);
+        if has_rune_bindings || has_await || instance_has_await || has_rune_references {
             analysis.runes = true;
         }
     }
@@ -937,6 +968,64 @@ fn json_has_await_expression(node: &serde_json::Value) -> bool {
         serde_json::Value::Array(arr) => {
             for val in arr {
                 if json_has_await_expression(val) {
+                    return true;
+                }
+            }
+        }
+        _ => {}
+    }
+
+    false
+}
+
+/// Check if a name is a rune identifier.
+///
+/// Corresponds to the `is_rune()` function in Svelte's `utils.js`.
+/// This checks the base identifier name (e.g., `$state`, `$effect`, `$inspect`).
+fn is_rune_name(name: &str) -> bool {
+    matches!(
+        name,
+        "$state" | "$derived" | "$props" | "$bindable" | "$effect" | "$inspect" | "$host"
+    )
+}
+
+/// Recursively check a JSON AST node for rune identifier references.
+///
+/// This walks the JSON AST looking for Identifier nodes whose name matches
+/// a rune name ($state, $derived, $effect, $inspect, $props, $bindable, $host).
+///
+/// Unlike the await check, this does NOT stop at function boundaries because
+/// rune references inside functions (e.g., `$effect(...)` in a callback) still
+/// indicate runes mode. This matches the official compiler's behavior where
+/// unresolved references bubble up through the scope chain.
+///
+/// Corresponds to the check `Array.from(module.scope.references.keys()).some(is_rune)`
+/// in Svelte's `2-analyze/index.js`.
+fn json_has_rune_reference(node: &serde_json::Value) -> bool {
+    let node_type = node.get("type").and_then(|t| t.as_str());
+
+    // Check if this is an Identifier with a rune name
+    if node_type == Some("Identifier")
+        && let Some(name) = node.get("name").and_then(|n| n.as_str())
+        && is_rune_name(name)
+    {
+        return true;
+    }
+
+    match node {
+        serde_json::Value::Object(map) => {
+            for (key, val) in map {
+                if key == "type" || key == "start" || key == "end" || key == "loc" {
+                    continue;
+                }
+                if json_has_rune_reference(val) {
+                    return true;
+                }
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for val in arr {
+                if json_has_rune_reference(val) {
                     return true;
                 }
             }

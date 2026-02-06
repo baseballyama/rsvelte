@@ -183,6 +183,9 @@ pub struct ComponentAnalysis {
     /// Whether the component uses $inspect.trace()
     pub tracing: bool,
 
+    /// Whether dev mode is enabled (needed for $inspect.trace handling)
+    pub dev: bool,
+
     /// Class bodies with their state fields (for class body analysis)
     /// Maps from class body node (JSON) to state fields by name
     pub classes: FxHashMap<String, FxHashMap<String, StateField>>,
@@ -274,6 +277,7 @@ impl ComponentAnalysis {
             props_id: None,
             filename_hash,
             tracing: false,
+            dev: options.dev,
             classes: FxHashMap::default(),
             reactive_statements: FxHashMap::default(),
             immutable: options.immutable,

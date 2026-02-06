@@ -91,6 +91,28 @@ fn visit_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<(), An
             }
             _ => {}
         }
+        // For $state/$state.raw/$derived, extract the rune argument as
+        // the binding's initial value so scope.evaluate() can determine
+        // if the value is "known" (e.g. $state('y1') -> 'y1' is known).
+        if matches!(rune_name.as_str(), "$state" | "$state.raw" | "$derived")
+            && let Some(init_node) = init
+        {
+            let rune_arg = init_node
+                .get("arguments")
+                .and_then(|a| a.as_array())
+                .and_then(|a| a.first());
+            if let Some(arg) = rune_arg {
+                for path in &paths {
+                    if let Some(name) = path.get("name").and_then(|n| n.as_str())
+                        && let Some(bi) = context.analysis.root.find_binding_any_scope(name)
+                    {
+                        let b = &mut context.analysis.root.bindings[bi];
+                        b.initial = extract_literal_string(arg);
+                        b.initial_is_defined = is_expression_defined(arg);
+                    }
+                }
+            }
+        }
     } else if let Some(init) = init {
         // Non-rune variable declaration - set initial value for constant folding
         for path in &paths {
