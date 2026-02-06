@@ -207,7 +207,12 @@ where
 
                 expressions.push(memoized);
 
-                if metadata.has_state() {
+                // Check for reactive state using both analysis metadata AND transforms
+                // The analysis-phase metadata may not account for transforms registered
+                // during the transform phase (e.g., each block item transforms)
+                if metadata.has_state()
+                    || super::utils::expression_has_reactive_state(&expr_tag.expression, context)
+                {
                     has_state = true;
                 }
             }
