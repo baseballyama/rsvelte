@@ -311,23 +311,30 @@ pub fn thunk(expr: JsExpr) -> JsExpr {
 }
 
 /// Optimize `(arg) => func(arg)` to `func` and `() => func()` to `func`.
+/// Also optimizes `async () => await x()` to `() => x()` when x has no nested awaits.
 ///
 /// Corresponds to `unthunk` in Svelte's builders.js.
 pub fn unthunk(expr: JsExpr) -> JsExpr {
     // Only optimize arrow functions
-    let JsExpr::Arrow(arrow) = &expr else {
+    let JsExpr::Arrow(arrow_fn) = &expr else {
         return expr;
     };
-
-    // Don't optimize async arrows
-    if arrow.is_async {
-        return expr;
-    }
 
     // Body must be an expression (not a block)
-    let JsArrowBody::Expression(body_expr) = &arrow.body else {
+    let JsArrowBody::Expression(body_expr) = &arrow_fn.body else {
         return expr;
     };
+
+    // optimize `async () => await x()`, but not `async () => await x(await y)`
+    if arrow_fn.is_async {
+        if let JsExpr::Await(inner) = body_expr.as_ref()
+            && !has_await_expression(inner)
+        {
+            // Recursively unthunk the non-async version
+            return unthunk(self::arrow(arrow_fn.params.clone(), *inner.clone()));
+        }
+        return expr;
+    }
 
     // Body must be a call expression
     let JsExpr::Call(call) = body_expr.as_ref() else {
@@ -342,12 +349,12 @@ pub fn unthunk(expr: JsExpr) -> JsExpr {
     // Check that params match arguments exactly
     // e.g., (a, b) => func(a, b) -> func
     // e.g., () => func() -> func
-    if arrow.params.len() != call.arguments.len() {
+    if arrow_fn.params.len() != call.arguments.len() {
         return expr;
     }
 
     // Check each param matches corresponding argument
-    for (i, param) in arrow.params.iter().enumerate() {
+    for (i, param) in arrow_fn.params.iter().enumerate() {
         let JsPattern::Identifier(param_name) = param else {
             return expr;
         };
@@ -365,14 +372,66 @@ pub fn unthunk(expr: JsExpr) -> JsExpr {
     JsExpr::Identifier(callee_name.clone())
 }
 
+/// Check if a JsExpr contains any AwaitExpression (not crossing function boundaries).
+/// Corresponds to `has_await_expression` in Svelte's ast.js.
+fn has_await_expression(expr: &JsExpr) -> bool {
+    match expr {
+        JsExpr::Await(_) => true,
+        // Don't traverse into function boundaries
+        JsExpr::Arrow(_) | JsExpr::Function(_) => false,
+        // Recursively check sub-expressions
+        JsExpr::Call(call) => {
+            has_await_expression(&call.callee) || call.arguments.iter().any(has_await_expression)
+        }
+        JsExpr::Member(member) => {
+            has_await_expression(&member.object)
+                || matches!(&member.property, super::nodes::JsMemberProperty::Expression(e) if has_await_expression(e))
+        }
+        JsExpr::Binary(bin) => has_await_expression(&bin.left) || has_await_expression(&bin.right),
+        JsExpr::Logical(log) => has_await_expression(&log.left) || has_await_expression(&log.right),
+        JsExpr::Unary(un) => has_await_expression(&un.argument),
+        JsExpr::Update(up) => has_await_expression(&up.argument),
+        JsExpr::Conditional(cond) => {
+            has_await_expression(&cond.test)
+                || has_await_expression(&cond.consequent)
+                || has_await_expression(&cond.alternate)
+        }
+        JsExpr::Sequence(seq) => seq.expressions.iter().any(has_await_expression),
+        JsExpr::Assignment(assign) => has_await_expression(&assign.right),
+        JsExpr::Array(arr) => arr
+            .elements
+            .iter()
+            .any(|e| e.as_ref().is_some_and(has_await_expression)),
+        JsExpr::Object(obj) => obj.properties.iter().any(|p| match p {
+            super::nodes::JsObjectMember::Property(prop) => has_await_expression(&prop.value),
+            super::nodes::JsObjectMember::SpreadElement(e) => has_await_expression(e),
+        }),
+        JsExpr::TemplateLiteral(tmpl) => tmpl.expressions.iter().any(has_await_expression),
+        JsExpr::TaggedTemplate(tt) => {
+            has_await_expression(&tt.tag) || tt.quasi.expressions.iter().any(has_await_expression)
+        }
+        JsExpr::New(new_expr) => {
+            has_await_expression(&new_expr.callee)
+                || new_expr.arguments.iter().any(has_await_expression)
+        }
+        JsExpr::Yield(y) => y.argument.as_ref().is_some_and(|a| has_await_expression(a)),
+        JsExpr::Spread(e) => has_await_expression(e),
+        JsExpr::Void(e) => has_await_expression(e),
+        // Leaf nodes: Identifier, Literal, This, Raw, Class, Chain
+        _ => false,
+    }
+}
+
 /// Create a thunk with a block body.
 pub fn thunk_block(statements: Vec<JsStatement>) -> JsExpr {
     arrow_block(vec![], statements)
 }
 
 /// Create an async thunk.
+/// Applies unthunk optimization: `async () => await x()` becomes `() => x()`.
+/// Corresponds to Svelte's `thunk(expression, true)`.
 pub fn async_thunk(expr: JsExpr) -> JsExpr {
-    async_arrow(vec![], expr)
+    unthunk(async_arrow(vec![], expr))
 }
 
 /// Create a function expression.
