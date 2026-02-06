@@ -40,6 +40,15 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     use oxc_parser::Parser;
     use oxc_span::SourceType;
 
+    // Collect original import lines with double quotes to preserve quote styles.
+    // The official Svelte compiler (esrap) preserves the original quote style
+    // from the user's source code, but OXC normalizes all quotes to single quotes.
+    // We save the originals and restore them after OXC processing.
+    // Note: Generated code now uses single quotes (via emit_literal), so only
+    // user source code (via Raw() statements) will have double quotes.
+    let original_imports = collect_import_lines(source);
+    let original_lines = collect_source_lines_for_quote_restore(source);
+
     let allocator = Allocator::default();
     let source_type = SourceType::mjs();
     let parser = Parser::new(&allocator, source, source_type);
@@ -65,6 +74,10 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
         .code;
     let code = collapse_short_arrays(code);
     let code = collapse_short_objects(code);
+    // Expand objects with getters/setters to multi-line format.
+    // OXC formats `{ get prop() {` on one line, but Svelte's esrap uses multi-line:
+    //   {\n\tget prop() {\n\t\t...\n\t}\n}
+    let code = expand_getter_objects(code);
     // Collapse single-statement if blocks to inline form BEFORE adding blank lines,
     // since the blank line rules depend on the line structure (e.g. `}` → statement)
     let code = collapse_single_statement_ifs(code);
@@ -80,9 +93,395 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     // OXC has a bug where it doesn't escape tabs in string literals
     // (it escapes newlines but not tabs). Fix this by post-processing.
     let code = escape_tabs_in_strings(code);
+    // Restore original quote styles for import statements
+    // that were changed by OXC normalization
+    let code = restore_original_quotes(code, &original_imports);
+    // Restore original quote styles for non-import lines (user source code)
+    let code = restore_line_quotes(code, &original_lines);
     // Remove trailing newline to match Svelte compiler output
     let code = code.trim_end_matches('\n').to_string();
     Ok(code)
+}
+
+/// Collect source lines that contain double-quoted strings.
+/// Returns a map from (quote-normalized line) -> original line.
+/// Since generated code now uses single quotes, only user source code
+/// (via Raw() statements) will have double quotes, making this safe.
+fn collect_source_lines_for_quote_restore(
+    source: &str,
+) -> std::collections::HashMap<String, String> {
+    let mut lines_map = std::collections::HashMap::new();
+
+    for line in source.lines() {
+        let trimmed = line.trim();
+        // Skip import lines (handled separately) and empty lines
+        if trimmed.is_empty() || trimmed.starts_with("import ") {
+            continue;
+        }
+        // Only collect lines that have double quotes
+        if !trimmed.contains('"') {
+            continue;
+        }
+        // Normalize: replace double quotes with single quotes for lookup
+        let normalized = trimmed.replace('"', "'");
+        lines_map.insert(normalized.clone(), trimmed.to_string());
+        // Also store with semicolon appended (OXC may add semicolons)
+        if !normalized.ends_with(';') {
+            lines_map.insert(format!("{};", normalized), trimmed.to_string());
+        }
+    }
+
+    lines_map
+}
+
+/// Restore double quotes for non-import lines using the original source.
+///
+/// For each line in the OXC output, if the same line existed in the source
+/// with double quotes (differing only in quote style), swap the quote characters
+/// in-place in the OXC output line rather than replacing the entire line.
+/// This preserves OXC's formatting additions (semicolons, spacing, etc.)
+/// while restoring the original quote style.
+fn restore_line_quotes(
+    code: String,
+    original_lines: &std::collections::HashMap<String, String>,
+) -> String {
+    if original_lines.is_empty() {
+        return code;
+    }
+
+    let mut result = String::with_capacity(code.len());
+    for line in code.lines() {
+        let trimmed = line.trim();
+        // Skip import lines and empty lines
+        if !trimmed.is_empty()
+            && !trimmed.starts_with("import ")
+            && let Some(original) = original_lines.get(trimmed)
+        {
+            // Found a matching line - swap quotes in-place on the OXC line
+            // Extract double-quoted strings from the original
+            let double_quoted_strings = extract_double_quoted_strings(original);
+            if !double_quoted_strings.is_empty() {
+                // Replace single-quoted occurrences with double-quoted ones
+                let mut restored = line.to_string();
+                for dq_str in &double_quoted_strings {
+                    // The OXC output has this as single-quoted
+                    let sq_version = format!("'{}'", dq_str);
+                    let dq_version = format!("\"{}\"", dq_str);
+                    restored = restored.replacen(&sq_version, &dq_version, 1);
+                }
+                result.push_str(&restored);
+                result.push('\n');
+                continue;
+            }
+        }
+        result.push_str(line);
+        result.push('\n');
+    }
+
+    if result.ends_with('\n') && !code.ends_with('\n') {
+        result.pop();
+    }
+    result
+}
+
+/// Extract all double-quoted string values from a line.
+/// Returns the content between each pair of double quotes (without the quotes).
+fn extract_double_quoted_strings(line: &str) -> Vec<String> {
+    let mut strings = Vec::new();
+    let mut chars = line.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '"' {
+            let mut s = String::new();
+            let mut escaped = false;
+            for ch in chars.by_ref() {
+                if escaped {
+                    s.push(ch);
+                    escaped = false;
+                } else if ch == '\\' {
+                    s.push(ch);
+                    escaped = true;
+                } else if ch == '"' {
+                    break;
+                } else {
+                    s.push(ch);
+                }
+            }
+            if !s.is_empty() {
+                strings.push(s);
+            }
+        }
+    }
+    strings
+}
+
+/// Expand objects containing getter/setter methods to multi-line format.
+///
+/// OXC formats objects with getter/setter methods on the same line as the opening brace:
+/// ```js
+/// Task(node, { get prop() {
+///     return val;
+/// } });
+/// ```
+///
+/// Svelte's esrap formats them on separate lines:
+/// ```js
+/// Task(node, {
+///     get prop() {
+///         return val;
+///     }
+/// });
+/// ```
+///
+/// This function detects the OXC pattern and expands it to the Svelte format.
+fn expand_getter_objects(code: String) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result = String::with_capacity(code.len() + 200);
+    let mut i = 0;
+
+    while i < lines.len() {
+        let line = lines[i];
+        let trimmed = line.trim();
+
+        // Detect pattern: something followed by `{ get ` or `{ set ` before a method definition
+        // e.g., `Task(node, { get prop() {`
+        // or `Component($$anchor, { get count() {`
+        // The key pattern is: `{ get identifier(` or `{ set identifier(`
+        if let Some(pos) = find_inline_getter_start(trimmed) {
+            let indent_level = line.len() - line.trim_start().len();
+            let indent = &line[..indent_level];
+            let inner_indent = format!("{}\t", indent);
+
+            // Split the line at the `{ get` / `{ set` position
+            let prefix = &trimmed[..pos]; // e.g., "Task(node, "
+            let rest = &trimmed[pos + 2..]; // e.g., "get prop() {" (skipping "{ ")
+            let rest = rest.trim();
+
+            // Write the prefix with opening brace on its own line
+            result.push_str(indent);
+            result.push_str(prefix);
+            result.push_str("{\n");
+
+            // Write the getter/setter with increased indentation
+            result.push_str(&inner_indent);
+            result.push_str(rest);
+            result.push('\n');
+            i += 1;
+
+            // Now process body lines - increase their indentation by one tab
+            // Look for the closing `} });` or `} })` pattern at the original indent level
+            while i < lines.len() {
+                let body_line = lines[i];
+                let body_trimmed = body_line.trim();
+
+                // Check for closing pattern: `} });` or `} })` or `} }, get ` (multiple getters)
+                // at the original indent level
+                let body_indent = body_line.len() - body_line.trim_start().len();
+
+                if body_indent == indent_level {
+                    // This line is at the same indent level as the original
+                    // It might be the closing `} });` or similar
+
+                    if body_trimmed.starts_with("} }") {
+                        // Closing pattern: `} });` -> split into `\t}` and `});`
+                        let after_close = &body_trimmed[2..]; // `});` or `}, ...`
+                        result.push_str(&inner_indent);
+                        result.push_str("}\n");
+                        result.push_str(indent);
+                        result.push_str(after_close.trim());
+                        result.push('\n');
+                        i += 1;
+                        break;
+                    } else if body_trimmed.starts_with("}, ") {
+                        // Multiple properties: `}, get prop2() {`
+                        // Check if it's another getter/setter
+                        let after_comma = &body_trimmed[2..].trim();
+                        if after_comma.starts_with("get ") || after_comma.starts_with("set ") {
+                            // New getter/setter member
+                            result.push_str(&inner_indent);
+                            result.push_str("},\n");
+                            result.push('\n');
+                            result.push_str(&inner_indent);
+                            result.push_str(after_comma);
+                            result.push('\n');
+                            i += 1;
+                            continue;
+                        }
+                    }
+                }
+
+                // Regular body line - add one extra tab of indentation
+                // The body lines are inside the getter method, so they need
+                // indent_level + 2 tabs (one for object, one for getter body)
+                if body_trimmed.is_empty() {
+                    result.push('\n');
+                } else {
+                    // Add one extra tab to the existing indentation
+                    result.push('\t');
+                    result.push_str(body_line);
+                    result.push('\n');
+                }
+                i += 1;
+            }
+            continue;
+        }
+
+        result.push_str(line);
+        result.push('\n');
+        i += 1;
+    }
+
+    // Remove potential trailing newline
+    if result.ends_with('\n') && !code.ends_with('\n') {
+        result.pop();
+    }
+    result
+}
+
+/// Find the position of an inline getter/setter object start in a line.
+/// Returns the position of the `{` that starts the object containing getters.
+/// Pattern: `something { get identifier(` or `something { set identifier(`
+/// Returns None if no such pattern is found.
+fn find_inline_getter_start(line: &str) -> Option<usize> {
+    // Look for `{ get ` or `{ set ` patterns that are part of an object literal
+    // (not an `if {` or `function {` block)
+    let patterns = ["{ get ", "{ set "];
+    for pattern in &patterns {
+        if let Some(pos) = line.find(pattern) {
+            // Make sure the `{` is preceded by something that indicates an object literal
+            // (comma, opening paren, equals, etc.)
+            let before = line[..pos].trim_end();
+            if before.is_empty() {
+                continue;
+            }
+            let last_char = before.chars().last()?;
+            // The object brace should follow: (, ,, =, :, [, or be the start of a statement
+            if matches!(last_char, '(' | ',' | '=' | ':' | '[') || before.ends_with("return") {
+                // Verify what follows is a method definition: `get identifier(...) {`
+                let rest = &line[pos + pattern.len()..];
+                if rest.contains("() {") || rest.contains("($$value) {") {
+                    return Some(pos);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Normalize an import line for matching: replace double quotes with single quotes,
+/// and normalize whitespace around braces to match OXC output format.
+fn normalize_import_line(line: &str) -> String {
+    let mut result = line.replace('"', "'");
+    // OXC normalizes `{SvelteSet}` to `{ SvelteSet }` etc.
+    // Normalize brace spacing: ensure space after `{` and before `}`
+    result = result.replace("{ ", "{").replace(" }", "}");
+    result = result.replace('{', "{ ").replace('}', " }");
+    // Clean up double spaces
+    while result.contains("  ") {
+        result = result.replace("  ", " ");
+    }
+    result
+}
+
+/// Collect import lines from source code that use double quotes.
+/// Returns a map from the normalized form to the original line text.
+fn collect_import_lines(source: &str) -> std::collections::HashMap<String, String> {
+    let mut import_lines = std::collections::HashMap::new();
+    for line in source.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("import ") {
+            // Only collect if the line has double quotes (needs restoration)
+            if trimmed.contains('"') {
+                let normalized = normalize_import_line(trimmed);
+                import_lines.insert(normalized.clone(), trimmed.to_string());
+                // Also store with semicolon if the original doesn't have one
+                // (OXC adds semicolons)
+                if !normalized.ends_with(';') {
+                    import_lines.insert(format!("{};", normalized), trimmed.to_string());
+                }
+                // Also store without semicolon if the original has one
+                if normalized.ends_with(';') {
+                    import_lines.insert(
+                        normalized[..normalized.len() - 1].to_string(),
+                        trimmed.to_string(),
+                    );
+                }
+            }
+        }
+    }
+    import_lines
+}
+
+/// Restore quote style in an OXC-formatted import line using the original's quote style.
+/// Keeps OXC's spacing/formatting but replaces single quotes with double quotes
+/// for the import source string.
+fn restore_import_quotes(oxc_line: &str, original: &str) -> String {
+    // Extract the source string from the original (between quotes)
+    // The original has double quotes, find them
+    if let (Some(orig_first), Some(orig_last)) = (original.find('"'), original.rfind('"'))
+        && orig_first < orig_last
+    {
+        let orig_source = &original[orig_first + 1..orig_last];
+        // In the OXC line, find the single-quoted source string and replace
+        // Find the last single-quoted string (the import source is usually the last one)
+        if let Some(oxc_last) = oxc_line.rfind('\'')
+            && let Some(oxc_first) = oxc_line[..oxc_last].rfind('\'')
+        {
+            let oxc_source = &oxc_line[oxc_first + 1..oxc_last];
+            // The sources should match after unquoting
+            if oxc_source == orig_source {
+                // Replace single quotes with double quotes for this string
+                let mut result = String::with_capacity(oxc_line.len());
+                result.push_str(&oxc_line[..oxc_first]);
+                result.push('"');
+                result.push_str(orig_source);
+                result.push('"');
+                result.push_str(&oxc_line[oxc_last + 1..]);
+                return result;
+            }
+        }
+    }
+    // Fallback: return the OXC line unchanged
+    oxc_line.to_string()
+}
+
+/// Restore original quote styles for import lines that were changed by OXC normalization.
+///
+/// OXC normalizes all string quotes to single quotes, but the official Svelte compiler
+/// (esrap) preserves the original quote style from the user's source code. This function
+/// restores double-quoted import statements where the original source used double quotes.
+fn restore_original_quotes(
+    code: String,
+    import_lines: &std::collections::HashMap<String, String>,
+) -> String {
+    if import_lines.is_empty() {
+        return code;
+    }
+
+    let mut result = String::with_capacity(code.len());
+    for line in code.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("import ") {
+            let normalized = normalize_import_line(trimmed);
+            if let Some(original) = import_lines.get(&normalized) {
+                // Instead of replacing the whole line, just restore the quote style
+                // for the import source string. Keep OXC's formatting (spacing).
+                let restored = restore_import_quotes(trimmed, original);
+                let indent = &line[..line.len() - line.trim_start().len()];
+                result.push_str(indent);
+                result.push_str(&restored);
+                result.push('\n');
+                continue;
+            }
+        }
+        result.push_str(line);
+        result.push('\n');
+    }
+
+    // Remove the extra trailing newline
+    if result.ends_with('\n') && !code.ends_with('\n') {
+        result.pop();
+    }
+    result
 }
 
 /// OXC splits `;;` (used as $inspect placeholder) into two separate empty statements
@@ -1462,9 +1861,13 @@ impl JsCodegen {
     fn emit_literal(&mut self, lit: &JsLiteral) {
         match lit {
             JsLiteral::String(s) => {
-                self.output.push('"');
-                self.output.push_str(&escape_string(s));
-                self.output.push('"');
+                // Use single quotes for generated string literals.
+                // This matches OXC's output format (single_quote: true) and
+                // ensures that only user source code strings (which come through
+                // Raw() statements with their original quotes) will have double quotes.
+                self.output.push('\'');
+                self.output.push_str(&escape_string_single(s));
+                self.output.push('\'');
             }
             JsLiteral::Number(n) => {
                 let _ = write!(self.output, "{}", n);
@@ -1707,9 +2110,9 @@ impl JsCodegen {
             match &member.property {
                 JsMemberProperty::Expression(expr) => self.emit_expression(expr),
                 JsMemberProperty::Identifier(name) => {
-                    self.output.push('"');
+                    self.output.push('\'');
                     self.output.push_str(name);
-                    self.output.push('"');
+                    self.output.push('\'');
                 }
                 JsMemberProperty::PrivateIdentifier(name) => {
                     self.output.push('#');
@@ -1897,12 +2300,12 @@ impl JsCodegen {
     }
 }
 
-/// Escape special characters in a string literal.
-fn escape_string(s: &str) -> String {
+/// Escape special characters in a single-quoted string literal.
+fn escape_string_single(s: &str) -> String {
     let mut result = String::with_capacity(s.len());
     for c in s.chars() {
         match c {
-            '"' => result.push_str("\\\""),
+            '\'' => result.push_str("\\'"),
             '\\' => result.push_str("\\\\"),
             '\n' => result.push_str("\\n"),
             '\r' => result.push_str("\\r"),
@@ -2206,6 +2609,43 @@ export default function Main($$anchor, $$props) {
         assert!(
             !has_literal_backslash_t,
             "Output should not contain literal \\t"
+        );
+    }
+
+    #[test]
+    fn test_getter_object_formatting() {
+        // Test that objects with getter properties are formatted on multiple lines
+        // (Svelte's esrap format), not collapsed to single line
+        let input = "Task(node, { get prop() {\n\treturn val;\n} });";
+        let result = normalize_js(input).unwrap();
+        eprintln!("Getter object:\n{}", result);
+        assert!(
+            result.contains("Task(node, {\n\tget prop()"),
+            "Object with getter should be formatted on multiple lines: {:?}",
+            result
+        );
+        assert!(
+            result.contains("\t\treturn val;"),
+            "Body should be double-indented: {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_getter_object_formatting_indented() {
+        // Test getter expansion inside a function body (indented)
+        let input = "function Main($$anchor) {\n\tTask(node, { get prop() {\n\t\treturn $.get(task);\n\t} });\n}";
+        let result = normalize_js(input).unwrap();
+        eprintln!("Indented getter:\n{}", result);
+        assert!(
+            result.contains("\tTask(node, {\n\t\tget prop()"),
+            "Indented: Object with getter should be formatted on multiple lines: {:?}",
+            result
+        );
+        assert!(
+            result.contains("\t\t\treturn $.get(task);"),
+            "Indented: Body should be triple-indented: {:?}",
+            result
         );
     }
 }
