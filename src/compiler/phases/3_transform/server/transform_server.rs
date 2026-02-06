@@ -6483,7 +6483,8 @@ fn transform_script_content_inner(script: &str, is_module: bool) -> String {
     // Transform $effect.tracking() - always false on server (effects don't run on server)
     let script = script.replace("$effect.tracking()", "false");
     // Note: Order matters - check $state.raw before $state to avoid partial matches
-    // $state.snapshot(x) becomes just x on server (no proxied state to snapshot)
+    // $state.snapshot(x) in script becomes just x on server (no proxied state)
+    // But template expressions keep $.snapshot() via transform_rune_in_template_expr
     let script = transform_rune_call_multiline(&script, "$state.snapshot(");
     let script = transform_rune_call_multiline(&script, "$state.raw(");
     // Transform array destructuring with $state() BEFORE generic $state() handling
