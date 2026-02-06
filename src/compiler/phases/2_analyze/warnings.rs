@@ -631,6 +631,43 @@ pub fn block_empty() -> AnalysisWarning {
     )
 }
 
+// Additional warnings for validator tests
+
+/// The customElement option is used when generating a custom element
+pub fn options_missing_custom_element() -> AnalysisWarning {
+    warning(
+        "options_missing_custom_element",
+        "The `customElement` option is used when generating a custom element. Did you forget the `customElement: true` compile option?\nhttps://svelte.dev/e/options_missing_custom_element",
+    )
+}
+
+/// Using a rest element or a non-destructured declaration with $props()
+pub fn custom_element_props_identifier_rest() -> AnalysisWarning {
+    warning(
+        "custom_element_props_identifier",
+        "Using a rest element or a non-destructured declaration with `$props()` means that Svelte can't infer what properties to expose when creating a custom element. Consider destructuring all the props or explicitly specifying the `customElement.props` option.\nhttps://svelte.dev/e/custom_element_props_identifier",
+    )
+}
+
+/// Binding to a rest element in an each block
+pub fn bind_invalid_each_rest(name: &str) -> AnalysisWarning {
+    warning(
+        "bind_invalid_each_rest",
+        format!(
+            "This will create a new object for the `{}` element of the each block on every update, which is not what you want. If possible, bind to a specific property instead\nhttps://svelte.dev/e/bind_invalid_each_rest",
+            name
+        ),
+    )
+}
+
+/// Quoted single-expression attribute warning
+pub fn attribute_quoted() -> AnalysisWarning {
+    warning(
+        "attribute_quoted",
+        "Quoted attribute values will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted",
+    )
+}
+
 // Event directive warnings
 
 /// Using `on:name` to listen to the event is deprecated. Use the event attribute `onname` instead.

@@ -1544,20 +1544,11 @@ pub fn walk_js_expression(
                 // Check if this is a rune call
                 let rune_name = get_rune_name(callee, context);
 
-                // Validate rune placement
-                // $state, $state.raw, $derived, $derived.by can only be used in specific contexts
-                // In template expressions (like {@const}), they should not be allowed
-                if let Some(ref rune) = rune_name
-                    && matches!(
-                        rune.as_str(),
-                        "$state" | "$state.raw" | "$derived" | "$derived.by"
-                    )
-                {
-                    // These runes are not valid in template expressions
-                    // They can only be used in VariableDeclarator, PropertyDefinition,
-                    // or constructor AssignmentExpression
-                    return Err(errors::state_invalid_placement(rune));
-                }
+                // NOTE: We do NOT validate rune placement here.
+                // Rune placement validation is handled by call_expression.rs during
+                // the script visitor walk, which has proper context about the JS AST path.
+                // Template expressions may contain valid rune calls (e.g., $state() inside
+                // event handler arrow functions, class constructors, etc.).
 
                 if rune_name.is_none() && !is_safe_identifier(callee, context) {
                     context.analysis.needs_context = true;

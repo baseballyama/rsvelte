@@ -745,6 +745,231 @@ pub fn order_reactive_statements(
     Ok(reactive_declarations)
 }
 
+/// Check if a template fragment contains top-level AwaitExpression nodes.
+///
+/// This walks the template AST looking for AwaitExpression in expression positions
+/// (e.g., `{await expr}` in ExpressionTag), NOT `{#await}` block syntax.
+///
+/// Corresponds to `has_await` from `create_scopes()` in the official Svelte compiler,
+/// which tracks AwaitExpression nodes not nested inside function bodies.
+#[allow(dead_code)]
+fn fragment_has_await_expression(fragment: &crate::ast::template::Fragment) -> bool {
+    for node in &fragment.nodes {
+        if node_has_await_expression(node) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Check if a template node contains an AwaitExpression.
+#[allow(dead_code)]
+fn node_has_await_expression(node: &crate::ast::template::TemplateNode) -> bool {
+    use crate::ast::template::TemplateNode;
+
+    match node {
+        TemplateNode::ExpressionTag(tag) => expression_has_await(&tag.expression),
+        TemplateNode::RegularElement(elem) => {
+            for attr in &elem.attributes {
+                if attribute_has_await(attr) {
+                    return true;
+                }
+            }
+            fragment_has_await_expression(&elem.fragment)
+        }
+        TemplateNode::Component(comp) => {
+            for attr in &comp.attributes {
+                if attribute_has_await(attr) {
+                    return true;
+                }
+            }
+            fragment_has_await_expression(&comp.fragment)
+        }
+        TemplateNode::IfBlock(block) => {
+            if expression_has_await(&block.test) {
+                return true;
+            }
+            if fragment_has_await_expression(&block.consequent) {
+                return true;
+            }
+            if let Some(ref alternate) = block.alternate
+                && fragment_has_await_expression(alternate)
+            {
+                return true;
+            }
+            false
+        }
+        TemplateNode::EachBlock(block) => {
+            if expression_has_await(&block.expression) {
+                return true;
+            }
+            if fragment_has_await_expression(&block.body) {
+                return true;
+            }
+            if let Some(ref fallback) = block.fallback
+                && fragment_has_await_expression(fallback)
+            {
+                return true;
+            }
+            false
+        }
+        TemplateNode::KeyBlock(block) => {
+            if expression_has_await(&block.expression) {
+                return true;
+            }
+            fragment_has_await_expression(&block.fragment)
+        }
+        TemplateNode::AwaitBlock(block) => {
+            if expression_has_await(&block.expression) {
+                return true;
+            }
+            if let Some(ref pending) = block.pending
+                && fragment_has_await_expression(pending)
+            {
+                return true;
+            }
+            if let Some(ref then) = block.then
+                && fragment_has_await_expression(then)
+            {
+                return true;
+            }
+            if let Some(ref catch) = block.catch
+                && fragment_has_await_expression(catch)
+            {
+                return true;
+            }
+            false
+        }
+        TemplateNode::SnippetBlock(_block) => false,
+        TemplateNode::SvelteBoundary(elem)
+        | TemplateNode::SvelteBody(elem)
+        | TemplateNode::SvelteDocument(elem)
+        | TemplateNode::SvelteFragment(elem)
+        | TemplateNode::SvelteHead(elem)
+        | TemplateNode::SvelteOptions(elem)
+        | TemplateNode::SvelteWindow(elem) => {
+            for attr in &elem.attributes {
+                if attribute_has_await(attr) {
+                    return true;
+                }
+            }
+            fragment_has_await_expression(&elem.fragment)
+        }
+        TemplateNode::SvelteSelf(elem) => {
+            for attr in &elem.attributes {
+                if attribute_has_await(attr) {
+                    return true;
+                }
+            }
+            fragment_has_await_expression(&elem.fragment)
+        }
+        TemplateNode::SvelteComponent(elem) => {
+            for attr in &elem.attributes {
+                if attribute_has_await(attr) {
+                    return true;
+                }
+            }
+            fragment_has_await_expression(&elem.fragment)
+        }
+        TemplateNode::SvelteElement(elem) => {
+            for attr in &elem.attributes {
+                if attribute_has_await(attr) {
+                    return true;
+                }
+            }
+            fragment_has_await_expression(&elem.fragment)
+        }
+        TemplateNode::TitleElement(elem) => {
+            for attr in &elem.attributes {
+                if attribute_has_await(attr) {
+                    return true;
+                }
+            }
+            fragment_has_await_expression(&elem.fragment)
+        }
+        TemplateNode::SlotElement(elem) => {
+            for attr in &elem.attributes {
+                if attribute_has_await(attr) {
+                    return true;
+                }
+            }
+            fragment_has_await_expression(&elem.fragment)
+        }
+        TemplateNode::RenderTag(tag) => expression_has_await(&tag.expression),
+        TemplateNode::HtmlTag(tag) => expression_has_await(&tag.expression),
+        TemplateNode::ConstTag(tag) => expression_has_await(&tag.declaration),
+        _ => false,
+    }
+}
+
+/// Check if an expression (stored as JSON) contains an AwaitExpression.
+#[allow(dead_code)]
+fn expression_has_await(expr: &crate::ast::js::Expression) -> bool {
+    let crate::ast::js::Expression::Value(value) = expr;
+    json_has_await_expression(value)
+}
+
+/// Recursively check a JSON AST node for AwaitExpression.
+/// Stops at function boundaries (FunctionExpression, ArrowFunctionExpression, FunctionDeclaration).
+#[allow(dead_code)]
+fn json_has_await_expression(node: &serde_json::Value) -> bool {
+    let node_type = node.get("type").and_then(|t| t.as_str());
+
+    match node_type {
+        Some("AwaitExpression") => return true,
+        Some("FunctionExpression" | "ArrowFunctionExpression" | "FunctionDeclaration") => {
+            return false;
+        }
+        _ => {}
+    }
+
+    match node {
+        serde_json::Value::Object(map) => {
+            for (key, val) in map {
+                if key == "type" || key == "start" || key == "end" || key == "loc" {
+                    continue;
+                }
+                if json_has_await_expression(val) {
+                    return true;
+                }
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for val in arr {
+                if json_has_await_expression(val) {
+                    return true;
+                }
+            }
+        }
+        _ => {}
+    }
+
+    false
+}
+
+/// Check if an attribute contains an await expression.
+#[allow(dead_code)]
+fn attribute_has_await(attr: &crate::ast::template::Attribute) -> bool {
+    use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart};
+
+    match attr {
+        Attribute::Attribute(attr_node) => match &attr_node.value {
+            AttributeValue::Expression(expr_tag) => expression_has_await(&expr_tag.expression),
+            AttributeValue::Sequence(parts) => parts.iter().any(|part| {
+                if let AttributeValuePart::ExpressionTag(expr_tag) = part {
+                    expression_has_await(&expr_tag.expression)
+                } else {
+                    false
+                }
+            }),
+            _ => false,
+        },
+        Attribute::OnDirective(dir) => dir.expression.as_ref().is_some_and(expression_has_await),
+        Attribute::BindDirective(dir) => expression_has_await(&dir.expression),
+        _ => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

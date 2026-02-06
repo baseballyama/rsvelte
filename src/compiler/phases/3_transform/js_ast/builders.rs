@@ -444,6 +444,7 @@ pub fn call_trimmed(callee: JsExpr, arguments: Vec<JsExpr>) -> JsExpr {
     while let Some(last) = args.last() {
         let is_falsy = match last {
             JsExpr::Identifier(name) if name == "undefined" => true,
+            JsExpr::Void(_) => true,
             JsExpr::Unary(unary) => {
                 // Check for `void 0` pattern
                 matches!(unary.operator, JsUnaryOp::Void)

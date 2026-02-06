@@ -590,6 +590,8 @@ pub struct CssDomElement {
     /// Possible next general siblings (for ~ combinator)
     /// Tuple of (element_index, certainty)
     pub possible_next_general: Vec<(usize, SiblingCertainty)>,
+    /// Whether this element has content (non-empty children)
+    pub has_content: bool,
 }
 
 /// Export information.

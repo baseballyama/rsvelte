@@ -1017,6 +1017,11 @@ impl JsCodegen {
             self.output.push(' ');
             self.output.push_str(id);
         }
+        // Add a space before '(' for anonymous function expressions to match
+        // the official Svelte compiler output: `function (...$$args)` not `function(...$$args)`
+        if func.id.is_none() && !func.is_generator {
+            self.output.push(' ');
+        }
         self.output.push('(');
         self.emit_params(&func.params);
         self.output.push_str(") ");

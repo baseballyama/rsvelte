@@ -748,6 +748,7 @@ pub fn visit(
         possible_next_adjacent: Vec::new(),
         possible_prev_general: Vec::new(),
         possible_next_general: Vec::new(),
+        has_content: !element.fragment.nodes.is_empty(),
     };
 
     let element_idx = context.add_dom_element(dom_element);

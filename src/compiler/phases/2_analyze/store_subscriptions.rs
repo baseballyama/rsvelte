@@ -259,8 +259,9 @@ fn collect_dollar_identifiers_from_js_with_context(
         // Check for $ that could start an identifier
         if chars[i] == '$' {
             // Check if this is a valid identifier start (not part of a larger identifier)
+            // Also skip $ preceded by '.' (member access like `obj.$set`)
             let prev_is_ident_char = if i > 0 {
-                is_identifier_char(chars[i - 1])
+                is_identifier_char(chars[i - 1]) || chars[i - 1] == '.'
             } else {
                 false
             };
@@ -325,8 +326,9 @@ fn collect_dollar_identifiers_from_js(js: &str, refs: &mut FxHashSet<String>) {
         // Check for $ that could start an identifier
         if chars[i] == '$' {
             // Check if this is a valid identifier start (not part of a larger identifier)
+            // Also skip $ preceded by '.' (member access like `obj.$set`)
             let prev_is_ident_char = if i > 0 {
-                is_identifier_char(chars[i - 1])
+                is_identifier_char(chars[i - 1]) || chars[i - 1] == '.'
             } else {
                 false
             };
