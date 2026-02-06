@@ -631,17 +631,14 @@ pub fn visit_regular_element(
         .iter()
         .any(|n| matches!(n, TemplateNode::SnippetBlock(_)));
 
-    // If there are snippets, we need to create a child state and wrap everything in a block
-    // This matches the JS implementation which creates a child_state with empty init/update/after_update/snippets
-    let (saved_init, saved_update, saved_after_update, saved_snippets) = if has_snippet_blocks {
-        let init = std::mem::take(&mut context.state.init);
-        let update = std::mem::take(&mut context.state.update);
-        let after_update = std::mem::take(&mut context.state.after_update);
-        let snippets = std::mem::take(&mut context.state.snippets);
-        (Some(init), Some(update), Some(after_update), Some(snippets))
-    } else {
-        (None, None, None, None)
-    };
+    // Always create a separate child state for processing children.
+    // This matches the JS implementation which always creates:
+    //   const child_state = { ...state, init: [], update: [], after_update: [], snippets: [] };
+    // The child state is later merged back based on whether the fragment is dynamic or has snippets.
+    let saved_child_init = std::mem::take(&mut context.state.init);
+    let saved_child_update = std::mem::take(&mut context.state.update);
+    let saved_child_after_update = std::mem::take(&mut context.state.after_update);
+    let saved_child_snippets = std::mem::take(&mut context.state.snippets);
 
     // Process hoisted nodes (e.g., SnippetBlocks inside this element)
     // We increment the nesting level so place_snippet_declaration knows we're not at root
@@ -680,6 +677,10 @@ pub fn visit_regular_element(
     });
 
     let use_text_content = all_text_or_expr && has_expression_tag && all_expressions_static;
+
+    // Track whether we used a code path that requires child_init to be merged
+    // regardless of whether the children appear static.
+    let mut force_merge_child_init = false;
 
     if use_text_content {
         // Convert children to TextOrExpr for build_template_chunk
@@ -816,6 +817,7 @@ pub fn visit_regular_element(
         );
 
         context.state.init.push(b::stmt(customizable_select_call));
+        force_merge_child_init = true;
     } else {
         // Process trimmed child nodes
         // These statements go directly into context.state (child_state in JS)
@@ -850,22 +852,24 @@ pub fn visit_regular_element(
         }
     }
 
-    // Now handle element_state and (if snippets) child_state merging
+    // Now handle child_state and element_state merging.
+    // This matches the JS implementation at lines 440-459 in RegularElement.js:
+    // - With snippets: wrap in a block
+    // - Dynamic fragment: merge child_state + element_state
+    // - Static fragment: only merge element_state (discard child_state)
+    let child_snippets = std::mem::take(&mut context.state.snippets);
+    let child_init = std::mem::take(&mut context.state.init);
+    let child_update = std::mem::take(&mut context.state.update);
+    let child_after_update = std::mem::take(&mut context.state.after_update);
+
+    // Restore the parent state
+    context.state.init = saved_child_init;
+    context.state.update = saved_child_update;
+    context.state.after_update = saved_child_after_update;
+    context.state.snippets = saved_child_snippets;
+
     if has_snippet_blocks {
         // Wrap children in `{...}` to avoid declaration conflicts
-        // This matches the JS implementation at lines 440-459 in RegularElement.js
-        let child_snippets = std::mem::take(&mut context.state.snippets);
-        let child_init = std::mem::take(&mut context.state.init);
-        let child_update = std::mem::take(&mut context.state.update);
-        let child_after_update = std::mem::take(&mut context.state.after_update);
-
-        // Restore the saved state
-        context.state.init = saved_init.unwrap_or_default();
-        context.state.update = saved_update.unwrap_or_default();
-        context.state.after_update = saved_after_update.unwrap_or_default();
-        context.state.snippets = saved_snippets.unwrap_or_default();
-
-        // Build the block with: snippets, child_init, element_state_init, update effect, after_update
         let mut block_body = Vec::new();
         block_body.extend(child_snippets);
         block_body.extend(child_init);
@@ -883,8 +887,22 @@ pub fn visit_regular_element(
         block_body.extend(element_state_after_update);
 
         context.state.init.push(b::block(block_body));
+    } else if force_merge_child_init
+        || node.fragment.metadata.dynamic
+        || has_dynamic_children_for_merge(&cleaned.trimmed, &context.state)
+    {
+        // Dynamic fragment: merge child_state.init + element_state.init
+        context.state.init.extend(child_init);
+        context.state.init.extend(element_state_init);
+        context.state.update.extend(child_update);
+        context.state.after_update.extend(child_after_update);
+        context
+            .state
+            .after_update
+            .extend(element_state_after_update);
     } else {
-        // No snippets - merge element_state directly (original behavior)
+        // Static fragment: discard child_state (only $.next() from process_children),
+        // only merge element_state
         context.state.init.extend(element_state_init);
         context
             .state
@@ -945,6 +963,19 @@ pub fn visit_regular_element(
 
     context.state.template.pop_element();
     TransformResult::None
+}
+
+/// Check if any trimmed children are dynamic (non-static, non-text).
+/// This is a fallback for when `fragment.metadata.dynamic` isn't reliably set.
+/// It mirrors the logic in the official compiler where child_state.init is only
+/// merged when the fragment is dynamic.
+fn has_dynamic_children_for_merge(
+    trimmed: &[TemplateNode],
+    state: &ComponentClientTransformState,
+) -> bool {
+    trimmed
+        .iter()
+        .any(|n| !matches!(n, TemplateNode::Text(_)) && !is_static_element(n, state))
 }
 
 /// Check if a node is a custom element.

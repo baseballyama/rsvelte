@@ -130,8 +130,10 @@ pub fn svelte_boundary(node: &SvelteElement, context: &mut ComponentContext) {
     };
 
     // Visit the content fragment
-    // Boundary content is a nested fragment, not root
-    let content_block = fragment(&content_fragment, context, false);
+    // Boundary content needs is_root_fragment=true because SvelteBoundary is in the
+    // is_text_first parent type list. The boundary callback creates a new scope with
+    // $$anchor, so it needs $.next() when the first child is text/expression.
+    let content_block = fragment(&content_fragment, context, true);
 
     // Build the boundary call: $.boundary(node, props, ($$anchor) => { ... })
     let props_obj = b::object(props);

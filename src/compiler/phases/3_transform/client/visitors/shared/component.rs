@@ -1492,6 +1492,15 @@ fn visit_slot_children(
                 );
             }
 
+            // Add $.next() to skip inserted comment when text-first
+            // This mirrors Fragment.js: if (is_text_first) body.push(b.stmt(b.call('$.next')));
+            if cleaned.is_text_first {
+                context
+                    .state
+                    .init
+                    .insert(1, b::stmt(b::call(b::member_path("$.next"), vec![])));
+            }
+
             close_statement = Some(b::stmt(b::call(
                 b::member_path("$.append"),
                 vec![b::id("$$anchor"), fragment_id],
