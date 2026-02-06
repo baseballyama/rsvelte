@@ -794,6 +794,16 @@ impl<'a> ServerCodeGenerator<'a> {
                     continue;
                 }
             }
+            // Trim trailing whitespace from the last meaningful text node
+            if last_meaningful_idx.is_some()
+                && i == last_meaningful_idx.unwrap()
+                && let TemplateNode::Text(text) = node
+            {
+                let mut modified_text = text.clone();
+                modified_text.data = modified_text.data.trim_end().to_string().into();
+                self.generate_node(&TemplateNode::Text(modified_text), true)?;
+                continue;
+            }
             self.generate_node(node, true)?;
         }
         Ok(())
@@ -1825,7 +1835,7 @@ impl<'a> ServerCodeGenerator<'a> {
         element: Option<&RegularElement>,
     ) -> Result<Option<String>, TransformError> {
         match attr {
-            Attribute::Attribute(node) => self.generate_attribute_node(node),
+            Attribute::Attribute(node) => self.generate_attribute_node(node, element),
             Attribute::BindDirective(bind) => {
                 Self::generate_bind_directive_for_element(bind, &self.source, element)
             }
@@ -2036,15 +2046,38 @@ impl<'a> ServerCodeGenerator<'a> {
     fn generate_attribute_node(
         &mut self,
         node: &AttributeNode,
+        element: Option<&RegularElement>,
     ) -> Result<Option<String>, TransformError> {
-        let name = node.name.as_str();
+        use crate::compiler::phases::phase3_transform::shared::template::is_boolean_attribute;
+
+        let raw_name = node.name.as_str();
 
         // Skip defaultValue and defaultChecked - these are not real HTML attributes
         // They are pseudo-properties used for form element initialization
         // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/server/visitors/shared/element.js L78-79
-        if name == "defaultValue" || name == "defaultChecked" {
+        if raw_name == "defaultValue" || raw_name == "defaultChecked" {
             return Ok(None);
         }
+
+        // Normalize attribute name: lowercase for HTML elements, preserve case for SVG/MathML
+        let is_html = element
+            .map(|el| !el.metadata.svg && !el.metadata.mathml)
+            .unwrap_or(true);
+        let name = if is_html {
+            raw_name.to_lowercase()
+        } else {
+            raw_name.to_string()
+        };
+        let name = name.as_str();
+
+        // Helper to generate $.attr() call with optional boolean flag
+        let make_attr_call = |attr_name: &str, expr: &str| -> String {
+            if is_boolean_attribute(attr_name) {
+                format!("${{$.attr('{}', {}, true)}}", attr_name, expr)
+            } else {
+                format!("${{$.attr('{}', {})}}", attr_name, expr)
+            }
+        };
 
         match &node.value {
             AttributeValue::True(_) => Ok(Some(format!(" {}", name))),
@@ -2073,7 +2106,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {
                         let expr = self.source[expr_start..expr_end].trim().to_string();
-                        return Ok(Some(format!("${{$.attr('{}', {})}}", name, expr)));
+                        return Ok(Some(make_attr_call(name, &expr)));
                     } else {
                         return Ok(None);
                     }
@@ -2151,7 +2184,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
                 if expr_end > expr_start && expr_end <= self.source.len() {
                     let expr = self.source[expr_start..expr_end].trim().to_string();
-                    Ok(Some(format!("${{$.attr('{}', {})}}", name, expr)))
+                    Ok(Some(make_attr_call(name, &expr)))
                 } else {
                     Ok(None)
                 }
@@ -4079,16 +4112,29 @@ impl<'a> ServerCodeGenerator<'a> {
         // Generate only the meaningful nodes
         // Track when we've just output a TitleElement to trim leading whitespace from next text
         let mut just_had_title = false;
-        for node in &nodes[start_idx..end_idx] {
+        let meaningful_nodes = &nodes[start_idx..end_idx];
+        for (i, node) in meaningful_nodes.iter().enumerate() {
+            let is_last = i == meaningful_nodes.len() - 1;
             // If we just had a title and this is a text node, trim leading whitespace
             if just_had_title && let TemplateNode::Text(text) = node {
                 let mut modified_text = text.clone();
                 modified_text.data = modified_text.data.trim_start().to_string().into();
+                // Also trim trailing whitespace if this is the last node
+                if is_last {
+                    modified_text.data = modified_text.data.trim_end().to_string().into();
+                }
                 body_generator.generate_node(&TemplateNode::Text(modified_text), false)?;
                 just_had_title = false;
                 continue;
             }
             just_had_title = matches!(node, TemplateNode::TitleElement(_));
+            // For the last text node in a fragment, trim trailing whitespace
+            if is_last && let TemplateNode::Text(text) = node {
+                let mut modified_text = text.clone();
+                modified_text.data = modified_text.data.trim_end().to_string().into();
+                body_generator.generate_node(&TemplateNode::Text(modified_text), false)?;
+                continue;
+            }
             body_generator.generate_node(node, false)?;
         }
 
