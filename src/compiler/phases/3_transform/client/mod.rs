@@ -263,6 +263,7 @@ fn transform_client_with_visitors(
         || analysis.needs_context
         || !analysis.reactive_statements.is_empty()
         || has_reactive_statements  // Reactive $: statements detected in script
+        || !analysis.exports.is_empty()  // All exports (not just reactive) trigger context injection
         || reactive_export_count > 0
         || bindable_prop_count > 0;
     // Note: needs_store_cleanup does NOT require context injection ($.push/$.pop)
@@ -359,121 +360,129 @@ fn transform_client_with_visitors(
         component_body.push(b::stmt(b::call(b::member_path("$.init"), init_args)));
     }
 
-    // Generate $$exports object if there are reactive exports or bindable props with accessors
-    // Only include exports that need getter/setter (reactive exports)
-    // Reference: transform-client.js lines 280-306
-    let needs_exports = reactive_export_count > 0 || bindable_prop_count > 0;
+    // Generate $$exports object (component_returned_object) from analysis.exports
+    // Reference: transform-client.js lines 280-378
+    // In the official compiler, component_returned_object is built from ALL analysis.exports.
+    // For non-dev mode:
+    //   - const/function exports (not let/var): simple init property { name } or { alias: name }
+    //   - let/var exports: getter/setter pair (but these are BindableProp in legacy mode)
+    //   - prop/bindable_prop: getter/setter pair
+    //   - state/raw_state: getter/setter pair
+    // For accessors mode, bindable props also get getter/setter.
+    let component_returned_object_len = analysis.exports.len() + bindable_prop_count;
+    let needs_exports = component_returned_object_len > 0;
     if needs_exports {
-        // Collect all export names from analysis.exports
-        let mut reactive_export_names: Vec<String> = analysis
-            .exports
-            .iter()
-            .filter(|export| {
-                if let Some(binding) = analysis
-                    .root
-                    .bindings
-                    .iter()
-                    .find(|b| b.name == export.name)
-                {
-                    matches!(
-                        binding.kind,
-                        BindingKind::State
-                            | BindingKind::RawState
-                            | BindingKind::Derived
-                            | BindingKind::Prop
-                            | BindingKind::BindableProp
-                    ) || matches!(
-                        binding.declaration_kind,
-                        crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Let
-                            | crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Var
-                    )
-                } else {
-                    false
-                }
-            })
-            .map(|e| e.name.clone())
-            .collect();
+        let mut exports_parts: Vec<String> = Vec::new();
 
-        // Add bindable props when accessors is enabled
-        // These are props created via `export let x` that become BindableProp
-        if analysis.accessors {
-            for binding in &analysis.root.bindings {
-                if matches!(binding.kind, BindingKind::BindableProp)
-                    && !reactive_export_names.contains(&binding.name)
-                {
-                    reactive_export_names.push(binding.name.clone());
-                }
-            }
-        }
+        // Process analysis.exports (const, function, class exports)
+        for export in &analysis.exports {
+            let name = &export.name;
+            let alias = export.alias.as_deref().unwrap_or(name);
 
-        let mut exports_code = String::from("var $$exports = {\n");
-        for (i, name) in reactive_export_names.iter().enumerate() {
-            // Getter: return propName()
-            exports_code.push_str(&format!(
-                "\tget {}() {{\n\t\treturn {}();\n\t}}",
-                name, name
-            ));
-            exports_code.push_str(",\n");
-
-            // Find the binding to determine the setter format
-            // Reference: transform-client.js lines 296-303
+            // Find the binding
             let binding = analysis.root.bindings.iter().find(|b| b.name == *name);
 
             if let Some(binding) = binding {
-                match binding.kind {
-                    // For prop/bindable_prop: propName($$value); $.flush()
-                    // Reference: transform-client.js lines 296-297
-                    BindingKind::Prop | BindingKind::BindableProp => {
-                        exports_code.push_str(&format!(
-                            "\tset {}($$value) {{\n\t\t{}($$value);\n\t\t$.flush();\n\t}}",
-                            name, name
+                let is_identifier_expr = true; // build_getter returns identifier for simple refs
+
+                if is_identifier_expr {
+                    if matches!(
+                        binding.declaration_kind,
+                        crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Let
+                            | crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Var
+                    ) {
+                        // let/var: getter + setter
+                        exports_parts.push(format!(
+                            "get {}() {{\n\t\treturn {};\n\t}},\n\tset {}($$value) {{\n\t\t{} = $$value;\n\t}}",
+                            alias, name, alias, name
                         ));
-                    }
-                    // For state: $.set(name, $.proxy($$value))
-                    // Reference: transform-client.js lines 300-302
-                    BindingKind::State => {
-                        exports_code.push_str(&format!(
-                            "\tset {}($$value) {{\n\t\t$.set({}, $.proxy($$value));\n\t}}",
-                            name, name
-                        ));
-                    }
-                    // For raw_state: $.set(name, $$value)
-                    // Reference: transform-client.js lines 300-302
-                    BindingKind::RawState => {
-                        exports_code.push_str(&format!(
-                            "\tset {}($$value) {{\n\t\t$.set({}, $$value);\n\t}}",
-                            name, name
-                        ));
-                    }
-                    // For let/var declarations (normal binding): direct assignment
-                    // Reference: transform-client.js lines 286-290
-                    _ => {
-                        exports_code.push_str(&format!(
-                            "\tset {}($$value) {{\n\t\t{} = $$value;\n\t}}",
-                            name, name
-                        ));
+                    } else if !options.dev {
+                        // const/function/class in non-dev: simple init property
+                        if alias == name {
+                            exports_parts.push(name.clone());
+                        } else {
+                            exports_parts.push(format!("{}: {}", alias, name));
+                        }
+                    } else {
+                        // dev mode: getter only
+                        exports_parts
+                            .push(format!("get {}() {{\n\t\treturn {};\n\t}}", alias, name));
                     }
                 }
-            } else {
-                // Fallback: direct assignment
-                exports_code.push_str(&format!(
-                    "\tset {}($$value) {{\n\t\t{} = $$value;\n\t}}",
-                    name, name
-                ));
-            }
 
-            if i < reactive_export_names.len() - 1 {
-                exports_code.push_str(",\n");
+                // Handle prop/bindable_prop/state/raw_state (if they end up in exports)
+                match binding.kind {
+                    BindingKind::Prop | BindingKind::BindableProp => {
+                        // These should use getter/setter with flush
+                        // But in practice, export let becomes BindableProp and is NOT in analysis.exports
+                        // This case handles export { x } where x is already a prop
+                    }
+                    BindingKind::State => {
+                        // getter + $.set setter with proxy
+                        if !exports_parts.last().is_some_and(|p| p.contains("get ")) {
+                            // Replace last simple init with getter/setter
+                            exports_parts.pop();
+                            exports_parts.push(format!(
+                                "get {}() {{\n\t\treturn $.get({});\n\t}},\n\tset {}($$value) {{\n\t\t$.set({}, $.proxy($$value));\n\t}}",
+                                alias, name, alias, name
+                            ));
+                        }
+                    }
+                    BindingKind::RawState => {
+                        exports_parts.pop();
+                        exports_parts.push(format!(
+                            "get {}() {{\n\t\treturn $.get({});\n\t}},\n\tset {}($$value) {{\n\t\t$.set({}, $$value);\n\t}}",
+                            alias, name, alias, name
+                        ));
+                    }
+                    _ => {}
+                }
             } else {
-                exports_code.push('\n');
+                // No binding found - simple init
+                if alias == name {
+                    exports_parts.push(name.clone());
+                } else {
+                    exports_parts.push(format!("{}: {}", alias, name));
+                }
             }
         }
-        exports_code.push_str("};");
-        component_body.push(JsStatement::Raw(exports_code));
+
+        // Add bindable props with getter/setter when accessors is enabled
+        if analysis.accessors {
+            for binding in &analysis.root.bindings {
+                if matches!(binding.kind, BindingKind::BindableProp)
+                    && !analysis.exports.iter().any(|e| e.name == binding.name)
+                {
+                    let name = &binding.name;
+                    let alias = binding.prop_alias.as_deref().unwrap_or(name);
+                    exports_parts.push(format!(
+                        "get {}() {{\n\t\treturn {}();\n\t}},\n\tset {}($$value) {{\n\t\t{}($$value);\n\t\t$.flush();\n\t}}",
+                        alias, name, alias, name
+                    ));
+                }
+            }
+        }
+
+        if !exports_parts.is_empty() {
+            let exports_code = format!("var $$exports = {{ {} }};", exports_parts.join(", "));
+            component_body.push(JsStatement::Raw(exports_code));
+        }
     }
 
     // Add template body statements
     component_body.extend(template_body.body);
+
+    // Bind static exports to props so that people can access them with bind:x
+    // Reference: transform-client.js lines 406-416
+    if !analysis.runes {
+        for export in &analysis.exports {
+            let alias = export.alias.as_deref().unwrap_or(&export.name);
+            component_body.push(JsStatement::Raw(format!(
+                "$.bind_prop($$props, '{}', {});",
+                alias, export.name
+            )));
+        }
+    }
 
     // Add $.pop at the end if injecting context
     // Reference: transform-client.js lines 433-454
@@ -1001,6 +1010,31 @@ fn transform_instance_script_for_visitors(
             result.push('\n');
             return;
         }
+
+        // Strip `export` keyword from function/const/class declarations
+        // In the compiled output, exports are exposed via $$exports object, not ES export syntax
+        // Reference: The official compiler processes exports in ExportNamedDeclaration visitor
+        // and outputs the declarations without the export keyword
+        let statement = if first_line_trimmed.starts_with("export function ")
+            || first_line_trimmed.starts_with("export const ")
+            || first_line_trimmed.starts_with("export class ")
+            || first_line_trimmed.starts_with("export var ")
+            || first_line_trimmed.starts_with("export async function ")
+        {
+            // Remove the "export " prefix from the first line
+            let mut lines: Vec<String> = accumulated.to_vec();
+            if let Some(first) = lines.first_mut()
+                && let Some(pos) = first.find("export ")
+            {
+                first.replace_range(pos..pos + 7, "");
+            }
+            lines.join("\n")
+        } else {
+            statement
+        };
+        let _first_line_trimmed = first_line_trimmed
+            .strip_prefix("export ")
+            .unwrap_or(first_line_trimmed);
 
         // Transform runes ($state, $derived, $effect, $props)
         let transformed = transform_client_runes_with_skip_and_state(

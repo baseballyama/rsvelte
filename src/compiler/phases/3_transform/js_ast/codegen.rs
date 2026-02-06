@@ -64,6 +64,7 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
         .build(&result.program)
         .code;
     let code = collapse_short_arrays(code);
+    let code = collapse_short_objects(code);
     // Collapse single-statement if blocks to inline form BEFORE adding blank lines,
     // since the blank line rules depend on the line structure (e.g. `}` → statement)
     let code = collapse_single_statement_ifs(code);
@@ -720,6 +721,134 @@ fn collapse_short_arrays(code: String) -> String {
     });
 
     result.into_owned()
+}
+
+/// Collapse short object literals from multi-line to single-line format.
+///
+/// OXC's codegen always formats objects with 2+ shorthand properties on separate lines.
+/// This function collapses objects that contain only simple shorthand identifiers
+/// to a single line format to match Svelte's esrap output.
+///
+/// Example:
+/// ```js
+/// // Input (OXC output):
+/// var $$exports = {
+///     one,
+///     two
+/// };
+/// // Output (Svelte format):
+/// var $$exports = { one, two };
+/// ```
+///
+/// Objects with getters, setters, or key-value pairs are NOT collapsed.
+fn collapse_short_objects(code: String) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    let mut result = String::with_capacity(code.len());
+    let mut i = 0;
+
+    while i < lines.len() {
+        let line = lines[i];
+        let trimmed = line.trim();
+
+        // Look for a line ending with `= {` or `: {` that starts an object literal
+        // Patterns: `var x = {`, `const x = {`, `let x = {`, or inside expressions
+        if trimmed.ends_with("= {") || trimmed.ends_with(": {") {
+            // Try to find matching closing `};` or `}`
+            let indent_level = line.len() - line.trim_start().len();
+            let indent_str = &line[..indent_level];
+            let inner_indent = if indent_level > 0 {
+                format!("{}\t", indent_str)
+            } else {
+                "\t".to_string()
+            };
+
+            // Collect all inner lines until we find the closing brace
+            let mut properties: Vec<&str> = Vec::new();
+            let mut j = i + 1;
+            let mut all_shorthand = true;
+            let mut found_close = false;
+
+            while j < lines.len() {
+                let inner_line = lines[j];
+                let inner_trimmed = inner_line.trim();
+
+                // Check if this is the closing brace at the same indent level
+                if (inner_trimmed == "};" || inner_trimmed == "}" || inner_trimmed == "},")
+                    && inner_line.starts_with(indent_str)
+                    && (inner_line.len() - inner_line.trim_start().len()) == indent_level
+                {
+                    found_close = true;
+                    break;
+                }
+
+                // Check if this line is at the expected inner indent level
+                if !inner_line.starts_with(&inner_indent) {
+                    break;
+                }
+
+                // Check if property is a simple shorthand identifier (optionally with trailing comma)
+                let prop = inner_trimmed.trim_end_matches(',');
+                if prop.is_empty()
+                    || prop.contains(':')
+                    || prop.contains('(')
+                    || prop.starts_with("get ")
+                    || prop.starts_with("set ")
+                    || prop.starts_with("...")
+                    || prop.contains(' ')
+                {
+                    all_shorthand = false;
+                    break;
+                }
+
+                // Verify it's a valid identifier (alphanumeric, _, $)
+                if !prop
+                    .chars()
+                    .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+                {
+                    all_shorthand = false;
+                    break;
+                }
+
+                properties.push(prop);
+                j += 1;
+            }
+
+            if found_close && all_shorthand && !properties.is_empty() {
+                // Collapse to single line
+                let closing_suffix = lines[j].trim();
+                let suffix = if closing_suffix == "};" {
+                    ";"
+                } else if closing_suffix == "}," {
+                    ","
+                } else {
+                    ""
+                };
+
+                // Get the opening part (everything before the `{`)
+                let open_part = trimmed.trim_end_matches('{').trim_end();
+                result.push_str(indent_str);
+                result.push_str(open_part);
+                result.push_str(" { ");
+                result.push_str(&properties.join(", "));
+                result.push_str(" }");
+                result.push_str(suffix);
+                result.push('\n');
+                i = j + 1;
+                continue;
+            }
+        }
+
+        result.push_str(line);
+        result.push('\n');
+        i += 1;
+    }
+
+    // Remove potential trailing newline added by the loop
+    if result.ends_with('\n') && !code.ends_with('\n') {
+        result.pop();
+    }
+
+    result
 }
 
 /// JavaScript code generator.
@@ -1820,6 +1949,77 @@ mod tests {
             code.contains("() => ({") || code.contains("()=>({"),
             "Object literal with getters in arrow function should be wrapped in parentheses: {}",
             code
+        );
+    }
+
+    #[test]
+    fn test_collapse_short_objects_full_program() {
+        // Test with a realistic full program like export-function-hoisting
+        let input = r#"import 'svelte/internal/disclose-version';
+import 'svelte/internal/flags/legacy';
+import * as $ from 'svelte/internal/client';
+
+export default function Main($$anchor, $$props) {
+	$.push($$props, false);
+
+	function one() {
+		two();
+	}
+
+	function two() {
+		return one();
+	}
+
+	var $$exports = { one, two };
+
+	$.next();
+
+	var text = $.text('Compile plz');
+
+	$.append($$anchor, text);
+	$.bind_prop($$props, 'one', one);
+	$.bind_prop($$props, 'two', two);
+
+	return $.pop($$exports);
+}"#;
+        let result = normalize_js(input).unwrap();
+        eprintln!("Full program result:\n{}", result);
+        assert!(
+            result.contains("var $$exports = { one, two };"),
+            "Full program should have single-line $$exports: {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_collapse_short_objects() {
+        // Test that short object shorthand properties are collapsed to single line
+        let result = normalize_js("var $$exports = { one, two };").unwrap();
+        assert!(
+            result.contains("var $$exports = { one, two };"),
+            "Two shorthand props should stay on one line: {:?}",
+            result
+        );
+
+        let result = normalize_js("var $$exports = { one };").unwrap();
+        assert!(
+            result.contains("var $$exports = { one };"),
+            "Single shorthand prop should stay on one line: {:?}",
+            result
+        );
+
+        let result = normalize_js("var $$exports = { one, two, three };").unwrap();
+        assert!(
+            result.contains("var $$exports = { one, two, three };"),
+            "Three shorthand props should stay on one line: {:?}",
+            result
+        );
+
+        let result = normalize_js("function f() {\n\tvar $$exports = { one, two };\n}").unwrap();
+        assert!(
+            result.contains("var $$exports = { one, two };"),
+            "Shorthand props inside function should stay on one line: {:?}",
+            result
         );
     }
 

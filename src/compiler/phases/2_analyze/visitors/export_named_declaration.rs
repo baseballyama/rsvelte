@@ -219,6 +219,14 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         }
     }
 
+    // Walk into the declaration so that expressions within it (e.g., function calls
+    // in `export let foo = get()`) are visited. Without this, CallExpression/MemberExpression/
+    // NewExpression visitors won't be triggered, and needs_context won't be set properly.
+    // Reference: The official Svelte compiler's visitor calls context.next() which walks children.
+    if let Some(declaration) = node.get("declaration") {
+        super::script::walk_js_node(declaration, context)?;
+    }
+
     Ok(())
 }
 
