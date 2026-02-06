@@ -1588,48 +1588,57 @@ fn build_bind_this_call(
     if let JsExpr::Sequence(seq) = &expression
         && seq.expressions.len() == 2
     {
+        // Apply transforms to getter and setter to wrap state variables with $.get()/$.set()
+        let getter = super::utils::apply_transforms_to_expression(&seq.expressions[0], context);
+        let setter = super::utils::apply_transforms_to_expression(&seq.expressions[1], context);
         return b::call(
             b::member_path("$.bind_this"),
             vec![
-                value,
-                seq.expressions[1].clone(), // setter
-                seq.expressions[0].clone(), // getter
+                value, setter, // setter
+                getter, // getter
             ],
         );
     }
 
     // Check if this is a simple identifier that needs $.get()/$.set() wrappers
-    // This includes legacy mode state variables (BindingKind::State) that will be
-    // transformed to $.mutable_source()
-    let needs_get_set = if let JsExpr::Identifier(name) = &expression {
-        // In legacy mode, check if this variable is a state variable
+    // This includes:
+    // - Legacy mode state variables (BindingKind::State) wrapped in $.mutable_source()
+    // - Runes mode state/derived/raw_state variables wrapped in $.state()/$.derived()
+    let (needs_get_set, needs_proxy) = if let JsExpr::Identifier(name) = &expression {
         use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-        !context.state.analysis.runes
-            && context
-                .state
-                .analysis
-                .root
-                .bindings
-                .iter()
-                .any(|b| b.name == *name && matches!(b.kind, BindingKind::State))
+        if let Some(binding) = context.state.get_binding(name) {
+            let is_state = matches!(
+                binding.kind,
+                BindingKind::State | BindingKind::Derived | BindingKind::RawState
+            );
+            // Proxy flag is needed for $state (deep reactivity) but not $derived or $state.raw
+            let proxy = is_state && matches!(binding.kind, BindingKind::State);
+            (is_state, proxy)
+        } else {
+            // Also check transform map (handles cases where binding is registered
+            // via add_state_transformers but not found via get_binding)
+            let has_transform = context.state.transform.contains_key(name);
+            (has_transform, false)
+        }
     } else {
-        false
+        (false, false)
     };
 
     if needs_get_set {
-        // For legacy state variables ($.mutable_source), use $.get() and $.set()
+        // For state/derived variables, use $.get() and $.set()
         // getter: () => $.get(expr)
-        // setter: ($$value) => $.set(expr, $$value)
+        // setter: ($$value) => $.set(expr, $$value[, true])
         let getter = b::arrow(
             vec![],
             b::call(b::member_path("$.get"), vec![expression.clone()]),
         );
+        let mut set_args = vec![expression.clone(), b::id("$$value")];
+        if needs_proxy {
+            set_args.push(b::boolean(true));
+        }
         let setter = b::arrow(
             vec![b::id_pattern("$$value")],
-            b::call(
-                b::member_path("$.set"),
-                vec![expression.clone(), b::id("$$value")],
-            ),
+            b::call(b::member_path("$.set"), set_args),
         );
 
         b::call(b::member_path("$.bind_this"), vec![value, setter, getter])

@@ -576,10 +576,13 @@ fn build_bind_this_call_for_context(
 ) -> JsExpr {
     // Check if expression is a sequence (getter/setter pair)
     if let Some(setter) = set {
-        // Already have getter/setter pair
+        // Already have getter/setter pair - apply transforms to wrap state vars with $.get()/$.set()
+        use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
+        let transformed_getter = apply_transforms_to_expression(get, context);
+        let transformed_setter = apply_transforms_to_expression(setter, context);
         b::call(
             b::member_path("$.bind_this"),
-            vec![value.clone(), setter.clone(), get.clone()],
+            vec![value.clone(), transformed_setter, transformed_getter],
         )
     } else {
         // Check if this is a simple identifier that's a prop
@@ -598,25 +601,23 @@ fn build_bind_this_call_for_context(
         // This includes:
         // 1. Variables with state transforms registered (runes mode $state, $derived)
         // 2. Variables with BindingKind::State (legacy mode mutable_source)
-        let has_state_transform = if let JsExpr::Identifier(name) = get {
-            // Check transform map first (runes mode)
-            if context.state.transform.get(name).is_some() {
-                true
+        let (has_state_transform, needs_proxy) = if let JsExpr::Identifier(name) = get {
+            use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+            if let Some(binding) = context.state.get_binding(name) {
+                let is_state = matches!(
+                    binding.kind,
+                    BindingKind::State | BindingKind::Derived | BindingKind::RawState
+                );
+                // Proxy flag for $state but not $derived or $state.raw
+                let proxy = is_state && matches!(binding.kind, BindingKind::State);
+                (is_state, proxy)
+            } else if context.state.transform.get(name).is_some() {
+                (true, false)
             } else {
-                // In legacy mode, check analysis.root.bindings for State binding kind
-                // This handles variables that will be wrapped in $.mutable_source()
-                use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-                !context.state.analysis.runes
-                    && context
-                        .state
-                        .analysis
-                        .root
-                        .bindings
-                        .iter()
-                        .any(|b| b.name == *name && matches!(b.kind, BindingKind::State))
+                (false, false)
             }
         } else {
-            false
+            (false, false)
         };
 
         if is_prop {
@@ -636,11 +637,15 @@ fn build_bind_this_call_for_context(
         } else if has_state_transform {
             // For state variables ($.mutable_source, $.state), use $.get() and $.set()
             // getter: () => $.get(expr)
-            // setter: ($$value) => $.set(expr, $$value)
+            // setter: ($$value) => $.set(expr, $$value[, true])
             let getter = b::arrow(vec![], b::call(b::member_path("$.get"), vec![get.clone()]));
+            let mut set_args = vec![get.clone(), b::id("$$value")];
+            if needs_proxy {
+                set_args.push(b::boolean(true));
+            }
             let setter = b::arrow(
                 vec![b::id_pattern("$$value")],
-                b::call(b::member_path("$.set"), vec![get.clone(), b::id("$$value")]),
+                b::call(b::member_path("$.set"), set_args),
             );
 
             b::call(
