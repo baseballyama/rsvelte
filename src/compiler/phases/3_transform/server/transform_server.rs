@@ -1257,7 +1257,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     } else {
                         value
                     };
-                    object_parts.push(format!("{}: {}", attr_name, value));
+                    object_parts.push(format!("{}: {}", quote_prop_name(attr_name), value));
                 }
                 Attribute::BindDirective(bind) => {
                     let bind_name = bind.name.as_str();
@@ -1265,7 +1265,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     let expr_end = bind.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {
                         let expr = self.source[expr_start..expr_end].trim().to_string();
-                        object_parts.push(format!("{}: {}", bind_name, expr));
+                        object_parts.push(format!("{}: {}", quote_prop_name(bind_name), expr));
                     }
                 }
                 Attribute::ClassDirective(class_dir) => {
@@ -1645,7 +1645,16 @@ impl<'a> ServerCodeGenerator<'a> {
                         }
                     }
                 }
-                // Handle spread later
+                Attribute::SpreadAttribute(spread) => {
+                    // Include spread attributes in the select attrs object
+                    let expr_start = spread.expression.start().unwrap_or(0) as usize;
+                    let expr_end = spread.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let expr = self.source[expr_start..expr_end].trim().to_string();
+                        let expr = Self::transform_rune_in_template_expr(&expr);
+                        attrs.push(("__spread__".to_string(), format!("...{}", expr)));
+                    }
+                }
                 _ => {}
             }
         }
@@ -1703,12 +1712,21 @@ impl<'a> ServerCodeGenerator<'a> {
         // Build the attributes object - other attrs first, then value
         let mut attr_parts = Vec::new();
         for (name, value) in &attrs {
-            attr_parts.push(format!("{}: {}", quote_prop_name(name), value));
+            if name == "__spread__" {
+                // Spread attributes: emit as ...expr
+                attr_parts.push(value.clone());
+            } else {
+                attr_parts.push(format!("{}: {}", quote_prop_name(name), value));
+            }
         }
         if let Some(value) = &value_expr {
             attr_parts.push(format!("value: {}", value));
         }
-        let attrs_obj = format!("{{ {} }}", attr_parts.join(", "));
+        let attrs_obj = if attr_parts.is_empty() {
+            "{}".to_string()
+        } else {
+            format!("{{ {} }}", attr_parts.join(", "))
+        };
 
         // Check if it has rich content (Components, RenderTags, etc.)
         let is_rich = Self::has_component_or_render_tag(&element.fragment.nodes);
