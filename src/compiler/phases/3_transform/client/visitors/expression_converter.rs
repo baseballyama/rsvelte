@@ -1605,6 +1605,16 @@ fn convert_update_expression(
 
     let argument_value = obj.get("argument");
 
+    // Before converting the argument (which applies read transforms), check if the
+    // argument is a simple identifier with an update transform registered. If so,
+    // apply the update transform directly to avoid invalid JS like $.get(x)++ or x()++.
+    if let Some(arg_val) = argument_value
+        && let Some(name) = extract_identifier_name_from_json(arg_val)
+        && let Some(update_fn) = context.state.transform.get(&name).and_then(|t| t.update)
+    {
+        return update_fn(operator, JsExpr::Identifier(name), prefix);
+    }
+
     // Check if the argument is a MemberExpression with a direct Identifier object
     let is_direct_member_update = if let Some(arg_obj) = argument_value.and_then(|a| a.as_object())
         && let Some("MemberExpression") = arg_obj.get("type").and_then(|t| t.as_str())
@@ -1652,6 +1662,17 @@ fn convert_update_expression(
         argument,
         prefix,
     })
+}
+
+/// Extract an identifier name from a JSON AST node if it's a simple Identifier.
+fn extract_identifier_name_from_json(value: &Value) -> Option<String> {
+    let obj = value.as_object()?;
+    let node_type = obj.get("type").and_then(|t| t.as_str())?;
+    if node_type == "Identifier" {
+        obj.get("name").and_then(|n| n.as_str()).map(String::from)
+    } else {
+        None
+    }
 }
 
 /// Try to apply reactive transformations to an update expression.

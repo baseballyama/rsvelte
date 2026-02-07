@@ -1752,6 +1752,46 @@ pub fn walk_js_expression(
                 walk_js_expression(expr, context, metadata)?;
             }
         }
+        Some("SpreadElement") => {
+            // Visit argument (e.g., ...foo => visit foo)
+            if let Some(argument) = expression.get("argument") {
+                walk_js_expression(argument, context, metadata)?;
+            }
+        }
+        Some("TemplateLiteral") => {
+            // Visit template literal expressions (e.g., `hello ${name}`)
+            if let Some(expressions) = expression.get("expressions").and_then(|e| e.as_array()) {
+                for expr in expressions {
+                    walk_js_expression(expr, context, metadata)?;
+                }
+            }
+        }
+        Some("TaggedTemplateExpression") => {
+            // Visit tag and quasi (e.g., tag`hello ${name}`)
+            if let Some(tag) = expression.get("tag") {
+                walk_js_expression(tag, context, metadata)?;
+            }
+            if let Some(quasi) = expression.get("quasi") {
+                walk_js_expression(quasi, context, metadata)?;
+            }
+        }
+        Some("NewExpression") => {
+            // Visit callee and arguments (e.g., new Foo(bar))
+            if let Some(callee) = expression.get("callee") {
+                walk_js_expression(callee, context, metadata)?;
+            }
+            if let Some(arguments) = expression.get("arguments").and_then(|a| a.as_array()) {
+                for arg in arguments {
+                    walk_js_expression(arg, context, metadata)?;
+                }
+            }
+        }
+        Some("ChainExpression") => {
+            // Visit expression (e.g., a?.b?.c)
+            if let Some(expr) = expression.get("expression") {
+                walk_js_expression(expr, context, metadata)?;
+            }
+        }
         // Literals and other leaf nodes - no recursion needed
         _ => {}
     }
