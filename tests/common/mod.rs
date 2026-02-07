@@ -473,6 +473,13 @@ pub fn normalize_js(js: &str) -> String {
         .replace("function (", "function(")
         .replace("function  (", "function(");
 
+    // Normalize trailing whitespace on each line (OXC strips trailing whitespace from comments)
+    let result = result
+        .lines()
+        .map(|l| l.trim_end())
+        .collect::<Vec<_>>()
+        .join("\n");
+
     // Normalize computed property name syntax: get ['x-y-z']() -> get 'x-y-z'()
     // OXC may use bracket syntax for computed property names, official compiler uses string literals
     let result = {
