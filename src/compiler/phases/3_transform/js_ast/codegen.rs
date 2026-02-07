@@ -2107,9 +2107,21 @@ impl JsCodegen {
         // - Arrow functions: (() => x)()
         // - Function expressions: (function() {})()
         // - Await expressions: (await x)()
+        // - Logical expressions: (a || b)()
+        // - Binary expressions: (a + b)()
+        // - Conditional expressions: (a ? b : c)()
+        // - Assignment expressions: (a = b)()
+        // - Sequence expressions: (a, b)()
         let needs_parens = matches!(
             call.callee.as_ref(),
-            JsExpr::Arrow(_) | JsExpr::Function(_) | JsExpr::Await(_)
+            JsExpr::Arrow(_)
+                | JsExpr::Function(_)
+                | JsExpr::Await(_)
+                | JsExpr::Logical(_)
+                | JsExpr::Binary(_)
+                | JsExpr::Conditional(_)
+                | JsExpr::Assignment(_)
+                | JsExpr::Sequence(_)
         );
         if needs_parens {
             self.output.push('(');

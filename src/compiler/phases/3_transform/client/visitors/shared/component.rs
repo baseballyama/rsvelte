@@ -1084,15 +1084,22 @@ fn process_attach_tag(
 ) {
     let expression = convert_expression(&attach.expression, context);
 
-    // Check if expression has state
-    let has_state = expression_might_have_state(&attach.expression);
+    // Check if expression has reactive state using the proper check
+    // This mirrors the official Svelte compiler: attribute.metadata.expression.has_state
+    let has_state = super::utils::expression_has_reactive_state(&attach.expression, context);
 
     let final_expr = if has_state {
+        // Apply transforms to the expression to convert state references to $.get() calls
+        // e.g., attachment(message) -> attachment($.get(message))
+        let transformed = super::utils::apply_transforms_to_expression(&expression, context);
+
         // Wrap in arrow function for reactive attach
+        // The structure is: ($$node) => (expression || $.noop)($$node)
+        // The logical OR wraps the expression, and the result is called with $$node
         b::arrow(
             vec![b::id_pattern("$$node")],
             b::call(
-                b::logical(JsLogicalOp::Or, expression, b::member_path("$.noop")),
+                b::logical(JsLogicalOp::Or, transformed, b::member_path("$.noop")),
                 vec![b::id("$$node")],
             ),
         )
@@ -1856,26 +1863,8 @@ fn add_svelte_meta(expression: JsExpr) -> JsStatement {
     b::stmt(expression)
 }
 
-/// Check if expression might have state (simplified check).
-fn expression_might_have_state(expr: &Expression) -> bool {
-    match expr {
-        Expression::Value(val) => {
-            if let Some(obj) = val.as_object() {
-                // Check for call expressions, member expressions, etc.
-                if let Some(expr_type) = obj.get("type").and_then(|t| t.as_str()) {
-                    matches!(
-                        expr_type,
-                        "CallExpression" | "MemberExpression" | "ConditionalExpression"
-                    )
-                } else {
-                    false
-                }
-            } else {
-                false
-            }
-        }
-    }
-}
+// NOTE: expression_might_have_state was removed in favor of
+// super::utils::expression_has_reactive_state which properly checks bindings.
 
 /// Extract identifier name from an expression.
 fn extract_identifier_name(expr: &Expression) -> Option<String> {

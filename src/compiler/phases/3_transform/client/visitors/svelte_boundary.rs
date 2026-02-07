@@ -37,33 +37,38 @@ pub fn svelte_boundary(node: &SvelteElement, context: &mut ComponentContext) {
                 continue;
             }
 
-            // Check for expression in Sequence
-            if let AttributeValue::Sequence(parts) = &attr.value
+            // Extract the expression from the attribute value
+            let orig_expression = if let AttributeValue::Sequence(parts) = &attr.value
                 && let Some(AttributeValuePart::ExpressionTag(expr_tag)) = parts.first()
             {
-                let expression = convert_expression(&expr_tag.expression, context);
+                Some(&expr_tag.expression)
+            } else if let AttributeValue::Expression(expr_tag) = &attr.value {
+                Some(&expr_tag.expression)
+            } else {
+                None
+            };
 
-                // Add as property
-                props.push(JsObjectMember::Property(JsProperty {
-                    key: JsPropertyKey::Identifier(attr.name.to_string()),
-                    value: Box::new(expression),
-                    kind: JsPropertyKind::Init,
-                    computed: false,
-                    shorthand: false,
-                }));
-            }
+            if let Some(orig_expr) = orig_expression {
+                // Check if the expression has reactive state
+                // This mirrors the official Svelte compiler: chunk.metadata.expression.has_state
+                let has_state =
+                    super::shared::utils::expression_has_reactive_state(orig_expr, context);
 
-            // Check for direct expression value
-            if let AttributeValue::Expression(expr_tag) = &attr.value {
-                let expression = convert_expression(&expr_tag.expression, context);
+                // Convert expression and apply transforms (e.g., onerror -> $.get(onerror))
+                let expression = convert_expression(orig_expr, context);
+                let transformed =
+                    super::shared::utils::apply_transforms_to_expression(&expression, context);
 
-                props.push(JsObjectMember::Property(JsProperty {
-                    key: JsPropertyKey::Identifier(attr.name.to_string()),
-                    value: Box::new(expression),
-                    kind: JsPropertyKind::Init,
-                    computed: false,
-                    shorthand: false,
-                }));
+                if has_state {
+                    // Use getter for reactive values: get onerror() { return $.get(onerror); }
+                    props.push(b::getter(
+                        attr.name.as_str(),
+                        vec![b::return_value(transformed)],
+                    ));
+                } else {
+                    // Use init for static values
+                    props.push(b::prop(attr.name.as_str(), transformed));
+                }
             }
         }
     }

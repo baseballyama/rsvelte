@@ -10,6 +10,7 @@ use crate::ast::js::Expression;
 use crate::ast::template::RenderTag;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_expression;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 
@@ -52,17 +53,29 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
     let call_expr = unwrap_optional(&node.expression);
 
     // Extract arguments and wrap them in thunks
-    let args: Vec<JsExpr> = extract_call_arguments(&call_expr)
+    // Reference: RenderTag.js lines 22-33
+    let raw_args = extract_call_arguments(&call_expr);
+    let args: Vec<JsExpr> = raw_args
         .iter()
-        .map(|arg| {
+        .enumerate()
+        .map(|(i, arg)| {
             let converted = convert_expression(arg, context);
-            b::thunk(converted)
+            // Get metadata from analysis for this argument, or compute from expression
+            let template_metadata = node.metadata.arguments.get(i).cloned().unwrap_or_default();
+            let metadata = ExpressionMetadata::from_template_metadata(&template_metadata);
+            // Apply transforms ($.get() wrapping for reactive state variables)
+            let built = build_expression(context, &converted, &metadata);
+            b::thunk(built)
         })
         .collect();
 
     // Get the snippet function (callee)
+    // Reference: RenderTag.js lines 40-44
     let snippet_function = if let Some(callee) = extract_call_callee(&call_expr) {
-        convert_expression(&callee, context)
+        let converted = convert_expression(&callee, context);
+        // Apply transforms to the callee too (e.g., for derived snippet variables)
+        let metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
+        build_expression(context, &converted, &metadata)
     } else {
         // Fallback - shouldn't normally happen
         b::id("$$snippet")
