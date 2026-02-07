@@ -645,9 +645,11 @@ fn transform_client_with_visitors(
 
     // Add module script non-import content (exports, declarations, etc.)
     // This comes after module_level_snippets so that `export { foo }` can reference `const foo`
-    // Transform rune calls ($state, $derived, etc.) in module-level script
+    // Transform class fields first (before rune transforms strip the rune names)
+    // Then transform remaining rune calls ($state, $derived, etc.) in module-level script
     if let Some(non_imports) = module_script_non_imports {
-        let transformed = transform_module_script_runes(&non_imports);
+        let class_transformed = transform_class_fields_client(&non_imports);
+        let transformed = transform_module_script_runes(&class_transformed);
         body.push(JsStatement::Raw(transformed));
     }
 
@@ -7376,9 +7378,10 @@ fn transform_class_fields_client(script: &str) -> String {
                 class_level.push(field);
             }
         }
-        // Class-level fields first, then constructor public, then constructor private
-        fields.extend(class_level);
+        // Constructor-declared public fields first (need backing field + getter/setter at top),
+        // then class-level fields (in original order), then constructor-declared private fields
         fields.extend(ctor_public);
+        fields.extend(class_level);
         fields.extend(ctor_private);
     }
 
@@ -7490,10 +7493,12 @@ fn transform_class_fields_client(script: &str) -> String {
     }
 
     // Add non-rune fields (private fields, regular fields without $state/$derived)
-    // These need to be preserved in their original form
-    for field_line in &non_rune_fields {
-        new_class_body.push_str(field_line);
-        if !field_line.ends_with('\n') {
+    // These need to be transformed for private state field accesses ($.get/$.set)
+    {
+        let non_rune_content = non_rune_fields.join("\n");
+        let transformed_non_rune = transform_class_methods(&non_rune_content, &fields);
+        for line in transformed_non_rune.lines() {
+            new_class_body.push_str(line);
             new_class_body.push('\n');
         }
     }
@@ -7503,7 +7508,8 @@ fn transform_class_fields_client(script: &str) -> String {
         new_class_body.push('\n');
         new_class_body.push_str(&format!("\t\tconstructor({}) {{\n", constructor_params));
 
-        // Transform constructor content
+        // Transform constructor content - first apply this.#name transforms
+        let mut ctor_body = String::new();
         for line in constructor_content.lines() {
             let trimmed = line.trim();
             if trimmed.is_empty() {
@@ -7511,8 +7517,12 @@ fn transform_class_fields_client(script: &str) -> String {
             }
 
             let transformed_line = transform_constructor_assignment(trimmed, &fields);
-            new_class_body.push_str(&format!("\t\t\t{}\n", transformed_line));
+            ctor_body.push_str(&format!("\t\t\t{}\n", transformed_line));
         }
+
+        // Also apply transforms for non-this prefixes (e.g., instance.#count, self.#name)
+        let ctor_transformed = transform_class_methods_non_this(&ctor_body, &fields);
+        new_class_body.push_str(&ctor_transformed);
 
         new_class_body.push_str("\t\t}\n");
     }
@@ -7542,9 +7552,12 @@ fn transform_class_fields_client(script: &str) -> String {
     let before_class = &script[..class_pos];
     let after_class_body = &script[class_body_end + 1..]; // Skip closing brace
 
+    // Recursively process remaining classes in the script
+    let after_class_transformed = transform_class_fields_client(after_class_body);
+
     format!(
         "{}{}\n{}\t}}{}",
-        before_class, class_header, new_class_body, after_class_body
+        before_class, class_header, new_class_body, after_class_transformed
     )
 }
 
@@ -7642,10 +7655,61 @@ fn parse_constructor_state_assignment(
     })
 }
 
+/// Find all variable prefixes used with a private field in content.
+/// For example, for field name "count", finds "this", "self", "instance" etc.
+/// from patterns like `this.#count`, `self.#count`, `instance.#count`.
+fn find_private_field_prefixes(content: &str, field_name: &str) -> Vec<String> {
+    let mut prefixes = Vec::new();
+    let hash_pattern = format!(".#{}", field_name);
+
+    let mut search_from = 0;
+    while let Some(pos) = content[search_from..].find(&hash_pattern) {
+        let abs_pos = search_from + pos;
+        // Check the character after the field name to ensure it's a word boundary
+        let after_pos = abs_pos + hash_pattern.len();
+        if after_pos < content.len() {
+            let next_char = content.as_bytes()[after_pos] as char;
+            if next_char.is_alphanumeric() || next_char == '_' {
+                search_from = abs_pos + 1;
+                continue;
+            }
+        }
+
+        // Walk backwards to find the identifier prefix
+        if abs_pos > 0 {
+            let before = &content[..abs_pos];
+            let prefix_end = before.len();
+            let mut prefix_start = prefix_end;
+            for (i, c) in before.char_indices().rev() {
+                if c.is_alphanumeric() || c == '_' || c == '$' {
+                    prefix_start = i;
+                } else {
+                    break;
+                }
+            }
+            if prefix_start < prefix_end {
+                let prefix = &before[prefix_start..prefix_end];
+                if !prefix.is_empty() && !prefixes.contains(&prefix.to_string()) {
+                    prefixes.push(prefix.to_string());
+                }
+            }
+        }
+        search_from = abs_pos + 1;
+    }
+
+    // Always include "this" if not already present
+    if !prefixes.contains(&"this".to_string()) {
+        prefixes.push("this".to_string());
+    }
+
+    prefixes
+}
+
 /// Transform class methods to use $.get() for state field accesses.
 ///
 /// For private state fields (those initialized with $state or $derived),
-/// we need to wrap accesses with $.get() and mutations with $.get().
+/// we need to wrap accesses with $.get() and mutations with $.set().
+/// Handles any variable prefix (this, self, instance, etc.) not just `this`.
 fn transform_class_methods(content: &str, fields: &[ClassStateField]) -> String {
     if content.trim().is_empty() || fields.is_empty() {
         return content.to_string();
@@ -7653,47 +7717,14 @@ fn transform_class_methods(content: &str, fields: &[ClassStateField]) -> String 
 
     let mut result = content.to_string();
 
-    // Transform accesses to private state fields
-    // this.#name -> $.get(this.#name) when reading
-    // this.#name.prop -> $.get(this.#name).prop when accessing properties
+    // For each private field, find all prefixes and apply transforms
     for field in fields {
-        if field.is_private {
-            let private_name = format!("this.#{}", field.private_backing_name);
+        let prefixes = find_private_field_prefixes(&result, &field.private_backing_name);
 
-            // Don't transform if it's on the left side of an assignment
-            // We need to handle this more carefully - for mutations like this.#a.val += 1,
-            // we want $.get(this.#a).val += 1
+        for prefix in &prefixes {
+            let qualified = format!("{}.#{}", prefix, field.private_backing_name);
 
-            // Replace property access patterns: this.#name. -> $.get(this.#name).
-            // But NOT this.#name = (direct assignment)
-            let property_access_pattern = format!("{}.", private_name);
-            let getter_wrapped = format!("$.get({}).", private_name);
-
-            // Replace optional chaining patterns: this.#name?. -> $.get(this.#name)?.
-            let optional_access_pattern = format!("{}?.", private_name);
-            let optional_getter_wrapped = format!("$.get({})?.?.", private_name);
-
-            result = result.replace(&property_access_pattern, &getter_wrapped);
-            result = result.replace(&optional_access_pattern, &optional_getter_wrapped);
-
-            // Handle cases where this.#name is used in a return statement without property access
-            // return this.#name -> return $.get(this.#name)
-            let return_pattern = format!("return {};", private_name);
-            let return_wrapped = format!("return $.get({});", private_name);
-            result = result.replace(&return_pattern, &return_wrapped);
-
-            // Handle optional access in return: return this.#name?. -> return $.get(this.#name)?.
-            let return_optional_pattern = format!("return {}?.", private_name);
-            let return_optional_wrapped = format!("return $.get({})?.", private_name);
-            result = result.replace(&return_optional_pattern, &return_optional_wrapped);
-        }
-    }
-
-    // Transform direct assignments: this.#name = value -> $.set(this.#name, value)
-    // and compound assignments: this.#name += value -> $.set(this.#name, $.get(this.#name) + value)
-    for field in fields {
-        if field.is_private {
-            let private_name = format!("this.#{}", field.private_backing_name);
+            // First handle assignments (must be done before reads to avoid conflicts)
 
             // Handle compound assignment operators: +=, -=, *=, /=, %=, **=
             let compound_ops: &[(&str, &str)] = &[
@@ -7705,9 +7736,8 @@ fn transform_class_methods(content: &str, fields: &[ClassStateField]) -> String 
                 ("%=", "%"),
             ];
             for (assign_op, binary_op) in compound_ops {
-                let pattern = format!("{} {} ", private_name, assign_op);
+                let pattern = format!("{} {} ", qualified, assign_op);
                 while let Some(pos) = result.find(&pattern) {
-                    // Find the end of the statement (semicolon)
                     let value_start = pos + pattern.len();
                     let rest = &result[value_start..];
                     let value_end = rest.find(';').unwrap_or(rest.len());
@@ -7716,12 +7746,12 @@ fn transform_class_methods(content: &str, fields: &[ClassStateField]) -> String 
                     let replacement = if needs_proxy {
                         format!(
                             "$.set({}, $.get({}) {} {}, true)",
-                            private_name, private_name, binary_op, value
+                            qualified, qualified, binary_op, value
                         )
                     } else {
                         format!(
                             "$.set({}, $.get({}) {} {})",
-                            private_name, private_name, binary_op, value
+                            qualified, qualified, binary_op, value
                         )
                     };
                     result = format!(
@@ -7733,11 +7763,10 @@ fn transform_class_methods(content: &str, fields: &[ClassStateField]) -> String 
                 }
             }
 
-            // Handle direct assignment: this.#name = value -> $.set(this.#name, value)
-            let assign_pattern = format!("{} = ", private_name);
-            // Need to avoid matching $.set(this.#name, ...) or $.get(this.#name)
+            // Handle direct assignment: prefix.#name = value -> $.set(prefix.#name, value)
+            let assign_pattern = format!("{} = ", qualified);
             while let Some(pos) = result.find(&assign_pattern) {
-                // Check if this is already inside a $.set() or $.get() call
+                // Check if already inside a $.set() or $.get() call
                 let before = &result[..pos];
                 if before.ends_with("$.set(") || before.ends_with("$.get(") {
                     break;
@@ -7748,9 +7777,9 @@ fn transform_class_methods(content: &str, fields: &[ClassStateField]) -> String 
                 let value = rest[..value_end].trim();
                 let needs_proxy = field.rune_type == "$state" && expression_needs_proxy(value);
                 let replacement = if needs_proxy {
-                    format!("$.set({}, {}, true)", private_name, value)
+                    format!("$.set({}, {}, true)", qualified, value)
                 } else {
-                    format!("$.set({}, {})", private_name, value)
+                    format!("$.set({}, {})", qualified, value)
                 };
                 result = format!(
                     "{}{}{}",
@@ -7760,35 +7789,228 @@ fn transform_class_methods(content: &str, fields: &[ClassStateField]) -> String 
                 );
             }
 
-            // Handle increment: this.#name++ or ++this.#name ($.update)
-            let post_inc = format!("{}++", private_name);
+            // Handle increment: prefix.#name++ or ++prefix.#name
+            let post_inc = format!("{}++", qualified);
             while result.contains(&post_inc) {
-                let replacement = format!("$.update({})", private_name);
+                let replacement = format!("$.update({})", qualified);
                 result = result.replacen(&post_inc, &replacement, 1);
             }
-            let pre_inc = format!("++{}", private_name);
+            let pre_inc = format!("++{}", qualified);
             while result.contains(&pre_inc) {
-                let replacement = format!("$.update_pre({})", private_name);
+                let replacement = format!("$.update_pre({})", qualified);
                 result = result.replacen(&pre_inc, &replacement, 1);
             }
 
-            // Handle decrement: this.#name-- or --this.#name ($.update)
-            let post_dec = format!("{}--", private_name);
+            // Handle decrement: prefix.#name-- or --prefix.#name
+            let post_dec = format!("{}--", qualified);
             while result.contains(&post_dec) {
-                let replacement = format!("$.update({}, -1)", private_name);
+                let replacement = format!("$.update({}, -1)", qualified);
                 result = result.replacen(&post_dec, &replacement, 1);
             }
-            let pre_dec = format!("--{}", private_name);
+            let pre_dec = format!("--{}", qualified);
             while result.contains(&pre_dec) {
-                let replacement = format!("$.update_pre({}, -1)", private_name);
+                let replacement = format!("$.update_pre({}, -1)", qualified);
                 result = result.replacen(&pre_dec, &replacement, 1);
             }
+
+            // Now handle reads: property access, optional chaining, standalone reads
+
+            // Replace property access patterns: prefix.#name. -> $.get(prefix.#name).
+            let property_access_pattern = format!("{}.", qualified);
+            let getter_wrapped = format!("$.get({}).", qualified);
+            result = result.replace(&property_access_pattern, &getter_wrapped);
+
+            // Replace optional chaining patterns: prefix.#name?. -> $.get(prefix.#name)?.
+            let optional_access_pattern = format!("{}?.", qualified);
+            let optional_getter_wrapped = format!("$.get({})?.?.", qualified);
+            result = result.replace(&optional_access_pattern, &optional_getter_wrapped);
+
+            // Wrap standalone reads of prefix.#name that aren't already wrapped
+            // This handles: return prefix.#name; and other standalone uses
+            result = wrap_standalone_private_reads(&result, &qualified);
         }
     }
 
     // Clean up any double wrapping that might have occurred
     result = result.replace("$.get($.get(", "$.get(");
     // Fix optional chaining that got double-wrapped
+    result = result.replace("?.?.", "?.");
+
+    result
+}
+
+/// Wrap standalone reads of a qualified private field (e.g., `this.#count`)
+/// with `$.get()`. Handles patterns like:
+/// - `return this.#count;`
+/// - `return this.#count`  (without semicolon)
+/// - `... this.#count)` (in expressions)
+/// - `this.#count,` (in argument lists)
+/// - arrow function bodies: `() => this.#count + 1`
+fn wrap_standalone_private_reads(content: &str, qualified: &str) -> String {
+    let mut result = content.to_string();
+
+    // Find all occurrences of the qualified name that aren't already wrapped
+    let mut search_from = 0;
+    while let Some(pos) = result[search_from..].find(qualified) {
+        let abs_pos = search_from + pos;
+        let after_pos = abs_pos + qualified.len();
+
+        // Check what comes after - if it's already handled (assignment, increment, property access)
+        // or already inside $.get(), $.set(), $.update(), $.update_pre(), skip it
+        let before = &result[..abs_pos];
+        if before.ends_with("$.get(")
+            || before.ends_with("$.set(")
+            || before.ends_with("$.update(")
+            || before.ends_with("$.update_pre(")
+        {
+            search_from = after_pos;
+            continue;
+        }
+
+        // Check character after
+        let next_char = if after_pos < result.len() {
+            Some(result.as_bytes()[after_pos] as char)
+        } else {
+            None
+        };
+
+        // If followed by = (assignment), ++ or -- (increment/decrement), . (property access),
+        // ? (optional chain), or alphanumeric (part of longer name), skip
+        match next_char {
+            Some('.') | Some('?') | Some('+') | Some('-') => {
+                search_from = after_pos;
+                continue;
+            }
+            Some('=') => {
+                // Check if it's == (comparison) vs = (assignment)
+                if after_pos + 1 < result.len() && result.as_bytes()[after_pos + 1] == b'=' {
+                    // It's == or ===, this is a read - wrap it
+                } else {
+                    // It's an assignment, skip
+                    search_from = after_pos;
+                    continue;
+                }
+            }
+            Some(c) if c.is_alphanumeric() || c == '_' => {
+                search_from = after_pos;
+                continue;
+            }
+            _ => {}
+        }
+
+        // This is a standalone read - wrap with $.get()
+        let wrapped = format!("$.get({})", qualified);
+        result = format!("{}{}{}", &result[..abs_pos], wrapped, &result[after_pos..]);
+        search_from = abs_pos + wrapped.len();
+    }
+
+    result
+}
+
+/// Like `transform_class_methods` but only transforms non-`this` prefixes.
+/// Used for constructor bodies where `this.#name` is already handled by
+/// `transform_constructor_assignment`, but other prefixes like `instance.#name`
+/// or `self.#name` still need to be wrapped with $.get()/$.set().
+fn transform_class_methods_non_this(content: &str, fields: &[ClassStateField]) -> String {
+    if content.trim().is_empty() || fields.is_empty() {
+        return content.to_string();
+    }
+
+    let mut result = content.to_string();
+
+    for field in fields {
+        let prefixes = find_private_field_prefixes(&result, &field.private_backing_name);
+
+        for prefix in &prefixes {
+            // Skip "this" - it's already handled by transform_constructor_assignment
+            if prefix == "this" {
+                continue;
+            }
+
+            let qualified = format!("{}.#{}", prefix, field.private_backing_name);
+
+            // Handle compound assignments
+            let compound_ops: &[(&str, &str)] = &[
+                ("**=", "**"),
+                ("+=", "+"),
+                ("-=", "-"),
+                ("*=", "*"),
+                ("/=", "/"),
+                ("%=", "%"),
+            ];
+            for (assign_op, binary_op) in compound_ops {
+                let pattern = format!("{} {} ", qualified, assign_op);
+                while let Some(pos) = result.find(&pattern) {
+                    let value_start = pos + pattern.len();
+                    let rest = &result[value_start..];
+                    let value_end = rest.find(';').unwrap_or(rest.len());
+                    let value = rest[..value_end].trim();
+                    let replacement = format!(
+                        "$.set({}, $.get({}) {} {})",
+                        qualified, qualified, binary_op, value
+                    );
+                    result = format!(
+                        "{}{}{}",
+                        &result[..pos],
+                        replacement,
+                        &result[value_start + value_end..]
+                    );
+                }
+            }
+
+            // Handle direct assignment
+            let assign_pattern = format!("{} = ", qualified);
+            while let Some(pos) = result.find(&assign_pattern) {
+                let before = &result[..pos];
+                if before.ends_with("$.set(") || before.ends_with("$.get(") {
+                    break;
+                }
+                let value_start = pos + assign_pattern.len();
+                let rest = &result[value_start..];
+                let value_end = rest.find(';').unwrap_or(rest.len());
+                let value = rest[..value_end].trim();
+                let replacement = format!("$.set({}, {})", qualified, value);
+                result = format!(
+                    "{}{}{}",
+                    &result[..pos],
+                    replacement,
+                    &result[value_start + value_end..]
+                );
+            }
+
+            // Handle increment/decrement
+            let post_inc = format!("{}++", qualified);
+            while result.contains(&post_inc) {
+                result = result.replacen(&post_inc, &format!("$.update({})", qualified), 1);
+            }
+            let pre_inc = format!("++{}", qualified);
+            while result.contains(&pre_inc) {
+                result = result.replacen(&pre_inc, &format!("$.update_pre({})", qualified), 1);
+            }
+            let post_dec = format!("{}--", qualified);
+            while result.contains(&post_dec) {
+                result = result.replacen(&post_dec, &format!("$.update({}, -1)", qualified), 1);
+            }
+            let pre_dec = format!("--{}", qualified);
+            while result.contains(&pre_dec) {
+                result = result.replacen(&pre_dec, &format!("$.update_pre({}, -1)", qualified), 1);
+            }
+
+            // Handle reads
+            let property_access_pattern = format!("{}.", qualified);
+            let getter_wrapped = format!("$.get({}).", qualified);
+            result = result.replace(&property_access_pattern, &getter_wrapped);
+
+            let optional_access_pattern = format!("{}?.", qualified);
+            let optional_getter_wrapped = format!("$.get({})?.?.", qualified);
+            result = result.replace(&optional_access_pattern, &optional_getter_wrapped);
+
+            result = wrap_standalone_private_reads(&result, &qualified);
+        }
+    }
+
+    // Clean up
+    result = result.replace("$.get($.get(", "$.get(");
     result = result.replace("?.?.", "?.");
 
     result

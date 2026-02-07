@@ -158,6 +158,8 @@ pub fn fragment(
         is_controlled_each: false,
         snippets: Vec::new(),
         template_nesting_level: 0, // Reset to 0 for root fragment
+        each_index_used: context.state.each_index_used.clone(),
+        each_index_name: context.state.each_index_name.clone(),
     };
 
     // Swap context.state with our local state so that process_children uses it

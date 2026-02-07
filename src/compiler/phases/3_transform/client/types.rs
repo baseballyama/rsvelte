@@ -13,6 +13,7 @@ use crate::compiler::phases::phase3_transform::client::transform_template::Templ
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use im::{HashMap as ImHashMap, HashSet as ImHashSet};
 use rustc_hash::{FxHashMap, FxHashSet};
+use std::cell::Cell;
 use std::rc::Rc;
 
 /// Component transformation context.
@@ -922,6 +923,15 @@ pub struct ComponentClientTransformState<'a> {
     /// This is used by place_snippet_declaration to determine if a snippet is at root level.
     /// A value of 0 means we're at the component root, >0 means inside an element/block.
     pub template_nesting_level: usize,
+
+    /// Shared flag for tracking whether the each block index variable was accessed
+    /// during body traversal. Uses Rc<Cell<bool>> for interior mutability since
+    /// transform read callbacks are function pointers that can't capture mutable state.
+    pub each_index_used: Rc<Cell<bool>>,
+
+    /// The name of the current each block's index variable, if any.
+    /// Used by apply_transforms_to_expression_with_shadowed to detect index accesses.
+    pub each_index_name: Option<String>,
 }
 
 impl<'a> ComponentClientTransformState<'a> {
@@ -969,6 +979,8 @@ impl<'a> ComponentClientTransformState<'a> {
             is_controlled_each: false,
             snippets: Vec::new(),
             template_nesting_level: 0,
+            each_index_used: Rc::new(Cell::new(false)),
+            each_index_name: None,
         }
     }
 

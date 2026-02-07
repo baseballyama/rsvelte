@@ -130,6 +130,14 @@ fn apply_transforms_to_expression_with_shadowed(
             if shadowed.contains(name) {
                 return expr.clone();
             }
+            // Track each block index usage for proper callback parameter generation.
+            // When the index variable is referenced during body traversal, we need
+            // to include it in the render callback parameters.
+            if let Some(ref idx_name) = context.state.each_index_name
+                && name == idx_name
+            {
+                context.state.each_index_used.set(true);
+            }
             // Check if there's a transform registered for this identifier
             if let Some(transform) = context.state.transform.get(name)
                 && let Some(read_fn) = transform.read
