@@ -43,6 +43,57 @@ fn is_valid_js_identifier(name: &str) -> bool {
     true
 }
 
+/// Strip TypeScript type annotations from snippet parameters.
+///
+/// Handles cases like:
+/// - `n: number` -> `n`
+/// - `n` -> `n` (no change)
+/// - `{ a, b }: Props` -> `{ a, b }` (destructured with type annotation)
+///
+/// This is needed because snippet parameters in `.svelte` files with `lang="ts"`
+/// may include TypeScript type annotations that must not appear in the generated JavaScript.
+fn strip_ts_type_annotation(param: &str) -> String {
+    let trimmed = param.trim();
+
+    // Handle destructured parameters: { ... }: Type or [ ... ]: Type
+    if trimmed.starts_with('{') || trimmed.starts_with('[') {
+        let close_char = if trimmed.starts_with('{') { '}' } else { ']' };
+        // Find the matching closing bracket
+        let mut depth = 0;
+        let mut close_pos = None;
+        for (i, c) in trimmed.char_indices() {
+            match c {
+                '{' | '[' => depth += 1,
+                '}' | ']' if c == close_char => {
+                    depth -= 1;
+                    if depth == 0 {
+                        close_pos = Some(i);
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        if let Some(pos) = close_pos {
+            // Return everything up to and including the closing bracket
+            return trimmed[..=pos].to_string();
+        }
+    }
+
+    // Handle simple identifier with type annotation: `name: Type`
+    // Be careful not to strip object destructuring rename syntax
+    if let Some(colon_pos) = trimmed.find(':') {
+        let before = trimmed[..colon_pos].trim();
+        // Only strip if the part before `:` is a valid identifier
+        // (not a destructuring pattern)
+        if is_valid_js_identifier(before) {
+            return before.to_string();
+        }
+    }
+
+    trimmed.to_string()
+}
+
 /// Check if a class attribute value needs to be wrapped in $.clsx().
 ///
 /// Corresponds to the condition in Attribute.js for setting needs_clsx:
@@ -536,6 +587,13 @@ enum OutputPart {
     },
     /// Hydration anchor marker - outputs "<!>" after Components/RenderTags/HtmlTags in select/optgroup
     HydrationAnchor,
+    /// Local snippet function declaration (e.g., `function failed($$renderer, e) { ... }`)
+    /// Used for snippets inside svelte:boundary that need to be local functions
+    SnippetFunction {
+        name: String,
+        params: Vec<String>,
+        body: Vec<OutputPart>,
+    },
 }
 
 impl<'a> ServerCodeGenerator<'a> {
@@ -1081,14 +1139,17 @@ impl<'a> ServerCodeGenerator<'a> {
             // First, filter out comments and find meaningful content boundaries
             let children: Vec<_> = element.fragment.nodes.iter().collect();
 
-            // Find first and last non-whitespace, non-comment children
+            // Find first and last non-whitespace, non-comment, non-snippet children
+            // Snippet blocks are hoisted and don't produce inline output
             let _first_content = children.iter().position(|c| {
                 !matches!(c, TemplateNode::Text(t) if t.data.trim().is_empty())
                     && !matches!(c, TemplateNode::Comment(_))
+                    && !matches!(c, TemplateNode::SnippetBlock(_))
             });
             let last_content = children.iter().rposition(|c| {
                 !matches!(c, TemplateNode::Text(t) if t.data.trim().is_empty())
                     && !matches!(c, TemplateNode::Comment(_))
+                    && !matches!(c, TemplateNode::SnippetBlock(_))
             });
 
             let mut has_output_content = false;
@@ -1202,8 +1263,11 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
 
                 self.generate_node(child, false)?;
-                has_output_content = true;
-                is_first_content = false;
+                // Snippet blocks are hoisted and don't produce inline output
+                if !matches!(child, TemplateNode::SnippetBlock(_)) {
+                    has_output_content = true;
+                    is_first_content = false;
+                }
             }
 
             // For select/optgroup with Component/RenderTag/HtmlTag, add <!> marker before closing tag
@@ -3216,7 +3280,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     "snippet".to_string()
                 };
 
-                // Extract parameters
+                // Extract parameters (strip TypeScript type annotations)
                 let params: Vec<String> = snippet_block
                     .parameters
                     .iter()
@@ -3224,7 +3288,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         let start = p.start().unwrap_or(0) as usize;
                         let end = p.end().unwrap_or(0) as usize;
                         if end > start && end <= self.source.len() {
-                            self.source[start..end].trim().to_string()
+                            strip_ts_type_annotation(&self.source[start..end])
                         } else {
                             String::new()
                         }
@@ -3347,13 +3411,12 @@ impl<'a> ServerCodeGenerator<'a> {
         {
             if i == start_idx {
                 // First node - if it's text, trim leading whitespace but preserve trailing space
-                // if followed by a non-expression-tag node
+                // if there is a following node (the space separates text from expression/element)
                 if let TemplateNode::Text(text) = node {
                     let trimmed = text.data.trim_start();
-                    // Check if there's a next node and it's not an expression tag
+                    // Check if there's a next node - preserve trailing space if so
                     let next_node = body_nodes.get(i + 1);
                     let needs_trailing_space = next_node.is_some()
-                        && !matches!(next_node, Some(TemplateNode::ExpressionTag(_)))
                         && text.data.chars().last().is_some_and(|c| c.is_whitespace());
 
                     let trimmed_end = trimmed.trim_end();
@@ -4021,7 +4084,7 @@ impl<'a> ServerCodeGenerator<'a> {
             "snippet".to_string()
         };
 
-        // Extract parameters
+        // Extract parameters (strip TypeScript type annotations)
         let params: Vec<String> = block
             .parameters
             .iter()
@@ -4029,7 +4092,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 let start = p.start().unwrap_or(0) as usize;
                 let end = p.end().unwrap_or(0) as usize;
                 if end > start && end <= self.source.len() {
-                    self.source[start..end].trim().to_string()
+                    strip_ts_type_annotation(&self.source[start..end])
                 } else {
                     String::new()
                 }
@@ -4076,20 +4139,31 @@ impl<'a> ServerCodeGenerator<'a> {
             break;
         }
 
+        // Compute standalone-ness for the trimmed fragment
+        let is_standalone = Self::is_standalone_fragment(
+            &body_nodes[start_idx..end_idx]
+                .iter()
+                .map(|n| (*n).clone())
+                .collect::<Vec<_>>(),
+        );
+        body_generator.skip_hydration_boundaries = is_standalone;
+
         // Check if first node is text or expression tag - if so, we need hydration marker
         // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/utils.js clean_nodes()
         // This prevents text from being fused with its surroundings during hydration
-        let first_node = body_nodes.get(start_idx);
-        let is_text_first = matches!(
-            first_node,
-            Some(TemplateNode::Text(_)) | Some(TemplateNode::ExpressionTag(_))
-        );
+        if !is_standalone {
+            let first_node = body_nodes.get(start_idx);
+            let is_text_first = matches!(
+                first_node,
+                Some(TemplateNode::Text(_)) | Some(TemplateNode::ExpressionTag(_))
+            );
 
-        // Add hydration marker if first content is text
-        if is_text_first {
-            body_generator
-                .output_parts
-                .push(OutputPart::Html("<!---->".to_string()));
+            // Add hydration marker if first content is text
+            if is_text_first {
+                body_generator
+                    .output_parts
+                    .push(OutputPart::Html("<!---->".to_string()));
+            }
         }
 
         // Generate body content, trimming whitespace properly
@@ -4103,13 +4177,12 @@ impl<'a> ServerCodeGenerator<'a> {
         {
             if i == start_idx {
                 // First node - if it's text, trim leading whitespace but preserve trailing space
-                // if followed by a non-expression-tag node
+                // if there is a following node (the space separates text from expression/element)
                 if let TemplateNode::Text(text) = node {
                     let trimmed = text.data.trim_start();
-                    // Check if there's a next node and it's not an expression tag
+                    // Check if there's a next node - preserve trailing space if so
                     let next_node = body_nodes.get(i + 1);
                     let needs_trailing_space = next_node.is_some()
-                        && !matches!(next_node, Some(TemplateNode::ExpressionTag(_)))
                         && text.data.chars().last().is_some_and(|c| c.is_whitespace());
 
                     let trimmed_end = trimmed.trim_end();
@@ -4628,25 +4701,178 @@ impl<'a> ServerCodeGenerator<'a> {
         });
 
         // Generate body based on whether we have a pending snippet or attribute
-        let (body, is_pending) = if let Some(snippet) = pending_snippet {
+        // Filter out `failed` and `pending` snippets from the fragment when generating body
+        let (mut body, is_pending) = if let Some(snippet) = pending_snippet {
             // Generate body from the pending snippet - this is the pending state
+            // When in pending state, the `failed` snippet is NOT included
             (self.generate_fragment_body_parts(&snippet.body)?, true)
         } else if pending_attribute.is_some() {
             // For pending attribute, we would need to call the attribute value as a function
             // For now, just generate empty body (the attribute case is less common)
             (Vec::new(), true)
         } else {
-            // No pending - generate the main fragment content
-            // This is not a pending state
+            // No pending - generate the main fragment content excluding named snippets
+            // Create a filtered fragment that excludes pending/failed snippets
+            let filtered_nodes: Vec<TemplateNode> = boundary
+                .fragment
+                .nodes
+                .iter()
+                .filter(|node| {
+                    if let TemplateNode::SnippetBlock(snippet) = node {
+                        let json = snippet.expression.as_json();
+                        let name = json.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                        // Keep everything except `failed` and `pending` snippets
+                        name != "failed" && name != "pending"
+                    } else {
+                        true
+                    }
+                })
+                .cloned()
+                .collect();
+
+            let filtered_fragment = Fragment {
+                nodes: filtered_nodes,
+                ..boundary.fragment.clone()
+            };
+
             (
-                self.generate_fragment_body_parts(&boundary.fragment)?,
+                self.generate_fragment_body_parts(&filtered_fragment)?,
                 false,
             )
         };
 
+        // Only include the `failed` snippet when NOT in pending state
+        // (in pending state, the boundary renders the pending content, not the main content)
+        if !is_pending {
+            // Look for `failed` snippet in the boundary fragment
+            let failed_snippet = boundary.fragment.nodes.iter().find_map(|node| {
+                if let TemplateNode::SnippetBlock(snippet) = node {
+                    let json = snippet.expression.as_json();
+                    if json.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                        && json.get("name").and_then(|n| n.as_str()) == Some("failed")
+                    {
+                        return Some(snippet);
+                    }
+                }
+                None
+            });
+
+            if let Some(failed) = failed_snippet {
+                // Extract parameters (strip TypeScript type annotations)
+                let params: Vec<String> = failed
+                    .parameters
+                    .iter()
+                    .map(|p| {
+                        let start = p.start().unwrap_or(0) as usize;
+                        let end = p.end().unwrap_or(0) as usize;
+                        if end > start && end <= self.source.len() {
+                            strip_ts_type_annotation(&self.source[start..end])
+                        } else {
+                            String::new()
+                        }
+                    })
+                    .filter(|s| !s.is_empty())
+                    .collect();
+
+                // Generate body parts for the failed snippet
+                let body_parts = self.generate_snippet_body_parts(&failed.body)?;
+
+                // Insert the `failed` snippet function at the beginning of the body
+                body.insert(
+                    0,
+                    OutputPart::SnippetFunction {
+                        name: "failed".to_string(),
+                        params,
+                        body: body_parts,
+                    },
+                );
+            }
+        }
+
         self.output_parts
             .push(OutputPart::SvelteBoundary { body, is_pending });
         Ok(())
+    }
+
+    /// Generate body parts for a snippet body (used for inline snippet functions like `failed`)
+    fn generate_snippet_body_parts(
+        &mut self,
+        fragment: &Fragment,
+    ) -> Result<Vec<OutputPart>, TransformError> {
+        let mut body_generator = ServerCodeGenerator::new(
+            self.component_name.clone(),
+            self.source.clone(),
+            None,
+            None,
+            self.analysis,
+            self.use_async,
+        );
+        body_generator.constant_vars = self.constant_vars.clone();
+
+        // Collect non-empty nodes
+        let body_nodes: Vec<_> = fragment.nodes.iter().collect();
+        let len = body_nodes.len();
+
+        // Find first non-whitespace node
+        let mut start_idx = 0;
+        while start_idx < len {
+            if let TemplateNode::Text(text) = body_nodes[start_idx]
+                && text.data.trim().is_empty()
+            {
+                start_idx += 1;
+                continue;
+            }
+            break;
+        }
+
+        // Find last non-whitespace node
+        let mut end_idx = len;
+        while end_idx > start_idx {
+            if let TemplateNode::Text(text) = body_nodes[end_idx - 1]
+                && text.data.trim().is_empty()
+            {
+                end_idx -= 1;
+                continue;
+            }
+            break;
+        }
+
+        // Check if first node is text or expression tag - if so, we need hydration marker
+        let first_node = body_nodes.get(start_idx);
+        let is_text_first = matches!(
+            first_node,
+            Some(TemplateNode::Text(_)) | Some(TemplateNode::ExpressionTag(_))
+        );
+
+        // Add hydration marker if first content is text
+        if is_text_first {
+            body_generator
+                .output_parts
+                .push(OutputPart::Html("<!---->".to_string()));
+        }
+
+        // Generate body content
+        for (i, node) in body_nodes
+            .iter()
+            .enumerate()
+            .skip(start_idx)
+            .take(end_idx - start_idx)
+        {
+            if i == start_idx
+                && let TemplateNode::Text(text) = node
+            {
+                let trimmed = text.data.trim_start();
+                let trimmed_end = trimmed.trim_end();
+                if !trimmed_end.is_empty() {
+                    let content = escape_html(trimmed_end);
+                    body_generator.output_parts.push(OutputPart::Html(content));
+                }
+                continue;
+            }
+            body_generator.generate_node(node, false)?;
+        }
+
+        Ok(body_generator.output_parts)
     }
 
     /// Generate code for <svelte:head> elements.
@@ -4735,7 +4961,8 @@ impl<'a> ServerCodeGenerator<'a> {
         let nodes: Vec<_> = fragment.nodes.iter().collect();
         let len = nodes.len();
 
-        // Find first meaningful node (skip whitespace-only text and comments)
+        // Find first meaningful node (skip whitespace-only text, comments, and snippet blocks)
+        // Snippet blocks are hoisted and don't produce inline output
         let mut start_idx = 0;
         while start_idx < len {
             match nodes[start_idx] {
@@ -4751,7 +4978,7 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
-        // Find last meaningful node (skip whitespace-only text and comments)
+        // Find last meaningful node (skip whitespace-only text, comments, and snippet blocks)
         let mut end_idx = len;
         while end_idx > start_idx {
             match nodes[end_idx - 1] {
@@ -4887,10 +5114,12 @@ impl<'a> ServerCodeGenerator<'a> {
                 || raw_script.contains("export let ")
                 || raw_script.contains("export var ");
 
-            // Check if class fields use $state or $derived runes
+            // Check if class fields use $state, $state.raw, or $derived runes
             // This requires $$props and $$renderer.component() wrapper
             let class_state_fields = raw_script.contains("class ")
-                && (raw_script.contains("= $state(") || raw_script.contains("= $derived("));
+                && (raw_script.contains("= $state(")
+                    || raw_script.contains("= $state.raw(")
+                    || raw_script.contains("= $derived("));
 
             // Check if uses spread pattern: let props = $props() or let xxx = $props()
             // This requires $$renderer.component() wrapper with destructuring
@@ -6123,6 +6352,31 @@ export default function {component_name}($$renderer{props_param}) {{
                 OutputPart::HydrationAnchor => {
                     // Add <!> marker to current HTML (hydration anchor for Components/RenderTags/HtmlTags in select/optgroup)
                     current_html.push_str("<!>");
+                }
+                OutputPart::SnippetFunction { name, params, body } => {
+                    // Flush current HTML before function declaration
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+
+                    // Generate function declaration
+                    let param_str = if params.is_empty() {
+                        "$$renderer".to_string()
+                    } else {
+                        format!("$$renderer, {}", params.join(", "))
+                    };
+
+                    body_code.push_str(&format!("{}function {}({}) {{\n", indent, name, param_str));
+
+                    // Generate body
+                    if !body.is_empty() {
+                        let body_inner = Self::build_parts(body, indent_level + 1, each_counter);
+                        body_code.push_str(&body_inner);
+                    }
+
+                    body_code.push_str(&format!("{}}}\n\n", indent));
                 }
             }
             i += 1;
@@ -7651,11 +7905,12 @@ fn add_statement_semicolon(line: &str) -> String {
 /// 2. $derived fields (private field + getter/setter)
 /// 3. Methods
 fn transform_class_fields_server(script: &str) -> String {
-    // Check for $derived, $derived.by, or $state patterns in class
+    // Check for $derived, $derived.by, $state, or $state.raw patterns in class
     if !script.contains("class ")
         || (!script.contains("$derived(")
             && !script.contains("$derived.by(")
-            && !script.contains("$state("))
+            && !script.contains("$state(")
+            && !script.contains("$state.raw("))
     {
         return script.to_string();
     }
@@ -7821,14 +8076,22 @@ fn transform_class_fields_server(script: &str) -> String {
             }
         }
 
-        // Handle $state fields
-        let is_state_field = trimmed.contains("= $state(") || trimmed.contains("=$state(");
-        if is_state_field
-            && let Some(eq_pos) = trimmed.find('=')
-            && let Some(state_pos) = trimmed.find("$state(")
-        {
+        // Handle $state and $state.raw fields
+        let is_state_field = trimmed.contains("= $state(")
+            || trimmed.contains("=$state(")
+            || trimmed.contains("= $state.raw(")
+            || trimmed.contains("=$state.raw(");
+        if is_state_field && let Some(eq_pos) = trimmed.find('=') {
+            // Try $state.raw first (more specific), then $state
+            let (state_pattern, state_pos) = if let Some(pos) = trimmed.find("$state.raw(") {
+                ("$state.raw(", pos)
+            } else if let Some(pos) = trimmed.find("$state(") {
+                ("$state(", pos)
+            } else {
+                continue;
+            };
             let field_name = trimmed[..eq_pos].trim();
-            let value_start = state_pos + "$state(".len();
+            let value_start = state_pos + state_pattern.len();
             let after_paren = &trimmed[value_start..];
 
             if let Some(value_end) = find_matching_paren_server(after_paren) {
