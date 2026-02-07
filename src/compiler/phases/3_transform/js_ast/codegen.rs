@@ -88,6 +88,9 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     let code = add_leading_zeros(code);
     // OXC formats `catch (e)` with a space, but Svelte uses `catch(e)` without space
     let code = code.replace("} catch (", "} catch(");
+    // OXC formats anonymous function expressions as `function(` without space,
+    // but Svelte uses `function (` with a space before the paren
+    let code = code.replace("function(", "function (");
     // OXC splits `;;` (inspect placeholder) into two separate lines. Rejoin them.
     let code = rejoin_double_semicolons(code);
     // OXC has a bug where it doesn't escape tabs in string literals
@@ -910,12 +913,65 @@ fn should_add_blank_line_after(current: &str, next: &str, raw_current: &str) -> 
 
             // Rule 15: Reserved (covered by Rule 6 and 6b/6c for closing braces before $.append)
 
-            // Rule 16: Before `return $.pop(` statements after expression statements
-            // This matches Svelte's pattern for component return values
+            // Rule 16: Before `return` statements after expression statements
+            // This matches Svelte's esrap formatting where return is visually separated
+            if !is_var_declaration(current)
+                && !is_closing_brace(current)
+                && !current.starts_with("//")
+                && !current.starts_with("/*")
+                && current.ends_with(';')
+                && next.starts_with("return ")
+            {
+                return true;
+            }
+
+            // Rule 17: After `});` or `}` closures before `function` declarations
+            // This matches Svelte's esrap formatting for functions after closures
+            if (current == "});" || current == "}")
+                && (next.starts_with("function ") || next.starts_with("async function "))
+            {
+                return true;
+            }
+
+            // Rule 18: After single-line function declarations `function foo() {}`
+            // before var declarations
+            if current.starts_with("function ")
+                && current.ends_with('}')
+                && is_var_declaration(next)
+            {
+                return true;
+            }
+
+            // Rule 19: After expression statements (;) before `throw` statements
             if !is_var_declaration(current)
                 && !is_closing_brace(current)
                 && current.ends_with(';')
-                && next.starts_with("return $.pop(")
+                && next.starts_with("throw ")
+            {
+                return true;
+            }
+
+            // Rule 20: After object property with comma, before property starting with
+            // tick/children/get/set (multi-line object members)
+            if current.ends_with(',')
+                && !is_closing_brace(current)
+                && (next.starts_with("tick:")
+                    || next.starts_with("children:")
+                    || next.starts_with("title:")
+                    || next.starts_with("reset:")
+                    || (next.starts_with("children: (") && next.ends_with(" {"))
+                    || (next.starts_with("tick: (") && next.ends_with(" {")))
+            {
+                return true;
+            }
+
+            // Rule 21: After expression statements (;) before comments (// or /*)
+            if !is_var_declaration(current)
+                && !is_closing_brace(current)
+                && !current.starts_with("//")
+                && !current.starts_with("/*")
+                && current.ends_with(';')
+                && (next.starts_with("//") || next.starts_with("/*") || next.starts_with("/**"))
             {
                 return true;
             }
