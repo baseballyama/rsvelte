@@ -6015,6 +6015,12 @@ fn transform_state_in_expr(
                             has_postfix_update || has_prefix_update
                         };
 
+                        // Check if this is a method shorthand name in an object literal
+                        // e.g., `{ increment() { ... } }` - the `increment` is a method name
+                        // and should NOT be wrapped with $.get()
+                        let is_method_shorthand_name =
+                            is_object_method_shorthand(&chars, i, var_chars.len());
+
                         if !already_wrapped
                             && !preceded_by_dot
                             && !in_set_first_arg
@@ -6026,6 +6032,7 @@ fn transform_state_in_expr(
                             && !is_property_key
                             && !is_shadowed
                             && !is_update_target
+                            && !is_method_shorthand_name
                         {
                             if is_shorthand_property {
                                 // Expand shorthand property: { foo } -> { foo: $.get(foo) }
@@ -6109,8 +6116,14 @@ fn is_shorthand_object_property(chars: &[char], var_start: usize, var_len: usize
             }
 
             if m == 0 {
-                // `{` at the start could be a block, not an object
-                return false;
+                // `{` at the very start of the expression string.
+                // In the contexts where wrap_state_vars_in_expr is called (e.g.,
+                // inside $derived() arguments), the expression starts with `{`
+                // which means it IS an object literal (not a block statement,
+                // since we're in an expression context).
+                // We already confirmed the variable is followed by `,` or `}`,
+                // so this is a shorthand property.
+                return true;
             }
 
             let before_brace = chars[m - 1];
@@ -6143,6 +6156,87 @@ fn is_shorthand_object_property(chars: &[char], var_start: usize, var_len: usize
         }
 
         // If preceded by `,`, we're inside an object or array - assume object
+        return true;
+    }
+
+    false
+}
+
+/// Check if a variable at the given position is a method shorthand name in an object literal.
+/// This detects patterns like:
+/// - `{ increment() { ... } }` - method shorthand
+/// - `{ foo() { ... }, bar() { ... } }` - multiple method shorthands
+///
+/// A method shorthand has the identifier followed by `(` (with optional whitespace)
+/// AND is preceded by `{` or `,` (with optional whitespace), indicating an object literal context.
+fn is_object_method_shorthand(chars: &[char], var_start: usize, var_len: usize) -> bool {
+    let var_end = var_start + var_len;
+
+    // Check what comes after the variable: should be `(` for method shorthand
+    let mut k = var_end;
+    while k < chars.len() && chars[k].is_whitespace() {
+        k += 1;
+    }
+
+    if k >= chars.len() || chars[k] != '(' {
+        return false;
+    }
+
+    // Now check what comes before: should be `{` or `,` (with optional whitespace)
+    // indicating we're inside an object literal
+    let mut j = var_start;
+    while j > 0 && chars[j - 1].is_whitespace() {
+        j -= 1;
+    }
+
+    if j == 0 {
+        return false;
+    }
+
+    let prev_char = chars[j - 1];
+
+    if prev_char == '{' || prev_char == ',' {
+        // For `{`, verify it's an object literal context (not a block statement)
+        if prev_char == '{' {
+            let mut m = j - 1;
+            while m > 0 && chars[m - 1].is_whitespace() {
+                m -= 1;
+            }
+
+            if m == 0 {
+                // `{` at start - in expression context, this is an object literal
+                return true;
+            }
+
+            let before_brace = chars[m - 1];
+
+            // These suggest object literal context
+            if before_brace == '='
+                || before_brace == ':'
+                || before_brace == '('
+                || before_brace == '['
+                || before_brace == ','
+                || before_brace == '?'
+                || before_brace == '|'
+                || before_brace == '&'
+                || before_brace == '!'
+                || before_brace == 'n'
+            {
+                return true;
+            }
+
+            // Check for 'return ' before
+            if m >= 6 {
+                let prefix: String = chars[m - 6..m].iter().collect();
+                if prefix == "return" {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // Preceded by `,` inside an object literal
         return true;
     }
 

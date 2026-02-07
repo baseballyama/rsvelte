@@ -517,7 +517,30 @@ pub fn build_set_class(
         (b::string(""), false)
     };
 
-    // Handle CSS hash
+    // Build class directives (previous_id, prev, next) BEFORE handling CSS hash
+    // This matches the official implementation order in shared/element.js
+    let mut previous_id: Option<String> = None;
+    let mut prev: Option<JsExpr> = None;
+    let mut next: Option<JsExpr> = None;
+
+    if !class_directives.is_empty() {
+        let (obj, directives_has_state) = build_class_directives_object(class_directives, context);
+        next = Some(obj);
+        has_state = has_state || directives_has_state;
+
+        if has_state {
+            let id = context.state.memoizer.generate_id("classes");
+            // Add variable declaration: let classes;
+            context.state.init.push(b::let_decl(&id, None));
+            prev = Some(b::id(&id));
+            previous_id = Some(id);
+        } else {
+            prev = Some(b::empty_object());
+        }
+    }
+
+    // Handle CSS hash - this comes AFTER class directives processing
+    // Matches official implementation: shared/element.js lines 186-200
     let mut css_hash_expr: Option<JsExpr> = None;
 
     if is_scoped && !css_hash.is_empty() {
@@ -540,38 +563,15 @@ pub fn build_set_class(
         }
     }
 
-    // Build class directives object if there are any
-    let (class_directives_obj, _directives_has_state) = if !class_directives.is_empty() {
-        let (obj, state) = build_class_directives_object(class_directives, context);
-        has_state = has_state || state;
-        (Some(obj), state)
-    } else {
-        (None, false)
-    };
-
-    // Generate a unique ID for the classes variable if needed
-    let previous_id = if has_state && class_directives_obj.is_some() {
-        let id = context.state.memoizer.generate_id("classes");
-        // Add variable declaration: let classes;
-        context.state.init.push(b::let_decl(&id, None));
-        Some(id)
-    } else {
-        None
-    };
-
-    // Build previous state expression
-    let prev = if let Some(ref id) = previous_id {
-        b::id(id)
-    } else {
-        // For class directives or when no previous_id, use empty object
-        b::empty_object()
-    };
-
-    // Build css_hash argument
-    let css_hash_arg = css_hash_expr.unwrap_or_else(b::null);
+    // If no css_hash but we have class directives (next), set css_hash to null
+    // This matches official implementation: if (!css_hash && next) css_hash = b.null;
+    if css_hash_expr.is_none() && next.is_some() {
+        css_hash_expr = Some(b::null());
+    }
 
     // Build the $.set_class call
     // $.set_class(element, flags, class_value, css_hash, prev, next)
+    // Uses call_trimmed to strip trailing undefined/null args (matching b.call behavior)
     let flags = if is_html {
         b::number(1.0)
     } else {
@@ -579,16 +579,17 @@ pub fn build_set_class(
     };
     let node_expr = b::id(node_id);
 
-    let mut args = vec![node_expr, flags, class_value];
-
-    // Add css_hash, prev, next if there are class directives
-    if let Some(directives_obj) = class_directives_obj {
-        args.push(css_hash_arg);
-        args.push(prev);
-        args.push(directives_obj);
-    }
-
-    let set_class_call = b::call(b::member_path("$.set_class"), args);
+    let set_class_call = b::call_trimmed(
+        b::member_path("$.set_class"),
+        vec![
+            node_expr,
+            flags,
+            class_value,
+            css_hash_expr.unwrap_or_else(b::undefined),
+            prev.unwrap_or_else(b::undefined),
+            next.unwrap_or_else(b::undefined),
+        ],
+    );
 
     // Wrap in assignment if we have a previous_id
     let set_class_expr = if let Some(ref id) = previous_id {

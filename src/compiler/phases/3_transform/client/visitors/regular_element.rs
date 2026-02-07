@@ -356,7 +356,12 @@ pub fn visit_regular_element(
         // This combines all attributes (including event handlers) into a single $.attribute_effect call
         let node_id = extract_node_id(&context.state.node);
         let node_expr = b::id(&node_id);
-        let css_hash = context.state.analysis.css.hash.clone();
+        // Only pass CSS hash if this specific element is scoped
+        let css_hash = if node.metadata.scoped {
+            context.state.analysis.css.hash.clone()
+        } else {
+            String::new()
+        };
 
         // Determine if we should remove input defaults (for input elements with spreads)
         // This is needed because spreads might contain value-like attributes that override defaults
@@ -412,9 +417,8 @@ pub fn visit_regular_element(
         // Track if style has been handled (when style attribute exists)
         let mut style_handled = false;
 
-        // Check if element needs CSS scoping
-        let is_scoped =
-            context.state.analysis.css.has_css && !context.state.analysis.css.hash.is_empty();
+        // Check if element needs CSS scoping (per-element flag set during analysis)
+        let is_scoped = node.metadata.scoped;
 
         // Process attributes in source order (like official JS implementation)
         // Event attributes are handled by visit_event_attribute and continue
