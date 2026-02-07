@@ -7,8 +7,9 @@
 use super::super::{AnalysisError, warnings};
 use super::VisitorContext;
 use super::shared::fragment;
+use super::shared::utils::validate_assignment;
 use crate::ast::js::Expression;
-use crate::ast::template::SvelteComponentElement;
+use crate::ast::template::{Attribute, SvelteComponentElement};
 
 /// Visit a svelte:component.
 pub fn visit(
@@ -25,6 +26,17 @@ pub fn visit(
     // This is crucial for legacy state promotion to work correctly
     let Expression::Value(expr_value) = &component.expression;
     super::script::walk_js_node(expr_value, context)?;
+
+    // Analyze attributes (mirrors visit_component logic from shared/component.rs)
+    for attr in &component.attributes {
+        if let Attribute::BindDirective(bind) = attr {
+            // Track component bindings (skip bind:this)
+            if bind.name != "this" {
+                context.analysis.uses_component_bindings = true;
+            }
+            validate_assignment(bind.expression.as_json(), context, true)?;
+        }
+    }
 
     // Analyze children
     fragment::analyze(&mut component.fragment, context)?;

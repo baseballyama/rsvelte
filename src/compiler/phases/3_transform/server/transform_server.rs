@@ -4250,8 +4250,10 @@ impl<'a> ServerCodeGenerator<'a> {
             "null".to_string()
         };
 
-        // Build props object from attributes (same approach as component_usage)
+        // Build props and bindings from attributes (same approach as component_usage)
         let mut props = Vec::new();
+        let mut spreads = Vec::new();
+        let mut bindings: Vec<(String, String)> = Vec::new();
         for attr in &elem.attributes {
             match attr {
                 Attribute::Attribute(node) => {
@@ -4267,7 +4269,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     let expr_end = spread.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {
                         let expr = self.source[expr_start..expr_end].trim().to_string();
-                        props.push(format!("...{}", expr));
+                        spreads.push(expr);
                     }
                 }
                 Attribute::BindDirective(bind) => {
@@ -4275,27 +4277,45 @@ impl<'a> ServerCodeGenerator<'a> {
                     let expr_start = bind.expression.start().unwrap_or(0) as usize;
                     let expr_end = bind.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {
-                        let expr = self.source[expr_start..expr_end].trim().to_string();
-                        let expr = self.transform_store_refs(&expr);
-                        props.push(format!("{}: {}", quote_prop_name(bind_name), expr));
+                        let mut var_name = self.source[expr_start..expr_end].trim().to_string();
+                        // Handle shorthand bindings where span might include "bind:"
+                        if let Some(stripped) = var_name.strip_prefix("bind:") {
+                            var_name = stripped.to_string();
+                        }
+                        bindings.push((bind_name.to_string(), var_name));
                     }
                 }
                 _ => {}
             }
         }
 
-        // Use the existing Component output part with dynamic=true
-        // This generates: <!---->  name?.($$renderer, { props })  <!---->
-        self.output_parts.push(OutputPart::Component {
-            name: component_expr,
-            props,
-            spreads: Vec::new(),
-            has_prior_content: true,
-            children: None,
-            snippets: Vec::new(),
-            slot_names: Vec::new(),
-            dynamic: true,
-        });
+        // Extract snippets from the component's fragment and process children
+        let (children, snippets, slot_names) =
+            self.generate_component_children_with_snippets(&elem.fragment)?;
+
+        // Use ComponentWithBindings if there are any bind directives
+        if bindings.is_empty() {
+            self.output_parts.push(OutputPart::Component {
+                name: component_expr,
+                props,
+                spreads,
+                has_prior_content: true,
+                children,
+                snippets,
+                slot_names,
+                dynamic: true,
+            });
+        } else {
+            self.output_parts.push(OutputPart::ComponentWithBindings {
+                name: component_expr,
+                props,
+                spreads,
+                bindings,
+                has_prior_content: true,
+                children,
+                dynamic: true,
+            });
+        }
 
         Ok(())
     }
@@ -5049,11 +5069,23 @@ export default function {component_name}($$renderer{props_param}) {{
                     // Component with bindings - just generate the component call with getter/setters.
                     // The $$settled/$$render_inner loop is handled at the component level in build().
 
-                    // Flush any prior HTML content
+                    // Flush any prior HTML content (with dynamic marker if needed)
                     if !current_html.is_empty() {
-                        body_code
-                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        if *dynamic {
+                            body_code.push_str(&format!(
+                                "{}$$renderer.push(`{}<!---->`);\n",
+                                indent, current_html
+                            ));
+                        } else {
+                            body_code.push_str(&format!(
+                                "{}$$renderer.push(`{}`);\n",
+                                indent, current_html
+                            ));
+                        }
                         current_html.clear();
+                    } else if *dynamic {
+                        // Even if no prior HTML, dynamic components need a marker
+                        body_code.push_str(&format!("{}$$renderer.push(`<!---->`);\n", indent));
                     }
 
                     // Use optional chaining for dynamic components
