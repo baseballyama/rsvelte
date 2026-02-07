@@ -555,7 +555,7 @@ impl<'a> ServerCodeGenerator<'a> {
             let start = script.content.start().unwrap_or(0) as usize;
             let end = script.content.end().unwrap_or(0) as usize;
             if end > start && end <= source.len() {
-                for (k, v) in extract_constant_vars_const_only(&source[start..end]) {
+                for (k, v) in extract_constant_vars(&source[start..end]) {
                     constant_vars.insert(k, v);
                 }
             }
@@ -1669,13 +1669,54 @@ impl<'a> ServerCodeGenerator<'a> {
                         attrs.push((name, "true".to_string()));
                     }
                     AttributeValue::Sequence(parts) => {
-                        let mut value = String::new();
-                        for part in parts {
-                            if let AttributeValuePart::Text(text) = part {
-                                value.push_str(&text.data);
+                        // Check if it's a single expression (like value='{foo}')
+                        let expr_parts: Vec<_> = parts
+                            .iter()
+                            .filter(|p| matches!(p, AttributeValuePart::ExpressionTag(_)))
+                            .collect();
+                        let text_parts: Vec<_> = parts
+                            .iter()
+                            .filter_map(|p| match p {
+                                AttributeValuePart::Text(t) => Some(t.data.as_str()),
+                                _ => None,
+                            })
+                            .collect();
+                        let all_text_whitespace = text_parts.iter().all(|t| t.trim().is_empty());
+
+                        if expr_parts.len() == 1 && all_text_whitespace {
+                            // Single expression - use variable reference
+                            if let AttributeValuePart::ExpressionTag(expr_tag) = expr_parts[0] {
+                                let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                                let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                                if expr_end > expr_start && expr_end <= self.source.len() {
+                                    let expr = self.source[expr_start..expr_end].trim().to_string();
+                                    attrs.push((name, expr));
+                                }
                             }
+                        } else {
+                            // Mixed or pure text - concatenate
+                            let mut value = String::new();
+                            for part in parts {
+                                match part {
+                                    AttributeValuePart::Text(text) => {
+                                        value.push_str(&text.data);
+                                    }
+                                    AttributeValuePart::ExpressionTag(expr_tag) => {
+                                        let expr_start =
+                                            expr_tag.expression.start().unwrap_or(0) as usize;
+                                        let expr_end =
+                                            expr_tag.expression.end().unwrap_or(0) as usize;
+                                        if expr_end > expr_start && expr_end <= self.source.len() {
+                                            let expr = self.source[expr_start..expr_end]
+                                                .trim()
+                                                .to_string();
+                                            value.push_str(&format!("${{$.stringify({})}}", expr));
+                                        }
+                                    }
+                                }
+                            }
+                            attrs.push((name, format!("'{}'", value)));
                         }
-                        attrs.push((name, format!("'{}'", value)));
                     }
                     _ => {}
                 }
@@ -2279,7 +2320,12 @@ impl<'a> ServerCodeGenerator<'a> {
                 } else {
                     // Pure text - no expressions
                     let value = template_parts.join("");
-                    Ok(Some(format!(" {}=\"{}\"", name, value)))
+                    // Skip empty class attributes (matches official compiler behavior)
+                    if name == "class" && value.is_empty() {
+                        Ok(None)
+                    } else {
+                        Ok(Some(format!(" {}=\"{}\"", name, value)))
+                    }
                 }
             }
             AttributeValue::Expression(expr_tag) => {
@@ -6216,19 +6262,8 @@ fn transform_props_spread(script: &str) -> String {
     result
 }
 
-/// Extract constant variable bindings from module script content (const only).
-fn extract_constant_vars_const_only(script: &str) -> FxHashMap<String, String> {
-    extract_constant_vars_inner(script, true)
-}
-
-/// Extract constant variable bindings from script content.
+/// Extract constant variable bindings from script content (const declarations only).
 fn extract_constant_vars(script: &str) -> FxHashMap<String, String> {
-    extract_constant_vars_inner(script, false)
-}
-
-/// Inner implementation for extracting constant variables.
-/// If `const_only` is true, only `const` declarations are extracted (for module scripts).
-fn extract_constant_vars_inner(script: &str, const_only: bool) -> FxHashMap<String, String> {
     let mut constants = FxHashMap::default();
 
     for line in script.lines() {
@@ -6240,16 +6275,14 @@ fn extract_constant_vars_inner(script: &str, const_only: bool) -> FxHashMap<Stri
         }
 
         // Strip leading 'export' keyword if present
-        // Only for const declarations - exported let variables are props and may change
-        let (trimmed, is_export) = if let Some(rest) = trimmed.strip_prefix("export ") {
-            (rest.trim_start(), true)
+        let trimmed = if let Some(rest) = trimmed.strip_prefix("export ") {
+            rest.trim_start()
         } else {
-            (trimmed, false)
+            trimmed
         };
 
-        let decl_start = if !const_only && !is_export && trimmed.starts_with("let ") {
-            Some(4)
-        } else if trimmed.starts_with("const ") {
+        // Only extract const declarations - let variables can be reassigned
+        let decl_start = if trimmed.starts_with("const ") {
             Some(6)
         } else {
             None
