@@ -18,6 +18,7 @@ use crate::ast::template::{
     Attribute, AttributeValue, AttributeValuePart, BindDirective, TemplateNode,
 };
 use crate::compiler::phases::phase3_transform::client::types::*;
+use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 
@@ -121,12 +122,20 @@ pub fn bind_directive(
 ) -> TransformResult {
     let binding_name = node.name.as_str();
 
-    // Visit the expression to transform it
-    let expression = visit_expression(&node.expression, context);
+    // Visit the expression to transform it using the full expression converter
+    // (supports ArrowFunctionExpression, MemberExpression, etc.)
+    let expression = convert_expression(&node.expression, context);
 
     // Check if it's a sequence expression (getter/setter pair)
     let (get, set) = if is_sequence_expression(&expression) {
-        extract_getter_setter(&expression)
+        let (raw_get, raw_set) = extract_getter_setter(&expression);
+        // For sequence expressions (user-provided getter/setter pair), the getter
+        // needs read transforms applied (e.g., wrapping $state vars with $.get()).
+        // The setter already has assignment transforms from convert_expression
+        // (e.g., time = value → $.set(time, value, true)), so we only transform the getter.
+        use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
+        let transformed_get = apply_transforms_to_expression(&raw_get, context);
+        (transformed_get, raw_set)
     } else {
         // Build getter and setter from the expression
         build_getter_setter(&node.expression, &expression, context)
@@ -521,7 +530,6 @@ fn unwrap_thunk(expr: &JsExpr) -> JsExpr {
 /// This builds the expression and applies necessary transforms for dependency tracking.
 fn build_value_expression(value: &AttributeValue, context: &mut ComponentContext) -> JsExpr {
     use super::shared::utils::build_expression;
-    use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
 
     match value {
         AttributeValue::Expression(expr_tag) => {
@@ -698,124 +706,6 @@ fn build_bind_this_call(value: &JsExpr, get: &JsExpr, set: &Option<JsExpr>) -> J
             vec![value.clone(), setter, getter],
         )
     }
-}
-
-/// Visit an Expression and convert it to a JsExpr.
-fn visit_expression(expr: &Expression, _context: &mut ComponentContext) -> JsExpr {
-    match expr {
-        Expression::Value(val) => {
-            if let Some(obj) = val.as_object()
-                && let Some(expr_type) = obj.get("type").and_then(|v| v.as_str())
-            {
-                match expr_type {
-                    "Identifier" => {
-                        if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
-                            return b::id(name);
-                        }
-                    }
-                    "MemberExpression" => {
-                        return convert_member_expression(obj);
-                    }
-                    "SequenceExpression" => {
-                        if let Some(expressions) = obj.get("expressions").and_then(|v| v.as_array())
-                        {
-                            let exprs: Vec<JsExpr> = expressions
-                                .iter()
-                                .filter_map(|e| e.as_object().map(convert_expression_value))
-                                .collect();
-                            return b::sequence(exprs);
-                        }
-                    }
-                    "Literal" => {
-                        if let Some(value) = obj.get("value") {
-                            if let Some(s) = value.as_str() {
-                                return b::string(s);
-                            } else if let Some(n) = value.as_f64() {
-                                return b::number(n);
-                            } else if let Some(bool_val) = value.as_bool() {
-                                return b::boolean(bool_val);
-                            } else if value.is_null() {
-                                return b::null();
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-            }
-            // Fallback
-            b::id("expr")
-        }
-    }
-}
-
-/// Convert a JSON object representing a MemberExpression to JsExpr.
-fn convert_member_expression(obj: &serde_json::Map<String, serde_json::Value>) -> JsExpr {
-    let object = obj
-        .get("object")
-        .and_then(|v| v.as_object())
-        .map(convert_expression_value)
-        .unwrap_or_else(|| b::id("unknown"));
-
-    let computed = obj
-        .get("computed")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
-
-    if computed {
-        let property = obj
-            .get("property")
-            .and_then(|v| v.as_object())
-            .map(convert_expression_value)
-            .unwrap_or_else(|| b::id("unknown"));
-        b::member_computed(object, property)
-    } else {
-        let property_name = obj
-            .get("property")
-            .and_then(|v| v.as_object())
-            .and_then(|o| o.get("name"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("unknown");
-        b::member(object, property_name)
-    }
-}
-
-/// Convert a JSON object representing an expression to JsExpr.
-fn convert_expression_value(obj: &serde_json::Map<String, serde_json::Value>) -> JsExpr {
-    if let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) {
-        match expr_type {
-            "Identifier" => {
-                if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
-                    return b::id(name);
-                }
-            }
-            "MemberExpression" => {
-                return convert_member_expression(obj);
-            }
-            "Literal" => {
-                if let Some(value) = obj.get("value") {
-                    if let Some(s) = value.as_str() {
-                        return b::string(s);
-                    } else if let Some(n) = value.as_f64() {
-                        return b::number(n);
-                    } else if let Some(bool_val) = value.as_bool() {
-                        return b::boolean(bool_val);
-                    } else if value.is_null() {
-                        return b::null();
-                    }
-                }
-            }
-            "ArrowFunctionExpression" => {
-                // For arrow functions, we'll create a placeholder
-                // Full implementation would parse params and body
-                return b::arrow(vec![], b::id("body"));
-            }
-            "FunctionExpression" => {
-                return b::function_expr(None, vec![], vec![]);
-            }
-            _ => {}
-        }
-    }
-    b::id("expr")
 }
 
 /// Check if an expression is a sequence expression (getter/setter pair).
