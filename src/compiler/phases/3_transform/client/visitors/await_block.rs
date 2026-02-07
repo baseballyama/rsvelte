@@ -120,13 +120,12 @@ pub fn await_block(node: &AwaitBlock, context: &mut ComponentContext) {
     };
 
     // Build $.await() call arguments
-    // Only include catch_block if it exists (avoid trailing null)
-    let mut await_args = vec![
-        context.state.node.clone(),
-        expression,
-        pending_block,
-        then_block.unwrap_or_else(b::null),
-    ];
+    // Only include optional trailing args when they exist (avoid trailing nulls)
+    let mut await_args = vec![context.state.node.clone(), expression, pending_block];
+    // Add then block if it exists, or null if catch block follows
+    if then_block.is_some() || catch_block.is_some() {
+        await_args.push(then_block.unwrap_or_else(b::null));
+    }
     if let Some(catch_fn) = catch_block {
         await_args.push(catch_fn);
     }

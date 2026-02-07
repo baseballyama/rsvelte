@@ -2346,6 +2346,39 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
 
                 // Has dynamic expressions - need to use $.attr_class()
+                // Special case: if the sequence is just whitespace + single expression + whitespace,
+                // pass the expression directly to $.attr_class() without template literal wrapping
+                {
+                    let expr_count = parts
+                        .iter()
+                        .filter(|p| matches!(p, AttributeValuePart::ExpressionTag(_)))
+                        .count();
+                    let all_text_is_whitespace = parts.iter().all(|p| match p {
+                        AttributeValuePart::Text(t) => t.data.trim().is_empty(),
+                        _ => true,
+                    });
+                    if expr_count == 1
+                        && all_text_is_whitespace
+                        && let Some(AttributeValuePart::ExpressionTag(expr_tag)) = parts
+                            .iter()
+                            .find(|p| matches!(p, AttributeValuePart::ExpressionTag(_)))
+                    {
+                        let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                        let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                        if expr_end > expr_start && expr_end <= self.source.len() {
+                            let expr = self.source[expr_start..expr_end].trim().to_string();
+                            if let Some(hash) = css_hash {
+                                return Ok(Some(format!(
+                                    "${{$.attr_class({}, '{}')}}",
+                                    expr, hash
+                                )));
+                            } else {
+                                return Ok(Some(format!("${{$.attr_class({})}}", expr)));
+                            }
+                        }
+                    }
+                }
+
                 // Build template literal with $.stringify() for expressions
                 let mut template_parts = Vec::new();
                 let mut current_text = String::new();

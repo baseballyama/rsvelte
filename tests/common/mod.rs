@@ -365,6 +365,9 @@ pub fn normalize_js(js: &str) -> String {
         static ref PAREN_KEYWORD_LIT: Regex = Regex::new(r"\((null|undefined|true|false)\)").unwrap();
         // Normalize boolean HTML attributes: readonly="" -> readonly, disabled="" -> disabled, etc.
         static ref BOOL_ATTR_EMPTY: Regex = Regex::new(r#"\b(readonly|disabled|checked|selected|multiple|hidden|required|autofocus|autoplay|controls|loop|muted|default|defer|async|novalidate|formnovalidate|open|inert|allowfullscreen)=(?:''|"")"#).unwrap();
+        // Normalize computed property names with string literals: ['x-y-z'] -> 'x-y-z'
+        // OXC uses computed syntax ['str'] while Svelte uses quoted syntax 'str' for property names
+        static ref COMPUTED_STRING_PROP: Regex = Regex::new(r"\[('(?:[^'\\]|\\.)*')\]").unwrap();
         // Normalize unicode escapes to characters: \u{73} -> s, \u{41} -> A, etc.
         static ref UNICODE_ESCAPE: Regex = Regex::new(r"\\u\{([0-9a-fA-F]+)\}").unwrap();
     }
@@ -496,6 +499,9 @@ pub fn normalize_js(js: &str) -> String {
     // but the official Svelte compiler keeps them (e.g., `() => ($.deep_read_state(c()))`).
     // Sequence expressions with commas like `() => (a, b)` keep their parens.
     let result = normalize_arrow_body_parens(&result);
+
+    // Normalize computed property names with string literals: ['x-y-z'] -> 'x-y-z'
+    let result = COMPUTED_STRING_PROP.replace_all(&result, "$1").to_string();
 
     // Normalize boolean HTML attributes: readonly="" -> readonly
     let result = BOOL_ATTR_EMPTY.replace_all(&result, "$1").to_string();
