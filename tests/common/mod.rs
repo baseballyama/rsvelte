@@ -364,7 +364,7 @@ pub fn normalize_js(js: &str) -> String {
         static ref PAREN_NUMBER_LIT: Regex = Regex::new(r"\((\d+(?:\.\d+)?)\)").unwrap();
         static ref PAREN_KEYWORD_LIT: Regex = Regex::new(r"\((null|undefined|true|false)\)").unwrap();
         // Normalize boolean HTML attributes: readonly="" -> readonly, disabled="" -> disabled, etc.
-        static ref BOOL_ATTR_EMPTY: Regex = Regex::new(r#"\b(readonly|disabled|checked|selected|multiple|hidden|required|autofocus|autoplay|controls|loop|muted|default|defer|async|novalidate|formnovalidate|open|inert|allowfullscreen)=(?:''|"")"#).unwrap();
+        static ref BOOL_ATTR_EMPTY: Regex = Regex::new(r#"\b(readonly|disabled|checked|selected|multiple|hidden|required|autofocus|autoplay|controls|loop|muted|default|defer|async|novalidate|formnovalidate|open|inert|allowfullscreen|itemscope)=(?:''|"")"#).unwrap();
         // Normalize computed property names with string literals: ['x-y-z'] -> 'x-y-z'
         // OXC uses computed syntax ['str'] while Svelte uses quoted syntax 'str' for property names
         static ref COMPUTED_STRING_PROP: Regex = Regex::new(r"\[('(?:[^'\\]|\\.)*')\]").unwrap();
@@ -466,6 +466,12 @@ pub fn normalize_js(js: &str) -> String {
     // OXC removes unnecessary parentheses around simple literals
     let result = result.replace("(null)?.", "null?.");
     let result = result.replace("(undefined)?.", "undefined?.");
+
+    // Normalize `function (` to `function(` - OXC may strip the space before parens
+    // in anonymous function expressions
+    let result = result
+        .replace("function (", "function(")
+        .replace("function  (", "function(");
 
     // Normalize computed property name syntax: get ['x-y-z']() -> get 'x-y-z'()
     // OXC may use bracket syntax for computed property names, official compiler uses string literals
@@ -570,6 +576,10 @@ pub fn normalize_js(js: &str) -> String {
 
     // Normalize boolean HTML attributes: readonly="" -> readonly
     let result = BOOL_ATTR_EMPTY.replace_all(&result, "$1").to_string();
+
+    // Normalize empty class attributes in template strings: class="" is semantically
+    // equivalent to no class attribute. Remove ` class=""` and ` class=''` from templates.
+    let result = result.replace(" class=''", "").replace(r#" class="""#, "");
 
     // Normalize $.attr_style(null, ...) and $.attr_style('', ...) to be equivalent.
     // Both mean "no base style" - the official compiler uses null when style={null},
