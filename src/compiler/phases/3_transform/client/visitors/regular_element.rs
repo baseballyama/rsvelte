@@ -1088,21 +1088,47 @@ fn normalize_attribute(name: &str) -> &str {
 
 /// Check if a name is a DOM property (vs attribute).
 /// Reference: svelte/packages/svelte/src/utils.js DOM_PROPERTIES
+/// DOM_PROPERTIES includes all DOM_BOOLEAN_ATTRIBUTES plus additional properties.
 fn is_dom_property(name: &str) -> bool {
     matches!(
         name,
-        "value"
+        // DOM_BOOLEAN_ATTRIBUTES (lowercase, as returned by normalize_attribute)
+        "allowfullscreen"
+            | "async"
+            | "autofocus"
+            | "autoplay"
             | "checked"
-            | "selected"
+            | "controls"
+            | "default"
+            | "disabled"
+            | "formnovalidate"
+            | "indeterminate"
+            | "inert"
+            | "ismap"
+            | "loop"
+            | "multiple"
             | "muted"
-            | "volume"
-            | "currentTime"
-            | "playbackRate"
-            | "paused"
-            | "innerHTML"
-            | "innerText"
-            | "textContent"
+            | "nomodule"
+            | "novalidate"
+            | "open"
+            | "playsinline"
+            | "readonly"
+            | "required"
+            | "reversed"
+            | "seamless"
+            | "selected"
+            | "webkitdirectory"
+            | "defer"
+            | "disablepictureinpicture"
+            | "disableremoteplayback"
+            // Additional DOM_PROPERTIES (camelCase aliases from normalize_attribute)
+            | "formNoValidate"
+            | "isMap"
+            | "noModule"
+            | "playsInline"
             | "readOnly"
+            | "value"
+            | "volume"
             | "defaultValue"
             | "defaultChecked"
             | "srcObject"
@@ -1110,8 +1136,13 @@ fn is_dom_property(name: &str) -> bool {
             | "allowFullscreen"
             | "disablePictureInPicture"
             | "disableRemotePlayback"
-            | "indeterminate"
-            | "inert"
+            // Additional common DOM properties
+            | "currentTime"
+            | "playbackRate"
+            | "paused"
+            | "innerHTML"
+            | "innerText"
+            | "textContent"
     )
 }
 

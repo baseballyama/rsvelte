@@ -89,13 +89,16 @@ pub fn transition_directive(node: &TransitionDirective, context: &mut ComponentC
     }
 
     // Parse the directive name (e.g., "fade" or "custom.transition")
+    // Apply transforms (equivalent to context.visit() in JS) to handle
+    // state/derived variable wrapping, e.g., $.get(derived)
     let name_expr = parse_directive_name(&node.name);
+    let visited_name = apply_transforms_to_expression(&name_expr, context);
 
     // Build arguments: [flags, node, () => name, (() => expression)?]
     let mut args = vec![
         b::number(flags as f64),
         context.state.node.clone(),
-        b::thunk(name_expr),
+        b::thunk(visited_name),
     ];
 
     // If expression is provided, add it as a thunk

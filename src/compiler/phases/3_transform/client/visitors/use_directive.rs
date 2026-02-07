@@ -6,14 +6,18 @@
 //! This visitor handles `use:action={expression}` directives.
 
 use crate::ast::template::UseDirective;
+use crate::compiler::phases::phase3_transform::client::BindingKind;
 use crate::compiler::phases::phase3_transform::client::types::ExpressionMetadata;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
-    build_expression, expression_has_reactive_state, parse_directive_name,
+    apply_transforms_to_expression, build_expression, expression_has_reactive_state,
+    parse_directive_name,
 };
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
-use crate::compiler::phases::phase3_transform::js_ast::nodes::{JsExpr, JsPattern, JsStatement};
+use crate::compiler::phases::phase3_transform::js_ast::nodes::{
+    JsExpr, JsMemberExpression, JsMemberProperty, JsPattern, JsStatement,
+};
 
 /// Visit a UseDirective node and generate action code.
 ///
@@ -72,7 +76,38 @@ pub fn use_directive(node: &UseDirective, context: &mut ComponentContext) -> JsS
 
     // Parse the directive name to get the action function reference
     // For example, "action" becomes `action`, "custom.action" becomes `custom.action`
-    let action_name = parse_directive_name(&node.name);
+    // Then apply transforms (equivalent to context.visit(parse_directive_name(node.name)) in JS)
+    let parsed_name = parse_directive_name(&node.name);
+
+    // Apply registered transforms (e.g., $.get() for state/derived variables)
+    let mut action_name = apply_transforms_to_expression(&parsed_name, context);
+
+    // Handle non-source props that don't have registered transforms but need $$props.name access
+    // This mirrors what convert_identifier does for Prop/BindableProp bindings
+    if let JsExpr::Identifier(ref name) = action_name
+        && context.state.analysis.runes
+        && let Some(binding) = context.state.get_binding(name)
+        && matches!(binding.kind, BindingKind::Prop | BindingKind::BindableProp)
+    {
+        let is_source = crate::compiler::phases::phase3_transform::client::utils::is_prop_source(
+            binding,
+            context.state.analysis,
+        );
+        let is_exported = context
+            .state
+            .analysis
+            .exports
+            .iter()
+            .any(|e| e.name == *name);
+        if !is_source && !is_exported {
+            action_name = JsExpr::Member(JsMemberExpression {
+                object: Box::new(JsExpr::Identifier("$$props".to_string())),
+                property: JsMemberProperty::Identifier(name.clone()),
+                computed: false,
+                optional: false,
+            });
+        }
+    }
 
     // Build the maybe_call: action?.($$node) or action?.($$node, $$action_arg)
     // This is equivalent to b.maybe_call() in the JS builder

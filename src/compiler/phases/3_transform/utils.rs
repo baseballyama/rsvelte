@@ -322,17 +322,12 @@ pub fn infer_namespace(
         return "html".to_string();
     }
 
-    // If we already have a non-html namespace set (e.g., svg from parent element),
-    // trust it instead of re-evaluating. This handles cases like IfBlock inside SVG
-    // where the path doesn't include the SVG parent during transform phase.
-    if namespace == "svg" || namespace == "mathml" {
-        return namespace.to_string();
-    }
-
-    // Re-evaluate namespace for fragments/snippets based on child content
+    // Re-evaluate namespace for fragments/snippets based on child content.
     // This matches the JS behavior at lines 326-339 of utils.js:
     // For SnippetBlock, Component, SvelteComponent, etc., the namespace is
-    // re-evaluated based on what elements are in the children
+    // re-evaluated based on what elements are in the children.
+    // This MUST happen before the svg/mathml guard below, because snippets
+    // defined inside SVG may contain HTML content (e.g., <p> inside <foreignObject>).
     let should_reevaluate = match parent {
         Some(TemplateNode::SnippetBlock(_)) => true,
         Some(TemplateNode::Component(_)) => true,
@@ -356,6 +351,13 @@ pub fn infer_namespace(
                 return "html".to_string();
             }
         }
+    }
+
+    // If we already have a non-html namespace set (e.g., svg from parent element),
+    // trust it instead of re-evaluating. This handles cases like IfBlock inside SVG
+    // where the path doesn't include the SVG parent during transform phase.
+    if namespace == "svg" || namespace == "mathml" {
+        return namespace.to_string();
     }
 
     // For other parent types or no elements found, keep the current namespace

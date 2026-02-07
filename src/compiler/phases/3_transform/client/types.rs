@@ -329,7 +329,9 @@ impl<'a> ComponentContext<'a> {
             self.state.node = saved_node;
         }
 
-        // Process attributes using build_attribute_effect (always use spread for svelte:element)
+        // Process attributes.
+        // When there's exactly one attribute that is a static text "class" attribute,
+        // use build_set_class instead of build_attribute_effect (matches official compiler).
         if !attributes.is_empty() || !class_directives.is_empty() || !style_directives.is_empty() {
             // Save current state
             let saved_node = self.state.node.clone();
@@ -339,16 +341,66 @@ impl<'a> ComponentContext<'a> {
             // Temporarily set node to element_id
             self.state.node = element_id.clone();
 
-            let css_hash = self.state.analysis.css.hash.clone();
-            build_attribute_effect(
-                &attributes,
-                &class_directives,
-                &style_directives,
-                self,
-                element_id.clone(),
-                &css_hash,
-                false, // should_remove_defaults - not needed for svelte:element
-            );
+            // Check for the single static class attribute optimization
+            let is_single_class_text_attr = attributes.len() == 1
+                && matches!(&attributes[0], Attribute::Attribute(a)
+                    if a.name.to_lowercase() == "class" && {
+                        use crate::ast::template::AttributeValuePart;
+                        matches!(&a.value, crate::ast::template::AttributeValue::Sequence(parts)
+                            if parts.iter().all(|p| matches!(p, AttributeValuePart::Text(_))))
+                    }
+                );
+
+            if is_single_class_text_attr {
+                // Build $.set_class call directly for single static class on svelte:element
+                let css_hash = self.state.analysis.css.hash.clone();
+                let is_scoped = self.state.analysis.css.has_css && !css_hash.is_empty();
+
+                if let Attribute::Attribute(attr) = &attributes[0] {
+                    // Extract the text value
+                    let mut text_value = String::new();
+                    if let crate::ast::template::AttributeValue::Sequence(parts) = &attr.value {
+                        for part in parts {
+                            if let crate::ast::template::AttributeValuePart::Text(t) = part {
+                                text_value.push_str(&t.data);
+                            }
+                        }
+                    }
+
+                    // Concatenate CSS hash if scoped
+                    let class_str = if is_scoped && !css_hash.is_empty() {
+                        if text_value.is_empty() {
+                            css_hash.clone()
+                        } else {
+                            format!("{} {}", text_value, css_hash)
+                        }
+                    } else {
+                        text_value
+                    };
+
+                    // $.set_class(element_id, is_html ? 1 : 0, class_value)
+                    let set_class_call = b::call(
+                        b::member_path("$.set_class"),
+                        vec![
+                            b::id(&element_id_name),
+                            b::number(0.0), // is_html=false for svelte:element
+                            b::string(class_str),
+                        ],
+                    );
+                    self.state.init.push(b::stmt(set_class_call));
+                }
+            } else {
+                let css_hash = self.state.analysis.css.hash.clone();
+                build_attribute_effect(
+                    &attributes,
+                    &class_directives,
+                    &style_directives,
+                    self,
+                    element_id.clone(),
+                    &css_hash,
+                    false, // should_remove_defaults - not needed for svelte:element
+                );
+            }
 
             // Move statements added to context.state to inner state
             while self.state.init.len() > saved_init_len {

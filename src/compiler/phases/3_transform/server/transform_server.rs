@@ -5023,9 +5023,22 @@ impl<'a> ServerCodeGenerator<'a> {
         // Generate only the meaningful nodes
         // Track when we've just output a TitleElement to trim leading whitespace from next text
         let mut just_had_title = false;
+        // Track when the previous node was a ConstTag - whitespace-only text after ConstTag
+        // should be skipped since ConstTag doesn't produce HTML output
+        let mut prev_was_const_tag = false;
         let meaningful_nodes = &nodes[start_idx..end_idx];
         for (i, node) in meaningful_nodes.iter().enumerate() {
             let is_last = i == meaningful_nodes.len() - 1;
+
+            // Skip whitespace-only text nodes after ConstTag
+            if prev_was_const_tag
+                && let TemplateNode::Text(text) = node
+                && text.data.trim().is_empty()
+            {
+                prev_was_const_tag = false;
+                continue;
+            }
+
             // If we just had a title and this is a text node, trim leading whitespace
             if just_had_title && let TemplateNode::Text(text) = node {
                 let mut modified_text = text.clone();
@@ -5036,9 +5049,11 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
                 body_generator.generate_node(&TemplateNode::Text(modified_text), false)?;
                 just_had_title = false;
+                prev_was_const_tag = false;
                 continue;
             }
             just_had_title = matches!(node, TemplateNode::TitleElement(_));
+            prev_was_const_tag = matches!(node, TemplateNode::ConstTag(_));
             // For the last text node in a fragment, trim trailing whitespace
             if is_last && let TemplateNode::Text(text) = node {
                 let mut modified_text = text.clone();

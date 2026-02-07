@@ -183,10 +183,23 @@ fn transform_client_with_visitors(
             b.name == store_name && matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp)
         });
 
+        // Check if the store is a derived or state variable - if so, wrap with $.get()
+        // e.g., $.get(store) instead of store
+        let is_derived_or_state = analysis.root.bindings.iter().any(|b| {
+            b.name == store_name
+                && matches!(
+                    b.kind,
+                    BindingKind::State | BindingKind::RawState | BindingKind::Derived
+                )
+        });
+
         // Generate: const $store = () => $.store_get(store, '$store', $$stores);
         // or: const $store = () => $.store_get(store(), '$store', $$stores); for prop stores
+        // or: const $store = () => $.store_get($.get(store), '$store', $$stores); for derived/state stores
         let store_access = if is_prop_store {
             format!("{}()", store_name)
+        } else if is_derived_or_state {
+            format!("$.get({})", store_name)
         } else {
             store_name.to_string()
         };
@@ -891,9 +904,28 @@ fn transform_instance_script_for_visitors(
 
     // Also scan for local $state and $derived declarations in the script
     // These are variables declared inside functions (like inside $effect callbacks)
-    // that aren't tracked in analysis.root.bindings
+    // that aren't tracked in analysis.root.bindings.
+    // However, skip names that already exist as top-level bindings, since those
+    // top-level bindings take precedence for scope-level transforms. For example,
+    // if there's a top-level `const multiplier = () => { let multiplier = $state(2); ... }`,
+    // the inner `multiplier` should NOT cause the outer `multiplier` to be wrapped with $.get().
     let local_reactive_vars = extract_local_reactive_vars(&script_rest);
-    state_vars.extend(local_reactive_vars);
+    let top_level_binding_names: std::collections::HashSet<&str> = analysis
+        .root
+        .bindings
+        .iter()
+        .map(|b| b.name.as_str())
+        .collect();
+    for var in local_reactive_vars {
+        if !top_level_binding_names.contains(var.as_str()) {
+            state_vars.push(var);
+        }
+    }
+
+    // Note: We intentionally do NOT remove state_vars that shadow non-reactive top-level
+    // declarations because the text-based transform is not scope-aware. Removing them
+    // would fix the top-level scope but break the inner scope where $.get() is needed.
+    // A proper fix requires scope-aware text transformation or AST-based transforms.
 
     // Collect proxy vars - variables initialized with $state({ ... }) or $state([ ... ])
     // These are converted to $.proxy() and don't need $.get() wrapping for property access
@@ -5683,6 +5715,12 @@ fn transform_state_in_expr(
 
         // Track whether we're inside a string literal
         let mut in_string: Option<char> = None; // None or Some('\'') or Some('"') or Some('`')
+        // Stack for template literal nesting: tracks brace depth inside `${...}` interpolations.
+        // When we encounter `${` inside a template literal, we push 0 onto the stack and
+        // temporarily leave string mode to process the expression. Each `{` increments the
+        // top counter and each `}` decrements it. When it reaches -1, the interpolation ends
+        // and we return to template literal string mode.
+        let mut template_literal_depth_stack: Vec<i32> = Vec::new();
         // Track whether we're inside a comment
         let mut in_line_comment = false;
         let mut in_block_comment = false;
@@ -5713,6 +5751,30 @@ fn transform_state_in_expr(
                 continue;
             }
 
+            // Handle template literal interpolation brace tracking
+            if !template_literal_depth_stack.is_empty() && in_string.is_none() {
+                if c == '{' {
+                    if let Some(depth) = template_literal_depth_stack.last_mut() {
+                        *depth += 1;
+                    }
+                } else if c == '}' {
+                    let should_pop = if let Some(depth) = template_literal_depth_stack.last_mut() {
+                        *depth -= 1;
+                        *depth < 0
+                    } else {
+                        false
+                    };
+                    if should_pop {
+                        template_literal_depth_stack.pop();
+                        // Re-enter template literal string mode
+                        in_string = Some('`');
+                        new_result.push(c);
+                        i += 1;
+                        continue;
+                    }
+                }
+            }
+
             // Handle string literal boundaries
             if in_string.is_none() {
                 // Check for comment start (only outside strings)
@@ -5738,6 +5800,19 @@ fn transform_state_in_expr(
                     i += 1;
                     continue;
                 }
+            } else if in_string == Some('`')
+                && c == '$'
+                && i + 1 < chars.len()
+                && chars[i + 1] == '{'
+            {
+                // Template literal interpolation: `...${expr}...`
+                // Temporarily exit string mode to process the expression
+                in_string = None;
+                template_literal_depth_stack.push(0);
+                new_result.push(c);
+                new_result.push('{');
+                i += 2;
+                continue;
             } else if Some(c) == in_string {
                 // Check for escape sequence
                 let escaped = if i > 0 && chars[i - 1] == '\\' {
@@ -5765,7 +5840,7 @@ fn transform_state_in_expr(
                 continue;
             }
 
-            // Skip replacements inside string literals
+            // Skip replacements inside string literals (but NOT template literal interpolations)
             if in_string.is_some() {
                 new_result.push(c);
                 i += 1;
@@ -5839,7 +5914,10 @@ fn transform_state_in_expr(
                         };
 
                         // Check if this is an object property key (e.g., `{ foo: value }`)
-                        // Property keys before `:` should not be wrapped
+                        // Property keys before `:` should not be wrapped.
+                        // BUT: We must distinguish object property `:` from ternary operator `:`.
+                        // If there's a matching `?` at the same depth before this variable,
+                        // then this `:` is part of a ternary expression, not a property key.
                         let is_property_key = {
                             let after_idx = i + var_chars.len();
                             // Skip whitespace after the variable
@@ -5847,7 +5925,67 @@ fn transform_state_in_expr(
                             while k < chars.len() && chars[k].is_whitespace() {
                                 k += 1;
                             }
-                            k < chars.len() && chars[k] == ':'
+                            let has_colon_after = k < chars.len() && chars[k] == ':';
+                            if has_colon_after {
+                                // Check if this is actually a ternary `:` by scanning backwards
+                                // for a `?` at the same paren/brace/bracket depth
+                                let mut is_ternary = false;
+                                let mut depth_paren = 0i32;
+                                let mut depth_brace = 0i32;
+                                let mut depth_bracket = 0i32;
+                                let mut scan = i;
+                                while scan > 0 {
+                                    scan -= 1;
+                                    let sc = chars[scan];
+                                    match sc {
+                                        ')' => depth_paren += 1,
+                                        '(' => {
+                                            depth_paren -= 1;
+                                            if depth_paren < 0 {
+                                                break; // Left our enclosing context
+                                            }
+                                        }
+                                        '}' => depth_brace += 1,
+                                        '{' => {
+                                            depth_brace -= 1;
+                                            if depth_brace < 0 {
+                                                break; // Left our enclosing context
+                                            }
+                                        }
+                                        ']' => depth_bracket += 1,
+                                        '[' => {
+                                            depth_bracket -= 1;
+                                            if depth_bracket < 0 {
+                                                break;
+                                            }
+                                        }
+                                        '?' if depth_paren == 0
+                                            && depth_brace == 0
+                                            && depth_bracket == 0 =>
+                                        {
+                                            // Check it's not optional chaining `?.`
+                                            if scan + 1 < chars.len() && chars[scan + 1] == '.' {
+                                                continue;
+                                            }
+                                            is_ternary = true;
+                                            break;
+                                        }
+                                        // Stop at statement boundaries
+                                        ';' | ',' => {
+                                            if depth_paren == 0
+                                                && depth_brace == 0
+                                                && depth_bracket == 0
+                                            {
+                                                break;
+                                            }
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                                !is_ternary
+                            } else {
+                                false
+                            }
                         };
 
                         // Check if this is a shorthand property in an object literal (e.g., `{ foo, bar }`)

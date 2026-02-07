@@ -143,7 +143,18 @@ fn convert_literal(
     let value = obj.get("value");
 
     match value {
-        Some(Value::String(s)) => JsExpr::Literal(JsLiteral::String(s.clone())),
+        Some(Value::String(s)) => {
+            // Check the `raw` property to preserve original quote style.
+            // The official Svelte compiler (esrap) preserves the original quote style
+            // from user source code. If the raw representation uses double quotes,
+            // emit via Raw() to preserve them through OXC normalization.
+            if let Some(Value::String(raw)) = obj.get("raw")
+                && raw.starts_with('"')
+            {
+                return JsExpr::Raw(raw.clone());
+            }
+            JsExpr::Literal(JsLiteral::String(s.clone()))
+        }
         Some(Value::Number(n)) => JsExpr::Literal(JsLiteral::Number(n.as_f64().unwrap_or(0.0))),
         Some(Value::Bool(b)) => JsExpr::Literal(JsLiteral::Boolean(*b)),
         Some(Value::Null) | None => JsExpr::Literal(JsLiteral::Null),

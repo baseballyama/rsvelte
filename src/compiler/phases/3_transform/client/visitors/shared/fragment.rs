@@ -482,6 +482,10 @@ fn push_static_element_to_template(node: &TemplateNode, template: &mut Template)
                         }
                         _ => None,
                     };
+                    // Skip empty class attributes (matches official compiler behavior)
+                    if a.name == "class" && value.as_deref() == Some("") {
+                        continue;
+                    }
                     template.set_prop(a.name.to_string(), value);
                 }
             }
