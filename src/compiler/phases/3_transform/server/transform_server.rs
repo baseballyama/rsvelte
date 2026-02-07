@@ -4822,7 +4822,7 @@ impl<'a> ServerCodeGenerator<'a> {
 export default function {component_name}($$renderer{props_param}) {{
 {css_add_call}	$$renderer.component(($$renderer) => {{
 {props_declarations}{store_subs_decl}{inner_script}
-{instance_snippets}{inner_body}{bind_props_code}{store_subs_cleanup}	}});
+{instance_snippets}{inner_body}{store_subs_cleanup}{bind_props_code}	}});
 }}"#,
                     async_import = async_import,
                     imports_section = imports_section,
