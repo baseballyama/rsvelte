@@ -5,17 +5,18 @@
 
 /// Escape HTML special characters for safe insertion into HTML content.
 pub fn escape_html(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
+    // Only escape & and < for HTML content (not >)
+    // This matches the official Svelte compiler's CONTENT_REGEX = /[&<]/g
+    s.replace('&', "&amp;").replace('<', "&lt;")
 }
 
 /// Escape attribute value special characters.
 pub fn escape_attr(s: &str) -> String {
+    // Only escape &, ", and < for attributes (not >)
+    // This matches the official Svelte compiler's ATTR_REGEX = /[&"<]/g
     s.replace('&', "&amp;")
         .replace('"', "&quot;")
         .replace('<', "&lt;")
-        .replace('>', "&gt;")
 }
 
 /// Check if an element is a void element (self-closing, no end tag).

@@ -37,21 +37,12 @@ fn needs_clsx(attr_value: &AttributeValue) -> bool {
 
     match attr_value {
         AttributeValue::Expression(expr_tag) => {
-            // Get expression type
+            // Get expression type - only unquoted class={expr} needs clsx
+            // Quoted class="{expr}" (Sequence) does NOT need clsx per official compiler
             let expr_type = expr_tag.expression.node_type().unwrap_or("");
             expr_needs_clsx(expr_type)
         }
-        // Also check for Sequence with single ExpressionTag (for quoted expressions like class="{x}")
-        AttributeValue::Sequence(parts) if parts.len() == 1 => {
-            if let AttributeValuePart::ExpressionTag(expr_tag) = &parts[0] {
-                let expr_type = expr_tag.expression.node_type().unwrap_or("");
-                expr_needs_clsx(expr_type)
-            } else {
-                // Single text part doesn't need clsx
-                false
-            }
-        }
-        // Multiple parts (mixed text and expressions) or True don't need clsx
+        // Sequence (quoted attributes), True, or other forms don't need clsx
         _ => false,
     }
 }

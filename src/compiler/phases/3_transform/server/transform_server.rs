@@ -548,17 +548,29 @@ impl<'a> ServerCodeGenerator<'a> {
         use_async: bool,
     ) -> Self {
         // Extract constant variables from script
-        let constant_vars = if let Some(script) = instance_script {
+        let mut constant_vars = FxHashMap::default();
+
+        // Extract constants from module script first (only const declarations)
+        if let Some(script) = module_script {
             let start = script.content.start().unwrap_or(0) as usize;
             let end = script.content.end().unwrap_or(0) as usize;
             if end > start && end <= source.len() {
-                extract_constant_vars(&source[start..end])
-            } else {
-                FxHashMap::default()
+                for (k, v) in extract_constant_vars_const_only(&source[start..end]) {
+                    constant_vars.insert(k, v);
+                }
             }
-        } else {
-            FxHashMap::default()
-        };
+        }
+
+        // Then from instance script (both let and const)
+        if let Some(script) = instance_script {
+            let start = script.content.start().unwrap_or(0) as usize;
+            let end = script.content.end().unwrap_or(0) as usize;
+            if end > start && end <= source.len() {
+                for (k, v) in extract_constant_vars(&source[start..end]) {
+                    constant_vars.insert(k, v);
+                }
+            }
+        }
 
         // Check if the analysis has any StoreSub bindings
         let uses_store_subs = analysis
@@ -2656,8 +2668,10 @@ impl<'a> ServerCodeGenerator<'a> {
                     // Skip null expressions entirely
                 }
                 ConstantFoldResult::Constant(content) => {
-                    // Output constant directly as HTML
-                    self.output_parts.push(OutputPart::Html(content));
+                    // Output constant with HTML escaping (matches official compiler's
+                    // escape_html() call on evaluated values)
+                    self.output_parts
+                        .push(OutputPart::Html(escape_html(&content)));
                 }
                 ConstantFoldResult::Dynamic => {
                     // Dynamic expression - needs escaping
@@ -6202,8 +6216,19 @@ fn transform_props_spread(script: &str) -> String {
     result
 }
 
+/// Extract constant variable bindings from module script content (const only).
+fn extract_constant_vars_const_only(script: &str) -> FxHashMap<String, String> {
+    extract_constant_vars_inner(script, true)
+}
+
 /// Extract constant variable bindings from script content.
 fn extract_constant_vars(script: &str) -> FxHashMap<String, String> {
+    extract_constant_vars_inner(script, false)
+}
+
+/// Inner implementation for extracting constant variables.
+/// If `const_only` is true, only `const` declarations are extracted (for module scripts).
+fn extract_constant_vars_inner(script: &str, const_only: bool) -> FxHashMap<String, String> {
     let mut constants = FxHashMap::default();
 
     for line in script.lines() {
@@ -6214,13 +6239,23 @@ fn extract_constant_vars(script: &str) -> FxHashMap<String, String> {
             continue;
         }
 
-        let decl_start = if trimmed.starts_with("let ") {
+        // Strip leading 'export' keyword if present
+        // Only for const declarations - exported let variables are props and may change
+        let (trimmed, is_export) = if let Some(rest) = trimmed.strip_prefix("export ") {
+            (rest.trim_start(), true)
+        } else {
+            (trimmed, false)
+        };
+
+        let decl_start = if !const_only && !is_export && trimmed.starts_with("let ") {
             Some(4)
         } else if trimmed.starts_with("const ") {
             Some(6)
         } else {
             None
         };
+
+        let is_const = trimmed.starts_with("const ");
 
         if let Some(start) = decl_start {
             let rest = &trimmed[start..];
@@ -6235,6 +6270,15 @@ fn extract_constant_vars(script: &str) -> FxHashMap<String, String> {
                 {
                     let content = &value[1..value.len() - 1];
                     constants.insert(name.to_string(), content.to_string());
+                } else if is_const {
+                    // Only extract numeric literals from const declarations
+                    if let Ok(n) = value.parse::<i64>() {
+                        constants.insert(name.to_string(), n.to_string());
+                    } else if let Ok(n) = value.parse::<f64>()
+                        && n.is_finite()
+                    {
+                        constants.insert(name.to_string(), n.to_string());
+                    }
                 }
             }
         }
@@ -6262,7 +6306,10 @@ fn try_constant_fold_full(expr: &str) -> ConstantFoldResult {
         return ConstantFoldResult::Constant(n.to_string());
     }
     if let Ok(n) = trimmed.parse::<f64>() {
-        return ConstantFoldResult::Constant(n.to_string());
+        // Don't fold NaN or Infinity - they're global variables, not constants
+        if n.is_finite() {
+            return ConstantFoldResult::Constant(n.to_string());
+        }
     }
 
     if (trimmed.starts_with('\'') && trimmed.ends_with('\''))
