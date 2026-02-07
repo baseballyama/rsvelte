@@ -555,7 +555,7 @@ impl<'a> ServerCodeGenerator<'a> {
             let start = script.content.start().unwrap_or(0) as usize;
             let end = script.content.end().unwrap_or(0) as usize;
             if end > start && end <= source.len() {
-                for (k, v) in extract_constant_vars(&source[start..end]) {
+                for (k, v) in extract_constant_vars(&source[start..end], &source) {
                     constant_vars.insert(k, v);
                 }
             }
@@ -566,7 +566,7 @@ impl<'a> ServerCodeGenerator<'a> {
             let start = script.content.start().unwrap_or(0) as usize;
             let end = script.content.end().unwrap_or(0) as usize;
             if end > start && end <= source.len() {
-                for (k, v) in extract_constant_vars(&source[start..end]) {
+                for (k, v) in extract_constant_vars(&source[start..end], &source) {
                     constant_vars.insert(k, v);
                 }
             }
@@ -6264,8 +6264,8 @@ fn transform_props_spread(script: &str) -> String {
 
 /// Extract constant variable bindings from script content.
 /// Extracts `const` declarations always, and `let` declarations only if they're
-/// not exported and never reassigned in the script.
-fn extract_constant_vars(script: &str) -> FxHashMap<String, String> {
+/// not exported and never reassigned in the full source.
+fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMap<String, String> {
     let mut constants = FxHashMap::default();
     let mut let_vars: Vec<String> = Vec::new();
 
@@ -6309,46 +6309,79 @@ fn extract_constant_vars(script: &str) -> FxHashMap<String, String> {
                     if !is_const {
                         let_vars.push(name.to_string());
                     }
-                } else if is_const {
-                    // Only extract numeric literals from const declarations
-                    if let Ok(n) = value.parse::<i64>() {
-                        constants.insert(name.to_string(), n.to_string());
-                    } else if let Ok(n) = value.parse::<f64>()
-                        && n.is_finite()
-                    {
-                        constants.insert(name.to_string(), n.to_string());
+                } else if let Ok(n) = value.parse::<i64>() {
+                    // Integer literals
+                    constants.insert(name.to_string(), n.to_string());
+                    if !is_const {
+                        let_vars.push(name.to_string());
+                    }
+                } else if let Ok(n) = value.parse::<f64>()
+                    && n.is_finite()
+                {
+                    // Float literals (not NaN/Infinity)
+                    constants.insert(name.to_string(), n.to_string());
+                    if !is_const {
+                        let_vars.push(name.to_string());
                     }
                 }
             }
         }
     }
 
-    // Remove let variables that are reassigned in the script
+    // Remove let variables that are reassigned in the full source (script + template)
     // Check for patterns like `name = `, `name +=`, `name++`, etc.
     for var_name in &let_vars {
-        let is_reassigned = script.lines().any(|line| {
+        let is_reassigned = full_source.lines().any(|line| {
             let trimmed = line.trim();
             // Skip the declaration line itself
-            if trimmed.starts_with("let ") || trimmed.starts_with("const ") {
+            if trimmed.starts_with("let ")
+                || trimmed.starts_with("const ")
+                || trimmed.starts_with("export let ")
+                || trimmed.starts_with("export const ")
+            {
                 return false;
             }
-            // Check for direct assignment: `varName = ...` or `varName += ...` etc.
-            if let Some(rest) = trimmed.strip_prefix(var_name.as_str()) {
-                let rest = rest.trim_start();
-                if rest.starts_with('=')
-                    || rest.starts_with("+=")
-                    || rest.starts_with("-=")
-                    || rest.starts_with("++")
-                    || rest.starts_with("--")
-                {
-                    return true;
+            // Check for assignment patterns: `varName = ...`, `varName += ...`, etc.
+            // Search for the variable name in the line, ensuring it's a standalone identifier
+            // (preceded by a non-word char or start of line, followed by assignment operator)
+            let mut search_start = 0;
+            while let Some(pos) = trimmed[search_start..].find(var_name.as_str()) {
+                let abs_pos = search_start + pos;
+                let after_pos = abs_pos + var_name.len();
+
+                // Check that the character before is not a word character (or is start of line)
+                let before_ok = abs_pos == 0 || {
+                    let c = trimmed.as_bytes()[abs_pos - 1];
+                    !c.is_ascii_alphanumeric() && c != b'_' && c != b'$'
+                };
+
+                // Check that the character after is not a word character
+                let after_char_ok = after_pos >= trimmed.len() || {
+                    let c = trimmed.as_bytes()[after_pos];
+                    !c.is_ascii_alphanumeric() && c != b'_' && c != b'$'
+                };
+
+                if before_ok && after_char_ok && after_pos < trimmed.len() {
+                    let rest = trimmed[after_pos..].trim_start();
+                    // Assignment operators (but not == or =>)
+                    if (rest.starts_with('=') && !rest.starts_with("==") && !rest.starts_with("=>"))
+                        || rest.starts_with("+=")
+                        || rest.starts_with("-=")
+                        || rest.starts_with("*=")
+                        || rest.starts_with("/=")
+                    {
+                        return true;
+                    }
+                    // Pre/post increment/decrement
+                    if rest.starts_with("++") || rest.starts_with("--") {
+                        return true;
+                    }
                 }
-            }
-            // Check for assignment anywhere in line (e.g., in callbacks)
-            // Look for ` varName = ` pattern (surrounded by non-word chars)
-            let pattern = format!("{} =", var_name);
-            if trimmed.contains(&pattern) && !trimmed.starts_with("let ") {
-                return true;
+
+                search_start = abs_pos + 1;
+                if search_start >= trimmed.len() {
+                    break;
+                }
             }
             false
         });
