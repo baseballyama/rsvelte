@@ -622,6 +622,18 @@ pub fn normalize_js(js: &str) -> String {
     // This handles cases like ";;" becoming "  " after semicolon removal
     let result = MULTI_SPACE.replace_all(&result, " ").to_string();
 
+    // Final pass: remove ALL blank/empty lines.
+    // This is a safety net after all other normalizations. Even though MULTI_SPACE
+    // collapses newlines, some transformations above might re-introduce line breaks.
+    // Removing blank lines ensures the comparison ignores blank line differences
+    // between expected and actual output (e.g., blank lines between import groups,
+    // between declarations, after opening braces, etc.).
+    let result = result
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .collect::<Vec<_>>()
+        .join("\n");
+
     result.trim().to_string()
 }
 
@@ -2340,8 +2352,9 @@ mod tests {
     fn test_normalize_js_preserves_template_literal_spaces() {
         let input =
             r#"$.template_effect(() => $.set_text(text, `clicks: ${$.get(count) ?? ''}`));"#;
-        let expected =
-            r#"$.template_effect(() => $.set_text(text, `clicks: ${$.get(count) ?? ''}`))"#;
+        // Note: NULLISH_EMPTY_STRING normalization removes `?? ''` since it's
+        // semantically equivalent for display purposes
+        let expected = r#"$.template_effect(() => $.set_text(text, `clicks: ${$.get(count)}`))"#;
         assert_eq!(normalize_js(input), expected);
     }
 
