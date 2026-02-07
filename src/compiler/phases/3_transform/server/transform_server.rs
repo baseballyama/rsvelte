@@ -4240,7 +4240,12 @@ impl<'a> ServerCodeGenerator<'a> {
 
         let component_expr = if end > start && end <= self.source.len() {
             let raw = self.source[start..end].trim().to_string();
-            self.transform_store_refs(&raw)
+            let expr = self.transform_store_refs(&raw);
+            // Wrap in parens so that optional chaining `?.()` applies to the
+            // whole expression (e.g. `(x ? Foo : Bar)?.(...)`) instead of only
+            // the last operand.  Simple identifiers like `null` or `Foo` get
+            // the extra parens stripped by OXC, so this is safe.
+            format!("({})", expr)
         } else {
             "null".to_string()
         };
