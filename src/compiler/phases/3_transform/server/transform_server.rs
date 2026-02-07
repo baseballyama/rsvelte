@@ -1100,9 +1100,55 @@ impl<'a> ServerCodeGenerator<'a> {
                 if let TemplateNode::Text(text) = child {
                     let data = &text.data;
                     if data.trim().is_empty() {
-                        // For select/optgroup elements, skip all whitespace-only text nodes
-                        // (they should not produce any output, not even spaces)
-                        if name == "select" || name == "optgroup" {
+                        // For certain elements, skip all whitespace-only text nodes entirely
+                        // This matches the clean_nodes behavior in the official compiler:
+                        // - SVG elements (except <text>) strip internal whitespace
+                        // - Table-related elements strip internal whitespace
+                        // - select/optgroup strip internal whitespace
+                        let is_svg_parent = matches!(
+                            name,
+                            "svg"
+                                | "g"
+                                | "defs"
+                                | "symbol"
+                                | "marker"
+                                | "clipPath"
+                                | "mask"
+                                | "pattern"
+                                | "linearGradient"
+                                | "radialGradient"
+                                | "filter"
+                                | "feBlend"
+                                | "feColorMatrix"
+                                | "feComponentTransfer"
+                                | "feComposite"
+                                | "feConvolveMatrix"
+                                | "feDiffuseLighting"
+                                | "feDisplacementMap"
+                                | "feFlood"
+                                | "feGaussianBlur"
+                                | "feImage"
+                                | "feMerge"
+                                | "feMorphology"
+                                | "feOffset"
+                                | "feSpecularLighting"
+                                | "feTile"
+                                | "feTurbulence"
+                        );
+                        let can_remove_whitespace = is_svg_parent
+                            || matches!(
+                                name,
+                                "select"
+                                    | "optgroup"
+                                    | "tr"
+                                    | "table"
+                                    | "tbody"
+                                    | "thead"
+                                    | "tfoot"
+                                    | "colgroup"
+                                    | "datalist"
+                            );
+                        if can_remove_whitespace {
                             continue;
                         }
                         // Whitespace-only text: add space only if between content elements
@@ -2255,7 +2301,12 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
 
                     // Check if the expression is a literal - if so, inline it directly
-                    if let Some(literal_value) = self.extract_literal_value(&expr_tag.expression) {
+                    // Exception: boolean literals should use $.attr() since the runtime
+                    // handles boolean-to-attribute conversion (false = omit attribute)
+                    if let Some(literal_value) = self.extract_literal_value(&expr_tag.expression)
+                        && literal_value != "true"
+                        && literal_value != "false"
+                    {
                         return Ok(Some(format!(
                             " {}=\"{}\"",
                             name,
@@ -2264,6 +2315,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
 
                     // Generate $.attr() call for non-literal expression attributes
+                    // (and for boolean literal expressions)
                     let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
                     let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {
@@ -2337,7 +2389,12 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
 
                 // Check if the expression is a literal - if so, inline it directly
-                if let Some(literal_value) = self.extract_literal_value(&expr_tag.expression) {
+                // Exception: boolean literals should use $.attr() since the runtime
+                // handles boolean-to-attribute conversion (false = omit attribute)
+                if let Some(literal_value) = self.extract_literal_value(&expr_tag.expression)
+                    && literal_value != "true"
+                    && literal_value != "false"
+                {
                     // Inline literal values directly: href="#" instead of ${$.attr('href', '#')}
                     return Ok(Some(format!(
                         " {}=\"{}\"",
@@ -2347,6 +2404,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
 
                 // Generate $.attr() call for non-literal expression attributes
+                // (and for boolean literal expressions)
                 let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
                 let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
                 if expr_end > expr_start && expr_end <= self.source.len() {
@@ -2402,6 +2460,10 @@ impl<'a> ServerCodeGenerator<'a> {
                     } else {
                         normalized
                     };
+                    // Skip empty class attributes (class='' with no CSS hash should be omitted)
+                    if final_value.is_empty() {
+                        return Ok(None);
+                    }
                     return Ok(Some(format!(" {}=\"{}\"", name, final_value)));
                 }
 
