@@ -10,7 +10,7 @@ use crate::ast::template::{
     Attribute, AttributeNode, AttributeValue, AttributeValuePart, AwaitBlock, BindDirective,
     ClassDirective, Component, ConstTag, EachBlock, ExpressionTag, Fragment, HtmlTag, IfBlock,
     KeyBlock, RegularElement, RenderTag, Root, Script, SnippetBlock, StyleDirective,
-    SvelteDynamicElement, SvelteElement, TemplateNode, Text, TitleElement,
+    SvelteComponentElement, SvelteDynamicElement, SvelteElement, TemplateNode, Text, TitleElement,
 };
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
@@ -907,6 +907,7 @@ impl<'a> ServerCodeGenerator<'a> {
             TemplateNode::SvelteHead(head) => self.generate_svelte_head(head),
             TemplateNode::ConstTag(tag) => self.generate_const_tag(tag),
             TemplateNode::TitleElement(title) => self.generate_title_element(title),
+            TemplateNode::SvelteComponent(elem) => self.generate_svelte_component(elem),
             _ => Ok(()),
         }
     }
@@ -4226,6 +4227,71 @@ impl<'a> ServerCodeGenerator<'a> {
         } else {
             self.output_parts.push(OutputPart::Comment);
         }
+        Ok(())
+    }
+
+    fn generate_svelte_component(
+        &mut self,
+        elem: &SvelteComponentElement,
+    ) -> Result<(), TransformError> {
+        // Extract the component expression from `this={expr}`
+        let start = elem.expression.start().unwrap_or(0) as usize;
+        let end = elem.expression.end().unwrap_or(0) as usize;
+
+        let component_expr = if end > start && end <= self.source.len() {
+            let raw = self.source[start..end].trim().to_string();
+            self.transform_store_refs(&raw)
+        } else {
+            "null".to_string()
+        };
+
+        // Build props object from attributes (same approach as component_usage)
+        let mut props = Vec::new();
+        for attr in &elem.attributes {
+            match attr {
+                Attribute::Attribute(node) => {
+                    let attr_name = node.name.as_str();
+                    if attr_name.starts_with("on") {
+                        continue;
+                    }
+                    let value = self.extract_attribute_value_as_string(node)?;
+                    props.push(format!("{}: {}", quote_prop_name(attr_name), value));
+                }
+                Attribute::SpreadAttribute(spread) => {
+                    let expr_start = spread.expression.start().unwrap_or(0) as usize;
+                    let expr_end = spread.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let expr = self.source[expr_start..expr_end].trim().to_string();
+                        props.push(format!("...{}", expr));
+                    }
+                }
+                Attribute::BindDirective(bind) => {
+                    let bind_name = bind.name.as_str();
+                    let expr_start = bind.expression.start().unwrap_or(0) as usize;
+                    let expr_end = bind.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let expr = self.source[expr_start..expr_end].trim().to_string();
+                        let expr = self.transform_store_refs(&expr);
+                        props.push(format!("{}: {}", quote_prop_name(bind_name), expr));
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // Use the existing Component output part with dynamic=true
+        // This generates: <!---->  name?.($$renderer, { props })  <!---->
+        self.output_parts.push(OutputPart::Component {
+            name: component_expr,
+            props,
+            spreads: Vec::new(),
+            has_prior_content: true,
+            children: None,
+            snippets: Vec::new(),
+            slot_names: Vec::new(),
+            dynamic: true,
+        });
+
         Ok(())
     }
 
