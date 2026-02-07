@@ -4879,7 +4879,7 @@ export default function {component_name}($$renderer{props_param}) {{
                                         indent, quoted_name, params_str, fn_body
                                     ));
                                 }
-                                body_code.push_str(&format!("{}\t\t}}\n", indent));
+                                body_code.push_str(&format!("{}\t\t}},\n", indent));
                             }
                             body_code.push_str(&format!("{}\t}}\n", indent));
                             body_code.push_str(&format!("{}}});\n", indent));
@@ -4927,7 +4927,7 @@ export default function {component_name}($$renderer{props_param}) {{
                                             indent, quoted_name, params_str, fn_body
                                         ));
                                     }
-                                    body_code.push_str(&format!("{}\t\t}}\n", indent));
+                                    body_code.push_str(&format!("{}\t\t}},\n", indent));
                                 }
                                 body_code.push_str(&format!("{}\t}}\n", indent));
                             } else {
