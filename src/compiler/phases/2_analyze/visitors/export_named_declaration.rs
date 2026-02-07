@@ -40,22 +40,30 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
 
             // Check for export_undefined in module script
             // Only check if this is not a re-export (no source)
+            // Skip type-only exports (exportKind: "type" on the node or specifier)
             if context.ast_type == super::AstType::Module
                 && !has_source
                 && let Some(local) = specifier.get("local")
                 && local.get("type").and_then(|t| t.as_str()) == Some("Identifier")
             {
-                let local_name = local.get("name").and_then(|n| n.as_str()).unwrap_or("");
-                if !local_name.is_empty() {
-                    // Check if the binding exists in the module scope
-                    let binding_exists = context
-                        .analysis
-                        .root
-                        .scope
-                        .declarations
-                        .contains_key(local_name);
-                    if !binding_exists {
-                        return Err(errors::export_undefined(local_name));
+                // Skip type-only exports: check both node-level and specifier-level exportKind
+                let is_type_export = node.get("exportKind").and_then(|v| v.as_str())
+                    == Some("type")
+                    || specifier.get("exportKind").and_then(|v| v.as_str()) == Some("type");
+
+                if !is_type_export {
+                    let local_name = local.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                    if !local_name.is_empty() {
+                        // Check if the binding exists in the module scope
+                        let binding_exists = context
+                            .analysis
+                            .root
+                            .scope
+                            .declarations
+                            .contains_key(local_name);
+                        if !binding_exists {
+                            return Err(errors::export_undefined(local_name));
+                        }
                     }
                 }
             }

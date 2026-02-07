@@ -189,6 +189,14 @@ fn process_parameter(
             });
         }
 
+        if param_type == "AssignmentPattern" {
+            // Parameter with default value: param = defaultValue
+            // Generates: ($$anchor, $$argN) => {
+            //   let param = $.derived_safe_equal(() => $.fallback($$argN?.(), default));
+            // }
+            return process_assignment_pattern(obj, index, context);
+        }
+
         // For destructured patterns (ObjectPattern, ArrayPattern), we need to:
         // 1. Create an intermediate argument name ($$argN)
         // 2. Extract paths from the pattern
@@ -313,11 +321,22 @@ fn process_destructured_pattern(
                 // Generate array variable
                 let array_name = context.state.memoizer.generate_id("$$array");
 
-                // Create: const $$array = $.derived(() => $.to_array($$arg?.()))
-                let to_array_call = b::call(
-                    b::member_path("$.to_array"),
-                    vec![b::call(b::member_path(&format!("{}?.", arg_alias)), vec![])],
-                );
+                // Check if last element is a RestElement
+                let has_rest = elements
+                    .last()
+                    .and_then(|e| e.as_object())
+                    .and_then(|o| o.get("type"))
+                    .and_then(|t| t.as_str())
+                    == Some("RestElement");
+
+                // Create: var $$array = $.derived(() => $.to_array($$arg?.(), length))
+                // The length argument is only added when there's no rest element
+                let arg_call = b::call(b::member_path(&format!("{}?.", arg_alias)), vec![]);
+                let mut to_array_args = vec![arg_call];
+                if !has_rest {
+                    to_array_args.push(b::number(elements.len() as f64));
+                }
+                let to_array_call = b::call(b::member_path("$.to_array"), to_array_args);
 
                 declarations.push(b::const_decl(
                     &array_name,
@@ -362,6 +381,147 @@ fn process_destructured_pattern(
     }
 
     declarations
+}
+
+/// Process an AssignmentPattern parameter (parameter with default value).
+///
+/// For `{#snippet item(c = count)}`, generates:
+///   - Parameter: `$$arg0`
+///   - Declaration: `let c = $.derived_safe_equal(() => $.fallback($$arg0?.(), count))`
+///   - Transform: `c` reads as `$.get(c)`
+///
+/// For complex defaults (non-simple expressions), the default is thunked:
+///   `$.fallback($$arg?.(), () => complexExpr, true)`
+fn process_assignment_pattern(
+    obj: &serde_json::Map<String, serde_json::Value>,
+    index: usize,
+    context: &mut ComponentContext,
+) -> Option<ParameterInfo> {
+    let left = obj.get("left").and_then(|l| l.as_object())?;
+    let right = obj.get("right")?;
+
+    // Get the parameter name from the left side
+    let left_type = left.get("type").and_then(|t| t.as_str())?;
+
+    if left_type == "Identifier" {
+        let name = left.get("name").and_then(|n| n.as_str())?;
+        let arg_alias = format!("$$arg{}", index);
+
+        // Build the fallback expression
+        // $.fallback($$argN?.(), defaultValue) or $.fallback($$argN?.(), () => defaultValue, true)
+        let arg_call = b::optional_call(b::id(&arg_alias), vec![]);
+
+        let fallback_args = build_fallback_args(right, context);
+        let mut all_args = vec![arg_call];
+        all_args.extend(fallback_args);
+
+        let fallback_call = b::call(b::member_path("$.fallback"), all_args);
+
+        // Wrap in $.derived_safe_equal(() => $.fallback(...))
+        let derived_call = b::call(
+            b::member_path("$.derived_safe_equal"),
+            vec![b::thunk(fallback_call)],
+        );
+
+        let decl = b::let_decl(name, Some(derived_call));
+
+        // Set up transform: reads as $.get(name)
+        context
+            .state
+            .transform
+            .insert(name.to_string(), create_get_value_transform());
+
+        let pattern = b::id_pattern(&arg_alias);
+
+        return Some(ParameterInfo {
+            pattern,
+            declarations: vec![decl],
+        });
+    }
+
+    // For destructured patterns with defaults (e.g., {a, b} = defaultObj),
+    // fall back to the destructured pattern handler with an arg alias
+    let arg_alias = format!("$$arg{}", index);
+    let pattern = b::id_pattern(&arg_alias);
+    let declarations = process_destructured_pattern(left, &arg_alias, context);
+
+    Some(ParameterInfo {
+        pattern,
+        declarations,
+    })
+}
+
+/// Build the arguments for $.fallback() call.
+/// Returns [defaultValue] for simple defaults or [() => defaultValue, true] for complex ones.
+fn build_fallback_args(
+    default_value: &serde_json::Value,
+    context: &mut ComponentContext,
+) -> Vec<JsExpr> {
+    use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+
+    let default_expr = convert_expression(&Expression::Value(default_value.clone()), context);
+
+    if is_simple_expression_json(default_value) {
+        // Simple default: $.fallback(arg?.(), default)
+        vec![default_expr]
+    } else {
+        // Complex default: $.fallback(arg?.(), () => default, true)
+        vec![
+            b::thunk(default_expr),
+            JsExpr::Literal(JsLiteral::Boolean(true)),
+        ]
+    }
+}
+
+/// Check if a JSON AST expression is "simple" (doesn't need thunking).
+/// Matches the official Svelte compiler's `is_simple_expression` logic.
+fn is_simple_expression_json(value: &serde_json::Value) -> bool {
+    let obj = match value.as_object() {
+        Some(o) => o,
+        None => return true, // Literals are simple
+    };
+
+    let expr_type = match obj.get("type").and_then(|t| t.as_str()) {
+        Some(t) => t,
+        None => return true,
+    };
+
+    match expr_type {
+        "Literal" | "Identifier" | "ArrowFunctionExpression" | "FunctionExpression" => true,
+        "ConditionalExpression" => {
+            let test_simple = obj
+                .get("test")
+                .map(is_simple_expression_json)
+                .unwrap_or(true);
+            let consequent_simple = obj
+                .get("consequent")
+                .map(is_simple_expression_json)
+                .unwrap_or(true);
+            let alternate_simple = obj
+                .get("alternate")
+                .map(is_simple_expression_json)
+                .unwrap_or(true);
+            test_simple && consequent_simple && alternate_simple
+        }
+        "BinaryExpression" | "LogicalExpression" => {
+            let left_simple = obj
+                .get("left")
+                .map(is_simple_expression_json)
+                .unwrap_or(true);
+            let right_simple = obj
+                .get("right")
+                .map(is_simple_expression_json)
+                .unwrap_or(true);
+            left_simple && right_simple
+        }
+        "UnaryExpression" => obj
+            .get("argument")
+            .map(is_simple_expression_json)
+            .unwrap_or(true),
+        // Generic "Expression" fallback from parser (position-only placeholder)
+        "Expression" => true,
+        _ => false,
+    }
 }
 
 /// Create a transform that calls the identifier as a function.

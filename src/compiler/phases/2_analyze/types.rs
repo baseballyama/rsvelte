@@ -117,6 +117,9 @@ pub struct ComponentAnalysis {
     /// Whether the component uses runes
     pub runes: bool,
 
+    /// Whether experimental.async is enabled
+    pub experimental_async: bool,
+
     /// Whether the component might use runes
     pub maybe_runes: bool,
 
@@ -256,6 +259,7 @@ impl ComponentAnalysis {
             css: CssAnalysis::default(),
             name,
             runes: initial_runes,
+            experimental_async: options.experimental.r#async,
             maybe_runes: false,
             uses_props: false,
             uses_rest_props: false,

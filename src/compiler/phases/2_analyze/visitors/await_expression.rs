@@ -52,22 +52,16 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     // Disallow top-level `await` or `await` in template expressions
     // unless a) in runes mode and b) opted into `experimental.async`
     if suspend {
-        // Check for experimental.async option
-        // TODO: Access compile options to check experimental.async
-        // For now, we'll skip this check
-        // if !context.state.options.experimental.async {
-        //     return Err(AnalysisError::ValidationWithCode {
-        //         code: "experimental_async".to_string(),
-        //         message: "Top-level await is experimental and requires the 'experimental.async' option".to_string(),
-        //     });
-        // }
-
-        // Check for runes mode
-        if !context.analysis.runes {
-            return Err(AnalysisError::ValidationWithCode {
-                code: "legacy_await_invalid".to_string(),
-                message: "Top-level await is only allowed in Svelte 5 with runes mode".to_string(),
-            });
+        // Skip validation if experimental.async is enabled
+        if !context.analysis.experimental_async || !context.analysis.runes {
+            // Check for runes mode
+            if !context.analysis.runes {
+                return Err(AnalysisError::ValidationWithCode {
+                    code: "legacy_await_invalid".to_string(),
+                    message: "Top-level await is only allowed in Svelte 5 with runes mode"
+                        .to_string(),
+                });
+            }
         }
     }
 

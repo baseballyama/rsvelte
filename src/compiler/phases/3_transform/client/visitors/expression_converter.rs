@@ -1206,23 +1206,115 @@ fn convert_function_expression(
 /// Convert function parameters.
 fn convert_params(
     obj: &serde_json::Map<String, Value>,
-    _context: &mut ComponentContext,
+    context: &mut ComponentContext,
 ) -> Vec<JsPattern> {
     obj.get("params")
         .and_then(|p| p.as_array())
         .map(|params| {
             params
                 .iter()
-                .filter_map(|param| {
-                    param
-                        .as_object()
-                        .and_then(|p| p.get("name"))
-                        .and_then(|n| n.as_str())
-                        .map(|n| JsPattern::Identifier(n.to_string()))
-                })
+                .filter_map(|param| convert_param_pattern(param, context))
                 .collect()
         })
         .unwrap_or_default()
+}
+
+/// Convert a JSON parameter value to a JsPattern, handling all ESTree pattern types.
+pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> Option<JsPattern> {
+    let obj = value.as_object()?;
+    let param_type = obj.get("type").and_then(|t| t.as_str())?;
+    match param_type {
+        "Identifier" => {
+            let name = obj.get("name").and_then(|n| n.as_str())?;
+            Some(JsPattern::Identifier(name.to_string()))
+        }
+        "AssignmentPattern" => {
+            let left = obj
+                .get("left")
+                .and_then(|l| convert_param_pattern(l, context))?;
+            let right = obj
+                .get("right")
+                .map(|r| Box::new(convert_json_value(r, context)))
+                .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Undefined)));
+            Some(JsPattern::Assignment(JsAssignmentPattern {
+                left: Box::new(left),
+                right,
+            }))
+        }
+        "RestElement" => {
+            let argument = obj
+                .get("argument")
+                .and_then(|a| convert_param_pattern(a, context))?;
+            Some(JsPattern::Rest(Box::new(argument)))
+        }
+        "ObjectPattern" => {
+            let properties = obj
+                .get("properties")
+                .and_then(|p| p.as_array())
+                .map(|props| {
+                    props
+                        .iter()
+                        .filter_map(|prop| {
+                            let prop_obj = prop.as_object()?;
+                            let prop_type = prop_obj.get("type").and_then(|t| t.as_str())?;
+                            if prop_type == "RestElement" {
+                                let arg = prop_obj
+                                    .get("argument")
+                                    .and_then(|a| convert_param_pattern(a, context))?;
+                                Some(JsObjectPatternProperty::Rest(Box::new(arg)))
+                            } else {
+                                let key_val = prop_obj.get("key").and_then(|k| k.as_object())?;
+                                let key_name = key_val.get("name").and_then(|n| n.as_str())?;
+                                let key = JsPropertyKey::Identifier(key_name.to_string());
+                                let value_pat = prop_obj
+                                    .get("value")
+                                    .and_then(|v| convert_param_pattern(v, context))
+                                    .unwrap_or_else(|| JsPattern::Identifier(key_name.to_string()));
+                                let shorthand = prop_obj
+                                    .get("shorthand")
+                                    .and_then(|s| s.as_bool())
+                                    .unwrap_or(false);
+                                let computed = prop_obj
+                                    .get("computed")
+                                    .and_then(|c| c.as_bool())
+                                    .unwrap_or(false);
+                                Some(JsObjectPatternProperty::Property {
+                                    key,
+                                    value: value_pat,
+                                    computed,
+                                    shorthand,
+                                })
+                            }
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            Some(JsPattern::Object(JsObjectPattern { properties }))
+        }
+        "ArrayPattern" => {
+            let elements = obj
+                .get("elements")
+                .and_then(|e| e.as_array())
+                .map(|elems| {
+                    elems
+                        .iter()
+                        .map(|elem| {
+                            if elem.is_null() {
+                                None
+                            } else {
+                                convert_param_pattern(elem, context)
+                            }
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            Some(JsPattern::Array(JsArrayPattern { elements }))
+        }
+        _ => obj
+            .get("name")
+            .and_then(|n| n.as_str())
+            .map(|n| JsPattern::Identifier(n.to_string())),
+    }
 }
 
 /// Convert a BlockStatement.
@@ -1322,6 +1414,131 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
             }))
         }
         "EmptyStatement" => Some(JsStatement::Empty),
+        "ThrowStatement" => {
+            let argument = obj
+                .get("argument")
+                .map(|a| convert_json_value(a, context))
+                .unwrap_or(JsExpr::Literal(JsLiteral::Null));
+            Some(JsStatement::Throw(Box::new(argument)))
+        }
+        "TryStatement" => {
+            let block = obj
+                .get("block")
+                .and_then(|b| b.as_object())
+                .map(|b| convert_block_statement(b, context))
+                .unwrap_or_else(|| JsBlockStatement { body: Vec::new() });
+            let handler = obj.get("handler").and_then(|h| {
+                let h_obj = h.as_object()?;
+                let param = h_obj
+                    .get("param")
+                    .and_then(|p| p.as_object())
+                    .and_then(|p| p.get("name"))
+                    .and_then(|n| n.as_str())
+                    .map(|n| JsPattern::Identifier(n.to_string()));
+                let body = h_obj
+                    .get("body")
+                    .and_then(|b| b.as_object())
+                    .map(|b| convert_block_statement(b, context))
+                    .unwrap_or_else(|| JsBlockStatement { body: Vec::new() });
+                Some(JsCatchClause { param, body })
+            });
+            let finalizer = obj
+                .get("finalizer")
+                .and_then(|f| f.as_object())
+                .map(|f| convert_block_statement(f, context));
+            Some(JsStatement::Try(JsTryStatement {
+                block,
+                handler,
+                finalizer,
+            }))
+        }
+        "ForStatement" => {
+            let init = obj.get("init").and_then(|i| {
+                let i_obj = i.as_object()?;
+                let i_type = i_obj.get("type").and_then(|t| t.as_str())?;
+                if i_type == "VariableDeclaration" {
+                    let kind = i_obj.get("kind").and_then(|k| k.as_str()).unwrap_or("let");
+                    let declarations = i_obj
+                        .get("declarations")
+                        .and_then(|d| d.as_array())
+                        .map(|decls| {
+                            decls
+                                .iter()
+                                .filter_map(|decl| {
+                                    let decl_obj = decl.as_object()?;
+                                    let id = decl_obj.get("id").and_then(|id| id.as_object())?;
+                                    let name = id.get("name").and_then(|n| n.as_str())?;
+                                    let init_val = decl_obj
+                                        .get("init")
+                                        .map(|iv| Box::new(convert_json_value(iv, context)));
+                                    Some(JsVariableDeclarator {
+                                        id: JsPattern::Identifier(name.to_string()),
+                                        init: init_val,
+                                    })
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default();
+                    Some(JsForInit::Variable(JsVariableDeclaration {
+                        kind: match kind {
+                            "const" => JsVariableKind::Const,
+                            "let" => JsVariableKind::Let,
+                            _ => JsVariableKind::Var,
+                        },
+                        declarations,
+                    }))
+                } else {
+                    Some(JsForInit::Expression(Box::new(convert_json_value(
+                        i, context,
+                    ))))
+                }
+            });
+            let test = obj
+                .get("test")
+                .filter(|t| !t.is_null())
+                .map(|t| Box::new(convert_json_value(t, context)));
+            let update = obj
+                .get("update")
+                .filter(|u| !u.is_null())
+                .map(|u| Box::new(convert_json_value(u, context)));
+            let body = obj
+                .get("body")
+                .and_then(|b| convert_statement(b, context))
+                .map(Box::new)
+                .unwrap_or_else(|| Box::new(JsStatement::Empty));
+            Some(JsStatement::For(JsForStatement {
+                init,
+                test,
+                update,
+                body,
+            }))
+        }
+        "ForInStatement" | "ForOfStatement" => {
+            obj.get("body").and_then(|b| convert_statement(b, context))
+        }
+        "WhileStatement" | "DoWhileStatement" => {
+            obj.get("body").and_then(|b| convert_statement(b, context))
+        }
+        "LabeledStatement" => obj.get("body").and_then(|b| convert_statement(b, context)),
+        "BreakStatement" | "ContinueStatement" => Some(JsStatement::Empty),
+        "SwitchStatement" => {
+            let mut stmts = Vec::new();
+            if let Some(cases) = obj.get("cases").and_then(|c| c.as_array()) {
+                for case in cases {
+                    if let Some(case_obj) = case.as_object()
+                        && let Some(consequent) =
+                            case_obj.get("consequent").and_then(|c| c.as_array())
+                    {
+                        for s in consequent {
+                            if let Some(converted) = convert_statement(s, context) {
+                                stmts.push(converted);
+                            }
+                        }
+                    }
+                }
+            }
+            Some(JsStatement::Block(JsBlockStatement { body: stmts }))
+        }
         _ => {
             // For unhandled statement types, try to convert as expression statement if possible
             None

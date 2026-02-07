@@ -1041,9 +1041,16 @@ impl<'a> ScopeBuilder<'a> {
                 self.pop_scope(old_scope);
             }
             TemplateNode::ConstTag(tag) => self.visit_const_tag(tag),
+            // SvelteBoundary gets its own scope so that {@const} declarations
+            // inside separate <svelte:boundary> blocks don't conflict.
+            TemplateNode::SvelteBoundary(elem) => {
+                self.process_attributes(&elem.attributes);
+                let old_scope = self.push_scope();
+                self.visit_fragment(&elem.fragment);
+                self.pop_scope(old_scope);
+            }
             // Handle special Svelte elements that have attributes and fragments
-            TemplateNode::SvelteBoundary(elem)
-            | TemplateNode::SvelteBody(elem)
+            TemplateNode::SvelteBody(elem)
             | TemplateNode::SvelteDocument(elem)
             | TemplateNode::SvelteFragment(elem)
             | TemplateNode::SvelteHead(elem)

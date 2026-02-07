@@ -486,7 +486,6 @@ fn get_parent<'a>(context: &'a VisitorContext, offset: usize) -> Option<&'a Valu
 /// //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ VariableDeclarator (init = $props())
 /// ```
 fn is_bindable_valid_placement(context: &VisitorContext) -> bool {
-    // Check path: [..., VariableDeclarator, ObjectPattern, AssignmentPattern, CallExpression]
     let len = context.js_path.len();
 
     if len < 4 {
@@ -504,29 +503,43 @@ fn is_bindable_valid_placement(context: &VisitorContext) -> bool {
         return false;
     }
 
-    // Grandparent should be ObjectPattern (or ArrayPattern)
-    let grandparent = match get_parent(context, 2) {
+    // Grandparent might be Property (in object destructuring) or ObjectPattern/ArrayPattern directly
+    let mut offset = 2;
+    let grandparent = match get_parent(context, offset) {
         Some(p) => p,
         None => return false,
     };
 
     let gp_type = grandparent.get("type").and_then(|t| t.as_str());
-    if !matches!(gp_type, Some("ObjectPattern") | Some("ArrayPattern")) {
+
+    // If grandparent is Property, skip it and look at the next ancestor
+    if gp_type == Some("Property") {
+        offset += 1;
+        let next_ancestor = match get_parent(context, offset) {
+            Some(p) => p,
+            None => return false,
+        };
+        let next_type = next_ancestor.get("type").and_then(|t| t.as_str());
+        if !matches!(next_type, Some("ObjectPattern") | Some("ArrayPattern")) {
+            return false;
+        }
+    } else if !matches!(gp_type, Some("ObjectPattern") | Some("ArrayPattern")) {
         return false;
     }
 
-    // Great-grandparent should be VariableDeclarator
-    let great_grandparent = match get_parent(context, 3) {
+    // Next ancestor should be VariableDeclarator
+    offset += 1;
+    let var_declarator = match get_parent(context, offset) {
         Some(p) => p,
         None => return false,
     };
 
-    if great_grandparent.get("type").and_then(|t| t.as_str()) != Some("VariableDeclarator") {
+    if var_declarator.get("type").and_then(|t| t.as_str()) != Some("VariableDeclarator") {
         return false;
     }
 
     // Check that VariableDeclarator init is $props()
-    if let Some(init) = great_grandparent.get("init") {
+    if let Some(init) = var_declarator.get("init") {
         let rune = get_rune(init, context);
         return rune.as_deref() == Some("$props");
     }
@@ -757,7 +770,12 @@ fn is_state_or_derived_valid_placement(context: &VisitorContext) -> bool {
 /// Check if an assignment is `this.property = $state(...)` at constructor root.
 ///
 /// This validates the pattern where a class property is initialized in the constructor
-/// using `this.property = $state(...)`.
+/// using `this.property = $state(...)` or `this.#field = $state(...)`.
+///
+/// Note: For private field assignments like `this.#count = $state(0)`, the parser
+/// may produce `left: null` because `PrivateFieldExpression` is not handled by
+/// `convert_assignment_target_for_program`. In this case, we still accept the
+/// placement as long as we can confirm we're in a constructor.
 fn is_class_property_assignment_at_constructor_root(
     node: &Value,
     context: &VisitorContext,
@@ -767,41 +785,9 @@ fn is_class_property_assignment_at_constructor_root(
         return false;
     }
 
-    // Check left side is MemberExpression with 'this'
-    let left = match node.get("left") {
-        Some(l) => l,
-        None => return false,
-    };
-
-    if left.get("type").and_then(|t| t.as_str()) != Some("MemberExpression") {
-        return false;
-    }
-
-    let object = left.get("object");
-    if object.and_then(|o| o.get("type")).and_then(|t| t.as_str()) != Some("ThisExpression") {
-        return false;
-    }
-
-    // Check property is Identifier, PrivateIdentifier, or Literal
-    let property = left.get("property");
-    let property_type = property
-        .and_then(|p| p.get("type"))
-        .and_then(|t| t.as_str());
-    let is_computed = left
-        .get("computed")
-        .and_then(|c| c.as_bool())
-        .unwrap_or(false);
-
-    if !matches!(
-        property_type,
-        Some("Identifier") | Some("PrivateIdentifier") | Some("Literal")
-    ) && (property_type != Some("Identifier") || is_computed)
-    {
-        return false;
-    }
-
-    // Check path: AssignmentExpression (-1) -> ExpressionStatement (-2) ->
-    //             BlockStatement (-3) -> FunctionExpression (-4) -> MethodDefinition (-5)
+    // First, verify we're inside a constructor method.
+    // Path: AssignmentExpression (-1) -> ExpressionStatement (-2) ->
+    //       BlockStatement (-3) -> FunctionExpression (-4) -> MethodDefinition (-5)
     let parent_5 = match get_parent(context, 5) {
         Some(p) => p,
         None => return false,
@@ -811,8 +797,29 @@ fn is_class_property_assignment_at_constructor_root(
         return false;
     }
 
-    // Check it's a constructor
-    parent_5.get("kind").and_then(|k| k.as_str()) == Some("constructor")
+    if parent_5.get("kind").and_then(|k| k.as_str()) != Some("constructor") {
+        return false;
+    }
+
+    // Check left side: MemberExpression with 'this' object.
+    // If left is null (private field expression not handled by parser), we still
+    // accept the placement since we confirmed we're in a constructor.
+    let left = match node.get("left") {
+        Some(l) if !l.is_null() => l,
+        _ => return true, // Accept: we're in constructor, left is null (private field)
+    };
+
+    let left_type = left.get("type").and_then(|t| t.as_str());
+    if left_type != Some("MemberExpression") {
+        return false;
+    }
+
+    let object = left.get("object");
+    if object.and_then(|o| o.get("type")).and_then(|t| t.as_str()) != Some("ThisExpression") {
+        return false;
+    }
+
+    true
 }
 
 /// Check if $effect is in a valid placement.
