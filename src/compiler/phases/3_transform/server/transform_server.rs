@@ -1505,6 +1505,7 @@ impl<'a> ServerCodeGenerator<'a> {
             self.analysis,
             self.use_async,
         );
+        body_generator.constant_vars = self.constant_vars.clone();
 
         // Process children
         let children: Vec<_> = element.fragment.nodes.iter().collect();
@@ -1773,6 +1774,7 @@ impl<'a> ServerCodeGenerator<'a> {
             None,
             self.use_async,
         );
+        body_generator.constant_vars = self.constant_vars.clone();
 
         // Process children (skip leading/trailing whitespace)
         let children: Vec<_> = element.fragment.nodes.iter().collect();
@@ -3059,6 +3061,7 @@ impl<'a> ServerCodeGenerator<'a> {
             self.analysis,
             self.use_async,
         );
+        body_generator.constant_vars = self.constant_vars.clone();
 
         // Collect non-empty nodes
         let body_nodes: Vec<_> = fragment.nodes.iter().collect();
@@ -3188,6 +3191,7 @@ impl<'a> ServerCodeGenerator<'a> {
             None,
             self.use_async,
         );
+        body_generator.constant_vars = self.constant_vars.clone();
 
         // Check if first meaningful content is text/expression
         // If so, add <!---> anchor to prevent text fusion during hydration
@@ -3560,6 +3564,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 None,
                 self.use_async,
             );
+            fallback_generator.constant_vars = self.constant_vars.clone();
             // Trim leading/trailing whitespace from fallback fragment nodes
             let mut fallback_nodes: Vec<TemplateNode> = fallback_fragment.nodes.to_vec();
             // Skip leading whitespace-only text nodes
@@ -3665,6 +3670,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 None,
                 self.use_async,
             );
+            pending_generator.constant_vars = self.constant_vars.clone();
             for node in &pending.nodes {
                 pending_generator.generate_node(node, false)?;
             }
@@ -3685,6 +3691,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 None,
                 self.use_async,
             );
+            then_generator.constant_vars = self.constant_vars.clone();
             for node in &then.nodes {
                 then_generator.generate_node(node, false)?;
             }
@@ -3704,6 +3711,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 None,
                 self.use_async,
             );
+            catch_generator.constant_vars = self.constant_vars.clone();
             for node in &catch.nodes {
                 catch_generator.generate_node(node, false)?;
             }
@@ -3739,6 +3747,7 @@ impl<'a> ServerCodeGenerator<'a> {
             None,
             self.use_async,
         );
+        body_generator.constant_vars = self.constant_vars.clone();
 
         for node in &block.fragment.nodes {
             // Skip whitespace-only text nodes in key block
@@ -3806,6 +3815,7 @@ impl<'a> ServerCodeGenerator<'a> {
             None,
             self.use_async,
         );
+        body_generator.constant_vars = self.constant_vars.clone();
 
         // Collect non-empty nodes
         let body_nodes: Vec<_> = block.body.nodes.iter().collect();
@@ -4276,6 +4286,7 @@ impl<'a> ServerCodeGenerator<'a> {
             self.analysis,
             self.use_async,
         );
+        body_generator.constant_vars = self.constant_vars.clone();
 
         // Add <title> tag
         body_generator
@@ -4324,6 +4335,7 @@ impl<'a> ServerCodeGenerator<'a> {
             self.analysis,
             self.use_async,
         );
+        body_generator.constant_vars = self.constant_vars.clone();
 
         // Get the nodes and find meaningful content bounds
         let nodes: Vec<_> = fragment.nodes.iter().collect();
