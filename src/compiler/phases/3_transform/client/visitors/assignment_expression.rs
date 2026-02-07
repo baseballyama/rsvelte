@@ -5,6 +5,7 @@
 
 use super::shared::assignment_helpers::*;
 use super::shared::utils::validate_mutation;
+use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
@@ -129,14 +130,36 @@ fn build_assignment(
         // Build the assignment value (expand compound operators)
         let value = build_assignment_value(operator, left, right);
 
-        // Determine if proxy is needed
-        // Proxy is needed when:
-        // 1. In runes mode
-        // 2. Using non-coercive operator (=, ||=, &&=, ??=)
-        // 3. The value might be an object/array (checked via should_proxy_js_expr)
-        // 4. The transform doesn't have skip_proxy set
+        // Determine if proxy is needed based on:
+        // 1. Not skipped (not $state.raw)
+        // 2. Binding kind doesn't exclude proxy (not Derived, Prop, etc.)
+        // 3. In runes mode
+        // 4. Non-coercive operator (=, ||=, &&=, ??=)
+        // 5. Right side should be proxied (not a primitive)
         let skip_proxy = t.skip_proxy;
+
+        // Check if the binding kind excludes proxy
+        let binding_kind_excludes_proxy = if let JsExpr::Identifier(name) = &object {
+            context
+                .state
+                .get_binding(name)
+                .map(|b| {
+                    matches!(
+                        b.kind,
+                        BindingKind::Prop
+                            | BindingKind::BindableProp
+                            | BindingKind::Derived
+                            | BindingKind::StoreSub
+                            | BindingKind::RawState
+                    )
+                })
+                .unwrap_or(false)
+        } else {
+            false
+        };
+
         let needs_proxy = !skip_proxy
+            && !binding_kind_excludes_proxy
             && context.state.analysis.runes
             && is_non_coercive_operator(operator)
             && should_proxy_js_expr(right);

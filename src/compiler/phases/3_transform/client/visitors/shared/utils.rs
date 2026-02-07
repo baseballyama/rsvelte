@@ -480,8 +480,24 @@ fn apply_transforms_to_expression_with_shadowed(
                     })
                     .unwrap_or(false);
 
+                // Determine if proxy is needed based on:
+                // 1. Not skipped (not $state.raw)
+                // 2. Binding kind doesn't exclude proxy (not Derived, Prop, etc.)
+                // 3. In runes mode
+                // 4. Non-coercive operator (=, ||=, &&=, ??=)
+                // 5. Right side should be proxied (not a primitive)
+                let is_non_coercive = matches!(
+                    assign.operator,
+                    JsAssignmentOp::Assign
+                        | JsAssignmentOp::OrAssign
+                        | JsAssignmentOp::AndAssign
+                        | JsAssignmentOp::NullishAssign
+                );
+
                 let needs_proxy = !transform.skip_proxy
                     && !binding_kind_excludes_proxy
+                    && context.state.analysis.runes
+                    && is_non_coercive
                     && should_proxy_expr(&assign.right);
 
                 return assign_fn(JsExpr::Identifier(name.clone()), final_value, needs_proxy);
