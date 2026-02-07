@@ -5190,7 +5190,8 @@ export default function {component_name}($$renderer{props_param}) {{
                             body_code.push_str(&format!("{}\t\t{},\n", indent, prop));
                         }
 
-                        for (prop_name, var_name) in bindings {
+                        let binding_count = bindings.len();
+                        for (idx, (prop_name, var_name)) in bindings.iter().enumerate() {
                             body_code.push_str(&format!("{}\t\tget {}() {{\n", indent, prop_name));
                             body_code.push_str(&format!("{}\t\t\treturn {};\n", indent, var_name));
                             body_code.push_str(&format!("{}\t\t}},\n\n", indent));
@@ -5201,7 +5202,11 @@ export default function {component_name}($$renderer{props_param}) {{
                             body_code
                                 .push_str(&format!("{}\t\t\t{} = $$value;\n", indent, var_name));
                             body_code.push_str(&format!("{}\t\t\t$$settled = false;\n", indent));
-                            body_code.push_str(&format!("{}\t\t}}\n", indent));
+                            if idx < binding_count - 1 {
+                                body_code.push_str(&format!("{}\t\t}},\n\n", indent));
+                            } else {
+                                body_code.push_str(&format!("{}\t\t}}\n", indent));
+                            }
                         }
 
                         body_code.push_str(&format!("{}\t}}\n", indent));
@@ -5219,15 +5224,22 @@ export default function {component_name}($$renderer{props_param}) {{
                         }
 
                         // Generate getter/setter for each binding
-                        for (prop_name, var_name) in bindings {
-                            body_code.push_str(&format!("{}get {}() {{\n", indent, prop_name));
-                            body_code.push_str(&format!("{}\treturn {};\n", indent, var_name));
-                            body_code.push_str(&format!("{}}},\n\n", indent));
+                        let binding_count = bindings.len();
+                        for (idx, (prop_name, var_name)) in bindings.iter().enumerate() {
+                            body_code.push_str(&format!("{}\tget {}() {{\n", indent, prop_name));
+                            body_code.push_str(&format!("{}\t\treturn {};\n", indent, var_name));
+                            body_code.push_str(&format!("{}\t}},\n\n", indent));
                             body_code
-                                .push_str(&format!("{}set {}($$value) {{\n", indent, prop_name));
-                            body_code.push_str(&format!("{}\t{} = $$value;\n", indent, var_name));
-                            body_code.push_str(&format!("{}\t$$settled = false;\n", indent));
-                            body_code.push_str(&format!("{}}}\n", indent));
+                                .push_str(&format!("{}\tset {}($$value) {{\n", indent, prop_name));
+                            body_code.push_str(&format!("{}\t\t{} = $$value;\n", indent, var_name));
+                            body_code.push_str(&format!("{}\t\t$$settled = false;\n", indent));
+                            if idx < binding_count - 1 {
+                                // Trailing comma + blank line between binding pairs
+                                body_code.push_str(&format!("{}\t}},\n\n", indent));
+                            } else {
+                                // Last binding - no trailing comma
+                                body_code.push_str(&format!("{}\t}}\n", indent));
+                            }
                         }
 
                         body_code.push_str(&format!("{}}});\n", indent));
