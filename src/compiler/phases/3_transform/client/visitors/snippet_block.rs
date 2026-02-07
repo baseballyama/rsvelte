@@ -81,6 +81,13 @@ pub fn snippet_block(node: &SnippetBlock, context: &mut ComponentContext) {
     // Track declarations that need to be added at the start of the body
     let mut declarations: Vec<JsStatement> = Vec::new();
 
+    // Save the current transform map before processing snippet parameters.
+    // Snippet parameters (like {count} in `{#snippet foo({count})}`) create
+    // local transforms that should only apply within the snippet body.
+    // Without saving/restoring, these transforms would overwrite outer scope
+    // transforms (e.g., a $state variable with the same name).
+    let saved_transform = context.state.transform.clone();
+
     // Process each parameter
     for (i, param) in node.parameters.iter().enumerate() {
         if let Some(arg_info) = process_parameter(param, i, context) {
@@ -91,6 +98,9 @@ pub fn snippet_block(node: &SnippetBlock, context: &mut ComponentContext) {
 
     // Visit the snippet body
     let body_statements = visit_fragment(&node.body, context);
+
+    // Restore the transform map to the outer scope
+    context.state.transform = saved_transform;
 
     // Build the full body with declarations and visited body
     let mut full_body = Vec::new();

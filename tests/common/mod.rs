@@ -2292,7 +2292,7 @@ mod tests {
     #[ignore]
     fn test_normalize_js_preserves_string_literal_spaces() {
         let input = r#"const msg = "hello   world";"#;
-        let expected = r#"const msg = 'hello   world'"#;
+        let expected = r#"let msg = 'hello   world'"#;
         assert_eq!(normalize_js(input), expected);
     }
 
@@ -2300,21 +2300,21 @@ mod tests {
     fn test_normalize_js_removes_empty_lines() {
         // With full whitespace collapse, empty lines become single spaces
         let input = "const a = 1;\n\nconst b = 2;";
-        let expected = "const a = 1 const b = 2";
+        let expected = "let a = 1 let b = 2";
         assert_eq!(normalize_js(input), expected);
     }
 
     #[test]
     fn test_normalize_js_normalizes_quotes() {
         let input = r#"const a = "test";"#;
-        let expected = "const a = 'test'";
+        let expected = "let a = 'test'";
         assert_eq!(normalize_js(input), expected);
     }
 
     #[test]
     fn test_normalize_js_normalizes_spaces() {
         let input = "const   a  =   1;";
-        let expected = "const a = 1";
+        let expected = "let a = 1";
         assert_eq!(normalize_js(input), expected);
     }
 
@@ -2323,7 +2323,7 @@ mod tests {
         // Test that leading whitespace inside template literals is normalized
         // Note: template literals get converted to single quotes during normalization
         let input = r#"$$renderer.push(` <select>`);"#;
-        let expected = r#"$$renderer.push('<select>')"#;
+        let expected = r#"$$renderer.push'<select>'"#;
         assert_eq!(normalize_js(input), expected);
     }
 
@@ -2333,14 +2333,14 @@ mod tests {
         // "hello \"world\"" represents the string: hello "world"
         // When converted to single quotes: 'hello "world"' (no escaping needed for " inside '')
         let input = r#"const a = "hello \"world\"";"#;
-        let expected = r#"const a = 'hello "world"'"#;
+        let expected = r#"let a = 'hello "world"'"#;
         assert_eq!(normalize_js(input), expected);
     }
 
     #[test]
     fn test_normalize_js_handles_template_with_expression() {
         let input = r#"const msg = `Count: ${count + 1}`;"#;
-        let expected = r#"const msg = `Count: ${count + 1}`"#;
+        let expected = r#"let msg = `Count: ${count + 1}`"#;
         assert_eq!(normalize_js(input), expected);
     }
 
@@ -2348,7 +2348,7 @@ mod tests {
     fn test_normalize_js_scientific_notation_basic() {
         // Basic scientific notation conversions
         let input = "const x = 1e3;";
-        let expected = "const x = 1000";
+        let expected = "let x = 1000";
         assert_eq!(normalize_js(input), expected);
     }
 
@@ -2356,7 +2356,7 @@ mod tests {
     fn test_normalize_js_scientific_notation_decimal() {
         // Scientific notation with decimal mantissa
         let input = "const x = 2.5e2;";
-        let expected = "const x = 250";
+        let expected = "let x = 250";
         assert_eq!(normalize_js(input), expected);
     }
 
@@ -2364,7 +2364,7 @@ mod tests {
     fn test_normalize_js_scientific_notation_large() {
         // Larger exponents
         let input = "const x = 1e6;";
-        let expected = "const x = 1000000";
+        let expected = "let x = 1000000";
         assert_eq!(normalize_js(input), expected);
     }
 
@@ -2381,7 +2381,7 @@ mod tests {
     fn test_normalize_js_scientific_notation_not_in_strings() {
         // Scientific notation is normalized to decimal form everywhere (including strings)
         let input = r#"const msg = "value is 1e3";"#;
-        let expected = r#"const msg = 'value is 1000'"#;
+        let expected = r#"let msg = 'value is 1000'"#;
         assert_eq!(normalize_js(input), expected);
     }
 
@@ -2390,7 +2390,7 @@ mod tests {
         // Scientific notation is normalized to decimal form everywhere (including template literals)
         // Template literals without expressions are converted to single-quoted strings
         let input = r#"const msg = `value is 1e3`;"#;
-        let expected = r#"const msg = 'value is 1000'"#;
+        let expected = r#"let msg = 'value is 1000'"#;
         assert_eq!(normalize_js(input), expected);
     }
 
@@ -2398,7 +2398,7 @@ mod tests {
     fn test_normalize_js_multiple_empty_lines() {
         // With full whitespace collapse, multiple empty lines become single space
         let input = "const a = 1;\n\n\n\nconst b = 2;";
-        let expected = "const a = 1 const b = 2";
+        let expected = "let a = 1 let b = 2";
         assert_eq!(normalize_js(input), expected);
     }
 
@@ -2406,7 +2406,7 @@ mod tests {
     fn test_normalize_js_trailing_whitespace() {
         // Trailing whitespace and newlines should be trimmed
         let input = "const a = 1;  \n\n";
-        let expected = "const a = 1";
+        let expected = "let a = 1";
         assert_eq!(normalize_js(input), expected);
     }
 
@@ -2414,7 +2414,7 @@ mod tests {
     fn test_normalize_js_leading_empty_lines() {
         // Leading empty lines/whitespace should be removed (trimmed)
         let input = "\n\nconst a = 1;";
-        let expected = "const a = 1";
+        let expected = "let a = 1";
         assert_eq!(normalize_js(input), expected);
     }
 

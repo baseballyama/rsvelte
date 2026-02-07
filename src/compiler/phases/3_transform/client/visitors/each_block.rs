@@ -110,22 +110,6 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     // Determine if items should be made reactive
     // Check if expression dependencies reference external state
     let has_external_deps = has_external_dependencies(each_node_meta, context);
-    let _expr_dbg = match &node.expression {
-        crate::ast::js::Expression::Value(v) => v
-            .get("type")
-            .and_then(|t| t.as_str())
-            .unwrap_or("unk")
-            .to_string(),
-    };
-    eprintln!(
-        "DEBUG each_block: runes={} key_is_item={} uses_store={} has_external_deps={} deps={:?} expr={}",
-        context.state.analysis.runes,
-        key_is_item,
-        uses_store,
-        has_external_deps,
-        each_node_meta.expression.dependencies,
-        _expr_dbg
-    );
 
     if has_external_deps && (!context.state.analysis.runes || !key_is_item || uses_store) {
         flags |= EACH_ITEM_REACTIVE;
