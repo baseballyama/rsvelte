@@ -1633,17 +1633,21 @@ impl<'a> ServerCodeGenerator<'a> {
 
     /// Generate <select> element using $$renderer.select().
     fn generate_select_element(&mut self, element: &RegularElement) -> Result<(), TransformError> {
-        // Extract attributes for the select element
+        // Extract attributes for the select element, preserving declaration order.
+        // The value attribute (from value={...} or bind:value={...}) is included inline
+        // in the attrs list to maintain its position relative to spreads.
         let mut attrs = Vec::new();
-        let mut value_expr: Option<String> = None;
+        let mut has_value = false;
 
         for attr in &element.attributes {
             match attr {
                 Attribute::Attribute(node) => {
                     let attr_name = node.name.as_str();
-                    // Skip value attribute - it's passed separately
                     if attr_name == "value" {
-                        value_expr = Some(self.extract_attribute_value_as_string(node)?);
+                        // Include value in its original position
+                        let value = self.extract_attribute_value_as_string(node)?;
+                        attrs.push((attr_name.to_string(), value));
+                        has_value = true;
                         continue;
                     }
                     // Skip event handlers
@@ -1655,13 +1659,14 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
                 Attribute::BindDirective(bind) => {
                     if bind.name.as_str() == "value" {
-                        // Extract the bound variable expression
+                        // Extract the bound variable expression, keeping it in order
                         let expr_start = bind.expression.start().unwrap_or(0) as usize;
                         let expr_end = bind.expression.end().unwrap_or(0) as usize;
                         if expr_end > expr_start && expr_end <= self.source.len() {
                             let raw_expr = self.source[expr_start..expr_end].trim().to_string();
-                            // Transform store subscriptions ($store -> $.store_get())
-                            value_expr = Some(self.transform_store_refs(&raw_expr));
+                            let value = self.transform_store_refs(&raw_expr);
+                            attrs.push(("value".to_string(), value));
+                            has_value = true;
                         }
                     }
                 }
@@ -1678,6 +1683,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 _ => {}
             }
         }
+        let _ = has_value; // value is now included in attrs directly
 
         // Generate body parts for children
         let mut body_generator = ServerCodeGenerator::new(
@@ -1729,7 +1735,7 @@ impl<'a> ServerCodeGenerator<'a> {
             body_generator.generate_node(node, false)?;
         }
 
-        // Build the attributes object - other attrs first, then value
+        // Build the attributes object, preserving declaration order
         let mut attr_parts = Vec::new();
         for (name, value) in &attrs {
             if name == "__spread__" {
@@ -1738,9 +1744,6 @@ impl<'a> ServerCodeGenerator<'a> {
             } else {
                 attr_parts.push(format!("{}: {}", quote_prop_name(name), value));
             }
-        }
-        if let Some(value) = &value_expr {
-            attr_parts.push(format!("value: {}", value));
         }
         let attrs_obj = if attr_parts.is_empty() {
             "{}".to_string()
