@@ -467,6 +467,15 @@ pub fn normalize_js(js: &str) -> String {
     let result = result.replace("(null)?.", "null?.");
     let result = result.replace("(undefined)?.", "undefined?.");
 
+    // Normalize computed property name syntax: get ['x-y-z']() -> get 'x-y-z'()
+    // OXC may use bracket syntax for computed property names, official compiler uses string literals
+    let result = {
+        let computed_prop_re = regex::Regex::new(r"(get|set)\s+\['([^']+)'\]\s*\(").unwrap();
+        computed_prop_re
+            .replace_all(&result, "$1 '$2'(")
+            .to_string()
+    };
+
     // Normalize redundant parentheses around $.function() calls
     // OXC strips unnecessary parens: ($.deep_read_state(c())), -> $.deep_read_state(c()),
     // Match ($.func(args)), where args may contain nested parens

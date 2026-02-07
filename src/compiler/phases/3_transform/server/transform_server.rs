@@ -6340,8 +6340,15 @@ fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMap<String, S
     }
 
     // Remove let variables that are reassigned in the full source (script + template)
-    // Check for patterns like `name = `, `name +=`, `name++`, etc.
+    // Check for patterns like `name = `, `name +=`, `name++`, `bind:name`, etc.
     for var_name in &let_vars {
+        // Check for bind:varname directive which makes the variable mutable
+        let bind_pattern = format!("bind:{}", var_name);
+        if full_source.contains(&bind_pattern) {
+            constants.remove(var_name);
+            continue;
+        }
+
         let is_reassigned = full_source.lines().any(|line| {
             let trimmed = line.trim();
             // Skip the declaration line itself
