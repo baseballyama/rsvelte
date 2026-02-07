@@ -1386,12 +1386,103 @@ impl<'a> ServerCodeGenerator<'a> {
         } else {
             self.output_parts.push(OutputPart::Html(">".to_string()));
 
-            // Generate children
-            for child in &element.fragment.nodes {
-                if matches!(child, TemplateNode::Comment(_)) {
-                    continue;
+            // Generate children with proper whitespace handling
+            let children: Vec<_> = element
+                .fragment
+                .nodes
+                .iter()
+                .filter(|c| !matches!(c, TemplateNode::Comment(_)))
+                .collect();
+
+            // Find first and last non-whitespace content children
+            let _first_content = children
+                .iter()
+                .position(|c| !matches!(c, TemplateNode::Text(t) if t.data.trim().is_empty()));
+            let last_content = children
+                .iter()
+                .rposition(|c| !matches!(c, TemplateNode::Text(t) if t.data.trim().is_empty()));
+
+            let mut has_output_content = false;
+            let mut is_first_content = true;
+
+            // Determine if whitespace-only text nodes can be removed entirely
+            let is_svg_parent = matches!(
+                name,
+                "svg" | "g" | "defs" | "symbol" | "marker" | "clipPath" | "mask" | "pattern"
+            );
+            let can_remove_whitespace = is_svg_parent
+                || matches!(
+                    name,
+                    "select"
+                        | "optgroup"
+                        | "tr"
+                        | "table"
+                        | "tbody"
+                        | "thead"
+                        | "tfoot"
+                        | "colgroup"
+                        | "datalist"
+                );
+
+            for (i, child) in children.iter().enumerate() {
+                if let TemplateNode::Text(text) = *child {
+                    let data = &text.data;
+                    if data.trim().is_empty() {
+                        if can_remove_whitespace {
+                            continue;
+                        }
+                        // Whitespace-only text: add space only if between content elements
+                        if has_output_content
+                            && last_content.is_some()
+                            && i < last_content.unwrap()
+                            && !data.is_empty()
+                        {
+                            self.output_parts.push(OutputPart::Html(" ".to_string()));
+                        }
+                        continue;
+                    }
+
+                    // Handle first content text node - trim leading whitespace
+                    if is_first_content {
+                        let is_last = last_content.is_some() && i == last_content.unwrap();
+                        let trimmed = if is_last {
+                            data.trim()
+                        } else {
+                            data.trim_start()
+                        };
+                        if !trimmed.is_empty() {
+                            let collapsed = collapse_whitespace(trimmed);
+                            self.output_parts
+                                .push(OutputPart::Html(escape_html(&collapsed)));
+                        }
+                        has_output_content = true;
+                        is_first_content = false;
+                        continue;
+                    }
+
+                    // Handle last content text node - trim trailing whitespace
+                    if last_content.is_some() && i == last_content.unwrap() {
+                        let trimmed = data.trim_end();
+                        if !trimmed.is_empty() {
+                            let collapsed = collapse_whitespace(trimmed);
+                            self.output_parts
+                                .push(OutputPart::Html(escape_html(&collapsed)));
+                        }
+                        has_output_content = true;
+                        continue;
+                    }
+
+                    // Middle text - collapse whitespace
+                    let collapsed = collapse_whitespace(data);
+                    self.output_parts
+                        .push(OutputPart::Html(escape_html(&collapsed)));
+                    has_output_content = true;
+                    is_first_content = false;
+                } else {
+                    self.generate_node(child, false)?;
+                    has_output_content = true;
+                    is_first_content = false;
                 }
-                self.generate_node(child, false)?;
             }
 
             // For select/optgroup with Component/RenderTag/HtmlTag, add <!> marker before closing tag
@@ -2271,8 +2362,11 @@ impl<'a> ServerCodeGenerator<'a> {
         let name = name.as_str();
 
         // Helper to generate $.attr() call with optional boolean flag
+        // For style attribute, use $.attr_style() instead
         let make_attr_call = |attr_name: &str, expr: &str| -> String {
-            if is_boolean_attribute(attr_name) {
+            if attr_name == "style" {
+                format!("${{$.attr_style({})}}", expr)
+            } else if is_boolean_attribute(attr_name) {
                 format!("${{$.attr('{}', {}, true)}}", attr_name, expr)
             } else {
                 format!("${{$.attr('{}', {})}}", attr_name, expr)
