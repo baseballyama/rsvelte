@@ -1371,25 +1371,45 @@ impl<'a> ServerCodeGenerator<'a> {
         let tag = format!("<{}", name);
         self.output_parts.push(OutputPart::Html(tag));
 
+        // Determine CSS hash for scoped elements
+        let css_hash = if element.metadata.scoped {
+            self.analysis.and_then(|a| {
+                if !a.css.hash.is_empty() {
+                    Some(a.css.hash.clone())
+                } else {
+                    None
+                }
+            })
+        } else {
+            None
+        };
+
         // Add $.attributes() expression with full arguments
         // $.attributes(object, css_hash, classes, styles, flags)
         // Only include trailing arguments if they are non-default values
         // Defaults: css_hash=void 0, classes=void 0, styles=void 0, flags=0
         let attributes_call = {
             let mut args = vec![object_literal.clone()];
-            let css_hash_arg = "void 0".to_string();
+            let css_hash_arg = if let Some(ref hash) = css_hash {
+                format!("'{}'", hash)
+            } else {
+                "void 0".to_string()
+            };
             // Build args from right to left, omitting trailing defaults
             let has_flags = flags != 0;
             let has_styles = styles_arg != "void 0";
             let has_classes = classes_arg != "void 0";
+            let has_css_hash = css_hash.is_some();
 
-            if has_flags || has_styles || has_classes {
+            if has_flags || has_styles || has_classes || has_css_hash {
                 args.push(css_hash_arg);
-                args.push(classes_arg.clone());
-                if has_flags || has_styles {
-                    args.push(styles_arg.clone());
-                    if has_flags {
-                        args.push(flags.to_string());
+                if has_flags || has_styles || has_classes {
+                    args.push(classes_arg.clone());
+                    if has_flags || has_styles {
+                        args.push(styles_arg.clone());
+                        if has_flags {
+                            args.push(flags.to_string());
+                        }
                     }
                 }
             }
