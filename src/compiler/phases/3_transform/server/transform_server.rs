@@ -2682,8 +2682,6 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
-        let base = base_style.unwrap_or("");
-
         // Build the directives argument
         let directives_arg = if !important_props.is_empty() {
             // Array form: [{ normal }, { important }]
@@ -2698,6 +2696,7 @@ impl<'a> ServerCodeGenerator<'a> {
         };
 
         // Output: ${$.attr_style('base', { color: 'red' })}
+        let base = base_style.unwrap_or("");
         Ok(format!("${{$.attr_style('{}', {})}}", base, directives_arg))
     }
 

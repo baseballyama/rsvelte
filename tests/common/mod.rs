@@ -461,6 +461,11 @@ pub fn normalize_js(js: &str) -> String {
     // Normalize undefined representation (void 0 -> undefined)
     let result = result.replace("void 0", "undefined");
 
+    // Normalize parenthesized literals in optional chaining: (null)?. -> null?.
+    // OXC removes unnecessary parentheses around simple literals
+    let result = result.replace("(null)?.", "null?.");
+    let result = result.replace("(undefined)?.", "undefined?.");
+
     // Normalize escaped script tags in template literals
     // Both `</script>` and `<\/script>` are valid - normalize to unescaped form
     let result = result.replace("<\\/script>", "</script>");
