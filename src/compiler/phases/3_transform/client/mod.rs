@@ -2813,11 +2813,18 @@ fn wrap_prop_source_reads(expr: &str, prop_vars: &[String]) -> String {
                             && !is_assignment_target
                             && !is_getter_setter_name
                             && !is_property_key
-                            && !is_shorthand_property
                             && !is_shadowed
                         {
-                            new_result.push_str(var);
-                            new_result.push_str("()");
+                            if is_shorthand_property {
+                                // Expand shorthand property: { answer } -> { answer: answer() }
+                                new_result.push_str(var);
+                                new_result.push_str(": ");
+                                new_result.push_str(var);
+                                new_result.push_str("()");
+                            } else {
+                                new_result.push_str(var);
+                                new_result.push_str("()");
+                            }
                             i += var_chars.len();
                             continue;
                         }
@@ -5393,11 +5400,15 @@ fn transform_state_in_expr(
                             && !is_assignment_target
                             && !is_getter_setter_name
                             && !is_property_key
-                            && !is_shorthand_property
                             && !is_shadowed
                             && !is_update_target
                         {
-                            new_result.push_str(&format!("$.get({})", var));
+                            if is_shorthand_property {
+                                // Expand shorthand property: { foo } -> { foo: $.get(foo) }
+                                new_result.push_str(&format!("{}: $.get({})", var, var));
+                            } else {
+                                new_result.push_str(&format!("$.get({})", var));
+                            }
                             i += var_chars.len();
                             continue;
                         }

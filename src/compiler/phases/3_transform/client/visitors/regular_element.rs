@@ -341,6 +341,15 @@ pub fn visit_regular_element(
         }
     }
 
+    // For select elements with bind:value, set up synchronization
+    // between the value binding and inner signals (for indirect updates)
+    // Reference: RegularElement.js lines 202-204
+    if node.name == "select"
+        && let Some(value_binding) = bindings.get("value")
+    {
+        setup_select_synchronization(value_binding, context);
+    }
+
     // Process attributes (excluding directives)
     if has_spread {
         // Use build_attribute_effect for spread attributes
@@ -1409,6 +1418,99 @@ fn build_element_special_value_attribute(
         // For static values, just add the assignment to init
         context.state.init.push(update);
     }
+}
+
+/// Special case: if we have a value binding on a select element, we need to set up synchronization
+/// between the value binding and inner signals, for indirect updates.
+///
+/// Corresponds to `setup_select_synchronization` in
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/RegularElement.js`.
+fn setup_select_synchronization(value_binding: &BindDirective, context: &mut ComponentContext) {
+    // Only applies in legacy mode (not runes)
+    if context.state.analysis.runes {
+        return;
+    }
+
+    let bound = &value_binding.expression;
+
+    // If the expression is a SequenceExpression, bail out
+    if bound.node_type() == Some("SequenceExpression") {
+        return;
+    }
+
+    // Walk through MemberExpressions to get the base identifier
+    let mut current = bound.as_json().clone();
+    while current.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
+        if let Some(obj) = current.get("object") {
+            current = obj.clone();
+        } else {
+            break;
+        }
+    }
+
+    // Get the bound variable name
+    let bound_name = current
+        .get("name")
+        .and_then(|n| n.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    // Collect all scope reference names (excluding the bound variable)
+    // In the JS compiler, scope.references propagates up from child scopes via
+    // scope.reference(), so the instance scope contains ALL template references.
+    // In our Rust implementation, references don't propagate up, so we collect
+    // names that have registered transforms (i.e., component-level reactive variables
+    // like props, state, etc.) and exclude the bound variable. This produces the
+    // same result because build_getter in the JS compiler also looks up transforms.
+    let mut names: Vec<String> = Vec::new();
+    for (name, t) in context.state.transform.iter() {
+        if name != &bound_name && t.read.is_some() {
+            names.push(name.clone());
+        }
+    }
+    names.sort(); // Sort for deterministic output
+
+    // Build the invalidator body: each name gets serialized via build_getter logic
+    let invalidator_body: Vec<JsStatement> = names
+        .iter()
+        .map(|name| {
+            let serialized = if let Some(t) = context.state.transform.get(name)
+                && let Some(read_fn) = t.read
+            {
+                read_fn(JsExpr::Identifier(name.clone()))
+            } else {
+                b::id(name)
+            };
+            b::stmt(serialized)
+        })
+        .collect();
+
+    // Build: $.invalidate_inner_signals(() => { name1(); name2(); ... })
+    let invalidator = b::call(
+        b::member_path("$.invalidate_inner_signals"),
+        vec![b::thunk_block(invalidator_body)],
+    );
+
+    // Build the bound expression getter (apply transform if registered)
+    let bound_expr = if let Some(t) = context.state.transform.get(&bound_name)
+        && let Some(read_fn) = t.read
+    {
+        read_fn(JsExpr::Identifier(bound_name.clone()))
+    } else {
+        b::id(&bound_name)
+    };
+
+    // Build the template_effect:
+    // $.template_effect(() => {
+    //     bound_expr();
+    //     $.invalidate_inner_signals(() => { ... });
+    // })
+    let effect_body = vec![b::stmt(bound_expr), b::stmt(invalidator)];
+
+    context.state.init.push(b::stmt(b::call(
+        b::member_path("$.template_effect"),
+        vec![b::thunk_block(effect_body)],
+    )));
 }
 
 #[cfg(test)]
