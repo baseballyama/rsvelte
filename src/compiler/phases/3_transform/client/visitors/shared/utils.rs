@@ -1836,7 +1836,7 @@ pub fn build_template_chunk(
                     );
 
                     // Track if any expression has state or call (need reactive update)
-                    if expr_has_state || expr_has_call {
+                    if expr_has_state || expr_has_call || expr_has_await {
                         has_state = true;
                     }
 

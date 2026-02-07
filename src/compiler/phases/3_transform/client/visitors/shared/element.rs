@@ -211,6 +211,7 @@ where
                 // The analysis-phase metadata may not account for transforms registered
                 // during the transform phase (e.g., each block item transforms)
                 if metadata.has_state()
+                    || metadata.has_await()
                     || super::utils::expression_has_reactive_state(&expr_tag.expression, context)
                 {
                     has_state = true;
@@ -309,7 +310,7 @@ fn extract_metadata_from_tag(expr_tag: &ExpressionTag) -> ExpressionMetadata {
 
     let mut metadata = ExpressionMetadata::default();
     metadata.set_has_call(has_call);
-    metadata.set_has_await(false); // TODO: Detect await
+    metadata.set_has_await(super::utils::expression_has_await(&expr_tag.expression));
     metadata.set_has_state(has_state);
     metadata.set_has_member_expression(has_member);
     metadata.set_has_assignment(false); // TODO: Detect assignment
@@ -439,6 +440,22 @@ pub fn build_style_directives_object(
     }
 }
 
+/// Check if an AttributeValue contains an await expression.
+fn attr_has_await_expr(attr_value: &AttributeValue) -> bool {
+    match attr_value {
+        AttributeValue::True(_) => false,
+        AttributeValue::Expression(expr_tag) => {
+            super::utils::expression_has_await(&expr_tag.expression)
+        }
+        AttributeValue::Sequence(parts) => parts.iter().any(|part| match part {
+            AttributeValuePart::Text(_) => false,
+            AttributeValuePart::ExpressionTag(expr_tag) => {
+                super::utils::expression_has_await(&expr_tag.expression)
+            }
+        }),
+    }
+}
+
 /// Build class handling for an element with class attribute and/or class directives.
 ///
 /// Corresponds to `build_set_class` in shared/element.js.
@@ -474,6 +491,7 @@ pub fn build_set_class(
 ) {
     // Build the class value from the attribute
     let (mut class_value, mut has_state) = if let Some(attr_value) = class_attribute {
+        let has_await = attr_has_await_expr(attr_value);
         // Check if we need to wrap in $.clsx() before building the value
         let should_clsx = needs_clsx(attr_value);
 
@@ -484,7 +502,16 @@ pub fn build_set_class(
         } else {
             result.value
         };
-        (value, result.has_state)
+        // Route through memoizer AFTER build_attribute_value (avoids borrow conflict)
+        // This ensures await expressions end up in the async memoizer queue
+        let value = context.state.memoizer.add_memoized(
+            value,
+            false,     // has_call
+            has_await, // has_await - route await expressions to async memoizer
+            false,     // memoize_if_state
+            result.has_state,
+        );
+        (value, result.has_state || has_await)
     } else {
         // No class attribute - use empty string
         (b::string(""), false)

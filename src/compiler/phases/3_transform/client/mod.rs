@@ -1217,7 +1217,11 @@ fn transform_instance_script_for_visitors(
     };
 
     // Process script lines
-    for line in script_rest.lines() {
+    // Collect lines into a Vec so we can peek at the next line for continuation detection
+    let script_lines: Vec<&str> = script_rest.lines().collect();
+    let mut line_idx = 0;
+    while line_idx < script_lines.len() {
+        let line = script_lines[line_idx];
         let trimmed = line.trim();
 
         // Skip empty lines (but preserve them if we're accumulating)
@@ -1225,23 +1229,27 @@ fn transform_instance_script_for_visitors(
             if !accumulated_lines.is_empty() {
                 accumulated_lines.push(line.to_string());
             }
+            line_idx += 1;
             continue;
         }
 
         // Skip import statements (already extracted)
         if trimmed.starts_with("import ") {
+            line_idx += 1;
             continue;
         }
 
         // Skip export { ... } statements (will be handled via $$exports object)
         if trimmed.starts_with("export {") {
             in_export_block = !trimmed.contains('}');
+            line_idx += 1;
             continue;
         }
         if in_export_block {
             if trimmed.contains('}') {
                 in_export_block = false;
             }
+            line_idx += 1;
             continue;
         }
 
@@ -1249,6 +1257,7 @@ fn transform_instance_script_for_visitors(
         if (trimmed.contains("= $props.id()") || trimmed.contains("= $.props_id()"))
             && (trimmed.starts_with("let ") || trimmed.starts_with("const "))
         {
+            line_idx += 1;
             continue;
         }
 
@@ -1258,27 +1267,44 @@ fn transform_instance_script_for_visitors(
         // Check if we have a complete statement (balanced braces/parens)
         let combined = accumulated_lines.join("\n");
         if !is_incomplete_expression(&combined) {
-            // Process the complete statement
-            process_accumulated(
-                &accumulated_lines,
-                &mut result,
-                &state_vars,
-                &non_reactive_state_vars,
-                &proxy_vars,
-                &raw_state_vars,
-                &store_sub_vars,
-                &prop_source_vars,
-                &prop_assignment_transform_vars,
-                &exported_names,
-                &rest_prop_vars,
-                &read_only_props,
-                &legacy_state_vars,
-                analysis,
-                dev,
-                has_legacy_export_let,
-            );
-            accumulated_lines.clear();
+            // Before processing, check if the next non-empty line starts with '.'
+            // (method chaining continuation like `.fill(null).map(...)`)
+            let mut next_continues = false;
+            for future_line in script_lines.iter().skip(line_idx + 1) {
+                let future_trimmed = future_line.trim();
+                if future_trimmed.is_empty() {
+                    continue;
+                }
+                if future_trimmed.starts_with('.') {
+                    next_continues = true;
+                }
+                break;
+            }
+
+            if !next_continues {
+                // Process the complete statement
+                process_accumulated(
+                    &accumulated_lines,
+                    &mut result,
+                    &state_vars,
+                    &non_reactive_state_vars,
+                    &proxy_vars,
+                    &raw_state_vars,
+                    &store_sub_vars,
+                    &prop_source_vars,
+                    &prop_assignment_transform_vars,
+                    &exported_names,
+                    &rest_prop_vars,
+                    &read_only_props,
+                    &legacy_state_vars,
+                    analysis,
+                    dev,
+                    has_legacy_export_let,
+                );
+                accumulated_lines.clear();
+            }
         }
+        line_idx += 1;
     }
 
     // Process any remaining accumulated lines
@@ -2183,6 +2209,31 @@ fn transform_reactive_statement(
         return String::new();
     }
 
+    // Collapse method chain continuations into a single line.
+    // For multi-line reactive statements like:
+    //   $: ids = new Array(count)
+    //       .fill(null)
+    //       .map((_, i) => 'id-' + i)
+    // Join continuation lines (starting with '.') onto the previous line to ensure
+    // the entire expression is treated as a single unit during assignment detection.
+    let body_owned = {
+        let mut collapsed = String::new();
+        for line in body.lines() {
+            let t = line.trim();
+            if t.starts_with('.') && !collapsed.is_empty() {
+                // Append chain continuation without newline
+                collapsed.push_str(t);
+            } else {
+                if !collapsed.is_empty() {
+                    collapsed.push('\n');
+                }
+                collapsed.push_str(line);
+            }
+        }
+        collapsed
+    };
+    let body = body_owned.trim_end_matches(';').trim();
+
     // Collect dependencies from the body
     // Dependencies are prop variables that should be wrapped in $.deep_read_state()
     let mut dependencies: Vec<String> = Vec::new();
@@ -2241,9 +2292,12 @@ fn transform_reactive_statement(
             transformed_body = format!("{} = {}", lhs, transformed_rhs);
         }
     } else {
-        // Not an assignment - check for update expressions (++/--)
+        // Not a simple assignment - handle compound assignments (+=, -=, etc.),
+        // update expressions (++/--), and reads.
+        // First transform prop compound assignments (e.g., `count += 1` → `count(count() + 1)`)
+        let temp = transform_prop_assignments(body, prop_assignment_transform_vars);
         // Transform prop update expressions like `x++` to `$.update_prop(x)`
-        let temp = transform_prop_update_expressions(body, prop_assignment_transform_vars);
+        let temp = transform_prop_update_expressions(&temp, prop_assignment_transform_vars);
         // Also transform state update expressions
         let temp = transform_state_update_expressions(&temp, state_vars, non_reactive_state_vars);
         // Then transform reads
@@ -2414,7 +2468,9 @@ fn find_assignment_position(expr: &str) -> Option<usize> {
             '(' | '[' | '{' => depth += 1,
             ')' | ']' | '}' => depth -= 1,
             '=' if depth == 0 => {
-                // Check it's not ==, ===, !=, !==, <=, >=, =>
+                // Check it's not ==, ===, !=, !==, <=, >=, =>,
+                // or compound assignment operators: +=, -=, *=, /=, %=, **=,
+                // <<=, >>=, >>>=, &=, |=, ^=, &&=, ||=, ??=
                 let prev = if i > 0 { Some(chars[i - 1]) } else { None };
                 let next = chars.get(i + 1).copied();
 
@@ -2422,6 +2478,15 @@ fn find_assignment_position(expr: &str) -> Option<usize> {
                     && prev != Some('!')
                     && prev != Some('<')
                     && prev != Some('>')
+                    && prev != Some('+')
+                    && prev != Some('-')
+                    && prev != Some('*')
+                    && prev != Some('/')
+                    && prev != Some('%')
+                    && prev != Some('&')
+                    && prev != Some('|')
+                    && prev != Some('^')
+                    && prev != Some('?')
                     && next != Some('=')
                     && next != Some('>')
                 {
@@ -3908,15 +3973,60 @@ fn transform_prop_assignments(line: &str, prop_vars: &[String]) -> String {
             let mut prop_end = 0;
             let mut eq_pos = None;
             let after_member_chars: Vec<char> = after_member.chars().collect();
+            let mut scan_depth = 0i32;
             for (i, c) in after_member.char_indices() {
-                if c == '=' {
-                    // Check it's not == or ===
-                    // We need char index for checking neighbors
-                    let char_idx = after_member[..i].chars().count();
-                    if char_idx > 0 && after_member_chars.get(char_idx - 1) == Some(&'=') {
+                // Track nesting depth to avoid matching = inside parens/brackets
+                match c {
+                    '(' | '[' | '{' => {
+                        scan_depth += 1;
                         continue;
                     }
-                    if after_member_chars.get(char_idx + 1) == Some(&'=') {
+                    ')' | ']' | '}' => {
+                        scan_depth -= 1;
+                        continue;
+                    }
+                    ';' | '\n' if scan_depth == 0 => {
+                        // Reached end of statement without finding assignment
+                        break;
+                    }
+                    _ => {}
+                }
+                // Only look for assignment at depth 0
+                if c == '=' && scan_depth == 0 {
+                    // Check it's not ==, ===, =>, !=, !==, <=, >=,
+                    // or compound: +=, -=, *=, /=, %=, **=, &=, |=, ^=, &&=, ||=, ??=
+                    let char_idx = after_member[..i].chars().count();
+                    let prev = if char_idx > 0 {
+                        after_member_chars.get(char_idx - 1).copied()
+                    } else {
+                        None
+                    };
+                    let next = after_member_chars.get(char_idx + 1).copied();
+                    // Skip ==, ===
+                    if prev == Some('=') || next == Some('=') {
+                        continue;
+                    }
+                    // Skip => (arrow function)
+                    if next == Some('>') {
+                        continue;
+                    }
+                    // Skip !=, !==, <=, >=
+                    if matches!(prev, Some('!') | Some('<') | Some('>')) {
+                        continue;
+                    }
+                    // Skip compound assignments: +=, -=, *=, /=, %=, &=, |=, ^=, ?=
+                    if matches!(
+                        prev,
+                        Some('+')
+                            | Some('-')
+                            | Some('*')
+                            | Some('/')
+                            | Some('%')
+                            | Some('&')
+                            | Some('|')
+                            | Some('^')
+                            | Some('?')
+                    ) {
                         continue;
                     }
                     eq_pos = Some(i);
@@ -4747,6 +4857,8 @@ fn find_assignment_expr_end(s: &str, in_ternary: bool) -> usize {
             }
             ';' if depth == 0 => return i,
             '\n' if depth == 0 => return i,
+            // Stop at ',' at depth 0 (e.g., inside object literal: {id: eid = expr, name: ...})
+            ',' if depth == 0 => return i,
             // Track nested ternaries
             '?' if depth == 0 => {
                 // Check it's not optional chaining (?.)
