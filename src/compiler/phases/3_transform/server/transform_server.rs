@@ -6262,9 +6262,12 @@ fn transform_props_spread(script: &str) -> String {
     result
 }
 
-/// Extract constant variable bindings from script content (const declarations only).
+/// Extract constant variable bindings from script content.
+/// Extracts `const` declarations always, and `let` declarations only if they're
+/// not exported and never reassigned in the script.
 fn extract_constant_vars(script: &str) -> FxHashMap<String, String> {
     let mut constants = FxHashMap::default();
+    let mut let_vars: Vec<String> = Vec::new();
 
     for line in script.lines() {
         let trimmed = line.trim();
@@ -6275,20 +6278,20 @@ fn extract_constant_vars(script: &str) -> FxHashMap<String, String> {
         }
 
         // Strip leading 'export' keyword if present
+        let is_export = trimmed.starts_with("export ");
         let trimmed = if let Some(rest) = trimmed.strip_prefix("export ") {
             rest.trim_start()
         } else {
             trimmed
         };
 
-        // Only extract const declarations - let variables can be reassigned
-        let decl_start = if trimmed.starts_with("const ") {
-            Some(6)
+        let (decl_start, is_const) = if trimmed.starts_with("const ") {
+            (Some(6), true)
+        } else if !is_export && trimmed.starts_with("let ") {
+            (Some(4), false)
         } else {
-            None
+            (None, false)
         };
-
-        let is_const = trimmed.starts_with("const ");
 
         if let Some(start) = decl_start {
             let rest = &trimmed[start..];
@@ -6303,6 +6306,9 @@ fn extract_constant_vars(script: &str) -> FxHashMap<String, String> {
                 {
                     let content = &value[1..value.len() - 1];
                     constants.insert(name.to_string(), content.to_string());
+                    if !is_const {
+                        let_vars.push(name.to_string());
+                    }
                 } else if is_const {
                     // Only extract numeric literals from const declarations
                     if let Ok(n) = value.parse::<i64>() {
@@ -6314,6 +6320,41 @@ fn extract_constant_vars(script: &str) -> FxHashMap<String, String> {
                     }
                 }
             }
+        }
+    }
+
+    // Remove let variables that are reassigned in the script
+    // Check for patterns like `name = `, `name +=`, `name++`, etc.
+    for var_name in &let_vars {
+        let is_reassigned = script.lines().any(|line| {
+            let trimmed = line.trim();
+            // Skip the declaration line itself
+            if trimmed.starts_with("let ") || trimmed.starts_with("const ") {
+                return false;
+            }
+            // Check for direct assignment: `varName = ...` or `varName += ...` etc.
+            if let Some(rest) = trimmed.strip_prefix(var_name.as_str()) {
+                let rest = rest.trim_start();
+                if rest.starts_with('=')
+                    || rest.starts_with("+=")
+                    || rest.starts_with("-=")
+                    || rest.starts_with("++")
+                    || rest.starts_with("--")
+                {
+                    return true;
+                }
+            }
+            // Check for assignment anywhere in line (e.g., in callbacks)
+            // Look for ` varName = ` pattern (surrounded by non-word chars)
+            let pattern = format!("{} =", var_name);
+            if trimmed.contains(&pattern) && !trimmed.starts_with("let ") {
+                return true;
+            }
+            false
+        });
+
+        if is_reassigned {
+            constants.remove(var_name);
         }
     }
 
