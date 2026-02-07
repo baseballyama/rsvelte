@@ -467,6 +467,56 @@ pub fn normalize_js(js: &str) -> String {
     let result = result.replace("(null)?.", "null?.");
     let result = result.replace("(undefined)?.", "undefined?.");
 
+    // Normalize redundant parentheses around $.function() calls
+    // OXC strips unnecessary parens: ($.deep_read_state(c())), -> $.deep_read_state(c()),
+    // Match ($.func(args)), where args may contain nested parens
+    let result = {
+        let mut out = result.clone();
+        // Iteratively remove outer parens around $. function calls
+        // Pattern: find `($.` and match balanced parens to the closing `)`
+        let mut changed = true;
+        while changed {
+            changed = false;
+            let bytes = out.as_bytes();
+            let mut new_out = String::with_capacity(out.len());
+            let mut i = 0;
+            while i < bytes.len() {
+                // Look for pattern `($.`
+                if i + 2 < bytes.len()
+                    && bytes[i] == b'('
+                    && bytes[i + 1] == b'$'
+                    && bytes[i + 2] == b'.'
+                {
+                    // Find matching closing paren for the outer `(`
+                    let mut depth = 1;
+                    let mut j = i + 1;
+                    while j < bytes.len() && depth > 0 {
+                        if bytes[j] == b'(' {
+                            depth += 1;
+                        } else if bytes[j] == b')' {
+                            depth -= 1;
+                        }
+                        if depth > 0 {
+                            j += 1;
+                        }
+                    }
+                    if depth == 0 && j < bytes.len() {
+                        // j points to the closing ')' that matches our opening '('
+                        // Remove the outer parens: skip '(' at i and ')' at j
+                        new_out.push_str(&out[i + 1..j]);
+                        i = j + 1;
+                        changed = true;
+                        continue;
+                    }
+                }
+                new_out.push(bytes[i] as char);
+                i += 1;
+            }
+            out = new_out;
+        }
+        out
+    };
+
     // Normalize escaped script tags in template literals
     // Both `</script>` and `<\/script>` are valid - normalize to unescaped form
     let result = result.replace("<\\/script>", "</script>");
