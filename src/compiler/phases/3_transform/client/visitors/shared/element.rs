@@ -196,7 +196,16 @@ where
                 let built = build_expression(context, &expression, &metadata);
                 let memoized = memoize(built, &metadata);
 
-                expressions.push(memoized);
+                // Add ?? '' where necessary (only if not guaranteed to be defined)
+                // This matches the text template chunk behavior in utils.rs
+                let is_defined = super::utils::is_expression_defined(&expr_tag.expression, context);
+                let final_value = if is_defined {
+                    memoized
+                } else {
+                    b::logical_str("??", memoized, b::string(""))
+                };
+
+                expressions.push(final_value);
 
                 // Check for reactive state using both analysis metadata AND transforms
                 // The analysis-phase metadata may not account for transforms registered

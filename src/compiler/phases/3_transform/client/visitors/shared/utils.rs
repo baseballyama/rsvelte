@@ -2097,7 +2097,10 @@ pub(crate) fn get_literal_value(
 /// - Numeric/boolean literals
 /// - Binary/unary expressions (always produce defined results)
 /// - Non-updated const bindings with defined initial values
-fn is_expression_defined(expr: &crate::ast::js::Expression, context: &ComponentContext) -> bool {
+pub(crate) fn is_expression_defined(
+    expr: &crate::ast::js::Expression,
+    context: &ComponentContext,
+) -> bool {
     is_expression_defined_json(expr.as_json(), context)
 }
 
