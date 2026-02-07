@@ -7160,8 +7160,14 @@ fn transform_script_content_inner(script: &str, is_module: bool) -> String {
     // Transform store assignments: $count += 1 → $.store_set(count, ... + 1)
     let script = transform_store_assignments(&script);
     // Transform export let declarations for legacy/non-runes mode
-    // This must be done before other transformations to properly handle props
-    let script = transform_export_let_declarations(&script);
+    // This must be done before other transformations to properly handle props.
+    // Module-level `export let` are real ES exports, not component props,
+    // so they should NOT be transformed to $.fallback($$props[...]).
+    let script = if is_module {
+        script
+    } else {
+        transform_export_let_declarations(&script)
+    };
     // Strip `export` keyword from function/const/class declarations
     // In Svelte, `export function foo()` inside <script> means "export the prop",
     // but in server output the function should be a regular declaration inside the component.
