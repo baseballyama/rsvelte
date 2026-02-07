@@ -2335,14 +2335,36 @@ impl<'a> ServerCodeGenerator<'a> {
                 {
                     match &node.value {
                         AttributeValue::Sequence(parts) => {
-                            // Static text value
-                            let mut text_val = String::new();
-                            for part in parts {
-                                if let AttributeValuePart::Text(text) = part {
-                                    text_val.push_str(&text.data);
+                            // Check if this is a single expression tag like value="{expr}"
+                            let expr_parts: Vec<&AttributeValuePart> = parts
+                                .iter()
+                                .filter(|p| !matches!(p, AttributeValuePart::Text(t) if t.data.is_empty()))
+                                .collect();
+                            if expr_parts.len() == 1 {
+                                match expr_parts[0] {
+                                    AttributeValuePart::ExpressionTag(expr_tag) => {
+                                        let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                                        let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                                        if expr_end > expr_start && expr_end <= source.len() {
+                                            Some(source[expr_start..expr_end].trim().to_string())
+                                        } else {
+                                            None
+                                        }
+                                    }
+                                    AttributeValuePart::Text(text) => {
+                                        Some(format!("'{}'", text.data))
+                                    }
                                 }
+                            } else {
+                                // Static text value (multiple parts)
+                                let mut text_val = String::new();
+                                for part in parts {
+                                    if let AttributeValuePart::Text(text) = part {
+                                        text_val.push_str(&text.data);
+                                    }
+                                }
+                                Some(format!("'{}'", text_val))
                             }
-                            Some(format!("'{}'", text_val))
                         }
                         AttributeValue::Expression(expr_tag) => {
                             let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
