@@ -1356,7 +1356,10 @@ impl<'a> ServerCodeGenerator<'a> {
         // Determine flags for $.attributes() call
         // ELEMENT_IS_NAMESPACED = 1, ELEMENT_PRESERVE_ATTRIBUTE_CASE = 2, ELEMENT_IS_INPUT = 4
         let is_custom_element = self.is_custom_element(element);
-        let flags = if is_custom_element {
+        let is_svg_or_mathml = element.metadata.svg || element.metadata.mathml;
+        let flags = if is_svg_or_mathml {
+            3 // ELEMENT_IS_NAMESPACED | ELEMENT_PRESERVE_ATTRIBUTE_CASE
+        } else if is_custom_element {
             2 // ELEMENT_PRESERVE_ATTRIBUTE_CASE
         } else if name == "input" {
             4 // ELEMENT_IS_INPUT
@@ -1370,13 +1373,27 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Add $.attributes() expression with full arguments
         // $.attributes(object, css_hash, classes, styles, flags)
-        let attributes_call = if flags != 0 || classes_arg != "void 0" || styles_arg != "void 0" {
-            format!(
-                "$.attributes({}, void 0, {}, {}, {})",
-                object_literal, classes_arg, styles_arg, flags
-            )
-        } else {
-            format!("$.attributes({})", object_literal)
+        // Only include trailing arguments if they are non-default values
+        // Defaults: css_hash=void 0, classes=void 0, styles=void 0, flags=0
+        let attributes_call = {
+            let mut args = vec![object_literal.clone()];
+            let css_hash_arg = "void 0".to_string();
+            // Build args from right to left, omitting trailing defaults
+            let has_flags = flags != 0;
+            let has_styles = styles_arg != "void 0";
+            let has_classes = classes_arg != "void 0";
+
+            if has_flags || has_styles || has_classes {
+                args.push(css_hash_arg);
+                args.push(classes_arg.clone());
+                if has_flags || has_styles {
+                    args.push(styles_arg.clone());
+                    if has_flags {
+                        args.push(flags.to_string());
+                    }
+                }
+            }
+            format!("$.attributes({})", args.join(", "))
         };
         self.output_parts
             .push(OutputPart::RawExpression(attributes_call));
