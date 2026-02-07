@@ -1018,6 +1018,36 @@ fn json_has_rune_reference(node: &serde_json::Value) -> bool {
                 if key == "type" || key == "start" || key == "end" || key == "loc" {
                     continue;
                 }
+                // Skip the "label" property of LabeledStatement nodes.
+                // Labels like `$effect:` contain Identifiers with rune names but
+                // they are NOT rune references - they are just label declarations.
+                // Without this check, `$effect: if (obj) x++` would falsely trigger
+                // runes mode detection, causing `export let` to be rejected.
+                if key == "label" && node_type == Some("LabeledStatement") {
+                    continue;
+                }
+                // Skip property keys in non-computed MemberExpressions and Properties.
+                // `foo.$state` should not be treated as a rune reference.
+                if key == "property"
+                    && node_type == Some("MemberExpression")
+                    && !node
+                        .get("computed")
+                        .and_then(|c| c.as_bool())
+                        .unwrap_or(false)
+                {
+                    continue;
+                }
+                // Skip the "key" field of non-computed Property nodes.
+                // { $state: value } should not be treated as a rune reference.
+                if key == "key"
+                    && node_type == Some("Property")
+                    && !node
+                        .get("computed")
+                        .and_then(|c| c.as_bool())
+                        .unwrap_or(false)
+                {
+                    continue;
+                }
                 if json_has_rune_reference(val) {
                     return true;
                 }

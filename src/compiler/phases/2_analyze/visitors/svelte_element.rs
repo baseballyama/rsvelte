@@ -73,8 +73,26 @@ pub fn visit(
         }
     }
 
+    // Set up slot ownership context for slot attribute validation.
+    // <svelte:element> can dynamically resolve to any element including custom elements,
+    // so children with slot attributes should be allowed (they may be valid at runtime).
+    // This matches how <svelte:component> allows slot attributes on its children.
+    let was_direct_child = context.is_direct_child_of_component;
+    context.is_direct_child_of_component = true;
+    context
+        .slot_owner_ancestors
+        .push(super::SlotOwnerType::Component);
+    context
+        .fragment_owner_stack
+        .push(super::FragmentOwnerType::SvelteElement);
+
     // Analyze children
     fragment::analyze(&mut element.fragment, context)?;
+
+    // Restore context
+    context.fragment_owner_stack.pop();
+    context.slot_owner_ancestors.pop();
+    context.is_direct_child_of_component = was_direct_child;
 
     Ok(())
 }

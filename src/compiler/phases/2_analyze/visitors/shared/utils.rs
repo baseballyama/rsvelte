@@ -1498,6 +1498,23 @@ pub fn walk_js_expression(
 
                 // Look up binding
                 if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name) {
+                    // Register the template reference on the binding
+                    // This is critical for legacy state promotion (promote_legacy_state_bindings)
+                    // which checks if bindings have template references to decide whether to
+                    // promote Normal bindings to State bindings.
+                    let (start, end) = expression
+                        .get("start")
+                        .and_then(|s| s.as_u64())
+                        .zip(expression.get("end").and_then(|e| e.as_u64()))
+                        .unwrap_or((0, 0));
+                    let is_template_reference =
+                        matches!(context.ast_type, super::super::AstType::Template);
+                    context.analysis.root.bindings[binding_idx].add_reference(
+                        start as u32,
+                        end as u32,
+                        is_template_reference,
+                    );
+
                     let binding = &context.analysis.root.bindings[binding_idx];
 
                     // Add to references

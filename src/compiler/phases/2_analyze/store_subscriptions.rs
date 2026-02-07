@@ -117,18 +117,35 @@ pub fn detect_store_subscriptions(
             continue;
         }
 
-        // Skip runes ($state, $derived, $props, etc.) in runes mode
-        // Even if there's a binding with the same name (e.g., `let props = $props()`),
-        // in runes mode the $ prefix always refers to the rune, not a store subscription.
-        if analysis.runes && is_rune(ref_name) {
-            continue;
-        }
-
-        // Skip runes in legacy mode unless there's a binding for the store name
-        if !analysis.runes && is_rune(ref_name) {
-            // Check if there's a binding for the store name (e.g., `state` for `$state`)
-            // If there is, it's a store subscription, not a rune
-            if !analysis.root.scope.declarations.contains_key(store_name) {
+        // Skip rune names ($state, $derived, $props, etc.).
+        // In runes mode, the $ prefix always refers to the rune, not a store subscription.
+        // In legacy mode, skip unless there's a TOP-LEVEL binding for the store name
+        // (e.g., `let state = writable(...)` at the top level makes `$state` a store sub).
+        //
+        // IMPORTANT: We must also skip rune names when runes mode hasn't been auto-detected
+        // yet (options.runes is None). This is because detect_store_subscriptions runs
+        // BEFORE runes auto-detection, and code like `const state = $state(...)` inside a
+        // function would create a nested binding for `state`, triggering a false positive
+        // store_invalid_scoped_subscription error. The official Svelte compiler's
+        // create_scopes phase handles this correctly by never creating store subscriptions
+        // for rune names when the binding is in a nested scope.
+        if is_rune(ref_name) {
+            if analysis.runes {
+                // Definitely runes mode - always skip rune names
+                continue;
+            }
+            // Check if there's a top-level binding for the store name
+            // Only treat it as a store subscription if the binding is at the top level
+            if let Some(&binding_idx) = analysis.root.scope.declarations.get(store_name) {
+                let binding = &analysis.root.bindings[binding_idx];
+                if binding.scope_index > 1 {
+                    // The only binding for this name is in a nested scope.
+                    // This is likely a rune usage (e.g., `const state = $state(...)` inside
+                    // a function), not a store subscription. Skip it.
+                    continue;
+                }
+            } else {
+                // No binding at all for the store name - skip rune names
                 continue;
             }
         }

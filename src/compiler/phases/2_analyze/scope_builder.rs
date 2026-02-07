@@ -648,31 +648,49 @@ impl<'a> ScopeBuilder<'a> {
                     && name.len() > 1
                     && self.function_depth > 0
                 {
-                    let store_name = &name[1..];
+                    // Skip rune names - they are never store subscriptions.
+                    // This is especially important because the scope builder runs before
+                    // runes mode is auto-detected, so we can't rely on self.runes_mode.
+                    // Code like `const state = $state(value)` inside a function should
+                    // NOT trigger store_invalid_scoped_subscription.
+                    let is_rune_name = matches!(
+                        name,
+                        "$state"
+                            | "$derived"
+                            | "$props"
+                            | "$bindable"
+                            | "$effect"
+                            | "$inspect"
+                            | "$host"
+                    );
 
-                    // Look up the store name in the current scope chain
-                    // Start from current scope and traverse up
-                    let mut scope_idx = self.current_scope;
-                    loop {
-                        let scope = &self.scopes[scope_idx];
-                        if scope.declarations.contains_key(store_name) {
-                            // Found a binding for the store name
-                            // If this scope is neither module (0) nor instance (1),
-                            // and we're inside that scope (not just above it),
-                            // it's a shadowing error
-                            if scope_idx > 1 {
-                                // The store name is declared in a nested scope
-                                // This means the $store reference would refer to this
-                                // local variable, not the outer store - that's an error
-                                self.validation_errors
-                                    .push(errors::store_invalid_scoped_subscription());
+                    if !is_rune_name {
+                        let store_name = &name[1..];
+
+                        // Look up the store name in the current scope chain
+                        // Start from current scope and traverse up
+                        let mut scope_idx = self.current_scope;
+                        loop {
+                            let scope = &self.scopes[scope_idx];
+                            if scope.declarations.contains_key(store_name) {
+                                // Found a binding for the store name
+                                // If this scope is neither module (0) nor instance (1),
+                                // and we're inside that scope (not just above it),
+                                // it's a shadowing error
+                                if scope_idx > 1 {
+                                    // The store name is declared in a nested scope
+                                    // This means the $store reference would refer to this
+                                    // local variable, not the outer store - that's an error
+                                    self.validation_errors
+                                        .push(errors::store_invalid_scoped_subscription());
+                                }
+                                break;
                             }
-                            break;
-                        }
-                        if let Some(parent) = scope.parent {
-                            scope_idx = parent;
-                        } else {
-                            break;
+                            if let Some(parent) = scope.parent {
+                                scope_idx = parent;
+                            } else {
+                                break;
+                            }
                         }
                     }
                 }
@@ -703,24 +721,38 @@ impl<'a> ScopeBuilder<'a> {
                     && name.len() > 1
                     && self.function_depth > 0
                 {
-                    let store_name = &name[1..];
+                    // Skip rune names - they are never store subscriptions
+                    let is_rune_name = matches!(
+                        name,
+                        "$state"
+                            | "$derived"
+                            | "$props"
+                            | "$bindable"
+                            | "$effect"
+                            | "$inspect"
+                            | "$host"
+                    );
 
-                    // Look up the store name in the current scope chain
-                    let mut scope_idx = self.current_scope;
-                    loop {
-                        let scope = &self.scopes[scope_idx];
-                        if scope.declarations.contains_key(store_name) {
-                            // Found a binding for the store name in a nested scope
-                            if scope_idx > 1 {
-                                self.validation_errors
-                                    .push(errors::store_invalid_scoped_subscription());
+                    if !is_rune_name {
+                        let store_name = &name[1..];
+
+                        // Look up the store name in the current scope chain
+                        let mut scope_idx = self.current_scope;
+                        loop {
+                            let scope = &self.scopes[scope_idx];
+                            if scope.declarations.contains_key(store_name) {
+                                // Found a binding for the store name in a nested scope
+                                if scope_idx > 1 {
+                                    self.validation_errors
+                                        .push(errors::store_invalid_scoped_subscription());
+                                }
+                                break;
                             }
-                            break;
-                        }
-                        if let Some(parent) = scope.parent {
-                            scope_idx = parent;
-                        } else {
-                            break;
+                            if let Some(parent) = scope.parent {
+                                scope_idx = parent;
+                            } else {
+                                break;
+                            }
                         }
                     }
                 }
@@ -1239,12 +1271,26 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Visit an if block.
     fn visit_if_block(&mut self, block: &IfBlock) {
-        // Visit the consequent
-        self.visit_fragment(&block.consequent);
+        // Each branch of an if/else block gets its own scope.
+        // This is necessary because {@const} declarations in different branches
+        // should NOT conflict with each other. For example:
+        //   {#if x > 10}
+        //     {@const width = x * 2}
+        //   {:else}
+        //     {@const width = x * 5}
+        //   {/if}
+        // Both `width` declarations are valid - they're in separate scopes.
 
-        // Visit alternate if present
+        // Visit the consequent in its own scope
+        let old_scope = self.push_scope();
+        self.visit_fragment(&block.consequent);
+        self.pop_scope(old_scope);
+
+        // Visit alternate if present, also in its own scope
         if let Some(ref alternate) = block.alternate {
+            let old_scope = self.push_scope();
             self.visit_fragment(alternate);
+            self.pop_scope(old_scope);
         }
     }
 

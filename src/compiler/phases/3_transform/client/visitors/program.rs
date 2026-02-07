@@ -117,7 +117,7 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
                             read: Some(prop_read),
                             assign: Some(prop_assign),
                             mutate: Some(prop_mutate),
-                            update: None, // Props don't have update transform
+                            update: Some(prop_update),
                             skip_proxy: false,
                             is_defined: false,
                             is_reactive: true,
@@ -362,6 +362,27 @@ fn prop_read(node: JsExpr) -> JsExpr {
 /// * `_needs_proxy` - Whether the value needs to be proxified (not used for props)
 fn prop_assign(node: JsExpr, value: JsExpr, _needs_proxy: bool) -> JsExpr {
     b::call(node, vec![value])
+}
+
+/// Transform a prop update expression (++ or --).
+///
+/// Transforms `x++` to `$.update_prop(x)` or `++x` to `$.update_pre_prop(x)`.
+/// Transforms `x--` to `$.update_prop(x, -1)` or `--x` to `$.update_pre_prop(x, -1)`.
+fn prop_update(operator: JsUpdateOp, argument: JsExpr, prefix: bool) -> JsExpr {
+    let method = if prefix {
+        "update_pre_prop"
+    } else {
+        "update_prop"
+    };
+
+    let mut args = vec![argument];
+
+    // For decrement, pass -1 as the second argument
+    if operator == JsUpdateOp::Decrement {
+        args.push(b::number(-1.0));
+    }
+
+    b::svelte_call(method, args)
 }
 
 /// Transform a prop mutation.

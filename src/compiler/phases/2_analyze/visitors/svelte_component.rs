@@ -38,8 +38,26 @@ pub fn visit(
         }
     }
 
+    // Set up component context for slot attribute validation
+    // svelte:component is a component, so children with slot attributes should be valid
+    let was_direct_child = context.is_direct_child_of_component;
+    context.is_direct_child_of_component = true;
+    context.component_depth += 1;
+    context
+        .slot_owner_ancestors
+        .push(super::SlotOwnerType::Component);
+    context
+        .fragment_owner_stack
+        .push(super::FragmentOwnerType::Component);
+
     // Analyze children
     fragment::analyze(&mut component.fragment, context)?;
+
+    // Restore context
+    context.fragment_owner_stack.pop();
+    context.slot_owner_ancestors.pop();
+    context.component_depth -= 1;
+    context.is_direct_child_of_component = was_direct_child;
 
     Ok(())
 }

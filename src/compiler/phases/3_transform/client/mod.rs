@@ -317,6 +317,16 @@ fn transform_client_with_visitors(
         component_body.push(b::const_decl(group_name, b::empty_array()));
     }
 
+    // Add $props.id() declaration if needed
+    // Reference: transform-client.js line 588
+    if let Some(ref props_id_name) = analysis.props_id {
+        // const id = $.props_id();
+        component_body.push(b::const_decl(
+            props_id_name,
+            b::call(b::member_path("$.props_id"), vec![]),
+        ));
+    }
+
     // Add CSS styles injection if needed
     if analysis.css.has_css && analysis.inject_styles {
         // $.append_styles($$anchor, $$css)
@@ -1232,6 +1242,13 @@ fn transform_instance_script_for_visitors(
             if trimmed.contains('}') {
                 in_export_block = false;
             }
+            continue;
+        }
+
+        // Skip $props.id() declarations - they will be added as const declarations in the component body
+        if (trimmed.contains("= $props.id()") || trimmed.contains("= $.props_id()"))
+            && (trimmed.starts_with("let ") || trimmed.starts_with("const "))
+        {
             continue;
         }
 
@@ -2224,8 +2241,13 @@ fn transform_reactive_statement(
             transformed_body = format!("{} = {}", lhs, transformed_rhs);
         }
     } else {
-        // Not an assignment - just transform reads
-        let temp = transform_prop_reads_in_expr(body, prop_assignment_transform_vars);
+        // Not an assignment - check for update expressions (++/--)
+        // Transform prop update expressions like `x++` to `$.update_prop(x)`
+        let temp = transform_prop_update_expressions(body, prop_assignment_transform_vars);
+        // Also transform state update expressions
+        let temp = transform_state_update_expressions(&temp, state_vars, non_reactive_state_vars);
+        // Then transform reads
+        let temp = transform_prop_reads_in_expr(&temp, prop_assignment_transform_vars);
         transformed_body =
             wrap_state_vars_in_expr(&temp, state_vars, non_reactive_state_vars, proxy_vars);
     }
@@ -2262,6 +2284,94 @@ fn transform_reactive_statement(
         "$.legacy_pre_effect({}, () => {{\n\t{};\n}});",
         deps_thunk, transformed_body
     )
+}
+
+/// Transform update expressions (++ / --) for prop variables.
+///
+/// Converts `x++` to `$.update_prop(x)`, `++x` to `$.update_pre_prop(x)`,
+/// `x--` to `$.update_prop(x, -1)`, and `--x` to `$.update_pre_prop(x, -1)`.
+fn transform_prop_update_expressions(expr: &str, prop_vars: &[String]) -> String {
+    let mut result = expr.to_string();
+    for var in prop_vars {
+        // Transform postfix x++ to $.update_prop(x)
+        let post_inc = format!("{}++", var);
+        result = replace_with_word_boundary(
+            &result,
+            &post_inc,
+            &format!("$.update_prop({})", var),
+            false,
+        );
+        // Transform postfix x-- to $.update_prop(x, -1)
+        let post_dec = format!("{}--", var);
+        result = replace_with_word_boundary(
+            &result,
+            &post_dec,
+            &format!("$.update_prop({}, -1)", var),
+            false,
+        );
+        // Transform prefix ++x to $.update_pre_prop(x)
+        let pre_inc = format!("++{}", var);
+        result = replace_with_word_boundary(
+            &result,
+            &pre_inc,
+            &format!("$.update_pre_prop({})", var),
+            true,
+        );
+        // Transform prefix --x to $.update_pre_prop(x, -1)
+        let pre_dec = format!("--{}", var);
+        result = replace_with_word_boundary(
+            &result,
+            &pre_dec,
+            &format!("$.update_pre_prop({}, -1)", var),
+            true,
+        );
+    }
+    result
+}
+
+/// Transform update expressions (++ / --) for state variables.
+///
+/// Converts `x++` to `$.update(x)`, `++x` to `$.update_pre(x)`,
+/// `x--` to `$.update(x, -1)`, and `--x` to `$.update_pre(x, -1)`.
+///
+/// Note: This is similar to the logic in `transform_state_assignments` but
+/// specifically for use in reactive statement bodies before other transformations.
+fn transform_state_update_expressions(
+    expr: &str,
+    state_vars: &[String],
+    non_reactive_vars: &[String],
+) -> String {
+    let mut result = expr.to_string();
+    for var in state_vars {
+        if non_reactive_vars.contains(var) {
+            continue;
+        }
+        // Transform postfix x++ to $.update(x)
+        let post_inc = format!("{}++", var);
+        result =
+            replace_with_word_boundary(&result, &post_inc, &format!("$.update({})", var), false);
+        // Transform postfix x-- to $.update(x, -1)
+        let post_dec = format!("{}--", var);
+        result = replace_with_word_boundary(
+            &result,
+            &post_dec,
+            &format!("$.update({}, -1)", var),
+            false,
+        );
+        // Transform prefix ++x to $.update_pre(x)
+        let pre_inc = format!("++{}", var);
+        result =
+            replace_with_word_boundary(&result, &pre_inc, &format!("$.update_pre({})", var), true);
+        // Transform prefix --x to $.update_pre(x, -1)
+        let pre_dec = format!("--{}", var);
+        result = replace_with_word_boundary(
+            &result,
+            &pre_dec,
+            &format!("$.update_pre({}, -1)", var),
+            true,
+        );
+    }
+    result
 }
 
 /// Check if a body references an identifier (not on left side of assignment).
@@ -2378,7 +2488,62 @@ fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> String {
                     false
                 };
 
-                if before_ok && after_ok && !is_already_call {
+                // Check if this is a target of an update expression (++ or --)
+                // e.g., x++ or ++x - these should not be wrapped with ()
+                // as they need special $.update_prop() handling
+                let is_update_target = {
+                    // Check for postfix ++ or --
+                    let has_postfix = after_idx + 1 < chars.len()
+                        && ((chars[after_idx] == '+' && chars[after_idx + 1] == '+')
+                            || (chars[after_idx] == '-' && chars[after_idx + 1] == '-'));
+                    // Check for prefix ++ or --
+                    let has_prefix = i >= 2
+                        && ((chars[i - 2] == '+' && chars[i - 1] == '+')
+                            || (chars[i - 2] == '-' && chars[i - 1] == '-'));
+                    has_postfix || has_prefix
+                };
+
+                // Check if this is on the left side of an assignment
+                let is_assignment_target = {
+                    let mut k = after_idx;
+                    while k < chars.len() && chars[k].is_whitespace() {
+                        k += 1;
+                    }
+                    if k < chars.len() && chars[k] == '=' {
+                        // Make sure it's not == or ===
+                        !(k + 1 < chars.len() && chars[k + 1] == '=')
+                    } else {
+                        k + 1 < chars.len()
+                            && chars[k + 1] == '='
+                            && (chars[k] == '+'
+                                || chars[k] == '-'
+                                || chars[k] == '*'
+                                || chars[k] == '/')
+                    }
+                };
+
+                // Check if this identifier is inside a $.update_prop() or similar call
+                // After transform_prop_update_expressions runs, we get $.update_prop(x)
+                // and we must not convert x to x() inside that call
+                let is_inside_update_call = {
+                    let prefix_str = &result[..result
+                        .char_indices()
+                        .nth(i)
+                        .map(|(idx, _)| idx)
+                        .unwrap_or(i)];
+                    prefix_str.ends_with("$.update_prop(")
+                        || prefix_str.ends_with("$.update_pre_prop(")
+                        || prefix_str.ends_with("$.update_prop(")
+                        || prefix_str.ends_with("$.update_pre_prop(")
+                };
+
+                if before_ok
+                    && after_ok
+                    && !is_already_call
+                    && !is_update_target
+                    && !is_assignment_target
+                    && !is_inside_update_call
+                {
                     // Replace with prop_name()
                     new_result.push_str(prop_name);
                     new_result.push_str("()");
@@ -5202,6 +5367,23 @@ fn transform_state_in_expr(
                         // Check if this variable is shadowed by a function parameter in an inner scope
                         let is_shadowed = is_shadowed_by_function_param(&chars, i, var);
 
+                        // Check if this variable is the target of an update expression (++ or --)
+                        // e.g., x++ or ++x or x-- or --x
+                        // These should not be wrapped in $.get() as that would produce
+                        // invalid JS like $.get(x)++
+                        let is_update_target = {
+                            let after_idx = i + var_chars.len();
+                            // Check for postfix ++ or --
+                            let has_postfix_update = after_idx + 1 < chars.len()
+                                && ((chars[after_idx] == '+' && chars[after_idx + 1] == '+')
+                                    || (chars[after_idx] == '-' && chars[after_idx + 1] == '-'));
+                            // Check for prefix ++ or --
+                            let has_prefix_update = i >= 2
+                                && ((chars[i - 2] == '+' && chars[i - 1] == '+')
+                                    || (chars[i - 2] == '-' && chars[i - 1] == '-'));
+                            has_postfix_update || has_prefix_update
+                        };
+
                         if !already_wrapped
                             && !preceded_by_dot
                             && !in_set_first_arg
@@ -5213,6 +5395,7 @@ fn transform_state_in_expr(
                             && !is_property_key
                             && !is_shorthand_property
                             && !is_shadowed
+                            && !is_update_target
                         {
                             new_result.push_str(&format!("$.get({})", var));
                             i += var_chars.len();

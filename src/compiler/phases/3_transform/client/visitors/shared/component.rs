@@ -546,10 +546,26 @@ fn process_spread_attribute(
 ) {
     let expression = convert_expression(&spread.expression, context);
 
-    // Always wrap spread in thunk for reactivity tracking
-    // When used with $.spread_props, the spread arguments need to be getter functions
-    // This matches the official Svelte compiler behavior
-    props_and_spreads.push(PropsEntry::Spread(b::thunk(expression)));
+    // Check if the expression has reactive state.
+    // This mirrors the official Svelte compiler behavior in component.js lines 131-146:
+    //   const memoized_expression = memoizer.add(expression, attribute.metadata.expression);
+    //   const is_memoized = expression !== memoized_expression;
+    //   if (is_memoized || attribute.metadata.expression.has_state || attribute.metadata.expression.has_await) {
+    //       props_and_spreads.push(b.thunk(is_memoized ? b.call('$.get', memoized_expression) : expression));
+    //   } else {
+    //       props_and_spreads.push(expression);
+    //   }
+    let has_state = super::utils::expression_has_reactive_state(&spread.expression, context);
+
+    if has_state {
+        // Apply transforms to get the proper reactive expression (e.g., state -> $.get(state))
+        let transformed = super::utils::apply_transforms_to_expression(&expression, context);
+        // Wrap in thunk for reactivity tracking
+        props_and_spreads.push(PropsEntry::Spread(b::thunk(transformed)));
+    } else {
+        // No reactive state - push the expression directly without thunk wrapping
+        props_and_spreads.push(PropsEntry::Spread(expression));
+    }
 }
 
 /// Process a regular attribute.
@@ -1684,12 +1700,18 @@ fn build_bind_this_call(
 
         b::call(b::member_path("$.bind_this"), vec![value, setter, getter])
     } else {
-        // Simple expression - create getter and setter with assignment
-        let getter = b::arrow(vec![], expression.clone());
-        let setter = b::arrow(
-            vec![b::id_pattern("$$value")],
-            b::assign(expression, b::id("$$value")),
-        );
+        // Apply transforms to expression for getter and setter.
+        // This handles prop source bindings (Prop/BindableProp) which have
+        // read: b.call and assign: (node, value) => b.call(node, value) transforms.
+        // For props, this converts:
+        //   getter: widget -> widget()    (via read transform)
+        //   setter: widget = $$value -> widget($$value)  (via assign transform)
+        let transformed_get = super::utils::apply_transforms_to_expression(&expression, context);
+        let assignment = b::assign(expression, b::id("$$value"));
+        let transformed_set = super::utils::apply_transforms_to_expression(&assignment, context);
+
+        let getter = b::arrow(vec![], transformed_get);
+        let setter = b::arrow(vec![b::id_pattern("$$value")], transformed_set);
 
         b::call(b::member_path("$.bind_this"), vec![value, setter, getter])
     }
