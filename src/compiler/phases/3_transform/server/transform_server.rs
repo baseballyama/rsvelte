@@ -908,6 +908,7 @@ impl<'a> ServerCodeGenerator<'a> {
             TemplateNode::ConstTag(tag) => self.generate_const_tag(tag),
             TemplateNode::TitleElement(title) => self.generate_title_element(title),
             TemplateNode::SvelteComponent(elem) => self.generate_svelte_component(elem),
+            TemplateNode::SvelteSelf(elem) => self.generate_svelte_self(elem),
             _ => Ok(()),
         }
     }
@@ -4316,6 +4317,79 @@ impl<'a> ServerCodeGenerator<'a> {
                 has_prior_content: true,
                 children,
                 dynamic: true,
+            });
+        }
+
+        Ok(())
+    }
+
+    fn generate_svelte_self(&mut self, elem: &SvelteElement) -> Result<(), TransformError> {
+        // <svelte:self> renders as a call to the component function itself
+        let comp_name = self.component_name.to_string();
+
+        // Build props and bindings from attributes (same as svelte:component)
+        let mut props = Vec::new();
+        let mut spreads = Vec::new();
+        let mut bindings: Vec<(String, String)> = Vec::new();
+        for attr in &elem.attributes {
+            match attr {
+                Attribute::Attribute(node) => {
+                    let attr_name = node.name.as_str();
+                    if attr_name.starts_with("on") {
+                        continue;
+                    }
+                    let value = self.extract_attribute_value_as_string(node)?;
+                    props.push(format!("{}: {}", quote_prop_name(attr_name), value));
+                }
+                Attribute::SpreadAttribute(spread) => {
+                    let expr_start = spread.expression.start().unwrap_or(0) as usize;
+                    let expr_end = spread.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let expr = self.source[expr_start..expr_end].trim().to_string();
+                        spreads.push(expr);
+                    }
+                }
+                Attribute::BindDirective(bind) => {
+                    let bind_name = bind.name.as_str();
+                    let expr_start = bind.expression.start().unwrap_or(0) as usize;
+                    let expr_end = bind.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let mut var_name = self.source[expr_start..expr_end].trim().to_string();
+                        if let Some(stripped) = var_name.strip_prefix("bind:") {
+                            var_name = stripped.to_string();
+                        }
+                        bindings.push((bind_name.to_string(), var_name));
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // Extract children from the fragment
+        let (children, snippets, slot_names) =
+            self.generate_component_children_with_snippets(&elem.fragment)?;
+
+        // svelte:self is NOT dynamic (it always refers to the current component)
+        if bindings.is_empty() {
+            self.output_parts.push(OutputPart::Component {
+                name: comp_name,
+                props,
+                spreads,
+                has_prior_content: true,
+                children,
+                snippets,
+                slot_names,
+                dynamic: false,
+            });
+        } else {
+            self.output_parts.push(OutputPart::ComponentWithBindings {
+                name: comp_name,
+                props,
+                spreads,
+                bindings,
+                has_prior_content: true,
+                children,
+                dynamic: false,
             });
         }
 
