@@ -188,12 +188,17 @@ impl<'a> ScopeBuilder<'a> {
     ) -> usize {
         // Check for duplicate declaration in the current scope
         // Note: var redeclarations are allowed in JavaScript, so we only error
-        // if neither the existing nor new declaration is a var
+        // if neither the existing nor new declaration is a var.
+        // Also allow function redeclarations (TypeScript overloads declare the same
+        // function name multiple times).
         if let Some(&existing_idx) = self.scopes[self.current_scope].declarations.get(&name) {
             let existing_binding = &self.bindings[existing_idx];
-            // Only error if neither declaration is a var
+            // Only error if neither declaration is a var and neither is a function
+            // (function redeclarations are valid in JS/TS for overloads)
             if existing_binding.declaration_kind != DeclarationKind::Var
                 && declaration_kind != DeclarationKind::Var
+                && existing_binding.declaration_kind != DeclarationKind::Function
+                && declaration_kind != DeclarationKind::Function
             {
                 self.validation_errors
                     .push(errors::declaration_duplicate(&name));

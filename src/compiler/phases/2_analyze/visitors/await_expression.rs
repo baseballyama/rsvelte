@@ -71,8 +71,12 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         }
     }
 
-    // Note: In the JS version, they call context.next() to continue traversal.
-    // In our visitor pattern, we handle this differently.
+    // Visit the argument expression (context.next() in JS version)
+    // This is important for walking into the awaited expression to find
+    // calls like tick() that may set needs_context
+    if let Some(argument) = node.get("argument") {
+        super::script::walk_js_node(argument, context)?;
+    }
 
     Ok(())
 }

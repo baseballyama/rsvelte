@@ -1776,6 +1776,10 @@ pub fn walk_js_expression(
             }
         }
         Some("NewExpression") => {
+            // Mark that we need context for new expressions
+            // Corresponds to NewExpression.js line 14
+            context.analysis.needs_context = true;
+
             // Visit callee and arguments (e.g., new Foo(bar))
             if let Some(callee) = expression.get("callee") {
                 walk_js_expression(callee, context, metadata)?;
