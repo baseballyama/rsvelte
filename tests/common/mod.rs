@@ -410,8 +410,9 @@ pub fn normalize_js(js: &str) -> String {
         .replace_all(&result, "`<")
         .to_string();
 
-    // Normalize multiple spaces between HTML elements to single space
-    let result = MULTI_SPACE_HTML.replace_all(&result, "> <").to_string();
+    // Normalize whitespace between HTML closing and opening tags
+    // Both "> <" and "><" become "><" (remove inter-element whitespace)
+    let result = MULTI_SPACE_HTML.replace_all(&result, "><").to_string();
 
     // First, remove comment lines (both // regular and // @ts-expect-error / @ts-ignore)
     let result: String = result
