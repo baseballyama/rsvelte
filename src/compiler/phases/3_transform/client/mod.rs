@@ -3264,14 +3264,10 @@ fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> String {
                 // When value starts with '{', wrap in parens to prevent
                 // OXC from parsing `() => {...}` as arrow with block body
                 // instead of arrow returning object literal
-                let thunk_value = if value.starts_with('{') {
-                    format!("({})", value)
-                } else {
-                    value.to_string()
-                };
+                let lazy_arg = make_lazy_prop_arg(value);
                 results.push(format!(
-                    "let {} = $.prop($$props, '{}', {}, () => {});",
-                    name, name, flags, thunk_value
+                    "let {} = $.prop($$props, '{}', {}, {});",
+                    name, name, flags, lazy_arg
                 ));
             }
         } else {
@@ -3430,6 +3426,23 @@ fn is_simple_expression_str(value: &str) -> bool {
         return false;
     }
 
+    // typeof expressions are NOT simple
+    if trimmed.starts_with("typeof ") {
+        return false;
+    }
+
+    // Member expressions (containing dots) are NOT simple
+    if !trimmed.starts_with("function")
+        && !trimmed.contains("=>")
+        && !trimmed.starts_with('"')
+        && !trimmed.starts_with('\'')
+        && !trimmed.starts_with('`')
+        && trimmed.contains('.')
+        && trimmed.parse::<f64>().is_err()
+    {
+        return false;
+    }
+
     // Everything else is considered simple:
     // - Numeric literals: 42, 3.14, -1
     // - String literals: "hello", 'world'
@@ -3442,6 +3455,31 @@ fn is_simple_expression_str(value: &str) -> bool {
     // - Binary/logical expressions: a + b, a && b
     // - Conditional expressions: a ? b : c
     true
+}
+
+/// Create the argument for a lazy prop initializer.
+fn make_lazy_prop_arg(value: &str) -> String {
+    let trimmed = value.trim();
+    if let Some(callee) = trimmed.strip_suffix("()") {
+        let callee = callee.trim();
+        if !callee.is_empty()
+            && callee
+                .chars()
+                .next()
+                .map(|c| c.is_alphabetic() || c == '_' || c == '$')
+                .unwrap_or(false)
+            && callee
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+        {
+            return callee.to_string();
+        }
+    }
+    if trimmed.starts_with('{') {
+        format!("() => ({})", trimmed)
+    } else {
+        format!("() => {}", trimmed)
+    }
 }
 
 /// Split declarators by comma, handling nested braces, brackets, and parens.
@@ -3592,14 +3630,10 @@ fn transform_props_destructuring(
                 // Wrap non-simple values in a thunk: () => value
                 // When value starts with '{', wrap in parens to prevent
                 // OXC from parsing `() => {...}` as arrow with block body
-                let thunk_value = if default_value.starts_with('{') {
-                    format!("({})", default_value)
-                } else {
-                    default_value.to_string()
-                };
+                let lazy_arg = make_lazy_prop_arg(default_value);
                 declarators.push(format!(
-                    "{} = $.prop($$props, '{}', {}, () => {})",
-                    name, name, flags, thunk_value
+                    "{} = $.prop($$props, '{}', {}, {})",
+                    name, name, flags, lazy_arg
                 ));
             }
         } else {
@@ -6964,6 +6998,8 @@ struct ClassStateField {
     /// For private fields, this is the same as name.
     /// For public fields, this may have _ prefix if it conflicts with existing private fields.
     private_backing_name: String,
+    /// Whether this field was declared in the constructor
+    constructor_declared: bool,
 }
 
 /// Transform class fields with $state and $derived runes for client-side.
@@ -7133,6 +7169,39 @@ fn transform_class_fields_client(script: &str) -> String {
         }
     }
 
+    // Scan constructor body for constructor-declared state/derived assignments
+    if !constructor_content.is_empty() {
+        for line in constructor_content.lines() {
+            let trimmed = line.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            if let Some(field) = parse_constructor_state_assignment(trimmed, &fields) {
+                let field_name_plain = field.name.clone();
+                let field_name_private = format!("#{}", field.name);
+                let mut indices_to_remove = Vec::new();
+                for (i, nrf_line) in non_rune_fields.iter().enumerate() {
+                    let t = nrf_line.trim().trim_end_matches(';').trim();
+                    if t == field_name_plain || t == field_name_private {
+                        indices_to_remove.push(i);
+                        if i > 0 {
+                            let prev = non_rune_fields[i - 1].trim();
+                            if prev.starts_with("/**") && prev.ends_with("*/") {
+                                indices_to_remove.push(i - 1);
+                            }
+                        }
+                    }
+                }
+                indices_to_remove.sort();
+                indices_to_remove.dedup();
+                for idx in indices_to_remove.into_iter().rev() {
+                    non_rune_fields.remove(idx);
+                }
+                fields.push(field);
+            }
+        }
+    }
+
     if fields.is_empty() {
         return script.to_string();
     }
@@ -7153,6 +7222,28 @@ fn transform_class_fields_client(script: &str) -> String {
         }
     }
 
+    // Sort constructor-declared fields: public fields (needing getters/setters) first,
+    // then private-only fields. This matches the official compiler's ClassBody.js output.
+    // Within each group, preserve the original order.
+    {
+        let mut ctor_public: Vec<ClassStateField> = Vec::new();
+        let mut ctor_private: Vec<ClassStateField> = Vec::new();
+        let mut class_level: Vec<ClassStateField> = Vec::new();
+        for field in fields.drain(..) {
+            if field.constructor_declared && !field.is_private {
+                ctor_public.push(field);
+            } else if field.constructor_declared && field.is_private {
+                ctor_private.push(field);
+            } else {
+                class_level.push(field);
+            }
+        }
+        // Class-level fields first, then constructor public, then constructor private
+        fields.extend(class_level);
+        fields.extend(ctor_public);
+        fields.extend(ctor_private);
+    }
+
     // Build transformed class body
     let mut new_class_body = String::new();
 
@@ -7160,7 +7251,31 @@ fn transform_class_fields_client(script: &str) -> String {
         // Use the deconflicted private backing name (may have _ prefix for public fields)
         let private_name = format!("#{}", field.private_backing_name);
 
-        if field.rune_type == "$state" {
+        if field.constructor_declared {
+            // Constructor-declared: emit only #name; at class level
+            new_class_body.push_str(&format!("\t\t{};\n", private_name));
+            if !field.is_private {
+                let is_derived = field.rune_type == "$derived" || field.rune_type == "$derived.by";
+                let is_raw = field.rune_type == "$state.raw" || field.rune_type == "$state.frozen";
+                new_class_body.push('\n');
+                new_class_body.push_str(&format!(
+                    "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
+                    field.name, private_name
+                ));
+                new_class_body.push('\n');
+                if is_derived || is_raw {
+                    new_class_body.push_str(&format!(
+                        "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}\n",
+                        field.name, private_name
+                    ));
+                } else {
+                    new_class_body.push_str(&format!(
+                        "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value, true);\n\t\t}}\n",
+                        field.name, private_name
+                    ));
+                }
+            }
+        } else if field.rune_type == "$state" {
             // Transform $state: #name = $.state(value) or $.state($.proxy(value)) for objects/arrays
             // Check if the value needs $.proxy() wrapping
             let value_trimmed = field.value.trim();
@@ -7338,6 +7453,54 @@ fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStateField> {
         rune_type: rune_type.to_string(),
         value,
         private_backing_name, // Sanitized to be a valid identifier
+        constructor_declared: false,
+    })
+}
+
+/// Parse a constructor state assignment like `this.name = $state(...)`.
+fn parse_constructor_state_assignment(
+    line: &str,
+    existing_fields: &[ClassStateField],
+) -> Option<ClassStateField> {
+    let trimmed = line.trim().trim_end_matches(';');
+    if !trimmed.starts_with("this.") {
+        return None;
+    }
+    let eq_pos = trimmed.find(" = ")?;
+    let field_part = &trimmed[5..eq_pos];
+    let rhs = trimmed[eq_pos + 3..].trim();
+    let is_private = field_part.starts_with('#');
+    let name = field_part.trim_start_matches('#').to_string();
+    let already_exists = existing_fields.iter().any(|f| f.name == name);
+    if already_exists {
+        return None;
+    }
+    let (rune_type, value) = if let Some(rest) = rhs.strip_prefix("$state.raw(") {
+        let end = find_matching_paren(rest)?;
+        ("$state.raw", rest[..end].to_string())
+    } else if let Some(rest) = rhs.strip_prefix("$state.frozen(") {
+        let end = find_matching_paren(rest)?;
+        ("$state.frozen", rest[..end].to_string())
+    } else if let Some(rest) = rhs.strip_prefix("$state(") {
+        let end = find_matching_paren(rest)?;
+        ("$state", rest[..end].to_string())
+    } else if let Some(rest) = rhs.strip_prefix("$derived.by(") {
+        let end = find_matching_paren(rest)?;
+        ("$derived.by", rest[..end].to_string())
+    } else if let Some(rest) = rhs.strip_prefix("$derived(") {
+        let end = find_matching_paren(rest)?;
+        ("$derived", rest[..end].to_string())
+    } else {
+        return None;
+    };
+    let private_backing_name = sanitize_identifier(&name);
+    Some(ClassStateField {
+        name,
+        is_private,
+        rune_type: rune_type.to_string(),
+        value,
+        private_backing_name,
+        constructor_declared: true,
     })
 }
 
@@ -7459,27 +7622,27 @@ fn transform_class_methods(content: &str, fields: &[ClassStateField]) -> String 
                 );
             }
 
-            // Handle increment: this.#name++ or ++this.#name
+            // Handle increment: this.#name++ or ++this.#name ($.update)
             let post_inc = format!("{}++", private_name);
             while result.contains(&post_inc) {
-                let replacement = format!("$.set({}, $.get({}) + 1)", private_name, private_name);
+                let replacement = format!("$.update({})", private_name);
                 result = result.replacen(&post_inc, &replacement, 1);
             }
             let pre_inc = format!("++{}", private_name);
             while result.contains(&pre_inc) {
-                let replacement = format!("$.set({}, $.get({}) + 1)", private_name, private_name);
+                let replacement = format!("$.update_pre({})", private_name);
                 result = result.replacen(&pre_inc, &replacement, 1);
             }
 
-            // Handle decrement: this.#name-- or --this.#name
+            // Handle decrement: this.#name-- or --this.#name ($.update)
             let post_dec = format!("{}--", private_name);
             while result.contains(&post_dec) {
-                let replacement = format!("$.set({}, $.get({}) - 1)", private_name, private_name);
+                let replacement = format!("$.update({}, -1)", private_name);
                 result = result.replacen(&post_dec, &replacement, 1);
             }
             let pre_dec = format!("--{}", private_name);
             while result.contains(&pre_dec) {
-                let replacement = format!("$.set({}, $.get({}) - 1)", private_name, private_name);
+                let replacement = format!("$.update_pre({}, -1)", private_name);
                 result = result.replacen(&pre_dec, &replacement, 1);
             }
         }
@@ -7496,6 +7659,66 @@ fn transform_class_methods(content: &str, fields: &[ClassStateField]) -> String 
 /// Transform constructor assignments for private state fields and rune calls.
 fn transform_constructor_assignment(line: &str, fields: &[ClassStateField]) -> String {
     let mut result = line.trim().to_string();
+
+    // Handle constructor-declared rune calls
+    for field in fields {
+        if !field.constructor_declared {
+            continue;
+        }
+        let this_prefix = if field.is_private {
+            format!("this.#{}", field.name)
+        } else {
+            format!("this.{}", field.name)
+        };
+        let rune_patterns: &[(&str, &str)] = &[
+            ("$state.raw(", "$state.raw"),
+            ("$state.frozen(", "$state.frozen"),
+            ("$state(", "$state"),
+            ("$derived.by(", "$derived.by"),
+            ("$derived(", "$derived"),
+        ];
+        for (pattern, rune_type) in rune_patterns {
+            let assign_pattern = format!("{} = {}", this_prefix, pattern);
+            if (result.starts_with(&assign_pattern)
+                || result.trim_end_matches(';').starts_with(&assign_pattern))
+                && let Some(rune_call_start) = result.find(pattern)
+            {
+                let value_start = rune_call_start + pattern.len();
+                let after_paren = &result[value_start..];
+                if let Some(value_end) = find_matching_paren(after_paren) {
+                    let value = after_paren[..value_end].to_string();
+                    let private_name = format!("this.#{}", field.private_backing_name);
+                    let transformed_rhs = match *rune_type {
+                        "$state" => {
+                            let needs_proxy =
+                                !value.trim().is_empty() && expression_needs_proxy(value.trim());
+                            if needs_proxy {
+                                format!("$.state($.proxy({}))", value)
+                            } else {
+                                format!("$.state({})", value)
+                            }
+                        }
+                        "$state.raw" | "$state.frozen" => format!("$.state({})", value),
+                        "$derived" => {
+                            let mut tv = value.clone();
+                            for of in fields {
+                                let tp = format!("this.#{}", of.private_backing_name);
+                                if tv.contains(&tp) {
+                                    let getter =
+                                        format!("$.get(this.#{})", of.private_backing_name);
+                                    tv = tv.replace(&tp, &getter);
+                                }
+                            }
+                            format!("$.derived(() => {})", tv)
+                        }
+                        "$derived.by" => format!("$.derived({})", value),
+                        _ => format!("$.state({})", value),
+                    };
+                    return format!("{} = {};", private_name, transformed_rhs);
+                }
+            }
+        }
+    }
 
     // Transform $effect.pre -> $.user_pre_effect
     if result.contains("$effect.pre(") {
@@ -7563,22 +7786,22 @@ fn transform_constructor_assignment(line: &str, fields: &[ClassStateField]) -> S
                     }
                 }
 
-                // Handle increment/decrement: this.#count++ or ++this.#count
+                // Handle increment/decrement with $.update()
                 let post_inc = format!("this.#{}++", field.name);
+                if result.starts_with(&post_inc) {
+                    return format!("$.update(this.#{});", field.private_backing_name);
+                }
                 let pre_inc = format!("++this.#{}", field.name);
-                if result.starts_with(&post_inc) || result.starts_with(&pre_inc) {
-                    return format!(
-                        "$.set(this.#{}, $.get(this.#{}) + 1);",
-                        field.private_backing_name, field.private_backing_name
-                    );
+                if result.starts_with(&pre_inc) {
+                    return format!("$.update_pre(this.#{});", field.private_backing_name);
                 }
                 let post_dec = format!("this.#{}--", field.name);
+                if result.starts_with(&post_dec) {
+                    return format!("$.update(this.#{}, -1);", field.private_backing_name);
+                }
                 let pre_dec = format!("--this.#{}", field.name);
-                if result.starts_with(&post_dec) || result.starts_with(&pre_dec) {
-                    return format!(
-                        "$.set(this.#{}, $.get(this.#{}) - 1);",
-                        field.private_backing_name, field.private_backing_name
-                    );
+                if result.starts_with(&pre_dec) {
+                    return format!("$.update_pre(this.#{}, -1);", field.private_backing_name);
                 }
 
                 // Handle regular assignment: this.#name = value

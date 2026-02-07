@@ -92,6 +92,15 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
                         },
                     };
                     context.analysis.exports.push(export);
+
+                    // Mark binding as reassigned for PROPS_IS_UPDATED flag
+                    // Reference: ExportSpecifier.js: if (binding) binding.reassigned = true;
+                    if let Some(binding_idx) =
+                        context.analysis.root.find_binding_any_scope(local_name)
+                        && let Some(binding) = context.analysis.root.bindings.get_mut(binding_idx)
+                    {
+                        binding.reassigned = true;
+                    }
                 }
             }
         }
