@@ -943,11 +943,6 @@ impl<'a> ServerCodeGenerator<'a> {
             return self.generate_select_element(element);
         }
 
-        // Handle <textarea> with value/bind:value specially - output value as content
-        if name == "textarea" {
-            return self.generate_textarea_element(element);
-        }
-
         // Check if we have spread attributes
         let has_spread = element
             .attributes
@@ -955,8 +950,15 @@ impl<'a> ServerCodeGenerator<'a> {
             .any(|attr| matches!(attr, Attribute::SpreadAttribute(_)));
 
         // If we have spread attributes, use $.attributes() for the whole thing
+        // This must come before textarea handling since textarea with spreads
+        // needs $.attributes() (e.g., <textarea {...value}></textarea>)
         if has_spread {
             return self.generate_element_with_spread(element);
+        }
+
+        // Handle <textarea> with value/bind:value specially - output value as content
+        if name == "textarea" {
+            return self.generate_textarea_element(element);
         }
 
         // Collect directives and base attributes
