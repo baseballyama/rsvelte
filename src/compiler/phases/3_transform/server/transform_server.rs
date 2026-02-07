@@ -1265,6 +1265,10 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
                 Attribute::BindDirective(bind) => {
                     let bind_name = bind.name.as_str();
+                    // Skip bind:this on server - it's a DOM reference only needed client-side
+                    if bind_name == "this" {
+                        continue;
+                    }
                     let expr_start = bind.expression.start().unwrap_or(0) as usize;
                     let expr_end = bind.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {
