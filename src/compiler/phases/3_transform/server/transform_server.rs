@@ -2407,8 +2407,9 @@ impl<'a> ServerCodeGenerator<'a> {
                     let value_expr = if should_clsx {
                         format!("$.clsx({})", expr)
                     } else {
-                        // For simple literals, use template literal with stringify
-                        format!("`${{$.stringify({})}}`", expr)
+                        // Pass simple expressions directly to $.attr_class()
+                        // The runtime handles coercion, no need for $.stringify()
+                        expr.clone()
                     };
 
                     if let Some(hash) = css_hash {
@@ -4806,6 +4807,7 @@ export default function {component_name}($$renderer{props_param}) {{
                             // - slot children as inline functions (with destructured params if they have let directives)
                             let mut slots_entries: Vec<String> = Vec::new();
                             for slot_name in slot_names {
+                                let quoted_name = quote_prop_name(slot_name);
                                 // Check if this slot is a slot child
                                 if let Some((_, params, body_parts, _)) =
                                     slot_children.iter().find(|(n, _, _, _)| n == slot_name)
@@ -4816,19 +4818,19 @@ export default function {component_name}($$renderer{props_param}) {{
                                     if params.is_empty() {
                                         slots_entries.push(format!(
                                             "{}: ($$renderer) => {{\n{}\t\t\t}}",
-                                            slot_name, fn_body_trimmed
+                                            quoted_name, fn_body_trimmed
                                         ));
                                     } else {
                                         // Destructured params from let directives
                                         let params_str = format!("{{ {} }}", params.join(", "));
                                         slots_entries.push(format!(
                                             "{}: ($$renderer, {}) => {{\n{}\t\t\t}}",
-                                            slot_name, params_str, fn_body_trimmed
+                                            quoted_name, params_str, fn_body_trimmed
                                         ));
                                     }
                                 } else {
                                     // True snippet marker
-                                    slots_entries.push(format!("{}: true", slot_name));
+                                    slots_entries.push(format!("{}: true", quoted_name));
                                 }
                             }
 
@@ -4861,19 +4863,20 @@ export default function {component_name}($$renderer{props_param}) {{
                             // $$slots with inline functions (with params for let directives)
                             body_code.push_str(&format!("{}\t$$slots: {{\n", indent));
                             for (slot_name, params, body_parts, _) in &slot_children {
+                                let quoted_name = quote_prop_name(slot_name);
                                 let fn_body =
                                     Self::build_parts(body_parts, indent_level + 3, each_counter);
                                 if params.is_empty() {
                                     body_code.push_str(&format!(
                                         "{}\t\t{}: ($$renderer) => {{\n{}",
-                                        indent, slot_name, fn_body
+                                        indent, quoted_name, fn_body
                                     ));
                                 } else {
                                     // Destructured params from let directives
                                     let params_str = format!("{{ {} }}", params.join(", "));
                                     body_code.push_str(&format!(
                                         "{}\t\t{}: ($$renderer, {}) => {{\n{}",
-                                        indent, slot_name, params_str, fn_body
+                                        indent, quoted_name, params_str, fn_body
                                     ));
                                 }
                                 body_code.push_str(&format!("{}\t\t}}\n", indent));
@@ -4905,6 +4908,7 @@ export default function {component_name}($$renderer{props_param}) {{
                                 body_code.push_str(&format!("{}\t$$slots: {{\n", indent));
                                 body_code.push_str(&format!("{}\t\tdefault: true,\n", indent));
                                 for (slot_name, params, body_parts, _) in &slot_children {
+                                    let quoted_name = quote_prop_name(slot_name);
                                     let fn_body = Self::build_parts(
                                         body_parts,
                                         indent_level + 3,
@@ -4913,14 +4917,14 @@ export default function {component_name}($$renderer{props_param}) {{
                                     if params.is_empty() {
                                         body_code.push_str(&format!(
                                             "{}\t\t{}: ($$renderer) => {{\n{}",
-                                            indent, slot_name, fn_body
+                                            indent, quoted_name, fn_body
                                         ));
                                     } else {
                                         // Destructured params from let directives
                                         let params_str = format!("{{ {} }}", params.join(", "));
                                         body_code.push_str(&format!(
                                             "{}\t\t{}: ($$renderer, {}) => {{\n{}",
-                                            indent, slot_name, params_str, fn_body
+                                            indent, quoted_name, params_str, fn_body
                                         ));
                                     }
                                     body_code.push_str(&format!("{}\t\t}}\n", indent));
