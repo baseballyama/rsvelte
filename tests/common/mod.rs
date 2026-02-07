@@ -491,8 +491,19 @@ pub fn normalize_js(js: &str) -> String {
     let result = PAREN_NUMBER_LIT.replace_all(&result, "$1").to_string();
     let result = PAREN_KEYWORD_LIT.replace_all(&result, "$1").to_string();
 
+    // Normalize arrow function body parentheses: => (SINGLE_EXPR) -> => SINGLE_EXPR
+    // OXC removes "unnecessary" parentheses around single expressions in arrow functions,
+    // but the official Svelte compiler keeps them (e.g., `() => ($.deep_read_state(c()))`).
+    // Sequence expressions with commas like `() => (a, b)` keep their parens.
+    let result = normalize_arrow_body_parens(&result);
+
     // Normalize boolean HTML attributes: readonly="" -> readonly
     let result = BOOL_ATTR_EMPTY.replace_all(&result, "$1").to_string();
+
+    // Normalize $.attr_style(null, ...) and $.attr_style('', ...) to be equivalent.
+    // Both mean "no base style" - the official compiler uses null when style={null},
+    // and '' when there's no style attribute. Semantically identical in SSR.
+    let result = result.replace("$.attr_style(null,", "$.attr_style('',");
 
     // Normalize unicode escapes to their character equivalents
     let result = UNICODE_ESCAPE
@@ -1314,6 +1325,92 @@ fn convert_scientific_to_decimal(mantissa: &str, exponent: &str) -> String {
         // If parsing fails, return original
         format!("{}e{}", mantissa, exponent)
     }
+}
+
+/// Normalize arrow function body parentheses: `=> (SINGLE_EXPR)` -> `=> SINGLE_EXPR`.
+///
+/// OXC removes "unnecessary" parentheses around single expressions in arrow function bodies,
+/// but the official Svelte compiler keeps them (e.g., `() => ($.deep_read_state(c()))`).
+/// Sequence expressions with commas like `() => (a, b)` must keep their parens.
+///
+/// This normalizer strips the outer parens from `=> (EXPR)` when EXPR is a single expression
+/// (no top-level commas), making both forms compare as equal.
+fn normalize_arrow_body_parens(code: &str) -> String {
+    let chars: Vec<char> = code.chars().collect();
+    let len = chars.len();
+    let mut result = String::with_capacity(code.len());
+    let mut i = 0;
+
+    while i < len {
+        // Look for "=> (" pattern
+        if i + 3 < len
+            && chars[i] == '='
+            && chars[i + 1] == '>'
+            && chars[i + 2] == ' '
+            && chars[i + 3] == '('
+        {
+            // Found "=> (" - now find the matching closing paren
+            let paren_start = i + 3;
+            let mut depth = 1;
+            let mut j = paren_start + 1;
+            let mut has_top_level_comma = false;
+
+            while j < len && depth > 0 {
+                match chars[j] {
+                    '(' | '[' | '{' => depth += 1,
+                    ')' | ']' | '}' => {
+                        depth -= 1;
+                    }
+                    ',' if depth == 1 => {
+                        has_top_level_comma = true;
+                    }
+                    '\'' => {
+                        // Skip single-quoted string
+                        j += 1;
+                        while j < len && chars[j] != '\'' {
+                            if chars[j] == '\\' {
+                                j += 1;
+                            }
+                            j += 1;
+                        }
+                    }
+                    '`' => {
+                        // Skip template literal
+                        j += 1;
+                        while j < len && chars[j] != '`' {
+                            if chars[j] == '\\' {
+                                j += 1;
+                            }
+                            j += 1;
+                        }
+                    }
+                    _ => {}
+                }
+                j += 1;
+            }
+
+            if depth == 0 && !has_top_level_comma {
+                // The parens wrap a single expression - strip them
+                // Output "=> " then the content without outer parens
+                result.push_str("=> ");
+                let content_start = paren_start + 1;
+                let content_end = j - 1; // j is one past the closing paren
+                for ch in &chars[content_start..content_end] {
+                    result.push(*ch);
+                }
+                i = j;
+            } else {
+                // Has commas (sequence expression) or unbalanced - keep as is
+                result.push(chars[i]);
+                i += 1;
+            }
+        } else {
+            result.push(chars[i]);
+            i += 1;
+        }
+    }
+
+    result
 }
 
 /// Normalize string quotes: convert double-quoted strings and simple template literals

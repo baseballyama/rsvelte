@@ -463,7 +463,9 @@ pub fn visit_regular_element(
 
                     if name != "class" || !value.is_empty() {
                         let prop_value = if is_boolean_attribute(&name) && is_true_value {
-                            None
+                            // Boolean attributes use empty string value: readonly=""
+                            // This matches the official Svelte compiler output
+                            Some(String::new())
                         } else if is_true_value {
                             Some(String::new())
                         } else {

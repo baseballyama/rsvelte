@@ -975,6 +975,17 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
                 Attribute::Attribute(node) if node.name.as_str() == "class" => {
                     base_class = self.extract_attribute_text_value(node);
+                    // Also extract dynamic expression for class={expr} with class directives
+                    if base_class.is_none()
+                        && let AttributeValue::Expression(expr_tag) = &node.value
+                    {
+                        let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                        let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                        if expr_end > expr_start && expr_end <= self.source.len() {
+                            let raw_expr = self.source[expr_start..expr_end].trim().to_string();
+                            base_class = Some(format!("__EXPR__:{}", raw_expr));
+                        }
+                    }
                 }
                 Attribute::Attribute(node) if node.name.as_str() == "style" => {
                     base_style = self.extract_attribute_text_value(node);
@@ -1182,6 +1193,12 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
                     let attr_name = node.name.as_str();
                     let value = self.extract_attribute_value_as_string(node)?;
+                    // Wrap class attribute dynamic expressions in $.clsx()
+                    let value = if attr_name == "class" && needs_clsx(&node.value) {
+                        format!("$.clsx({})", value)
+                    } else {
+                        value
+                    };
                     object_parts.push(format!("{}: {}", attr_name, value));
                 }
                 Attribute::BindDirective(bind) => {
@@ -2487,13 +2504,29 @@ impl<'a> ServerCodeGenerator<'a> {
             directive_props.push(format!("'{}': {}", dir.name, expr_value));
         }
 
-        let base = base_class.unwrap_or("");
         let directives_obj = format!("{{ {} }}", directive_props.join(", "));
 
-        // Output: ${$.attr_class('base', void 0, { 'foo': foo })}
+        // Check if base_class is a dynamic expression (marked with __EXPR__: prefix)
+        let base_arg = match base_class {
+            Some(s) if s.starts_with("__EXPR__:") => {
+                // Dynamic expression - use $.clsx(expr) or expr directly
+                let expr = &s["__EXPR__:".len()..];
+                format!("$.clsx({})", expr)
+            }
+            Some(s) if !s.is_empty() => {
+                // Static text value - quote it
+                format!("'{}'", s)
+            }
+            _ => {
+                // No base class
+                "''".to_string()
+            }
+        };
+
+        // Output: ${$.attr_class(base, void 0, { 'foo': foo })}
         Ok(format!(
-            "${{$.attr_class('{}', void 0, {})}}",
-            base, directives_obj
+            "${{$.attr_class({}, void 0, {})}}",
+            base_arg, directives_obj
         ))
     }
 
