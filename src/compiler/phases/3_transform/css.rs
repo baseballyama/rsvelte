@@ -29,6 +29,9 @@ struct CssContext<'a> {
     has_dynamic_classes: bool,
     /// Whether template has control flow (if/each/await/snippet/slot)
     has_control_flow: bool,
+    /// Whether template has opaque elements (slots/snippets/render tags) or
+    /// non-exhaustive await blocks that prevent reliable sibling analysis
+    has_opaque_sibling_boundaries: bool,
     /// DOM structure for advanced selector matching
     dom_structure: &'a DomStructure,
 }
@@ -77,6 +80,7 @@ fn render_stylesheet_internal(
         has_dynamic_elements: analysis.css.has_dynamic_elements,
         has_dynamic_classes: analysis.css.has_dynamic_classes,
         has_control_flow: analysis.css.has_control_flow,
+        has_opaque_sibling_boundaries: analysis.css.has_opaque_elements,
         dom_structure: &analysis.css.dom_structure,
     };
 
@@ -1127,13 +1131,12 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
         return false;
     }
 
-    // If there's control flow (if/each/await/snippet/slot), be conservative.
-    // The control flow analysis in Phase 2 builds sibling relationships, but it
-    // needs to correctly handle all edge cases (non-exhaustive if blocks, await
-    // blocks without pending, each blocks that might be empty, etc.).
-    // For now, we skip unused detection for control flow to avoid false positives.
-    // TODO: Implement proper control flow analysis that handles all edge cases.
-    if ctx.has_control_flow {
+    // If there are opaque sibling boundaries (slots, snippets, render tags, or
+    // non-exhaustive await blocks), be conservative. Phase 2 uses separate fragment
+    // paths for these constructs, so sibling relationships across them can't be
+    // reliably detected. For simple control flow (if/each/exhaustive await), Phase 2
+    // correctly computes sibling relationships via possible_next_adjacent/general.
+    if ctx.has_opaque_sibling_boundaries {
         return false;
     }
 
@@ -1158,13 +1161,7 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
         return false;
     }
 
-    // For now, handle the simple case: .parent > A + B
-    // where we need to check if .parent has children matching A followed by B
-
-    // First, get all elements that could be the "context" (parent) for the sibling relationship
-    // For simplicity, start with checking if ANY parent has 2+ children
-
-    // Check for the specific pattern: .class > * + * (universal sibling inside a parent)
+    // Handle single sibling combinator pair
     if sibling_pairs.len() == 1 {
         let (sibling_idx, combinator) = sibling_pairs[0];
 
@@ -1177,8 +1174,11 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
         let before_info = extract_selector_info(before);
         let after_info = extract_selector_info(after);
 
-        // If we have a parent context (e.g., .foo > A + B)
-        if sibling_idx >= 2 {
+        // If we have a parent context (e.g., .foo > A + B) and no control flow,
+        // use the structural children_idx approach. When control flow is present,
+        // children_idx may not include elements inside {#if}/{#each} blocks,
+        // so we fall through to the Phase 2 sibling relationship data instead.
+        if !ctx.has_control_flow && sibling_idx >= 2 {
             // Check the combinator before the sibling pattern
             let parent_combinator = rel_selectors[sibling_idx - 1]
                 .get("combinator")
@@ -1206,8 +1206,9 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
             }
         }
 
-        // Use the sibling relationship data from Phase 2 control flow analysis
-        // This correctly handles if/each/await blocks
+        // Use the sibling relationship data from Phase 2 control flow analysis.
+        // This correctly handles if/each/await blocks because Phase 2 pre-computes
+        // possible sibling relationships accounting for control flow branches.
 
         // Find all elements that match 'before' selector
         for el in ctx.dom_structure.elements.iter() {
@@ -3227,6 +3228,7 @@ mod tests {
                 has_dynamic_elements: false,
                 has_dynamic_classes: false,
                 has_control_flow: false,
+                has_opaque_sibling_boundaries: false,
                 dom_structure: &dom_structure,
             };
             let output = transform_css(&children, selector, hash, &css_content, css_start, &ctx);
@@ -3265,6 +3267,7 @@ mod tests {
                 has_dynamic_elements: false,
                 has_dynamic_classes: false,
                 has_control_flow: false,
+                has_opaque_sibling_boundaries: false,
                 dom_structure: &dom_structure,
             };
             let output = transform_css(&children, selector, hash, &css_content, css_start, &ctx);

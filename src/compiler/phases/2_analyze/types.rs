@@ -545,6 +545,14 @@ pub struct CssAnalysis {
     /// If true, sibling combinator unused detection cannot be safely performed
     pub has_control_flow: bool,
 
+    /// Whether the template has constructs that create opaque boundaries for
+    /// sibling relationships. This includes:
+    /// - Slots, render tags, snippets: Phase 2 uses separate fragment paths
+    /// - Non-exhaustive await blocks: may render nothing in some states
+    /// - Each blocks: elements can repeat, nest, and wrap around across iterations,
+    ///   creating complex sibling relationships that Phase 2 doesn't fully model
+    pub has_opaque_elements: bool,
+
     /// DOM structure information for selector matching
     pub dom_structure: DomStructure,
 }

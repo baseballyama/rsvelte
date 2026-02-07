@@ -2142,21 +2142,44 @@ impl JsCodegen {
     }
 
     fn emit_logical_expression(&mut self, logical: &JsLogicalExpression) {
-        // Assignment expressions have lower precedence than logical operators
-        // so they need parentheses when used as the left operand: (a = b) ?? c
-        let needs_parens = matches!(
-            logical.left.as_ref(),
-            JsExpr::Assignment(_) | JsExpr::Conditional(_)
-        );
-        if needs_parens {
+        // Check if the left operand needs parentheses
+        let left_needs_parens = self.logical_operand_needs_parens(&logical.left, &logical.operator);
+        if left_needs_parens {
             self.output.push('(');
         }
         self.emit_expression(&logical.left);
-        if needs_parens {
+        if left_needs_parens {
             self.output.push(')');
         }
         let _ = write!(self.output, " {} ", logical.operator);
+        // Check if the right operand needs parentheses
+        let right_needs_parens =
+            self.logical_operand_needs_parens(&logical.right, &logical.operator);
+        if right_needs_parens {
+            self.output.push('(');
+        }
         self.emit_expression(&logical.right);
+        if right_needs_parens {
+            self.output.push(')');
+        }
+    }
+
+    /// Check if an operand of a logical expression needs parentheses.
+    /// JavaScript requires parentheses when mixing `??` with `||` or `&&`.
+    /// It also requires them for assignment and conditional sub-expressions.
+    fn logical_operand_needs_parens(&self, operand: &JsExpr, parent_op: &JsLogicalOp) -> bool {
+        match operand {
+            // Assignment and conditional expressions always need parens inside logical
+            JsExpr::Assignment(_) | JsExpr::Conditional(_) => true,
+            // Mixing ?? with || or && is a syntax error in JS; parentheses are required
+            JsExpr::Logical(inner) => {
+                let is_parent_nullish = matches!(parent_op, JsLogicalOp::NullishCoalescing);
+                let is_inner_nullish = matches!(inner.operator, JsLogicalOp::NullishCoalescing);
+                // If one is ?? and the other is ||/&&, they cannot be mixed
+                is_parent_nullish != is_inner_nullish
+            }
+            _ => false,
+        }
     }
 
     fn emit_unary_expression(&mut self, unary: &JsUnaryExpression) {

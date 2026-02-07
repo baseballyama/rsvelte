@@ -642,6 +642,12 @@ impl Parser<'_> {
             return false;
         }
 
+        // Components (starting with uppercase) should not trigger implicit closing.
+        // Only HTML elements (lowercase) can implicitly close other elements.
+        if next_tag.starts_with(|c: char| c.is_uppercase()) {
+            return false;
+        }
+
         let next_tag = next_tag.to_lowercase();
 
         // Check implicit closing rules
@@ -1378,6 +1384,15 @@ impl Parser<'_> {
 
         let expression = if self.eat_optional("=") {
             self.skip_whitespace();
+            // Handle both bare {expr} and quoted "{expr}" / '{expr}'
+            let quote =
+                if !self.is_eof() && (self.current_char() == '"' || self.current_char() == '\'') {
+                    let q = self.current_char();
+                    self.advance(); // consume opening quote
+                    Some(q)
+                } else {
+                    None
+                };
             if self.eat_optional("{") {
                 let expr_start = self.index;
                 let mut depth = 1;
@@ -1395,8 +1410,14 @@ impl Parser<'_> {
                 let expr_end = self.index;
                 let expr_content = &self.source[expr_start..expr_end];
                 self.advance(); // consume '}'
+                if quote.is_some() {
+                    self.advance(); // consume closing quote
+                }
                 self.parse_js_expression(expr_content, expr_start)
             } else {
+                if quote.is_some() {
+                    self.index -= 1; // revert quote consumption
+                }
                 // Shorthand: class:name means expression is Identifier("name")
                 super::super::expression::create_identifier_with_character(
                     class_name,
@@ -1760,6 +1781,15 @@ impl Parser<'_> {
 
         let expression = if self.eat_optional("=") {
             self.skip_whitespace();
+            // Handle both bare {expr} and quoted "{expr}" / '{expr}'
+            let quote =
+                if !self.is_eof() && (self.current_char() == '"' || self.current_char() == '\'') {
+                    let q = self.current_char();
+                    self.advance(); // consume opening quote
+                    Some(q)
+                } else {
+                    None
+                };
             if self.eat_optional("{") {
                 let expr_start = self.index;
                 let mut depth = 1;
@@ -1777,8 +1807,14 @@ impl Parser<'_> {
                 let expr_end = self.index;
                 let expr_content = &self.source[expr_start..expr_end];
                 self.advance(); // consume '}'
+                if quote.is_some() {
+                    self.advance(); // consume closing quote
+                }
                 Some(self.parse_js_expression(expr_content, expr_start))
             } else {
+                if quote.is_some() {
+                    self.index -= 1; // revert quote consumption
+                }
                 None
             }
         } else {
@@ -1810,6 +1846,15 @@ impl Parser<'_> {
 
         let expression = if self.eat_optional("=") {
             self.skip_whitespace();
+            // Handle both bare {expr} and quoted "{expr}" / '{expr}'
+            let quote =
+                if !self.is_eof() && (self.current_char() == '"' || self.current_char() == '\'') {
+                    let q = self.current_char();
+                    self.advance(); // consume opening quote
+                    Some(q)
+                } else {
+                    None
+                };
             if self.eat_optional("{") {
                 let expr_start = self.index;
                 let mut depth = 1;
@@ -1827,8 +1872,14 @@ impl Parser<'_> {
                 let expr_end = self.index;
                 let expr_content = &self.source[expr_start..expr_end];
                 self.advance(); // consume '}'
+                if quote.is_some() {
+                    self.advance(); // consume closing quote
+                }
                 Some(self.parse_js_expression(expr_content, expr_start))
             } else {
+                if quote.is_some() {
+                    self.index -= 1; // revert quote consumption
+                }
                 None
             }
         } else {

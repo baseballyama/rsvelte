@@ -170,4 +170,81 @@ mod tests {
             _ => panic!("Expected IfBlock node"),
         }
     }
+
+    #[test]
+    fn test_parse_class_directive_quoted_expression() {
+        // class:selected="{selected === thing}" should parse without error
+        let source = r#"{#each things as thing}
+	<div class:selected="{selected === thing}"></div>
+{/each}"#;
+        let mut parser = Parser::new(source, ParseOptions::default());
+        let result = parser.parse();
+        assert!(
+            result.is_ok(),
+            "Failed to parse class directive with quoted expression: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_parse_animate_directive_quoted_expression() {
+        // animate:flip="{{delay: i * 10}}" should parse without error
+        let source = r#"{#each things as thing, i (thing.id)}
+	<div animate:flip="{{delay: i * 10}}">{thing.name}</div>
+{/each}"#;
+        let mut parser = Parser::new(source, ParseOptions::default());
+        let result = parser.parse();
+        assert!(
+            result.is_ok(),
+            "Failed to parse animate directive with quoted expression: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_parse_let_directive_quoted_expression() {
+        // let:thing="{{ num }}" should parse without error
+        let source = r#"<Nested {things} let:thing="{{ num }}">
+	<span>{num}</span>
+</Nested>"#;
+        let mut parser = Parser::new(source, ParseOptions::default());
+        let result = parser.parse();
+        assert!(
+            result.is_ok(),
+            "Failed to parse let directive with quoted expression: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_parse_component_no_implicit_close_in_p() {
+        // <H1 /> inside <p> should NOT trigger implicit close (H1 is a component, not h1)
+        let source = r#"<p>
+	<H1 />
+</p>"#;
+        let mut parser = Parser::new(source, ParseOptions::default());
+        let result = parser.parse();
+        assert!(
+            result.is_ok(),
+            "Failed to parse component inside <p>: {:?}",
+            result.err()
+        );
+    }
+
+    #[test]
+    fn test_parse_svelte_fragment_let_directive_quoted() {
+        // <svelte:fragment let:thing="{{ num }}"> should parse without error
+        let source = r#"<Nested {things}>
+	<svelte:fragment slot="item" let:thing="{{ num }}">
+		<span>{num}</span>
+	</svelte:fragment>
+</Nested>"#;
+        let mut parser = Parser::new(source, ParseOptions::default());
+        let result = parser.parse();
+        assert!(
+            result.is_ok(),
+            "Failed to parse svelte:fragment with quoted let directive: {:?}",
+            result.err()
+        );
+    }
 }

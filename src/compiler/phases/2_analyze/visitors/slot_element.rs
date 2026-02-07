@@ -33,6 +33,7 @@ pub fn visit(slot: &mut SlotElement, context: &mut VisitorContext) -> Result<(),
     // Mark that we have control flow affecting sibling relationships
     // (slots inject content from parent components)
     context.analysis.css.has_control_flow = true;
+    context.analysis.css.has_opaque_elements = true;
 
     // Validate attributes
     for attr in &slot.attributes {

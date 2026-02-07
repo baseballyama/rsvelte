@@ -75,6 +75,11 @@ pub fn visit(tag: &mut RenderTag, context: &mut VisitorContext) -> Result<(), An
     // For now, we'll just mark uses_render_tags
     context.analysis.uses_render_tags = true;
 
+    // Render tags inject dynamic content that can create arbitrary sibling
+    // relationships. Phase 2 control flow analysis doesn't track render tag
+    // content, so mark this as an opaque boundary for sibling detection.
+    context.analysis.css.has_opaque_elements = true;
+
     // Validate arguments - no spread elements allowed
     if let Some(arguments) = expression.get("arguments").and_then(|a| a.as_array()) {
         for arg in arguments {

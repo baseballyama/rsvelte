@@ -18,6 +18,7 @@ pub fn visit(block: &mut SnippetBlock, context: &mut VisitorContext) -> Result<(
     // Mark that we have control flow affecting sibling relationships
     // (snippets can be rendered at any point via @render)
     context.analysis.css.has_control_flow = true;
+    context.analysis.css.has_opaque_elements = true;
 
     // Validate and register the snippet
     validate_snippet(block, context)?;

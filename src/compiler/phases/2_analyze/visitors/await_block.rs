@@ -92,6 +92,14 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
     // This is used for CSS scoping analysis
     context.analysis.css.has_control_flow = true;
 
+    // Check if await block is non-exhaustive (missing any of the 3 branches).
+    // Non-exhaustive await blocks may render nothing in some states, creating gaps
+    // in sibling chains that Phase 2 analysis doesn't fully track.
+    let is_exhaustive = block.pending.is_some() && block.then.is_some() && block.catch.is_some();
+    if !is_exhaustive {
+        context.analysis.css.has_opaque_elements = true;
+    }
+
     // Visit the expression to populate metadata (has_await, has_state, dependencies, etc.)
     // In the JS version: context.visit(node.expression, { ...context.state, expression: node.metadata.expression });
     let crate::ast::js::Expression::Value(value) = &block.expression;
