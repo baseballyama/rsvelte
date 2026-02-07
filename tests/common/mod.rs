@@ -237,6 +237,8 @@ fn normalize_template_empty_text(code: &str) -> String {
     lazy_static::lazy_static! {
         // Match template literals in from_html calls: $.from_html(`...`)
         static ref FROM_HTML_TEMPLATE: Regex = Regex::new(r#"\.from_html\(`([^`]*)`"#).unwrap();
+        // Match template literals in from_svg calls: $.from_svg(`...`)
+        static ref FROM_SVG_TEMPLATE: Regex = Regex::new(r#"\.from_svg\(`([^`]*)`"#).unwrap();
         // Match template literals in $$renderer.push calls: $$renderer.push(`...`)
         static ref RENDERER_PUSH_TEMPLATE: Regex = Regex::new(r#"\$\$renderer\.push\(`([^`]*)`\)"#).unwrap();
     }
@@ -248,6 +250,15 @@ fn normalize_template_empty_text(code: &str) -> String {
             // Normalize whitespace-only text between tags: > </tag becomes ></tag
             let normalized = normalize_html_whitespace(content);
             format!(".from_html(`{}`", normalized)
+        })
+        .to_string();
+
+    // Normalize from_svg templates (same whitespace normalization as from_html)
+    let result = FROM_SVG_TEMPLATE
+        .replace_all(&result, |caps: &regex::Captures| {
+            let content = &caps[1];
+            let normalized = normalize_html_whitespace(content);
+            format!(".from_svg(`{}`", normalized)
         })
         .to_string();
 
@@ -546,10 +557,21 @@ pub fn normalize_js(js: &str) -> String {
         out
     };
 
-    // Normalize escaped script tags in template literals
+    // Normalize escaped closing tags in template literals
     // Both `</script>` and `<\/script>` are valid - normalize to unescaped form
     let result = result.replace("<\\/script>", "</script>");
     let result = result.replace(r"<\/script>", "</script>");
+    // Also handle other escaped closing tags (style, etc.)
+    let result = result.replace("<\\/style>", "</style>");
+    let result = result.replace(r"<\/style>", "</style>");
+
+    // Normalize `<!----> ` (with trailing space) to `<!---->` (without space)
+    // In SSR renderer push strings, the official compiler may include a trailing space
+    // after comment anchors that our compiler omits. Both are semantically equivalent.
+    let result = result.replace("<!----> ", "<!---->");
+
+    // Normalize double semicolons to single semicolons before removing all semicolons
+    let result = result.replace(";;", ";");
 
     // Remove semicolons for normalization
     let result = result.replace(';', "");
