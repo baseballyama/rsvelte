@@ -834,10 +834,10 @@ impl<'a> ServerCodeGenerator<'a> {
                 if i + 1 < len && matches!(nodes[i + 1], TemplateNode::SvelteBody(_)) {
                     continue;
                 }
-                // Skip whitespace around Comments (these don't render in SSR)
-                if i > 0 && matches!(nodes[i - 1], TemplateNode::Comment(_)) {
-                    continue;
-                }
+                // Comments are skipped during rendering. Whitespace around them should
+                // collapse to a single space (matching clean_nodes behavior which strips
+                // comments first, then collapses adjacent whitespace). Skip whitespace
+                // BEFORE a comment; keep whitespace AFTER to produce one space total.
                 if i + 1 < len && matches!(nodes[i + 1], TemplateNode::Comment(_)) {
                     continue;
                 }
@@ -2411,13 +2411,9 @@ impl<'a> ServerCodeGenerator<'a> {
                         return Ok(None);
                     }
 
-                    // Check if the expression is a literal - if so, inline it directly
-                    // Exception: boolean literals should use $.attr() since the runtime
-                    // handles boolean-to-attribute conversion (false = omit attribute)
-                    if let Some(literal_value) = self.extract_literal_value(&expr_tag.expression)
-                        && literal_value != "true"
-                        && literal_value != "false"
-                    {
+                    // Check if the expression is a string literal - if so, inline it directly.
+                    // Numeric and boolean literals use $.attr() to match official compiler.
+                    if let Some(literal_value) = self.extract_literal_value(&expr_tag.expression) {
                         return Ok(Some(format!(
                             " {}=\"{}\"",
                             name,
@@ -2425,8 +2421,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         )));
                     }
 
-                    // Generate $.attr() call for non-literal expression attributes
-                    // (and for boolean literal expressions)
+                    // Generate $.attr() call for non-string-literal expression attributes
                     let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
                     let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {
@@ -2499,14 +2494,9 @@ impl<'a> ServerCodeGenerator<'a> {
                     return Ok(None);
                 }
 
-                // Check if the expression is a literal - if so, inline it directly
-                // Exception: boolean literals should use $.attr() since the runtime
-                // handles boolean-to-attribute conversion (false = omit attribute)
-                if let Some(literal_value) = self.extract_literal_value(&expr_tag.expression)
-                    && literal_value != "true"
-                    && literal_value != "false"
-                {
-                    // Inline literal values directly: href="#" instead of ${$.attr('href', '#')}
+                // Check if the expression is a string literal - if so, inline it directly.
+                // Numeric and boolean literals use $.attr() to match official compiler.
+                if let Some(literal_value) = self.extract_literal_value(&expr_tag.expression) {
                     return Ok(Some(format!(
                         " {}=\"{}\"",
                         name,
@@ -2514,8 +2504,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     )));
                 }
 
-                // Generate $.attr() call for non-literal expression attributes
-                // (and for boolean literal expressions)
+                // Generate $.attr() call for non-string-literal expression attributes
                 let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
                 let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
                 if expr_end > expr_start && expr_end <= self.source.len() {
@@ -2712,19 +2701,18 @@ impl<'a> ServerCodeGenerator<'a> {
 
     /// Extract a literal string or number value from an Expression.
     /// Returns Some(string_value) if the expression is a Literal, None otherwise.
+    /// Extract a string literal value from an expression.
+    /// Only returns string literals - numeric and boolean literals should use $.attr() calls
+    /// because the official Svelte compiler uses $.attr() for non-string expression attributes.
     fn extract_literal_value(&self, expr: &crate::ast::js::Expression) -> Option<String> {
         let json = expr.as_json();
         let expr_type = json.get("type").and_then(|t| t.as_str())?;
 
         if expr_type == "Literal" {
-            // Check if it has a string value
-            if let Some(value) = json.get("value") {
-                match value {
-                    serde_json::Value::String(s) => return Some(s.clone()),
-                    serde_json::Value::Number(n) => return Some(n.to_string()),
-                    serde_json::Value::Bool(b) => return Some(b.to_string()),
-                    _ => {}
-                }
+            // Only inline string literals. Numeric and boolean literals should
+            // use $.attr() calls to match the official compiler behavior.
+            if let Some(serde_json::Value::String(s)) = json.get("value") {
+                return Some(s.clone());
             }
         }
 
