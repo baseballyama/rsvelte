@@ -4460,6 +4460,31 @@ fn transform_legacy_state_declarations(
                 replacement,
                 &result[pos + pattern_no_init.len()..]
             );
+            continue;
+        }
+
+        // Also try to match `let varname` without semicolon (end of string or followed by whitespace)
+        let pattern_no_semi = format!("let {}", var);
+        if let Some(pos) = result.find(&pattern_no_semi) {
+            let after_pos = pos + pattern_no_semi.len();
+            let is_end = after_pos >= result.len()
+                || result[after_pos..]
+                    .starts_with(|c: char| c.is_whitespace() || c == '\n' || c == '\r');
+            if is_end {
+                if after_pos < result.len()
+                    && result[after_pos..]
+                        .trim_start()
+                        .starts_with("= $.mutable_source(")
+                {
+                    continue;
+                }
+                let replacement = if immutable {
+                    format!("let {} = $.mutable_source(undefined, true)", var)
+                } else {
+                    format!("let {} = $.mutable_source()", var)
+                };
+                result = format!("{}{}{}", &result[..pos], replacement, &result[after_pos..]);
+            }
         }
     }
 
@@ -7363,6 +7388,103 @@ fn transform_class_methods(content: &str, fields: &[ClassStateField]) -> String 
         }
     }
 
+    // Transform direct assignments: this.#name = value -> $.set(this.#name, value)
+    // and compound assignments: this.#name += value -> $.set(this.#name, $.get(this.#name) + value)
+    for field in fields {
+        if field.is_private {
+            let private_name = format!("this.#{}", field.private_backing_name);
+
+            // Handle compound assignment operators: +=, -=, *=, /=, %=, **=
+            let compound_ops: &[(&str, &str)] = &[
+                ("**=", "**"),
+                ("+=", "+"),
+                ("-=", "-"),
+                ("*=", "*"),
+                ("/=", "/"),
+                ("%=", "%"),
+            ];
+            for (assign_op, binary_op) in compound_ops {
+                let pattern = format!("{} {} ", private_name, assign_op);
+                while let Some(pos) = result.find(&pattern) {
+                    // Find the end of the statement (semicolon)
+                    let value_start = pos + pattern.len();
+                    let rest = &result[value_start..];
+                    let value_end = rest.find(';').unwrap_or(rest.len());
+                    let value = rest[..value_end].trim();
+                    let needs_proxy = field.rune_type == "$state" && expression_needs_proxy(value);
+                    let replacement = if needs_proxy {
+                        format!(
+                            "$.set({}, $.get({}) {} {}, true)",
+                            private_name, private_name, binary_op, value
+                        )
+                    } else {
+                        format!(
+                            "$.set({}, $.get({}) {} {})",
+                            private_name, private_name, binary_op, value
+                        )
+                    };
+                    result = format!(
+                        "{}{}{}",
+                        &result[..pos],
+                        replacement,
+                        &result[value_start + value_end..]
+                    );
+                }
+            }
+
+            // Handle direct assignment: this.#name = value -> $.set(this.#name, value)
+            let assign_pattern = format!("{} = ", private_name);
+            // Need to avoid matching $.set(this.#name, ...) or $.get(this.#name)
+            while let Some(pos) = result.find(&assign_pattern) {
+                // Check if this is already inside a $.set() or $.get() call
+                let before = &result[..pos];
+                if before.ends_with("$.set(") || before.ends_with("$.get(") {
+                    break;
+                }
+                let value_start = pos + assign_pattern.len();
+                let rest = &result[value_start..];
+                let value_end = rest.find(';').unwrap_or(rest.len());
+                let value = rest[..value_end].trim();
+                let needs_proxy = field.rune_type == "$state" && expression_needs_proxy(value);
+                let replacement = if needs_proxy {
+                    format!("$.set({}, {}, true)", private_name, value)
+                } else {
+                    format!("$.set({}, {})", private_name, value)
+                };
+                result = format!(
+                    "{}{}{}",
+                    &result[..pos],
+                    replacement,
+                    &result[value_start + value_end..]
+                );
+            }
+
+            // Handle increment: this.#name++ or ++this.#name
+            let post_inc = format!("{}++", private_name);
+            while result.contains(&post_inc) {
+                let replacement = format!("$.set({}, $.get({}) + 1)", private_name, private_name);
+                result = result.replacen(&post_inc, &replacement, 1);
+            }
+            let pre_inc = format!("++{}", private_name);
+            while result.contains(&pre_inc) {
+                let replacement = format!("$.set({}, $.get({}) + 1)", private_name, private_name);
+                result = result.replacen(&pre_inc, &replacement, 1);
+            }
+
+            // Handle decrement: this.#name-- or --this.#name
+            let post_dec = format!("{}--", private_name);
+            while result.contains(&post_dec) {
+                let replacement = format!("$.set({}, $.get({}) - 1)", private_name, private_name);
+                result = result.replacen(&post_dec, &replacement, 1);
+            }
+            let pre_dec = format!("--{}", private_name);
+            while result.contains(&pre_dec) {
+                let replacement = format!("$.set({}, $.get({}) - 1)", private_name, private_name);
+                result = result.replacen(&pre_dec, &replacement, 1);
+            }
+        }
+    }
+
     // Clean up any double wrapping that might have occurred
     result = result.replace("$.get($.get(", "$.get(");
     // Fix optional chaining that got double-wrapped
@@ -7410,6 +7532,53 @@ fn transform_constructor_assignment(line: &str, fields: &[ClassStateField]) -> S
                             value
                         );
                     }
+                }
+
+                // Handle compound assignment operators: +=, -=, *=, /=, %=, **=
+                // this.#count *= 2 -> $.set(this.#count, $.get(this.#count) * 2);
+                let compound_ops: &[(&str, &str)] = &[
+                    ("**=", "**"),
+                    ("+=", "+"),
+                    ("-=", "-"),
+                    ("*=", "*"),
+                    ("/=", "/"),
+                    ("%=", "%"),
+                ];
+                for (assign_op, binary_op) in compound_ops {
+                    let pattern = format!("this.#{} {} ", field.name, assign_op);
+                    let pattern_nospace = format!("this.#{}{}", field.name, assign_op);
+
+                    if result.starts_with(&pattern) || result.starts_with(&pattern_nospace) {
+                        let op_pos = result.find(assign_op).unwrap();
+                        let value = result[op_pos + assign_op.len()..]
+                            .trim()
+                            .trim_end_matches(';');
+                        return format!(
+                            "$.set(this.#{}, $.get(this.#{}) {} {});",
+                            field.private_backing_name,
+                            field.private_backing_name,
+                            binary_op,
+                            value
+                        );
+                    }
+                }
+
+                // Handle increment/decrement: this.#count++ or ++this.#count
+                let post_inc = format!("this.#{}++", field.name);
+                let pre_inc = format!("++this.#{}", field.name);
+                if result.starts_with(&post_inc) || result.starts_with(&pre_inc) {
+                    return format!(
+                        "$.set(this.#{}, $.get(this.#{}) + 1);",
+                        field.private_backing_name, field.private_backing_name
+                    );
+                }
+                let post_dec = format!("this.#{}--", field.name);
+                let pre_dec = format!("--this.#{}", field.name);
+                if result.starts_with(&post_dec) || result.starts_with(&pre_dec) {
+                    return format!(
+                        "$.set(this.#{}, $.get(this.#{}) - 1);",
+                        field.private_backing_name, field.private_backing_name
+                    );
                 }
 
                 // Handle regular assignment: this.#name = value
