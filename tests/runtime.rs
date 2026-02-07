@@ -306,22 +306,44 @@ fn run_runtime_tests(category: &str) {
     println!("  Server: {}/{}", server_passed, server_total);
 
     if failed > 0 {
-        println!("\nFailed tests (first 10):");
-        for result in results
-            .iter()
-            .filter(|r| !r.passed() && !r.skipped)
-            .take(10)
-        {
-            println!("  - {}", result.name);
-            if let Some(err) = &result.client_error {
-                println!("      Client: {}", err);
-            }
-            if let Some(err) = &result.server_error {
-                println!("      Server: {}", err);
-            }
-        }
-        if failed > 10 {
-            println!("  ... and {} more", failed - 10);
+        println!("\nFailed tests (ALL {}):", failed);
+        for result in results.iter().filter(|r| !r.passed() && !r.skipped) {
+            let client_status = match result.client_passed {
+                Some(true) => "OK",
+                Some(false) => {
+                    if result
+                        .client_error
+                        .as_deref()
+                        .unwrap_or("")
+                        .contains("compilation error")
+                    {
+                        "COMPILE_ERROR"
+                    } else {
+                        "MISMATCH"
+                    }
+                }
+                None => "N/A",
+            };
+            let server_status = match result.server_passed {
+                Some(true) => "OK",
+                Some(false) => {
+                    if result
+                        .server_error
+                        .as_deref()
+                        .unwrap_or("")
+                        .contains("compilation error")
+                    {
+                        "COMPILE_ERROR"
+                    } else {
+                        "MISMATCH"
+                    }
+                }
+                None => "N/A",
+            };
+            println!(
+                "  FAIL|{}|client={}|server={}",
+                result.name, client_status, server_status
+            );
         }
     }
 

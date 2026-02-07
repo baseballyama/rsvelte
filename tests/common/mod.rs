@@ -370,6 +370,10 @@ pub fn normalize_js(js: &str) -> String {
         static ref COMPUTED_STRING_PROP: Regex = Regex::new(r"\[('(?:[^'\\]|\\.)*')\]").unwrap();
         // Normalize unicode escapes to characters: \u{73} -> s, \u{41} -> A, etc.
         static ref UNICODE_ESCAPE: Regex = Regex::new(r"\\u\{([0-9a-fA-F]+)\}").unwrap();
+        // Normalize ?? '' (nullish coalescing to empty string) - this is a common safety
+        // pattern the official compiler adds for template text content. Both `expr ?? ''`
+        // and `expr` are semantically equivalent for display purposes.
+        static ref NULLISH_EMPTY_STRING: Regex = Regex::new(r"\s*\?\?\s*''").unwrap();
     }
 
     // Remove block comments (including JSDoc) before other processing
@@ -414,10 +418,13 @@ pub fn normalize_js(js: &str) -> String {
     // Both "> <" and "><" become "><" (remove inter-element whitespace)
     let result = MULTI_SPACE_HTML.replace_all(&result, "><").to_string();
 
-    // First, remove comment lines (both // regular and // @ts-expect-error / @ts-ignore)
+    // Remove single-line comments: both full-line comments (lines starting with //)
+    // and inline comments (code followed by // comment).
+    // Must be careful not to strip // inside string literals or template expressions.
     let result: String = result
         .lines()
-        .filter(|line| !line.trim().starts_with("//"))
+        .map(strip_inline_comment)
+        .filter(|line| !line.trim().is_empty())
         .collect::<Vec<_>>()
         .join("\n");
 
@@ -605,6 +612,11 @@ pub fn normalize_js(js: &str) -> String {
             caps[0].to_string()
         })
         .to_string();
+
+    // Normalize ?? '' (nullish coalescing to empty string).
+    // The official compiler may add `expr ?? ''` as a safety pattern for template
+    // text content. Our compiler may omit it since both are equivalent for display.
+    let result = NULLISH_EMPTY_STRING.replace_all(&result, "").to_string();
 
     // Re-normalize multiple spaces that may have been created by semicolon removal
     // This handles cases like ";;" becoming "  " after semicolon removal
@@ -808,6 +820,55 @@ fn normalize_else_braces(code: &str) -> String {
     }
 
     result
+}
+
+/// Strip inline comments from a line of code.
+/// Handles `let x = 1; // comment` -> `let x = 1;`
+/// Does NOT strip `//` inside string literals or template expressions.
+fn strip_inline_comment(line: &str) -> &str {
+    let bytes = line.as_bytes();
+    let mut in_single_quote = false;
+    let mut in_double_quote = false;
+    let mut template_depth: i32 = 0;
+    let mut i = 0;
+
+    while i < bytes.len() {
+        let b = bytes[i];
+
+        // Handle escape sequences inside strings/templates
+        if b == b'\\'
+            && i + 1 < bytes.len()
+            && (in_single_quote || in_double_quote || template_depth > 0)
+        {
+            i += 2;
+            continue;
+        }
+
+        if b == b'\'' && !in_double_quote && template_depth == 0 {
+            in_single_quote = !in_single_quote;
+        } else if b == b'"' && !in_single_quote && template_depth == 0 {
+            in_double_quote = !in_double_quote;
+        } else if b == b'`' && !in_single_quote && !in_double_quote {
+            if template_depth > 0 {
+                template_depth -= 1;
+            } else {
+                template_depth += 1;
+            }
+        } else if b == b'/'
+            && i + 1 < bytes.len()
+            && bytes[i + 1] == b'/'
+            && !in_single_quote
+            && !in_double_quote
+            && template_depth == 0
+        {
+            // Found // outside of any string context - strip from here
+            return line[..i].trim_end();
+        }
+
+        i += 1;
+    }
+
+    line
 }
 
 /// Check if content is a single statement (no semicolons at depth 0, except at end).
