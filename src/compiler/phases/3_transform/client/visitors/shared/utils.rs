@@ -2283,16 +2283,34 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                         return false;
                     }
 
-                    // Props and other explicitly reactive bindings
-                    if binding.kind.is_reactive() {
+                    // Bindings that are always reactive (props, stores, each items, etc.)
+                    // These don't go through the is_known check because their values
+                    // are inherently dynamic/external.
+                    if matches!(
+                        binding.kind,
+                        BindingKind::Prop
+                            | BindingKind::BindableProp
+                            | BindingKind::RestProp
+                            | BindingKind::Store
+                            | BindingKind::StoreSub
+                            | BindingKind::EachItem
+                            | BindingKind::SnippetParam
+                    ) {
                         return true;
                     }
 
-                    // For normal bindings:
+                    // For State, RawState, Derived, and Normal bindings:
                     // Match Svelte's logic: has_state is true when:
                     //   binding.kind !== 'static' &&
                     //   (binding.kind === 'prop' || ... || !binding.is_function()) &&
                     //   !context.state.scope.evaluate(node).is_known
+                    //
+                    // The official compiler uses scope.evaluate() to determine if a
+                    // binding's value is "known" at compile time. Even $state bindings
+                    // can be "known" if they're never updated (reassigned/mutated) and
+                    // their initial value is a known literal. For example:
+                    //   let y = $state('y1')  // never reassigned -> is_known = true
+                    //   let x = $state('x1')  // reassigned via x = 'x2' -> is_known = false
                     //
                     // We approximate scope.evaluate().is_known by checking:
                     // 1. For const/let declarations with literal initial values -> is_known = true if never reassigned/mutated

@@ -141,11 +141,46 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     let item = generate_item_identifier(node);
 
     // Track usage
-    // In the JS implementation, uses_index is set to true when the index is read
-    // via a transform callback. Since we don't have that mechanism, we use a
-    // simplified approach: if an index is explicitly declared, assume it's used.
-    // This is conservative (may include index when not needed) but correct.
+    // In the JS implementation, uses_index is set to true dynamically when:
+    //   1. The index variable is read in the body (transform read callback)
+    //   2. The each item is assigned (transform assign callback, e.g. bind:value)
+    //   3. The each item is mutated (transform mutate callback)
+    // Since we don't have closure-based side effects, we determine this statically by
+    // checking if the each item binding was marked as reassigned/mutated during analysis,
+    // or if an explicit index is declared.
     let mut uses_index = each_node_meta.contains_group_binding || node.index.is_some();
+
+    // Check if the each item binding is reassigned or mutated (e.g., via bind: directives).
+    // This corresponds to the assign/mutate transform callbacks in the official compiler
+    // which set uses_index = true.
+    if !uses_index && let Some(context_expr) = &node.context {
+        let Expression::Value(val) = context_expr;
+        if let serde_json::Value::Object(obj) = val {
+            let ctx_type = obj.get("type").and_then(|v| v.as_str());
+            if ctx_type == Some("Identifier") {
+                // Simple identifier context - check its binding
+                if let Some(name) = obj.get("name").and_then(|v| v.as_str())
+                    && let Some(binding) = context.state.get_binding(name)
+                    && (binding.reassigned || binding.mutated)
+                {
+                    uses_index = true;
+                }
+            } else if ctx_type == Some("ObjectPattern") || ctx_type == Some("ArrayPattern") {
+                // Destructured context - check all bindings from the pattern
+                let mut declared_names = Vec::new();
+                collect_pattern_names(obj, &mut declared_names);
+                for name in &declared_names {
+                    if let Some(binding) = context.state.get_binding(name)
+                        && (binding.reassigned || binding.mutated)
+                    {
+                        uses_index = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
     let key_uses_index = false; // Will be set properly when visiting key
 
     // Save the current transform map - each block creates a child scope for transforms
