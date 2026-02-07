@@ -326,41 +326,53 @@ pub fn infer_namespace(
     // This matches the JS behavior at lines 326-339 of utils.js:
     // For SnippetBlock, Component, SvelteComponent, etc., the namespace is
     // re-evaluated based on what elements are in the children.
-    // This MUST happen before the svg/mathml guard below, because snippets
-    // defined inside SVG may contain HTML content (e.g., <p> inside <foreignObject>).
+    //
+    // Note: In our implementation, parent is always None during the transform
+    // phase because the path is not populated. We use the incoming namespace
+    // to distinguish context: when namespace is "html", we're likely at a root
+    // or re-evaluation boundary where we need to detect SVG/MathML from children.
+    // When namespace is already "svg"/"mathml", we're inside a known namespace
+    // context (e.g., IfBlock inside SVG) and should trust it rather than
+    // re-evaluating, because ambiguous elements like <a> and <title> may not
+    // have their metadata.svg set correctly in the analysis phase.
     let should_reevaluate = match parent {
         Some(TemplateNode::SnippetBlock(_)) => true,
         Some(TemplateNode::Component(_)) => true,
         Some(TemplateNode::SvelteComponent(_)) => true,
-        None => true, // Fragment/Root case
+        None if namespace == "html" => true,
         _ => false,
     };
 
     if should_reevaluate {
-        // Check child elements to determine namespace
+        // Check ALL child elements for consistent namespace.
+        // Matches the JS behavior at lines 346-356 of utils.js:
+        // If elements are mixed (some SVG, some not), fall back to "html".
+        let mut new_namespace: Option<&str> = None;
         for node in nodes {
             if let TemplateNode::RegularElement(elem) = node {
-                // Use the metadata to determine namespace
-                if elem.metadata.svg {
-                    return "svg".to_string();
-                }
                 if elem.metadata.mathml {
-                    return "mathml".to_string();
+                    new_namespace = Some(match new_namespace {
+                        None | Some("mathml") => "mathml",
+                        _ => "html",
+                    });
+                } else if elem.metadata.svg {
+                    new_namespace = Some(match new_namespace {
+                        None | Some("svg") => "svg",
+                        _ => "html",
+                    });
+                } else {
+                    return "html".to_string();
                 }
-                // If first element is plain HTML, use html namespace
-                return "html".to_string();
             }
+        }
+        if let Some(ns) = new_namespace {
+            return ns.to_string();
         }
     }
 
-    // If we already have a non-html namespace set (e.g., svg from parent element),
-    // trust it instead of re-evaluating. This handles cases like IfBlock inside SVG
-    // where the path doesn't include the SVG parent during transform phase.
-    if namespace == "svg" || namespace == "mathml" {
-        return namespace.to_string();
-    }
-
-    // For other parent types or no elements found, keep the current namespace
+    // Fall back to the incoming namespace.
+    // This handles cases like IfBlock inside SVG where the namespace is
+    // already "svg" and we should preserve it.
     namespace.to_string()
 }
 
