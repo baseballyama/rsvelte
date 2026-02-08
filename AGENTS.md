@@ -100,44 +100,40 @@ Pre-commit hooks run `cargo fmt` and `cargo clippy` automatically.
 - Remove outdated information
 - Keep it concise
 
-## Test Status (2026-01-10)
+## Test Status (2026-02-08)
 
 | Suite | Pass/Total | Status |
 |-------|------------|--------|
 | Parser Modern | 22/22 | ✅ 100% |
 | Parser Legacy | 82/82 | ✅ 100% |
-| Compiler Snapshot | 15/19 | 🟢 78.9% |
-| CSS | 110/177 | ⚠️ 62.1% |
-| Validator | 82/312 | ⚠️ 26.3% |
-| Compiler Errors | 0/118 | ❌ 0% |
-| Runtime Runes | 10/724 | ❌ 1.4% |
-| Runtime Legacy | 13/1198 | ❌ 1.1% |
-| Runtime Browser | 0/30 | ❌ 0% |
-| Hydration | 4/70 | ❌ 5.7% |
-| SSR | 10/80 | ❌ 12.5% |
+| Compiler Snapshot | 19/20 | ✅ 95% |
+| CSS | 136/178 | 🟢 76% |
+| Validator | 263/310 | 🟢 85% |
+| Compiler Errors | 113/118 | 🟢 96% |
+| Runtime Runes | 574/822 | 🟡 70% |
+| Runtime Legacy | 636/1201 | 🟡 53% |
+| Runtime Browser | 12/30 | ⚠️ 40% |
+| Hydration | 63/75 | 🟢 84% |
+| SSR | 80/80 | ✅ 100% |
 | Preprocess | 0/19 | ⏸️ N/A |
-| Print | 1/39 | ❌ 2.6% |
+| Print | 0/0 | ⏸️ N/A |
 | Migrate | 0/76 | ⏸️ N/A |
 
-**Overall: 347/2830 (12.3%)**
+**Overall: 2000/3033 (66%)**
 
 ## Current Focus
 
 ### Phase 3 Client-Side Code Generation (Priority)
 
-Runtime tests: 1.4% passing. Implementing client-side visitors will significantly improve pass rates.
+Runtime Runes: 70% passing (574/822). Key remaining issues:
 
-Required:
-
-- Template → imperative code transformation
-- Reactive dependency tracking
-- Effect and derived state generation
-- Event handler binding
-
-### Compiler Snapshot Remaining (4 tests to 100%)
-
-- `svelte-element`, `skip-static-subtree`, `props-identifier` - $props() validation
-- `bind-component-snippet` - bind: directive implementation
+1. Template effect dependency extraction (~28 tests)
+2. Missing $.set() calls for class fields/module context (~19 tests)
+3. Async infrastructure - $.run, $.save, $.async (~27 tests)
+4. Snippet/slot rendering - derived_safe_equal, fallback (~10 tests)
+5. Store operations - update_store vs store_set (~9 tests)
+6. Static content detection - nodeValue vs template_effect (~8 tests)
+7. CSS hash scoping (~5 tests)
 
 ## Implementation Status
 
