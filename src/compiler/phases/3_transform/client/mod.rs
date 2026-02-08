@@ -7391,6 +7391,12 @@ fn transform_class_fields_client(script: &str) -> String {
                 fields.push(field);
             }
         }
+        // Check for $derived.by field first (must check before $derived to avoid false match)
+        else if (trimmed.contains("= $derived.by(") || trimmed.contains("=$derived.by("))
+            && let Some(field) = parse_state_field(trimmed, "$derived.by")
+        {
+            fields.push(field);
+        }
         // Check for $derived field: name = $derived(...) or #name = $derived(...)
         else if (trimmed.contains("= $derived(") || trimmed.contains("=$derived("))
             && let Some(field) = parse_state_field(trimmed, "$derived")
@@ -7529,15 +7535,16 @@ fn transform_class_fields_client(script: &str) -> String {
 
             // Add getter/setter only for public fields
             if !field.is_private {
+                let getter_name = format_getter_name(&field.name);
                 new_class_body.push('\n');
                 new_class_body.push_str(&format!(
                     "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
-                    field.name, private_name
+                    getter_name, private_name
                 ));
                 new_class_body.push('\n');
                 new_class_body.push_str(&format!(
                     "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value, true);\n\t\t}}\n",
-                    field.name, private_name
+                    getter_name, private_name
                 ));
             }
         } else if field.rune_type == "$state.raw" || field.rune_type == "$state.frozen" {
@@ -7551,20 +7558,21 @@ fn transform_class_fields_client(script: &str) -> String {
             // Add getter/setter only for public fields
             // Note: setter should NOT have the third argument (true) for raw state
             if !field.is_private {
+                let getter_name = format_getter_name(&field.name);
                 new_class_body.push('\n');
                 new_class_body.push_str(&format!(
                     "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
-                    field.name, private_name
+                    getter_name, private_name
                 ));
                 new_class_body.push('\n');
                 new_class_body.push_str(&format!(
                     "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}\n",
-                    field.name, private_name
+                    getter_name, private_name
                 ));
             }
         } else if field.rune_type == "$derived" {
             // Transform $derived: #name = $.derived(() => (value))
-            let wrapped_value = format!("() => ({})", field.value);
+            let wrapped_value = format!("() => {}", field.value);
             new_class_body.push_str(&format!(
                 "\t\t{} = $.derived({});\n",
                 private_name, wrapped_value
@@ -7572,15 +7580,38 @@ fn transform_class_fields_client(script: &str) -> String {
 
             // Add getter/setter only for public fields
             if !field.is_private {
+                let getter_name = format_getter_name(&field.name);
                 new_class_body.push('\n');
                 new_class_body.push_str(&format!(
                     "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
-                    field.name, private_name
+                    getter_name, private_name
                 ));
                 new_class_body.push('\n');
                 new_class_body.push_str(&format!(
                     "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}\n",
-                    field.name, private_name
+                    getter_name, private_name
+                ));
+            }
+        } else if field.rune_type == "$derived.by" {
+            // Transform $derived.by: #name = $.derived(callback)
+            // $derived.by already has a callback, so pass it directly
+            new_class_body.push_str(&format!(
+                "\t\t{} = $.derived({});\n",
+                private_name, field.value
+            ));
+
+            // Add getter/setter only for public fields
+            if !field.is_private {
+                let getter_name = format_getter_name(&field.name);
+                new_class_body.push('\n');
+                new_class_body.push_str(&format!(
+                    "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
+                    getter_name, private_name
+                ));
+                new_class_body.push('\n');
+                new_class_body.push_str(&format!(
+                    "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}\n",
+                    getter_name, private_name
                 ));
             }
         }
@@ -7664,6 +7695,49 @@ fn sanitize_identifier(name: &str) -> String {
         .to_string()
 }
 
+/// Format a getter/setter name for class fields.
+/// For names that are valid JS identifiers, returns the name as-is.
+/// For names that need quoting (contain special chars like hyphens, or are string literals),
+/// returns them in quotes. For numeric names, returns them unquoted.
+fn format_getter_name(name: &str) -> String {
+    // If the name is already quoted (starts and ends with quotes), return as-is
+    if (name.starts_with('"') && name.ends_with('"'))
+        || (name.starts_with('\'') && name.ends_with('\''))
+    {
+        return name.to_string();
+    }
+    // If it's a valid identifier as-is, return it
+    // Valid identifiers start with a letter, underscore, or $, followed by alphanumerics, _, or $
+    if !name.is_empty() {
+        let first = name.chars().next().unwrap();
+        if (first.is_alphabetic() || first == '_' || first == '$')
+            && name
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+        {
+            return name.to_string();
+        }
+    }
+    // Numeric names are valid property names in JS without quoting
+    if name.chars().all(|c| c.is_ascii_digit()) {
+        return name.to_string();
+    }
+    // Otherwise, quote the name
+    format!("\"{}\"", name)
+}
+
+/// Strip surrounding quotes from a field name if present.
+/// For example, `"aria-pressed"` becomes `aria-pressed`.
+fn strip_field_quotes(name: &str) -> String {
+    if (name.starts_with('"') && name.ends_with('"'))
+        || (name.starts_with('\'') && name.ends_with('\''))
+    {
+        name[1..name.len() - 1].to_string()
+    } else {
+        name.to_string()
+    }
+}
+
 /// Parse a state field definition.
 fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStateField> {
     let trimmed = line.trim().trim_end_matches(';');
@@ -7688,9 +7762,10 @@ fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStateField> {
     let value_end = find_matching_paren(after_paren)?;
     let value = after_paren[..value_end].to_string();
 
-    // Sanitize the private backing name to ensure it's a valid identifier
-    // This handles cases like numeric property names (0, 1) which become (_)
-    let private_backing_name = sanitize_identifier(&name);
+    // Strip quotes from name for private backing name generation
+    // e.g., "aria-pressed" -> aria-pressed -> aria_pressed
+    let unquoted_name = strip_field_quotes(&name);
+    let private_backing_name = sanitize_identifier(&unquoted_name);
 
     Some(ClassStateField {
         name: name.clone(),
