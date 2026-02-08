@@ -1,0 +1,27 @@
+{
+  "generatedAt": "2026-02-08T03:46:33.563Z",
+  "commitSha": "8258840",
+  "testFilesCount": 3612,
+  "javascript": {
+    "name": "JavaScript (svelte/compiler)",
+    "filesCount": 3612,
+    "durationMs": 1306.0217506666665,
+    "throughputFilesPerSec": 2765.6507237771752
+  },
+  "rustSingleThread": {
+    "name": "Rust (single-threaded)",
+    "filesCount": 3612,
+    "durationMs": 979.5752333333334,
+    "throughputFilesPerSec": 3687.3124973861973
+  },
+  "rustMultiThread": {
+    "name": "Rust (multi-threaded)",
+    "filesCount": 3612,
+    "durationMs": 256.8277666666666,
+    "throughputFilesPerSec": 14063.899892444135
+  },
+  "speedup": {
+    "singleThreadVsJs": 1.3332531348536543,
+    "multiThreadVsJs": 5.085204639737163
+  }
+}
