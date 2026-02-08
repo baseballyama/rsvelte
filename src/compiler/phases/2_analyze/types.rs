@@ -79,6 +79,24 @@ impl ScriptContent {
             String::new()
         };
 
+        // Check if this script uses TypeScript
+        let is_typescript = script.attributes.iter().any(|attr| {
+            if attr.name == "lang"
+                && let crate::ast::template::AttributeValue::Sequence(parts) = &attr.value
+                && let Some(crate::ast::template::AttributeValuePart::Text(text)) = parts.first()
+            {
+                return text.data == "ts" || text.data == "typescript";
+            }
+            false
+        });
+
+        // Strip TypeScript from the raw content if this is a TypeScript script
+        let raw = if is_typescript && !raw.is_empty() {
+            strip_typescript(&raw)
+        } else {
+            raw
+        };
+
         let uses_runes = raw.contains("$state")
             || raw.contains("$derived")
             || raw.contains("$effect")
@@ -91,6 +109,760 @@ impl ScriptContent {
             uses_runes,
         }
     }
+}
+
+/// Strip TypeScript syntax from source code, producing valid JavaScript.
+///
+/// Uses OXC parser to parse TypeScript, then walks the AST to find
+/// TypeScript-specific source regions to remove.
+pub fn strip_typescript(source: &str) -> String {
+    use oxc_allocator::Allocator;
+    use oxc_parser::Parser;
+    use oxc_span::SourceType;
+
+    let allocator = Allocator::default();
+    let source_type = SourceType::ts();
+    let parser = Parser::new(&allocator, source, source_type);
+    let result = parser.parse();
+
+    if !result.errors.is_empty() {
+        // If parsing fails, return original source and let downstream handle errors
+        return source.to_string();
+    }
+
+    // Collect source spans to remove (sorted by start position)
+    let mut removals: Vec<(u32, u32)> = Vec::new();
+
+    collect_ts_removals_from_program(&result.program, source, &mut removals);
+
+    if removals.is_empty() {
+        return source.to_string();
+    }
+
+    // Sort removals by start position
+    removals.sort_by_key(|r| r.0);
+
+    // Merge overlapping removals
+    let mut merged: Vec<(u32, u32)> = Vec::new();
+    for (start, end) in removals {
+        if let Some(last) = merged.last_mut()
+            && start <= last.1
+        {
+            last.1 = last.1.max(end);
+            continue;
+        }
+        merged.push((start, end));
+    }
+
+    // Build output by skipping removed regions
+    let mut output = String::with_capacity(source.len());
+    let mut pos = 0u32;
+
+    for (remove_start, remove_end) in &merged {
+        if *remove_start > pos {
+            output.push_str(&source[pos as usize..*remove_start as usize]);
+        }
+        pos = pos.max(*remove_end);
+    }
+
+    // Add remaining content
+    if (pos as usize) < source.len() {
+        output.push_str(&source[pos as usize..]);
+    }
+
+    output
+}
+
+/// Collect TypeScript-specific source spans to remove from a program.
+fn collect_ts_removals_from_program(
+    program: &oxc_ast::ast::Program,
+    source: &str,
+    removals: &mut Vec<(u32, u32)>,
+) {
+    for stmt in &program.body {
+        collect_ts_removals_from_statement(stmt, source, removals);
+    }
+}
+
+/// Collect TS removals from a function (type params, return type, this param).
+fn collect_ts_removals_from_function(
+    func: &oxc_ast::ast::Function,
+    source: &str,
+    removals: &mut Vec<(u32, u32)>,
+) {
+    // Remove type parameters: function foo<T>()
+    if let Some(ref type_params) = func.type_parameters {
+        removals.push((type_params.span.start, type_params.span.end));
+    }
+
+    // Remove return type: function foo(): string
+    if let Some(ref return_type) = func.return_type {
+        removals.push((return_type.span.start, return_type.span.end));
+    }
+
+    // Remove `this` parameter type: function foo(this: any)
+    if let Some(ref this_param) = func.this_param {
+        // Need to also remove the comma after `this: any` if there are more params
+        let end = if !func.params.items.is_empty() {
+            // Remove up to the start of the first param, including comma
+            func.params.items[0].span.start
+        } else {
+            this_param.span.end
+        };
+        removals.push((this_param.span.start, end));
+    }
+
+    // Recurse into params for type annotations
+    for param in &func.params.items {
+        if let Some(ref type_ann) = param.type_annotation {
+            removals.push((type_ann.span.start, type_ann.span.end));
+        }
+        collect_ts_removals_from_binding_pattern(&param.pattern, source, removals);
+    }
+
+    // Recurse into function body
+    if let Some(ref body) = func.body {
+        for stmt in &body.statements {
+            collect_ts_removals_from_statement(stmt, source, removals);
+        }
+    }
+}
+
+/// Collect TS removals from a class (abstract keyword, type params, implements, members).
+fn collect_ts_removals_from_class(
+    class: &oxc_ast::ast::Class,
+    source: &str,
+    removals: &mut Vec<(u32, u32)>,
+) {
+    use oxc_span::GetSpan;
+
+    // Remove `abstract` keyword before `class`
+    if class.r#abstract && !source.is_empty() {
+        let class_source = &source[class.span.start as usize..class.span.end as usize];
+        if let Some(abstract_pos) = class_source.find("abstract") {
+            let abs_start = class.span.start + abstract_pos as u32;
+            let abs_end = abs_start + 8; // "abstract" is 8 chars
+            let space_end = if (abs_end as usize) < source.len()
+                && source.as_bytes()[abs_end as usize] == b' '
+            {
+                abs_end + 1
+            } else {
+                abs_end
+            };
+            removals.push((abs_start, space_end));
+        }
+    }
+
+    // Remove type parameters: class Foo<T>
+    if let Some(ref type_params) = class.type_parameters {
+        removals.push((type_params.span.start, type_params.span.end));
+    }
+
+    // Remove super type arguments: extends Bar<T>
+    if let Some(ref super_type_args) = class.super_type_arguments {
+        removals.push((super_type_args.span.start, super_type_args.span.end));
+    }
+
+    // Remove `implements` clause
+    if !class.implements.is_empty() && !source.is_empty() {
+        let last_impl = class.implements.last().unwrap();
+        let search_start = if let Some(ref _super) = class.super_class {
+            _super.span().end as usize
+        } else if let Some(ref type_params) = class.type_parameters {
+            type_params.span.end as usize
+        } else if let Some(ref id) = class.id {
+            id.span.end as usize
+        } else {
+            class.span.start as usize
+        };
+
+        if search_start < class.body.span.start as usize {
+            let search_source = &source[search_start..class.body.span.start as usize];
+            if let Some(impl_pos) = search_source.find("implements") {
+                let abs_start = search_start as u32 + impl_pos as u32;
+                removals.push((abs_start, last_impl.span.end));
+                if abs_start > 0
+                    && (abs_start as usize) <= source.len()
+                    && source.as_bytes()[(abs_start - 1) as usize] == b' '
+                {
+                    removals.push((abs_start - 1, abs_start));
+                }
+            }
+        }
+    }
+
+    // Process class body members
+    for element in &class.body.body {
+        match element {
+            oxc_ast::ast::ClassElement::MethodDefinition(method) => {
+                if method.r#type == oxc_ast::ast::MethodDefinitionType::TSAbstractMethodDefinition {
+                    removals.push((method.span.start, method.span.end));
+                    continue;
+                }
+                if let Some(ref accessibility) = method.accessibility {
+                    remove_keyword_from_source(
+                        match accessibility {
+                            oxc_ast::ast::TSAccessibility::Public => "public",
+                            oxc_ast::ast::TSAccessibility::Private => "private",
+                            oxc_ast::ast::TSAccessibility::Protected => "protected",
+                        },
+                        method.span,
+                        source,
+                        removals,
+                    );
+                }
+                collect_ts_removals_from_function(&method.value, source, removals);
+            }
+            oxc_ast::ast::ClassElement::PropertyDefinition(prop) => {
+                if prop.declare {
+                    removals.push((prop.span.start, prop.span.end));
+                    continue;
+                }
+                if prop.r#type == oxc_ast::ast::PropertyDefinitionType::TSAbstractPropertyDefinition
+                {
+                    removals.push((prop.span.start, prop.span.end));
+                    continue;
+                }
+                if let Some(ref type_ann) = prop.type_annotation {
+                    removals.push((type_ann.span.start, type_ann.span.end));
+                }
+                if let Some(ref accessibility) = prop.accessibility {
+                    remove_keyword_from_source(
+                        match accessibility {
+                            oxc_ast::ast::TSAccessibility::Public => "public",
+                            oxc_ast::ast::TSAccessibility::Private => "private",
+                            oxc_ast::ast::TSAccessibility::Protected => "protected",
+                        },
+                        prop.span,
+                        source,
+                        removals,
+                    );
+                }
+                if prop.readonly {
+                    remove_keyword_from_source("readonly", prop.span, source, removals);
+                }
+                if let Some(ref value) = prop.value {
+                    collect_ts_removals_from_expression(value, source, removals);
+                }
+            }
+            oxc_ast::ast::ClassElement::StaticBlock(block) => {
+                for stmt in &block.body {
+                    collect_ts_removals_from_statement(stmt, source, removals);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Remove a keyword and trailing space from a source span.
+fn remove_keyword_from_source(
+    keyword: &str,
+    parent_span: oxc_span::Span,
+    source: &str,
+    removals: &mut Vec<(u32, u32)>,
+) {
+    if source.is_empty() {
+        return;
+    }
+    let region = &source[parent_span.start as usize..parent_span.end as usize];
+    if let Some(pos) = region.find(keyword) {
+        let abs_start = parent_span.start + pos as u32;
+        let abs_end = abs_start + keyword.len() as u32;
+        let space_end =
+            if (abs_end as usize) < source.len() && source.as_bytes()[abs_end as usize] == b' ' {
+                abs_end + 1
+            } else {
+                abs_end
+            };
+        removals.push((abs_start, space_end));
+    }
+}
+
+/// Collect TS removals from an expression.
+fn collect_ts_removals_from_expression(
+    expr: &oxc_ast::ast::Expression,
+    source: &str,
+    removals: &mut Vec<(u32, u32)>,
+) {
+    use oxc_ast::ast::Expression as E;
+    use oxc_span::GetSpan;
+
+    match expr {
+        E::TSAsExpression(ts_as) => {
+            removals.push((ts_as.expression.span().end, ts_as.span.end));
+            collect_ts_removals_from_expression(&ts_as.expression, source, removals);
+        }
+        E::TSSatisfiesExpression(ts_sat) => {
+            removals.push((ts_sat.expression.span().end, ts_sat.span.end));
+            collect_ts_removals_from_expression(&ts_sat.expression, source, removals);
+        }
+        E::TSNonNullExpression(ts_nn) => {
+            removals.push((ts_nn.expression.span().end, ts_nn.span.end));
+            collect_ts_removals_from_expression(&ts_nn.expression, source, removals);
+        }
+        E::TSTypeAssertion(ts_assertion) => {
+            removals.push((
+                ts_assertion.span.start,
+                ts_assertion.expression.span().start,
+            ));
+            collect_ts_removals_from_expression(&ts_assertion.expression, source, removals);
+        }
+        E::TSInstantiationExpression(ts_inst) => {
+            removals.push((ts_inst.expression.span().end, ts_inst.span.end));
+            collect_ts_removals_from_expression(&ts_inst.expression, source, removals);
+        }
+        E::CallExpression(call) => {
+            collect_ts_removals_from_expression(&call.callee, source, removals);
+            if let Some(ref type_args) = call.type_arguments {
+                removals.push((type_args.span.start, type_args.span.end));
+            }
+            for arg in &call.arguments {
+                if let Some(e) = arg.as_expression() {
+                    collect_ts_removals_from_expression(e, source, removals);
+                }
+            }
+        }
+        E::NewExpression(new_expr) => {
+            collect_ts_removals_from_expression(&new_expr.callee, source, removals);
+            if let Some(ref type_args) = new_expr.type_arguments {
+                removals.push((type_args.span.start, type_args.span.end));
+            }
+            for arg in &new_expr.arguments {
+                if let Some(e) = arg.as_expression() {
+                    collect_ts_removals_from_expression(e, source, removals);
+                }
+            }
+        }
+        E::TaggedTemplateExpression(tagged) => {
+            collect_ts_removals_from_expression(&tagged.tag, source, removals);
+            if let Some(ref type_args) = tagged.type_arguments {
+                removals.push((type_args.span.start, type_args.span.end));
+            }
+        }
+        E::AssignmentExpression(assign) => {
+            collect_ts_removals_from_expression(&assign.right, source, removals);
+        }
+        E::BinaryExpression(bin) => {
+            collect_ts_removals_from_expression(&bin.left, source, removals);
+            collect_ts_removals_from_expression(&bin.right, source, removals);
+        }
+        E::LogicalExpression(log) => {
+            collect_ts_removals_from_expression(&log.left, source, removals);
+            collect_ts_removals_from_expression(&log.right, source, removals);
+        }
+        E::ConditionalExpression(cond) => {
+            collect_ts_removals_from_expression(&cond.test, source, removals);
+            collect_ts_removals_from_expression(&cond.consequent, source, removals);
+            collect_ts_removals_from_expression(&cond.alternate, source, removals);
+        }
+        E::UnaryExpression(unary) => {
+            collect_ts_removals_from_expression(&unary.argument, source, removals);
+        }
+        E::UpdateExpression(_update) => {
+            // UpdateExpression.argument is SimpleAssignmentTarget, not Expression
+            // No TS-specific removals needed here
+        }
+        E::SequenceExpression(seq) => {
+            for e in &seq.expressions {
+                collect_ts_removals_from_expression(e, source, removals);
+            }
+        }
+        E::ArrayExpression(arr) => {
+            for elem in &arr.elements {
+                if let Some(e) = elem.as_expression() {
+                    collect_ts_removals_from_expression(e, source, removals);
+                }
+            }
+        }
+        E::ObjectExpression(obj) => {
+            for prop in &obj.properties {
+                match prop {
+                    oxc_ast::ast::ObjectPropertyKind::ObjectProperty(p) => {
+                        collect_ts_removals_from_expression(&p.value, source, removals);
+                    }
+                    oxc_ast::ast::ObjectPropertyKind::SpreadProperty(spread) => {
+                        collect_ts_removals_from_expression(&spread.argument, source, removals);
+                    }
+                }
+            }
+        }
+        E::ArrowFunctionExpression(arrow) => {
+            if let Some(ref type_params) = arrow.type_parameters {
+                removals.push((type_params.span.start, type_params.span.end));
+            }
+            if let Some(ref return_type) = arrow.return_type {
+                removals.push((return_type.span.start, return_type.span.end));
+            }
+            for param in &arrow.params.items {
+                if let Some(ref type_ann) = param.type_annotation {
+                    removals.push((type_ann.span.start, type_ann.span.end));
+                }
+                collect_ts_removals_from_binding_pattern(&param.pattern, source, removals);
+            }
+            for stmt in &arrow.body.statements {
+                collect_ts_removals_from_statement(stmt, source, removals);
+            }
+        }
+        E::FunctionExpression(func) => {
+            collect_ts_removals_from_function(func, source, removals);
+        }
+        E::ClassExpression(class) => {
+            collect_ts_removals_from_class(class, source, removals);
+        }
+        E::TemplateLiteral(tmpl) => {
+            for e in &tmpl.expressions {
+                collect_ts_removals_from_expression(e, source, removals);
+            }
+        }
+        E::ParenthesizedExpression(paren) => {
+            collect_ts_removals_from_expression(&paren.expression, source, removals);
+        }
+        E::AwaitExpression(await_expr) => {
+            collect_ts_removals_from_expression(&await_expr.argument, source, removals);
+        }
+        E::YieldExpression(yield_expr) => {
+            if let Some(ref arg) = yield_expr.argument {
+                collect_ts_removals_from_expression(arg, source, removals);
+            }
+        }
+        // MemberExpression variants are inherited into Expression
+        E::ComputedMemberExpression(computed) => {
+            collect_ts_removals_from_expression(&computed.object, source, removals);
+            collect_ts_removals_from_expression(&computed.expression, source, removals);
+        }
+        E::StaticMemberExpression(static_member) => {
+            collect_ts_removals_from_expression(&static_member.object, source, removals);
+        }
+        E::PrivateFieldExpression(pfe) => {
+            collect_ts_removals_from_expression(&pfe.object, source, removals);
+        }
+        E::ChainExpression(chain) => match &chain.expression {
+            oxc_ast::ast::ChainElement::CallExpression(call) => {
+                collect_ts_removals_from_expression(&call.callee, source, removals);
+                if let Some(ref type_args) = call.type_arguments {
+                    removals.push((type_args.span.start, type_args.span.end));
+                }
+                for arg in &call.arguments {
+                    if let Some(e) = arg.as_expression() {
+                        collect_ts_removals_from_expression(e, source, removals);
+                    }
+                }
+            }
+            oxc_ast::ast::ChainElement::TSNonNullExpression(ts_nn) => {
+                removals.push((ts_nn.expression.span().end, ts_nn.span.end));
+                collect_ts_removals_from_expression(&ts_nn.expression, source, removals);
+            }
+            _ => {}
+        },
+        _ => {}
+    }
+}
+
+/// Collect TS removals from a statement.
+fn collect_ts_removals_from_statement(
+    stmt: &oxc_ast::ast::Statement,
+    source: &str,
+    removals: &mut Vec<(u32, u32)>,
+) {
+    use oxc_ast::ast::*;
+    use oxc_span::GetSpan;
+
+    match stmt {
+        Statement::ExpressionStatement(expr_stmt) => {
+            collect_ts_removals_from_expression(&expr_stmt.expression, source, removals);
+        }
+        Statement::VariableDeclaration(var_decl) => {
+            if var_decl.declare {
+                removals.push((var_decl.span.start, var_decl.span.end));
+                return;
+            }
+            for decl in &var_decl.declarations {
+                if let Some(ref type_ann) = decl.type_annotation {
+                    removals.push((type_ann.span.start, type_ann.span.end));
+                }
+                collect_ts_removals_from_binding_pattern(&decl.id, source, removals);
+                if let Some(ref init) = decl.init {
+                    collect_ts_removals_from_expression(init, source, removals);
+                }
+            }
+        }
+        Statement::ReturnStatement(ret) => {
+            if let Some(ref arg) = ret.argument {
+                collect_ts_removals_from_expression(arg, source, removals);
+            }
+        }
+        Statement::IfStatement(if_stmt) => {
+            collect_ts_removals_from_expression(&if_stmt.test, source, removals);
+            collect_ts_removals_from_statement(&if_stmt.consequent, source, removals);
+            if let Some(ref alt) = if_stmt.alternate {
+                collect_ts_removals_from_statement(alt, source, removals);
+            }
+        }
+        Statement::BlockStatement(block) => {
+            for s in &block.body {
+                collect_ts_removals_from_statement(s, source, removals);
+            }
+        }
+        Statement::ForStatement(for_stmt) => {
+            if let Some(ref init) = for_stmt.init
+                && let ForStatementInit::VariableDeclaration(vd) = init
+            {
+                for decl in &vd.declarations {
+                    if let Some(ref type_ann) = decl.type_annotation {
+                        removals.push((type_ann.span.start, type_ann.span.end));
+                    }
+                    collect_ts_removals_from_binding_pattern(&decl.id, source, removals);
+                    if let Some(ref i) = decl.init {
+                        collect_ts_removals_from_expression(i, source, removals);
+                    }
+                }
+            }
+            if let Some(ref test) = for_stmt.test {
+                collect_ts_removals_from_expression(test, source, removals);
+            }
+            if let Some(ref update) = for_stmt.update {
+                collect_ts_removals_from_expression(update, source, removals);
+            }
+            collect_ts_removals_from_statement(&for_stmt.body, source, removals);
+        }
+        Statement::WhileStatement(while_stmt) => {
+            collect_ts_removals_from_expression(&while_stmt.test, source, removals);
+            collect_ts_removals_from_statement(&while_stmt.body, source, removals);
+        }
+        Statement::FunctionDeclaration(func) => {
+            if func.r#type == FunctionType::TSDeclareFunction || func.declare || func.body.is_none()
+            {
+                removals.push((func.span.start, func.span.end));
+            } else {
+                collect_ts_removals_from_function(func, source, removals);
+            }
+        }
+        Statement::ClassDeclaration(class) => {
+            if class.declare {
+                removals.push((class.span.start, class.span.end));
+            } else {
+                collect_ts_removals_from_class(class, source, removals);
+            }
+        }
+        Statement::ThrowStatement(throw_stmt) => {
+            collect_ts_removals_from_expression(&throw_stmt.argument, source, removals);
+        }
+        Statement::TryStatement(try_stmt) => {
+            for s in &try_stmt.block.body {
+                collect_ts_removals_from_statement(s, source, removals);
+            }
+            if let Some(ref handler) = try_stmt.handler {
+                for s in &handler.body.body {
+                    collect_ts_removals_from_statement(s, source, removals);
+                }
+            }
+            if let Some(ref finalizer) = try_stmt.finalizer {
+                for s in &finalizer.body {
+                    collect_ts_removals_from_statement(s, source, removals);
+                }
+            }
+        }
+        Statement::SwitchStatement(switch_stmt) => {
+            collect_ts_removals_from_expression(&switch_stmt.discriminant, source, removals);
+            for case in &switch_stmt.cases {
+                if let Some(ref test) = case.test {
+                    collect_ts_removals_from_expression(test, source, removals);
+                }
+                for s in &case.consequent {
+                    collect_ts_removals_from_statement(s, source, removals);
+                }
+            }
+        }
+        // Import/Export declarations
+        Statement::ImportDeclaration(import_decl) => {
+            if import_decl.import_kind == ImportOrExportKind::Type {
+                removals.push((import_decl.span.start, import_decl.span.end));
+            } else if let Some(specifiers) = &import_decl.specifiers {
+                let type_specs: Vec<_> = specifiers
+                    .iter()
+                    .filter(|s| {
+                        if let ImportDeclarationSpecifier::ImportSpecifier(spec) = s {
+                            spec.import_kind == ImportOrExportKind::Type
+                        } else {
+                            false
+                        }
+                    })
+                    .collect();
+                if !type_specs.is_empty() {
+                    if type_specs.len() == specifiers.len() {
+                        removals.push((import_decl.span.start, import_decl.span.end));
+                    } else {
+                        for spec in type_specs {
+                            remove_specifier_with_comma(spec.span(), source, removals);
+                        }
+                    }
+                }
+            }
+        }
+        Statement::ExportNamedDeclaration(export_decl) => {
+            if export_decl.export_kind == ImportOrExportKind::Type {
+                removals.push((export_decl.span.start, export_decl.span.end));
+            } else {
+                if let Some(ref decl) = export_decl.declaration {
+                    match decl {
+                        Declaration::FunctionDeclaration(func) => {
+                            if func.r#type == FunctionType::TSDeclareFunction
+                                || func.declare
+                                || func.body.is_none()
+                            {
+                                removals.push((export_decl.span.start, export_decl.span.end));
+                            } else {
+                                collect_ts_removals_from_function(func, source, removals);
+                            }
+                        }
+                        Declaration::ClassDeclaration(class) => {
+                            if class.declare {
+                                removals.push((export_decl.span.start, export_decl.span.end));
+                            } else {
+                                collect_ts_removals_from_class(class, source, removals);
+                            }
+                        }
+                        Declaration::VariableDeclaration(var_decl) => {
+                            if var_decl.declare {
+                                removals.push((export_decl.span.start, export_decl.span.end));
+                            }
+                        }
+                        Declaration::TSTypeAliasDeclaration(_)
+                        | Declaration::TSInterfaceDeclaration(_)
+                        | Declaration::TSEnumDeclaration(_)
+                        | Declaration::TSModuleDeclaration(_) => {
+                            removals.push((export_decl.span.start, export_decl.span.end));
+                        }
+                        _ => {}
+                    }
+                }
+                // Type-only export specifiers
+                let type_specs: Vec<_> = export_decl
+                    .specifiers
+                    .iter()
+                    .filter(|s| s.export_kind == ImportOrExportKind::Type)
+                    .collect();
+                if !type_specs.is_empty() && export_decl.declaration.is_none() {
+                    if type_specs.len() == export_decl.specifiers.len() {
+                        removals.push((export_decl.span.start, export_decl.span.end));
+                    } else {
+                        for spec in type_specs {
+                            remove_specifier_with_comma(spec.span, source, removals);
+                        }
+                    }
+                }
+            }
+        }
+        Statement::ExportDefaultDeclaration(export_decl) => match &export_decl.declaration {
+            ExportDefaultDeclarationKind::TSInterfaceDeclaration(_) => {
+                removals.push((export_decl.span.start, export_decl.span.end));
+            }
+            ExportDefaultDeclarationKind::FunctionDeclaration(func) => {
+                if func.r#type == FunctionType::TSDeclareFunction
+                    || func.declare
+                    || func.body.is_none()
+                {
+                    removals.push((export_decl.span.start, export_decl.span.end));
+                } else {
+                    collect_ts_removals_from_function(func, source, removals);
+                }
+            }
+            ExportDefaultDeclarationKind::ClassDeclaration(class) => {
+                if class.declare {
+                    removals.push((export_decl.span.start, export_decl.span.end));
+                } else {
+                    collect_ts_removals_from_class(class, source, removals);
+                }
+            }
+            _ => {
+                if let Some(expr) = export_decl.declaration.as_expression() {
+                    collect_ts_removals_from_expression(expr, source, removals);
+                }
+            }
+        },
+        Statement::ExportAllDeclaration(export_decl) => {
+            if export_decl.export_kind == ImportOrExportKind::Type {
+                removals.push((export_decl.span.start, export_decl.span.end));
+            }
+        }
+        // TS-only statements
+        Statement::TSTypeAliasDeclaration(decl) => {
+            removals.push((decl.span.start, decl.span.end));
+        }
+        Statement::TSInterfaceDeclaration(decl) => {
+            removals.push((decl.span.start, decl.span.end));
+        }
+        Statement::TSModuleDeclaration(decl) => {
+            removals.push((decl.span.start, decl.span.end));
+        }
+        Statement::TSEnumDeclaration(decl) => {
+            removals.push((decl.span.start, decl.span.end));
+        }
+        _ => {}
+    }
+}
+
+/// Collect TS removals from a binding pattern.
+fn collect_ts_removals_from_binding_pattern(
+    pattern: &oxc_ast::ast::BindingPattern,
+    source: &str,
+    removals: &mut Vec<(u32, u32)>,
+) {
+    match pattern {
+        oxc_ast::ast::BindingPattern::BindingIdentifier(_) => {
+            // No type annotation on BindingIdentifier in OXC 0.107
+        }
+        oxc_ast::ast::BindingPattern::ObjectPattern(obj) => {
+            for prop in &obj.properties {
+                collect_ts_removals_from_binding_pattern(&prop.value, source, removals);
+            }
+            if let Some(ref rest) = obj.rest {
+                collect_ts_removals_from_binding_pattern(&rest.argument, source, removals);
+            }
+        }
+        oxc_ast::ast::BindingPattern::ArrayPattern(arr) => {
+            for elem in arr.elements.iter().flatten() {
+                collect_ts_removals_from_binding_pattern(elem, source, removals);
+            }
+            if let Some(ref rest) = arr.rest {
+                collect_ts_removals_from_binding_pattern(&rest.argument, source, removals);
+            }
+        }
+        oxc_ast::ast::BindingPattern::AssignmentPattern(assign) => {
+            collect_ts_removals_from_binding_pattern(&assign.left, source, removals);
+            collect_ts_removals_from_expression(&assign.right, source, removals);
+        }
+    }
+}
+
+/// Remove a specifier from its surrounding context, including the comma.
+fn remove_specifier_with_comma(span: oxc_span::Span, source: &str, removals: &mut Vec<(u32, u32)>) {
+    let mut start = span.start;
+    let mut end = span.end;
+
+    // Try to remove trailing comma and whitespace
+    if (end as usize) < source.len() {
+        let after = &source[end as usize..];
+        let trimmed = after.trim_start();
+        if trimmed.starts_with(',') {
+            end = (source.len() - trimmed.len() + 1) as u32;
+            if (end as usize) < source.len() {
+                let after_comma = &source[end as usize..];
+                let trimmed2 = after_comma.trim_start_matches(' ');
+                end = (source.len() - trimmed2.len()) as u32;
+            }
+        } else if start > 0 {
+            // Try to remove leading comma and whitespace
+            let before = &source[..start as usize];
+            let trimmed = before.trim_end();
+            if trimmed.ends_with(',') {
+                start = (trimmed.len() - 1) as u32;
+            }
+        }
+    }
+
+    removals.push((start, end));
 }
 
 /// Analysis result for a Svelte component.

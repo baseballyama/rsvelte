@@ -15,8 +15,31 @@ use crate::ast::template::{
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+use crate::compiler::phases::phase2_analyze::types::strip_typescript;
 
 use rustc_hash::FxHashMap;
+
+/// Check if a Script node has `lang="ts"` or `lang="typescript"` attribute.
+fn script_is_typescript(script: &Script) -> bool {
+    script.attributes.iter().any(|attr| {
+        if attr.name == "lang"
+            && let crate::ast::template::AttributeValue::Sequence(parts) = &attr.value
+            && let Some(crate::ast::template::AttributeValuePart::Text(text)) = parts.first()
+        {
+            return text.data == "ts" || text.data == "typescript";
+        }
+        false
+    })
+}
+
+/// Strip TypeScript from raw script content if the script is TypeScript.
+fn maybe_strip_typescript(raw_script: String, script: &Script) -> String {
+    if script_is_typescript(script) && !raw_script.is_empty() {
+        strip_typescript(&raw_script)
+    } else {
+        raw_script
+    }
+}
 
 /// Check if a property name is a valid JavaScript identifier.
 /// If not, it needs to be quoted in object literals.
@@ -5082,6 +5105,9 @@ impl<'a> ServerCodeGenerator<'a> {
                 String::new()
             };
 
+            // Strip TypeScript syntax if the script uses lang="ts"
+            let raw_script = maybe_strip_typescript(raw_script, script);
+
             // Extract imports and transform the rest
             // Use extract_imports_module to keep `export { ... }` statements
             let (imports, rest) = extract_imports_module(&raw_script);
@@ -5119,6 +5145,9 @@ impl<'a> ServerCodeGenerator<'a> {
             } else {
                 String::new()
             };
+
+            // Strip TypeScript syntax if the script uses lang="ts"
+            let raw_script = maybe_strip_typescript(raw_script, script);
 
             // First, remove $effect, $effect.pre, $effect.root, and $inspect.trace blocks
             // These are client-side only and should not appear in SSR output

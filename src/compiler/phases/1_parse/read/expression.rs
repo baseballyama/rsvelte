@@ -3926,7 +3926,18 @@ pub fn parse_program(
         );
     }
 
-    Expression::Value(Value::Object(obj))
+    let mut program_value = Value::Object(obj);
+
+    // Remove TypeScript-specific nodes from the parsed program AST.
+    // This matches the official Svelte compiler's behavior of calling
+    // remove_typescript_nodes() after parsing when metadata.ts is true.
+    // See: svelte/packages/svelte/src/compiler/index.js
+    if is_typescript {
+        let _ =
+            super::super::remove_typescript_nodes::remove_typescript_nodes(&mut program_value, &[]);
+    }
+
+    Expression::Value(program_value)
 }
 
 /// Convert a statement to JSON value (for program context, no -1 offset adjustment).
@@ -3982,9 +3993,20 @@ fn convert_statement_for_program(
                 .collect();
             obj.insert("declarations".to_string(), Value::Array(declarations));
 
+            // declare field for TypeScript `declare const/let/var`
+            if var_decl.declare {
+                obj.insert("declare".to_string(), Value::Bool(true));
+            }
+
             Some(Value::Object(obj))
         }
         oxc_ast::ast::Statement::FunctionDeclaration(func_decl) => {
+            // Filter out TypeScript declare functions and function overload signatures (no body)
+            if func_decl.r#type == oxc_ast::ast::FunctionType::TSDeclareFunction
+                || func_decl.body.is_none()
+            {
+                return None;
+            }
             let start = offset + func_decl.span.start as usize;
             let end = offset + func_decl.span.end as usize;
             let mut obj = Map::new();
@@ -4319,6 +4341,16 @@ fn convert_statement_for_program(
             // attributes (for import attributes)
             obj.insert("attributes".to_string(), Value::Array(vec![]));
 
+            // importKind: "type" or "value" (for TypeScript type-only imports)
+            let import_kind_str = match import_decl.import_kind {
+                oxc_ast::ast::ImportOrExportKind::Type => "type",
+                oxc_ast::ast::ImportOrExportKind::Value => "value",
+            };
+            obj.insert(
+                "importKind".to_string(),
+                Value::String(import_kind_str.to_string()),
+            );
+
             Some(Value::Object(obj))
         }
         oxc_ast::ast::Statement::IfStatement(if_stmt) => {
@@ -4408,6 +4440,21 @@ fn convert_statement_for_program(
             // body (ClassBody)
             let body_value = convert_class_body_for_program(&class_decl.body, offset, line_offsets);
             obj.insert("body".to_string(), body_value);
+
+            // TypeScript: declare field
+            if class_decl.declare {
+                obj.insert("declare".to_string(), Value::Bool(true));
+            }
+
+            // TypeScript: abstract field
+            if class_decl.r#abstract {
+                obj.insert("abstract".to_string(), Value::Bool(true));
+            }
+
+            // TypeScript: implements (presence indicates it should be removed by remove_typescript_nodes)
+            if !class_decl.implements.is_empty() {
+                obj.insert("implements".to_string(), Value::Bool(true));
+            }
 
             Some(Value::Object(obj))
         }
@@ -4980,9 +5027,33 @@ fn convert_declaration_for_program(
                 .collect();
             obj.insert("declarations".to_string(), Value::Array(declarations));
 
+            // declare field for TypeScript `declare const/let/var`
+            if var_decl.declare {
+                obj.insert("declare".to_string(), Value::Bool(true));
+            }
+
             Value::Object(obj)
         }
         oxc_ast::ast::Declaration::FunctionDeclaration(func_decl) => {
+            // Filter out TypeScript declare functions (TSDeclareFunction)
+            if func_decl.r#type == oxc_ast::ast::FunctionType::TSDeclareFunction {
+                // Return an EmptyStatement so remove_typescript_nodes can handle it
+                let mut empty_obj = Map::new();
+                empty_obj.insert(
+                    "type".to_string(),
+                    Value::String("EmptyStatement".to_string()),
+                );
+                return Value::Object(empty_obj);
+            }
+            // Filter out function overload signatures (no body)
+            if func_decl.body.is_none() {
+                let mut empty_obj = Map::new();
+                empty_obj.insert(
+                    "type".to_string(),
+                    Value::String("EmptyStatement".to_string()),
+                );
+                return Value::Object(empty_obj);
+            }
             let start = offset + func_decl.span.start as usize;
             let end = offset + func_decl.span.end as usize;
             let mut obj = Map::new();
@@ -5099,6 +5170,16 @@ fn convert_import_specifier(
                 )
                 .as_json()
                 .clone(),
+            );
+
+            // importKind: "type" or "value" (for TypeScript `import { type X }`)
+            let import_kind_str = match import_spec.import_kind {
+                oxc_ast::ast::ImportOrExportKind::Type => "type",
+                oxc_ast::ast::ImportOrExportKind::Value => "value",
+            };
+            obj.insert(
+                "importKind".to_string(),
+                Value::String(import_kind_str.to_string()),
             );
 
             Value::Object(obj)
@@ -6335,6 +6416,10 @@ fn convert_class_element_for_program(
 ) -> Option<Value> {
     match element {
         oxc_ast::ast::ClassElement::MethodDefinition(method) => {
+            // Filter out abstract methods (TSAbstractMethodDefinition)
+            if method.r#type == oxc_ast::ast::MethodDefinitionType::TSAbstractMethodDefinition {
+                return None;
+            }
             let start = offset + method.span.start as usize;
             let end = offset + method.span.end as usize;
             let mut obj = Map::new();
@@ -6369,6 +6454,10 @@ fn convert_class_element_for_program(
             Some(Value::Object(obj))
         }
         oxc_ast::ast::ClassElement::PropertyDefinition(prop) => {
+            // Filter out abstract property definitions (TSAbstractPropertyDefinition)
+            if prop.r#type == oxc_ast::ast::PropertyDefinitionType::TSAbstractPropertyDefinition {
+                return None;
+            }
             let start = offset + prop.span.start as usize;
             let end = offset + prop.span.end as usize;
             let mut obj = Map::new();
@@ -6392,6 +6481,11 @@ fn convert_class_element_for_program(
                 obj.insert("value".to_string(), val.as_json().clone());
             } else {
                 obj.insert("value".to_string(), Value::Null);
+            }
+
+            // TypeScript: declare field (for `declare bar: string;` in class)
+            if prop.declare {
+                obj.insert("declare".to_string(), Value::Bool(true));
             }
 
             Some(Value::Object(obj))
