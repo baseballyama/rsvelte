@@ -1306,15 +1306,53 @@ impl<'a> ScopeBuilder<'a> {
         }
     }
 
-    /// Process a bind expression - the target is marked as reassigned.
+    /// Process a bind expression - the target is marked as reassigned or mutated.
+    ///
+    /// Matches the official Svelte compiler's scope.js BindDirective handler:
+    /// - For Identifier expressions (bind:value={x}), marks as reassigned (direct assignment)
+    /// - For MemberExpression (bind:this={foo[i]}), extracts the base object and marks as mutated
+    /// - SequenceExpression (getter/setter syntax) is skipped (handled separately)
     fn process_template_expression_for_bind(&mut self, expr: &crate::ast::js::Expression) {
-        // For bind directives, get the identifier name and mark as reassigned
-        if let Some(serde_json::Value::String(name)) = expr.as_json().get("name") {
-            self.updates.push(Update {
-                name: name.clone(),
-                is_direct_assignment: true,
-                scope_idx: self.current_scope,
-            });
+        let json = expr.as_json();
+        let expr_type = json.get("type").and_then(|t| t.as_str());
+
+        // Skip SequenceExpression (getter/setter syntax) - handled separately
+        if expr_type == Some("SequenceExpression") {
+            return;
+        }
+
+        // For direct Identifier (bind:value={x}), mark as reassigned
+        if expr_type == Some("Identifier") {
+            if let Some(serde_json::Value::String(name)) = json.get("name") {
+                self.updates.push(Update {
+                    name: name.clone(),
+                    is_direct_assignment: true,
+                    scope_idx: self.current_scope,
+                });
+            }
+            return;
+        }
+
+        // For MemberExpression (bind:this={foo[i]}), traverse to base object
+        // and mark as mutated (not reassigned, since only a property is being set)
+        if expr_type == Some("MemberExpression") {
+            let mut current = json;
+            while current.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
+                if let Some(obj) = current.get("object") {
+                    current = obj;
+                } else {
+                    return;
+                }
+            }
+            if current.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                && let Some(serde_json::Value::String(name)) = current.get("name")
+            {
+                self.updates.push(Update {
+                    name: name.clone(),
+                    is_direct_assignment: false, // mutation, not reassignment
+                    scope_idx: self.current_scope,
+                });
+            }
         }
     }
 
