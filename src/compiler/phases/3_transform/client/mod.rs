@@ -2660,14 +2660,19 @@ fn transform_reactive_statement(
     let body = body_owned.trim_end_matches(';').trim();
 
     // Collect dependencies from the body
-    // Dependencies are prop variables that should be wrapped in $.deep_read_state()
-    let mut dependencies: Vec<String> = Vec::new();
+    // Dependencies are variables that need tracking in the dependency thunk.
+    // We track whether each dependency is a prop or a state var, because they
+    // are serialized differently:
+    // - Props (bindable_prop): $.deep_read_state(name()) - deep read with function call
+    // - State vars (mutable_source): $.get(name) - simple get without function call
+    let mut prop_dependencies: Vec<String> = Vec::new();
+    let mut state_dependencies: Vec<String> = Vec::new();
 
     // Props are dependencies that need tracking
     for prop_name in prop_assignment_transform_vars {
         // Check if this prop is referenced in the body (but not on the left side of assignment)
         if body_references_identifier(body, prop_name) {
-            dependencies.push(prop_name.clone());
+            prop_dependencies.push(prop_name.clone());
         }
     }
 
@@ -2676,7 +2681,7 @@ fn transform_reactive_statement(
         if !non_reactive_state_vars.contains(state_var)
             && body_references_identifier(body, state_var)
         {
-            dependencies.push(state_var.clone());
+            state_dependencies.push(state_var.clone());
         }
     }
 
@@ -2746,15 +2751,22 @@ fn transform_reactive_statement(
     }
 
     // Build the dependency thunk
-    // Each dependency becomes $.deep_read_state(prop())
-    let deps_expr = if dependencies.is_empty() {
+    // Props become $.deep_read_state(prop()) - deep read because props could be fine-grained
+    // $state from a runes-component, where mutations don't trigger an update on the prop as a whole.
+    // State vars become $.get(var) - simple get since they are mutable_source variables.
+    // Reference: LabeledStatement.js in the official compiler
+    let has_deps = !prop_dependencies.is_empty() || !state_dependencies.is_empty();
+    let deps_expr = if !has_deps {
         "".to_string()
     } else {
-        dependencies
-            .iter()
-            .map(|dep| format!("$.deep_read_state({}())", dep))
-            .collect::<Vec<_>>()
-            .join(", ")
+        let mut all_deps: Vec<String> = Vec::new();
+        for dep in &prop_dependencies {
+            all_deps.push(format!("$.deep_read_state({}())", dep));
+        }
+        for dep in &state_dependencies {
+            all_deps.push(format!("$.get({})", dep));
+        }
+        all_deps.join(", ")
     };
 
     // Build the $.legacy_pre_effect() call
@@ -2979,32 +2991,115 @@ fn transform_state_set_in_reactive(
     result
 }
 
-/// Check if a body references an identifier (not on left side of assignment).
+/// Check if a body references an identifier as a read (not only as an assignment target).
+///
+/// This is used to determine dependencies for `$.legacy_pre_effect()` calls.
+/// A variable is a dependency if it's READ in the body, not if it's only written to.
+///
+/// For simple assignments like `c = a + b`, `c` is not a dependency, but `a` and `b` are.
+/// For self-referential assignments like `count = count + 1`, `count` IS a dependency
+/// because it appears on the RHS.
+/// For block bodies like `{ c = a + b; count = count + 1; }`, we check each statement
+/// within the block.
 fn body_references_identifier(body: &str, identifier: &str) -> bool {
-    // Simple check - look for the identifier as a word boundary
-    // This is not perfect but good enough for most cases
     let pattern = format!(r"\b{}\b", regex::escape(identifier));
-    if let Ok(re) = regex::Regex::new(&pattern) {
-        // Check if identifier appears in the body
-        if re.is_match(body) {
-            // Make sure it's not only on the left side of an assignment
-            if let Some(eq_pos) = find_assignment_position(body) {
-                let lhs = &body[..eq_pos];
-                let rhs = &body[eq_pos + 1..];
-                // Check RHS - if identifier is there, it's a dependency
-                if re.is_match(rhs) {
-                    return true;
+    let re = match regex::Regex::new(&pattern) {
+        Ok(re) => re,
+        Err(_) => return false,
+    };
+
+    // Check if identifier appears in the body at all
+    if !re.is_match(body) {
+        return false;
+    }
+
+    let trimmed = body.trim();
+
+    // Handle block statements: strip outer braces and process inner content
+    if trimmed.starts_with('{') && trimmed.ends_with('}') {
+        let inner = &trimmed[1..trimmed.len() - 1];
+        // Split into statements (semicolon-delimited) and check each one
+        // If the identifier appears as a READ in any statement, it's a dependency
+        return body_references_identifier_in_statements(inner, identifier, &re);
+    }
+
+    // For simple (non-block) bodies, check for assignment pattern
+    check_identifier_in_statement(trimmed, identifier, &re)
+}
+
+/// Check if an identifier is referenced as a read across multiple statements.
+fn body_references_identifier_in_statements(
+    content: &str,
+    identifier: &str,
+    re: &regex::Regex,
+) -> bool {
+    // Split by semicolons and newlines, but be careful with nested blocks
+    // Simple approach: scan for statements at depth 0
+    let mut depth = 0;
+    let mut start = 0;
+    let chars: Vec<char> = content.chars().collect();
+
+    for i in 0..chars.len() {
+        match chars[i] {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => {
+                if depth > 0 {
+                    depth -= 1;
                 }
-                // Check LHS but only if identifier is NOT the whole LHS
-                if re.is_match(lhs) && lhs.trim() != identifier {
-                    return true;
-                }
-                return false;
             }
-            return true;
+            ';' | '\n' if depth == 0 => {
+                let stmt = content[start..i].trim();
+                if !stmt.is_empty() && check_identifier_in_statement(stmt, identifier, re) {
+                    return true;
+                }
+                start = i + 1;
+            }
+            _ => {}
         }
     }
+
+    // Check the last statement
+    let stmt = content[start..].trim();
+    if !stmt.is_empty() && check_identifier_in_statement(stmt, identifier, re) {
+        return true;
+    }
+
     false
+}
+
+/// Check if an identifier appears as a read (not just assignment target) in a single statement.
+fn check_identifier_in_statement(stmt: &str, identifier: &str, re: &regex::Regex) -> bool {
+    if !re.is_match(stmt) {
+        return false;
+    }
+
+    // Check for simple assignment pattern: `identifier = expr`
+    if let Some(eq_pos) = find_assignment_position(stmt) {
+        let lhs = &stmt[..eq_pos];
+        let rhs = &stmt[eq_pos + 1..];
+
+        // If identifier appears on the RHS, it's definitely a read/dependency
+        if re.is_match(rhs) {
+            return true;
+        }
+
+        // If identifier is the entire LHS (sole assignment target), it's NOT a read
+        if lhs.trim() == identifier {
+            return false;
+        }
+
+        // If identifier appears on the LHS but is not the whole LHS (e.g., `foo.bar = x`
+        // and identifier is `foo`), it's a read (object access)
+        if re.is_match(lhs) {
+            return true;
+        }
+
+        return false;
+    }
+
+    // No simple assignment found - the identifier is used in some other context
+    // (function call, condition, etc.) - treat as a read
+    true
 }
 
 /// Find the position of the assignment operator (=) that's not part of ==, ===, !=, !==
