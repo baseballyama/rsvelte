@@ -481,6 +481,45 @@ struct ServerCodeGenerator<'a> {
     skip_hydration_boundaries: bool,
 }
 
+/// Represents either a group of consecutive props or a spread expression,
+/// preserving the order in which they appear in the source.
+#[derive(Debug)]
+enum ComponentPropItem {
+    /// A group of consecutive regular props (e.g., `foo: 1, bar: 2`)
+    Props(Vec<String>),
+    /// A spread expression (e.g., `props` from `{...props}`)
+    Spread(String),
+}
+
+/// Push a prop string into a `Vec<ComponentPropItem>`, grouping consecutive
+/// props together in a single `Props` variant (mirrors the official compiler's
+/// `push_prop` helper).
+fn push_component_prop(items: &mut Vec<ComponentPropItem>, prop: String) {
+    if let Some(ComponentPropItem::Props(props)) = items.last_mut() {
+        props.push(prop);
+    } else {
+        items.push(ComponentPropItem::Props(vec![prop]));
+    }
+}
+
+/// Check whether a `Vec<ComponentPropItem>` contains any spreads.
+fn has_spreads(items: &[ComponentPropItem]) -> bool {
+    items
+        .iter()
+        .any(|i| matches!(i, ComponentPropItem::Spread(_)))
+}
+
+/// Collect all prop strings from a `Vec<ComponentPropItem>` (flattened).
+fn collect_all_props(items: &[ComponentPropItem]) -> Vec<String> {
+    items
+        .iter()
+        .flat_map(|item| match item {
+            ComponentPropItem::Props(props) => props.clone(),
+            ComponentPropItem::Spread(_) => Vec::new(),
+        })
+        .collect()
+}
+
 /// A part of the output - either static HTML or dynamic code.
 #[derive(Debug)]
 enum OutputPart {
@@ -492,9 +531,10 @@ enum OutputPart {
     HtmlExpression(String),
     Component {
         name: String,
-        props: Vec<String>,
-        /// Spread expressions (e.g., `attrs` from `{...attrs}`)
-        spreads: Vec<String>,
+        /// Interleaved props and spreads, preserving source order.
+        /// When spread_props is needed, each Props group becomes an object literal
+        /// and each Spread becomes a direct expression in the array.
+        props_and_spreads: Vec<ComponentPropItem>,
         has_prior_content: bool,
         children: Option<Vec<OutputPart>>,
         /// Snippets defined inside the component (name, params, body, is_true_snippet)
@@ -509,9 +549,8 @@ enum OutputPart {
     /// Component with bind directives - requires do/while settling
     ComponentWithBindings {
         name: String,
-        props: Vec<String>,
-        /// Spread expressions (e.g., `attrs` from `{...attrs}`)
-        spreads: Vec<String>,
+        /// Interleaved props and spreads, preserving source order.
+        props_and_spreads: Vec<ComponentPropItem>,
         bindings: Vec<(String, String)>, // (prop_name, variable_name)
         #[allow(dead_code)]
         // Always true for component bindings - comment marker handled in build_parts
@@ -557,7 +596,8 @@ enum OutputPart {
     },
     /// Option element - produces $$renderer.option() call
     OptionElement {
-        attrs: Vec<(String, String)>,
+        /// Raw attribute entries: each is either "key: value" or "...expr"
+        attr_entries: Vec<String>,
         body: Vec<OutputPart>,
         /// Whether this option has rich content (requires 7th argument `true`)
         is_rich: bool,
@@ -1950,72 +1990,91 @@ impl<'a> ServerCodeGenerator<'a> {
     }
 
     fn generate_option_element(&mut self, element: &RegularElement) -> Result<(), TransformError> {
-        // Extract attributes as (name, value) pairs
-        let mut attrs = Vec::new();
+        // Extract attributes as raw entries: each is either "key: value" or "...expr"
+        let mut attr_entries = Vec::new();
         for attr in &element.attributes {
-            if let Attribute::Attribute(node) = attr {
-                let name = node.name.to_string();
-                match &node.value {
-                    AttributeValue::True(_) => {
-                        attrs.push((name, "true".to_string()));
-                    }
-                    AttributeValue::Sequence(parts) => {
-                        // Check if it's a single expression (like value='{foo}')
-                        let expr_parts: Vec<_> = parts
-                            .iter()
-                            .filter(|p| matches!(p, AttributeValuePart::ExpressionTag(_)))
-                            .collect();
-                        let text_parts: Vec<_> = parts
-                            .iter()
-                            .filter_map(|p| match p {
-                                AttributeValuePart::Text(t) => Some(t.data.as_str()),
-                                _ => None,
-                            })
-                            .collect();
-                        let all_text_whitespace = text_parts.iter().all(|t| t.trim().is_empty());
+            match attr {
+                Attribute::Attribute(node) => {
+                    let name = node.name.to_string();
+                    match &node.value {
+                        AttributeValue::True(_) => {
+                            attr_entries.push(format!("{}: true", name));
+                        }
+                        AttributeValue::Sequence(parts) => {
+                            // Check if it's a single expression (like value='{foo}')
+                            let expr_parts: Vec<_> = parts
+                                .iter()
+                                .filter(|p| matches!(p, AttributeValuePart::ExpressionTag(_)))
+                                .collect();
+                            let text_parts: Vec<_> = parts
+                                .iter()
+                                .filter_map(|p| match p {
+                                    AttributeValuePart::Text(t) => Some(t.data.as_str()),
+                                    _ => None,
+                                })
+                                .collect();
+                            let all_text_whitespace =
+                                text_parts.iter().all(|t| t.trim().is_empty());
 
-                        if expr_parts.len() == 1 && all_text_whitespace {
-                            // Single expression - use variable reference
-                            if let AttributeValuePart::ExpressionTag(expr_tag) = expr_parts[0] {
-                                let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
-                                let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
-                                if expr_end > expr_start && expr_end <= self.source.len() {
-                                    let expr = self.source[expr_start..expr_end].trim().to_string();
-                                    attrs.push((name, expr));
-                                }
-                            }
-                        } else {
-                            // Mixed or pure text - concatenate
-                            let mut value = String::new();
-                            for part in parts {
-                                match part {
-                                    AttributeValuePart::Text(text) => {
-                                        value.push_str(&text.data);
+                            if expr_parts.len() == 1 && all_text_whitespace {
+                                // Single expression - use variable reference
+                                if let AttributeValuePart::ExpressionTag(expr_tag) = expr_parts[0] {
+                                    let expr_start =
+                                        expr_tag.expression.start().unwrap_or(0) as usize;
+                                    let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                                    if expr_end > expr_start && expr_end <= self.source.len() {
+                                        let expr =
+                                            self.source[expr_start..expr_end].trim().to_string();
+                                        attr_entries.push(format!("{}: {}", name, expr));
                                     }
-                                    AttributeValuePart::ExpressionTag(expr_tag) => {
-                                        let expr_start =
-                                            expr_tag.expression.start().unwrap_or(0) as usize;
-                                        let expr_end =
-                                            expr_tag.expression.end().unwrap_or(0) as usize;
-                                        if expr_end > expr_start && expr_end <= self.source.len() {
-                                            let expr = self.source[expr_start..expr_end]
-                                                .trim()
-                                                .to_string();
-                                            value.push_str(&format!("${{$.stringify({})}}", expr));
+                                }
+                            } else {
+                                // Mixed or pure text - concatenate
+                                let mut value = String::new();
+                                for part in parts {
+                                    match part {
+                                        AttributeValuePart::Text(text) => {
+                                            value.push_str(&text.data);
+                                        }
+                                        AttributeValuePart::ExpressionTag(expr_tag) => {
+                                            let expr_start =
+                                                expr_tag.expression.start().unwrap_or(0) as usize;
+                                            let expr_end =
+                                                expr_tag.expression.end().unwrap_or(0) as usize;
+                                            if expr_end > expr_start
+                                                && expr_end <= self.source.len()
+                                            {
+                                                let expr = self.source[expr_start..expr_end]
+                                                    .trim()
+                                                    .to_string();
+                                                value.push_str(&format!(
+                                                    "${{$.stringify({})}}",
+                                                    expr
+                                                ));
+                                            }
                                         }
                                     }
                                 }
+                                attr_entries.push(format!("{}: '{}'", name, value));
                             }
-                            attrs.push((name, format!("'{}'", value)));
                         }
+                        _ => {}
                     }
-                    _ => {}
                 }
+                Attribute::SpreadAttribute(spread) => {
+                    let expr_start = spread.expression.start().unwrap_or(0) as usize;
+                    let expr_end = spread.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let expr = self.source[expr_start..expr_end].trim().to_string();
+                        attr_entries.push(format!("...{}", expr));
+                    }
+                }
+                _ => {}
             }
         }
 
         // Check if this element has a class attribute
-        let has_class = attrs.iter().any(|(name, _)| name == "class");
+        let has_class = attr_entries.iter().any(|e| e.starts_with("class:"));
 
         // Get CSS hash for scoped elements - only if they have a class attribute
         let css_hash = if element.metadata.scoped && has_class {
@@ -2045,7 +2104,7 @@ impl<'a> ServerCodeGenerator<'a> {
             let is_rich = Self::is_rich_option_content(&element.fragment.nodes);
 
             self.output_parts.push(OutputPart::OptionElement {
-                attrs,
+                attr_entries,
                 body: Vec::new(),
                 is_rich,
                 direct_value: Some(expr_source),
@@ -2103,7 +2162,7 @@ impl<'a> ServerCodeGenerator<'a> {
         let is_rich = Self::is_rich_option_content(&element.fragment.nodes);
 
         self.output_parts.push(OutputPart::OptionElement {
-            attrs,
+            attr_entries,
             body: body_generator.output_parts,
             is_rich,
             direct_value: None,
@@ -3099,11 +3158,9 @@ impl<'a> ServerCodeGenerator<'a> {
                 || matches!(part, OutputPart::ComponentWithBindings { .. })
         });
 
-        // Extract props, spreads, and bindings
-        // Pre-allocate based on typical attribute counts
-        let attr_count = component.attributes.len();
-        let mut props = Vec::with_capacity(attr_count);
-        let mut spreads = Vec::with_capacity(2);
+        // Extract interleaved props/spreads and bindings
+        let mut props_and_spreads: Vec<ComponentPropItem> =
+            Vec::with_capacity(component.attributes.len());
         let mut bindings = Vec::with_capacity(2);
 
         for attr in &component.attributes {
@@ -3120,13 +3177,12 @@ impl<'a> ServerCodeGenerator<'a> {
                                     self.source[expr_start..expr_end].trim().to_string();
                                 // Check if it's a shorthand property (name equals expression)
                                 if expr_source == name && is_valid_js_identifier(name) {
-                                    props.push(name.to_string());
+                                    push_component_prop(&mut props_and_spreads, name.to_string());
                                 } else {
-                                    props.push(format!(
-                                        "{}: {}",
-                                        quote_prop_name(name),
-                                        expr_source
-                                    ));
+                                    push_component_prop(
+                                        &mut props_and_spreads,
+                                        format!("{}: {}", quote_prop_name(name), expr_source),
+                                    );
                                 }
                             }
                         }
@@ -3145,13 +3201,15 @@ impl<'a> ServerCodeGenerator<'a> {
                                         self.source[expr_start..expr_end].trim().to_string();
                                     // Check if it's a shorthand property (name equals expression)
                                     if expr_source == name && is_valid_js_identifier(name) {
-                                        props.push(name.to_string());
+                                        push_component_prop(
+                                            &mut props_and_spreads,
+                                            name.to_string(),
+                                        );
                                     } else {
-                                        props.push(format!(
-                                            "{}: {}",
-                                            quote_prop_name(name),
-                                            expr_source
-                                        ));
+                                        push_component_prop(
+                                            &mut props_and_spreads,
+                                            format!("{}: {}", quote_prop_name(name), expr_source),
+                                        );
                                     }
                                     continue;
                                 }
@@ -3187,15 +3245,24 @@ impl<'a> ServerCodeGenerator<'a> {
                             // Always add the prop (even for empty strings like foo='')
                             // Check if the value contains expressions
                             if has_expression {
-                                props.push(format!("{}: `{}`", quote_prop_name(name), value_str));
+                                push_component_prop(
+                                    &mut props_and_spreads,
+                                    format!("{}: `{}`", quote_prop_name(name), value_str),
+                                );
                             } else {
                                 // Simple string value (including empty strings)
-                                props.push(format!("{}: '{}'", quote_prop_name(name), value_str));
+                                push_component_prop(
+                                    &mut props_and_spreads,
+                                    format!("{}: '{}'", quote_prop_name(name), value_str),
+                                );
                             }
                         }
                         AttributeValue::True(_) => {
                             // Boolean attribute (e.g., disabled)
-                            props.push(format!("{}: true", quote_prop_name(name)));
+                            push_component_prop(
+                                &mut props_and_spreads,
+                                format!("{}: true", quote_prop_name(name)),
+                            );
                         }
                     }
                 }
@@ -3205,7 +3272,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     let expr_end = spread.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {
                         let expr = self.source[expr_start..expr_end].trim().to_string();
-                        spreads.push(expr);
+                        props_and_spreads.push(ComponentPropItem::Spread(expr));
                     }
                 }
                 Attribute::BindDirective(bind) => {
@@ -3241,8 +3308,7 @@ impl<'a> ServerCodeGenerator<'a> {
         if bindings.is_empty() {
             self.output_parts.push(OutputPart::Component {
                 name: comp_name,
-                props,
-                spreads,
+                props_and_spreads,
                 has_prior_content,
                 children,
                 snippets,
@@ -3252,8 +3318,7 @@ impl<'a> ServerCodeGenerator<'a> {
         } else {
             self.output_parts.push(OutputPart::ComponentWithBindings {
                 name: comp_name,
-                props,
-                spreads,
+                props_and_spreads,
                 bindings,
                 has_prior_content,
                 children,
@@ -4375,9 +4440,8 @@ impl<'a> ServerCodeGenerator<'a> {
             "null".to_string()
         };
 
-        // Build props and bindings from attributes (same approach as component_usage)
-        let mut props = Vec::new();
-        let mut spreads = Vec::new();
+        // Build interleaved props/spreads and bindings from attributes
+        let mut props_and_spreads: Vec<ComponentPropItem> = Vec::new();
         let mut bindings: Vec<(String, String)> = Vec::new();
         for attr in &elem.attributes {
             match attr {
@@ -4387,14 +4451,17 @@ impl<'a> ServerCodeGenerator<'a> {
                         continue;
                     }
                     let value = self.extract_attribute_value_as_string(node)?;
-                    props.push(format!("{}: {}", quote_prop_name(attr_name), value));
+                    push_component_prop(
+                        &mut props_and_spreads,
+                        format!("{}: {}", quote_prop_name(attr_name), value),
+                    );
                 }
                 Attribute::SpreadAttribute(spread) => {
                     let expr_start = spread.expression.start().unwrap_or(0) as usize;
                     let expr_end = spread.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {
                         let expr = self.source[expr_start..expr_end].trim().to_string();
-                        spreads.push(expr);
+                        props_and_spreads.push(ComponentPropItem::Spread(expr));
                     }
                 }
                 Attribute::BindDirective(bind) => {
@@ -4422,8 +4489,7 @@ impl<'a> ServerCodeGenerator<'a> {
         if bindings.is_empty() {
             self.output_parts.push(OutputPart::Component {
                 name: component_expr,
-                props,
-                spreads,
+                props_and_spreads,
                 has_prior_content: true,
                 children,
                 snippets,
@@ -4433,8 +4499,7 @@ impl<'a> ServerCodeGenerator<'a> {
         } else {
             self.output_parts.push(OutputPart::ComponentWithBindings {
                 name: component_expr,
-                props,
-                spreads,
+                props_and_spreads,
                 bindings,
                 has_prior_content: true,
                 children,
@@ -4449,9 +4514,8 @@ impl<'a> ServerCodeGenerator<'a> {
         // <svelte:self> renders as a call to the component function itself
         let comp_name = self.component_name.to_string();
 
-        // Build props and bindings from attributes (same as svelte:component)
-        let mut props = Vec::new();
-        let mut spreads = Vec::new();
+        // Build interleaved props/spreads and bindings from attributes
+        let mut props_and_spreads: Vec<ComponentPropItem> = Vec::new();
         let mut bindings: Vec<(String, String)> = Vec::new();
         for attr in &elem.attributes {
             match attr {
@@ -4461,14 +4525,17 @@ impl<'a> ServerCodeGenerator<'a> {
                         continue;
                     }
                     let value = self.extract_attribute_value_as_string(node)?;
-                    props.push(format!("{}: {}", quote_prop_name(attr_name), value));
+                    push_component_prop(
+                        &mut props_and_spreads,
+                        format!("{}: {}", quote_prop_name(attr_name), value),
+                    );
                 }
                 Attribute::SpreadAttribute(spread) => {
                     let expr_start = spread.expression.start().unwrap_or(0) as usize;
                     let expr_end = spread.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {
                         let expr = self.source[expr_start..expr_end].trim().to_string();
-                        spreads.push(expr);
+                        props_and_spreads.push(ComponentPropItem::Spread(expr));
                     }
                 }
                 Attribute::BindDirective(bind) => {
@@ -4495,8 +4562,7 @@ impl<'a> ServerCodeGenerator<'a> {
         if bindings.is_empty() {
             self.output_parts.push(OutputPart::Component {
                 name: comp_name,
-                props,
-                spreads,
+                props_and_spreads,
                 has_prior_content: true,
                 children,
                 snippets,
@@ -4506,8 +4572,7 @@ impl<'a> ServerCodeGenerator<'a> {
         } else {
             self.output_parts.push(OutputPart::ComponentWithBindings {
                 name: comp_name,
-                props,
-                spreads,
+                props_and_spreads,
                 bindings,
                 has_prior_content: true,
                 children,
@@ -5171,6 +5236,9 @@ impl<'a> ServerCodeGenerator<'a> {
             // This requires $$renderer.component() wrapper with destructuring
             let props_spread = detect_props_spread_pattern(&raw_script);
 
+            // Extract legacy reactive ($:) variable declarations before any transforms
+            let legacy_reactive_decl = extract_legacy_reactive_var_declaration(&raw_script);
+
             // Extract imports and transform the rest
             let (imports, rest) = extract_imports(&raw_script);
 
@@ -5178,6 +5246,13 @@ impl<'a> ServerCodeGenerator<'a> {
             let rest = transform_class_fields_server(&rest);
 
             let transformed = transform_script_content(&rest);
+
+            // Prepend legacy reactive variable declarations if any
+            let transformed = if legacy_reactive_decl.is_empty() {
+                transformed
+            } else {
+                format!("{}\n{}", legacy_reactive_decl, transformed)
+            };
 
             // Transform store subscriptions in script content ($store -> $.store_get())
             let transformed = self.transform_store_refs_in_script(&transformed);
@@ -5436,8 +5511,7 @@ export default function {component_name}($$renderer{props_param}) {{
                 }
                 OutputPart::ComponentWithBindings {
                     name,
-                    props,
-                    spreads,
+                    props_and_spreads,
                     bindings,
                     has_prior_content,
                     children: _, // TODO: Handle children for components with bindings
@@ -5469,23 +5543,30 @@ export default function {component_name}($$renderer{props_param}) {{
                     let call_syntax = if *dynamic { "?." } else { "" };
 
                     // Generate component call - use $.spread_props if spreads exist
-                    if !spreads.is_empty() {
+                    if has_spreads(props_and_spreads) {
                         body_code.push_str(&format!(
                             "{}{}{}($$renderer, $.spread_props([\n",
                             indent, name, call_syntax
                         ));
 
-                        // Add spread expressions first
-                        for spread in spreads {
-                            body_code.push_str(&format!("{}\t{},\n", indent, spread));
+                        // Add interleaved props and spreads in order
+                        for item in props_and_spreads {
+                            match item {
+                                ComponentPropItem::Props(props) => {
+                                    body_code.push_str(&format!(
+                                        "{}\t{{ {} }},\n",
+                                        indent,
+                                        props.join(", ")
+                                    ));
+                                }
+                                ComponentPropItem::Spread(expr) => {
+                                    body_code.push_str(&format!("{}\t{},\n", indent, expr));
+                                }
+                            }
                         }
 
-                        // Then add explicit props and bindings as an object
+                        // Add bindings as a final object
                         body_code.push_str(&format!("{}\t{{\n", indent));
-
-                        for prop in props {
-                            body_code.push_str(&format!("{}\t\t{},\n", indent, prop));
-                        }
 
                         let binding_count = bindings.len();
                         for (idx, (prop_name, var_name)) in bindings.iter().enumerate() {
@@ -5510,13 +5591,14 @@ export default function {component_name}($$renderer{props_param}) {{
                         body_code.push_str(&format!("{}]));\n", indent));
                     } else {
                         // No spreads, use simple object literal
+                        let all_props = collect_all_props(props_and_spreads);
                         body_code.push_str(&format!(
                             "{}{}{}($$renderer, {{\n",
                             indent, name, call_syntax
                         ));
 
                         // Regular props first
-                        for prop in props {
+                        for prop in &all_props {
                             body_code.push_str(&format!("{}\t{},\n", indent, prop));
                         }
 
@@ -5553,8 +5635,7 @@ export default function {component_name}($$renderer{props_param}) {{
                 }
                 OutputPart::Component {
                     name,
-                    props,
-                    spreads,
+                    props_and_spreads,
                     has_prior_content,
                     children,
                     snippets,
@@ -5584,7 +5665,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     // Check if we have snippets or children
                     let has_snippets = !snippets.is_empty();
                     let has_children = children.is_some();
-                    let has_spreads = !spreads.is_empty();
+                    let component_has_spreads = has_spreads(props_and_spreads);
 
                     // Use optional chaining for dynamic components
                     let call_syntax = if *dynamic { "?." } else { "" };
@@ -5628,7 +5709,7 @@ export default function {component_name}($$renderer{props_param}) {{
                             ));
 
                             // Collect all props including true snippet names
-                            let mut all_props: Vec<String> = props.clone();
+                            let mut all_props: Vec<String> = collect_all_props(props_and_spreads);
                             for (snippet_name, _, _, _) in &true_snippets {
                                 all_props.push(snippet_name.to_string());
                             }
@@ -5681,13 +5762,14 @@ export default function {component_name}($$renderer{props_param}) {{
                             body_code.push_str(&format!("{}}}\n", indent));
                         } else if has_slot_children && !has_children {
                             // Only named slot children (no default children, no true snippets)
+                            let all_props = collect_all_props(props_and_spreads);
                             body_code.push_str(&format!(
                                 "{}{}{}($$renderer, {{\n",
                                 indent, name, call_syntax
                             ));
 
                             // Props
-                            for prop in props {
+                            for prop in &all_props {
                                 body_code.push_str(&format!("{}\t{},\n", indent, prop));
                             }
 
@@ -5716,13 +5798,14 @@ export default function {component_name}($$renderer{props_param}) {{
                             body_code.push_str(&format!("{}}});\n", indent));
                         } else if let Some(children_parts) = children {
                             // Component with children (default slot) and possibly named slots
+                            let all_props = collect_all_props(props_and_spreads);
                             body_code.push_str(&format!(
                                 "{}{}{}($$renderer, {{\n",
                                 indent, name, call_syntax
                             ));
 
                             // Props
-                            for prop in props {
+                            for prop in &all_props {
                                 body_code.push_str(&format!("{}\t{},\n", indent, prop));
                             }
 
@@ -5770,19 +5853,28 @@ export default function {component_name}($$renderer{props_param}) {{
                             }
                             body_code.push_str(&format!("{}}});\n", indent));
                         }
-                    } else if has_spreads {
-                        // Has spread attributes - use $.spread_props
-                        let spread_args: Vec<String> = spreads.clone();
+                    } else if component_has_spreads {
+                        // Has spread attributes - use $.spread_props with interleaved items
+                        let spread_items: Vec<String> = props_and_spreads
+                            .iter()
+                            .map(|item| match item {
+                                ComponentPropItem::Props(props) => {
+                                    format!("{{ {} }}", props.join(", "))
+                                }
+                                ComponentPropItem::Spread(expr) => expr.clone(),
+                            })
+                            .collect();
                         body_code.push_str(&format!(
                             "{}{}{}($$renderer, $.spread_props([{}]));\n",
                             indent,
                             name,
                             call_syntax,
-                            spread_args.join(", ")
+                            spread_items.join(", ")
                         ));
                     } else {
                         // No children, no snippets, no spreads - simple call
-                        if props.is_empty() {
+                        let all_props = collect_all_props(props_and_spreads);
+                        if all_props.is_empty() {
                             body_code.push_str(&format!(
                                 "{}{}{}($$renderer, {{}});\n",
                                 indent, name, call_syntax
@@ -5793,7 +5885,7 @@ export default function {component_name}($$renderer{props_param}) {{
                                 indent,
                                 name,
                                 call_syntax,
-                                props.join(", ")
+                                all_props.join(", ")
                             ));
                         }
                     }
@@ -6085,7 +6177,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     }
                 }
                 OutputPart::OptionElement {
-                    attrs,
+                    attr_entries,
                     body,
                     is_rich,
                     direct_value,
@@ -6101,11 +6193,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     }
 
                     // Generate $$renderer.option() call
-                    let attrs_str = attrs
-                        .iter()
-                        .map(|(k, v)| format!("{}: {}", k, v))
-                        .collect::<Vec<_>>()
-                        .join(", ");
+                    let attrs_str = attr_entries.join(", ");
 
                     // If we have a direct value (from synthetic_value_node), pass it directly
                     if let Some(value_expr) = direct_value {
@@ -9600,4 +9688,299 @@ fn split_conditional_expression(s: &str) -> Option<(&str, &str, &str)> {
         }
     }
     None
+}
+
+/// Extract variable names from legacy reactive `$:` statements and generate
+/// a `let` declaration line for variables not already declared in the script.
+///
+/// For example, given:
+/// ```svelte
+/// export let a, b;
+/// $: c = a + b;
+/// $: cSquared = c * c;
+/// ```
+/// This returns `"\tlet c, cSquared;"` because `c` and `cSquared` are implicitly
+/// declared by the `$:` reactive statements.
+///
+/// Handles:
+/// - Simple assignments: `$: x = expr`
+/// - Array destructuring: `$: [x, y] = expr`
+/// - Object destructuring: `$: ({ a, b } = expr)`
+fn extract_legacy_reactive_var_declaration(script: &str) -> String {
+    let mut reactive_vars: Vec<String> = Vec::new();
+    let mut declared_vars: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    // First pass: collect all declared variables (let, var, const, export let/var/const)
+    for line in script.lines() {
+        let trimmed = line.trim();
+        // Skip $: lines - those are the reactive declarations we're looking for
+        if trimmed.starts_with("$:") {
+            continue;
+        }
+        collect_declared_vars(trimmed, &mut declared_vars);
+    }
+
+    // Second pass: find $: reactive assignments and extract variable names
+    for line in script.lines() {
+        let trimmed = line.trim();
+        if !trimmed.starts_with("$:") {
+            continue;
+        }
+        // Get the part after "$:"
+        let after_label = trimmed[2..].trim();
+
+        // Strip wrapping parentheses and trailing semicolons for destructuring patterns
+        // e.g., `({ answer } = numbers);` -> `{ answer } = numbers`
+        let after_label = after_label.trim_end_matches(';').trim();
+        let unwrapped = if after_label.starts_with('(') && after_label.ends_with(')') {
+            after_label[1..after_label.len() - 1].trim()
+        } else {
+            after_label
+        };
+
+        // Check for assignment: varName = expr or [x, y] = expr or { a } = expr
+        if let Some(eq_pos) = find_assignment_eq(unwrapped) {
+            let lhs = unwrapped[..eq_pos].trim();
+            extract_identifiers_from_pattern(lhs, &mut reactive_vars, &declared_vars);
+        }
+    }
+
+    if reactive_vars.is_empty() {
+        return String::new();
+    }
+
+    // Deduplicate while preserving order
+    let mut seen = std::collections::HashSet::new();
+    let unique_vars: Vec<&String> = reactive_vars
+        .iter()
+        .filter(|v| seen.insert(v.as_str().to_string()))
+        .collect();
+
+    format!(
+        "\tlet {};",
+        unique_vars
+            .iter()
+            .map(|s| s.as_str())
+            .collect::<Vec<_>>()
+            .join(", ")
+    )
+}
+
+/// Collect variable names declared with let, var, const, or export let/var/const.
+fn collect_declared_vars(trimmed: &str, declared: &mut std::collections::HashSet<String>) {
+    let decl_rest = trimmed
+        .strip_prefix("export let ")
+        .or_else(|| trimmed.strip_prefix("export var "))
+        .or_else(|| trimmed.strip_prefix("export const "))
+        .or_else(|| trimmed.strip_prefix("let "))
+        .or_else(|| trimmed.strip_prefix("var "))
+        .or_else(|| trimmed.strip_prefix("const "));
+
+    if let Some(rest) = decl_rest {
+        // Extract variable names from declaration (handle `let a, b, c = 1;`)
+        // Split by comma, but be careful of commas inside parentheses/brackets
+        let mut depth = 0;
+        let mut current = String::new();
+        for c in rest.chars() {
+            match c {
+                '(' | '[' | '{' => {
+                    depth += 1;
+                    current.push(c);
+                }
+                ')' | ']' | '}' => {
+                    depth -= 1;
+                    current.push(c);
+                }
+                ',' if depth == 0 => {
+                    extract_var_name_from_declarator(current.trim(), declared);
+                    current.clear();
+                }
+                ';' if depth == 0 => {
+                    extract_var_name_from_declarator(current.trim(), declared);
+                    current.clear();
+                    break;
+                }
+                _ => current.push(c),
+            }
+        }
+        let remaining = current.trim().trim_end_matches(';');
+        if !remaining.is_empty() {
+            extract_var_name_from_declarator(remaining, declared);
+        }
+    }
+}
+
+/// Extract the variable name from a declarator like "x = 1" or "x".
+fn extract_var_name_from_declarator(
+    declarator: &str,
+    declared: &mut std::collections::HashSet<String>,
+) {
+    let trimmed = declarator.trim();
+    if trimmed.is_empty() {
+        return;
+    }
+    // If it contains '=', take the part before '='
+    let name_part = if let Some(eq) = trimmed.find('=') {
+        trimmed[..eq].trim()
+    } else {
+        trimmed
+    };
+    // The name part should be a simple identifier
+    if is_simple_identifier(name_part) {
+        declared.insert(name_part.to_string());
+    }
+}
+
+/// Find the position of the assignment `=` operator in a string,
+/// skipping `==`, `===`, `=>`, `!=`, `<=`, `>=`, `+=`, `-=`, etc.
+/// Returns the position of the `=` sign that is a simple assignment.
+fn find_assignment_eq(s: &str) -> Option<usize> {
+    let chars: Vec<char> = s.chars().collect();
+    let mut i = 0;
+    let mut depth = 0;
+
+    while i < chars.len() {
+        match chars[i] {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            '=' if depth == 0 => {
+                // Check it's not ==, ===, =>, or preceded by !, <, >, +, -, *, /, %, &, |, ^, ?
+                let next = chars.get(i + 1).copied();
+                let prev = if i > 0 { Some(chars[i - 1]) } else { None };
+                if next == Some('=') || next == Some('>') {
+                    // Skip == or =>
+                    i += 2;
+                    continue;
+                }
+                if let Some(p) = prev
+                    && matches!(
+                        p,
+                        '!' | '<' | '>' | '+' | '-' | '*' | '/' | '%' | '&' | '|' | '^' | '?'
+                    )
+                {
+                    i += 1;
+                    continue;
+                }
+                return Some(i);
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Extract identifiers from the left-hand side of an assignment.
+/// Handles:
+/// - Simple identifier: `x`
+/// - Array destructuring: `[x, y]`
+/// - Object destructuring: `({ a, b })` or `{ a, b }`
+fn extract_identifiers_from_pattern(
+    pattern: &str,
+    vars: &mut Vec<String>,
+    declared: &std::collections::HashSet<String>,
+) {
+    let trimmed = pattern.trim();
+
+    if trimmed.is_empty() {
+        return;
+    }
+
+    // Simple identifier
+    if is_simple_identifier(trimmed) {
+        if !declared.contains(trimmed) {
+            vars.push(trimmed.to_string());
+        }
+        return;
+    }
+
+    // Array destructuring: [x, y, ...rest]
+    if trimmed.starts_with('[') && trimmed.ends_with(']') {
+        let inner = &trimmed[1..trimmed.len() - 1];
+        extract_destructured_names(inner, vars, declared);
+        return;
+    }
+
+    // Object destructuring: ({ a, b }) - wrapped in parens
+    if trimmed.starts_with('(') && trimmed.ends_with(')') {
+        let inner = trimmed[1..trimmed.len() - 1].trim();
+        if inner.starts_with('{') && inner.ends_with('}') {
+            let obj_inner = &inner[1..inner.len() - 1];
+            extract_destructured_names(obj_inner, vars, declared);
+        }
+        return;
+    }
+
+    // Object destructuring without parens: { a, b }
+    if trimmed.starts_with('{') && trimmed.ends_with('}') {
+        let inner = &trimmed[1..trimmed.len() - 1];
+        extract_destructured_names(inner, vars, declared);
+    }
+}
+
+/// Extract variable names from a comma-separated list of destructured names.
+/// Handles simple names, rest elements (...rest), and nested patterns.
+fn extract_destructured_names(
+    inner: &str,
+    vars: &mut Vec<String>,
+    declared: &std::collections::HashSet<String>,
+) {
+    let mut depth = 0;
+    let mut current = String::new();
+
+    for c in inner.chars() {
+        match c {
+            '(' | '[' | '{' => {
+                depth += 1;
+                current.push(c);
+            }
+            ')' | ']' | '}' => {
+                depth -= 1;
+                current.push(c);
+            }
+            ',' if depth == 0 => {
+                process_destructured_element(current.trim(), vars, declared);
+                current.clear();
+            }
+            _ => current.push(c),
+        }
+    }
+    let remaining = current.trim().to_string();
+    if !remaining.is_empty() {
+        process_destructured_element(&remaining, vars, declared);
+    }
+}
+
+/// Process a single element from a destructuring pattern.
+fn process_destructured_element(
+    element: &str,
+    vars: &mut Vec<String>,
+    declared: &std::collections::HashSet<String>,
+) {
+    let trimmed = element.trim();
+    if trimmed.is_empty() {
+        return;
+    }
+
+    // Rest element: ...rest
+    let name = if let Some(rest) = trimmed.strip_prefix("...") {
+        rest.trim()
+    } else if trimmed.contains(':') {
+        // Object property with rename: key: value
+        let parts: Vec<&str> = trimmed.splitn(2, ':').collect();
+        parts[1].trim()
+    } else {
+        trimmed
+    };
+
+    // Strip default value: name = default
+    let name = if let Some(eq) = name.find('=') {
+        name[..eq].trim()
+    } else {
+        name
+    };
+
+    if is_simple_identifier(name) && !declared.contains(name) {
+        vars.push(name.to_string());
+    }
 }
