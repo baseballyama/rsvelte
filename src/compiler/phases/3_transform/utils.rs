@@ -3,7 +3,7 @@
 //! Corresponds to utilities in:
 //! - `svelte/packages/svelte/src/compiler/phases/3-transform/utils.js`
 
-use crate::ast::template::{RegularElement, TemplateNode};
+use crate::ast::template::{Attribute, RegularElement, TemplateNode};
 use crate::compiler::phases::phase2_analyze::scope::Scope;
 use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
 use compact_str::CompactString;
@@ -108,10 +108,22 @@ pub fn clean_nodes(
     };
 
     // Determine is_standalone
+    // In a case like `{#if x}<Foo />{/if}`, we don't need to wrap the child in
+    // comments — we can just use the parent block's anchor for the component.
+    // But dynamic components/render tags need their own comment anchor because
+    // they use $.component()/$.snippet() which requires a stable anchor node.
     let is_standalone = trimmed.len() == 1
         && match &trimmed[0] {
-            TemplateNode::RenderTag(_) => true, // TODO: Check !metadata.dynamic
-            TemplateNode::Component(_) => true, // TODO: Check conditions
+            TemplateNode::RenderTag(render_tag) => !render_tag.metadata.dynamic,
+            TemplateNode::Component(comp) => {
+                // Not standalone if:
+                // - Component is dynamic (uses $derived or similar)
+                // - Component has CSS custom properties (--var attributes)
+                !comp.metadata.dynamic
+                    && !comp.attributes.iter().any(
+                        |attr| matches!(attr, Attribute::Attribute(a) if a.name.starts_with("--")),
+                    )
+            }
             _ => false,
         };
 
