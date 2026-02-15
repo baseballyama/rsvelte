@@ -9145,6 +9145,12 @@ fn transform_single_export_let(declaration: &str) -> String {
                     "let {} = $.fallback($$props['{}'], {});",
                     name, name, default_value
                 )
+            } else if let Some(fn_name) = is_no_arg_function_call(default_value) {
+                // Optimize: `identifier()` → `$.fallback(prop, identifier, true)`
+                format!(
+                    "let {} = $.fallback($$props['{}'], {}, true);",
+                    name, name, fn_name
+                )
             } else {
                 // Complex defaults need thunks
                 format!(
@@ -9269,6 +9275,18 @@ fn find_assignment_in_declarator(declarator: &str) -> Option<usize> {
         }
     }
 
+    None
+}
+
+/// Check if a default value is a no-argument function call like `template()`.
+/// Returns the function name for optimization: `$.fallback(prop, template, true)`
+fn is_no_arg_function_call(value: &str) -> Option<&str> {
+    let trimmed = value.trim();
+    if let Some(fn_name) = trimmed.strip_suffix("()")
+        && is_simple_identifier(fn_name)
+    {
+        return Some(fn_name);
+    }
     None
 }
 
