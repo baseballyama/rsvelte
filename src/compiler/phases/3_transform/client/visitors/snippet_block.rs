@@ -920,8 +920,22 @@ fn visit_fragment(frag: &Fragment, context: &mut ComponentContext) -> Vec<JsStat
     // Use the proper fragment visitor to handle all cases correctly
     use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment as fragment_visitor;
 
+    // Reset namespace to "html" before visiting the snippet body.
+    // Snippets define their own template scope, so the namespace should be
+    // determined by the snippet's content, not inherited from the parent context.
+    // For example, a snippet defined inside <svg> but containing <p>hello</p>
+    // should use $.from_html(), not $.from_svg().
+    // This matches the official Svelte compiler behavior where SnippetBlock triggers
+    // re-evaluation of namespace via check_nodes_for_namespace() in infer_namespace().
+    let saved_namespace =
+        std::mem::replace(&mut context.state.metadata.namespace, "html".to_string());
+
     // Snippet body needs is_root_fragment=true to get $.next() when text-first
     let block = fragment_visitor(frag, context, true);
+
+    // Restore the parent namespace
+    context.state.metadata.namespace = saved_namespace;
+
     block.body
 }
 

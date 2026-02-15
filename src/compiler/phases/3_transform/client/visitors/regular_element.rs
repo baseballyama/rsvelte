@@ -501,7 +501,7 @@ pub fn visit_regular_element(
                     )));
                 } else if name == "class" {
                     // Dynamic class attribute without class directives
-                    let is_html = context.state.metadata.namespace != "svg";
+                    let is_html = context.state.metadata.namespace == "html" && node.name != "svg";
                     let node_id = extract_node_id(&context.state.node);
                     build_set_class(
                         node,
@@ -580,7 +580,7 @@ pub fn visit_regular_element(
         // Handle class directives (with or without class attribute)
         if !class_directives.is_empty() {
             let node_id = extract_node_id(&context.state.node);
-            let is_html = context.state.metadata.namespace != "svg";
+            let is_html = context.state.metadata.namespace == "html" && node.name != "svg";
 
             // Get the class attribute value if it exists
             let class_attr_value = class_attribute.map(|attr| &attr.value);
