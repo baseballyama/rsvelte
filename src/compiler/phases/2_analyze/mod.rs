@@ -198,6 +198,20 @@ pub fn analyze_component(
         }
     }
 
+    // Compute maybe_runes: if we are not in runes mode but we have no reserved references
+    // ($$props, $$restProps) and no `export let` or `$:` reactive statements, we might be in
+    // a wannabe runes component that is using runes in an external module...we need to fallback
+    // to the runic behavior.
+    // Corresponds to Svelte's 2-analyze/index.js L488-510
+    if !analysis.runes
+        && options.runes != Some(false)
+        && !analysis.uses_props
+        && !analysis.uses_rest_props
+        && !instance_has_legacy_patterns(ast)
+    {
+        analysis.maybe_runes = true;
+    }
+
     // Legacy state promotion: In legacy mode (non-runes), if a binding is:
     // 1. kind === 'normal' with declaration_kind === 'let'
     // 2. updated (reassigned or mutated)
@@ -253,6 +267,80 @@ fn validate_script_attributes(
             analysis.warnings.push(warnings::script_unknown_attribute());
         }
     }
+}
+
+/// Check if the instance script body has legacy patterns (`$:` or `export let`).
+///
+/// Corresponds to the `instance.ast.body.some(...)` check in Svelte's
+/// 2-analyze/index.js L498-510
+fn instance_has_legacy_patterns(ast: &Root) -> bool {
+    let Some(ref instance) = ast.instance else {
+        return false;
+    };
+
+    let script_ast = instance.content.as_json();
+    let Some(body) = script_ast.get("body").and_then(|v| v.as_array()) else {
+        return false;
+    };
+
+    for node in body {
+        match node.get("type").and_then(|v| v.as_str()) {
+            Some("LabeledStatement") => return true,
+            Some("ExportNamedDeclaration") => {
+                // Check: export let x = ...
+                if let Some(decl) = node.get("declaration").filter(|d| !d.is_null())
+                    && decl.get("type").and_then(|v| v.as_str()) == Some("VariableDeclaration")
+                    && decl.get("kind").and_then(|v| v.as_str()) == Some("let")
+                {
+                    return true;
+                }
+                // Check: export { x } where x is declared with let
+                if let Some(specifiers) = node.get("specifiers").and_then(|v| v.as_array()) {
+                    for spec in specifiers {
+                        if let Some(name) = spec
+                            .get("local")
+                            .filter(|l| {
+                                l.get("type").and_then(|v| v.as_str()) == Some("Identifier")
+                            })
+                            .and_then(|l| l.get("name"))
+                            .and_then(|v| v.as_str())
+                            && body_has_let_declaration(body, name)
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    false
+}
+
+/// Check if the body contains a `let` declaration for the given name.
+fn body_has_let_declaration(body: &[serde_json::Value], name: &str) -> bool {
+    for node in body {
+        if node.get("type").and_then(|v| v.as_str()) != Some("VariableDeclaration") {
+            continue;
+        }
+        if node.get("kind").and_then(|v| v.as_str()) != Some("let") {
+            continue;
+        }
+        if let Some(decls) = node.get("declarations").and_then(|v| v.as_array()) {
+            for decl in decls {
+                if decl
+                    .get("id")
+                    .and_then(|id| id.get("name"))
+                    .and_then(|v| v.as_str())
+                    == Some(name)
+                {
+                    return true;
+                }
+            }
+        }
+    }
+    false
 }
 
 /// Process legacy mode exports.

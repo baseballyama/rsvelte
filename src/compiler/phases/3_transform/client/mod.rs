@@ -880,6 +880,7 @@ fn transform_instance_script_for_visitors(
     let (_script_imports, script_rest) = extract_imports(&script);
 
     // Collect state variables from analysis for $.get() wrapping
+    // LegacyReactive bindings (from `$: x = expr`) also need $.get()/$.set() transforms
     let mut state_vars: Vec<String> = analysis
         .root
         .bindings
@@ -887,7 +888,10 @@ fn transform_instance_script_for_visitors(
         .filter(|b| {
             matches!(
                 b.kind,
-                BindingKind::State | BindingKind::RawState | BindingKind::Derived
+                BindingKind::State
+                    | BindingKind::RawState
+                    | BindingKind::Derived
+                    | BindingKind::LegacyReactive
             )
         })
         .map(|b| b.name.clone())
