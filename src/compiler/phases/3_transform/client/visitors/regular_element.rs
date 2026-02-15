@@ -10,8 +10,8 @@
 
 use crate::ast::template::{
     AnimateDirective, AttachTag, Attribute, AttributeNode, AttributeValue, BindDirective, Fragment,
-    OnDirective, RegularElement as RegularElementNode, TemplateNode, TransitionDirective,
-    UseDirective,
+    LetDirective, OnDirective, RegularElement as RegularElementNode, TemplateNode,
+    TransitionDirective, UseDirective,
 };
 use crate::compiler::phases::phase3_transform::client::transform_template::Template;
 use crate::compiler::phases::phase3_transform::client::types::*;
@@ -39,6 +39,81 @@ use crate::compiler::phases::phase3_transform::utils::{
 };
 // Note: can_delegate_event and is_capture_event are used in attribute.rs for event delegation
 use rustc_hash::FxHashMap;
+
+/// Process let directives on a regular element (e.g., `<div slot="foo" let:thing>`).
+///
+/// Generates `$.derived_safe_equal` (legacy) or `$.derived` (runes) declarations
+/// and registers `$.get()` transforms for each let-bound variable.
+///
+/// Corresponds to LetDirective handling in RegularElement.js lines 115-118 and 207.
+fn process_element_let_directives(
+    let_directives: &[LetDirective],
+    context: &mut ComponentContext,
+) -> Vec<String> {
+    let mut let_bound_names: Vec<String> = Vec::new();
+
+    for let_dir in let_directives {
+        let prop_name = &let_dir.name;
+
+        // Check if expression is an Identifier or null (simple case)
+        let is_simple = match &let_dir.expression {
+            None => true,
+            Some(expr) => {
+                let crate::ast::js::Expression::Value(val) = expr;
+                if let serde_json::Value::Object(obj) = val {
+                    obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                } else {
+                    true
+                }
+            }
+        };
+
+        if is_simple {
+            let name = match &let_dir.expression {
+                Some(expr) => {
+                    let crate::ast::js::Expression::Value(val) = expr;
+                    if let serde_json::Value::Object(obj) = val {
+                        obj.get("name")
+                            .and_then(|n| n.as_str())
+                            .unwrap_or(prop_name)
+                            .to_string()
+                    } else {
+                        prop_name.to_string()
+                    }
+                }
+                None => prop_name.to_string(),
+            };
+
+            let_bound_names.push(name.clone());
+
+            let derived_fn = if context.state.analysis.runes {
+                "$.derived"
+            } else {
+                "$.derived_safe_equal"
+            };
+
+            context.state.init.push(JsStatement::Raw(format!(
+                "const {} = {}(() => $$slotProps.{});",
+                name, derived_fn, prop_name,
+            )));
+
+            context.state.transform.insert(
+                name.clone(),
+                crate::compiler::phases::phase3_transform::client::types::IdentifierTransform {
+                    read: Some(|node| b::call(b::member_path("$.get"), vec![node])),
+                    assign: None,
+                    mutate: None,
+                    update: None,
+                    skip_proxy: false,
+                    is_defined: false,
+                    is_reactive: true,
+                },
+            );
+        }
+    }
+
+    let_bound_names
+}
 
 /// Visit a regular element node.
 ///
@@ -85,6 +160,7 @@ pub fn visit_regular_element(
     let mut attributes = Vec::with_capacity(attr_count);
     let mut class_directives = Vec::with_capacity(4);
     let mut style_directives = Vec::with_capacity(4);
+    let mut element_let_directives: Vec<LetDirective> = Vec::new();
     let mut on_directives: Vec<OnDirective> = Vec::with_capacity(4);
     let mut transition_directives: Vec<TransitionDirective> = Vec::with_capacity(2);
     let mut animate_directives: Vec<AnimateDirective> = Vec::with_capacity(2);
@@ -151,9 +227,14 @@ pub fn visit_regular_element(
             Attribute::AttachTag(tag) => {
                 attach_tags.push(tag.clone());
             }
-            _ => {}
+            Attribute::LetDirective(dir) => {
+                element_let_directives.push(dir.clone());
+            }
         }
     }
+
+    // Process let directives (mirrors RegularElement.js line 207)
+    let let_bound_names = process_element_let_directives(&element_let_directives, context);
 
     // Check if value attribute needs special handling (option, select, or bindings)
     let needs_special_value_handling = node.name == "option"
@@ -975,6 +1056,11 @@ pub fn visit_regular_element(
 
     // Restore namespace after processing children
     context.state.metadata.namespace = saved_namespace;
+
+    // Clean up let directive transforms to avoid leaking into sibling/parent scopes
+    for name in &let_bound_names {
+        context.state.transform.remove(name);
+    }
 
     context.state.template.pop_element();
     TransformResult::None
