@@ -97,10 +97,10 @@ impl ScriptContent {
             raw
         };
 
-        let uses_runes = raw.contains("$state")
-            || raw.contains("$derived")
-            || raw.contains("$effect")
-            || raw.contains("$props");
+        let uses_runes = has_rune_text(&raw, "$state")
+            || has_rune_text(&raw, "$derived")
+            || has_rune_text(&raw, "$effect")
+            || has_rune_text(&raw, "$props");
 
         Self {
             raw,
@@ -109,6 +109,59 @@ impl ScriptContent {
             uses_runes,
         }
     }
+}
+
+/// Check if a rune name appears as a genuine rune usage in the source text.
+/// This avoids false positives from:
+/// - `$effect:` (labeled statement, not a rune call)
+/// - `$$props` (reserved identifier, `$props` is a substring)
+/// - Property names like `foo.$state`
+fn has_rune_text(raw: &str, rune_name: &str) -> bool {
+    let mut start = 0;
+    while let Some(pos) = raw[start..].find(rune_name) {
+        let abs_pos = start + pos;
+
+        // Check character before: must not be `$` or an identifier char
+        // This avoids matching `$$props` when searching for `$props`
+        if abs_pos > 0 {
+            let prev_char = raw.as_bytes()[abs_pos - 1];
+            if prev_char == b'$'
+                || prev_char.is_ascii_alphanumeric()
+                || prev_char == b'_'
+                || prev_char == b'.'
+            {
+                start = abs_pos + rune_name.len();
+                continue;
+            }
+        }
+
+        // Check character after: if it's just `:` followed by whitespace or end,
+        // it's a label, not a rune call
+        let after_pos = abs_pos + rune_name.len();
+        if after_pos < raw.len() {
+            let after_char = raw.as_bytes()[after_pos];
+            // If followed by alphanumeric or underscore, it's part of a longer identifier
+            if after_char.is_ascii_alphanumeric() || after_char == b'_' {
+                start = after_pos;
+                continue;
+            }
+            // If followed by `:` (and not `::` which doesn't apply to JS), it might be a label
+            // Labels look like `$effect: <statement>` or `$effect : <statement>`
+            // But we only skip if the colon is NOT part of a ternary or object literal
+            // For simplicity, we check: if it's `$effect:` at the top of a statement (no `(` before `:`)
+            if after_char == b':' {
+                // Check if this is a labeled statement pattern
+                // In a labeled statement, the label is `$effect:` without `(` before `:`
+                // This is a heuristic - we skip it as a potential label
+                start = after_pos + 1;
+                continue;
+            }
+        }
+
+        // Found a genuine rune reference
+        return true;
+    }
+    false
 }
 
 /// Strip TypeScript syntax from source code, producing valid JavaScript.
