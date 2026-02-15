@@ -5111,6 +5111,8 @@ impl<'a> ServerCodeGenerator<'a> {
             // Extract imports and transform the rest
             // Use extract_imports_module to keep `export { ... }` statements
             let (imports, rest) = extract_imports_module(&raw_script);
+            // Apply class field transformation for $derived fields in module-level classes
+            let rest = transform_class_fields_server(&rest);
             let transformed = transform_script_content_module(&rest);
 
             (imports, transformed)
@@ -7944,10 +7946,14 @@ fn add_statement_semicolon(line: &str) -> String {
 }
 
 /// Transform class fields with $derived runes for server-side.
+/// Handles both class-level field declarations and constructor-level assignments.
 /// Output order matches official Svelte compiler:
-/// 1. Non-$derived fields ($state, etc.)
-/// 2. $derived fields (private field + getter/setter)
-/// 3. Methods
+/// 1. Constructor-declared $derived backing fields + getter/setter (public only)
+/// 2. Constructor-declared $state backing fields (no getter/setter on server)
+/// 3. Class-level fields (non-$derived: $state stripped; $derived: $.derived() + getter/setter)
+/// 4. Constructor (with transformed assignments)
+/// 5. Methods (with private $derived field accesses transformed to calls)
+/// 6. Arrow function fields
 fn transform_class_fields_server(script: &str) -> String {
     // Check for $derived, $derived.by, $state, or $state.raw patterns in class
     if !script.contains("class ")
@@ -7990,47 +7996,53 @@ fn transform_class_fields_server(script: &str) -> String {
 
     let class_body = &script[class_body_start..class_body_end];
 
-    #[derive(Debug)]
+    // Represents a class member in original order
+    #[derive(Debug, Clone)]
+    enum ClassMember {
+        /// A field line (possibly transformed from $state/$derived)
+        Field(String),
+        /// A method/getter/setter/constructor (multi-line)
+        Method(Vec<String>),
+        /// An arrow function field (multi-line)
+        ArrowFn(Vec<String>),
+    }
+
+    #[derive(Debug, Clone)]
     struct DerivedField {
         name: String,
         is_private: bool,
-        value: String,
-        is_derived_by: bool,
+        constructor_declared: bool,
     }
 
+    let mut members: Vec<ClassMember> = Vec::new();
     let mut derived_fields: Vec<DerivedField> = Vec::new();
-    let mut field_lines: Vec<String> = Vec::new(); // Non-$derived fields
-    let mut method_lines: Vec<String> = Vec::new(); // Methods
-    let mut constructor_lines: Vec<String> = Vec::new();
-    let mut in_constructor = false;
-    let mut constructor_depth = 0;
-    let mut in_method = false;
-    let mut method_depth = 0;
-    let mut current_method: Vec<String> = Vec::new();
-    let mut has_state_fields = false; // Track if we've transformed any $state fields
+    let mut has_state_fields = false;
+
+    // Parsing state
+    let mut in_block = false;
+    let mut block_depth = 0;
+    let mut block_lines: Vec<String> = Vec::new();
+    let mut block_is_arrow_fn = false;
 
     for line in class_body.lines() {
         let trimmed = line.trim();
 
-        // Handle constructor
-        if trimmed.contains("constructor(") {
-            in_constructor = true;
-            constructor_lines.push(trimmed.to_string());
-            if trimmed.contains('{') {
-                constructor_depth = 1;
-            }
-            continue;
-        }
-
-        if in_constructor {
-            constructor_lines.push(trimmed.to_string());
+        // Continue accumulating multi-line blocks
+        if in_block {
+            block_lines.push(trimmed.to_string());
             for c in trimmed.chars() {
                 match c {
-                    '{' => constructor_depth += 1,
+                    '{' => block_depth += 1,
                     '}' => {
-                        constructor_depth -= 1;
-                        if constructor_depth == 0 {
-                            in_constructor = false;
+                        block_depth -= 1;
+                        if block_depth == 0 {
+                            in_block = false;
+                            if block_is_arrow_fn {
+                                members.push(ClassMember::ArrowFn(block_lines.clone()));
+                            } else {
+                                members.push(ClassMember::Method(block_lines.clone()));
+                            }
+                            block_lines.clear();
                         }
                     }
                     _ => {}
@@ -8039,17 +8051,59 @@ fn transform_class_fields_server(script: &str) -> String {
             continue;
         }
 
-        // Handle methods (including getters and setters)
-        if in_method {
-            current_method.push(trimmed.to_string());
+        // Skip empty lines
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        // Detect constructor
+        if trimmed.contains("constructor(") && !trimmed.contains('=') {
+            in_block = true;
+
+            block_is_arrow_fn = false;
+            block_depth = 0;
+            block_lines.clear();
+            block_lines.push(trimmed.to_string());
             for c in trimmed.chars() {
                 match c {
-                    '{' => method_depth += 1,
+                    '{' => block_depth += 1,
                     '}' => {
-                        method_depth -= 1;
-                        if method_depth == 0 {
-                            in_method = false;
-                            method_lines.append(&mut current_method);
+                        block_depth -= 1;
+                        if block_depth == 0 {
+                            in_block = false;
+                            members.push(ClassMember::Method(block_lines.clone()));
+                            block_lines.clear();
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            continue;
+        }
+
+        // Detect arrow function field: name = (...) => { or name = () => {
+        let is_arrow_fn_start = trimmed.contains('=')
+            && trimmed.contains("=>")
+            && trimmed.contains('{')
+            && !trimmed.contains("$derived")
+            && !trimmed.contains("$state");
+
+        if is_arrow_fn_start {
+            in_block = true;
+
+            block_is_arrow_fn = true;
+            block_depth = 0;
+            block_lines.clear();
+            block_lines.push(trimmed.to_string());
+            for c in trimmed.chars() {
+                match c {
+                    '{' => block_depth += 1,
+                    '}' => {
+                        block_depth -= 1;
+                        if block_depth == 0 {
+                            in_block = false;
+                            members.push(ClassMember::ArrowFn(block_lines.clone()));
+                            block_lines.clear();
                         }
                     }
                     _ => {}
@@ -8065,18 +8119,21 @@ fn transform_class_fields_server(script: &str) -> String {
             && !trimmed.starts_with("/*");
 
         if is_method_start {
-            in_method = true;
-            method_depth = 0;
-            current_method.clear();
-            current_method.push(trimmed.to_string());
+            in_block = true;
+
+            block_is_arrow_fn = false;
+            block_depth = 0;
+            block_lines.clear();
+            block_lines.push(trimmed.to_string());
             for c in trimmed.chars() {
                 match c {
-                    '{' => method_depth += 1,
+                    '{' => block_depth += 1,
                     '}' => {
-                        method_depth -= 1;
-                        if method_depth == 0 {
-                            in_method = false;
-                            method_lines.append(&mut current_method);
+                        block_depth -= 1;
+                        if block_depth == 0 {
+                            in_block = false;
+                            members.push(ClassMember::Method(block_lines.clone()));
+                            block_lines.clear();
                         }
                     }
                     _ => {}
@@ -8085,7 +8142,7 @@ fn transform_class_fields_server(script: &str) -> String {
             continue;
         }
 
-        // Handle $derived and $derived.by fields
+        // Handle $derived and $derived.by fields (class-level declarations)
         let is_derived_field = trimmed.contains("= $derived(")
             || trimmed.contains("=$derived(")
             || trimmed.contains("= $derived.by(")
@@ -8095,7 +8152,6 @@ fn transform_class_fields_server(script: &str) -> String {
             if let Some(eq_pos) = trimmed.find('=') {
                 let name = trimmed[..eq_pos].trim().trim_start_matches('#').to_string();
 
-                // Try $derived.by first (more specific pattern), then $derived
                 let (derived_pattern, is_derived_by) = if trimmed.contains("$derived.by(") {
                     ("$derived.by(", true)
                 } else {
@@ -8108,11 +8164,30 @@ fn transform_class_fields_server(script: &str) -> String {
 
                     if let Some(value_end) = find_matching_paren_server(after_paren) {
                         let value = after_paren[..value_end].to_string();
+                        let sanitized_name = sanitize_identifier(&name);
+                        let private_name = format!("#{}", sanitized_name);
+
+                        let value_str = value.trim();
+                        let wrapped_value = if value_str.starts_with('{') {
+                            format!("({})", value_str)
+                        } else {
+                            value_str.to_string()
+                        };
+
+                        // Transform: field = $derived(expr) -> #field = $.derived(() => expr)
+                        let transformed_line = if is_derived_by {
+                            format!("{} = $.derived({})", private_name, wrapped_value)
+                        } else {
+                            format!("{} = $.derived(() => {})", private_name, wrapped_value)
+                        };
+
+                        // Add transformed field in-place, getter/setter will be prepended later
+                        members.push(ClassMember::Field(transformed_line));
+
                         derived_fields.push(DerivedField {
                             name,
                             is_private,
-                            value,
-                            is_derived_by,
+                            constructor_declared: false,
                         });
                         continue;
                     }
@@ -8120,18 +8195,18 @@ fn transform_class_fields_server(script: &str) -> String {
             }
         }
 
-        // Handle $state and $state.raw fields
+        // Handle $state and $state.raw fields (class-level declarations)
         let is_state_field = trimmed.contains("= $state(")
             || trimmed.contains("=$state(")
             || trimmed.contains("= $state.raw(")
             || trimmed.contains("=$state.raw(");
         if is_state_field && let Some(eq_pos) = trimmed.find('=') {
-            // Try $state.raw first (more specific), then $state
             let (state_pattern, state_pos) = if let Some(pos) = trimmed.find("$state.raw(") {
                 ("$state.raw(", pos)
             } else if let Some(pos) = trimmed.find("$state(") {
                 ("$state(", pos)
             } else {
+                members.push(ClassMember::Field(trimmed.to_string()));
                 continue;
             };
             let field_name = trimmed[..eq_pos].trim();
@@ -8142,98 +8217,286 @@ fn transform_class_fields_server(script: &str) -> String {
                 let value = after_paren[..value_end].trim();
                 has_state_fields = true;
                 if value.is_empty() {
-                    // $state() with no argument -> just field declaration
-                    field_lines.push(format!("{};", field_name));
+                    members.push(ClassMember::Field(field_name.to_string()));
                 } else {
-                    // $state(value) -> field = value
-                    field_lines.push(format!("{} = {};", field_name, value));
+                    members.push(ClassMember::Field(format!("{} = {}", field_name, value)));
                 }
                 continue;
             }
         }
 
-        // Non-$derived, non-$state fields (regular fields)
-        if !trimmed.is_empty() {
-            field_lines.push(trimmed.to_string());
+        // Regular field
+        members.push(ClassMember::Field(trimmed.to_string()));
+    }
+
+    // Now scan constructor members for $derived/$state assignments
+    // and collect constructor-declared derived fields
+    for member in &mut members {
+        if let ClassMember::Method(lines) = member {
+            // Check if this is a constructor
+            if lines
+                .first()
+                .is_some_and(|l| l.trim().contains("constructor("))
+            {
+                let mut new_lines: Vec<String> = Vec::new();
+                for line in lines.iter() {
+                    let trimmed = line.trim();
+
+                    // Check for this.xxx = $derived(...) or this.xxx = $derived.by(...)
+                    if trimmed.starts_with("this.")
+                        && (trimmed.contains("= $derived(")
+                            || trimmed.contains("=$derived(")
+                            || trimmed.contains("= $derived.by(")
+                            || trimmed.contains("=$derived.by("))
+                        && let Some(eq_pos) = trimmed.find('=')
+                    {
+                        let lhs = trimmed[5..eq_pos].trim();
+                        let is_private = lhs.starts_with('#');
+                        let name = lhs.trim_start_matches('#').to_string();
+
+                        let (derived_pattern, is_derived_by) = if trimmed.contains("$derived.by(") {
+                            ("$derived.by(", true)
+                        } else {
+                            ("$derived(", false)
+                        };
+
+                        if let Some(derived_pos) = trimmed.find(derived_pattern) {
+                            let value_start = derived_pos + derived_pattern.len();
+                            let after_paren = &trimmed[value_start..];
+
+                            if let Some(value_end) = find_matching_paren_server(after_paren) {
+                                let value = after_paren[..value_end].to_string();
+                                let sanitized = sanitize_identifier(&name);
+                                let private_ref = format!("#{}", sanitized);
+
+                                let value_str = value.trim();
+                                let wrapped_value = if value_str.starts_with('{') {
+                                    format!("({})", value_str)
+                                } else {
+                                    value_str.to_string()
+                                };
+
+                                let rhs = if is_derived_by {
+                                    format!("$.derived({})", wrapped_value)
+                                } else {
+                                    format!("$.derived(() => {})", wrapped_value)
+                                };
+
+                                new_lines.push(format!("this.{} = {};", private_ref, rhs));
+
+                                derived_fields.push(DerivedField {
+                                    name,
+                                    is_private,
+                                    constructor_declared: true,
+                                });
+                                continue;
+                            }
+                        }
+                    }
+
+                    // Check for this.xxx = $state(...) or this.xxx = $state.raw(...)
+                    if trimmed.starts_with("this.")
+                        && (trimmed.contains("= $state(")
+                            || trimmed.contains("=$state(")
+                            || trimmed.contains("= $state.raw(")
+                            || trimmed.contains("=$state.raw("))
+                        && let Some(eq_pos) = trimmed.find('=')
+                    {
+                        let lhs = trimmed[5..eq_pos].trim();
+
+                        let (state_pattern, state_pos) =
+                            if let Some(pos) = trimmed.find("$state.raw(") {
+                                ("$state.raw(", pos)
+                            } else if let Some(pos) = trimmed.find("$state(") {
+                                ("$state(", pos)
+                            } else {
+                                new_lines.push(trimmed.to_string());
+                                continue;
+                            };
+
+                        let value_start = state_pos + state_pattern.len();
+                        let after_paren = &trimmed[value_start..];
+
+                        if let Some(value_end) = find_matching_paren_server(after_paren) {
+                            let value = after_paren[..value_end].trim();
+                            has_state_fields = true;
+
+                            if value.is_empty() {
+                                new_lines.push(format!("this.{} = void 0;", lhs));
+                            } else {
+                                new_lines.push(format!("this.{} = {};", lhs, value));
+                            }
+                            continue;
+                        }
+                    }
+
+                    new_lines.push(trimmed.to_string());
+                }
+                *lines = new_lines;
+            }
         }
     }
+
+    // Collect all private derived field names for member expression transformation
+    let derived_private_names: Vec<String> = derived_fields
+        .iter()
+        .map(|f| {
+            let sanitized = sanitize_identifier(&f.name);
+            format!("#{}", sanitized)
+        })
+        .collect();
 
     if derived_fields.is_empty() && !has_state_fields {
         return script.to_string();
     }
 
+    // Build the new class body, preserving original member order
     let mut new_class_body = String::new();
 
-    // 1. Output non-$derived fields first
-    for line in &field_lines {
-        new_class_body.push_str(&format!("\t\t{}\n", line));
-    }
-
-    // 2. Output $derived fields (private field + getter/setter)
-    for field in &derived_fields {
-        // Sanitize the name to ensure it's a valid identifier for the private field
-        // This handles numeric property names like "0", "1" which would be invalid as #0, #1
+    // First, prepend constructor-declared $derived backing fields + getter/setter
+    // These go BEFORE all original members (matches official compiler: ClassBody.js)
+    for field in derived_fields
+        .iter()
+        .filter(|f| f.constructor_declared && !f.is_private)
+    {
         let sanitized_name = sanitize_identifier(&field.name);
         let private_name = format!("#{}", sanitized_name);
 
-        // If the value starts with '{', wrap it in parentheses to avoid
-        // it being interpreted as a block statement instead of an object literal
-        let value_str = field.value.trim();
-        let wrapped_value = if value_str.starts_with('{') {
-            format!("({})", value_str)
-        } else {
-            value_str.to_string()
-        };
-
-        // For $derived.by, the value is already a function
-        // For $derived, we wrap it in an arrow function
-        if field.is_derived_by {
-            new_class_body.push_str(&format!(
-                "\t\t{} = $.derived({});\n",
-                private_name, wrapped_value
-            ));
-        } else {
-            new_class_body.push_str(&format!(
-                "\t\t{} = $.derived(() => {});\n",
-                private_name, wrapped_value
-            ));
-        }
-
-        if !field.is_private {
-            new_class_body.push('\n');
-            new_class_body.push_str(&format!(
-                "\t\tget {}() {{\n\t\t\treturn this.{}();\n\t\t}}\n",
-                field.name, private_name
-            ));
-            new_class_body.push('\n');
-            new_class_body.push_str(&format!(
-                "\t\tset {}($$value) {{\n\t\t\treturn this.{}($$value);\n\t\t}}\n",
-                field.name, private_name
-            ));
-        }
+        new_class_body.push_str(&format!("\t\t{};\n", private_name));
+        new_class_body.push('\n');
+        new_class_body.push_str(&format!(
+            "\t\tget {}() {{\n\t\t\treturn this.{}();\n\t\t}}\n",
+            field.name, private_name
+        ));
+        new_class_body.push('\n');
+        new_class_body.push_str(&format!(
+            "\t\tset {}($$value) {{\n\t\t\treturn this.{}($$value);\n\t\t}}\n",
+            field.name, private_name
+        ));
     }
 
-    // 3. Output constructor if present (before methods)
-    if !constructor_lines.is_empty() {
-        new_class_body.push('\n');
-        for line in &constructor_lines {
-            new_class_body.push_str(&format!("\t\t{}\n", line));
-        }
-    }
+    // Now output all members in their original order
+    for member in &members {
+        match member {
+            ClassMember::Field(line) => {
+                new_class_body.push_str(&format!("\t\t{}\n", line));
 
-    // 4. Output methods (after constructor)
-    for line in &method_lines {
-        new_class_body.push('\n');
-        new_class_body.push_str(&format!("\t\t{}\n", line));
+                // If this is a class-level derived field, add getter/setter right after
+                // Check if this field corresponds to a non-constructor derived field
+                for field in derived_fields
+                    .iter()
+                    .filter(|f| !f.constructor_declared && !f.is_private)
+                {
+                    let sanitized_name = sanitize_identifier(&field.name);
+                    let private_name = format!("#{}", sanitized_name);
+                    // Check if this field line is the transformed derived field
+                    if line.starts_with(&private_name) {
+                        new_class_body.push('\n');
+                        new_class_body.push_str(&format!(
+                            "\t\tget {}() {{\n\t\t\treturn this.{}();\n\t\t}}\n",
+                            field.name, private_name
+                        ));
+                        new_class_body.push('\n');
+                        new_class_body.push_str(&format!(
+                            "\t\tset {}($$value) {{\n\t\t\treturn this.{}($$value);\n\t\t}}\n",
+                            field.name, private_name
+                        ));
+                    }
+                }
+            }
+            ClassMember::Method(lines) => {
+                // Transform private derived field accesses in method bodies
+                let method_text = lines
+                    .iter()
+                    .map(|l| format!("\t\t{}", l))
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                let transformed =
+                    transform_private_derived_accesses_server(&method_text, &derived_private_names);
+                new_class_body.push('\n');
+                new_class_body.push_str(&transformed);
+                new_class_body.push('\n');
+            }
+            ClassMember::ArrowFn(lines) => {
+                new_class_body.push('\n');
+                for line in lines {
+                    new_class_body.push_str(&format!("\t\t{}\n", line));
+                }
+            }
+        }
     }
 
     let before_class = &script[..class_pos];
     let after_class_body = &script[class_body_end + 1..];
 
-    format!(
+    // Recursively process remaining classes in the script
+    let after_class_transformed = transform_class_fields_server(after_class_body);
+
+    let result = format!(
         "{}{}\n{}\t}}{}",
-        before_class, class_header, new_class_body, after_class_body
-    )
+        before_class, class_header, new_class_body, after_class_transformed
+    );
+
+    result
+}
+
+/// Transform private $derived field accesses in method bodies for server-side.
+/// On server, accessing a private $derived field should be a call:
+/// this.#doubled -> this.#doubled()
+/// self.#doubled -> self.#doubled()
+/// But NOT when it's already a call (this.#doubled() stays as-is)
+/// and NOT on the left side of assignment (this.#doubled = ... stays as-is)
+fn transform_private_derived_accesses_server(
+    code: &str,
+    derived_private_names: &[String],
+) -> String {
+    if derived_private_names.is_empty() {
+        return code.to_string();
+    }
+
+    let mut result = code.to_string();
+
+    for private_name in derived_private_names {
+        // Find all occurrences of .<private_name> and add () if not already called
+        let search_pattern = format!(".{}", private_name);
+        let mut new_result = String::new();
+        let mut remaining = result.as_str();
+
+        while let Some(pos) = remaining.find(&search_pattern) {
+            new_result.push_str(&remaining[..pos]);
+
+            let after_match = &remaining[pos + search_pattern.len()..];
+
+            // Check if next non-whitespace char is '(' - already a call
+            let next_non_ws = after_match.chars().find(|c| !c.is_whitespace());
+            let is_already_call = next_non_ws == Some('(');
+
+            // Check if next non-whitespace char is '=' (assignment target) but not '=='
+            let is_assignment = if let Some(eq_offset) = after_match.find('=') {
+                // Make sure everything before '=' is whitespace
+                let before_eq = &after_match[..eq_offset];
+                before_eq.chars().all(|c| c.is_whitespace())
+                    && after_match.chars().nth(eq_offset + 1) != Some('=')
+            } else {
+                false
+            };
+
+            if is_already_call || is_assignment {
+                new_result.push_str(&search_pattern);
+            } else {
+                // Add () to make it a call
+                new_result.push_str(&search_pattern);
+                new_result.push_str("()");
+            }
+
+            remaining = after_match;
+        }
+
+        new_result.push_str(remaining);
+        result = new_result;
+    }
+
+    result
 }
 
 fn find_matching_paren_server(s: &str) -> Option<usize> {

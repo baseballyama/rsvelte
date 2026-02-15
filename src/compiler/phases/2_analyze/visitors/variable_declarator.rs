@@ -390,8 +390,14 @@ fn process_props_object_pattern(
                         });
                         binding.kind = BindingKind::BindableProp;
                     } else {
-                        // Regular initial value - extract literal if possible
-                        binding.initial = extract_literal_string(init);
+                        // Regular initial value - extract literal if possible.
+                        // If extract_literal_string returns None (e.g., for identifier defaults
+                        // like `{children = snippet}`), still set initial to Some(...) so that
+                        // is_prop_source correctly identifies this as having a default value.
+                        // In the official Svelte, binding.initial is the AST node itself,
+                        // and is_prop_source checks truthiness (any value = has default).
+                        binding.initial =
+                            extract_literal_string(init).or_else(|| Some(init.to_string()));
                     }
                 } else {
                     binding.initial = None;

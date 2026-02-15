@@ -893,17 +893,6 @@ fn transform_instance_script_for_visitors(
         .map(|b| b.name.clone())
         .collect();
 
-    // DEBUG: Uncomment to print bindings info
-    // eprintln!("[DEBUG] All bindings:");
-    // for b in &analysis.root.bindings {
-    //     eprintln!(
-    //         "  - name: {}, kind: {:?}, reassigned: {}",
-    //         b.name, b.kind, b.reassigned
-    //     );
-    // }
-    // eprintln!("[DEBUG] state_vars: {:?}", state_vars);
-    // eprintln!("[DEBUG] immutable: {}", analysis.immutable);
-
     // Also scan for local $state and $derived declarations in the script
     // These are variables declared inside functions (like inside $effect callbacks)
     // that aren't tracked in analysis.root.bindings.
@@ -1569,10 +1558,17 @@ fn transform_client_runes_with_skip_and_state(
 
     // Transform $derived(x) to $.derived(() => x) or $.async_derived() for async
     // Handle destructuring patterns specially
-    if let Some(pos) = result.find("$derived(")
-        && !result[..pos].ends_with("$") // Skip if already transformed to $.derived()
-        && (result[..pos].contains("let ") || result[..pos].contains("const "))
-    {
+    // Loop to handle multiple $derived() calls in a single statement
+    // (e.g., inside a function body with multiple derived declarations)
+    while let Some(pos) = result.find("$derived(") {
+        if result[..pos].ends_with("$") {
+            // Already transformed to $.derived() - skip
+            break;
+        }
+        if !(result[..pos].contains("let ") || result[..pos].contains("const ")) {
+            break;
+        }
+
         // Check if this is a destructuring pattern
         let before_derived = result[..pos].trim();
         let has_destructuring = before_derived.contains('{') || before_derived.contains('[');
@@ -1591,11 +1587,11 @@ fn transform_client_runes_with_skip_and_state(
         if let Some(content_end) = find_matching_paren(&result[derived_start..]) {
             let content = &result[derived_start..derived_start + content_end];
             // Wrap in arrow function if not already a function
-            let trimmed = content.trim();
-            if !trimmed.starts_with("()") && !trimmed.starts_with("function") {
+            let trimmed_content = content.trim();
+            if !trimmed_content.starts_with("()") && !trimmed_content.starts_with("function") {
                 // Check if the derived expression contains await (async derived)
                 // Note: We need to check for await NOT inside an inner async function
-                let contains_direct_await = contains_direct_await_in_expression(trimmed);
+                let contains_direct_await = contains_direct_await_in_expression(trimmed_content);
 
                 // Wrap state variables inside the derived expression with $.get()
                 let wrapped_content =
@@ -1633,7 +1629,7 @@ fn transform_client_runes_with_skip_and_state(
                 // The content is already a function - check if it's async
                 // $derived(async () => { ... }) should become $.derived(() => async () => { ... })
                 // Note: returns the async function, NOT invokes it
-                if trimmed.starts_with("async ") {
+                if trimmed_content.starts_with("async ") {
                     // Wrap: $.derived(() => async () => {...})
                     let wrapped_content =
                         wrap_state_vars_in_expr(content, state_vars, non_reactive_vars, proxy_vars);
@@ -1650,6 +1646,7 @@ fn transform_client_runes_with_skip_and_state(
             }
         } else {
             result = result.replacen("$derived(", "$.derived(", 1);
+            break;
         }
     }
 
@@ -7305,6 +7302,429 @@ struct ClassStateField {
     constructor_declared: bool,
 }
 
+/// Helper to parse rune fields from a section of class body lines.
+/// Returns (fields, non_rune_lines).
+/// Handles multi-line field declarations (e.g., $derived.by(() => { ... })).
+#[allow(dead_code)]
+fn parse_rune_fields_from_section(section: &str) -> (Vec<ClassStateField>, Vec<String>) {
+    let mut fields = Vec::new();
+    let mut non_rune_lines = Vec::new();
+
+    let lines: Vec<&str> = section.lines().collect();
+    let mut i = 0;
+
+    while i < lines.len() {
+        let line = lines[i];
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            i += 1;
+            continue;
+        }
+
+        // Try to parse as a single-line rune field first
+        let rune_types = [
+            ("$state.raw", true),
+            ("$state.frozen", true),
+            ("$state", false),
+            ("$derived.by", true),
+            ("$derived", false),
+        ];
+
+        let mut parsed = false;
+        for &(rune_type, _is_compound) in &rune_types {
+            let pattern = format!("= {}(", rune_type);
+            let pattern_no_space = format!("={}(", rune_type);
+
+            let has_pattern = trimmed.contains(&pattern) || trimmed.contains(&pattern_no_space);
+            if !has_pattern {
+                continue;
+            }
+
+            // Skip if checking $state but it's actually $state.raw or $state.frozen
+            if rune_type == "$state"
+                && (trimmed.contains("$state.raw(")
+                    || trimmed.contains("$state.frozen(")
+                    || trimmed.contains("$state.frozen("))
+            {
+                continue;
+            }
+            // Skip if checking $derived but it's actually $derived.by
+            if rune_type == "$derived"
+                && (trimmed.contains("$derived.by(") || trimmed.contains("$derived.by("))
+            {
+                continue;
+            }
+
+            // Try single-line parse
+            if let Some(field) = parse_state_field(trimmed, rune_type) {
+                fields.push(field);
+                parsed = true;
+                break;
+            }
+
+            // Single-line parse failed - might be a multi-line expression
+            // Accumulate lines until parens are balanced
+            let mut accumulated = trimmed.to_string();
+            let mut j = i + 1;
+            while j < lines.len() {
+                accumulated.push('\n');
+                accumulated.push_str(lines[j].trim());
+                // Try parsing the accumulated content
+                if let Some(field) = parse_state_field(&accumulated, rune_type) {
+                    fields.push(field);
+                    parsed = true;
+                    i = j; // Skip all accumulated lines
+                    break;
+                }
+                j += 1;
+            }
+            if parsed {
+                break;
+            }
+        }
+
+        if !parsed {
+            non_rune_lines.push(line.to_string());
+        }
+        i += 1;
+    }
+
+    (fields, non_rune_lines)
+}
+
+/// Emit a transformed class field definition with optional getter/setter.
+fn emit_class_field(field: &ClassStateField, all_fields: &[ClassStateField]) -> String {
+    let mut output = String::new();
+    let private_name = format!("#{}", field.private_backing_name);
+
+    if field.constructor_declared {
+        output.push_str(&format!("\t\t{};\n", private_name));
+        if !field.is_private {
+            let is_derived = field.rune_type == "$derived" || field.rune_type == "$derived.by";
+            let is_raw = field.rune_type == "$state.raw" || field.rune_type == "$state.frozen";
+            output.push('\n');
+            output.push_str(&format!(
+                "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
+                field.name, private_name
+            ));
+            output.push('\n');
+            if is_derived || is_raw {
+                output.push_str(&format!(
+                    "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}\n",
+                    field.name, private_name
+                ));
+            } else {
+                output.push_str(&format!(
+                    "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value, true);\n\t\t}}\n",
+                    field.name, private_name
+                ));
+            }
+        }
+    } else if field.rune_type == "$state" {
+        let value_trimmed = field.value.trim();
+        let needs_proxy = !value_trimmed.is_empty() && expression_needs_proxy(value_trimmed);
+        let wrapped_value = if needs_proxy {
+            format!("$.proxy({})", field.value)
+        } else {
+            field.value.clone()
+        };
+        output.push_str(&format!(
+            "\t\t{} = $.state({});\n",
+            private_name, wrapped_value
+        ));
+        if !field.is_private {
+            let getter_name = format_getter_name(&field.name);
+            output.push('\n');
+            output.push_str(&format!(
+                "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
+                getter_name, private_name
+            ));
+            output.push('\n');
+            output.push_str(&format!(
+                "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value, true);\n\t\t}}\n",
+                getter_name, private_name
+            ));
+        }
+    } else if field.rune_type == "$state.raw" || field.rune_type == "$state.frozen" {
+        output.push_str(&format!(
+            "\t\t{} = $.state({});\n",
+            private_name, field.value
+        ));
+        if !field.is_private {
+            let getter_name = format_getter_name(&field.name);
+            output.push('\n');
+            output.push_str(&format!(
+                "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
+                getter_name, private_name
+            ));
+            output.push('\n');
+            output.push_str(&format!(
+                "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}\n",
+                getter_name, private_name
+            ));
+        }
+    } else if field.rune_type == "$derived" {
+        // Transform private field accesses inside the derived expression
+        let mut derived_expr = field.value.clone();
+        for f in all_fields {
+            if f.is_private {
+                let private_ref = format!("this.#{}", f.private_backing_name);
+                if derived_expr.contains(&private_ref) {
+                    let getter = format!("$.get(this.#{})", f.private_backing_name);
+                    derived_expr = derived_expr.replace(&private_ref, &getter);
+                }
+            }
+        }
+        let wrapped_value = format!("() => {}", derived_expr);
+        output.push_str(&format!(
+            "\t\t{} = $.derived({});\n",
+            private_name, wrapped_value
+        ));
+        if !field.is_private {
+            let getter_name = format_getter_name(&field.name);
+            output.push('\n');
+            output.push_str(&format!(
+                "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
+                getter_name, private_name
+            ));
+            output.push('\n');
+            output.push_str(&format!(
+                "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}\n",
+                getter_name, private_name
+            ));
+        }
+    } else if field.rune_type == "$derived.by" {
+        let mut derived_expr = field.value.clone();
+        for f in all_fields {
+            if f.is_private {
+                let private_ref = format!("this.#{}", f.private_backing_name);
+                if derived_expr.contains(&private_ref) {
+                    let getter = format!("$.get(this.#{})", f.private_backing_name);
+                    derived_expr = derived_expr.replace(&private_ref, &getter);
+                }
+            }
+        }
+        output.push_str(&format!(
+            "\t\t{} = $.derived({});\n",
+            private_name, derived_expr
+        ));
+        if !field.is_private {
+            let getter_name = format_getter_name(&field.name);
+            output.push('\n');
+            output.push_str(&format!(
+                "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
+                getter_name, private_name
+            ));
+            output.push('\n');
+            output.push_str(&format!(
+                "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}\n",
+                getter_name, private_name
+            ));
+        }
+    }
+
+    output
+}
+
+/// Extract a private identifier name from a line that may have a keyword prefix.
+fn extract_private_id_from_line(trimmed: &str) -> Option<String> {
+    if let Some(rest) = trimmed.strip_prefix('#') {
+        if let Some(end) = rest.find(['=', ';', '(', ' ']) {
+            let name = rest[..end].trim();
+            if !name.is_empty() {
+                return Some(name.to_string());
+            }
+        }
+        return None;
+    }
+    let prefixes = ["async ", "get ", "set ", "static ", "* "];
+    for prefix in &prefixes {
+        if let Some(rest) = trimmed.strip_prefix(prefix) {
+            let rest = rest.trim_start();
+            if let Some(rest) = rest.strip_prefix('#')
+                && let Some(end) = rest.find(['=', ';', '(', ' '])
+            {
+                let name = rest[..end].trim();
+                if !name.is_empty() {
+                    return Some(name.to_string());
+                }
+            }
+        }
+    }
+    if let Some(rest) = trimmed.strip_prefix("async") {
+        let rest = rest.trim_start();
+        if let Some(rest) = rest.strip_prefix('*') {
+            let rest = rest.trim_start();
+            if let Some(rest) = rest.strip_prefix('#')
+                && let Some(end) = rest.find(['=', ';', '(', ' '])
+            {
+                let name = rest[..end].trim();
+                if !name.is_empty() {
+                    return Some(name.to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Transform private field reads in constructor body.
+fn transform_constructor_private_reads(content: &str, fields: &[ClassStateField]) -> String {
+    let mut result = content.to_string();
+
+    for field in fields {
+        if !field.is_private {
+            continue;
+        }
+
+        let private_ref = format!("this.#{}", field.private_backing_name);
+
+        if field.rune_type == "$state"
+            || field.rune_type == "$state.raw"
+            || field.rune_type == "$state.frozen"
+        {
+            let mut search_from = 0;
+            let mut new_result = String::new();
+            let mut last_end = 0;
+
+            while let Some(pos) = result[search_from..].find(&private_ref) {
+                let abs_pos = search_from + pos;
+                let after_pos = abs_pos + private_ref.len();
+
+                let before = &result[..abs_pos];
+                if before.ends_with("$.set(")
+                    || before.ends_with("$.get(")
+                    || before.ends_with("$.state(")
+                    || before.ends_with("$.update(")
+                    || before.ends_with("$.update_pre(")
+                {
+                    search_from = after_pos;
+                    continue;
+                }
+
+                let next_char = if after_pos < result.len() {
+                    Some(result.as_bytes()[after_pos] as char)
+                } else {
+                    None
+                };
+
+                match next_char {
+                    Some(' ') => {
+                        if after_pos + 1 < result.len() && result.as_bytes()[after_pos + 1] == b'='
+                        {
+                            if after_pos + 2 < result.len()
+                                && result.as_bytes()[after_pos + 2] == b'='
+                            {
+                                // == comparison -> use .v
+                            } else {
+                                search_from = after_pos;
+                                continue;
+                            }
+                        }
+                    }
+                    Some('=') => {
+                        if after_pos + 1 < result.len() && result.as_bytes()[after_pos + 1] == b'='
+                        {
+                            // == comparison -> use .v
+                        } else {
+                            search_from = after_pos;
+                            continue;
+                        }
+                    }
+                    Some('.') => {
+                        search_from = after_pos;
+                        continue;
+                    }
+                    Some(c) if c.is_alphanumeric() || c == '_' => {
+                        search_from = after_pos;
+                        continue;
+                    }
+                    _ => {}
+                }
+
+                new_result.push_str(&result[last_end..after_pos]);
+                new_result.push_str(".v");
+                last_end = after_pos;
+                search_from = after_pos;
+            }
+
+            if last_end > 0 {
+                new_result.push_str(&result[last_end..]);
+                result = new_result;
+            }
+        } else if field.rune_type == "$derived" || field.rune_type == "$derived.by" {
+            let mut search_from = 0;
+            let mut new_result = String::new();
+            let mut last_end = 0;
+
+            while let Some(pos) = result[search_from..].find(&private_ref) {
+                let abs_pos = search_from + pos;
+                let after_pos = abs_pos + private_ref.len();
+
+                let before = &result[..abs_pos];
+                if before.ends_with("$.set(")
+                    || before.ends_with("$.get(")
+                    || before.ends_with("$.state(")
+                    || before.ends_with("$.derived(")
+                    || before.ends_with("$.update(")
+                    || before.ends_with("$.update_pre(")
+                {
+                    search_from = after_pos;
+                    continue;
+                }
+
+                let next_char = if after_pos < result.len() {
+                    Some(result.as_bytes()[after_pos] as char)
+                } else {
+                    None
+                };
+
+                match next_char {
+                    Some(' ') => {
+                        if after_pos + 1 < result.len() && result.as_bytes()[after_pos + 1] == b'='
+                        {
+                            if after_pos + 2 < result.len()
+                                && result.as_bytes()[after_pos + 2] == b'='
+                            {
+                                // comparison
+                            } else {
+                                search_from = after_pos;
+                                continue;
+                            }
+                        }
+                    }
+                    Some('=') => {
+                        if after_pos + 1 < result.len() && result.as_bytes()[after_pos + 1] == b'='
+                        {
+                            // comparison
+                        } else {
+                            search_from = after_pos;
+                            continue;
+                        }
+                    }
+                    Some(c) if c.is_alphanumeric() || c == '_' => {
+                        search_from = after_pos;
+                        continue;
+                    }
+                    _ => {}
+                }
+
+                new_result.push_str(&result[last_end..abs_pos]);
+                new_result.push_str(&format!("$.get({})", private_ref));
+                last_end = after_pos;
+                search_from = after_pos;
+            }
+
+            if last_end > 0 {
+                new_result.push_str(&result[last_end..]);
+                result = new_result;
+            }
+        }
+    }
+
+    result
+}
+
 /// Transform class fields with $state and $derived runes for client-side.
 fn transform_class_fields_client(script: &str) -> String {
     // Check if script contains a class with $state or $derived fields
@@ -7346,13 +7766,10 @@ fn transform_class_fields_client(script: &str) -> String {
 
     let class_body = &script[class_body_start..class_body_end];
 
-    // Parse class fields with $state and $derived
-    let mut fields: Vec<ClassStateField> = Vec::new();
+    // Parse constructor info
     let mut constructor_content = String::new();
     let mut constructor_params = String::new();
-    let mut constructor_start = None;
-
-    // Track the end position of the constructor (after the closing brace)
+    let mut constructor_start: Option<usize> = None;
     let mut constructor_end: Option<usize> = None;
 
     // Find constructor first
@@ -7379,8 +7796,8 @@ fn transform_class_fields_client(script: &str) -> String {
             constructor_params = after_ctor[params_start..params_end].to_string();
         }
 
-        if let Some(brace_pos) = after_ctor.find('{') {
-            let ctor_body_start = ctor_pos + brace_pos + 1;
+        if let Some(brace_pos_inner) = after_ctor.find('{') {
+            let ctor_body_start = ctor_pos + brace_pos_inner + 1;
             let mut depth = 1;
             let mut ctor_body_end = ctor_body_start;
 
@@ -7400,83 +7817,194 @@ fn transform_class_fields_client(script: &str) -> String {
 
             constructor_start = Some(ctor_pos);
             constructor_content = class_body[ctor_body_start..ctor_body_end].to_string();
-            // The constructor ends at the closing brace (position ctor_body_end + 1 to include the brace)
             constructor_end = Some(ctor_body_end + 1);
         }
     }
 
-    // Parse field definitions (before constructor)
-    let fields_section = if let Some(ctor_start) = constructor_start {
+    // Collect existing private identifiers to avoid conflicts
+    let mut existing_private_ids: Vec<String> = Vec::new();
+    for line in class_body.lines() {
+        let trimmed = line.trim();
+        if let Some(name) = extract_private_id_from_line(trimmed)
+            && !existing_private_ids.contains(&name)
+        {
+            existing_private_ids.push(name);
+        }
+    }
+
+    // Parse the entire class body into ordered members.
+    // Each member is either a rune field, a non-rune member block, or the constructor.
+    #[derive(Debug)]
+    enum ClassMember {
+        RuneField(usize), // index into fields vec
+        NonRune(String),  // raw text of the non-rune member(s)
+        Constructor,      // placeholder for the constructor position
+    }
+
+    let mut fields: Vec<ClassStateField> = Vec::new();
+    let mut members: Vec<ClassMember> = Vec::new();
+    // Track non-rune lines that might be plain field declarations for constructor fields
+    let mut non_rune_plain_field_names: Vec<(usize, String)> = Vec::new(); // (member_idx, field_name)
+
+    // Split class body into before-constructor and after-constructor sections
+    let before_ctor_section = if let Some(ctor_start) = constructor_start {
         &class_body[..ctor_start]
     } else {
         class_body
     };
+    let after_ctor_section = if let Some(ctor_end) = constructor_end {
+        &class_body[ctor_end..]
+    } else {
+        ""
+    };
 
-    // Collect existing private identifiers to avoid conflicts
-    // This includes #name fields and private methods
-    let mut existing_private_ids: Vec<String> = Vec::new();
-    for line in class_body.lines() {
-        let trimmed = line.trim();
-        // Match private field definitions: #name = ... or #name;
-        if trimmed.starts_with('#')
-            && let Some(end) = trimmed
-                .find('=')
-                .or_else(|| trimmed.find(';'))
-                .or_else(|| trimmed.find('('))
-        {
-            let name = trimmed[1..end].trim();
-            if !name.is_empty() && !existing_private_ids.contains(&name.to_string()) {
-                existing_private_ids.push(name.to_string());
+    // Parse members from a section of the class body (before or after constructor)
+    // Returns ordered list of members and appends fields to the fields vec
+    let parse_section_members =
+        |section: &str,
+         fields: &mut Vec<ClassStateField>,
+         members: &mut Vec<ClassMember>,
+         non_rune_plain_field_names: &mut Vec<(usize, String)>| {
+            let section_lines: Vec<&str> = section.lines().collect();
+            let mut si = 0;
+            let mut pending_non_rune: Vec<String> = Vec::new();
+
+            while si < section_lines.len() {
+                let line = section_lines[si];
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    si += 1;
+                    continue;
+                }
+
+                // Try to parse as a rune field
+                let rune_types_list = [
+                    ("$state.raw", true),
+                    ("$state.frozen", true),
+                    ("$state", false),
+                    ("$derived.by", true),
+                    ("$derived", false),
+                ];
+
+                let mut parsed_as_rune = false;
+                for &(rune_type, _) in &rune_types_list {
+                    let pattern_eq = format!("= {}(", rune_type);
+                    let pattern_nospace = format!("={}(", rune_type);
+                    let has_pattern =
+                        trimmed.contains(&pattern_eq) || trimmed.contains(&pattern_nospace);
+                    if !has_pattern {
+                        continue;
+                    }
+                    if rune_type == "$state"
+                        && (trimmed.contains("$state.raw(") || trimmed.contains("$state.frozen("))
+                    {
+                        continue;
+                    }
+                    if rune_type == "$derived" && trimmed.contains("$derived.by(") {
+                        continue;
+                    }
+
+                    // Try single-line parse
+                    if let Some(field) = parse_state_field(trimmed, rune_type) {
+                        // Flush pending non-rune lines
+                        if !pending_non_rune.is_empty() {
+                            let content = pending_non_rune.join("\n");
+                            members.push(ClassMember::NonRune(content));
+                            pending_non_rune.clear();
+                        }
+                        let field_idx = fields.len();
+                        fields.push(field);
+                        members.push(ClassMember::RuneField(field_idx));
+                        parsed_as_rune = true;
+                        break;
+                    }
+
+                    // Multi-line parse
+                    let mut accumulated = trimmed.to_string();
+                    let mut j = si + 1;
+                    while j < section_lines.len() {
+                        accumulated.push('\n');
+                        accumulated.push_str(section_lines[j].trim());
+                        if let Some(field) = parse_state_field(&accumulated, rune_type) {
+                            // Flush pending non-rune lines
+                            if !pending_non_rune.is_empty() {
+                                let content = pending_non_rune.join("\n");
+                                members.push(ClassMember::NonRune(content));
+                                pending_non_rune.clear();
+                            }
+                            let field_idx = fields.len();
+                            fields.push(field);
+                            members.push(ClassMember::RuneField(field_idx));
+                            parsed_as_rune = true;
+                            si = j; // Skip accumulated lines
+                            break;
+                        }
+                        j += 1;
+                    }
+                    if parsed_as_rune {
+                        break;
+                    }
+                }
+
+                if !parsed_as_rune {
+                    // Track plain field declarations for later removal by constructor fields
+                    let field_trimmed = trimmed.trim_end_matches(';').trim();
+                    if !field_trimmed.contains('(')
+                        && !field_trimmed.contains('{')
+                        && !field_trimmed.starts_with("//")
+                        && !field_trimmed.starts_with("/*")
+                    {
+                        // Flush current pending + this line, remember its member index
+                        if !pending_non_rune.is_empty() {
+                            let content = pending_non_rune.join("\n");
+                            members.push(ClassMember::NonRune(content));
+                            pending_non_rune.clear();
+                        }
+                        let member_idx = members.len();
+                        let name = field_trimmed.trim_start_matches('#').trim().to_string();
+                        if !name.is_empty()
+                            && name
+                                .chars()
+                                .next()
+                                .is_some_and(|c| c.is_alphabetic() || c == '_' || c == '$')
+                        {
+                            non_rune_plain_field_names.push((member_idx, name));
+                        }
+                        members.push(ClassMember::NonRune(line.to_string()));
+                    } else {
+                        pending_non_rune.push(line.to_string());
+                    }
+                }
+                si += 1;
             }
-        }
+
+            // Flush any remaining non-rune lines
+            if !pending_non_rune.is_empty() {
+                let content = pending_non_rune.join("\n");
+                members.push(ClassMember::NonRune(content));
+            }
+        };
+
+    // Parse before-constructor members
+    parse_section_members(
+        before_ctor_section,
+        &mut fields,
+        &mut members,
+        &mut non_rune_plain_field_names,
+    );
+
+    // Add constructor marker
+    if constructor_start.is_some() {
+        members.push(ClassMember::Constructor);
     }
 
-    // Parse each line for field definitions
-    // Also track non-rune fields that need to be preserved
-    let mut non_rune_fields: Vec<String> = Vec::new();
-
-    for line in fields_section.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        // Check for $state.raw field first (must check before $state to avoid false match)
-        // $state.raw() should NOT get $.proxy() wrapping
-        if trimmed.contains("= $state.raw(") || trimmed.contains("=$state.raw(") {
-            if let Some(field) = parse_state_field(trimmed, "$state.raw") {
-                fields.push(field);
-            }
-        }
-        // Check for $state.frozen field (similar to $state.raw)
-        else if trimmed.contains("= $state.frozen(") || trimmed.contains("=$state.frozen(") {
-            if let Some(field) = parse_state_field(trimmed, "$state.frozen") {
-                fields.push(field);
-            }
-        }
-        // Check for $state field: name = $state(...) or #name = $state(...)
-        else if trimmed.contains("= $state(") || trimmed.contains("=$state(") {
-            if let Some(field) = parse_state_field(trimmed, "$state") {
-                fields.push(field);
-            }
-        }
-        // Check for $derived.by field first (must check before $derived to avoid false match)
-        else if (trimmed.contains("= $derived.by(") || trimmed.contains("=$derived.by("))
-            && let Some(field) = parse_state_field(trimmed, "$derived.by")
-        {
-            fields.push(field);
-        }
-        // Check for $derived field: name = $derived(...) or #name = $derived(...)
-        else if (trimmed.contains("= $derived(") || trimmed.contains("=$derived("))
-            && let Some(field) = parse_state_field(trimmed, "$derived")
-        {
-            fields.push(field);
-        }
-        // Preserve non-rune class members (private fields, regular fields, etc.)
-        else {
-            non_rune_fields.push(line.to_string());
-        }
-    }
+    // Parse after-constructor members
+    parse_section_members(
+        after_ctor_section,
+        &mut fields,
+        &mut members,
+        &mut non_rune_plain_field_names,
+    );
 
     // Scan constructor body for constructor-declared state/derived assignments
     if !constructor_content.is_empty() {
@@ -7486,25 +8014,42 @@ fn transform_class_fields_client(script: &str) -> String {
                 continue;
             }
             if let Some(field) = parse_constructor_state_assignment(trimmed, &fields) {
-                let field_name_plain = field.name.clone();
-                let field_name_private = format!("#{}", field.name);
-                let mut indices_to_remove = Vec::new();
-                for (i, nrf_line) in non_rune_fields.iter().enumerate() {
-                    let t = nrf_line.trim().trim_end_matches(';').trim();
-                    if t == field_name_plain || t == field_name_private {
-                        indices_to_remove.push(i);
-                        if i > 0 {
-                            let prev = non_rune_fields[i - 1].trim();
-                            if prev.starts_with("/**") && prev.ends_with("*/") {
-                                indices_to_remove.push(i - 1);
-                            }
+                let field_name = field.name.clone();
+                // Remove plain field declarations from members that match this constructor field
+                let mut indices_to_remove: Vec<usize> = Vec::new();
+                for &(member_idx, ref name) in &non_rune_plain_field_names {
+                    if *name == field_name {
+                        indices_to_remove.push(member_idx);
+                    }
+                }
+                // Also check for # prefixed plain declarations
+                for (mi, m) in members.iter().enumerate() {
+                    if let ClassMember::NonRune(text) = m {
+                        let t = text.trim().trim_end_matches(';').trim();
+                        let t_no_hash = t.trim_start_matches('#').trim();
+                        if t_no_hash == field_name && !indices_to_remove.contains(&mi) {
+                            indices_to_remove.push(mi);
                         }
                     }
                 }
-                indices_to_remove.sort();
-                indices_to_remove.dedup();
-                for idx in indices_to_remove.into_iter().rev() {
-                    non_rune_fields.remove(idx);
+                // Remove matching plain declarations (replace with empty NonRune)
+                // Also remove preceding JSDoc/comment blocks
+                for idx in &indices_to_remove {
+                    if *idx < members.len() {
+                        members[*idx] = ClassMember::NonRune(String::new());
+                        // Remove preceding comment/JSDoc member if it exists
+                        if *idx > 0
+                            && let ClassMember::NonRune(prev_text) = &members[*idx - 1]
+                        {
+                            let prev_trimmed = prev_text.trim();
+                            if prev_trimmed.starts_with("/*")
+                                || prev_trimmed.starts_with("//")
+                                || prev_trimmed.starts_with("/**")
+                            {
+                                members[*idx - 1] = ClassMember::NonRune(String::new());
+                            }
+                        }
+                    }
                 }
                 fields.push(field);
             }
@@ -7516,12 +8061,8 @@ fn transform_class_fields_client(script: &str) -> String {
     }
 
     // Deconflict private backing names for public fields
-    // If a public field "count" exists and there's already a "#count" private field,
-    // rename the backing field to "#_count" (prepend _ until unique)
-    // Note: We start from the already-sanitized private_backing_name, not field.name
     for field in &mut fields {
         if !field.is_private {
-            // Start with the already-sanitized name (handles numeric names like "0" -> "_")
             let mut deconflicted = field.private_backing_name.clone();
             while existing_private_ids.contains(&deconflicted) {
                 deconflicted = format!("_{}", deconflicted);
@@ -7531,213 +8072,61 @@ fn transform_class_fields_client(script: &str) -> String {
         }
     }
 
-    // Sort constructor-declared fields: public fields (needing getters/setters) first,
-    // then private-only fields. This matches the official compiler's ClassBody.js output.
-    // Within each group, preserve the original order.
-    {
-        let mut ctor_public: Vec<ClassStateField> = Vec::new();
-        let mut ctor_private: Vec<ClassStateField> = Vec::new();
-        let mut class_level: Vec<ClassStateField> = Vec::new();
-        for field in fields.drain(..) {
-            if field.constructor_declared && !field.is_private {
-                ctor_public.push(field);
-            } else if field.constructor_declared && field.is_private {
-                ctor_private.push(field);
-            } else {
-                class_level.push(field);
-            }
-        }
-        // Constructor-declared public fields first (need backing field + getter/setter at top),
-        // then class-level fields (in original order), then constructor-declared private fields
-        fields.extend(ctor_public);
-        fields.extend(class_level);
-        fields.extend(ctor_private);
-    }
-
-    // Build transformed class body
+    // Build transformed class body preserving original member order
     let mut new_class_body = String::new();
 
+    // 1. Emit constructor-declared fields at the top of the class
+    // Public fields (with getter/setter) come first, then private fields (just backing)
+    // This matches the official Svelte compiler output order.
     for field in &fields {
-        // Use the deconflicted private backing name (may have _ prefix for public fields)
-        let private_name = format!("#{}", field.private_backing_name);
+        if field.constructor_declared && !field.is_private {
+            new_class_body.push_str(&emit_class_field(field, &fields));
+        }
+    }
+    for field in &fields {
+        if field.constructor_declared && field.is_private {
+            new_class_body.push_str(&emit_class_field(field, &fields));
+        }
+    }
 
-        if field.constructor_declared {
-            // Constructor-declared: emit only #name; at class level
-            new_class_body.push_str(&format!("\t\t{};\n", private_name));
-            if !field.is_private {
-                let is_derived = field.rune_type == "$derived" || field.rune_type == "$derived.by";
-                let is_raw = field.rune_type == "$state.raw" || field.rune_type == "$state.frozen";
-                new_class_body.push('\n');
-                new_class_body.push_str(&format!(
-                    "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
-                    field.name, private_name
-                ));
-                new_class_body.push('\n');
-                if is_derived || is_raw {
-                    new_class_body.push_str(&format!(
-                        "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}\n",
-                        field.name, private_name
-                    ));
-                } else {
-                    new_class_body.push_str(&format!(
-                        "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value, true);\n\t\t}}\n",
-                        field.name, private_name
-                    ));
+    // 2. Emit members in original order
+    for member in &members {
+        match member {
+            ClassMember::RuneField(field_idx) => {
+                let field = &fields[*field_idx];
+                new_class_body.push_str(&emit_class_field(field, &fields));
+            }
+            ClassMember::NonRune(text) => {
+                if text.trim().is_empty() {
+                    continue;
+                }
+                let transformed = transform_class_methods(text, &fields);
+                for line in transformed.lines() {
+                    new_class_body.push_str(line);
+                    new_class_body.push('\n');
                 }
             }
-        } else if field.rune_type == "$state" {
-            // Transform $state: #name = $.state(value) or $.state($.proxy(value)) for objects/arrays
-            // Check if the value needs $.proxy() wrapping
-            let value_trimmed = field.value.trim();
-            let needs_proxy = !value_trimmed.is_empty() && expression_needs_proxy(value_trimmed);
-
-            let wrapped_value = if needs_proxy {
-                format!("$.proxy({})", field.value)
-            } else {
-                field.value.clone()
-            };
-
-            new_class_body.push_str(&format!(
-                "\t\t{} = $.state({});\n",
-                private_name, wrapped_value
-            ));
-
-            // Add getter/setter only for public fields
-            if !field.is_private {
-                let getter_name = format_getter_name(&field.name);
+            ClassMember::Constructor => {
                 new_class_body.push('\n');
-                new_class_body.push_str(&format!(
-                    "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
-                    getter_name, private_name
-                ));
-                new_class_body.push('\n');
-                new_class_body.push_str(&format!(
-                    "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value, true);\n\t\t}}\n",
-                    getter_name, private_name
-                ));
-            }
-        } else if field.rune_type == "$state.raw" || field.rune_type == "$state.frozen" {
-            // Transform $state.raw/$state.frozen: #name = $.state(value) - NO $.proxy() wrapping
-            // These runes explicitly opt out of deep reactivity
-            new_class_body.push_str(&format!(
-                "\t\t{} = $.state({});\n",
-                private_name, field.value
-            ));
+                new_class_body.push_str(&format!("\t\tconstructor({}) {{\n", constructor_params));
 
-            // Add getter/setter only for public fields
-            // Note: setter should NOT have the third argument (true) for raw state
-            if !field.is_private {
-                let getter_name = format_getter_name(&field.name);
-                new_class_body.push('\n');
-                new_class_body.push_str(&format!(
-                    "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
-                    getter_name, private_name
-                ));
-                new_class_body.push('\n');
-                new_class_body.push_str(&format!(
-                    "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}\n",
-                    getter_name, private_name
-                ));
-            }
-        } else if field.rune_type == "$derived" {
-            // Transform $derived: #name = $.derived(() => (value))
-            let wrapped_value = format!("() => {}", field.value);
-            new_class_body.push_str(&format!(
-                "\t\t{} = $.derived({});\n",
-                private_name, wrapped_value
-            ));
+                let mut ctor_body = String::new();
+                for line in constructor_content.lines() {
+                    let trimmed = line.trim();
+                    if trimmed.is_empty() {
+                        continue;
+                    }
 
-            // Add getter/setter only for public fields
-            if !field.is_private {
-                let getter_name = format_getter_name(&field.name);
-                new_class_body.push('\n');
-                new_class_body.push_str(&format!(
-                    "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
-                    getter_name, private_name
-                ));
-                new_class_body.push('\n');
-                new_class_body.push_str(&format!(
-                    "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}\n",
-                    getter_name, private_name
-                ));
-            }
-        } else if field.rune_type == "$derived.by" {
-            // Transform $derived.by: #name = $.derived(callback)
-            // $derived.by already has a callback, so pass it directly
-            new_class_body.push_str(&format!(
-                "\t\t{} = $.derived({});\n",
-                private_name, field.value
-            ));
+                    let transformed_line = transform_constructor_assignment(trimmed, &fields);
+                    ctor_body.push_str(&format!("\t\t\t{}\n", transformed_line));
+                }
 
-            // Add getter/setter only for public fields
-            if !field.is_private {
-                let getter_name = format_getter_name(&field.name);
-                new_class_body.push('\n');
-                new_class_body.push_str(&format!(
-                    "\t\tget {}() {{\n\t\t\treturn $.get(this.{});\n\t\t}}\n",
-                    getter_name, private_name
-                ));
-                new_class_body.push('\n');
-                new_class_body.push_str(&format!(
-                    "\t\tset {}(value) {{\n\t\t\t$.set(this.{}, value);\n\t\t}}\n",
-                    getter_name, private_name
-                ));
-            }
-        }
-    }
+                let ctor_transformed = transform_class_methods_non_this(&ctor_body, &fields);
+                let ctor_transformed =
+                    transform_constructor_private_reads(&ctor_transformed, &fields);
+                new_class_body.push_str(&ctor_transformed);
 
-    // Add non-rune fields (private fields, regular fields without $state/$derived)
-    // These need to be transformed for private state field accesses ($.get/$.set)
-    {
-        let non_rune_content = non_rune_fields.join("\n");
-        let transformed_non_rune = transform_class_methods(&non_rune_content, &fields);
-        for line in transformed_non_rune.lines() {
-            new_class_body.push_str(line);
-            new_class_body.push('\n');
-        }
-    }
-
-    // Add constructor with transformed assignments
-    if constructor_start.is_some() {
-        new_class_body.push('\n');
-        new_class_body.push_str(&format!("\t\tconstructor({}) {{\n", constructor_params));
-
-        // Transform constructor content - first apply this.#name transforms
-        let mut ctor_body = String::new();
-        for line in constructor_content.lines() {
-            let trimmed = line.trim();
-            if trimmed.is_empty() {
-                continue;
-            }
-
-            let transformed_line = transform_constructor_assignment(trimmed, &fields);
-            ctor_body.push_str(&format!("\t\t\t{}\n", transformed_line));
-        }
-
-        // Also apply transforms for non-this prefixes (e.g., instance.#count, self.#name)
-        let ctor_transformed = transform_class_methods_non_this(&ctor_body, &fields);
-        new_class_body.push_str(&ctor_transformed);
-
-        new_class_body.push_str("\t\t}\n");
-    }
-
-    // Add methods and other class members that come after the constructor
-    // (e.g., inc(), get a(), get b(), get c())
-    if let Some(ctor_end) = constructor_end {
-        let rest_of_class = &class_body[ctor_end..];
-        let transformed_rest = transform_class_methods(rest_of_class, &fields);
-        if !transformed_rest.trim().is_empty() {
-            new_class_body.push_str(&transformed_rest);
-        }
-    } else if constructor_start.is_none() && !fields.is_empty() {
-        // No constructor, but we have fields - there may be methods after the fields
-        // Find where the fields end and include the rest
-        let last_field_line = fields_section.rfind('\n').map(|p| p + 1).unwrap_or(0);
-        if last_field_line < class_body.len() {
-            let rest_of_class = &class_body[fields_section.len()..];
-            let transformed_rest = transform_class_methods(rest_of_class, &fields);
-            if !transformed_rest.trim().is_empty() {
-                new_class_body.push_str(&transformed_rest);
+                new_class_body.push_str("\t\t}\n");
             }
         }
     }
@@ -7749,10 +8138,25 @@ fn transform_class_fields_client(script: &str) -> String {
     // Recursively process remaining classes in the script
     let after_class_transformed = transform_class_fields_client(after_class_body);
 
-    format!(
-        "{}{}\n{}\t}}{}",
-        before_class, class_header, new_class_body, after_class_transformed
-    )
+    // Check if this is a `new class ...` expression that needs wrapping
+    // `new class Foo { ... }` -> `new (class Foo { ... })()`
+    let before_trimmed = before_class.trim_end();
+    let is_new_class = before_trimmed.ends_with("new");
+
+    if is_new_class {
+        // Trim "new" from before_class and wrap the class in (...)()
+        let new_pos = before_class.rfind("new").unwrap();
+        let before_new = &before_class[..new_pos];
+        format!(
+            "{}new ({}\n{}\t}})(){}",
+            before_new, class_header, new_class_body, after_class_transformed
+        )
+    } else {
+        format!(
+            "{}{}\n{}\t}}{}",
+            before_class, class_header, new_class_body, after_class_transformed
+        )
+    }
 }
 
 /// Sanitize a name to be a valid JavaScript identifier.
@@ -7846,20 +8250,47 @@ fn parse_state_field(line: &str, rune_type: &str) -> Option<ClassStateField> {
     })
 }
 
-/// Parse a constructor state assignment like `this.name = $state(...)`.
+/// Parse a constructor state assignment like `this.name = $state(...)` or `this[n] = $state(...)`.
 fn parse_constructor_state_assignment(
     line: &str,
     existing_fields: &[ClassStateField],
 ) -> Option<ClassStateField> {
     let trimmed = line.trim().trim_end_matches(';');
-    if !trimmed.starts_with("this.") {
+
+    let (is_private, name) = if trimmed.starts_with("this.") {
+        // Handle `this.name = $state(...)` or `this.#name = $state(...)`
+        let eq_pos = trimmed.find(" = ")?;
+        let field_part = &trimmed[5..eq_pos];
+        let is_priv = field_part.starts_with('#');
+        let n = field_part.trim_start_matches('#').to_string();
+        (is_priv, n)
+    } else if trimmed.starts_with("this[") {
+        // Handle `this[n] = $state(...)` (bracket notation)
+        let bracket_end = trimmed.find(']')?;
+        let key = trimmed[5..bracket_end].trim();
+        // For bracket notation, the key becomes a quoted property name in getter/setter
+        // e.g., this[1] -> get '1'() { ... }
+        let unquoted_key = if (key.starts_with('\'') && key.ends_with('\''))
+            || (key.starts_with('"') && key.ends_with('"'))
+        {
+            key[1..key.len() - 1].to_string()
+        } else {
+            key.to_string()
+        };
+        // For getter/setter, wrap numeric keys in quotes
+        let name = if unquoted_key.chars().all(|c| c.is_ascii_digit()) {
+            format!("'{}'", unquoted_key)
+        } else {
+            unquoted_key
+        };
+        (false, name)
+    } else {
         return None;
-    }
+    };
+
     let eq_pos = trimmed.find(" = ")?;
-    let field_part = &trimmed[5..eq_pos];
     let rhs = trimmed[eq_pos + 3..].trim();
-    let is_private = field_part.starts_with('#');
-    let name = field_part.trim_start_matches('#').to_string();
+
     let already_exists = existing_fields.iter().any(|f| f.name == name);
     if already_exists {
         return None;
@@ -7882,7 +8313,10 @@ fn parse_constructor_state_assignment(
     } else {
         return None;
     };
-    let private_backing_name = sanitize_identifier(&name);
+    // Strip quotes from name for private backing name generation
+    // e.g., "'1'" -> "1" -> "_" (sanitized)
+    let unquoted_name = strip_field_quotes(&name);
+    let private_backing_name = sanitize_identifier(&unquoted_name);
     Some(ClassStateField {
         name,
         is_private,
@@ -8263,10 +8697,21 @@ fn transform_constructor_assignment(line: &str, fields: &[ClassStateField]) -> S
         if !field.constructor_declared {
             continue;
         }
-        let this_prefix = if field.is_private {
-            format!("this.#{}", field.name)
+        // Build possible this-prefix patterns
+        // For regular names: this.name or this.#name
+        // For bracket notation (quoted numeric names): this[n]
+        let unquoted_name = strip_field_quotes(&field.name);
+        let this_prefixes: Vec<String> = if field.is_private {
+            vec![format!("this.#{}", field.name)]
+        } else if field.name.starts_with('\'') || field.name.starts_with('"') {
+            // Quoted name from bracket notation
+            vec![
+                format!("this[{}]", unquoted_name),
+                format!("this['{}']", unquoted_name),
+                format!("this[{}]", &field.name),
+            ]
         } else {
-            format!("this.{}", field.name)
+            vec![format!("this.{}", field.name)]
         };
         let rune_patterns: &[(&str, &str)] = &[
             ("$state.raw(", "$state.raw"),
@@ -8276,11 +8721,17 @@ fn transform_constructor_assignment(line: &str, fields: &[ClassStateField]) -> S
             ("$derived(", "$derived"),
         ];
         for (pattern, rune_type) in rune_patterns {
-            let assign_pattern = format!("{} = {}", this_prefix, pattern);
-            if (result.starts_with(&assign_pattern)
-                || result.trim_end_matches(';').starts_with(&assign_pattern))
-                && let Some(rune_call_start) = result.find(pattern)
-            {
+            let mut matched = false;
+            for this_prefix in &this_prefixes {
+                let assign_pattern = format!("{} = {}", this_prefix, pattern);
+                if result.starts_with(&assign_pattern)
+                    || result.trim_end_matches(';').starts_with(&assign_pattern)
+                {
+                    matched = true;
+                    break;
+                }
+            }
+            if matched && let Some(rune_call_start) = result.find(pattern) {
                 let value_start = rune_call_start + pattern.len();
                 let after_paren = &result[value_start..];
                 if let Some(value_end) = find_matching_paren(after_paren) {

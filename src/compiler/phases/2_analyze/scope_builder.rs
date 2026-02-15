@@ -286,7 +286,10 @@ impl<'a> ScopeBuilder<'a> {
             Statement::FunctionDeclaration(func_decl) => {
                 if let Some(id) = &func_decl.id {
                     let name = id.name.to_string();
-                    self.declare_binding(name, BindingKind::Normal, DeclarationKind::Function);
+                    let idx =
+                        self.declare_binding(name, BindingKind::Normal, DeclarationKind::Function);
+                    // Mark as a true JS function (not a snippet block)
+                    self.bindings[idx].initial_is_function = true;
                 }
                 // Create a new scope for the function body
                 let old_scope = self.push_scope();
@@ -306,7 +309,10 @@ impl<'a> ScopeBuilder<'a> {
             Statement::ClassDeclaration(class_decl) => {
                 if let Some(id) = &class_decl.id {
                     let name = id.name.to_string();
-                    self.declare_binding(name, BindingKind::Normal, DeclarationKind::Const);
+                    // Class declarations use 'let' (not 'const') because class names
+                    // are mutable bindings. This matches the official Svelte compiler:
+                    // scope.declare(node.id, 'normal', 'let', node)
+                    self.declare_binding(name, BindingKind::Normal, DeclarationKind::Let);
                 }
                 // Process class body to find assignments in methods, getters, setters, etc.
                 self.process_class_body(&class_decl.body);
@@ -893,13 +899,17 @@ impl<'a> ScopeBuilder<'a> {
             Declaration::FunctionDeclaration(func_decl) => {
                 if let Some(id) = &func_decl.id {
                     let name = id.name.to_string();
-                    self.declare_binding(name, BindingKind::Normal, DeclarationKind::Function);
+                    let idx =
+                        self.declare_binding(name, BindingKind::Normal, DeclarationKind::Function);
+                    self.bindings[idx].initial_is_function = true;
                 }
             }
             Declaration::ClassDeclaration(class_decl) => {
                 if let Some(id) = &class_decl.id {
                     let name = id.name.to_string();
-                    self.declare_binding(name, BindingKind::Normal, DeclarationKind::Const);
+                    // Class declarations use 'let' (not 'const') because class names
+                    // are mutable bindings. This matches the official Svelte compiler.
+                    self.declare_binding(name, BindingKind::Normal, DeclarationKind::Let);
                 }
                 // Process class body to find assignments in methods, getters, setters, etc.
                 self.process_class_body(&class_decl.body);
@@ -943,7 +953,17 @@ impl<'a> ScopeBuilder<'a> {
                 } else {
                     BindingKind::Normal
                 };
-                self.declare_binding(name, kind, decl_kind);
+                let idx = self.declare_binding(name, kind, decl_kind);
+                // Check if the initializer is a function expression
+                if let Some(init_expr) = init
+                    && matches!(
+                        init_expr,
+                        oxc_ast::ast::Expression::ArrowFunctionExpression(_)
+                            | oxc_ast::ast::Expression::FunctionExpression(_)
+                    )
+                {
+                    self.bindings[idx].initial_is_function = true;
+                }
             }
             BindingPattern::ObjectPattern(obj) => {
                 for prop in &obj.properties {

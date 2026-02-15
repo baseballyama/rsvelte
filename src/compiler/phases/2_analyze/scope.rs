@@ -200,6 +200,11 @@ pub struct Binding {
     pub mutations: SmallVec<[Mutation; 2]>,
     /// Prop alias (for exported props with different names)
     pub prop_alias: Option<String>,
+    /// Whether the initial value is a function (ArrowFunctionExpression, FunctionExpression,
+    /// or FunctionDeclaration). This is used by `is_function()` to match the official Svelte
+    /// compiler's behavior where snippet blocks (declared with DeclarationKind::Function) are
+    /// NOT considered functions since their initial type is SnippetBlock.
+    pub initial_is_function: bool,
     /// Instance-level declarations may follow (or contain) a top-level `await`. In these cases,
     /// any reads that occur in the template must wait for the corresponding promise to resolve
     /// otherwise the initial value will not have been assigned.
@@ -240,6 +245,7 @@ impl Binding {
             scope_index,
             initial: None,
             initial_is_defined: false,
+            initial_is_function: false,
             references: SmallVec::new(),
             mutations: SmallVec::new(),
             prop_alias: None,
@@ -263,6 +269,7 @@ impl Binding {
             scope_index,
             initial: None,
             initial_is_defined: false,
+            initial_is_function: false,
             references: SmallVec::new(),
             mutations: SmallVec::new(),
             prop_alias: None,
@@ -308,24 +315,24 @@ impl Binding {
     }
 
     /// Check if this binding represents a function.
-    /// Returns true for function declarations and arrow functions.
+    ///
+    /// Corresponds to `is_function()` in Svelte's scope.js Binding class.
+    /// Returns true only if:
+    /// - The binding has not been updated (reassigned or mutated)
+    /// - The initial value is a JS function type (ArrowFunctionExpression, FunctionExpression,
+    ///   or FunctionDeclaration)
+    ///
+    /// Notably, snippet blocks are declared with DeclarationKind::Function but their initial
+    /// value is a SnippetBlock, so is_function() correctly returns false for them.
     pub fn is_function(&self) -> bool {
-        // Function declarations have Function declaration kind
-        if self.declaration_kind == DeclarationKind::Function {
-            return true;
+        // If the binding has been updated (reassigned or mutated), it's not a function
+        // even if it was initially declared as one.
+        if self.is_updated() {
+            return false;
         }
 
-        // For other bindings, check the initial value if it exists
-        // The initial field is a string representation, so we check if it contains function-like patterns
-        // This is a simplified check - in the full implementation we'd parse the initial value
-        if let Some(ref initial) = self.initial {
-            // Check for common function patterns in the string
-            initial.contains("FunctionExpression")
-                || initial.contains("ArrowFunctionExpression")
-                || initial.contains("FunctionDeclaration")
-        } else {
-            false
-        }
+        // Check if the initial value is a function type
+        self.initial_is_function
     }
 }
 

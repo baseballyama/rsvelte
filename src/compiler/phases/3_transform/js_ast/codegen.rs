@@ -96,6 +96,9 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     // OXC has a bug where it doesn't escape tabs in string literals
     // (it escapes newlines but not tabs). Fix this by post-processing.
     let code = escape_tabs_in_strings(code);
+    // OXC strips wrapping parentheses from `new (class Foo { })()` expressions,
+    // producing `new class Foo { }()`. Restore them to match Svelte's esrap output.
+    let code = wrap_new_class_expressions(code);
     // Restore original quote styles for import statements
     // that were changed by OXC normalization
     let code = restore_original_quotes(code, &original_imports);
@@ -579,6 +582,147 @@ fn escape_tabs_in_strings(code: String) -> String {
             result.push(c);
         }
 
+        i += 1;
+    }
+
+    result
+}
+
+/// Wrap `new class` expressions with parentheses to match Svelte's esrap output.
+///
+/// OXC's codegen strips "unnecessary" parentheses from `new (class Foo { ... })()`,
+/// producing `new class Foo { ... }()`. While semantically equivalent, Svelte's
+/// official compiler output includes the wrapping parens. This function restores them.
+///
+/// Transforms: `new class Foo { ... }(args)` -> `new (class Foo { ... })(args)`
+fn wrap_new_class_expressions(code: String) -> String {
+    if !code.contains("new class") {
+        return code;
+    }
+
+    let mut result = String::with_capacity(code.len() + 16);
+    let chars: Vec<char> = code.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+
+    while i < len {
+        // Look for "new class" pattern (not inside strings)
+        if i + 9 < len
+            && chars[i] == 'n'
+            && chars[i + 1] == 'e'
+            && chars[i + 2] == 'w'
+            && chars[i + 3] == ' '
+            && chars[i + 4] == 'c'
+            && chars[i + 5] == 'l'
+            && chars[i + 6] == 'a'
+            && chars[i + 7] == 's'
+            && chars[i + 8] == 's'
+            && (chars[i + 9] == ' ' || chars[i + 9] == '{')
+        {
+            // Check that the char before 'new' is not alphanumeric (word boundary)
+            if i > 0
+                && (chars[i - 1].is_alphanumeric() || chars[i - 1] == '_' || chars[i - 1] == '$')
+            {
+                result.push(chars[i]);
+                i += 1;
+                continue;
+            }
+
+            // Find the opening brace of the class body
+            let class_start = i + 4; // start of "class"
+            let mut j = class_start;
+            while j < len && chars[j] != '{' {
+                j += 1;
+            }
+            if j >= len {
+                // No opening brace found, just output as-is
+                result.push(chars[i]);
+                i += 1;
+                continue;
+            }
+
+            // Find the matching closing brace
+            let mut depth = 1;
+            let mut k = j + 1;
+            while k < len && depth > 0 {
+                match chars[k] {
+                    '{' => depth += 1,
+                    '}' => depth -= 1,
+                    '\'' | '"' => {
+                        // Skip string literals
+                        let quote = chars[k];
+                        k += 1;
+                        while k < len && chars[k] != quote {
+                            if chars[k] == '\\' {
+                                k += 1; // skip escaped char
+                            }
+                            k += 1;
+                        }
+                    }
+                    '`' => {
+                        // Skip template literals
+                        k += 1;
+                        let mut tmpl_depth = 0;
+                        while k < len {
+                            if chars[k] == '`' && tmpl_depth == 0 {
+                                break;
+                            }
+                            if chars[k] == '$' && k + 1 < len && chars[k + 1] == '{' {
+                                tmpl_depth += 1;
+                                k += 1;
+                            } else if chars[k] == '}' && tmpl_depth > 0 {
+                                tmpl_depth -= 1;
+                            } else if chars[k] == '\\' {
+                                k += 1; // skip escaped char
+                            }
+                            k += 1;
+                        }
+                    }
+                    _ => {}
+                }
+                k += 1;
+            }
+
+            if depth != 0 {
+                // Unbalanced braces, output as-is
+                result.push(chars[i]);
+                i += 1;
+                continue;
+            }
+
+            // k is now one past the closing brace
+            let class_end = k - 1; // index of closing brace
+
+            // Check if there's a `(` right after the closing brace (possibly with whitespace)
+            // This indicates the class is being instantiated: `new class Foo { }()`
+            let mut after = class_end + 1;
+            while after < len && chars[after].is_whitespace() {
+                after += 1;
+            }
+            if after < len && chars[after] == '(' {
+                // This is `new class Foo { ... }(args)` - wrap it
+                result.push_str("new (");
+                // Copy the class expression (from "class" to closing brace)
+                for c in &chars[class_start..=class_end] {
+                    result.push(*c);
+                }
+                result.push(')');
+                i = class_end + 1;
+                continue;
+            }
+
+            // No `()` after class - just `new class Foo { ... }` without invocation
+            // Still wrap for consistency with Svelte output
+            result.push_str("new (");
+            for c in &chars[class_start..=class_end] {
+                result.push(*c);
+            }
+            result.push(')');
+            i = class_end + 1;
+            continue;
+        }
+
+        result.push(chars[i]);
         i += 1;
     }
 
