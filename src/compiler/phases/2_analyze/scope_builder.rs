@@ -47,6 +47,10 @@ pub struct ScopeBuilder<'a> {
     runes_mode: bool,
     /// Validation errors collected during scope building
     validation_errors: Vec<crate::compiler::phases::phase2_analyze::AnalysisError>,
+    /// Possible implicit declarations from `$: x = expr` statements.
+    /// These become `legacy_reactive` bindings if no existing binding is found.
+    /// Reference: scope.js lines 1021, 1323-1328
+    possible_implicit_declarations: Vec<String>,
 }
 
 impl<'a> ScopeBuilder<'a> {
@@ -61,6 +65,7 @@ impl<'a> ScopeBuilder<'a> {
             function_depth: 0,
             runes_mode,
             validation_errors: Vec::new(),
+            possible_implicit_declarations: Vec::new(),
         }
     }
 
@@ -90,6 +95,26 @@ impl<'a> ScopeBuilder<'a> {
             // Create a new scope for instance script with module (scope 0) as parent
             let old_scope = self.push_scope();
             self.visit_script(script);
+
+            // Process possible implicit declarations from `$: x = expr` statements.
+            // If `x` doesn't have an existing binding, declare it as `legacy_reactive`.
+            // This must happen AFTER visiting the script so all normal declarations are known.
+            // Reference: scope.js lines 1323-1328
+            if !self.runes_mode {
+                let implicit_decls = std::mem::take(&mut self.possible_implicit_declarations);
+                for name in implicit_decls {
+                    // Check if binding already exists in any scope (scope chain lookup)
+                    let has_binding = self.find_binding_in_scope_chain(&name).is_some();
+                    if !has_binding {
+                        self.declare_binding(
+                            name,
+                            BindingKind::LegacyReactive,
+                            DeclarationKind::Let,
+                        );
+                    }
+                }
+            }
+
             Some(old_scope)
         } else {
             None
@@ -177,6 +202,88 @@ impl<'a> ScopeBuilder<'a> {
     /// Pop back to the parent scope.
     fn pop_scope(&mut self, old_scope: usize) {
         self.current_scope = old_scope;
+    }
+
+    /// Find a binding by name in the current scope chain.
+    /// Returns the binding index if found.
+    fn find_binding_in_scope_chain(&self, name: &str) -> Option<usize> {
+        let mut scope_idx = self.current_scope;
+        loop {
+            let scope = &self.scopes[scope_idx];
+            if let Some(&binding_idx) = scope.declarations.get(name) {
+                return Some(binding_idx);
+            }
+            if let Some(parent) = scope.parent {
+                scope_idx = parent;
+            } else {
+                break;
+            }
+        }
+        None
+    }
+
+    /// Collect identifiers from the LHS of an assignment expression.
+    /// Used to find possible implicit `legacy_reactive` declarations from `$: x = expr`.
+    /// Reference: scope.js lines 1019-1023
+    fn collect_assignment_lhs_identifiers(&mut self, left: &oxc_ast::ast::AssignmentTarget) {
+        match left {
+            oxc_ast::ast::AssignmentTarget::AssignmentTargetIdentifier(id) => {
+                let name = id.name.to_string();
+                if !name.starts_with('$') {
+                    self.possible_implicit_declarations.push(name);
+                }
+            }
+            oxc_ast::ast::AssignmentTarget::ArrayAssignmentTarget(arr) => {
+                for elem in arr.elements.iter().flatten() {
+                    match elem {
+                        oxc_ast::ast::AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(
+                            with_default,
+                        ) => {
+                            self.collect_assignment_target_identifiers(&with_default.binding);
+                        }
+                        _ => {
+                            if let Some(target) = elem.as_assignment_target() {
+                                self.collect_assignment_target_identifiers(target);
+                            }
+                        }
+                    }
+                }
+            }
+            oxc_ast::ast::AssignmentTarget::ObjectAssignmentTarget(obj) => {
+                for prop in &obj.properties {
+                    match prop {
+                        oxc_ast::ast::AssignmentTargetProperty::AssignmentTargetPropertyIdentifier(
+                            id_prop,
+                        ) => {
+                            let name = id_prop.binding.name.to_string();
+                            if !name.starts_with('$') {
+                                self.possible_implicit_declarations.push(name);
+                            }
+                        }
+                        oxc_ast::ast::AssignmentTargetProperty::AssignmentTargetPropertyProperty(
+                            prop_prop,
+                        ) => {
+                            if let Some(target) = prop_prop.binding.as_assignment_target() {
+                                self.collect_assignment_target_identifiers(target);
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {
+                // MemberExpression, etc. - not implicit declarations
+            }
+        }
+    }
+
+    /// Helper to collect identifiers from an AssignmentTarget.
+    fn collect_assignment_target_identifiers(&mut self, target: &oxc_ast::ast::AssignmentTarget) {
+        if let oxc_ast::ast::AssignmentTarget::AssignmentTargetIdentifier(id) = target {
+            let name = id.name.to_string();
+            if !name.starts_with('$') {
+                self.possible_implicit_declarations.push(name);
+            }
+        }
     }
 
     /// Declare a binding in the current scope.
@@ -421,6 +528,18 @@ impl<'a> ScopeBuilder<'a> {
                 }
             }
             Statement::LabeledStatement(labeled_stmt) => {
+                // Check for `$:` reactive declarations in legacy mode
+                // Collect LHS identifiers as possible implicit declarations
+                // Reference: scope.js lines 1015-1024
+                if labeled_stmt.label.name == "$"
+                    && !self.runes_mode
+                    && let Statement::ExpressionStatement(expr_stmt) = &labeled_stmt.body
+                    && let oxc_ast::ast::Expression::AssignmentExpression(assign) =
+                        &expr_stmt.expression
+                {
+                    // Extract identifiers from the LHS of the assignment
+                    self.collect_assignment_lhs_identifiers(&assign.left);
+                }
                 self.process_statement(&labeled_stmt.body);
             }
             Statement::WithStatement(with_stmt) => {

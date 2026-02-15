@@ -323,6 +323,26 @@ fn transform_client_with_visitors(
     // Reference: transform-client.js line 379
     component_body.extend(store_setup);
 
+    // Add legacy_reactive declarations: const name = $.mutable_source()
+    // Reference: transform-client.js lines 217-228, 362
+    // In legacy mode, $: reactive statement LHS variables get a const declaration
+    // with $.mutable_source() so they can be read/written reactively via $.get()/$.set()
+    if !analysis.runes {
+        for binding in &analysis.root.bindings {
+            if matches!(binding.kind, BindingKind::LegacyReactive) {
+                let decl = if analysis.immutable {
+                    format!(
+                        "const {} = $.mutable_source(undefined, true);",
+                        binding.name
+                    )
+                } else {
+                    format!("const {} = $.mutable_source();", binding.name)
+                };
+                component_body.push(JsStatement::Raw(decl));
+            }
+        }
+    }
+
     // Add binding group declarations
     // Reference: transform-client.js lines 273-277
     // const group_binding_declarations = [];
@@ -2685,6 +2705,18 @@ fn transform_reactive_statement(
             );
 
             transformed_body = format!("{}({})", lhs, transformed_rhs);
+        } else if state_vars.contains(&lhs.to_string())
+            && !non_reactive_state_vars.contains(&lhs.to_string())
+        {
+            // State var assignment → $.set(lhs, rhs)
+            let transformed_rhs = transform_prop_reads_in_expr(rhs, prop_assignment_transform_vars);
+            let transformed_rhs = wrap_state_vars_in_expr(
+                &transformed_rhs,
+                state_vars,
+                non_reactive_state_vars,
+                proxy_vars,
+            );
+            transformed_body = format!("$.set({}, {})", lhs, transformed_rhs);
         } else {
             // Regular assignment - still transform prop reads on RHS
             let transformed_rhs = transform_prop_reads_in_expr(rhs, prop_assignment_transform_vars);
@@ -2707,6 +2739,8 @@ fn transform_reactive_statement(
         let temp = transform_state_update_expressions(&temp, state_vars, non_reactive_state_vars);
         // Then transform reads
         let temp = transform_prop_reads_in_expr(&temp, prop_assignment_transform_vars);
+        // Transform state var assignments to $.set() before wrapping reads in $.get()
+        let temp = transform_state_set_in_reactive(&temp, state_vars, non_reactive_state_vars);
         transformed_body =
             wrap_state_vars_in_expr(&temp, state_vars, non_reactive_state_vars, proxy_vars);
     }
@@ -2829,6 +2863,118 @@ fn transform_state_update_expressions(
             &format!("$.update_pre({}, -1)", var),
             true,
         );
+    }
+    result
+}
+
+/// Transform simple assignments to state variables into $.set() calls within reactive statements.
+/// `x = expr` -> `$.set(x, expr)` for state variables.
+/// This handles assignments inside compound statements (if blocks, etc.).
+/// Does NOT transform compound assignments (+=, -=, etc.) or declarations.
+fn transform_state_set_in_reactive(
+    expr: &str,
+    state_vars: &[String],
+    non_reactive_vars: &[String],
+) -> String {
+    let mut result = expr.to_string();
+    for var in state_vars {
+        if non_reactive_vars.contains(var) {
+            continue;
+        }
+        // Transform `var = expr` into `$.set(var, expr)`
+        // Search for `var` followed by optional whitespace and `=`
+        // Manual scanning approach (Rust regex doesn't support lookbehind)
+        let assignment_pattern = format!("{} = ", var);
+        let mut new_result = String::new();
+        let mut last_end = 0;
+        let mut search_start = 0;
+
+        while let Some(relative_pos) = result[search_start..].find(&assignment_pattern) {
+            let pos = search_start + relative_pos;
+            let eq_pos = pos + var.len() + 1; // position of '='
+
+            // Check word boundary before var name
+            if pos > 0 {
+                let prev_char = result.as_bytes()[pos - 1] as char;
+                if prev_char.is_alphanumeric()
+                    || prev_char == '_'
+                    || prev_char == '$'
+                    || prev_char == '.'
+                {
+                    search_start = pos + assignment_pattern.len();
+                    continue;
+                }
+            }
+
+            // Check it's not ==, ===
+            let after_eq = &result[eq_pos + 1..];
+            if after_eq.starts_with('=') {
+                search_start = pos + assignment_pattern.len();
+                continue;
+            }
+
+            // Check it's not a declaration (let, const, var)
+            let before = result[..pos].trim_end();
+            if before.ends_with("let") || before.ends_with("const") || before.ends_with("var") {
+                search_start = pos + assignment_pattern.len();
+                continue;
+            }
+
+            // Check if already wrapped in $.set()
+            if before.ends_with("$.set(") {
+                search_start = pos + assignment_pattern.len();
+                continue;
+            }
+
+            // Find the extent of the RHS expression
+            let rhs_start = pos + assignment_pattern.len();
+            let remaining = &result[rhs_start..];
+            // Find the end of the RHS - look for `;` or `}` at depth 0
+            let mut depth = 0;
+            let mut rhs_end = result.len();
+            let chars: Vec<char> = remaining.chars().collect();
+            let mut in_string: Option<char> = None;
+            for (ci, &ch) in chars.iter().enumerate() {
+                if in_string.is_some() {
+                    if Some(ch) == in_string && (ci == 0 || chars[ci - 1] != '\\') {
+                        in_string = None;
+                    }
+                    continue;
+                }
+                match ch {
+                    '\'' | '"' | '`' => in_string = Some(ch),
+                    '(' | '[' | '{' => depth += 1,
+                    ')' | ']' | '}' => {
+                        if depth == 0 {
+                            rhs_end = rhs_start + ci;
+                            break;
+                        }
+                        depth -= 1;
+                    }
+                    ';' if depth == 0 => {
+                        rhs_end = rhs_start + ci;
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+
+            let rhs = result[rhs_start..rhs_end].trim();
+            if rhs.is_empty() {
+                search_start = pos + assignment_pattern.len();
+                continue;
+            }
+
+            new_result.push_str(&result[last_end..pos]);
+            new_result.push_str(&format!("$.set({}, {})", var, rhs));
+            last_end = rhs_end;
+            search_start = rhs_end;
+        }
+
+        if last_end > 0 {
+            new_result.push_str(&result[last_end..]);
+            result = new_result;
+        }
     }
     result
 }
