@@ -111,8 +111,8 @@ pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext)
     apply_transforms_to_expression_with_shadowed(expr, context, &HashSet::new())
 }
 
-/// Internal helper that tracks shadowed variables.
-fn apply_transforms_to_expression_with_shadowed(
+/// Apply transforms while treating specified variables as shadowed (preventing transformation).
+pub fn apply_transforms_to_expression_with_shadowed(
     expr: &JsExpr,
     context: &ComponentContext,
     shadowed: &HashSet<String>,

@@ -494,26 +494,10 @@ fn uses_store_subscription(
 }
 
 /// Check if expression has external dependencies (references state outside the each block).
-///
-/// In Svelte's implementation, this checks if `binding.scope.function_depth < context.state.scope.function_depth`.
-/// Since template scopes have higher function_depth than instance scopes, any dependency
-/// declared in the instance scope is considered "external" from the template's perspective.
-///
-/// For simplicity, we check if the expression has any dependencies at all. In runes mode,
-/// dependencies from the instance scope (where $state variables are declared) are always
-/// considered external because the template operates at a higher function_depth level.
 fn has_external_dependencies(
     metadata: &crate::ast::template::EachBlockMetadata,
     _context: &ComponentContext,
 ) -> bool {
-    // If the expression has any dependencies (binding references), those are from
-    // the instance scope and are considered external from the each block's perspective.
-    //
-    // This matches the JS behavior where:
-    // - Instance scope has function_depth = 1
-    // - Template/EachBlock scopes have function_depth >= 3
-    // - Any binding from instance scope (function_depth 1) is < template scope (function_depth 3+)
-    // - Therefore it's considered an external dependency
     !metadata.expression.dependencies.is_empty()
 }
 
@@ -523,7 +507,6 @@ fn has_animate_directive(node: &EachBlock) -> bool {
         return false;
     }
 
-    // Check if any child element has an animate directive
     for child in &node.body.nodes {
         match child {
             TemplateNode::RegularElement(elem) => {
@@ -549,10 +532,7 @@ fn has_animate_directive(node: &EachBlock) -> bool {
 
 /// Get the store identifier that needs invalidation.
 fn get_store_to_invalidate(node: &EachBlock, context: &ComponentContext) -> Option<String> {
-    // Check if the expression is an identifier or member expression
     let obj_name = get_object_name(&node.expression)?;
-
-    // Check if it's a store subscription
     let binding = context.state.get_binding(&obj_name)?;
     if matches!(binding.kind, BindingKind::StoreSub) {
         Some(obj_name)
@@ -572,7 +552,6 @@ fn get_object_name(expr: &Expression) -> Option<String> {
                         .and_then(|v| v.as_str())
                         .map(|s| s.to_string()),
                     Some("MemberExpression") => {
-                        // Extract root object recursively
                         if let Some(object) = obj.get("object") {
                             get_object_name(&Expression::Value(object.clone()))
                         } else {
@@ -589,25 +568,9 @@ fn get_object_name(expr: &Expression) -> Option<String> {
 }
 
 /// Get a unique collection ID if the inner scope shadows outer scope variables.
-///
-/// In Svelte's implementation (lines 119-127 of EachBlock.js):
-/// ```javascript
-/// for (const [name] of context.state.scope.declarations) {
-///     if (context.state.scope.parent?.get(name) != null) {
-///         collection_id = context.state.scope.root.unique('$$array');
-///         break;
-///     }
-/// }
-/// ```
-///
-/// This checks if any declaration in the each block's scope shadows something
-/// from the parent scope. This is needed because we need access to the array
-/// expression when bindings are reassigned, to invalidate the array.
 fn get_collection_id_if_needed(node: &EachBlock, context: &ComponentContext) -> Option<String> {
-    // Get the names declared in this each block's scope
     let mut declared_names: Vec<String> = Vec::new();
 
-    // Add names from context pattern - can be simple identifier or destructuring
     if let Some(ctx) = &node.context {
         let Expression::Value(val) = ctx;
         if let serde_json::Value::Object(obj) = val {
@@ -615,20 +578,14 @@ fn get_collection_id_if_needed(node: &EachBlock, context: &ComponentContext) -> 
         }
     }
 
-    // Add index name if present
     if let Some(index_name) = &node.index {
         declared_names.push(index_name.to_string());
     }
 
-    // Check if any of these names exist in the parent scope
-    // We use the scope's parent field to get the parent scope index
     if let Some(parent_idx) = context.state.scope.parent {
         for name in &declared_names {
-            // Look for a binding with this name in the parent scope
             for binding in &context.state.scope_root.bindings {
                 if &binding.name == name && binding.scope_index == parent_idx {
-                    // Found a binding with the same name in the parent scope
-                    // This means we have shadowing, so we need a collection_id
                     return Some("$$array".to_string());
                 }
             }
@@ -652,11 +609,10 @@ fn collect_pattern_names(
         Some("ObjectPattern") => {
             if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
                 for prop in props {
-                    if let Some(prop_obj) = prop.as_object() {
-                        // Get the value part of the property (the binding)
-                        if let Some(value) = prop_obj.get("value").and_then(|v| v.as_object()) {
-                            collect_pattern_names(value, names);
-                        }
+                    if let Some(prop_obj) = prop.as_object()
+                        && let Some(value) = prop_obj.get("value").and_then(|v| v.as_object())
+                    {
+                        collect_pattern_names(value, names);
                     }
                 }
             }
@@ -671,13 +627,11 @@ fn collect_pattern_names(
             }
         }
         Some("AssignmentPattern") => {
-            // e.g., { a = default } - get the left side
             if let Some(left) = obj.get("left").and_then(|l| l.as_object()) {
                 collect_pattern_names(left, names);
             }
         }
         Some("RestElement") => {
-            // e.g., ...rest
             if let Some(arg) = obj.get("argument").and_then(|a| a.as_object()) {
                 collect_pattern_names(arg, names);
             }
@@ -691,8 +645,6 @@ fn generate_index_identifier(
     node: &EachBlock,
     metadata: &crate::ast::template::EachBlockMetadata,
 ) -> JsExpr {
-    // If the each block contains group bindings or has no explicit index,
-    // use the metadata-generated index
     if metadata.contains_group_binding {
         if let Some(ref index) = metadata.index {
             b::id(index)
@@ -700,7 +652,6 @@ fn generate_index_identifier(
             b::id("$$index")
         }
     } else if let Some(ref index_name) = node.index {
-        // Use the node's explicit index name
         b::id(index_name.as_str())
     } else if let Some(ref index) = metadata.index {
         b::id(index)
@@ -712,7 +663,6 @@ fn generate_index_identifier(
 /// Generate the item identifier.
 fn generate_item_identifier(node: &EachBlock) -> JsExpr {
     if let Some(context_expr) = &node.context {
-        // Check if context is a simple identifier
         let Expression::Value(val) = context_expr;
         if let serde_json::Value::Object(obj) = val
             && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
@@ -753,14 +703,11 @@ fn build_declarations(
 
     // Handle legacy mode transitive dependencies
     if !context.state.analysis.runes {
-        // Collect transitive dependencies for invalidation
         let mut transitive_deps: Vec<JsExpr> = Vec::new();
 
         if let Some(coll_id) = collection_id {
-            // If we have a collection_id, add it to transitive deps
             transitive_deps.push(b::call(b::id(coll_id), vec![]));
         } else {
-            // Add transitive deps from metadata
             for binding_idx in &node.metadata.transitive_deps {
                 if let Some(binding) = context.state.scope_root.bindings.get(*binding_idx) {
                     transitive_deps.push(b::id(&binding.name));
@@ -768,7 +715,6 @@ fn build_declarations(
             }
         }
 
-        // Also collect parent each block transitive deps
         for parent_node in &context.path {
             if let TemplateNode::EachBlock(parent_each) = parent_node {
                 for binding_idx in &parent_each.metadata.transitive_deps {
@@ -788,7 +734,6 @@ fn build_declarations(
         }
     }
 
-    // Add store invalidation to sequence
     if let Some(inv_store) = invalidate_store {
         sequence.push(inv_store);
     }
@@ -796,18 +741,13 @@ fn build_declarations(
     use crate::compiler::phases::phase3_transform::client::types::IdentifierTransform;
 
     // Handle index transform
-    // When EACH_INDEX_REACTIVE flag is set, wrap index reads with $.get()
-    // Always register index transform with is_defined: true since indices are always numbers
     if let Some(index_name) = &node.index {
         let index_reactive = (flags & EACH_INDEX_REACTIVE) != 0;
         context.state.transform.insert(
             index_name.to_string(),
             IdentifierTransform {
                 read: if index_reactive {
-                    Some(|node| {
-                        // Wrap with $.get(node)
-                        b::call(b::member_path("$.get"), vec![node])
-                    })
+                    Some(|node| b::call(b::member_path("$.get"), vec![node]))
                 } else {
                     None
                 },
@@ -815,9 +755,7 @@ fn build_declarations(
                 mutate: None,
                 update: None,
                 skip_proxy: false,
-                // Each block indices are always numbers, never null/undefined
                 is_defined: true,
-                // Index is only reactive in keyed each blocks with index
                 is_reactive: index_reactive,
             },
         );
@@ -830,34 +768,23 @@ fn build_declarations(
             && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
             && let Some(name) = obj.get("name").and_then(|v| v.as_str())
         {
-            // Simple identifier - set up read/assign/mutate transforms
-            // Register transform for the each item
-            // When EACH_ITEM_REACTIVE flag is set, wrap reads with $.get()
             let item_reactive = (flags & EACH_ITEM_REACTIVE) != 0;
 
-            // Register the transform for this identifier
-            // The read function wraps with $.get() if item is reactive
             if item_reactive {
                 context.state.transform.insert(
                     name.to_string(),
                     IdentifierTransform {
-                        read: Some(|node| {
-                            // Wrap with $.get(node)
-                            b::call(b::member_path("$.get"), vec![node])
-                        }),
+                        read: Some(|node| b::call(b::member_path("$.get"), vec![node])),
                         assign: None,
                         mutate: None,
                         update: None,
                         skip_proxy: false,
-                        // Each items can be any value including null/undefined
                         is_defined: false,
-                        // Item is reactive when EACH_ITEM_REACTIVE flag is set
                         is_reactive: true,
                     },
                 );
             }
 
-            // If there's a group binding, we need to create an alias for the index
             if node.index.is_some()
                 && node.metadata.contains_group_binding
                 && let JsExpr::Identifier(idx_name) = index
@@ -869,35 +796,53 @@ fn build_declarations(
         }
     }
 
-    // Handle destructured context pattern (e.g., {#each items as { a, b }})
+    // Handle destructured context pattern (e.g., {#each items as { a, b }} or {#each items as [a, b]})
     // This corresponds to lines 251-293 in the official EachBlock.js
-    // We create getter functions for each destructured property
     if let Some(context_expr) = &node.context {
         let Expression::Value(val) = context_expr;
         if let serde_json::Value::Object(obj) = val {
             let ctx_type = obj.get("type").and_then(|v| v.as_str());
 
-            // Only handle destructuring patterns, not simple identifiers (already handled above)
             if ctx_type == Some("ObjectPattern") || ctx_type == Some("ArrayPattern") {
                 let item_reactive = (flags & EACH_ITEM_REACTIVE) != 0;
 
-                // Build the unwrapped item expression: $.get($$item) if reactive, else $$item
                 let unwrapped_item = if item_reactive {
                     "$.get($$item)".to_string()
                 } else {
                     "$$item".to_string()
                 };
 
-                // Extract paths from the destructuring pattern
-                let paths = extract_destructured_paths(obj, &unwrapped_item, false);
+                // Extract paths using the new extract_destructured_paths that handles
+                // ArrayPattern with $.to_array() inserts and computed ObjectPattern keys
+                let mut array_counter: usize = 0;
+                let (paths, inserts) =
+                    extract_destructured_paths(obj, &unwrapped_item, false, &mut array_counter);
+
+                // Generate intermediate array declarations for ArrayPattern destructuring
+                // This corresponds to lines 256-262 in the official EachBlock.js
+                for insert in &inserts {
+                    declarations.push(JsStatement::Raw(format!(
+                        "var {} = $.derived(() => {});",
+                        insert.id, insert.value
+                    )));
+
+                    context.state.transform.insert(
+                        insert.id.clone(),
+                        IdentifierTransform {
+                            read: Some(|node| b::call(b::member_path("$.get"), vec![node])),
+                            assign: None,
+                            mutate: None,
+                            update: None,
+                            skip_proxy: false,
+                            is_defined: false,
+                            is_reactive: true,
+                        },
+                    );
+                }
 
                 // For each path, create a getter declaration
-                // This matches the official EachBlock.js lines 264-292
                 for path in paths {
                     if path.has_default_value {
-                        // When there's a default value, use $.derived_safe_equal
-                        // to ensure the default is only evaluated once.
-                        // Expected output: let name = $.derived_safe_equal(() => $.fallback(expr, default));
                         let fallback_expr = build_fallback_expression(
                             &path.expression,
                             path.default_value.as_ref(),
@@ -908,7 +853,6 @@ fn build_declarations(
                             path.name, fallback_expr
                         )));
 
-                        // Register transform that reads with $.get()
                         context.state.transform.insert(
                             path.name.clone(),
                             IdentifierTransform {
@@ -922,14 +866,11 @@ fn build_declarations(
                             },
                         );
                     } else {
-                        // No default value - use simple getter thunk
-                        // Expected output: let name = () => expr;
                         declarations.push(JsStatement::Raw(format!(
                             "let {} = () => {};",
                             path.name, path.expression
                         )));
 
-                        // Register transform for this name that calls the getter
                         context.state.transform.insert(
                             path.name.clone(),
                             IdentifierTransform {
@@ -955,7 +896,7 @@ fn build_declarations(
 struct DestructuredPath {
     /// The binding name
     name: String,
-    /// The expression to access the value (e.g., "$$item.a")
+    /// The expression to access the value
     expression: String,
     /// Whether this path has a default value (from AssignmentPattern)
     has_default_value: bool,
@@ -963,74 +904,166 @@ struct DestructuredPath {
     default_value: Option<serde_json::Value>,
 }
 
+/// Information about an intermediate array declaration (for ArrayPattern destructuring).
+/// Corresponds to the `inserts` array in the official compiler's `extract_paths`.
+struct ArrayInsert {
+    /// The unique identifier name (e.g., "$$array", "$$array_1")
+    id: String,
+    /// The value expression (e.g., "$.to_array($.get($$item), 2)")
+    value: String,
+}
+
 /// Extract property paths from a destructuring pattern.
-/// Returns a list of DestructuredPath with info about default values.
+/// Returns (paths, inserts) where inserts are intermediate array declarations.
+///
+/// This mirrors the official compiler's `extract_paths` / `_extract_paths` in
+/// `svelte/packages/svelte/src/compiler/utils/ast.js`.
 fn extract_destructured_paths(
     obj: &serde_json::Map<String, serde_json::Value>,
     base_expr: &str,
     has_parent_default: bool,
-) -> Vec<DestructuredPath> {
+    array_counter: &mut usize,
+) -> (Vec<DestructuredPath>, Vec<ArrayInsert>) {
     let mut paths = Vec::new();
+    let mut inserts = Vec::new();
 
-    match obj.get("type").and_then(|v| v.as_str()) {
+    _extract_destructured_paths(
+        &mut paths,
+        &mut inserts,
+        obj,
+        base_expr,
+        base_expr,
+        has_parent_default,
+        array_counter,
+    );
+
+    (paths, inserts)
+}
+
+/// Internal recursive function for extracting destructured paths.
+fn _extract_destructured_paths(
+    paths: &mut Vec<DestructuredPath>,
+    inserts: &mut Vec<ArrayInsert>,
+    param: &serde_json::Map<String, serde_json::Value>,
+    expression: &str,
+    _update_expression: &str,
+    has_default_value: bool,
+    array_counter: &mut usize,
+) {
+    match param.get("type").and_then(|v| v.as_str()) {
+        Some("Identifier") => {
+            let name = param
+                .get("name")
+                .and_then(|n| n.as_str())
+                .unwrap_or("$$unknown");
+            paths.push(DestructuredPath {
+                name: name.to_string(),
+                expression: expression.to_string(),
+                has_default_value,
+                default_value: None,
+            });
+        }
         Some("ObjectPattern") => {
-            if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
+            if let Some(props) = param.get("properties").and_then(|p| p.as_array()) {
                 for prop in props {
                     if let Some(prop_obj) = prop.as_object() {
                         let prop_type = prop_obj.get("type").and_then(|v| v.as_str());
 
-                        if prop_type == Some("Property") {
-                            // Get the key (property name being accessed)
+                        if prop_type == Some("RestElement") {
+                            // RestElement in ObjectPattern: ...rest
+                            // Generate: $.exclude_from_object(expression, ['key1', 'key2', ...])
+                            let mut excluded_keys: Vec<String> = Vec::new();
+                            for p in props {
+                                if let Some(p_obj) = p.as_object()
+                                    && p_obj.get("type").and_then(|t| t.as_str())
+                                        == Some("Property")
+                                    && let Some(key) = p_obj.get("key").and_then(|k| k.as_object())
+                                {
+                                    let key_type = key.get("type").and_then(|t| t.as_str());
+                                    let computed = p_obj
+                                        .get("computed")
+                                        .and_then(|c| c.as_bool())
+                                        .unwrap_or(false);
+
+                                    if key_type == Some("Identifier")
+                                        && !computed
+                                        && let Some(name) = key.get("name").and_then(|n| n.as_str())
+                                    {
+                                        excluded_keys.push(format!("'{}'", name));
+                                    } else if key_type == Some("Literal")
+                                        && let Some(val) = key.get("value")
+                                    {
+                                        excluded_keys.push(format!("'{}'", val));
+                                    }
+                                }
+                            }
+
+                            let rest_expression = format!(
+                                "$.exclude_from_object({}, [{}])",
+                                expression,
+                                excluded_keys.join(", ")
+                            );
+
+                            if let Some(arg) = prop_obj.get("argument").and_then(|a| a.as_object())
+                            {
+                                let arg_type = arg.get("type").and_then(|t| t.as_str());
+                                if arg_type == Some("Identifier") {
+                                    let name = arg
+                                        .get("name")
+                                        .and_then(|n| n.as_str())
+                                        .unwrap_or("$$unknown");
+                                    paths.push(DestructuredPath {
+                                        name: name.to_string(),
+                                        expression: rest_expression,
+                                        has_default_value,
+                                        default_value: None,
+                                    });
+                                } else {
+                                    _extract_destructured_paths(
+                                        paths,
+                                        inserts,
+                                        arg,
+                                        &rest_expression,
+                                        &rest_expression,
+                                        has_default_value,
+                                        array_counter,
+                                    );
+                                }
+                            }
+                        } else if prop_type == Some("Property") {
                             let key = prop_obj.get("key").and_then(|k| k.as_object());
-                            let key_name = key.and_then(|k| k.get("name")).and_then(|n| n.as_str());
-
-                            // Get the value (the binding name or nested pattern)
                             let value = prop_obj.get("value");
+                            let computed = prop_obj
+                                .get("computed")
+                                .and_then(|c| c.as_bool())
+                                .unwrap_or(false);
 
-                            if let (Some(key_name), Some(value)) = (key_name, value) {
-                                let prop_expr = format!("{}.{}", base_expr, key_name);
+                            if let (Some(key_obj), Some(value)) = (key, value) {
+                                let key_type = key_obj.get("type").and_then(|t| t.as_str());
+
+                                // Build the property access expression
+                                // If computed or key is not Identifier, use bracket notation
+                                let prop_expr = if computed || key_type != Some("Identifier") {
+                                    let key_expr_str = format_json_expr_for_key(key_obj);
+                                    format!("{}[{}]", expression, key_expr_str)
+                                } else {
+                                    let key_name = key_obj
+                                        .get("name")
+                                        .and_then(|n| n.as_str())
+                                        .unwrap_or("unknown");
+                                    format!("{}.{}", expression, key_name)
+                                };
 
                                 if let Some(value_obj) = value.as_object() {
-                                    let value_type = value_obj.get("type").and_then(|v| v.as_str());
-
-                                    if value_type == Some("Identifier") {
-                                        let binding_name = value_obj
-                                            .get("name")
-                                            .and_then(|n| n.as_str())
-                                            .unwrap_or(key_name);
-                                        paths.push(DestructuredPath {
-                                            name: binding_name.to_string(),
-                                            expression: prop_expr,
-                                            has_default_value: has_parent_default,
-                                            default_value: None,
-                                        });
-                                    } else if value_type == Some("ObjectPattern")
-                                        || value_type == Some("ArrayPattern")
-                                    {
-                                        let nested = extract_destructured_paths(
-                                            value_obj,
-                                            &prop_expr,
-                                            has_parent_default,
-                                        );
-                                        paths.extend(nested);
-                                    } else if value_type == Some("AssignmentPattern")
-                                        && let Some(left) =
-                                            value_obj.get("left").and_then(|l| l.as_object())
-                                        && left.get("type").and_then(|t| t.as_str())
-                                            == Some("Identifier")
-                                    {
-                                        let binding_name = left
-                                            .get("name")
-                                            .and_then(|n| n.as_str())
-                                            .unwrap_or(key_name);
-                                        let default_val = value_obj.get("right").cloned();
-                                        paths.push(DestructuredPath {
-                                            name: binding_name.to_string(),
-                                            expression: prop_expr,
-                                            has_default_value: true,
-                                            default_value: default_val,
-                                        });
-                                    }
+                                    _extract_destructured_paths(
+                                        paths,
+                                        inserts,
+                                        value_obj,
+                                        &prop_expr,
+                                        &prop_expr,
+                                        has_default_value,
+                                        array_counter,
+                                    );
                                 }
                             }
                         }
@@ -1039,70 +1072,207 @@ fn extract_destructured_paths(
             }
         }
         Some("ArrayPattern") => {
-            if let Some(elements) = obj.get("elements").and_then(|e| e.as_array()) {
-                for (i, elem) in elements.iter().enumerate() {
-                    if elem.is_null() {
-                        continue;
-                    }
+            // For ArrayPattern, create an intermediate declaration to convert
+            // iterables to arrays. This matches the official compiler.
+            let elements = match param.get("elements").and_then(|e| e.as_array()) {
+                Some(e) => e,
+                None => return,
+            };
 
-                    if let Some(elem_obj) = elem.as_object() {
-                        let elem_type = elem_obj.get("type").and_then(|v| v.as_str());
-                        let index_expr = format!("{}[{}]", base_expr, i);
+            // Generate unique $$array name
+            let array_id = if *array_counter == 0 {
+                "$$array".to_string()
+            } else {
+                format!("$$array_{}", array_counter)
+            };
+            *array_counter += 1;
 
-                        if elem_type == Some("Identifier") {
-                            let binding_name = elem_obj
-                                .get("name")
-                                .and_then(|n| n.as_str())
-                                .unwrap_or("$$unknown");
-                            paths.push(DestructuredPath {
-                                name: binding_name.to_string(),
-                                expression: index_expr,
-                                has_default_value: has_parent_default,
-                                default_value: None,
-                            });
-                        } else if elem_type == Some("ObjectPattern")
-                            || elem_type == Some("ArrayPattern")
-                        {
-                            let nested = extract_destructured_paths(
-                                elem_obj,
-                                &index_expr,
-                                has_parent_default,
-                            );
-                            paths.extend(nested);
-                        } else if elem_type == Some("AssignmentPattern")
-                            && let Some(left) = elem_obj.get("left").and_then(|l| l.as_object())
-                            && left.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-                        {
-                            let binding_name = left
-                                .get("name")
-                                .and_then(|n| n.as_str())
-                                .unwrap_or("$$unknown");
-                            let default_val = elem_obj.get("right").cloned();
-                            paths.push(DestructuredPath {
-                                name: binding_name.to_string(),
-                                expression: index_expr,
-                                has_default_value: true,
-                                default_value: default_val,
-                            });
+            // Check if last element is RestElement
+            let last_is_rest = elements
+                .last()
+                .and_then(|e| e.as_object())
+                .and_then(|o| o.get("type").and_then(|t| t.as_str()))
+                == Some("RestElement");
+
+            // Build the $.to_array() call expression
+            let to_array_expr = if last_is_rest {
+                format!("$.to_array({})", expression)
+            } else {
+                format!("$.to_array({}, {})", expression, elements.len())
+            };
+
+            inserts.push(ArrayInsert {
+                id: array_id.clone(),
+                value: to_array_expr,
+            });
+
+            // Process each element using the array_id as the base
+            for (i, elem) in elements.iter().enumerate() {
+                if elem.is_null() {
+                    continue;
+                }
+
+                if let Some(elem_obj) = elem.as_object() {
+                    let elem_type = elem_obj.get("type").and_then(|v| v.as_str());
+
+                    if elem_type == Some("RestElement") {
+                        // RestElement: ...rest => $.get($$array).slice(i)
+                        let rest_expression = format!("$.get({}).slice({})", array_id, i);
+
+                        if let Some(arg) = elem_obj.get("argument").and_then(|a| a.as_object()) {
+                            let arg_type = arg.get("type").and_then(|t| t.as_str());
+                            if arg_type == Some("Identifier") {
+                                let name = arg
+                                    .get("name")
+                                    .and_then(|n| n.as_str())
+                                    .unwrap_or("$$unknown");
+                                paths.push(DestructuredPath {
+                                    name: name.to_string(),
+                                    expression: rest_expression,
+                                    has_default_value,
+                                    default_value: None,
+                                });
+                            } else {
+                                _extract_destructured_paths(
+                                    paths,
+                                    inserts,
+                                    arg,
+                                    &rest_expression,
+                                    &rest_expression,
+                                    has_default_value,
+                                    array_counter,
+                                );
+                            }
                         }
+                    } else {
+                        // Regular element: $.get($$array)[i]
+                        let array_expression = format!("$.get({})[{}]", array_id, i);
+
+                        _extract_destructured_paths(
+                            paths,
+                            inserts,
+                            elem_obj,
+                            &array_expression,
+                            &array_expression,
+                            has_default_value,
+                            array_counter,
+                        );
                     }
+                }
+            }
+        }
+        Some("AssignmentPattern") => {
+            // Default value pattern: { a = default } or [a = default]
+            if let Some(left) = param.get("left").and_then(|l| l.as_object()) {
+                let left_type = left.get("type").and_then(|t| t.as_str());
+                let default_val = param.get("right").cloned();
+
+                if left_type == Some("Identifier") {
+                    let name = left
+                        .get("name")
+                        .and_then(|n| n.as_str())
+                        .unwrap_or("$$unknown");
+                    paths.push(DestructuredPath {
+                        name: name.to_string(),
+                        expression: expression.to_string(),
+                        has_default_value: true,
+                        default_value: default_val,
+                    });
+                } else {
+                    _extract_destructured_paths(
+                        paths,
+                        inserts,
+                        left,
+                        expression,
+                        _update_expression,
+                        true,
+                        array_counter,
+                    );
                 }
             }
         }
         _ => {}
     }
+}
 
-    paths
+/// Format a JSON key expression for use in computed property access.
+fn format_json_expr_for_key(key_obj: &serde_json::Map<String, serde_json::Value>) -> String {
+    let key_type = key_obj.get("type").and_then(|t| t.as_str());
+
+    match key_type {
+        Some("Identifier") => key_obj
+            .get("name")
+            .and_then(|n| n.as_str())
+            .unwrap_or("unknown")
+            .to_string(),
+        Some("Literal") => {
+            if let Some(raw) = key_obj.get("raw").and_then(|r| r.as_str()) {
+                raw.to_string()
+            } else if let Some(val) = key_obj.get("value") {
+                match val {
+                    serde_json::Value::Number(n) => n.to_string(),
+                    serde_json::Value::String(s) => format!("'{}'", s),
+                    _ => "null".to_string(),
+                }
+            } else {
+                "null".to_string()
+            }
+        }
+        Some("CallExpression") => {
+            let callee = key_obj.get("callee");
+            let args = key_obj
+                .get("arguments")
+                .and_then(|a| a.as_array())
+                .cloned()
+                .unwrap_or_default();
+
+            let callee_str = if let Some(callee_val) = callee {
+                if let Some(callee_obj) = callee_val.as_object() {
+                    format_json_expr_for_key(callee_obj)
+                } else {
+                    "unknown".to_string()
+                }
+            } else {
+                "unknown".to_string()
+            };
+
+            let args_str: Vec<String> = args
+                .iter()
+                .map(|a| {
+                    if let Some(obj) = a.as_object() {
+                        format_json_expr_for_key(obj)
+                    } else if let Some(s) = a.as_str() {
+                        format!("'{}'", s)
+                    } else {
+                        format!("{}", a)
+                    }
+                })
+                .collect();
+
+            format!("{}({})", callee_str, args_str.join(", "))
+        }
+        Some("MemberExpression") => {
+            let object = key_obj.get("object").and_then(|o| o.as_object());
+            let property = key_obj.get("property").and_then(|p| p.as_object());
+            let computed = key_obj
+                .get("computed")
+                .and_then(|c| c.as_bool())
+                .unwrap_or(false);
+
+            let obj_str = object.map_or("unknown".to_string(), format_json_expr_for_key);
+            let prop_str = property.map_or("unknown".to_string(), format_json_expr_for_key);
+
+            if computed {
+                format!("{}[{}]", obj_str, prop_str)
+            } else {
+                format!("{}.{}", obj_str, prop_str)
+            }
+        }
+        _ => "unknown".to_string(),
+    }
 }
 
 /// Build a $.fallback(expression, default) call expression as a string.
-///
-/// This matches the official `build_fallback` in `svelte/packages/svelte/src/compiler/utils/ast.js`,
-/// including the `unthunk` optimization from `builders.js`.
-///
-/// For simple default values (Identifier, Literal): `$.fallback(expr, default)`
-/// For CallExpression with 0 args and Identifier callee: `$.fallback(expr, callee, true)` (unthunk optimization)
-/// For other complex defaults: `$.fallback(expr, () => default, true)`
 fn build_fallback_expression(
     expression: &str,
     default_value: Option<&serde_json::Value>,
@@ -1116,46 +1286,38 @@ fn build_fallback_expression(
                     &default_expr,
                 );
             format!("$.fallback({}, {})", expression, default_str)
-        } else {
-            // Complex default - check for the unthunk optimization:
-            // When the default is `func()` (CallExpression with 0 args and Identifier callee),
-            // just pass `func` instead of `() => func()`.
-            if let Some(obj) = default_val.as_object()
-                && obj.get("type").and_then(|t| t.as_str()) == Some("CallExpression")
-                && obj
-                    .get("arguments")
-                    .and_then(|a| a.as_array())
-                    .is_some_and(|a| a.is_empty())
-                && let Some(callee) = obj.get("callee").and_then(|c| c.as_object())
-                && callee.get("type").and_then(|t| t.as_str()) == Some("Identifier")
-            {
-                let callee_expr = convert_expression(
-                    &Expression::Value(serde_json::Value::Object(callee.clone())),
-                    context,
+        } else if let Some(obj) = default_val.as_object()
+            && obj.get("type").and_then(|t| t.as_str()) == Some("CallExpression")
+            && obj
+                .get("arguments")
+                .and_then(|a| a.as_array())
+                .is_some_and(|a| a.is_empty())
+            && let Some(callee) = obj.get("callee").and_then(|c| c.as_object())
+            && callee.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+        {
+            let callee_expr = convert_expression(
+                &Expression::Value(serde_json::Value::Object(callee.clone())),
+                context,
+            );
+            let callee_str =
+                crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
+                    &callee_expr,
                 );
-                let callee_str =
-                    crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
-                        &callee_expr,
-                    );
-                format!("$.fallback({}, {}, true)", expression, callee_str)
-            } else {
-                let default_expr =
-                    convert_expression(&Expression::Value(default_val.clone()), context);
-                let default_str =
-                    crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
-                        &default_expr,
-                    );
-                format!("$.fallback({}, () => {}, true)", expression, default_str)
-            }
+            format!("$.fallback({}, {}, true)", expression, callee_str)
+        } else {
+            let default_expr = convert_expression(&Expression::Value(default_val.clone()), context);
+            let default_str =
+                crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
+                    &default_expr,
+                );
+            format!("$.fallback({}, () => {}, true)", expression, default_str)
         }
     } else {
-        // No default value - shouldn't happen when has_default_value is true
         expression.to_string()
     }
 }
 
 /// Check if a default value expression is "simple" (doesn't need thunking in $.fallback).
-/// Matches the official `is_simple_expression` logic.
 fn is_simple_default(value: &serde_json::Value) -> bool {
     let obj = match value.as_object() {
         Some(o) => o,
@@ -1193,10 +1355,8 @@ fn build_key_function(
     if node.metadata.keyed
         && let Some(key) = &node.key
     {
-        // Convert the key expression
         let key_expr = convert_expression(key, context);
 
-        // Build arrow function with context pattern
         if let Some(context_expr) = &node.context {
             let pattern = convert_expression_to_pattern(context_expr);
 
@@ -1210,7 +1370,6 @@ fn build_key_function(
         }
     }
 
-    // Default: use $.index for non-keyed each blocks
     b::member_path("$.index")
 }
 
@@ -1235,14 +1394,7 @@ fn build_render_args(
 }
 
 /// Visit a fragment and return its block statement.
-///
-/// This uses the Fragment visitor which handles:
-/// - Template creation and hoisting
-/// - Child node processing
-/// - Render effect generation
-/// - Append statement generation
 fn visit_fragment(fragment: &Fragment, context: &mut ComponentContext) -> JsBlockStatement {
-    // EachBlock body IS a root fragment within its callback - needs $.next()
     visit_fragment_impl(fragment, context, true)
 }
 
@@ -1257,7 +1409,6 @@ fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
                 }
             }
             Some("ObjectPattern") => {
-                // Handle object destructuring pattern
                 if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
                     let properties = props
                         .iter()
@@ -1291,7 +1442,6 @@ fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
                 }
             }
             Some("ArrayPattern") => {
-                // Handle array destructuring pattern
                 if let Some(elems) = obj.get("elements").and_then(|e| e.as_array()) {
                     let elements = elems
                         .iter()
@@ -1320,8 +1470,6 @@ fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
                 if let (Some(left), Some(_right)) = (obj.get("left"), obj.get("right")) {
                     let left_pattern =
                         convert_expression_to_pattern(&Expression::Value(left.clone()));
-                    // For the default value, we'd need to convert to JsExpr
-                    // For now, just use the left pattern
                     return left_pattern;
                 }
             }
@@ -1345,7 +1493,6 @@ mod tests {
 
     #[test]
     fn test_is_key_same_as_item_true() {
-        // Test case where key and context are the same identifier
         let key = Expression::Value(serde_json::json!({
             "type": "Identifier",
             "name": "item"
@@ -1375,7 +1522,6 @@ mod tests {
 
     #[test]
     fn test_is_key_same_as_item_false() {
-        // Test case where key and context are different identifiers
         let key = Expression::Value(serde_json::json!({
             "type": "Identifier",
             "name": "item.id"

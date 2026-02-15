@@ -13,6 +13,8 @@
 //! - Media bindings (currentTime, volume, paused, etc.)
 //! - Window/document bindings (scrollX, scrollY, online, etc.)
 
+use std::collections::HashSet;
+
 use crate::ast::js::Expression;
 use crate::ast::template::{
     Attribute, AttributeValue, AttributeValuePart, BindDirective, TemplateNode,
@@ -577,6 +579,234 @@ fn build_value_expression(value: &AttributeValue, context: &mut ComponentContext
     }
 }
 
+/// Information about an each-block variable found in a bind:this expression.
+#[derive(Debug, Clone)]
+struct EachBlockId {
+    /// The variable name (e.g., "i")
+    name: String,
+    /// Whether this variable is reactive (needs $.get() in values thunk)
+    reactive: bool,
+}
+
+/// Find identifiers in a JsExpr that reference each-block context variables.
+/// Returns a list of unique each-block identifiers found.
+fn find_each_block_ids_in_expr(expr: &JsExpr, context: &ComponentContext) -> Vec<EachBlockId> {
+    let mut result = Vec::new();
+    let mut seen = HashSet::new();
+    collect_each_block_ids(expr, context, &mut result, &mut seen);
+    result
+}
+
+/// Recursively collect each-block identifiers from a JsExpr.
+fn collect_each_block_ids(
+    expr: &JsExpr,
+    context: &ComponentContext,
+    result: &mut Vec<EachBlockId>,
+    seen: &mut HashSet<String>,
+) {
+    match expr {
+        JsExpr::Identifier(name) => {
+            if seen.contains(name) {
+                return;
+            }
+            for each_ctx in &context.state.each_binding_context {
+                if name == &each_ctx.index_name {
+                    seen.insert(name.clone());
+                    result.push(EachBlockId {
+                        name: name.clone(),
+                        reactive: each_ctx.index_reactive,
+                    });
+                    return;
+                }
+                if name == &each_ctx.item_name {
+                    seen.insert(name.clone());
+                    result.push(EachBlockId {
+                        name: name.clone(),
+                        reactive: each_ctx.item_reactive,
+                    });
+                    return;
+                }
+            }
+        }
+        JsExpr::Member(member) => {
+            collect_each_block_ids(&member.object, context, result, seen);
+            if member.computed
+                && let JsMemberProperty::Expression(prop_expr) = &member.property
+            {
+                collect_each_block_ids(prop_expr, context, result, seen);
+            }
+        }
+        JsExpr::Call(call) => {
+            collect_each_block_ids(&call.callee, context, result, seen);
+            for arg in &call.arguments {
+                collect_each_block_ids(arg, context, result, seen);
+            }
+        }
+        JsExpr::Assignment(assign) => {
+            collect_each_block_ids(&assign.left, context, result, seen);
+            collect_each_block_ids(&assign.right, context, result, seen);
+        }
+        JsExpr::Arrow(arrow) => {
+            if let JsArrowBody::Expression(body) = &arrow.body {
+                collect_each_block_ids(body, context, result, seen);
+            }
+        }
+        JsExpr::Binary(binary) => {
+            collect_each_block_ids(&binary.left, context, result, seen);
+            collect_each_block_ids(&binary.right, context, result, seen);
+        }
+        JsExpr::Array(array) => {
+            for e in array.elements.iter().flatten() {
+                collect_each_block_ids(e, context, result, seen);
+            }
+        }
+        JsExpr::Conditional(cond) => {
+            collect_each_block_ids(&cond.test, context, result, seen);
+            collect_each_block_ids(&cond.consequent, context, result, seen);
+            collect_each_block_ids(&cond.alternate, context, result, seen);
+        }
+        JsExpr::Sequence(seq) => {
+            for e in &seq.expressions {
+                collect_each_block_ids(e, context, result, seen);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Make all MemberExpression nodes in an expression use optional chaining.
+fn make_optional_chain(expr: &JsExpr) -> JsExpr {
+    match expr {
+        JsExpr::Member(member) => {
+            let optional_object = make_optional_chain(&member.object);
+            JsExpr::Member(JsMemberExpression {
+                object: Box::new(optional_object),
+                property: member.property.clone(),
+                computed: member.computed,
+                optional: true,
+            })
+        }
+        JsExpr::Call(call) => {
+            let optional_callee = make_optional_chain(&call.callee);
+            JsExpr::Call(JsCallExpression {
+                callee: Box::new(optional_callee),
+                arguments: call.arguments.clone(),
+                optional: call.optional,
+            })
+        }
+        _ => expr.clone(),
+    }
+}
+
+/// Extract the body expression from an Arrow function, or return the expression as-is.
+fn extract_arrow_body(expr: &JsExpr) -> &JsExpr {
+    match expr {
+        JsExpr::Arrow(arrow) => match &arrow.body {
+            JsArrowBody::Expression(body) => body.as_ref(),
+            _ => expr,
+        },
+        _ => expr,
+    }
+}
+
+/// Build the 4-arg bind:this call for runes mode when each-block variables are referenced.
+fn build_bind_this_with_each_ids(
+    value: &JsExpr,
+    get: &JsExpr,
+    set: &Option<JsExpr>,
+    context: &ComponentContext,
+    each_ids: &[EachBlockId],
+) -> JsExpr {
+    use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression_with_shadowed;
+
+    let shadowed: HashSet<String> = each_ids.iter().map(|id| id.name.clone()).collect();
+    let id_params: Vec<JsPattern> = each_ids.iter().map(|id| b::id_pattern(&id.name)).collect();
+
+    // Transform getter with each-block vars shadowed
+    let transformed_getter = apply_transforms_to_expression_with_shadowed(get, context, &shadowed);
+
+    // Transform setter with each-block vars shadowed
+    let transformed_setter = if let Some(setter) = set {
+        apply_transforms_to_expression_with_shadowed(setter, context, &shadowed)
+    } else {
+        let raw_expr = extract_arrow_body(get);
+        let set_expr = b::assign(raw_expr.clone(), b::id("$$value"));
+        apply_transforms_to_expression_with_shadowed(&set_expr, context, &shadowed)
+    };
+
+    // Build getter: extract body from Arrow, apply optional chaining, add id params
+    let final_getter = match transformed_getter {
+        JsExpr::Arrow(arrow) => {
+            let optional_body = match arrow.body {
+                JsArrowBody::Expression(body) => {
+                    JsArrowBody::Expression(Box::new(make_optional_chain(&body)))
+                }
+                other => other,
+            };
+            let mut params = arrow.params;
+            params.extend(id_params.clone());
+            JsExpr::Arrow(JsArrowFunction {
+                params,
+                body: optional_body,
+                is_async: arrow.is_async,
+            })
+        }
+        other => {
+            let optional = make_optional_chain(&other);
+            b::arrow(id_params.clone(), optional)
+        }
+    };
+
+    // Build setter: add id params after first param
+    let final_setter = match transformed_setter {
+        JsExpr::Arrow(arrow) => {
+            let mut params = Vec::new();
+            if let Some(first) = arrow.params.first() {
+                params.push(first.clone());
+            } else {
+                params.push(b::id_pattern("_"));
+            }
+            params.extend(id_params);
+            for p in arrow.params.iter().skip(1) {
+                params.push(p.clone());
+            }
+            JsExpr::Arrow(JsArrowFunction {
+                params,
+                body: arrow.body,
+                is_async: arrow.is_async,
+            })
+        }
+        other => {
+            let mut params = vec![b::id_pattern("$$value")];
+            params.extend(id_params);
+            b::arrow(params, other)
+        }
+    };
+
+    // Build values thunk: () => [reactive_value1, ...]
+    let values: Vec<JsExpr> = each_ids
+        .iter()
+        .map(|id| {
+            if id.reactive {
+                b::call(b::member_path("$.get"), vec![b::id(&id.name)])
+            } else {
+                b::id(&id.name)
+            }
+        })
+        .collect();
+    let values_thunk = b::arrow(
+        vec![],
+        JsExpr::Array(JsArrayExpression {
+            elements: values.into_iter().map(Some).collect(),
+        }),
+    );
+
+    b::call(
+        b::member_path("$.bind_this"),
+        vec![value.clone(), final_setter, final_getter, values_thunk],
+    )
+}
+
 /// Build a bind:this call with context awareness for props, state, and each blocks.
 ///
 /// For props, the getter/setter use function call syntax.
@@ -588,9 +818,19 @@ fn build_bind_this_call_for_context(
     set: &Option<JsExpr>,
     context: &ComponentContext,
 ) -> JsExpr {
+    use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
+
+    // In runes mode, check if the expression references each-block variables.
+    // If so, generate the 4-arg form: $.bind_this(el, set_fn, get_fn, values_thunk)
+    if context.state.analysis.runes && !context.state.each_binding_context.is_empty() {
+        let each_ids = find_each_block_ids_in_expr(get, context);
+        if !each_ids.is_empty() {
+            return build_bind_this_with_each_ids(value, get, set, context, &each_ids);
+        }
+    }
+
     // Check if expression is a sequence (getter/setter pair)
     if let Some(setter) = set {
-        use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
         let transformed_getter = apply_transforms_to_expression(get, context);
         let transformed_setter = apply_transforms_to_expression(setter, context);
         b::call(

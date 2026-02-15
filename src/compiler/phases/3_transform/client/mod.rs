@@ -669,7 +669,7 @@ fn transform_client_with_visitors(
     // Then transform remaining rune calls ($state, $derived, etc.) in module-level script
     if let Some(non_imports) = module_script_non_imports {
         let class_transformed = transform_class_fields_client(&non_imports);
-        let transformed = transform_module_script_runes(&class_transformed);
+        let transformed = transform_module_script_runes(&class_transformed, analysis);
         body.push(JsStatement::Raw(transformed));
     }
 
@@ -798,10 +798,15 @@ fn extract_proxy_vars(script: &str) -> Vec<String> {
 }
 
 /// Transform rune calls in module-level script content.
-/// Module-level $state() becomes $.proxy() for objects/arrays or is unwrapped for primitives.
-/// Module-level $state variables are never reassigned (no $.state() wrapper needed).
-fn transform_module_script_runes(script: &str) -> String {
+/// Module-level $state() and $derived() variables get the same $.state(), $.get(), $.set()
+/// transforms as instance-level variables. The official Svelte compiler AST-walks the module
+/// script with the same visitors as the instance script, applying transforms to all scopes.
+fn transform_module_script_runes(script: &str, analysis: &ComponentAnalysis) -> String {
     let mut result = script.to_string();
+
+    // Extract local reactive variable names from the module script
+    // These are variables declared with $state() or $derived() inside functions
+    let module_state_vars = extract_local_reactive_vars(script);
 
     // Transform $state.snapshot(x) to $.snapshot(x)
     if result.contains("$state.snapshot(") {
@@ -818,12 +823,12 @@ fn transform_module_script_runes(script: &str) -> String {
         result = result.replace("$state.frozen(", "$.state(");
     }
 
-    // Transform $state(x) - module-level state is never reassigned
-    // Objects/arrays -> $.proxy(x), primitives -> just x
+    // Transform $state(x) to $.state(x)
+    // In module context, $state() variables get the same $.state() wrapping as instance-level,
+    // because the official compiler treats them identically via AST visitors.
     while let Some(pos) = result.find("$state(") {
         // Make sure this is not $state.something
         if pos + 7 < result.len() && result.as_bytes()[pos + 6] != b'(' {
-            // This shouldn't happen since we already handled $state.snapshot/raw/frozen
             break;
         }
         let state_start = pos + 7; // after "$state("
@@ -834,24 +839,24 @@ fn transform_module_script_runes(script: &str) -> String {
                 trimmed_content.starts_with('{') || trimmed_content.starts_with('[');
 
             if is_object_or_array || expression_needs_proxy(trimmed_content) {
-                // Wrap with $.proxy() for deep reactivity
+                // Objects/arrays need $.proxy() for deep reactivity AND $.state() for tracking
                 result = format!(
-                    "{}$.proxy({}){}",
+                    "{}$.state($.proxy({})){}",
                     &result[..pos],
                     content,
                     &result[state_start + content_end + 1..]
                 );
             } else if trimmed_content.is_empty() {
-                // Empty $state() -> void 0
+                // Empty $state() -> $.state(void 0)
                 result = format!(
-                    "{}void 0{}",
+                    "{}$.state(void 0){}",
                     &result[..pos],
                     &result[state_start + content_end + 1..]
                 );
             } else {
-                // Primitive - just extract the value
+                // Primitives - $.state(value)
                 result = format!(
-                    "{}{}{}",
+                    "{}$.state({}){}",
                     &result[..pos],
                     content,
                     &result[state_start + content_end + 1..]
@@ -868,8 +873,82 @@ fn transform_module_script_runes(script: &str) -> String {
     }
 
     // Transform $derived() to $.derived(() => expr)
-    if result.contains("$derived(") {
-        result = result.replace("$derived(", "$.derived(() => ");
+    // Need to wrap state variable references inside the expression with $.get()
+    while let Some(pos) = result.find("$derived(") {
+        if result[..pos].ends_with('$') {
+            // Already transformed to $.derived() - skip
+            break;
+        }
+        let derived_start = pos + 9; // after "$derived("
+        if let Some(content_end) = find_matching_paren(&result[derived_start..]) {
+            let content = &result[derived_start..derived_start + content_end];
+            // Wrap state variables inside the expression with $.get()
+            let empty_non_reactive: Vec<String> = Vec::new();
+            let empty_proxy: Vec<String> = Vec::new();
+            let wrapped_content = wrap_state_vars_in_expr(
+                content,
+                &module_state_vars,
+                &empty_non_reactive,
+                &empty_proxy,
+            );
+            result = format!(
+                "{}$.derived(() => {}){}",
+                &result[..pos],
+                wrapped_content,
+                &result[derived_start + content_end + 1..]
+            );
+        } else {
+            break;
+        }
+    }
+
+    // Apply $.set() for assignments and $.get() for reads of state variables
+    // This handles references to $state/$derived variables throughout the module script.
+    //
+    // We process line by line for assignment transforms because the global
+    // `transform_state_assignments` function has a guard that skips ALL assignments
+    // if any declaration (let/const/var) for the variable exists in the text.
+    // In module scripts, declarations and assignments coexist, so we need to
+    // process non-declaration lines separately.
+    if !module_state_vars.is_empty() {
+        let empty_non_reactive: Vec<String> = Vec::new();
+        let empty_proxy: Vec<String> = Vec::new();
+        let empty_raw: Vec<String> = Vec::new();
+
+        // Process line by line for assignment transforms
+        let lines: Vec<&str> = result.lines().collect();
+        let mut transformed_lines: Vec<String> = Vec::with_capacity(lines.len());
+        for line in &lines {
+            let trimmed = line.trim();
+            // Skip declaration lines - they've already been transformed
+            let is_declaration = module_state_vars.iter().any(|var| {
+                trimmed.contains(&format!("let {} = ", var))
+                    || trimmed.contains(&format!("const {} = ", var))
+                    || trimmed.contains(&format!("var {} = ", var))
+            });
+            if is_declaration {
+                transformed_lines.push(line.to_string());
+            } else {
+                let transformed = transform_state_assignments(
+                    line,
+                    &module_state_vars,
+                    &empty_non_reactive,
+                    &empty_proxy,
+                    &empty_raw,
+                    analysis.runes,
+                );
+                transformed_lines.push(transformed);
+            }
+        }
+        result = transformed_lines.join("\n");
+
+        // Wrap state variable reads in $.get()
+        result = wrap_state_vars_in_expr(
+            &result,
+            &module_state_vars,
+            &empty_non_reactive,
+            &empty_proxy,
+        );
     }
 
     result
