@@ -1163,6 +1163,19 @@ fn transform_instance_script_for_visitors(
             return;
         }
 
+        // Handle `let` declarations that contain variables exported via `export { ... }`.
+        // When we have `let a, b, c, d;` and `export { a, c }`, the variables `a` and `c`
+        // are marked as BindableProp and need to become `$.prop()` calls.
+        // We need to split the multi-declarator `let` statement and transform each declarator.
+        if !analysis.runes && has_legacy_export_let && first_line_trimmed.starts_with("let ") {
+            // Check if any of the declarators are BindableProp
+            if let Some(transformed) = transform_let_with_reexported_props(&statement, analysis) {
+                result.push_str(&transformed);
+                result.push('\n');
+                return;
+            }
+        }
+
         // Strip `export` keyword from function/const/class declarations
         // In the compiled output, exports are exposed via $$exports object, not ES export syntax
         // Reference: The official compiler processes exports in ExportNamedDeclaration visitor
@@ -3566,6 +3579,128 @@ fn wrap_prop_source_reads(expr: &str, prop_vars: &[String]) -> String {
     }
 
     result
+}
+
+/// Transform a `let` declaration that contains variables re-exported via `export { ... }`.
+///
+/// For example: `let a, b, c, d;` with `export { a, c }` becomes:
+/// ```
+/// let a = $.prop($$props, 'a', 8);
+/// let b;
+/// let c = $.prop($$props, 'c', 8);
+/// let d;
+/// ```
+///
+/// Returns `Some(transformed)` if the declaration contains any BindableProp vars,
+/// or `None` if no transformation is needed.
+fn transform_let_with_reexported_props(line: &str, analysis: &ComponentAnalysis) -> Option<String> {
+    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+
+    let trimmed = line.trim();
+
+    // Only handle `let` declarations (not `const`, `var`, etc.)
+    if !trimmed.starts_with("let ") {
+        return None;
+    }
+
+    let rest = trimmed[4..].trim();
+    let rest = rest.trim_end_matches(';').trim();
+
+    // Split by commas (respecting nesting)
+    let declarators = split_declarators(rest);
+
+    // Check if any declarator is a BindableProp
+    let has_any_prop = declarators.iter().any(|decl| {
+        let decl = decl.trim();
+        let name = if let Some(eq_pos) = decl.find('=') {
+            decl[..eq_pos].trim()
+        } else {
+            decl
+        };
+        analysis
+            .root
+            .find_binding_any_scope(name)
+            .and_then(|idx| analysis.root.bindings.get(idx))
+            .is_some_and(|b| b.kind == BindingKind::BindableProp)
+    });
+
+    if !has_any_prop {
+        return None;
+    }
+
+    let mut results = Vec::new();
+
+    for decl in declarators {
+        let decl = decl.trim();
+        if decl.is_empty() {
+            continue;
+        }
+
+        // Parse: name = value or just name
+        let (name, value) = if let Some(eq_pos) = decl.find('=') {
+            let n = decl[..eq_pos].trim();
+            let v = decl[eq_pos + 1..].trim();
+            // Remove trailing line comment if present
+            let v = if let Some(comment_pos) = find_line_comment_position(v) {
+                v[..comment_pos].trim()
+            } else {
+                v
+            };
+            let v = v.trim_end_matches(';').trim();
+            (n, Some(v))
+        } else {
+            (decl, None)
+        };
+
+        // Check if this variable is a BindableProp
+        let is_prop = analysis
+            .root
+            .find_binding_any_scope(name)
+            .and_then(|idx| analysis.root.bindings.get(idx))
+            .is_some_and(|b| b.kind == BindingKind::BindableProp);
+
+        if is_prop {
+            // Get the prop alias if any
+            let prop_alias = analysis
+                .root
+                .find_binding_any_scope(name)
+                .and_then(|idx| analysis.root.bindings.get(idx))
+                .and_then(|b| b.prop_alias.as_deref());
+            let prop_name = prop_alias.unwrap_or(name);
+
+            if let Some(val) = value {
+                let is_simple = is_simple_expression_str(val);
+                let flags = calculate_prop_flags(name, analysis, !is_simple);
+                if is_simple {
+                    results.push(format!(
+                        "let {} = $.prop($$props, '{}', {}, {});",
+                        name, prop_name, flags, val
+                    ));
+                } else {
+                    let lazy_arg = make_lazy_prop_arg(val);
+                    results.push(format!(
+                        "let {} = $.prop($$props, '{}', {}, {});",
+                        name, prop_name, flags, lazy_arg
+                    ));
+                }
+            } else {
+                let flags = calculate_prop_flags(name, analysis, false);
+                results.push(format!(
+                    "let {} = $.prop($$props, '{}', {});",
+                    name, prop_name, flags
+                ));
+            }
+        } else {
+            // Non-exported variable, keep as-is
+            if let Some(val) = value {
+                results.push(format!("let {} = {};", name, val));
+            } else {
+                results.push(format!("let {};", name));
+            }
+        }
+    }
+
+    Some(results.join("\n"))
 }
 
 fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> String {

@@ -1135,9 +1135,18 @@ fn collect_reactive_references_inner(
                 use crate::compiler::phases::phase2_analyze::scope::{
                     BindingKind, DeclarationKind,
                 };
+                // In the official compiler, 'template' kind covers: await then/catch values,
+                // let directive bindings, const tag declarations, and keyed each indices.
+                // Our Rust impl splits these into separate BindingKind variants.
+                // Note: 'each' kind (EachItem) and 'snippet' kind (SnippetParam) are NOT
+                // wrapped in deep_read_state - they are included as plain getters.
                 matches!(
                     binding.kind,
-                    BindingKind::Prop | BindingKind::BindableProp | BindingKind::Template
+                    BindingKind::BindableProp
+                        | BindingKind::Template
+                        | BindingKind::AwaitThen
+                        | BindingKind::AwaitCatch
+                        | BindingKind::Let
                 ) || binding.declaration_kind == DeclarationKind::Import
             } else {
                 false
