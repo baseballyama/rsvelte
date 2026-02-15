@@ -997,6 +997,14 @@ pub struct ComponentAnalysis {
 
     /// Warnings generated during analysis
     pub warnings: Vec<super::warnings::AnalysisWarning>,
+
+    /// Whether the component namespace (from compile options or <svelte:options>) is SVG.
+    /// Used by SvelteElement analysis to determine default namespace context.
+    pub component_namespace_is_svg: bool,
+
+    /// Whether the component namespace (from compile options or <svelte:options>) is MathML.
+    /// Used by SvelteElement analysis to determine default namespace context.
+    pub component_namespace_is_mathml: bool,
 }
 
 impl ComponentAnalysis {
@@ -1065,6 +1073,8 @@ impl ComponentAnalysis {
             instance_body: InstanceBody::default(),
             comments: Vec::new(),
             warnings: Vec::new(),
+            component_namespace_is_svg: options.namespace == crate::compiler::Namespace::Svg,
+            component_namespace_is_mathml: options.namespace == crate::compiler::Namespace::Mathml,
         }
     }
 

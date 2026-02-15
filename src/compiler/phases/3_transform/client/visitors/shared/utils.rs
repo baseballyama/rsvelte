@@ -1979,6 +1979,12 @@ pub(crate) fn get_literal_value(
                         return Some(None);
                     }
 
+                    // If there's a transform registered for this identifier (e.g., from let: directive),
+                    // it's been overridden in the current scope and should not be folded as a literal
+                    if context.state.transform.contains_key(name) {
+                        return None;
+                    }
+
                     // Check if the identifier is a constant binding
                     let binding = context.state.get_binding(name)?;
 

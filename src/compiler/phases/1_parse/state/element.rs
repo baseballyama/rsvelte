@@ -469,6 +469,7 @@ impl Parser<'_> {
                     attributes: filtered_attrs,
                     fragment,
                     tag,
+                    metadata: Default::default(),
                 })
             }
             _ => TemplateNode::RegularElement(RegularElement {

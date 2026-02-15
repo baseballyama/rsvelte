@@ -67,7 +67,8 @@ pub fn build_component(
 
     let mut props_and_spreads: Vec<PropsEntry> = Vec::new();
     let mut delayed_props: Vec<DelayedProp> = Vec::new();
-    let mut lets: Vec<JsExpressionStatement> = Vec::new();
+    let mut lets: Vec<JsStatement> = Vec::new();
+    let mut let_names: Vec<String> = Vec::new();
     let mut events: FxHashMap<String, Vec<JsExpr>> = FxHashMap::default();
     let mut custom_css_props: Vec<JsObjectMember> = Vec::new();
     let mut bind_this: Option<Expression> = None;
@@ -112,7 +113,7 @@ pub fn build_component(
     if slot_scope_applies_to_itself {
         for attribute in attributes {
             if let Attribute::LetDirective(let_dir) = attribute {
-                process_let_directive(let_dir, context, &mut lets);
+                process_let_directive(let_dir, context, &mut lets, &mut let_names);
             }
         }
     }
@@ -122,7 +123,7 @@ pub fn build_component(
         match attribute {
             Attribute::LetDirective(let_dir) => {
                 if !slot_scope_applies_to_itself {
-                    process_let_directive(let_dir, context, &mut lets);
+                    process_let_directive(let_dir, context, &mut lets, &mut let_names);
                 }
             }
 
@@ -180,10 +181,7 @@ pub fn build_component(
     // Add let directives to init if slot scope applies to component
     if slot_scope_applies_to_itself {
         for let_stmt in lets.iter() {
-            context
-                .state
-                .init
-                .push(JsStatement::Expression(let_stmt.clone()));
+            context.state.init.push(let_stmt.clone());
         }
     }
 
@@ -233,6 +231,7 @@ pub fn build_component(
             &slot_name,
             slot_scope_applies_to_itself,
             &lets,
+            &let_names,
             context,
         );
 
@@ -501,15 +500,76 @@ fn determine_slot_from_attributes(attributes: &[Attribute]) -> bool {
 }
 
 /// Process a let directive.
+///
+/// This corresponds to the `LetDirective` visitor in
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/LetDirective.js`.
+///
+/// For simple `let:x`:
+///   const x = $.derived_safe_equal(() => $$slotProps.x);  // legacy mode
+///   const x = $.derived(() => $$slotProps.x);              // runes mode
+///
+/// For `let:x={{y, z}}` (destructured):
+///   const derived_x = $.derived(() => { const { y, z } = $$slotProps.x; return { y, z }; });
+///   (with transforms to read y, z from derived_x)
+///
+/// NOTE: This function does NOT register transforms. Transforms are registered
+/// inside `build_slot_function` so they only apply to the correct slot scope.
 fn process_let_directive(
     let_dir: &LetDirective,
-    _context: &mut ComponentContext,
-    _lets: &mut Vec<JsExpressionStatement>,
+    context: &mut ComponentContext,
+    lets: &mut Vec<JsStatement>,
+    let_names: &mut Vec<String>,
 ) {
-    // Let directives create local bindings from slot props
-    // For now, we'll skip the full implementation
-    // TODO: Implement proper let directive handling
-    let _ = let_dir;
+    let prop_name = &let_dir.name;
+
+    // Check if expression is an Identifier or null (simple case)
+    let is_simple = match &let_dir.expression {
+        None => true,
+        Some(expr) => {
+            let Expression::Value(val) = expr;
+            if let serde_json::Value::Object(obj) = val {
+                obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+            } else {
+                true
+            }
+        }
+    };
+
+    if is_simple {
+        // Simple case: let:x or let:x={y}
+        // Get the binding name - either the expression identifier name or the directive name
+        let name = match &let_dir.expression {
+            Some(expr) => {
+                let Expression::Value(val) = expr;
+                if let serde_json::Value::Object(obj) = val {
+                    obj.get("name")
+                        .and_then(|n| n.as_str())
+                        .unwrap_or(prop_name)
+                        .to_string()
+                } else {
+                    prop_name.to_string()
+                }
+            }
+            None => prop_name.to_string(),
+        };
+
+        // Track the name for transform registration (done in build_slot_function)
+        let_names.push(name.clone());
+
+        // Generate: const name = $.derived_safe_equal(() => $$slotProps.prop_name)
+        // or: const name = $.derived(() => $$slotProps.prop_name) in runes mode
+        let derived_fn = if context.state.analysis.runes {
+            "$.derived"
+        } else {
+            "$.derived_safe_equal"
+        };
+
+        lets.push(JsStatement::Raw(format!(
+            "const {} = {}(() => $$slotProps.{});",
+            name, derived_fn, prop_name,
+        )));
+    }
+    // TODO: Handle destructured let:x={{y, z}} case
 }
 
 /// Process an OnDirective (event handler).
@@ -1186,16 +1246,50 @@ fn build_slot_function(
     children: &[&TemplateNode],
     slot_name: &str,
     slot_scope_applies_to_itself: bool,
-    lets: &[JsExpressionStatement],
+    lets: &[JsStatement],
+    let_names: &[String],
     context: &mut ComponentContext,
 ) -> Option<JsExpr> {
     if children.is_empty() {
         return None;
     }
 
+    // Determine if let directive transforms should be active for this slot.
+    // Let directives on a component apply to:
+    // - The default slot (when slot_scope_applies_to_itself is false)
+    // - The component itself (when slot_scope_applies_to_itself is true, handled elsewhere)
+    // Named slots do NOT receive let directive transforms from the component.
+    let should_apply_let_transforms =
+        !let_names.is_empty() && (slot_name == "default" || slot_scope_applies_to_itself);
+
+    // Register let directive transforms if this is the appropriate slot
+    if should_apply_let_transforms {
+        for name in let_names {
+            context.state.transform.insert(
+                name.clone(),
+                crate::compiler::phases::phase3_transform::client::types::IdentifierTransform {
+                    read: Some(|node| b::call(b::member_path("$.get"), vec![node])),
+                    assign: None,
+                    mutate: None,
+                    update: None,
+                    skip_proxy: false,
+                    is_defined: false,
+                    is_reactive: true,
+                },
+            );
+        }
+    }
+
     // Visit the children and collect generated statements
     // This pattern mirrors visit_fragment in snippet_block.rs
     let child_statements = visit_slot_children(children, context);
+
+    // Remove let directive transforms after visiting children
+    if should_apply_let_transforms {
+        for name in let_names {
+            context.state.transform.remove(name);
+        }
+    }
 
     // If no statements were generated, return None
     if child_statements.is_empty() {
@@ -1208,7 +1302,7 @@ fn build_slot_function(
     // Add let directives for default slot (only if slot scope doesn't apply to component itself)
     if slot_name == "default" && !slot_scope_applies_to_itself {
         for let_stmt in lets {
-            body.push(JsStatement::Expression(let_stmt.clone()));
+            body.push(let_stmt.clone());
         }
     }
 

@@ -24,6 +24,13 @@ pub fn generate_fast(program: &JsProgram) -> String {
     codegen.output
 }
 
+/// Generate JavaScript source code for a single expression.
+pub fn generate_expr(expr: &super::nodes::JsExpr) -> String {
+    let mut codegen = JsCodegen::new();
+    codegen.emit_expression(expr);
+    codegen.output
+}
+
 /// Generate raw JavaScript source code without normalization.
 pub fn generate_raw(program: &JsProgram) -> String {
     let mut codegen = JsCodegen::new();
@@ -86,6 +93,8 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     // and Svelte's output does the same, so we keep this escaping.
     // oxc codegen outputs numbers like .5 instead of 0.5 - add leading zeros
     let code = add_leading_zeros(code);
+    // OXC codegen outputs numbers like 2e3 instead of 2000 - expand scientific notation
+    let code = expand_scientific_notation(code);
     // OXC formats `catch (e)` with a space, but Svelte uses `catch(e)` without space
     let code = code.replace("} catch (", "} catch(");
     // OXC formats anonymous function expressions as `function(` without space,
@@ -1378,6 +1387,58 @@ fn add_leading_zeros(code: String) -> String {
         i += 1;
     }
     result
+}
+
+/// Expand scientific notation in numeric literals back to decimal form.
+///
+/// OXC's codegen outputs numbers like `2e3` instead of `2000`.
+/// This function expands them to match Svelte's esrap output.
+///
+/// Only positive integer exponents are expanded (e.g. `2e3` -> `2000`).
+/// Negative exponents (e.g. `1e-3`) are left as-is since OXC already
+/// outputs those as decimal (`0.001`).
+fn expand_scientific_notation(code: String) -> String {
+    use regex::Regex;
+
+    // Match numeric scientific notation with positive exponents:
+    // - Optional digits before decimal, optional decimal part, then 'e' and digits
+    // - Examples: 2e3, 1e4, 2.5e3, 1e10
+    // - Word boundary (\b) prevents matching inside identifiers
+    let re = Regex::new(r"\b(\d+(?:\.\d+)?)e(\d+)\b").unwrap();
+
+    re.replace_all(&code, |caps: &regex::Captures| {
+        let mantissa = &caps[1];
+        let exponent: usize = caps[2].parse().unwrap_or(0);
+
+        if let Some(dot_pos) = mantissa.find('.') {
+            // Has decimal point, e.g. "2.5e3"
+            let integer_part = &mantissa[..dot_pos];
+            let decimal_part = &mantissa[dot_pos + 1..];
+            let decimal_len = decimal_part.len();
+
+            if exponent >= decimal_len {
+                // All decimal digits move to integer part, plus trailing zeros
+                format!(
+                    "{}{}{}",
+                    integer_part,
+                    decimal_part,
+                    "0".repeat(exponent - decimal_len)
+                )
+            } else {
+                // Some decimal digits remain after the point
+                format!(
+                    "{}{}.{}",
+                    integer_part,
+                    &decimal_part[..exponent],
+                    &decimal_part[exponent..]
+                )
+            }
+        } else {
+            // No decimal point, e.g. "2e3"
+            format!("{}{}", mantissa, "0".repeat(exponent))
+        }
+    })
+    .into_owned()
 }
 
 /// Collapse short arrays from multi-line to single-line format.
@@ -2857,6 +2918,47 @@ export default function Main($$anchor, $$props) {
             !has_literal_backslash_t,
             "Output should not contain literal \\t"
         );
+    }
+
+    #[test]
+    fn test_oxc_scientific_notation_expanded() {
+        // OXC converts round numbers to scientific notation, verify we expand them back
+        let cases = vec![
+            ("var x = 2000;", "2000"),
+            ("var x = 1000;", "1000"),
+            ("var x = 10000;", "10000"),
+            ("var x = 100000;", "100000"),
+            ("var x = 1000000;", "1000000"),
+        ];
+        for (input, expected_num) in cases {
+            let result = normalize_js(input).unwrap();
+            let expected = format!("var x = {};", expected_num);
+            assert_eq!(
+                result, expected,
+                "Scientific notation should be expanded for: {}",
+                input
+            );
+        }
+    }
+
+    #[test]
+    fn test_expand_scientific_notation_function() {
+        // Test the expand_scientific_notation function directly
+        assert_eq!(expand_scientific_notation("2e3".to_string()), "2000");
+        assert_eq!(expand_scientific_notation("1e4".to_string()), "10000");
+        assert_eq!(expand_scientific_notation("1e6".to_string()), "1000000");
+        assert_eq!(
+            expand_scientific_notation("x = 2e3;".to_string()),
+            "x = 2000;"
+        );
+        assert_eq!(expand_scientific_notation("2.5e3".to_string()), "2500");
+        // Should not match inside identifiers
+        assert_eq!(
+            expand_scientific_notation("let e3 = 5;".to_string()),
+            "let e3 = 5;"
+        );
+        // Should preserve negative exponents (leave as-is, OXC doesn't produce these)
+        assert_eq!(expand_scientific_notation("1e-3".to_string()), "1e-3");
     }
 
     #[test]

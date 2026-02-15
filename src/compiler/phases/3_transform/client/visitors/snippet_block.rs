@@ -452,24 +452,49 @@ fn process_assignment_pattern(
 }
 
 /// Build the arguments for $.fallback() call.
-/// Returns [defaultValue] for simple defaults or [() => defaultValue, true] for complex ones.
+/// Returns [defaultValue] for simple defaults or [callee/thunk, true] for complex ones.
+///
+/// This implements the same logic as the official `build_fallback` in
+/// `svelte/packages/svelte/src/compiler/utils/ast.js`, including the `unthunk`
+/// optimization from `builders.js` that simplifies `() => func()` to just `func`.
 fn build_fallback_args(
     default_value: &serde_json::Value,
     context: &mut ComponentContext,
 ) -> Vec<JsExpr> {
     use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
 
-    let default_expr = convert_expression(&Expression::Value(default_value.clone()), context);
-
     if is_simple_expression_json(default_value) {
         // Simple default: $.fallback(arg?.(), default)
+        let default_expr = convert_expression(&Expression::Value(default_value.clone()), context);
         vec![default_expr]
     } else {
-        // Complex default: $.fallback(arg?.(), () => default, true)
-        vec![
-            b::thunk(default_expr),
-            JsExpr::Literal(JsLiteral::Boolean(true)),
-        ]
+        // Complex default - check for the unthunk optimization:
+        // When the default is `func()` (CallExpression with 0 args and Identifier callee),
+        // just pass `func` instead of `() => func()`. This matches Svelte's `unthunk` in builders.js.
+        if let Some(obj) = default_value.as_object()
+            && obj.get("type").and_then(|t| t.as_str()) == Some("CallExpression")
+            && obj
+                .get("arguments")
+                .and_then(|a| a.as_array())
+                .is_some_and(|a| a.is_empty())
+            && let Some(callee) = obj.get("callee").and_then(|c| c.as_object())
+            && callee.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+        {
+            // Optimization: pass just the callee identifier instead of thunking
+            let callee_expr = convert_expression(
+                &Expression::Value(serde_json::Value::Object(callee.clone())),
+                context,
+            );
+            vec![callee_expr, JsExpr::Literal(JsLiteral::Boolean(true))]
+        } else {
+            // General case: thunk the expression
+            let default_expr =
+                convert_expression(&Expression::Value(default_value.clone()), context);
+            vec![
+                b::thunk(default_expr),
+                JsExpr::Literal(JsLiteral::Boolean(true)),
+            ]
+        }
     }
 }
 
@@ -982,5 +1007,20 @@ mod tests {
         assert!(transform.read.is_some());
         assert!(transform.assign.is_none());
         assert!(transform.mutate.is_none());
+    }
+
+    #[test]
+    fn test_snippet_params_with_defaults() {
+        use crate::{ParseOptions, parse};
+        let input = r#"{#snippet one(a, b = 1, c = (2, 3))}
+  {a}{b}{c}
+{/snippet}
+{@render one(0)}"#;
+        let result = parse(input, ParseOptions::default()).unwrap();
+        let json = serde_json::to_string_pretty(&result).unwrap();
+        assert!(
+            json.contains("AssignmentPattern"),
+            "Parser should produce AssignmentPattern for default params"
+        );
     }
 }

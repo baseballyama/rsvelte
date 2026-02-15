@@ -493,7 +493,8 @@ impl<'a> ComponentContext<'a> {
 
         // Build $.element(...) call
         // $.element(anchor, get_tag, is_svg_or_mathml, callback, namespace)
-        let is_svg_or_mathml = b::boolean(false); // TODO: Check metadata if available
+        // Use metadata from Phase 2 analysis (set in svelte_element.rs visitor)
+        let is_svg_or_mathml = b::boolean(elem.metadata.svg || elem.metadata.mathml);
 
         let mut element_args = vec![self.state.node.clone(), get_tag, is_svg_or_mathml];
 

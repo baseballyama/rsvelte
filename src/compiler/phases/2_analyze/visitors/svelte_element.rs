@@ -9,7 +9,22 @@ use super::super::errors;
 use super::VisitorContext;
 use super::shared::fragment;
 use crate::ast::js::Expression;
-use crate::ast::template::{Attribute, SvelteDynamicElement};
+use crate::ast::template::{
+    Attribute, AttributeValue, AttributeValuePart, SvelteDynamicElement, TemplateNode,
+};
+
+const NAMESPACE_SVG: &str = "http://www.w3.org/2000/svg";
+const NAMESPACE_MATHML: &str = "http://www.w3.org/1998/Math/MathML";
+
+/// Check if an attribute is a text-only attribute (all parts are Text).
+fn is_text_attribute(attr: &crate::ast::template::AttributeNode) -> bool {
+    match &attr.value {
+        AttributeValue::True(_) | AttributeValue::Expression(_) => false,
+        AttributeValue::Sequence(parts) => parts
+            .iter()
+            .all(|p| matches!(p, AttributeValuePart::Text(_))),
+    }
+}
 
 /// Visit a svelte:element.
 pub fn visit(
@@ -37,6 +52,80 @@ pub fn visit(
     // This is crucial for legacy state promotion to work correctly
     let Expression::Value(tag_value) = &element.tag;
     super::script::walk_js_node(tag_value, context)?;
+
+    // Determine SVG/MathML metadata based on xmlns attribute or ancestor context.
+    // This follows the official Svelte compiler's SvelteElement.js analysis logic.
+    //
+    // 1. If the element has a static xmlns attribute, use its value to determine namespace
+    // 2. Otherwise, walk ancestors to find the nearest element or component boundary
+    let xmlns_attr = element.attributes.iter().find_map(|attr| {
+        if let Attribute::Attribute(a) = attr
+            && a.name == "xmlns"
+            && is_text_attribute(a)
+            && let AttributeValue::Sequence(parts) = &a.value
+            && let Some(AttributeValuePart::Text(t)) = parts.first()
+        {
+            return Some(t.data.to_string());
+        }
+        None
+    });
+
+    if let Some(xmlns_value) = xmlns_attr {
+        element.metadata.svg = xmlns_value == NAMESPACE_SVG;
+        element.metadata.mathml = xmlns_value == NAMESPACE_MATHML;
+    } else {
+        // Walk ancestors to determine namespace context
+        let mut i = context.path.len();
+        while i > 0 {
+            i -= 1;
+            let ancestor = context.path[i];
+
+            match ancestor {
+                // Component/SvelteComponent/SvelteFragment/SnippetBlock or root resets namespace
+                TemplateNode::Component(_)
+                | TemplateNode::SvelteComponent(_)
+                | TemplateNode::SvelteFragment(_)
+                | TemplateNode::SnippetBlock(_) => {
+                    // Use component namespace option - check the compile options via analysis
+                    // The component namespace is stored in the AST options
+                    element.metadata.svg = context.analysis.component_namespace_is_svg;
+                    element.metadata.mathml = context.analysis.component_namespace_is_mathml;
+                    break;
+                }
+                // SvelteElement or RegularElement - inherit namespace
+                TemplateNode::SvelteElement(ancestor_elem) => {
+                    element.metadata.svg = ancestor_elem.metadata.svg;
+                    element.metadata.mathml = ancestor_elem.metadata.mathml;
+                    break;
+                }
+                TemplateNode::RegularElement(ancestor_elem) => {
+                    if ancestor_elem.name.as_str() == "foreignObject" {
+                        element.metadata.svg = false;
+                        element.metadata.mathml = false;
+                    } else {
+                        element.metadata.svg = ancestor_elem.metadata.svg;
+                        element.metadata.mathml = ancestor_elem.metadata.mathml;
+                    }
+                    break;
+                }
+                _ => {
+                    // At root level (i == 0), use component namespace
+                    if i == 0 {
+                        element.metadata.svg = context.analysis.component_namespace_is_svg;
+                        element.metadata.mathml = context.analysis.component_namespace_is_mathml;
+                        break;
+                    }
+                    // Otherwise continue walking ancestors
+                }
+            }
+        }
+
+        // Handle empty path (element is at root level)
+        if context.path.is_empty() {
+            element.metadata.svg = context.analysis.component_namespace_is_svg;
+            element.metadata.mathml = context.analysis.component_namespace_is_mathml;
+        }
+    }
 
     // Check for invalid bindings on svelte:element
     // bind:value, bind:files, bind:group can only be used with specific elements
@@ -86,8 +175,19 @@ pub fn visit(
         .fragment_owner_stack
         .push(super::FragmentOwnerType::SvelteElement);
 
+    // Save and update the SVG/MathML namespace state for child analysis.
+    // Child svelte:element nodes will check these fields to determine their namespace.
+    let saved_svg = context.analysis.component_namespace_is_svg;
+    let saved_mathml = context.analysis.component_namespace_is_mathml;
+    context.analysis.component_namespace_is_svg = element.metadata.svg;
+    context.analysis.component_namespace_is_mathml = element.metadata.mathml;
+
     // Analyze children
     fragment::analyze(&mut element.fragment, context)?;
+
+    // Restore namespace state
+    context.analysis.component_namespace_is_svg = saved_svg;
+    context.analysis.component_namespace_is_mathml = saved_mathml;
 
     // Restore context
     context.fragment_owner_stack.pop();

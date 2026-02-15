@@ -545,6 +545,11 @@ enum OutputPart {
         slot_names: Vec<String>,
         /// Whether this component is dynamic (could be undefined/null)
         dynamic: bool,
+        /// Let directive names on the component itself (e.g., `<Counter let:count>` -> ["count"])
+        /// These apply to the default slot and require special handling:
+        /// - children becomes $.invalid_default_snippet
+        /// - default slot content moves to $$slots.default with destructured params
+        let_directives: Vec<String>,
     },
     /// Component with bind directives - requires do/while settling
     ComponentWithBindings {
@@ -3296,9 +3301,25 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
+        // Collect component-level let directive names (e.g., <Counter let:count>)
+        let component_let_directives: Vec<String> = component
+            .attributes
+            .iter()
+            .filter_map(|attr| {
+                if let Attribute::LetDirective(let_dir) = attr {
+                    Some(let_dir.name.to_string())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
         // Extract snippets from the component's fragment and process children
-        let (children, snippets, slot_names) =
-            self.generate_component_children_with_snippets(&component.fragment)?;
+        // Pass component-level let directives so constant folding is suppressed for shadowed vars
+        let (children, snippets, slot_names) = self.generate_component_children_with_snippets(
+            &component.fragment,
+            &component_let_directives,
+        )?;
 
         // Check if the component is dynamic (could be undefined/null)
         // A component is dynamic if it's marked as such in metadata
@@ -3314,6 +3335,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 snippets,
                 slot_names,
                 dynamic: is_dynamic,
+                let_directives: component_let_directives,
             });
         } else {
             self.output_parts.push(OutputPart::ComponentWithBindings {
@@ -3338,6 +3360,7 @@ impl<'a> ServerCodeGenerator<'a> {
     fn generate_component_children_with_snippets(
         &mut self,
         fragment: &Fragment,
+        component_let_directives: &[String],
     ) -> Result<
         (
             Option<Vec<OutputPart>>,
@@ -3412,8 +3435,25 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         // Process default slot children
+        // When component has let directives (e.g., <Counter let:count>), the destructured
+        // parameter shadows any outer constant variable. We need to temporarily remove
+        // those names from constant_vars so they're not constant-folded.
         let children = if let Some((default_nodes, _let_dirs)) = slot_children.remove("default") {
-            self.generate_children_from_nodes(&default_nodes)?
+            let mut saved_constants: Vec<(String, String)> = Vec::new();
+            for name in component_let_directives {
+                if let Some(value) = self.constant_vars.remove(name) {
+                    saved_constants.push((name.clone(), value));
+                }
+            }
+
+            let result = self.generate_children_from_nodes(&default_nodes)?;
+
+            // Restore removed constants
+            for (name, value) in saved_constants {
+                self.constant_vars.insert(name, value);
+            }
+
+            result
         } else {
             None
         };
@@ -4481,9 +4521,22 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
+        // Collect let directive names
+        let component_let_directives: Vec<String> = elem
+            .attributes
+            .iter()
+            .filter_map(|attr| {
+                if let Attribute::LetDirective(let_dir) = attr {
+                    Some(let_dir.name.to_string())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
         // Extract snippets from the component's fragment and process children
-        let (children, snippets, slot_names) =
-            self.generate_component_children_with_snippets(&elem.fragment)?;
+        let (children, snippets, slot_names) = self
+            .generate_component_children_with_snippets(&elem.fragment, &component_let_directives)?;
 
         // Use ComponentWithBindings if there are any bind directives
         if bindings.is_empty() {
@@ -4495,6 +4548,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 snippets,
                 slot_names,
                 dynamic: true,
+                let_directives: component_let_directives,
             });
         } else {
             self.output_parts.push(OutputPart::ComponentWithBindings {
@@ -4554,9 +4608,22 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
+        // Collect let directive names
+        let component_let_directives: Vec<String> = elem
+            .attributes
+            .iter()
+            .filter_map(|attr| {
+                if let Attribute::LetDirective(let_dir) = attr {
+                    Some(let_dir.name.to_string())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
         // Extract children from the fragment
-        let (children, snippets, slot_names) =
-            self.generate_component_children_with_snippets(&elem.fragment)?;
+        let (children, snippets, slot_names) = self
+            .generate_component_children_with_snippets(&elem.fragment, &component_let_directives)?;
 
         // svelte:self is NOT dynamic (it always refers to the current component)
         if bindings.is_empty() {
@@ -4568,6 +4635,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 snippets,
                 slot_names,
                 dynamic: false,
+                let_directives: component_let_directives,
             });
         } else {
             self.output_parts.push(OutputPart::ComponentWithBindings {
@@ -5641,6 +5709,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     snippets,
                     slot_names,
                     dynamic,
+                    let_directives,
                 } => {
                     // Flush current HTML before the component call
                     // For dynamic components, add <!---->  marker before the call
@@ -5799,6 +5868,8 @@ export default function {component_name}($$renderer{props_param}) {{
                         } else if let Some(children_parts) = children {
                             // Component with children (default slot) and possibly named slots
                             let all_props = collect_all_props(props_and_spreads);
+                            let has_let_dirs = !let_directives.is_empty();
+
                             body_code.push_str(&format!(
                                 "{}{}{}($$renderer, {{\n",
                                 indent, name, call_syntax
@@ -5809,18 +5880,33 @@ export default function {component_name}($$renderer{props_param}) {{
                                 body_code.push_str(&format!("{}\t{},\n", indent, prop));
                             }
 
-                            // Children callback (default slot)
-                            body_code
-                                .push_str(&format!("{}\tchildren: ($$renderer) => {{\n", indent));
-                            let children_code =
-                                Self::build_parts(children_parts, indent_level + 2, each_counter);
-                            body_code.push_str(&children_code);
-                            body_code.push_str(&format!("{}\t}},\n", indent));
+                            if has_let_dirs {
+                                // Has let directives on the component:
+                                // children: $.invalid_default_snippet,
+                                // $$slots: { default: ($$renderer, { name }) => { ... }, ... }
+                                body_code.push_str(&format!(
+                                    "{}\tchildren: $.invalid_default_snippet,\n",
+                                    indent
+                                ));
 
-                            // $$slots with default: true and any named slot children
-                            if has_slot_children {
+                                // Build $$slots with default slot function having destructured params
                                 body_code.push_str(&format!("{}\t$$slots: {{\n", indent));
-                                body_code.push_str(&format!("{}\t\tdefault: true,\n", indent));
+
+                                // Default slot with destructured let directive params
+                                let params_str = format!("{{ {} }}", let_directives.join(", "));
+                                body_code.push_str(&format!(
+                                    "{}\t\tdefault: ($$renderer, {}) => {{\n",
+                                    indent, params_str
+                                ));
+                                let children_code = Self::build_parts(
+                                    children_parts,
+                                    indent_level + 3,
+                                    each_counter,
+                                );
+                                body_code.push_str(&children_code);
+                                body_code.push_str(&format!("{}\t\t}},\n", indent));
+
+                                // Named slot children
                                 for (slot_name, params, body_parts, _) in &slot_children {
                                     let quoted_name = quote_prop_name(slot_name);
                                     let fn_body = Self::build_parts(
@@ -5834,7 +5920,6 @@ export default function {component_name}($$renderer{props_param}) {{
                                             indent, quoted_name, fn_body
                                         ));
                                     } else {
-                                        // Destructured params from let directives
                                         let params_str = format!("{{ {} }}", params.join(", "));
                                         body_code.push_str(&format!(
                                             "{}\t\t{}: ($$renderer, {}) => {{\n{}",
@@ -5843,13 +5928,56 @@ export default function {component_name}($$renderer{props_param}) {{
                                     }
                                     body_code.push_str(&format!("{}\t\t}},\n", indent));
                                 }
+
                                 body_code.push_str(&format!("{}\t}}\n", indent));
                             } else {
-                                // Only default slot
+                                // No let directives - standard children callback
                                 body_code.push_str(&format!(
-                                    "{}\t$$slots: {{ default: true }}\n",
+                                    "{}\tchildren: ($$renderer) => {{\n",
                                     indent
                                 ));
+                                let children_code = Self::build_parts(
+                                    children_parts,
+                                    indent_level + 2,
+                                    each_counter,
+                                );
+                                body_code.push_str(&children_code);
+                                body_code.push_str(&format!("{}\t}},\n", indent));
+
+                                // $$slots with default: true and any named slot children
+                                if has_slot_children {
+                                    body_code.push_str(&format!("{}\t$$slots: {{\n", indent));
+                                    body_code.push_str(&format!("{}\t\tdefault: true,\n", indent));
+                                    for (slot_name, params, body_parts, _) in &slot_children {
+                                        let quoted_name = quote_prop_name(slot_name);
+                                        let fn_body = Self::build_parts(
+                                            body_parts,
+                                            indent_level + 3,
+                                            each_counter,
+                                        );
+                                        if params.is_empty() {
+                                            body_code.push_str(&format!(
+                                                "{}\t\t{}: ($$renderer) => {{\n{}",
+                                                indent, quoted_name, fn_body
+                                            ));
+                                        } else {
+                                            // Destructured params from let directives
+                                            let params_str = format!("{{ {} }}", params.join(", "));
+                                            body_code.push_str(&format!(
+                                                "{}\t\t{}: ($$renderer, {}) => {{\n{}",
+                                                indent, quoted_name, params_str, fn_body
+                                            ));
+                                        }
+                                        body_code.push_str(&format!("{}\t\t}},\n", indent));
+                                    }
+                                    body_code.push_str(&format!("{}\t}}\n", indent));
+                                } else {
+                                    // Only default slot
+                                    body_code.push_str(&format!(
+                                        "{}\t$$slots: {{ default: true }}\n",
+                                        indent
+                                    ));
+                                }
                             }
                             body_code.push_str(&format!("{}}});\n", indent));
                         }

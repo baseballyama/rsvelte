@@ -513,7 +513,8 @@ fn convert_formal_parameter(
 ) -> Expression {
     use oxc_ast::ast::BindingPattern;
 
-    match &param.pattern {
+    // First, convert the pattern (left side)
+    let pattern_expr = match &param.pattern {
         BindingPattern::BindingIdentifier(id) => {
             let start = adjusted_offset + id.span.start as usize;
             let name = id.name.as_str();
@@ -534,11 +535,11 @@ fn convert_formal_parameter(
                     convert_type_annotation_adjusted(type_ann, adjusted_offset, line_offsets);
                 obj.insert("typeAnnotation".to_string(), type_ann_obj);
 
-                return Expression::Value(Value::Object(obj));
+                Expression::Value(Value::Object(obj))
+            } else {
+                let end = adjusted_offset + id.span.end as usize;
+                create_identifier(name, start, end, line_offsets)
             }
-
-            let end = adjusted_offset + id.span.end as usize;
-            create_identifier(name, start, end, line_offsets)
         }
         BindingPattern::ObjectPattern(obj_pat) => {
             // Convert to proper ObjectPattern JSON
@@ -552,7 +553,52 @@ fn convert_formal_parameter(
             // Convert to proper AssignmentPattern JSON
             convert_assignment_pattern_to_expr(assign_pat, adjusted_offset, line_offsets)
         }
+    };
+
+    // In OXC v0.107, default parameter values are stored in FormalParameter.initializer,
+    // not in BindingPattern::AssignmentPattern. For example, `(b = 1) => {}` gives us:
+    //   param.pattern = BindingIdentifier("b")
+    //   param.initializer = Some(NumericLiteral(1))
+    // We need to wrap this as an AssignmentPattern JSON node.
+    if let Some(initializer) = &param.initializer {
+        let pattern_start = adjusted_offset + param.span.start as usize;
+        let pattern_end = adjusted_offset + param.span.end as usize;
+
+        // Convert the right-hand side (default value) using the OXC expression converter.
+        // adjusted_offset is already offset - 1, but convert_expression expects the raw offset
+        // and does its own -1 adjustment internally.
+        let right = convert_expression(initializer, adjusted_offset + 1, line_offsets);
+
+        let mut obj = Map::new();
+        obj.insert(
+            "type".to_string(),
+            Value::String("AssignmentPattern".to_string()),
+        );
+        obj.insert(
+            "start".to_string(),
+            Value::Number((pattern_start as i64).into()),
+        );
+        obj.insert(
+            "end".to_string(),
+            Value::Number((pattern_end as i64).into()),
+        );
+        obj.insert(
+            "loc".to_string(),
+            create_loc(pattern_start, pattern_end, line_offsets),
+        );
+
+        // left is the pattern (Identifier, ObjectPattern, etc.)
+        let Expression::Value(left_val) = pattern_expr;
+        obj.insert("left".to_string(), left_val);
+
+        // right is the default value expression
+        let Expression::Value(right_val) = right;
+        obj.insert("right".to_string(), right_val);
+
+        return Expression::Value(Value::Object(obj));
     }
+
+    pattern_expr
 }
 
 /// Convert oxc ObjectPattern to our Expression format (for function parameters).

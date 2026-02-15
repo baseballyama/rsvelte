@@ -463,6 +463,9 @@ pub struct SvelteDynamicElement {
     pub attributes: Vec<Attribute>,
     pub fragment: Fragment,
     pub tag: Expression,
+    /// Metadata populated during analysis (Phase 2)
+    #[serde(skip)]
+    pub metadata: SvelteDynamicElementMetadata,
 }
 
 // =============================================================================
@@ -1214,6 +1217,17 @@ pub struct RegularElementMetadata {
     pub svg: bool,
     /// Whether this element is in the MathML namespace.
     /// Set during Phase 2 analysis based on element name.
+    pub mathml: bool,
+}
+
+/// Metadata for SvelteDynamicElement nodes (<svelte:element>), populated during Phase 2 analysis.
+#[derive(Debug, Clone, Default)]
+pub struct SvelteDynamicElementMetadata {
+    /// Whether this element is in the SVG namespace.
+    /// Set during Phase 2 analysis based on xmlns attribute, ancestor context, or component namespace.
+    pub svg: bool,
+    /// Whether this element is in the MathML namespace.
+    /// Set during Phase 2 analysis based on xmlns attribute, ancestor context, or component namespace.
     pub mathml: bool,
 }
 

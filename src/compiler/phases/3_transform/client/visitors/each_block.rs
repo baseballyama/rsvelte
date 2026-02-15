@@ -797,35 +797,60 @@ fn build_declarations(
                 };
 
                 // Extract paths from the destructuring pattern
-                let paths = extract_destructured_paths(obj, &unwrapped_item);
+                let paths = extract_destructured_paths(obj, &unwrapped_item, false);
 
                 // For each path, create a getter declaration
-                for (name, expr) in paths {
-                    // Create: let name = () => expr;
-                    // This is a getter function that can be called to get the value
-                    declarations.push(JsStatement::Raw(format!("let {} = () => {};", name, expr)));
+                // This matches the official EachBlock.js lines 264-292
+                for path in paths {
+                    if path.has_default_value {
+                        // When there's a default value, use $.derived_safe_equal
+                        // to ensure the default is only evaluated once.
+                        // Expected output: let name = $.derived_safe_equal(() => $.fallback(expr, default));
+                        let fallback_expr = build_fallback_expression(
+                            &path.expression,
+                            path.default_value.as_ref(),
+                            context,
+                        );
+                        declarations.push(JsStatement::Raw(format!(
+                            "let {} = $.derived_safe_equal(() => {});",
+                            path.name, fallback_expr
+                        )));
 
-                    // Register transform for this name that calls the getter
-                    // When reading `name`, it should become `name()` (call the getter)
-                    // is_reactive is true because the getter returns a value that depends on
-                    // reactive each block data (the item may be reactive)
-                    context.state.transform.insert(
-                        name.clone(),
-                        IdentifierTransform {
-                            read: Some(|node| {
-                                // Return a call to the getter function
-                                b::call(node, vec![])
-                            }),
-                            assign: None,
-                            mutate: None,
-                            update: None,
-                            skip_proxy: false,
-                            is_defined: false,
-                            // Getter functions accessing each block items are always reactive
-                            // because they depend on the (potentially reactive) item value
-                            is_reactive: true,
-                        },
-                    );
+                        // Register transform that reads with $.get()
+                        context.state.transform.insert(
+                            path.name.clone(),
+                            IdentifierTransform {
+                                read: Some(|node| b::call(b::member_path("$.get"), vec![node])),
+                                assign: None,
+                                mutate: None,
+                                update: None,
+                                skip_proxy: false,
+                                is_defined: false,
+                                is_reactive: true,
+                            },
+                        );
+                    } else {
+                        // No default value - use simple getter thunk
+                        // Expected output: let name = () => expr;
+                        declarations.push(JsStatement::Raw(format!(
+                            "let {} = () => {};",
+                            path.name, path.expression
+                        )));
+
+                        // Register transform for this name that calls the getter
+                        context.state.transform.insert(
+                            path.name.clone(),
+                            IdentifierTransform {
+                                read: Some(|node| b::call(node, vec![])),
+                                assign: None,
+                                mutate: None,
+                                update: None,
+                                skip_proxy: false,
+                                is_defined: false,
+                                is_reactive: true,
+                            },
+                        );
+                    }
                 }
             }
         }
@@ -834,12 +859,25 @@ fn build_declarations(
     declarations
 }
 
+/// Information about a destructured path from a pattern.
+struct DestructuredPath {
+    /// The binding name
+    name: String,
+    /// The expression to access the value (e.g., "$$item.a")
+    expression: String,
+    /// Whether this path has a default value (from AssignmentPattern)
+    has_default_value: bool,
+    /// The default value expression JSON (if has_default_value is true)
+    default_value: Option<serde_json::Value>,
+}
+
 /// Extract property paths from a destructuring pattern.
-/// Returns a list of (name, expression) pairs where expression accesses the property.
+/// Returns a list of DestructuredPath with info about default values.
 fn extract_destructured_paths(
     obj: &serde_json::Map<String, serde_json::Value>,
     base_expr: &str,
-) -> Vec<(String, String)> {
+    has_parent_default: bool,
+) -> Vec<DestructuredPath> {
     let mut paths = Vec::new();
 
     match obj.get("type").and_then(|v| v.as_str()) {
@@ -868,12 +906,20 @@ fn extract_destructured_paths(
                                             .get("name")
                                             .and_then(|n| n.as_str())
                                             .unwrap_or(key_name);
-                                        paths.push((binding_name.to_string(), prop_expr));
+                                        paths.push(DestructuredPath {
+                                            name: binding_name.to_string(),
+                                            expression: prop_expr,
+                                            has_default_value: has_parent_default,
+                                            default_value: None,
+                                        });
                                     } else if value_type == Some("ObjectPattern")
                                         || value_type == Some("ArrayPattern")
                                     {
-                                        let nested =
-                                            extract_destructured_paths(value_obj, &prop_expr);
+                                        let nested = extract_destructured_paths(
+                                            value_obj,
+                                            &prop_expr,
+                                            has_parent_default,
+                                        );
                                         paths.extend(nested);
                                     } else if value_type == Some("AssignmentPattern")
                                         && let Some(left) =
@@ -885,7 +931,13 @@ fn extract_destructured_paths(
                                             .get("name")
                                             .and_then(|n| n.as_str())
                                             .unwrap_or(key_name);
-                                        paths.push((binding_name.to_string(), prop_expr));
+                                        let default_val = value_obj.get("right").cloned();
+                                        paths.push(DestructuredPath {
+                                            name: binding_name.to_string(),
+                                            expression: prop_expr,
+                                            has_default_value: true,
+                                            default_value: default_val,
+                                        });
                                     }
                                 }
                             }
@@ -910,11 +962,20 @@ fn extract_destructured_paths(
                                 .get("name")
                                 .and_then(|n| n.as_str())
                                 .unwrap_or("$$unknown");
-                            paths.push((binding_name.to_string(), index_expr));
+                            paths.push(DestructuredPath {
+                                name: binding_name.to_string(),
+                                expression: index_expr,
+                                has_default_value: has_parent_default,
+                                default_value: None,
+                            });
                         } else if elem_type == Some("ObjectPattern")
                             || elem_type == Some("ArrayPattern")
                         {
-                            let nested = extract_destructured_paths(elem_obj, &index_expr);
+                            let nested = extract_destructured_paths(
+                                elem_obj,
+                                &index_expr,
+                                has_parent_default,
+                            );
                             paths.extend(nested);
                         } else if elem_type == Some("AssignmentPattern")
                             && let Some(left) = elem_obj.get("left").and_then(|l| l.as_object())
@@ -924,7 +985,13 @@ fn extract_destructured_paths(
                                 .get("name")
                                 .and_then(|n| n.as_str())
                                 .unwrap_or("$$unknown");
-                            paths.push((binding_name.to_string(), index_expr));
+                            let default_val = elem_obj.get("right").cloned();
+                            paths.push(DestructuredPath {
+                                name: binding_name.to_string(),
+                                expression: index_expr,
+                                has_default_value: true,
+                                default_value: default_val,
+                            });
                         }
                     }
                 }
@@ -934,6 +1001,94 @@ fn extract_destructured_paths(
     }
 
     paths
+}
+
+/// Build a $.fallback(expression, default) call expression as a string.
+///
+/// This matches the official `build_fallback` in `svelte/packages/svelte/src/compiler/utils/ast.js`,
+/// including the `unthunk` optimization from `builders.js`.
+///
+/// For simple default values (Identifier, Literal): `$.fallback(expr, default)`
+/// For CallExpression with 0 args and Identifier callee: `$.fallback(expr, callee, true)` (unthunk optimization)
+/// For other complex defaults: `$.fallback(expr, () => default, true)`
+fn build_fallback_expression(
+    expression: &str,
+    default_value: Option<&serde_json::Value>,
+    context: &mut ComponentContext,
+) -> String {
+    if let Some(default_val) = default_value {
+        if is_simple_default(default_val) {
+            let default_expr = convert_expression(&Expression::Value(default_val.clone()), context);
+            let default_str =
+                crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
+                    &default_expr,
+                );
+            format!("$.fallback({}, {})", expression, default_str)
+        } else {
+            // Complex default - check for the unthunk optimization:
+            // When the default is `func()` (CallExpression with 0 args and Identifier callee),
+            // just pass `func` instead of `() => func()`.
+            if let Some(obj) = default_val.as_object()
+                && obj.get("type").and_then(|t| t.as_str()) == Some("CallExpression")
+                && obj
+                    .get("arguments")
+                    .and_then(|a| a.as_array())
+                    .is_some_and(|a| a.is_empty())
+                && let Some(callee) = obj.get("callee").and_then(|c| c.as_object())
+                && callee.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+            {
+                let callee_expr = convert_expression(
+                    &Expression::Value(serde_json::Value::Object(callee.clone())),
+                    context,
+                );
+                let callee_str =
+                    crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
+                        &callee_expr,
+                    );
+                format!("$.fallback({}, {}, true)", expression, callee_str)
+            } else {
+                let default_expr =
+                    convert_expression(&Expression::Value(default_val.clone()), context);
+                let default_str =
+                    crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
+                        &default_expr,
+                    );
+                format!("$.fallback({}, () => {}, true)", expression, default_str)
+            }
+        }
+    } else {
+        // No default value - shouldn't happen when has_default_value is true
+        expression.to_string()
+    }
+}
+
+/// Check if a default value expression is "simple" (doesn't need thunking in $.fallback).
+/// Matches the official `is_simple_expression` logic.
+fn is_simple_default(value: &serde_json::Value) -> bool {
+    let obj = match value.as_object() {
+        Some(o) => o,
+        None => return true,
+    };
+
+    let expr_type = match obj.get("type").and_then(|t| t.as_str()) {
+        Some(t) => t,
+        None => return true,
+    };
+
+    match expr_type {
+        "Literal" | "Identifier" | "ArrowFunctionExpression" | "FunctionExpression" => true,
+        "ConditionalExpression" => {
+            obj.get("test").map(is_simple_default).unwrap_or(true)
+                && obj.get("consequent").map(is_simple_default).unwrap_or(true)
+                && obj.get("alternate").map(is_simple_default).unwrap_or(true)
+        }
+        "BinaryExpression" | "LogicalExpression" => {
+            obj.get("left").map(is_simple_default).unwrap_or(true)
+                && obj.get("right").map(is_simple_default).unwrap_or(true)
+        }
+        "UnaryExpression" => obj.get("argument").map(is_simple_default).unwrap_or(true),
+        _ => false,
+    }
 }
 
 /// Build the key function for the each block.

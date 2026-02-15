@@ -81,6 +81,12 @@ pub fn analyze_component(
         if svelte_options.css == Some(crate::ast::template::CssOption::Injected) {
             analysis.inject_styles = true;
         }
+        // Handle <svelte:options namespace="svg" /> or <svelte:options namespace="mathml" />
+        if let Some(namespace) = svelte_options.namespace {
+            analysis.component_namespace_is_svg = namespace == crate::ast::template::Namespace::Svg;
+            analysis.component_namespace_is_mathml =
+                namespace == crate::ast::template::Namespace::Mathml;
+        }
     }
 
     // Extract script content for Phase 3 (avoids re-parsing)

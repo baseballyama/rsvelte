@@ -218,17 +218,58 @@ pub fn build_inline_component<F>(
             continue;
         }
 
-        // TODO: Visit children and build slot function
+        // Build slot function parameters
+        // For slots with let directives, add destructured parameter for slot props
+        let slot_let_directives = lets.get(slot_name.as_str()).cloned().unwrap_or_default();
+        let mut slot_params = vec![JsPattern::Identifier("$$renderer".to_string())];
+
+        if !slot_let_directives.is_empty() {
+            // Build destructured parameter { name1, name2, ... } from let directives
+            let destructured_props: Vec<JsObjectPatternProperty> = slot_let_directives
+                .iter()
+                .map(|let_dir| {
+                    let prop_name = let_dir.name.to_string();
+                    // Check if let:x={y} renames the variable
+                    let local_name = match &let_dir.expression {
+                        Some(expr) => {
+                            let crate::ast::js::Expression::Value(val) = expr;
+                            if let serde_json::Value::Object(obj) = val {
+                                obj.get("name")
+                                    .and_then(|n| n.as_str())
+                                    .unwrap_or(&prop_name)
+                                    .to_string()
+                            } else {
+                                prop_name.clone()
+                            }
+                        }
+                        None => prop_name.clone(),
+                    };
+
+                    JsObjectPatternProperty::Property {
+                        key: JsPropertyKey::Identifier(prop_name.clone()),
+                        value: JsPattern::Identifier(local_name.clone()),
+                        computed: false,
+                        shorthand: local_name == prop_name,
+                    }
+                })
+                .collect();
+
+            slot_params.push(JsPattern::Object(JsObjectPattern {
+                properties: destructured_props,
+            }));
+        }
+
+        // TODO: Visit children and build slot function body
         // For now, create a placeholder arrow function
         let slot_fn = JsExpr::Arrow(JsArrowFunction {
-            params: vec![JsPattern::Identifier("$$renderer".to_string())],
+            params: slot_params,
             body: JsArrowBody::Block(JsBlockStatement { body: Vec::new() }),
             is_async: false,
         });
 
         if slot_name == "default" && !has_children_prop {
-            if lets.get("default").map(|l| l.is_empty()).unwrap_or(true) {
-                // Create children prop
+            if slot_let_directives.is_empty() {
+                // No let directives - use children prop
                 let current = props_and_spreads.last_mut();
                 let props = if let Some(PropsOrSpread::Props(props)) = current {
                     props
@@ -257,7 +298,34 @@ pub fn build_inline_component<F>(
                     shorthand: false,
                 }));
             } else {
-                // Has let directives - use $$slots
+                // Has let directives - use $$slots.default and children: $.invalid_default_snippet
+                let current = props_and_spreads.last_mut();
+                let props = if let Some(PropsOrSpread::Props(props)) = current {
+                    props
+                } else {
+                    props_and_spreads.push(PropsOrSpread::Props(Vec::new()));
+                    if let Some(PropsOrSpread::Props(props)) = props_and_spreads.last_mut() {
+                        props
+                    } else {
+                        unreachable!()
+                    }
+                };
+
+                props.push(JsObjectMember::Property(JsProperty {
+                    key: JsPropertyKey::Identifier("children".to_string()),
+                    value: Box::new(JsExpr::Member(JsMemberExpression {
+                        object: Box::new(JsExpr::Identifier("$".to_string())),
+                        property: JsMemberProperty::Identifier(
+                            "invalid_default_snippet".to_string(),
+                        ),
+                        computed: false,
+                        optional: false,
+                    })),
+                    kind: JsPropertyKind::Init,
+                    computed: false,
+                    shorthand: false,
+                }));
+
                 serialized_slots.push(JsObjectMember::Property(JsProperty {
                     key: JsPropertyKey::Identifier(slot_name.clone()),
                     value: Box::new(slot_fn),
