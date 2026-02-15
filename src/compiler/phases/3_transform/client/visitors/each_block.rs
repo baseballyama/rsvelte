@@ -255,13 +255,6 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     if !context.state.analysis.runes {
         if let Some(ref coll_id) = collection_id {
             invalidation_exprs.push(format!("{}()", coll_id));
-        } else if !node.metadata.transitive_deps.is_empty() {
-            // Use transitive_deps from analysis if available
-            for binding_idx in &node.metadata.transitive_deps {
-                if let Some(binding) = context.state.scope_root.bindings.get(*binding_idx) {
-                    invalidation_exprs.push(binding.name.clone());
-                }
-            }
         } else {
             // Fallback: use the collection expression as the invalidation target.
             // This is correct because in the official compiler, transitive_deps
@@ -710,7 +703,17 @@ fn build_declarations(
         } else {
             for binding_idx in &node.metadata.transitive_deps {
                 if let Some(binding) = context.state.scope_root.bindings.get(*binding_idx) {
-                    transitive_deps.push(b::id(&binding.name));
+                    // Apply transforms (e.g., $.get() for state variables)
+                    let expr = if let Some(transform) = context.state.transform.get(&binding.name) {
+                        if let Some(read_fn) = &transform.read {
+                            read_fn(b::id(&binding.name))
+                        } else {
+                            b::id(&binding.name)
+                        }
+                    } else {
+                        b::id(&binding.name)
+                    };
+                    transitive_deps.push(expr);
                 }
             }
         }
@@ -719,7 +722,18 @@ fn build_declarations(
             if let TemplateNode::EachBlock(parent_each) = parent_node {
                 for binding_idx in &parent_each.metadata.transitive_deps {
                     if let Some(binding) = context.state.scope_root.bindings.get(*binding_idx) {
-                        transitive_deps.push(b::id(&binding.name));
+                        // Apply transforms (e.g., $.get() for state variables)
+                        let expr =
+                            if let Some(transform) = context.state.transform.get(&binding.name) {
+                                if let Some(read_fn) = &transform.read {
+                                    read_fn(b::id(&binding.name))
+                                } else {
+                                    b::id(&binding.name)
+                                }
+                            } else {
+                                b::id(&binding.name)
+                            };
+                        transitive_deps.push(expr);
                     }
                 }
             }

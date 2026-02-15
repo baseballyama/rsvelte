@@ -147,37 +147,32 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
     context.block_depth -= 1;
 
     // In Svelte 4 (non-runes mode), handle legacy reactivity
+    // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/EachBlock.js L47-76
     if !context.analysis.runes {
-        // TODO: Implement legacy reactivity handling
-        // This involves:
-        // 1. Checking if context variables are mutated
-        // 2. Collecting transitive dependencies
-        // 3. Marking dependencies as state if mutated
-        //
-        // The JavaScript code:
-        //   let mutated =
-        //       !!node.context &&
-        //       extract_identifiers(node.context).some((id) => {
-        //           const binding = context.state.scope.get(id.name);
-        //           return !!binding?.mutated;
-        //       });
-        //
-        //   for (const binding of node.metadata.expression.dependencies) {
-        //       collect_transitive_dependencies(binding, node.metadata.transitive_deps);
-        //   }
-        //
-        //   if (mutated) {
-        //       for (const binding of node.metadata.transitive_deps) {
-        //           if (
-        //               binding.kind === 'normal' &&
-        //               (binding.declaration_kind === 'const' ||
-        //                   binding.declaration_kind === 'let' ||
-        //                   binding.declaration_kind === 'var')
-        //           ) {
-        //               binding.kind = 'state';
-        //           }
-        //       }
-        //   }
+        // Collect transitive dependencies from expression dependencies.
+        // These are used by the transform phase for invalidation signals.
+        for binding_idx in &block.metadata.expression.dependencies {
+            let binding_idx = *binding_idx;
+            if binding_idx < context.analysis.root.bindings.len() {
+                let decl_kind = context.analysis.root.bindings[binding_idx].declaration_kind;
+                if !matches!(
+                    decl_kind,
+                    super::super::super::phase2_analyze::scope::DeclarationKind::Function
+                ) {
+                    collect_transitive_dependencies_impl(
+                        binding_idx,
+                        &context.analysis.root.bindings,
+                        &mut block.metadata.transitive_deps,
+                    );
+                }
+            }
+        }
+
+        // NOTE: Binding promotion (Normal -> State) is NOT done here because it would
+        // happen during analyze_template(), before runes auto-detection. Promoting to
+        // State here would cause is_rune() to return true, falsely triggering runes mode.
+        // Instead, promotion is handled by promote_each_expression_bindings() in mod.rs,
+        // which runs AFTER runes detection.
     }
 
     // Mark the subtree as dynamic
@@ -186,29 +181,72 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
     Ok(())
 }
 
+/// Extract identifier names from a destructuring pattern.
+///
+/// Corresponds to `extract_identifiers` in utils/ast.js.
+fn extract_identifiers_from_pattern(node: &serde_json::Value, names: &mut Vec<String>) {
+    let node_type = node.get("type").and_then(|t| t.as_str());
+    match node_type {
+        Some("Identifier") => {
+            if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
+                names.push(name.to_string());
+            }
+        }
+        Some("ObjectPattern") => {
+            if let Some(props) = node.get("properties").and_then(|p| p.as_array()) {
+                for prop in props {
+                    let prop_type = prop.get("type").and_then(|t| t.as_str());
+                    if prop_type == Some("RestElement") {
+                        if let Some(arg) = prop.get("argument") {
+                            extract_identifiers_from_pattern(arg, names);
+                        }
+                    } else if let Some(value) = prop.get("value") {
+                        extract_identifiers_from_pattern(value, names);
+                    }
+                }
+            }
+        }
+        Some("ArrayPattern") => {
+            if let Some(elements) = node.get("elements").and_then(|e| e.as_array()) {
+                for elem in elements {
+                    if !elem.is_null() {
+                        extract_identifiers_from_pattern(elem, names);
+                    }
+                }
+            }
+        }
+        Some("AssignmentPattern") => {
+            if let Some(left) = node.get("left") {
+                extract_identifiers_from_pattern(left, names);
+            }
+        }
+        Some("RestElement") => {
+            if let Some(arg) = node.get("argument") {
+                extract_identifiers_from_pattern(arg, names);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// Collect transitive dependencies for legacy reactivity.
 ///
 /// This function recursively collects all dependencies of a binding,
 /// following the chain of legacy_reactive bindings.
 ///
 /// Corresponds to `collect_transitive_dependencies` in EachBlock.js.
-#[allow(dead_code)]
-fn collect_transitive_dependencies(
-    binding: &Binding,
-    bindings: &mut FxHashSet<usize>,
+fn collect_transitive_dependencies_impl(
     binding_idx: usize,
+    bindings: &[Binding],
+    deps: &mut FxHashSet<usize>,
 ) {
-    // Avoid cycles
-    if bindings.contains(&binding_idx) {
+    if deps.contains(&binding_idx) {
         return;
     }
-    bindings.insert(binding_idx);
+    deps.insert(binding_idx);
 
-    // If this is a legacy reactive binding, collect its dependencies
-    if binding.kind == BindingKind::LegacyReactive {
-        // TODO: Implement legacy_dependencies tracking
-        // This requires adding a legacy_dependencies field to Binding
-        // For now, this is a placeholder
+    if binding_idx < bindings.len() && bindings[binding_idx].kind == BindingKind::LegacyReactive {
+        // TODO: Follow legacy_dependencies chain when available
     }
 }
 

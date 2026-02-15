@@ -41,6 +41,132 @@ pub struct BindingProperty {
     pub omit_in_ssr: bool,
 }
 
+/// Build a `$.bind_this(value, setter, getter, values_thunk)` call.
+///
+/// Port of the reference `build_bind_this` from `shared/utils.js`.
+/// Handles simple identifiers, sequence expressions, and each-block context variables.
+/// Called by both element `bind:this` (line ~160) and component `bind:this` (component.rs).
+pub fn unified_build_bind_this(
+    expression: &Expression,
+    value: JsExpr,
+    context: &mut ComponentContext,
+) -> JsExpr {
+    use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
+        apply_transforms_to_expression, apply_transforms_to_expression_with_shadowed,
+    };
+
+    let raw_expr = convert_expression(expression, context);
+
+    let (getter_expr, setter_expr) = if let JsExpr::Sequence(ref seq) = raw_expr {
+        if seq.expressions.len() == 2 {
+            (
+                Some(seq.expressions[0].clone()),
+                Some(seq.expressions[1].clone()),
+            )
+        } else {
+            (None, None)
+        }
+    } else {
+        (None, None)
+    };
+
+    let walk_expr = getter_expr.as_ref().unwrap_or(&raw_expr);
+    let each_ids = find_each_block_ids_in_expr(walk_expr, context);
+
+    let values: Vec<JsExpr> = each_ids
+        .iter()
+        .map(|id| apply_transforms_to_expression(&JsExpr::Identifier(id.name.clone()), context))
+        .collect();
+
+    let shadowed: HashSet<String> = each_ids.iter().map(|id| id.name.clone()).collect();
+
+    let getter_raw = getter_expr.as_ref().unwrap_or(&raw_expr);
+    let mut get = apply_transforms_to_expression_with_shadowed(getter_raw, context, &shadowed);
+
+    let setter_raw = if let Some(ref s) = setter_expr {
+        s.clone()
+    } else {
+        b::assign(raw_expr.clone(), b::id("$$value"))
+    };
+    let mut set = apply_transforms_to_expression_with_shadowed(&setter_raw, context, &shadowed);
+
+    // Apply optional chaining to getter MemberExpression nodes only
+    if let JsExpr::Member(_) = &get {
+        fn make_optional(expr: &mut JsExpr) {
+            if let JsExpr::Member(member) = expr {
+                member.optional = true;
+                make_optional(&mut member.object);
+            }
+        }
+        make_optional(&mut get);
+    }
+
+    let id_params: Vec<JsPattern> = each_ids.iter().map(|id| b::id_pattern(&id.name)).collect();
+
+    get = match get {
+        JsExpr::Arrow(arrow) => {
+            let mut params = Vec::new();
+            params.extend(id_params.clone());
+            params.extend(arrow.params);
+            JsExpr::Arrow(JsArrowFunction {
+                params,
+                body: arrow.body,
+                is_async: arrow.is_async,
+            })
+        }
+        other => {
+            if getter_expr.is_some() {
+                other
+            } else {
+                b::arrow(id_params.clone(), other)
+            }
+        }
+    };
+
+    set = match set {
+        JsExpr::Arrow(arrow) => {
+            let mut params = Vec::new();
+            if let Some(first) = arrow.params.first() {
+                params.push(first.clone());
+            } else {
+                params.push(b::id_pattern("_"));
+            }
+            params.extend(id_params.clone());
+            for p in arrow.params.iter().skip(1) {
+                params.push(p.clone());
+            }
+            JsExpr::Arrow(JsArrowFunction {
+                params,
+                body: arrow.body,
+                is_async: arrow.is_async,
+            })
+        }
+        other => {
+            if setter_expr.is_some() {
+                other
+            } else {
+                let mut params = vec![b::id_pattern("$$value")];
+                params.extend(id_params);
+                b::arrow(params, other)
+            }
+        }
+    };
+
+    let mut args = vec![value, set, get];
+
+    if !values.is_empty() {
+        let values_thunk = b::arrow(
+            vec![],
+            JsExpr::Array(JsArrayExpression {
+                elements: values.into_iter().map(Some).collect(),
+            }),
+        );
+        args.push(values_thunk);
+    }
+
+    b::call(b::member_path("$.bind_this"), args)
+}
+
 /// Get binding property configuration for a given binding name.
 ///
 /// Returns Some(BindingProperty) if this is a known binding with special handling,
@@ -155,7 +281,10 @@ pub fn bind_directive(
     let property = get_binding_property(binding_name);
 
     // Generate the appropriate binding call
-    let call = if let Some(prop) = property {
+    // bind:this uses the unified implementation that handles each-block context properly
+    let call = if binding_name == "this" {
+        unified_build_bind_this(&node.expression, context.state.node.clone(), context)
+    } else if let Some(prop) = property {
         if let Some(event) = prop.event {
             // Use bind_property for bindings with events
             build_bind_property_call(

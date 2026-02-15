@@ -238,6 +238,14 @@ pub fn analyze_component(
         promote_legacy_state_bindings(&mut analysis);
     }
 
+    // More legacy nonsense: if an `each` binding is reassigned/mutated,
+    // treat the expression as being mutated as well.
+    // This promotes bindings referenced in the each expression to 'state'.
+    // Corresponds to Svelte's 2-analyze/index.js L638-674
+    if !analysis.runes {
+        promote_each_expression_bindings(&ast.fragment, &mut analysis);
+    }
+
     // Build sibling relationships for CSS analysis
     // This must happen after template analysis builds the DOM structure
     control_flow::build_sibling_relationships(&mut analysis.css.dom_structure, &ast.fragment);
@@ -587,6 +595,167 @@ fn promote_legacy_state_bindings(analysis: &mut ComponentAnalysis) {
 
         // Promote to 'state' kind
         binding.kind = BindingKind::State;
+    }
+}
+
+/// If an `each` binding is reassigned/mutated, treat the expression as being mutated as well.
+/// This promotes bindings referenced in the each expression to 'state'.
+///
+/// Corresponds to Svelte's 2-analyze/index.js L638-674
+fn promote_each_expression_bindings(
+    fragment: &crate::ast::template::Fragment,
+    analysis: &mut ComponentAnalysis,
+) {
+    let mut promotions: Vec<usize> = Vec::new();
+    collect_each_block_promotions(fragment, analysis, &mut promotions);
+    for binding_idx in promotions {
+        if binding_idx < analysis.root.bindings.len() {
+            analysis.root.bindings[binding_idx].kind = BindingKind::State;
+            analysis.root.bindings[binding_idx].mutated = true;
+        }
+    }
+}
+
+/// Recursively walk the fragment to find EachBlock nodes and collect binding promotions.
+fn collect_each_block_promotions(
+    fragment: &crate::ast::template::Fragment,
+    analysis: &ComponentAnalysis,
+    promotions: &mut Vec<usize>,
+) {
+    use crate::ast::template::TemplateNode;
+
+    for node in &fragment.nodes {
+        match node {
+            TemplateNode::EachBlock(each) => {
+                let has_updated_binding = if let Some(ref context_expr) = each.context {
+                    let context_json = context_expr.as_json();
+                    let mut names = Vec::new();
+                    extract_each_pattern_identifiers(context_json, &mut names);
+                    names.iter().any(|name| {
+                        if let Some(binding_idx) = analysis.root.find_binding_any_scope(name) {
+                            let binding = &analysis.root.bindings[binding_idx];
+                            binding.reassigned || binding.mutated
+                        } else {
+                            false
+                        }
+                    })
+                } else {
+                    false
+                };
+
+                if has_updated_binding {
+                    for &dep_idx in &each.metadata.expression.dependencies {
+                        if dep_idx < analysis.root.bindings.len() {
+                            let binding = &analysis.root.bindings[dep_idx];
+                            if binding.kind == BindingKind::Normal
+                                && !matches!(
+                                    binding.declaration_kind,
+                                    DeclarationKind::Import | DeclarationKind::Function
+                                )
+                            {
+                                promotions.push(dep_idx);
+                            }
+                        }
+                    }
+                }
+
+                collect_each_block_promotions(&each.body, analysis, promotions);
+                if let Some(ref fallback) = each.fallback {
+                    collect_each_block_promotions(fallback, analysis, promotions);
+                }
+            }
+            TemplateNode::RegularElement(el) => {
+                collect_each_block_promotions(&el.fragment, analysis, promotions);
+            }
+            TemplateNode::Component(comp) => {
+                collect_each_block_promotions(&comp.fragment, analysis, promotions);
+            }
+            TemplateNode::SvelteComponent(comp) => {
+                collect_each_block_promotions(&comp.fragment, analysis, promotions);
+            }
+            TemplateNode::SvelteElement(el) => {
+                collect_each_block_promotions(&el.fragment, analysis, promotions);
+            }
+            TemplateNode::SvelteSelf(s) => {
+                collect_each_block_promotions(&s.fragment, analysis, promotions);
+            }
+            TemplateNode::IfBlock(if_block) => {
+                collect_each_block_promotions(&if_block.consequent, analysis, promotions);
+                if let Some(ref alt) = if_block.alternate {
+                    collect_each_block_promotions(alt, analysis, promotions);
+                }
+            }
+            TemplateNode::AwaitBlock(await_block) => {
+                if let Some(ref pending) = await_block.pending {
+                    collect_each_block_promotions(pending, analysis, promotions);
+                }
+                if let Some(ref then) = await_block.then {
+                    collect_each_block_promotions(then, analysis, promotions);
+                }
+                if let Some(ref catch) = await_block.catch {
+                    collect_each_block_promotions(catch, analysis, promotions);
+                }
+            }
+            TemplateNode::KeyBlock(key) => {
+                collect_each_block_promotions(&key.fragment, analysis, promotions);
+            }
+            TemplateNode::SnippetBlock(snippet) => {
+                collect_each_block_promotions(&snippet.body, analysis, promotions);
+            }
+            TemplateNode::SvelteHead(head) => {
+                collect_each_block_promotions(&head.fragment, analysis, promotions);
+            }
+            TemplateNode::SlotElement(slot) => {
+                collect_each_block_promotions(&slot.fragment, analysis, promotions);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// Extract identifier names from a destructuring pattern.
+fn extract_each_pattern_identifiers(node: &serde_json::Value, names: &mut Vec<String>) {
+    let node_type = node.get("type").and_then(|t| t.as_str());
+    match node_type {
+        Some("Identifier") => {
+            if let Some(name) = node.get("name").and_then(|n| n.as_str()) {
+                names.push(name.to_string());
+            }
+        }
+        Some("ObjectPattern") => {
+            if let Some(props) = node.get("properties").and_then(|p| p.as_array()) {
+                for prop in props {
+                    let prop_type = prop.get("type").and_then(|t| t.as_str());
+                    if prop_type == Some("RestElement") {
+                        if let Some(arg) = prop.get("argument") {
+                            extract_each_pattern_identifiers(arg, names);
+                        }
+                    } else if let Some(value) = prop.get("value") {
+                        extract_each_pattern_identifiers(value, names);
+                    }
+                }
+            }
+        }
+        Some("ArrayPattern") => {
+            if let Some(elements) = node.get("elements").and_then(|e| e.as_array()) {
+                for elem in elements {
+                    if !elem.is_null() {
+                        extract_each_pattern_identifiers(elem, names);
+                    }
+                }
+            }
+        }
+        Some("AssignmentPattern") => {
+            if let Some(left) = node.get("left") {
+                extract_each_pattern_identifiers(left, names);
+            }
+        }
+        Some("RestElement") => {
+            if let Some(arg) = node.get("argument") {
+                extract_each_pattern_identifiers(arg, names);
+            }
+        }
+        _ => {}
     }
 }
 

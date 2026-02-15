@@ -1727,95 +1727,17 @@ fn build_component_call(
     }
 }
 
-/// Build $.bind_this call.
+/// Build $.bind_this call for components.
+/// Delegates to the unified bind_this implementation which properly handles
+/// each-block context variables, sequence expressions, and all binding kinds.
 fn build_bind_this_call(
     bind_expr: &Expression,
     value: JsExpr,
     context: &mut ComponentContext,
 ) -> JsExpr {
-    let expression = convert_expression(bind_expr, context);
-
-    // Check if it's a sequence expression (getter/setter pair)
-    if let JsExpr::Sequence(seq) = &expression
-        && seq.expressions.len() == 2
-    {
-        // Apply transforms to getter and setter to wrap state variables with $.get()/$.set()
-        let getter = super::utils::apply_transforms_to_expression(&seq.expressions[0], context);
-        let setter = super::utils::apply_transforms_to_expression(&seq.expressions[1], context);
-        return b::call(
-            b::member_path("$.bind_this"),
-            vec![
-                value, setter, // setter
-                getter, // getter
-            ],
-        );
-    }
-
-    // Check if this is a simple identifier that needs $.get()/$.set() wrappers
-    // This includes:
-    // - Legacy mode state variables (BindingKind::State) wrapped in $.mutable_source()
-    // - Runes mode state/derived/raw_state variables wrapped in $.state()/$.derived()
-    let (needs_get_set, needs_proxy) = if let JsExpr::Identifier(name) = &expression {
-        use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-        if let Some(binding) = context.state.get_binding(name) {
-            let is_state = matches!(
-                binding.kind,
-                BindingKind::State | BindingKind::Derived | BindingKind::RawState
-            );
-            // Proxy flag is needed for $state (deep reactivity) but not $derived, $state.raw,
-            // or legacy mode (non-runes). This matches the official compiler's
-            // AssignmentExpression visitor which checks:
-            // - binding.kind !== 'raw_state'
-            // - binding.kind !== 'derived'
-            // - context.state.analysis.runes
-            let proxy = is_state
-                && context.state.analysis.runes
-                && matches!(binding.kind, BindingKind::State);
-            (is_state, proxy)
-        } else {
-            // Also check transform map (handles cases where binding is registered
-            // via add_state_transformers but not found via get_binding)
-            let has_transform = context.state.transform.contains_key(name);
-            (has_transform, false)
-        }
-    } else {
-        (false, false)
-    };
-
-    if needs_get_set {
-        // For state/derived variables, use $.get() and $.set()
-        // getter: () => $.get(expr)
-        // setter: ($$value) => $.set(expr, $$value[, true])
-        let getter = b::arrow(
-            vec![],
-            b::call(b::member_path("$.get"), vec![expression.clone()]),
-        );
-        let mut set_args = vec![expression.clone(), b::id("$$value")];
-        if needs_proxy {
-            set_args.push(b::boolean(true));
-        }
-        let setter = b::arrow(
-            vec![b::id_pattern("$$value")],
-            b::call(b::member_path("$.set"), set_args),
-        );
-
-        b::call(b::member_path("$.bind_this"), vec![value, setter, getter])
-    } else {
-        // Apply transforms to expression for getter and setter.
-        // This handles prop source bindings (Prop/BindableProp) which have
-        // read: b.call and assign: (node, value) => b.call(node, value) transforms.
-        // For props, this converts:
-        //   getter: widget -> widget()    (via read transform)
-        //   setter: widget = $$value -> widget($$value)  (via assign transform)
-        let transformed_get = super::utils::apply_transforms_to_expression(&expression, context);
-        let assignment = b::assign(expression, b::id("$$value"));
-        let transformed_set = super::utils::apply_transforms_to_expression(&assignment, context);
-
-        let getter = b::arrow(vec![], transformed_get);
-        let setter = b::arrow(vec![b::id_pattern("$$value")], transformed_set);
-
-        b::call(b::member_path("$.bind_this"), vec![value, setter, getter])
-    }
+    crate::compiler::phases::phase3_transform::client::visitors::bind_directive::unified_build_bind_this(
+        bind_expr, value, context,
+    )
 }
 
 /// Build component with CSS props wrapper.
