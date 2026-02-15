@@ -877,13 +877,7 @@ pub fn build_expression(
     // (especially since we didn't adjust this behavior until recently, which broke
     // people's existing components), so we also bail in this case.
     // Kind of an in-between-mode.
-    //
-    // Also skip legacy reactivity when experimental.async is enabled, as this uses
-    // Svelte 5's reactivity model even for non-runes components.
-    if context.state.analysis.runes
-        || context.state.analysis.maybe_runes
-        || context.state.options.experimental_async
-    {
+    if context.state.analysis.runes || context.state.analysis.maybe_runes {
         return value;
     }
 
@@ -917,7 +911,8 @@ pub fn build_expression(
     }
 
     // Wrap the value in $.untrack(() => value)
-    let thunk = b::arrow(vec![], value);
+    // b::thunk applies the unthunk optimization: () => func() -> func
+    let thunk = b::thunk(value);
     let untracked = b::call(b::member_path("$.untrack"), vec![thunk]);
 
     // Add the untracked value as the last expression in the sequence
@@ -1073,53 +1068,88 @@ fn collect_reactive_references_inner(
                 return;
             }
 
-            // Check if this identifier has a transform registered
-            if let Some(transform) = context.state.transform.get(name) {
-                // Only process reactive bindings
-                if !transform.is_reactive {
-                    return;
-                }
+            // Mirror the official Svelte compiler's build_expression logic:
+            //
+            // for (const binding of metadata.references) {
+            //     if (binding.kind === 'normal' && binding.declaration_kind !== 'import') {
+            //         continue;
+            //     }
+            //     var getter = build_getter({ ...binding.node }, state);
+            //     if (binding.kind === 'bindable_prop' || binding.kind === 'template' ||
+            //         binding.declaration_kind === 'import' || binding.node.name === '$$props' ||
+            //         binding.node.name === '$$restProps') {
+            //         getter = b.call('$.deep_read_state', getter);
+            //     }
+            //     sequence.expressions.push(getter);
+            // }
 
-                seen.insert(name.clone());
+            // First, look up the binding for this identifier
+            let binding_info = context.state.get_binding(name);
 
-                // Build the getter by applying the read transform
-                let getter = if let Some(read_fn) = transform.read {
+            // Determine if this identifier should be included based on binding kind
+            let should_include = if name == "$$props" || name == "$$restProps" {
+                true
+            } else if let Some(binding) = binding_info {
+                use crate::compiler::phases::phase2_analyze::scope::{
+                    BindingKind, DeclarationKind,
+                };
+                // Skip normal bindings unless they are imports
+                // (matches: binding.kind === 'normal' && binding.declaration_kind !== 'import' -> continue)
+                !(binding.kind == BindingKind::Normal
+                    && binding.declaration_kind != DeclarationKind::Import)
+            } else if context.state.transform.get(name).is_some() {
+                // Has a transform registered (could be a synthetic binding)
+                true
+            } else {
+                false
+            };
+
+            if !should_include {
+                return;
+            }
+
+            seen.insert(name.clone());
+
+            // Build the getter by applying the read transform if one exists
+            // (mirrors build_getter in the official compiler)
+            let getter = if let Some(transform) = context.state.transform.get(name) {
+                if let Some(read_fn) = transform.read {
                     read_fn(JsExpr::Identifier(name.clone()))
                 } else {
                     JsExpr::Identifier(name.clone())
-                };
+                }
+            } else {
+                // No transform registered (e.g., imports) - use the identifier directly
+                JsExpr::Identifier(name.clone())
+            };
 
-                // Check if we need to wrap in $.deep_read_state()
-                // This is needed for:
-                // - bindable_prop (props that are sources)
-                // - template bindings
-                // - imports
-                // - $$props / $$restProps
-                //
-                // We detect props by checking if the getter is a function call
-                // (prop sources are accessed as functions: tags() instead of $.get(tags))
-                let needs_deep_read = if name == "$$props" || name == "$$restProps" {
-                    true
-                } else if let Some(binding) = context.state.get_binding(name) {
-                    use crate::compiler::phases::phase2_analyze::scope::{
-                        BindingKind, DeclarationKind,
-                    };
-                    matches!(
-                        binding.kind,
-                        BindingKind::Prop | BindingKind::BindableProp | BindingKind::Template
-                    ) || binding.declaration_kind == DeclarationKind::Import
-                } else {
-                    false
+            // Check if we need to wrap in $.deep_read_state()
+            // This is needed for:
+            // - bindable_prop (props that are sources)
+            // - template bindings
+            // - imports (declaration_kind === 'import')
+            // - $$props / $$restProps
+            let needs_deep_read = if name == "$$props" || name == "$$restProps" {
+                true
+            } else if let Some(binding) = binding_info {
+                use crate::compiler::phases::phase2_analyze::scope::{
+                    BindingKind, DeclarationKind,
                 };
+                matches!(
+                    binding.kind,
+                    BindingKind::Prop | BindingKind::BindableProp | BindingKind::Template
+                ) || binding.declaration_kind == DeclarationKind::Import
+            } else {
+                false
+            };
 
-                let final_getter = if needs_deep_read {
-                    b::svelte_call("deep_read_state", vec![getter])
-                } else {
-                    getter
-                };
+            let final_getter = if needs_deep_read {
+                b::svelte_call("deep_read_state", vec![getter])
+            } else {
+                getter
+            };
 
-                getters.push(final_getter);
-            }
+            getters.push(final_getter);
         }
 
         JsExpr::Call(call) => {

@@ -203,8 +203,17 @@ pub fn analyze_component(
     // a wannabe runes component that is using runes in an external module...we need to fallback
     // to the runic behavior.
     // Corresponds to Svelte's 2-analyze/index.js L488-510
+    //
+    // In the official compiler, `options.runes` at this point is the merged value from both
+    // compile options and <svelte:options runes={...} />. We check both here.
+    let merged_runes_false = options.runes == Some(false)
+        || ast
+            .options
+            .as_ref()
+            .and_then(|o| o.runes)
+            .is_some_and(|r| !r);
     if !analysis.runes
-        && options.runes != Some(false)
+        && !merged_runes_false
         && !analysis.uses_props
         && !analysis.uses_rest_props
         && !instance_has_legacy_patterns(ast)
