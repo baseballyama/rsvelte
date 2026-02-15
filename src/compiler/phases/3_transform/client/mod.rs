@@ -6101,6 +6101,12 @@ fn transform_state_in_expr(
                         } else {
                             false
                         };
+                        let in_mutate_first_arg = if i >= 9 {
+                            let prefix: String = chars[i - 9..i].iter().collect();
+                            prefix == "$.mutate("
+                        } else {
+                            false
+                        };
 
                         // Check if this variable is in a function parameter position
                         let in_param_position =
@@ -6242,6 +6248,7 @@ fn transform_state_in_expr(
                             && !in_set_first_arg
                             && !in_update_arg
                             && !in_update_pre_arg
+                            && !in_mutate_first_arg
                             && !in_param_position
                             && !is_assignment_target
                             && !is_getter_setter_name
