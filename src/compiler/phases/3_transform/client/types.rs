@@ -205,12 +205,11 @@ impl<'a> ComponentContext<'a> {
             TransitionDirective, UseDirective,
         };
         use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+        use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment as visit_fragment_impl;
         use crate::compiler::phases::phase3_transform::client::visitors::shared::element::build_attribute_effect;
-        use crate::compiler::phases::phase3_transform::client::visitors::shared::fragment::process_children;
         use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
         use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
         use crate::compiler::phases::phase3_transform::js_ast::builders as b;
-        use crate::compiler::phases::phase3_transform::utils::clean_nodes;
 
         // Add a comment node to the template for the anchor
         self.state.template.push_comment(None);
@@ -419,56 +418,12 @@ impl<'a> ComponentContext<'a> {
             self.state.node = saved_node;
         }
 
-        // Process fragment (children)
-        let cleaned = clean_nodes(
-            None,
-            &elem.fragment.nodes,
-            &[],
-            &self.state.metadata.namespace,
-            self.state.scope,
-            self.state.analysis,
-            self.state.preserve_whitespace,
-            self.state.options.preserve_comments,
-        );
-
-        if !cleaned.trimmed.is_empty() {
-            // Save current state
-            let saved_node = self.state.node.clone();
-            let saved_init = std::mem::take(&mut self.state.init);
-            let saved_update = std::mem::take(&mut self.state.update);
-            let saved_after_update = std::mem::take(&mut self.state.after_update);
-
-            // Process children with element_id as the base node
-            process_children(
-                &cleaned.trimmed,
-                |is_text| {
-                    let mut args = vec![element_id.clone()];
-                    if is_text {
-                        args.push(b::boolean(true));
-                    }
-                    b::call(b::member_path("$.child"), args)
-                },
-                true, // is_element
-                self,
-            );
-
-            // Collect child statements
-            inner_init.extend(std::mem::take(&mut self.state.init));
-            inner_update.extend(std::mem::take(&mut self.state.update));
-            inner_after_update.extend(std::mem::take(&mut self.state.after_update));
-
-            // Restore state
-            self.state.init = saved_init;
-            self.state.update = saved_update;
-            self.state.after_update = saved_after_update;
-            self.state.node = saved_node;
-        }
-
-        // Build the callback body
+        // Build the callback body from inner_init, inner_update, inner_after_update
+        // (attributes, directives etc.), plus the fragment body (children)
         let mut callback_body: Vec<JsStatement> = Vec::new();
         callback_body.extend(inner_init);
 
-        // Add template_effect if there are update statements
+        // Add template_effect if there are update statements from attributes/directives
         if !inner_update.is_empty() {
             callback_body.push(b::stmt(b::call(
                 b::member_path("$.template_effect"),
@@ -478,18 +433,48 @@ impl<'a> ComponentContext<'a> {
 
         callback_body.extend(inner_after_update);
 
-        // Convert the tag expression
-        // Note: For simple identifiers (like props from $props()), the identifier itself
-        // is already a getter function from $.prop(), so we don't need to wrap it in a thunk.
-        // The runtime calls get_tag() which will call the getter function.
+        // Process fragment (children) using the Fragment visitor
+        // This matches the official compiler which visits node.fragment as a separate Fragment,
+        // producing its own template block with $.text() / $.append() patterns.
+        {
+            // Determine namespace for children based on element metadata.
+            // This matches determine_namespace_for_children() in the official compiler:
+            // svg if metadata.svg, mathml if metadata.mathml, html otherwise.
+            // Importantly, even if the parent namespace is "svg", children of a
+            // svelte:element use the element's own metadata, not the parent's.
+            let saved_namespace = self.state.metadata.namespace.clone();
+            if elem.metadata.svg {
+                self.state.metadata.namespace = "svg".to_string();
+            } else if elem.metadata.mathml {
+                self.state.metadata.namespace = "mathml".to_string();
+            } else {
+                self.state.metadata.namespace = "html".to_string();
+            }
+
+            let content_fragment = crate::ast::template::Fragment {
+                nodes: elem.fragment.nodes.clone(),
+                ..Default::default()
+            };
+            let fragment_block = visit_fragment_impl(&content_fragment, self, false);
+
+            // Restore namespace
+            self.state.metadata.namespace = saved_namespace;
+
+            // Add the fragment body to the callback
+            callback_body.extend(fragment_block.body);
+        }
+
+        // Convert the tag expression, apply transforms, then wrap in thunk.
+        // This matches the official compiler: `const get_tag = b.thunk(expression)`
+        // where expression has been visited (transforms applied).
+        //
+        // For prop identifiers: convert → tag, transform → tag(), thunk → () => tag() → unthunk → tag
+        // For let/const variables: convert → tag, transform → tag (no change), thunk → () => tag
+        // For template literals: convert → `h${size}`, transform → `h${size()}`, thunk → () => `h${size()}`
+        use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
         let tag_expr = convert_expression(&elem.tag, self);
-        let get_tag = if matches!(tag_expr, JsExpr::Identifier(_)) {
-            // Simple identifier - likely a prop getter, pass directly
-            tag_expr
-        } else {
-            // Complex expression - wrap in a thunk
-            b::thunk(tag_expr)
-        };
+        let tag_expr = apply_transforms_to_expression(&tag_expr, self);
+        let get_tag = b::thunk(tag_expr);
 
         // Build $.element(...) call
         // $.element(anchor, get_tag, is_svg_or_mathml, callback, namespace)
@@ -933,6 +918,56 @@ pub struct ComponentClientTransformState<'a> {
     /// The name of the current each block's index variable, if any.
     /// Used by apply_transforms_to_expression_with_shadowed to detect index accesses.
     pub each_index_name: Option<String>,
+
+    /// Stack of each-block binding contexts.
+    /// When inside an each block in legacy mode, this contains information needed
+    /// to generate correct binding getters/setters with $.invalidate_inner_signals().
+    /// Each entry represents a nested each block level.
+    pub each_binding_context: Vec<EachBindingContext>,
+}
+
+/// Context information for generating bindings inside each blocks.
+///
+/// In legacy mode, bindings inside each blocks need special handling:
+/// - Getters use `$.get($$item).prop` instead of raw `item.prop`
+/// - Setters include `$.invalidate_inner_signals()` to propagate changes
+/// - The each callback gets extra `$$index` and `$$array` params
+#[derive(Debug, Clone)]
+pub struct EachBindingContext {
+    /// The item parameter name (e.g., "item", "$$item")
+    pub item_name: String,
+
+    /// Whether the item is reactive (wrapped in $.get())
+    pub item_reactive: bool,
+
+    /// The collection expression string for invalidation
+    /// e.g., "items()" for props, "$.get(a)" for state
+    pub collection_expr: String,
+
+    /// If a $$array parameter was generated (scope shadowing case)
+    pub collection_id: Option<String>,
+
+    /// The invalidation sequence expressions (for $.invalidate_inner_signals)
+    /// These are the transitive dependency expressions collected in build_declarations
+    pub invalidation_exprs: Vec<String>,
+
+    /// The index parameter name (e.g., "$$index", "i")
+    pub index_name: String,
+
+    /// Whether the index is reactive (keyed each with index)
+    pub index_reactive: bool,
+
+    /// Whether this each block is in runes mode
+    pub is_runes: bool,
+
+    /// Flag set by bind_directive when it generates a binding that uses the each context.
+    /// This is used by each_block to know that uses_index should be true.
+    pub binding_used: Rc<Cell<bool>>,
+
+    /// Map of destructured variable names to their update expressions.
+    /// e.g., "f" -> "$.get($$item).name.first"
+    /// Used by bind_directive to generate correct setters for destructured each variables.
+    pub destructured_update_paths: FxHashMap<String, String>,
 }
 
 impl<'a> ComponentClientTransformState<'a> {
@@ -982,6 +1017,7 @@ impl<'a> ComponentClientTransformState<'a> {
             template_nesting_level: 0,
             each_index_used: Rc::new(Cell::new(false)),
             each_index_name: None,
+            each_binding_context: Vec::new(),
         }
     }
 

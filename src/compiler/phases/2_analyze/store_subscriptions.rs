@@ -136,7 +136,9 @@ pub fn detect_store_subscriptions(
             }
             // Check if there's a top-level binding for the store name
             // Only treat it as a store subscription if the binding is at the top level
-            if let Some(&binding_idx) = analysis.root.scope.declarations.get(store_name) {
+            // We need to check all scopes (module + instance) since the binding might
+            // be in the instance scope (e.g., reactive declarations like `$: z = ...`)
+            if let Some(binding_idx) = analysis.root.find_binding_any_scope(store_name) {
                 let binding = &analysis.root.bindings[binding_idx];
                 if binding.scope_index > 1 {
                     // The only binding for this name is in a nested scope.
@@ -151,7 +153,9 @@ pub fn detect_store_subscriptions(
         }
 
         // Check if a binding exists for the store name (xxx) and where it's declared
-        if let Some(&binding_idx) = analysis.root.scope.declarations.get(store_name) {
+        // We search all scopes (module + instance) since bindings from reactive
+        // declarations ($: z = ...) are in the instance scope, not root scope
+        if let Some(binding_idx) = analysis.root.find_binding_any_scope(store_name) {
             let binding = &analysis.root.bindings[binding_idx];
 
             // Check if the binding is in a nested scope (not module or instance scope)
@@ -208,7 +212,7 @@ pub fn detect_store_subscriptions(
             }
 
             // Check if we already have a binding for $xxx
-            if analysis.root.scope.declarations.contains_key(ref_name) {
+            if analysis.root.find_binding_any_scope(ref_name).is_some() {
                 continue;
             }
 

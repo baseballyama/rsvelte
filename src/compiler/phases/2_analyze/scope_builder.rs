@@ -1191,12 +1191,19 @@ impl<'a> ScopeBuilder<'a> {
             // Handle special Svelte elements that have attributes and fragments
             TemplateNode::SvelteBody(elem)
             | TemplateNode::SvelteDocument(elem)
-            | TemplateNode::SvelteFragment(elem)
             | TemplateNode::SvelteHead(elem)
             | TemplateNode::SvelteOptions(elem)
             | TemplateNode::SvelteWindow(elem) => {
                 self.process_attributes(&elem.attributes);
                 self.visit_fragment(&elem.fragment);
+            }
+            // SvelteFragment, SlotElement, SvelteElement each get their own scope
+            // (matching the official Svelte compiler where these all use the SvelteFragment handler)
+            TemplateNode::SvelteFragment(elem) => {
+                self.process_attributes(&elem.attributes);
+                let old_scope = self.push_scope();
+                self.visit_fragment(&elem.fragment);
+                self.pop_scope(old_scope);
             }
             TemplateNode::SvelteSelf(elem) => {
                 self.process_attributes(&elem.attributes);
@@ -1214,7 +1221,9 @@ impl<'a> ScopeBuilder<'a> {
             }
             TemplateNode::SvelteElement(elem) => {
                 self.process_attributes(&elem.attributes);
+                let old_scope = self.push_scope();
                 self.visit_fragment(&elem.fragment);
+                self.pop_scope(old_scope);
             }
             TemplateNode::TitleElement(elem) => {
                 self.process_attributes(&elem.attributes);
@@ -1222,7 +1231,9 @@ impl<'a> ScopeBuilder<'a> {
             }
             TemplateNode::SlotElement(elem) => {
                 self.process_attributes(&elem.attributes);
+                let old_scope = self.push_scope();
                 self.visit_fragment(&elem.fragment);
+                self.pop_scope(old_scope);
             }
             // Other nodes don't create scopes
             _ => {}

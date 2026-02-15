@@ -136,6 +136,14 @@ pub fn bind_directive(
         use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
         let transformed_get = apply_transforms_to_expression(&raw_get, context);
         (transformed_get, raw_set)
+    } else if binding_name == "this" {
+        // bind:this is handled specially below in build_special_binding_call
+        build_getter_setter(&node.expression, &expression, context)
+    } else if let Some(each_result) =
+        build_each_block_getter_setter(&node.expression, &expression, context)
+    {
+        // Inside an each block - use the each-block-aware getter/setter
+        each_result
     } else {
         // Build getter and setter from the expression
         build_getter_setter(&node.expression, &expression, context)
@@ -569,13 +577,11 @@ fn build_value_expression(value: &AttributeValue, context: &mut ComponentContext
     }
 }
 
-/// Build a bind:this call with context awareness for props.
+/// Build a bind:this call with context awareness for props, state, and each blocks.
 ///
-/// For props (created via `$.prop()`), the getter should be `() => prop()` and
-/// the setter should be `($$value) => prop($$value)` because props are getter/setter
-/// functions.
-///
-/// For regular variables, the getter is `() => expr` and setter is `($$value) => expr = $$value`.
+/// For props, the getter/setter use function call syntax.
+/// For state variables, uses $.get()/$.set() wrappers.
+/// For each block items in legacy mode, uses the 4-arg form with invalidation.
 fn build_bind_this_call_for_context(
     value: &JsExpr,
     get: &JsExpr,
@@ -584,7 +590,6 @@ fn build_bind_this_call_for_context(
 ) -> JsExpr {
     // Check if expression is a sequence (getter/setter pair)
     if let Some(setter) = set {
-        // Already have getter/setter pair - apply transforms to wrap state vars with $.get()/$.set()
         use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
         let transformed_getter = apply_transforms_to_expression(get, context);
         let transformed_setter = apply_transforms_to_expression(setter, context);
@@ -593,6 +598,11 @@ fn build_bind_this_call_for_context(
             vec![value.clone(), transformed_setter, transformed_getter],
         )
     } else {
+        // Check if we're inside an each block and the expression references the each item
+        if let Some(bind_this_result) = build_bind_this_each_block(value, get, context) {
+            return bind_this_result;
+        }
+
         // Check if this is a simple identifier that's a prop
         let is_prop = if let JsExpr::Identifier(name) = get {
             if let Some(binding) = context.state.get_binding(name) {
@@ -605,10 +615,6 @@ fn build_bind_this_call_for_context(
             false
         };
 
-        // Check if this variable is a state variable that needs $.get() and $.set() wrappers
-        // This includes:
-        // 1. Variables with state transforms registered (runes mode $state, $derived)
-        // 2. Variables with BindingKind::State (legacy mode mutable_source)
         let (has_state_transform, needs_proxy) = if let JsExpr::Identifier(name) = get {
             use crate::compiler::phases::phase2_analyze::scope::BindingKind;
             if let Some(binding) = context.state.get_binding(name) {
@@ -616,9 +622,6 @@ fn build_bind_this_call_for_context(
                     binding.kind,
                     BindingKind::State | BindingKind::Derived | BindingKind::RawState
                 );
-                // Proxy flag for $state but not $derived, $state.raw, or legacy mode.
-                // This matches the official compiler's AssignmentExpression visitor which
-                // checks context.state.analysis.runes before setting the proxy flag.
                 let proxy = is_state
                     && context.state.analysis.runes
                     && matches!(binding.kind, BindingKind::State);
@@ -633,23 +636,16 @@ fn build_bind_this_call_for_context(
         };
 
         if is_prop {
-            // For props, use function call syntax
-            // getter: () => prop()
-            // setter: ($$value) => prop($$value)
             let getter = b::arrow(vec![], b::call(get.clone(), vec![]));
             let setter = b::arrow(
                 vec![b::id_pattern("$$value")],
                 b::call(get.clone(), vec![b::id("$$value")]),
             );
-
             b::call(
                 b::member_path("$.bind_this"),
                 vec![value.clone(), setter, getter],
             )
         } else if has_state_transform {
-            // For state variables ($.mutable_source, $.state), use $.get() and $.set()
-            // getter: () => $.get(expr)
-            // setter: ($$value) => $.set(expr, $$value[, true])
             let getter = b::arrow(vec![], b::call(b::member_path("$.get"), vec![get.clone()]));
             let mut set_args = vec![get.clone(), b::id("$$value")];
             if needs_proxy {
@@ -659,27 +655,100 @@ fn build_bind_this_call_for_context(
                 vec![b::id_pattern("$$value")],
                 b::call(b::member_path("$.set"), set_args),
             );
-
             b::call(
                 b::member_path("$.bind_this"),
                 vec![value.clone(), setter, getter],
             )
         } else {
-            // For regular variables (no transform), use assignment syntax
-            // getter: () => expr
-            // setter: ($$value) => expr = $$value
             let getter = b::arrow(vec![], get.clone());
             let setter = b::arrow(
                 vec![b::id_pattern("$$value")],
                 b::assign(get.clone(), b::id("$$value")),
             );
-
             b::call(
                 b::member_path("$.bind_this"),
                 vec![value.clone(), setter, getter],
             )
         }
     }
+}
+
+/// Build a bind:this call inside an each block (legacy mode).
+///
+/// Generates the 4-arg form:
+/// ```javascript
+/// $.bind_this(
+///     element,
+///     ($$value, item) => (item.ref = $$value, $.invalidate_inner_signals(...)),
+///     (item) => item?.ref,
+///     () => [$.get(item)]
+/// )
+/// ```
+fn build_bind_this_each_block(
+    element: &JsExpr,
+    get: &JsExpr,
+    context: &ComponentContext,
+) -> Option<JsExpr> {
+    if context.state.analysis.runes {
+        return None;
+    }
+    let each_ctx = context.state.each_binding_context.last()?;
+
+    let get_str = crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(get);
+    let item_name = &each_ctx.item_name;
+
+    // Check if the getter references the each item
+    let is_each_item_ref = get_str.starts_with(&format!("{}.", item_name))
+        || get_str.starts_with(&format!("$.get({}).", item_name))
+        || get_str == *item_name
+        || get_str == format!("$.get({})", item_name);
+
+    if !is_each_item_ref {
+        return None;
+    }
+
+    each_ctx.binding_used.set(true);
+
+    let invalidation = build_invalidation_expr(each_ctx);
+
+    // Extract property path
+    let property_path =
+        if let Some(stripped) = get_str.strip_prefix(&format!("$.get({})", item_name)) {
+            stripped.trim_start_matches('.').to_string()
+        } else if let Some(stripped) = get_str.strip_prefix(&format!("{}.", item_name)) {
+            stripped.to_string()
+        } else {
+            return None;
+        };
+
+    if property_path.is_empty() {
+        return None;
+    }
+
+    // Setter: ($$value, item) => (item.prop = $$value, invalidation)
+    let setter_body = if let Some(ref inv) = invalidation {
+        format!("{}.{} = $$value, {}", item_name, property_path, inv)
+    } else {
+        format!("{}.{} = $$value", item_name, property_path)
+    };
+    let setter = JsExpr::Raw(format!(
+        "($$value, {}) => (\n\t{}\n)",
+        item_name, setter_body
+    ));
+
+    // Getter: (item) => item?.prop
+    let getter = JsExpr::Raw(format!(
+        "({}) => {}?.{}",
+        item_name, item_name, property_path
+    ));
+
+    // Values thunk: () => [$.get(item)]
+    let values_thunk = JsExpr::Raw(format!("() => [$.get({})]", item_name));
+
+    Some(b::call(
+        b::member_path("$.bind_this"),
+        vec![element.clone(), setter, getter, values_thunk],
+    ))
 }
 
 /// Build a bind:this call (legacy - without context).
@@ -912,6 +981,321 @@ fn has_use_directive(parent: Option<&TemplateNode>) -> bool {
             .any(|attr| matches!(attr, Attribute::UseDirective(_))),
         _ => false,
     }
+}
+
+/// Build getter/setter for a binding inside an each block (legacy mode).
+///
+/// When a bind directive is inside an each block in legacy mode, the getter/setter
+/// need special patterns:
+/// - Getter: `() => $.get($$item).prop` or the destructured getter function
+/// - Setter: `($$value) => ($.get($$item).prop = $$value, $.invalidate_inner_signals(() => (...)))`
+///
+/// Returns None if we're not inside an each block or the expression doesn't reference
+/// an each item variable.
+fn build_each_block_getter_setter(
+    original_expr: &Expression,
+    _converted_expr: &JsExpr,
+    context: &mut ComponentContext,
+) -> Option<(JsExpr, Option<JsExpr>)> {
+    // Only applies in legacy mode (not runes)
+    if context.state.analysis.runes {
+        return None;
+    }
+
+    // Check if we're inside an each block
+    let each_ctx = context.state.each_binding_context.last()?.clone();
+
+    // Determine what the expression references
+    let expr_info = analyze_each_binding_expression(original_expr, context)?;
+
+    // Mark that this binding used the each context (for uses_index tracking)
+    each_ctx.binding_used.set(true);
+
+    // Build the invalidation sequence
+    let invalidation = build_invalidation_expr(&each_ctx);
+
+    match expr_info {
+        EachBindingExprInfo::DirectItem { item_name } => {
+            // Direct item reference: bind:value={item}
+            // This is the case where the each item itself is the bound value
+            // Getter: () => $.get(item) or just item
+            // Setter: ($$value) => (collection[index] = $$value, invalidation)
+            let get_expr = if each_ctx.item_reactive {
+                b::call(b::member_path("$.get"), vec![b::id(&item_name)])
+            } else {
+                b::id(&item_name)
+            };
+            let get = b::thunk(get_expr.clone());
+
+            // For direct item assignment, we need collection[index] = $$value
+            let collection_access = if let Some(ref coll_id) = each_ctx.collection_id {
+                format!("{}()", coll_id)
+            } else {
+                each_ctx.collection_expr.clone()
+            };
+            let index_access = if each_ctx.index_reactive {
+                format!("$.get({})", each_ctx.index_name)
+            } else {
+                each_ctx.index_name.clone()
+            };
+
+            let setter_body = if let Some(ref inv) = invalidation {
+                format!("{}[{}] = $$value, {}", collection_access, index_access, inv)
+            } else {
+                format!("{}[{}] = $$value", collection_access, index_access)
+            };
+
+            let set = JsExpr::Raw(format!("($$value) => ({})", setter_body));
+            Some((get, Some(set)))
+        }
+        EachBindingExprInfo::ItemProperty {
+            item_name,
+            property_path,
+        } => {
+            // Property of each item: bind:value={item.prop} or bind:value={item.a.b}
+            // Getter: () => $.get(item).prop
+            // Setter: ($$value) => ($.get(item).prop = $$value, invalidation)
+            let get_base = if each_ctx.item_reactive {
+                format!("$.get({})", item_name)
+            } else {
+                item_name.clone()
+            };
+            let get_expr_str = format!("{}.{}", get_base, property_path);
+            let get = JsExpr::Raw(format!("() => {}", get_expr_str));
+
+            let setter_body = if let Some(ref inv) = invalidation {
+                format!("{}.{} = $$value, {}", get_base, property_path, inv)
+            } else {
+                format!("{}.{} = $$value", get_base, property_path)
+            };
+
+            let set = JsExpr::Raw(format!("($$value) => (\n\t{}\n)", setter_body));
+            Some((get, Some(set)))
+        }
+        EachBindingExprInfo::DestructuredVar {
+            var_name,
+            update_path,
+        } => {
+            // Destructured variable: bind:value={f} where f comes from {#each items as { f }}
+            // Getter: the getter function itself (f)
+            // Setter: ($$value) => ($.get($$item).path = $$value, invalidation)
+            let get = b::id(&var_name);
+
+            let setter_body = if let Some(ref inv) = invalidation {
+                format!("{} = $$value, {}", update_path, inv)
+            } else {
+                format!("{} = $$value", update_path)
+            };
+
+            let set = JsExpr::Raw(format!("($$value) => (\n\t{}\n)", setter_body));
+            Some((get, Some(set)))
+        }
+        EachBindingExprInfo::ComputedAccess {
+            access_expr,
+            assign_expr,
+        } => {
+            // Computed access like item[index] or a()[key()]
+            // Getter: () => access_expr
+            // Setter: ($$value) => (assign_expr = $$value, invalidation)
+            let get = JsExpr::Raw(format!("() => {}", access_expr));
+
+            let setter_body = if let Some(ref inv) = invalidation {
+                format!("{} = $$value, {}", assign_expr, inv)
+            } else {
+                format!("{} = $$value", assign_expr)
+            };
+
+            let set = JsExpr::Raw(format!("($$value) => (\n\t{}\n)", setter_body));
+            Some((get, Some(set)))
+        }
+    }
+}
+
+/// Information about how a binding expression references an each block item.
+#[derive(Debug)]
+#[allow(dead_code)]
+enum EachBindingExprInfo {
+    /// Direct reference to the each item (bind:value={item})
+    DirectItem { item_name: String },
+    /// Property access on the each item (bind:value={item.prop})
+    ItemProperty {
+        item_name: String,
+        property_path: String,
+    },
+    /// Reference to a destructured variable (bind:value={f})
+    DestructuredVar {
+        var_name: String,
+        update_path: String,
+    },
+    /// Computed access expression (bind:value={a()[key()]})
+    ComputedAccess {
+        access_expr: String,
+        assign_expr: String,
+    },
+}
+
+/// Analyze whether a binding expression references an each block item.
+fn analyze_each_binding_expression(
+    expr: &Expression,
+    context: &ComponentContext,
+) -> Option<EachBindingExprInfo> {
+    let each_ctx = context.state.each_binding_context.last()?;
+
+    let Expression::Value(val) = expr;
+    let obj = val.as_object()?;
+    let expr_type = obj.get("type").and_then(|v| v.as_str())?;
+
+    match expr_type {
+        "Identifier" => {
+            let name = obj.get("name").and_then(|v| v.as_str())?;
+
+            if name == each_ctx.item_name {
+                // Direct reference to the each item
+                return Some(EachBindingExprInfo::DirectItem {
+                    item_name: name.to_string(),
+                });
+            }
+
+            // Check if this is a destructured variable from the each block
+            // Look at the each context - if item_name is "$$item", this might be
+            // a destructured variable
+            if each_ctx.item_name == "$$item" {
+                // The variable might be a destructured path from the each context
+                // We need to check if it was declared in the each block's scope
+                // For destructured items, the getter function (e.g., `f = () => $.get($$item).name.first`)
+                // is already set up. We just need to generate the setter with the update path.
+                if let Some(_transform) = context.state.transform.get(name) {
+                    // This is a transformed variable from the each block (destructured)
+                    // We need to figure out the update path ($.get($$item).path)
+                    // Unfortunately we don't have the exact path here, so we need to
+                    // reconstruct it from the getter function.
+                    // For now, return the info and let the caller handle it.
+                    return None; // Will be handled by the getter function approach below
+                }
+            }
+
+            None
+        }
+        "MemberExpression" => {
+            // item.prop, item.a.b, item[0], etc.
+            let (root_name, property_path) = extract_member_path(obj)?;
+
+            if root_name == each_ctx.item_name {
+                return Some(EachBindingExprInfo::ItemProperty {
+                    item_name: root_name,
+                    property_path,
+                });
+            }
+
+            // Check if the root is a getter function from destructured context
+            // e.g., a().prop where a is a destructured getter
+            if each_ctx.item_name == "$$item"
+                && let Some(transform) = context.state.transform.get(&root_name)
+                && transform.is_reactive
+            {
+                // This is a reactive (destructured) variable being accessed as member
+                // The getter needs to call the function: root()
+                // Build the access expression and assign expression
+                let access_expr = format!("{}().{}", root_name, property_path);
+                let assign_expr = access_expr.clone();
+                return Some(EachBindingExprInfo::ComputedAccess {
+                    access_expr,
+                    assign_expr,
+                });
+            }
+
+            None
+        }
+        _ => None,
+    }
+}
+
+/// Extract the root identifier name and property path from a MemberExpression.
+/// Returns (root_name, property_path) e.g., ("item", "name.first") for item.name.first
+fn extract_member_path(
+    obj: &serde_json::Map<String, serde_json::Value>,
+) -> Option<(String, String)> {
+    let object = obj.get("object")?.as_object()?;
+    let property = obj.get("property")?.as_object()?;
+    let computed = obj
+        .get("computed")
+        .and_then(|c| c.as_bool())
+        .unwrap_or(false);
+
+    let prop_name = if computed {
+        // Computed property: item[expr]
+        let prop_val = serde_json::Value::Object(property.clone());
+        let prop_str = format_json_expr(&prop_val);
+        format!("[{}]", prop_str)
+    } else {
+        property.get("name").and_then(|n| n.as_str())?.to_string()
+    };
+
+    let object_type = object.get("type").and_then(|t| t.as_str())?;
+
+    if object_type == "Identifier" {
+        let root_name = object.get("name").and_then(|n| n.as_str())?;
+        Some((root_name.to_string(), prop_name))
+    } else if object_type == "MemberExpression" {
+        let (root, parent_path) = extract_member_path(object)?;
+        if computed {
+            Some((root, format!("{}{}", parent_path, prop_name)))
+        } else {
+            Some((root, format!("{}.{}", parent_path, prop_name)))
+        }
+    } else {
+        None
+    }
+}
+
+/// Format a JSON expression value to a string (simplified).
+fn format_json_expr(val: &serde_json::Value) -> String {
+    match val {
+        serde_json::Value::Object(obj) => {
+            let expr_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+            match expr_type {
+                "Identifier" => obj
+                    .get("name")
+                    .and_then(|n| n.as_str())
+                    .unwrap_or("?")
+                    .to_string(),
+                "Literal" | "NumericLiteral" => {
+                    if let Some(raw) = obj.get("raw").and_then(|r| r.as_str()) {
+                        raw.to_string()
+                    } else if let Some(v) = obj.get("value") {
+                        match v {
+                            serde_json::Value::Number(n) => n.to_string(),
+                            serde_json::Value::String(s) => format!("'{}'", s),
+                            _ => "?".to_string(),
+                        }
+                    } else {
+                        "?".to_string()
+                    }
+                }
+                _ => "?".to_string(),
+            }
+        }
+        serde_json::Value::String(s) => format!("'{}'", s),
+        serde_json::Value::Number(n) => n.to_string(),
+        _ => "?".to_string(),
+    }
+}
+
+/// Build the invalidation expression string for an each block binding setter.
+fn build_invalidation_expr(
+    each_ctx: &crate::compiler::phases::phase3_transform::client::types::EachBindingContext,
+) -> Option<String> {
+    if each_ctx.is_runes {
+        return None;
+    }
+
+    if each_ctx.invalidation_exprs.is_empty() {
+        return None;
+    }
+
+    // Build: $.invalidate_inner_signals(() => (expr1, expr2, ...))
+    let inner = each_ctx.invalidation_exprs.join(", ");
+    Some(format!("$.invalidate_inner_signals(() => ({}))", inner))
 }
 
 #[cfg(test)]

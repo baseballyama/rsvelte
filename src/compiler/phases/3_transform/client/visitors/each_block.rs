@@ -40,7 +40,9 @@ use crate::ast::js::Expression;
 use crate::ast::template::{Attribute, EachBlock, Fragment, TemplateNode};
 use crate::compiler::constants::*;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-use crate::compiler::phases::phase3_transform::client::types::ComponentContext;
+use crate::compiler::phases::phase3_transform::client::types::{
+    ComponentContext, EachBindingContext,
+};
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
 use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment as visit_fragment_impl;
 // Note: get_value from declarations is available if needed for reactive index/item access
@@ -52,6 +54,9 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::
 };
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+use rustc_hash::FxHashMap;
+use std::cell::Cell;
+use std::rc::Rc;
 
 /// Transform an EachBlock node into client-side JavaScript.
 ///
@@ -215,9 +220,96 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
         context.state.each_index_used.set(false);
     }
 
+    // Push the each binding context for legacy mode binding generation.
+    // This allows bind_directive to generate correct getters/setters with
+    // $.invalidate_inner_signals() when inside an each block.
+    let item_reactive = (flags & EACH_ITEM_REACTIVE) != 0;
+    let index_reactive = (flags & EACH_INDEX_REACTIVE) != 0;
+
+    // Compute the item name
+    let item_name = match &item {
+        JsExpr::Identifier(name) => name.clone(),
+        _ => "$$item".to_string(),
+    };
+
+    // Compute the index name
+    let index_name_str = match &index {
+        JsExpr::Identifier(name) => name.clone(),
+        _ => "$$index".to_string(),
+    };
+
+    // Compute collection expression for invalidation
+    let collection_expr_str = if let Some(ref coll_id) = collection_id {
+        format!("{}()", coll_id)
+    } else {
+        // Generate the collection expression as a string
+        crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(&collection)
+    };
+
+    // Compute invalidation expressions from transitive deps
+    // In the official compiler, transitive_deps come from analysis and contain the
+    // bindings that need invalidation when an each item is mutated/assigned.
+    // Since our analysis doesn't populate transitive_deps yet, we derive invalidation
+    // from the collection expression and parent each block collection expressions.
+    let mut invalidation_exprs = Vec::new();
+    if !context.state.analysis.runes {
+        if let Some(ref coll_id) = collection_id {
+            invalidation_exprs.push(format!("{}()", coll_id));
+        } else if !node.metadata.transitive_deps.is_empty() {
+            // Use transitive_deps from analysis if available
+            for binding_idx in &node.metadata.transitive_deps {
+                if let Some(binding) = context.state.scope_root.bindings.get(*binding_idx) {
+                    invalidation_exprs.push(binding.name.clone());
+                }
+            }
+        } else {
+            // Fallback: use the collection expression as the invalidation target.
+            // This is correct because in the official compiler, transitive_deps
+            // typically contains the expression dependencies of the collection,
+            // which in simple cases is just the collection variable itself.
+            // The collection_expr_str already has transforms applied (e.g., prop()
+            // calls for props, $.get() for state variables).
+            invalidation_exprs.push(collection_expr_str.clone());
+        }
+
+        // Also add parent each block invalidation deps
+        for parent_ctx in &context.state.each_binding_context {
+            if !parent_ctx.is_runes {
+                for dep in &parent_ctx.invalidation_exprs {
+                    if !invalidation_exprs.contains(dep) {
+                        invalidation_exprs.push(dep.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    let binding_used = Rc::new(Cell::new(false));
+    context.state.each_binding_context.push(EachBindingContext {
+        item_name: item_name.clone(),
+        item_reactive,
+        collection_expr: collection_expr_str.clone(),
+        collection_id: collection_id.clone(),
+        invalidation_exprs: invalidation_exprs.clone(),
+        index_name: index_name_str.clone(),
+        index_reactive,
+        is_runes: context.state.analysis.runes,
+        binding_used: binding_used.clone(),
+        destructured_update_paths: FxHashMap::default(),
+    });
+
     // Visit the each block body to get the body block
     // The Fragment visitor handles template creation and hoisting
     let body_block = visit_fragment(&node.body, context);
+
+    // Pop the each binding context
+    context.state.each_binding_context.pop();
+
+    // Check if bindings set the binding_used flag (meaning bind_directive generated
+    // an each-block-aware setter that needs $$index)
+    if binding_used.get() {
+        uses_index = true;
+    }
 
     // After visiting the body, check if the index was actually used
     if node.index.is_some() && context.state.each_index_used.get() {
