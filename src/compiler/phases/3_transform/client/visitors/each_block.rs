@@ -145,10 +145,10 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     //   1. The index variable is read in the body (transform read callback)
     //   2. The each item is assigned (transform assign callback, e.g. bind:value)
     //   3. The each item is mutated (transform mutate callback)
-    // Since we don't have closure-based side effects, we determine this statically by
-    // checking if the each item binding was marked as reassigned/mutated during analysis,
-    // or if an explicit index is declared.
-    let mut uses_index = each_node_meta.contains_group_binding || node.index.is_some();
+    // We use the each_index_used/each_index_name mechanism on ComponentClientTransformState
+    // to detect case 1 during body traversal. Cases 2 and 3 are checked statically below
+    // by inspecting the binding's reassigned/mutated flags.
+    let mut uses_index = each_node_meta.contains_group_binding;
 
     // Check if the each item binding is reassigned or mutated (e.g., via bind: directives).
     // This corresponds to the assign/mutate transform callbacks in the official compiler
@@ -202,9 +202,31 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
         &mut uses_index,
     );
 
+    // Set up index tracking before visiting the body.
+    // Save the previous each_index state so we can restore it after (for nested each blocks).
+    let saved_each_index_name = context.state.each_index_name.clone();
+    let saved_each_index_used = context.state.each_index_used.get();
+
+    // Set the current each block's index name and reset the used flag.
+    // During body traversal, apply_transforms_to_expression_with_shadowed will
+    // set each_index_used to true if the index identifier is encountered.
+    if let Some(ref index_name) = node.index {
+        context.state.each_index_name = Some(index_name.to_string());
+        context.state.each_index_used.set(false);
+    }
+
     // Visit the each block body to get the body block
     // The Fragment visitor handles template creation and hoisting
     let body_block = visit_fragment(&node.body, context);
+
+    // After visiting the body, check if the index was actually used
+    if node.index.is_some() && context.state.each_index_used.get() {
+        uses_index = true;
+    }
+
+    // Restore the previous each_index state (for nested each blocks)
+    context.state.each_index_name = saved_each_index_name;
+    context.state.each_index_used.set(saved_each_index_used);
 
     // Restore the original transform map to prevent leaking to sibling blocks
     context.state.transform = saved_transform;
