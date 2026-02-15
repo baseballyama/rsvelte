@@ -875,9 +875,15 @@ pub fn visit(
     context.is_direct_child_of_component = false;
 
     // Push fragment owner type for const_tag placement validation
-    context
-        .fragment_owner_stack
-        .push(super::FragmentOwnerType::RegularElement);
+    // Elements with a slot attribute allow {@const} tags (like components)
+    let has_slot_attr = element.attributes.iter().any(
+        |attr| matches!(attr, crate::ast::template::Attribute::Attribute(a) if a.name == "slot"),
+    );
+    context.fragment_owner_stack.push(if has_slot_attr {
+        super::FragmentOwnerType::RegularElementWithSlot
+    } else {
+        super::FragmentOwnerType::RegularElement
+    });
 
     // Analyze children
     analyze(&mut element.fragment, context)?;

@@ -49,8 +49,10 @@ pub fn validate_special_element_placement(
             }
         }
         "svelte:self" => {
-            // svelte:self must be inside a conditional or loop
-            if context.block_depth == 0 {
+            // svelte:self must be inside a conditional, loop, snippet, or component.
+            // The official Svelte checks context.path for IfBlock, EachBlock, Component, or SnippetBlock.
+            // We check block_depth (IfBlock, EachBlock, AwaitBlock, SnippetBlock) and component_depth (Component).
+            if context.block_depth == 0 && context.component_depth == 0 {
                 return Err(AnalysisError::validation(
                     "svelte_self_invalid_placement",
                     "`<svelte:self>` components can only exist inside {#if}, {#each}, {#snippet} blocks or component `children` snippets",

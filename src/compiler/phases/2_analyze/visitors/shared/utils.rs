@@ -1534,6 +1534,18 @@ pub fn walk_js_expression(
             }
         }
         Some("MemberExpression") => {
+            // Set has_member_expression flag.
+            // Corresponds to MemberExpression.js line 19:
+            //   context.state.expression.has_member_expression = true;
+            metadata.set_has_member_expression(true);
+
+            // Set has_state if the member expression is not pure.
+            // Corresponds to MemberExpression.js line 20:
+            //   context.state.expression.has_state ||= !is_pure(node, context);
+            if !is_pure(expression, context) {
+                metadata.set_has_state(true);
+            }
+
             // Check if this identifier is "safe" (doesn't require component context)
             // If it's not safe, we need to track that this component needs context
             // Corresponds to MemberExpression.js line 23-24
@@ -1577,6 +1589,23 @@ pub fn walk_js_expression(
                 for arg in arguments {
                     walk_js_expression(arg, context, metadata)?;
                 }
+            }
+
+            // Set has_call and has_state flags after visiting children.
+            // Corresponds to CallExpression.js lines 264-273:
+            //   if (context.state.expression) {
+            //     if (!is_pure(node.callee, context) || context.state.expression.dependencies.size > 0) {
+            //       context.state.expression.has_call = true;
+            //       context.state.expression.has_state = true;
+            //     }
+            //   }
+            let callee_is_pure = expression
+                .get("callee")
+                .map(|c| is_pure(c, context))
+                .unwrap_or(false);
+            if !callee_is_pure || !metadata.dependencies.is_empty() {
+                metadata.set_has_call(true);
+                metadata.set_has_state(true);
             }
         }
         Some("BinaryExpression") | Some("LogicalExpression") => {

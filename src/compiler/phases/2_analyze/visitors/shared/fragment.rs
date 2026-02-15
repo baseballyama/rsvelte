@@ -228,6 +228,9 @@ fn extract_expression_identifiers(expression: &serde_json::Value) -> FxHashSet<S
 }
 
 /// Recursively collect identifier references from an expression.
+/// Respects scoping boundaries: does not recurse into function bodies
+/// (ArrowFunctionExpression, FunctionExpression, FunctionDeclaration)
+/// because those create new scopes where local declarations shadow outer names.
 fn collect_expression_identifiers(
     expression: &serde_json::Value,
     identifiers: &mut FxHashSet<String>,
@@ -253,6 +256,13 @@ fn collect_expression_identifiers(
                 {
                     collect_expression_identifiers(property, identifiers);
                 }
+            }
+            // Do not recurse into function bodies - they create new scopes
+            // where local declarations can shadow outer names without creating cycles.
+            "ArrowFunctionExpression" | "FunctionExpression" | "FunctionDeclaration" => {
+                // Only collect identifiers from parameter defaults, not the body.
+                // Parameters themselves are declarations and shouldn't be collected.
+                // We skip the entire function to avoid false cycle detection.
             }
             _ => {
                 // Recursively walk all object properties and array elements

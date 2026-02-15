@@ -1154,6 +1154,15 @@ fn transform_instance_script_for_visitors(
             return;
         }
 
+        // Strip `export { ... }` specifier statements entirely.
+        // In client-side compilation, exports are exposed via the $$exports object,
+        // not ES module export syntax. `export { a, b as c }` statements are only
+        // used by the analysis phase to mark bindings as BindableProp/exports.
+        // The actual declarations (let a, let b) remain and get transformed to $.prop() calls.
+        if first_line_trimmed.starts_with("export {") {
+            return;
+        }
+
         // Strip `export` keyword from function/const/class declarations
         // In the compiled output, exports are exposed via $$exports object, not ES export syntax
         // Reference: The official compiler processes exports in ExportNamedDeclaration visitor
@@ -1875,7 +1884,14 @@ fn transform_derived_destructuring(
     let base_expr = if source_is_identifier {
         wrapped_source.clone()
     } else {
-        declarations.push(format!("$$d = $.derived(() => {})", wrapped_source));
+        // When the source is an object literal (starts with {), we must wrap it in
+        // parentheses to avoid the arrow function body being parsed as a block:
+        // () => ({a, b}) instead of () => {a, b}
+        if wrapped_source.trim_start().starts_with('{') {
+            declarations.push(format!("$$d = $.derived(() => ({}))", wrapped_source));
+        } else {
+            declarations.push(format!("$$d = $.derived(() => {})", wrapped_source));
+        }
         "$.get($$d)".to_string()
     };
     process_derived_destructuring_pattern(

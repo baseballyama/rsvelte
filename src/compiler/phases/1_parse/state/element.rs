@@ -586,13 +586,15 @@ impl Parser<'_> {
         })
     }
 
-    /// Check if inside any HTML element (not at root level).
+    /// Check if not at root level (inside any element or block context).
     /// A script/style tag at root level is a Svelte script/style.
-    /// A script/style tag inside an element is an HTML script/style.
+    /// A script/style tag inside an element or block is an HTML script/style.
     pub fn is_inside_element(&self) -> bool {
+        // We're at root level only if the stack contains just the Root entry.
+        // Any other entry (Element, EachBlock, IfBlock, etc.) means we're nested.
         self.stack
             .iter()
-            .any(|entry| matches!(entry, StackEntry::Element { .. }))
+            .any(|entry| !matches!(entry, StackEntry::Root))
     }
 
     /// Check if current position starts a valid closing tag (e.g., `</textarea>` or `</textarea  >`).

@@ -35,9 +35,11 @@ pub fn visit(tag: &mut ConstTag, context: &mut VisitorContext) -> Result<(), Ana
         Some(FragmentOwnerType::SvelteFragment) => true,
         Some(FragmentOwnerType::SvelteBoundary) => true,
         Some(FragmentOwnerType::Component) => true,
-        // RegularElement and SvelteElement are allowed only if they have a slot attribute
-        // But we can't easily check that here, so we disallow them
-        // The official Svelte checks the path to see if the grandparent has a slot attribute
+        // RegularElement and SvelteElement with a slot attribute are valid placements.
+        // In legacy Svelte, `<div slot="name">` creates a slot boundary context,
+        // so {@const} can be used inside slotted elements.
+        Some(FragmentOwnerType::RegularElementWithSlot) => true,
+        Some(FragmentOwnerType::SvelteElementWithSlot) => true,
         _ => false,
     };
 

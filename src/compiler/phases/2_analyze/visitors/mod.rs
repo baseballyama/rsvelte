@@ -216,8 +216,10 @@ pub enum SlotOwnerType {
 pub enum FragmentOwnerType {
     /// Root fragment (top-level)
     Root,
-    /// Inside a RegularElement
+    /// Inside a RegularElement (without slot attribute)
     RegularElement,
+    /// Inside a RegularElement with a slot attribute
+    RegularElementWithSlot,
     /// Inside a Component (or SvelteComponent, SvelteSelf)
     Component,
     /// Inside an IfBlock branch
@@ -234,8 +236,10 @@ pub enum FragmentOwnerType {
     SvelteFragment,
     /// Inside a SvelteBoundary
     SvelteBoundary,
-    /// Inside a SvelteElement
+    /// Inside a SvelteElement (without slot attribute)
     SvelteElement,
+    /// Inside a SvelteElement with a slot attribute
+    SvelteElementWithSlot,
     /// Inside a SlotElement
     SlotElement,
     /// Inside a SvelteHead
