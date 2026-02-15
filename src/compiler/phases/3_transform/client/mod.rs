@@ -1530,6 +1530,25 @@ fn transform_client_runes_with_skip_and_state(
     // $derived.by() already has a callback, so pass it directly
     // But we need to wrap state variable references inside the callback with $.get()
     if let Some(pos) = result.find("$derived.by(") {
+        // Check if this is a destructuring pattern: let { a, b } = $derived.by(expr)
+        let before_derived_by = result[..pos].trim();
+        let has_destructuring_by = (before_derived_by.contains("let ")
+            || before_derived_by.contains("const "))
+            && (before_derived_by.contains('{') || before_derived_by.contains('['));
+
+        if has_destructuring_by {
+            // Handle destructuring pattern for $derived.by()
+            // $derived.by() always creates a $$d temp (unlike $derived(identifier) which skips it)
+            if let Some(transformed) = transform_derived_by_destructuring(
+                &result,
+                state_vars,
+                non_reactive_vars,
+                proxy_vars,
+            ) {
+                return transformed;
+            }
+        }
+
         let derived_start = pos + 12; // after "$derived.by("
         if let Some(content_end) = find_matching_paren(&result[derived_start..]) {
             let content = &result[derived_start..derived_start + content_end];
@@ -1838,6 +1857,53 @@ fn transform_derived_destructuring(
         declarations.push(format!("$$d = $.derived(() => {})", wrapped_source));
         "$.get($$d)".to_string()
     };
+    process_derived_destructuring_pattern(
+        pattern,
+        &base_expr,
+        &mut declarations,
+        &mut array_counter,
+    )?;
+    if declarations.is_empty() {
+        return None;
+    }
+    Some(format!("let {};", declarations.join(",\n\t")))
+}
+
+/// Transform `$derived.by()` with destructuring patterns.
+///
+/// Unlike `$derived(identifier)` which can skip the temp variable,
+/// `$derived.by()` always creates a `$$d` temp variable because the
+/// callback is already provided and needs to be called through `$.derived()`.
+///
+/// Transforms:
+///   `let { a, b } = $derived.by(fn)` -> `let $$d = $.derived(fn), a = $.derived(() => $.get($$d).a), b = $.derived(() => $.get($$d).b)`
+fn transform_derived_by_destructuring(
+    line: &str,
+    state_vars: &[String],
+    non_reactive_vars: &[String],
+    proxy_vars: &[String],
+) -> Option<String> {
+    let trimmed = line.trim();
+    let decl_keyword = if trimmed.starts_with("let ") {
+        "let"
+    } else if trimmed.starts_with("const ") {
+        "const"
+    } else {
+        return None;
+    };
+    let derived_pos = trimmed.find("$derived.by(")?;
+    let pattern_start = decl_keyword.len() + 1;
+    let eq_pos = trimmed[..derived_pos].rfind('=')?;
+    let pattern = trimmed[pattern_start..eq_pos].trim();
+    let source_start = derived_pos + 12; // after "$derived.by("
+    let source_end = find_matching_paren(&trimmed[source_start..])?;
+    let source = trimmed[source_start..source_start + source_end].trim();
+    let mut declarations = Vec::new();
+    let mut array_counter = 0;
+    let wrapped_source = wrap_state_vars_in_expr(source, state_vars, non_reactive_vars, proxy_vars);
+    // $derived.by() always creates a $$d temp - the callback is passed directly to $.derived()
+    declarations.push(format!("$$d = $.derived({})", wrapped_source));
+    let base_expr = "$.get($$d)".to_string();
     process_derived_destructuring_pattern(
         pattern,
         &base_expr,
@@ -4563,7 +4629,10 @@ fn transform_legacy_state_declarations(
 /// For client-side rendering, transforms:
 /// - `$count = value` → `$.store_set(count, value)`
 /// - `$count += 1` → `$.store_set(count, $count() + 1)`
-/// - `$count++` → `$.store_set(count, $count() + 1)`
+/// - `$count++` → `$.update_store(count, $count())`
+/// - `++$count` → `$.update_pre_store(count, $count())`
+/// - `$count--` → `$.update_store(count, $count(), -1)`
+/// - `--$count` → `$.update_pre_store(count, $count(), -1)`
 fn transform_store_assignments_client(line: &str, store_sub_vars: &[String]) -> String {
     if store_sub_vars.is_empty() {
         return line.to_string();
@@ -4575,31 +4644,31 @@ fn transform_store_assignments_client(line: &str, store_sub_vars: &[String]) -> 
         // store_sub is like "$count", store_name is "count"
         let store_name = &store_sub[1..];
 
-        // Transform prefix increment: ++$count
+        // Transform prefix increment: ++$count -> $.update_pre_store(count, $count())
         let pre_inc_pattern = format!("++{}", store_sub);
         if result.contains(&pre_inc_pattern) {
-            let replacement = format!("$.store_set({}, {}() + 1)", store_name, store_sub);
+            let replacement = format!("$.update_pre_store({}, {}())", store_name, store_sub);
             result = result.replace(&pre_inc_pattern, &replacement);
         }
 
-        // Transform prefix decrement: --$count
+        // Transform prefix decrement: --$count -> $.update_pre_store(count, $count(), -1)
         let pre_dec_pattern = format!("--{}", store_sub);
         if result.contains(&pre_dec_pattern) {
-            let replacement = format!("$.store_set({}, {}() - 1)", store_name, store_sub);
+            let replacement = format!("$.update_pre_store({}, {}(), -1)", store_name, store_sub);
             result = result.replace(&pre_dec_pattern, &replacement);
         }
 
-        // Transform postfix increment: $count++
+        // Transform postfix increment: $count++ -> $.update_store(count, $count())
         let post_inc_pattern = format!("{}++", store_sub);
         if result.contains(&post_inc_pattern) {
-            let replacement = format!("$.store_set({}, {}() + 1)", store_name, store_sub);
+            let replacement = format!("$.update_store({}, {}())", store_name, store_sub);
             result = result.replace(&post_inc_pattern, &replacement);
         }
 
-        // Transform postfix decrement: $count--
+        // Transform postfix decrement: $count-- -> $.update_store(count, $count(), -1)
         let post_dec_pattern = format!("{}--", store_sub);
         if result.contains(&post_dec_pattern) {
-            let replacement = format!("$.store_set({}, {}() - 1)", store_name, store_sub);
+            let replacement = format!("$.update_store({}, {}(), -1)", store_name, store_sub);
             result = result.replace(&post_dec_pattern, &replacement);
         }
 

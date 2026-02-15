@@ -8647,7 +8647,10 @@ fn is_js_identifier_char(c: char) -> bool {
 /// Handles patterns like:
 /// - `$count = value` → `$.store_set(count, value)`
 /// - `$count += 1` → `$.store_set(count, $.store_get(...) + 1)`
-/// - `$count++` → `$.store_set(count, $.store_get(...) + 1)`
+/// - `$count++` → `$.update_store($$store_subs ??= {}, '$count', count)`
+/// - `++$count` → `$.update_store_pre($$store_subs ??= {}, '$count', count)`
+/// - `$count--` → `$.update_store($$store_subs ??= {}, '$count', count, -1)`
+/// - `--$count` → `$.update_store_pre($$store_subs ??= {}, '$count', count, -1)`
 fn transform_store_assignments(script: &str) -> String {
     use regex::Regex;
     use std::sync::LazyLock;
@@ -8663,16 +8666,22 @@ fn transform_store_assignments(script: &str) -> String {
 
     let mut result = script.to_string();
 
-    // Handle prefix increment/decrement: ++$store, --$store
+    // Handle prefix increment/decrement: ++$store -> $.update_store_pre(...), --$store -> $.update_store_pre(..., -1)
     result = PREFIX_OP_RE
         .replace_all(&result, |caps: &regex::Captures| {
             let op = &caps[1];
             let store_name = &caps[2];
-            let operator = if op == "++" { "+" } else { "-" };
-            format!(
-                "$.store_set({}, $.store_get($$store_subs ??= {{}}, '${0}', {0}) {} 1)",
-                store_name, operator
-            )
+            if op == "++" {
+                format!(
+                    "$.update_store_pre($$store_subs ??= {{}}, '${0}', {0})",
+                    store_name
+                )
+            } else {
+                format!(
+                    "$.update_store_pre($$store_subs ??= {{}}, '${0}', {0}, -1)",
+                    store_name
+                )
+            }
         })
         .to_string();
 
@@ -8710,12 +8719,18 @@ fn transform_store_assignments(script: &str) -> String {
 
         match operator {
             "++" | "--" => {
-                // Postfix: $count++ or $count--
-                let op = if operator == "++" { "+" } else { "-" };
-                new_result.push_str(&format!(
-                    "$.store_set({}, $.store_get($$store_subs ??= {{}}, '${0}', {0}) {} 1)",
-                    store_name, op
-                ));
+                // Postfix: $count++ -> $.update_store(...), $count-- -> $.update_store(..., -1)
+                if operator == "++" {
+                    new_result.push_str(&format!(
+                        "$.update_store($$store_subs ??= {{}}, '${0}', {0})",
+                        store_name
+                    ));
+                } else {
+                    new_result.push_str(&format!(
+                        "$.update_store($$store_subs ??= {{}}, '${0}', {0}, -1)",
+                        store_name
+                    ));
+                }
             }
             "=" => {
                 // Simple assignment: $count = value
