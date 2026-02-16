@@ -25,7 +25,14 @@ impl<'a> ServerCodeGenerator<'a> {
     ) -> Result<(), TransformError> {
         let comp_name = component.name.to_string();
 
-        let skip_boundary = self.skip_hydration_boundaries;
+        // Check if there's any prior content (HTML, expressions, or other components)
+        let has_prior_content = self.output_parts.iter().any(|part| {
+            matches!(part, OutputPart::Html(s) if !s.trim().is_empty())
+                || matches!(part, OutputPart::Expression(_))
+                || matches!(part, OutputPart::RawExpression(_))
+                || matches!(part, OutputPart::Component { .. })
+                || matches!(part, OutputPart::ComponentWithBindings { .. })
+        });
 
         // Extract interleaved props/spreads and bindings
         let mut props_and_spreads: Vec<ComponentPropItem> =
@@ -194,21 +201,21 @@ impl<'a> ServerCodeGenerator<'a> {
             self.output_parts.push(OutputPart::Component {
                 name: comp_name,
                 props_and_spreads,
+                has_prior_content,
                 children,
                 snippets,
                 slot_names,
                 dynamic: is_dynamic,
                 let_directives: component_let_directives,
-                skip_boundary,
             });
         } else {
             self.output_parts.push(OutputPart::ComponentWithBindings {
                 name: comp_name,
                 props_and_spreads,
                 bindings,
+                has_prior_content,
                 children,
                 dynamic: is_dynamic,
-                skip_boundary,
             });
         }
 

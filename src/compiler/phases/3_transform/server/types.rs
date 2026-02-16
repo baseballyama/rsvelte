@@ -180,6 +180,7 @@ pub(crate) enum OutputPart {
         /// When spread_props is needed, each Props group becomes an object literal
         /// and each Spread becomes a direct expression in the array.
         props_and_spreads: Vec<ComponentPropItem>,
+        has_prior_content: bool,
         children: Option<Vec<OutputPart>>,
         /// Snippets defined inside the component (name, params, body, is_true_snippet)
         /// is_true_snippet=true means it's a SnippetBlock (needs hoisting as function)
@@ -194,9 +195,6 @@ pub(crate) enum OutputPart {
         /// - children becomes $.invalid_default_snippet
         /// - default slot content moves to $$slots.default with destructured params
         let_directives: Vec<String>,
-        /// Whether to skip the hydration boundary marker after the component call.
-        /// True when the component is the only child in a standalone fragment.
-        skip_boundary: bool,
     },
     /// Component with bind directives - requires do/while settling
     ComponentWithBindings {
@@ -204,12 +202,13 @@ pub(crate) enum OutputPart {
         /// Interleaved props and spreads, preserving source order.
         props_and_spreads: Vec<ComponentPropItem>,
         bindings: Vec<(String, String)>, // (prop_name, variable_name)
+        #[allow(dead_code)]
+        // Always true for component bindings - comment marker handled in build_parts
+        has_prior_content: bool,
         #[allow(dead_code)] // TODO: Handle children for components with bindings
         children: Option<Vec<OutputPart>>,
         /// Whether this component is dynamic (could be undefined/null)
         dynamic: bool,
-        /// Whether to skip the hydration boundary marker after the component call.
-        skip_boundary: bool,
     },
     Comment,
     /// Each block - produces a for loop
