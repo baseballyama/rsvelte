@@ -6,6 +6,7 @@
 
 use super::VisitorContext;
 use super::shared::fragment::mark_subtree_dynamic;
+use super::shared::utils::walk_js_expression;
 use crate::ast::template::ClassDirective;
 use crate::compiler::phases::phase2_analyze::AnalysisError;
 
@@ -30,9 +31,12 @@ pub fn visit(
         .used_classes
         .insert(directive.name.to_string());
 
-    // The expression is stored in directive.metadata.expression in the JS version
-    // We would analyze dependencies here if we had full expression tracking
-    // For now, just mark the subtree as dynamic
+    // Walk the expression to track dependencies and references
+    // This is important for legacy state promotion - if a class directive
+    // references a mutable variable, it needs to be tracked as a template reference
+    let crate::ast::js::Expression::Value(value) = &directive.expression;
+    let mut metadata = crate::ast::template::ExpressionMetadata::default();
+    walk_js_expression(value, context, &mut metadata)?;
 
     Ok(())
 }

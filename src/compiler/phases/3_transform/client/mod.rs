@@ -31,7 +31,7 @@ use super::js_ast::{
 use crate::ast::template::Root;
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
-use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+use crate::compiler::phases::phase2_analyze::scope::{BindingKind, DeclarationKind};
 
 // Import new visitor system types
 use types::{ComponentClientTransformState, ComponentContext, TransformOptions, TransformResult};
@@ -1151,13 +1151,13 @@ fn transform_instance_script_for_visitors(
     // Collect legacy state variables (in non-runes mode, State bindings are promoted
     // from Normal bindings that are updated and referenced in template)
     // These need $.mutable_source() wrapping
-    let legacy_state_vars: Vec<(String, Option<String>)> = if !analysis.runes {
+    let legacy_state_vars: Vec<(String, Option<String>, DeclarationKind)> = if !analysis.runes {
         analysis
             .root
             .bindings
             .iter()
             .filter(|b| matches!(b.kind, BindingKind::State))
-            .map(|b| (b.name.clone(), b.initial.clone()))
+            .map(|b| (b.name.clone(), b.initial.clone(), b.declaration_kind))
             .collect()
     } else {
         Vec::new()
@@ -1185,7 +1185,11 @@ fn transform_instance_script_for_visitors(
                                exported_names: &[String],
                                rest_prop_vars: &[String],
                                read_only_props: &[String],
-                               legacy_state_vars: &[(String, Option<String>)],
+                               legacy_state_vars: &[(
+        String,
+        Option<String>,
+        DeclarationKind,
+    )],
                                analysis: &ComponentAnalysis,
                                dev: bool,
                                has_legacy_export_let: bool| {
@@ -2887,12 +2891,6 @@ fn transform_reactive_statement(
         format!("() => ({})", deps_expr)
     };
 
-    // Debug: uncomment to trace
-    // eprintln!("[DEBUG transform_reactive_statement] body: {}", body);
-    // eprintln!("[DEBUG transform_reactive_statement] deps_expr: {}", deps_expr);
-    // eprintln!("[DEBUG transform_reactive_statement] deps_thunk: {}", deps_thunk);
-    // eprintln!("[DEBUG transform_reactive_statement] transformed_body: {}", transformed_body);
-
     format!(
         "$.legacy_pre_effect({}, () => {{\n\t{};\n}});",
         deps_thunk, transformed_body
@@ -4532,9 +4530,11 @@ fn transform_state_assignments(
                         continue;
                     }
 
-                    // Skip if preceded by an identifier character (not a word boundary)
-                    // This prevents matching "reactive" inside "nonreactive"
-                    if !before.is_empty() && is_identifier_char(before.chars().last().unwrap()) {
+                    // Skip if preceded by an identifier character or '#' (private field)
+                    if !before.is_empty()
+                        && (is_identifier_char(before.chars().last().unwrap())
+                            || before.ends_with('#'))
+                    {
                         continue;
                     }
 
@@ -4567,9 +4567,10 @@ fn transform_state_assignments(
                     continue;
                 }
 
-                // Skip if preceded by an identifier character (not a word boundary)
-                // This prevents matching "reactive" inside "nonreactive"
-                if !before.is_empty() && is_identifier_char(before.chars().last().unwrap()) {
+                // Skip if preceded by an identifier character or '#' (private field)
+                if !before.is_empty()
+                    && (is_identifier_char(before.chars().last().unwrap()) || before.ends_with('#'))
+                {
                     continue;
                 }
 
@@ -4597,103 +4598,90 @@ fn transform_state_assignments(
         // Use a loop to handle multiple assignments of the same variable in one statement
         let assignment_pattern = format!("{} = ", var);
         let mut search_start = 0;
-        while !result.contains(&format!("let {} = ", var))
-            && !result.contains(&format!("const {} = ", var))
-            && !result.contains(&format!("var {} = ", var))
-        {
-            // Find the next assignment position starting from search_start
-            if let Some(relative_pos) = result[search_start..].find(&assignment_pattern) {
-                let pos = search_start + relative_pos;
+        if is_variable_declaration(&result, var) {
+            continue;
+        }
+        while let Some(relative_pos) = result[search_start..].find(&assignment_pattern) {
+            let pos = search_start + relative_pos;
 
-                // Check that it's not part of a comparison (==, ===)
-                let before = &result[..pos];
-                // Skip if preceded by dot (property access like foo.count = ...)
-                // Also skip if already wrapped with $.set
-                if before.ends_with('=') || before.ends_with('!') || before.ends_with('.') {
-                    search_start = pos + assignment_pattern.len();
-                    continue;
-                }
+            // Check that it's not part of a comparison (==, ===)
+            let before = &result[..pos];
+            // Skip if preceded by dot (property access like foo.count = ...)
+            // Also skip if already wrapped with $.set
+            if before.ends_with('=') || before.ends_with('!') || before.ends_with('.') {
+                search_start = pos + assignment_pattern.len();
+                continue;
+            }
 
-                // Skip if preceded by an identifier character (not a word boundary)
-                // This prevents matching "reactive" inside "nonreactive"
-                if !before.is_empty() && is_identifier_char(before.chars().last().unwrap()) {
-                    search_start = pos + assignment_pattern.len();
-                    continue;
-                }
+            // Skip if preceded by an identifier character (not a word boundary)
+            // This prevents matching "reactive" inside "nonreactive"
+            // Also skip if preceded by '#' (private class field like #y)
+            if !before.is_empty()
+                && (is_identifier_char(before.chars().last().unwrap()) || before.ends_with('#'))
+            {
+                search_start = pos + assignment_pattern.len();
+                continue;
+            }
 
-                // Skip if this is already wrapped with $.set
-                if before.ends_with(&format!("$.set({}, ", var))
-                    || before.ends_with(&format!("$.set({},", var))
-                {
-                    search_start = pos + assignment_pattern.len();
-                    continue;
-                }
+            // Skip if this is already wrapped with $.set
+            if before.ends_with(&format!("$.set({}, ", var))
+                || before.ends_with(&format!("$.set({},", var))
+            {
+                search_start = pos + assignment_pattern.len();
+                continue;
+            }
 
-                let after = &result[pos + assignment_pattern.len()..];
-                // Find the expression (until ; or end of line, respecting nested braces)
-                // If this assignment is inside a ternary expression, also stop at `:`
-                let before_for_ternary = &result[..pos];
-                let in_ternary = is_inside_ternary_expression(before_for_ternary);
-                let expr_end = find_assignment_expr_end(after, in_ternary);
-                let expr = after[..expr_end].trim();
+            let after = &result[pos + assignment_pattern.len()..];
+            // Find the expression (until ; or end of line, respecting nested braces)
+            // If this assignment is inside a ternary expression, also stop at `:`
+            let before_for_ternary = &result[..pos];
+            let in_ternary = is_inside_ternary_expression(before_for_ternary);
+            let expr_end = find_assignment_expr_end(after, in_ternary);
+            let expr = after[..expr_end].trim();
 
-                // Debug output
-                if std::env::var("DEBUG_STATE_ASSIGNMENT").is_ok() {
-                    eprintln!(
-                        "[DEBUG] Checking assignment for var '{}': expr = '{}'",
-                        var, expr
-                    );
-                    eprintln!("[DEBUG] is_incomplete = {}", is_incomplete_expression(expr));
-                }
+            // Skip incomplete expressions (e.g., multi-line arrow functions
+            // where only the first line is processed)
+            if is_incomplete_expression(expr) {
+                search_start = pos + assignment_pattern.len();
+                continue;
+            }
 
-                // Skip incomplete expressions (e.g., multi-line arrow functions
-                // where only the first line is processed)
-                if is_incomplete_expression(expr) {
-                    search_start = pos + assignment_pattern.len();
-                    continue;
-                }
+            // Check it's not already wrapped in a $.set() call
+            // Note: We must NOT skip expressions that start with $.
+            // because legitimate RHS values like $.effect_tracking(), $.get(x),
+            // $.proxy(x) etc. should still be wrapped in $.set().
+            // The "already wrapped" check ($.set(var, ...)) is done above at the
+            // `before` prefix check.
+            if !expr.starts_with("$.set(") {
+                // DON'T wrap state variables here - let the later wrap_state_vars_in_expr
+                // call handle it, since that call has the full statement context and can
+                // properly detect function parameter shadowing.
+                // The later call in process_accumulated will handle $.get() wrapping
+                // after we've created the $.set() call.
 
-                // Check it's not already wrapped in a $.set() call
-                // Note: We must NOT skip expressions that start with $.
-                // because legitimate RHS values like $.effect_tracking(), $.get(x),
-                // $.proxy(x) etc. should still be wrapped in $.set().
-                // The "already wrapped" check ($.set(var, ...)) is done above at the
-                // `before` prefix check.
-                if !expr.starts_with("$.set(") {
-                    // DON'T wrap state variables here - let the later wrap_state_vars_in_expr
-                    // call handle it, since that call has the full statement context and can
-                    // properly detect function parameter shadowing.
-                    // The later call in process_accumulated will handle $.get() wrapping
-                    // after we've created the $.set() call.
+                // Check if the value needs proxying (could be an object/array)
+                // $state.raw() variables never need proxy wrapping
+                // Proxy flag is only added in runes mode
+                let is_raw_state = raw_state_vars.contains(var);
+                let needs_proxy = is_runes && !is_raw_state && expression_needs_proxy(expr.trim());
 
-                    // Check if the value needs proxying (could be an object/array)
-                    // $state.raw() variables never need proxy wrapping
-                    // Proxy flag is only added in runes mode
-                    let is_raw_state = raw_state_vars.contains(var);
-                    let needs_proxy =
-                        is_runes && !is_raw_state && expression_needs_proxy(expr.trim());
-
-                    let replacement = if needs_proxy {
-                        format!("$.set({}, {}, true)", var, expr)
-                    } else {
-                        format!("$.set({}, {})", var, expr)
-                    };
-
-                    let new_result = format!(
-                        "{}{}{}",
-                        &result[..pos],
-                        replacement,
-                        &result[pos + assignment_pattern.len() + expr_end..]
-                    );
-                    // Update search_start to continue after this replacement
-                    search_start = pos + replacement.len();
-                    result = new_result;
+                let replacement = if needs_proxy {
+                    format!("$.set({}, {}, true)", var, expr)
                 } else {
-                    search_start = pos + assignment_pattern.len();
-                }
+                    format!("$.set({}, {})", var, expr)
+                };
+
+                let new_result = format!(
+                    "{}{}{}",
+                    &result[..pos],
+                    replacement,
+                    &result[pos + assignment_pattern.len() + expr_end..]
+                );
+                // Update search_start to continue after this replacement
+                search_start = pos + replacement.len();
+                result = new_result;
             } else {
-                // No more assignments found
-                break;
+                search_start = pos + assignment_pattern.len();
             }
         }
     }
@@ -4996,19 +4984,17 @@ fn transform_prop_assignments(line: &str, prop_vars: &[String]) -> String {
 
 /// Transform legacy state declarations to $.mutable_source() calls.
 ///
-/// In legacy (non-runes) mode, variables that are:
-/// 1. Declared with `let` (not `const`)
-/// 2. Updated (reassigned or mutated) somewhere in the code
-/// 3. Referenced in the template
-///
-/// Need to be wrapped in $.mutable_source() for reactivity.
+/// In legacy (non-runes) mode, variables that are promoted to State kind
+/// (updated and referenced in template/$:/StyleDirective) need to be wrapped
+/// in $.mutable_source() for reactivity.
 ///
 /// Transforms:
 /// - `let state = 'foo'` → `let state = $.mutable_source('foo')`
 /// - `let count = 0` → `let count = $.mutable_source(0)`
+/// - `const arr = [1, 2]` → `const arr = $.mutable_source([1, 2])`
 fn transform_legacy_state_declarations(
     line: &str,
-    legacy_state_vars: &[(String, Option<String>)],
+    legacy_state_vars: &[(String, Option<String>, DeclarationKind)],
     immutable: bool,
 ) -> String {
     if legacy_state_vars.is_empty() {
@@ -5017,84 +5003,104 @@ fn transform_legacy_state_declarations(
 
     let mut result = line.to_string();
 
-    for (var, _initial) in legacy_state_vars {
-        // First, try to match `let varname = value` pattern
-        let pattern_with_init = format!("let {} = ", var);
-        if let Some(pos) = result.find(&pattern_with_init) {
-            // Skip if already wrapped
-            if result[pos + pattern_with_init.len()..].starts_with("$.mutable_source(")
-                || result[pos + pattern_with_init.len()..].starts_with("$.prop(")
-            {
+    for (var, _initial, decl_kind) in legacy_state_vars {
+        // Determine the keyword(s) to look for based on declaration kind
+        let keywords: Vec<&str> = match decl_kind {
+            DeclarationKind::Let => vec!["let"],
+            DeclarationKind::Const => vec!["const"],
+            DeclarationKind::Var => vec!["var"],
+            _ => vec!["let", "const", "var"],
+        };
+
+        let mut matched = false;
+
+        for keyword in &keywords {
+            if matched {
+                break;
+            }
+
+            // First, try to match `keyword varname = value` pattern
+            let pattern_with_init = format!("{} {} = ", keyword, var);
+            if let Some(pos) = result.find(&pattern_with_init) {
+                // Skip if already wrapped
+                if result[pos + pattern_with_init.len()..].starts_with("$.mutable_source(")
+                    || result[pos + pattern_with_init.len()..].starts_with("$.prop(")
+                {
+                    matched = true;
+                    continue;
+                }
+
+                // Find the value expression
+                let after = &result[pos + pattern_with_init.len()..];
+                let expr_end = find_statement_end_client(after);
+                let expr = after[..expr_end].trim();
+
+                // Remove trailing semicolon from expr
+                let expr = expr.trim_end_matches(';').trim();
+
+                // Build the replacement
+                let replacement = if immutable {
+                    format!("{} {} = $.mutable_source({}, true)", keyword, var, expr)
+                } else {
+                    format!("{} {} = $.mutable_source({})", keyword, var, expr)
+                };
+
+                // Replace the declaration
+                result = format!(
+                    "{}{}{}",
+                    &result[..pos],
+                    replacement,
+                    &result[pos + pattern_with_init.len() + expr_end..]
+                );
+                matched = true;
                 continue;
             }
 
-            // Find the value expression
-            let after = &result[pos + pattern_with_init.len()..];
-            let expr_end = find_statement_end_client(after);
-            let expr = after[..expr_end].trim();
-
-            // Remove trailing semicolon from expr
-            let expr = expr.trim_end_matches(';').trim();
-
-            // Build the replacement
-            let replacement = if immutable {
-                format!("let {} = $.mutable_source({}, true)", var, expr)
-            } else {
-                format!("let {} = $.mutable_source({})", var, expr)
-            };
-
-            // Replace the declaration
-            result = format!(
-                "{}{}{}",
-                &result[..pos],
-                replacement,
-                &result[pos + pattern_with_init.len() + expr_end..]
-            );
-            continue;
-        }
-
-        // Then, try to match `let varname;` pattern (declaration without initializer)
-        // This handles cases like `let container;` which should become `let container = $.mutable_source();`
-        let pattern_no_init = format!("let {};", var);
-        if let Some(pos) = result.find(&pattern_no_init) {
-            // Build the replacement - no initial value, so pass nothing to $.mutable_source()
-            let replacement = if immutable {
-                format!("let {} = $.mutable_source(undefined, true);", var)
-            } else {
-                format!("let {} = $.mutable_source();", var)
-            };
-
-            // Replace the declaration
-            result = format!(
-                "{}{}{}",
-                &result[..pos],
-                replacement,
-                &result[pos + pattern_no_init.len()..]
-            );
-            continue;
-        }
-
-        // Also try to match `let varname` without semicolon (end of string or followed by whitespace)
-        let pattern_no_semi = format!("let {}", var);
-        if let Some(pos) = result.find(&pattern_no_semi) {
-            let after_pos = pos + pattern_no_semi.len();
-            let is_end = after_pos >= result.len()
-                || result[after_pos..]
-                    .starts_with(|c: char| c.is_whitespace() || c == '\n' || c == '\r');
-            if is_end {
-                if after_pos < result.len()
-                    && result[after_pos..]
-                        .trim_start()
-                        .starts_with("= $.mutable_source(")
-                {
-                    continue;
-                }
+            // Then, try to match `keyword varname;` pattern (declaration without initializer)
+            let pattern_no_init = format!("{} {};", keyword, var);
+            if let Some(pos) = result.find(&pattern_no_init) {
+                // Build the replacement - no initial value, so pass nothing to $.mutable_source()
                 let replacement = if immutable {
-                    format!("let {} = $.mutable_source(undefined, true)", var)
+                    format!("{} {} = $.mutable_source(undefined, true);", keyword, var)
                 } else {
-                    format!("let {} = $.mutable_source()", var)
+                    format!("{} {} = $.mutable_source();", keyword, var)
                 };
-                result = format!("{}{}{}", &result[..pos], replacement, &result[after_pos..]);
+
+                // Replace the declaration
+                result = format!(
+                    "{}{}{}",
+                    &result[..pos],
+                    replacement,
+                    &result[pos + pattern_no_init.len()..]
+                );
+                matched = true;
+                continue;
+            }
+
+            // Also try to match `keyword varname` without semicolon
+            let pattern_no_semi = format!("{} {}", keyword, var);
+            if let Some(pos) = result.find(&pattern_no_semi) {
+                let after_pos = pos + pattern_no_semi.len();
+                let is_end = after_pos >= result.len()
+                    || result[after_pos..]
+                        .starts_with(|c: char| c.is_whitespace() || c == '\n' || c == '\r');
+                if is_end {
+                    if after_pos < result.len()
+                        && result[after_pos..]
+                            .trim_start()
+                            .starts_with("= $.mutable_source(")
+                    {
+                        matched = true;
+                        continue;
+                    }
+                    let replacement = if immutable {
+                        format!("{} {} = $.mutable_source(undefined, true)", keyword, var)
+                    } else {
+                        format!("{} {} = $.mutable_source()", keyword, var)
+                    };
+                    result = format!("{}{}{}", &result[..pos], replacement, &result[after_pos..]);
+                    matched = true;
+                }
             }
         }
     }
@@ -6407,6 +6413,8 @@ fn transform_state_in_expr(
                         let preceded_by_dot = i > 0
                             && chars[i - 1] == '.'
                             && !(i >= 3 && chars[i - 3..i].iter().collect::<String>() == "...");
+                        // Check if preceded by `#` (private field access like this.#y)
+                        let preceded_by_hash = i > 0 && chars[i - 1] == '#';
                         let already_wrapped = if i >= 6 {
                             let prefix: String = chars[i - 6..i].iter().collect();
                             prefix == "$.get("
@@ -6575,6 +6583,7 @@ fn transform_state_in_expr(
 
                         if !already_wrapped
                             && !preceded_by_dot
+                            && !preceded_by_hash
                             && !in_set_first_arg
                             && !in_update_arg
                             && !in_update_pre_arg
@@ -7186,6 +7195,52 @@ fn replace_with_word_boundary(
 // ============================================================================
 // Utility Functions
 // ============================================================================
+
+/// Check if a variable name appears as a declarator in the given statement text.
+///
+/// This detects:
+/// - Direct declarations: `let foo = ...`, `const foo = ...`, `var foo = ...`
+/// - Multi-declarator declarations: `let $$array = ..., foo = ...` where `foo` appears
+///   after a comma in a `let`/`const`/`var` statement
+///
+/// This is needed because `transform_state_assignments` must not convert `foo = $.derived(...)`
+/// to `$.set(foo, $.derived(...))` when it's part of a multi-declarator `let` statement.
+fn is_variable_declaration(result: &str, var: &str) -> bool {
+    // Direct check: `let foo = `, `const foo = `, `var foo = `
+    if result.contains(&format!("let {} = ", var))
+        || result.contains(&format!("const {} = ", var))
+        || result.contains(&format!("var {} = ", var))
+    {
+        return true;
+    }
+
+    // Multi-declarator check: The statement starts with let/const/var and the variable
+    // appears as a comma-separated declarator (`, foo = ` or `,\n\tfoo = `, etc.)
+    let trimmed = result.trim();
+    if trimmed.starts_with("let ") || trimmed.starts_with("const ") || trimmed.starts_with("var ") {
+        // Look for the pattern: comma, optional whitespace, var, space, equals
+        // We need to check that `var` appears after a comma at the declarator level
+        // (not inside a nested expression)
+        let pattern = format!("{} = ", var);
+        let mut search_from = 0;
+        while let Some(pos) = result[search_from..].find(&pattern) {
+            let abs_pos = search_from + pos;
+            // Check that `var` is at a word boundary
+            if abs_pos > 0 && is_identifier_char(result.as_bytes()[abs_pos - 1] as char) {
+                search_from = abs_pos + pattern.len();
+                continue;
+            }
+            // Check what precedes this occurrence (skip whitespace to find comma or keyword)
+            let before = result[..abs_pos].trim_end();
+            if before.ends_with(',') {
+                return true;
+            }
+            search_from = abs_pos + pattern.len();
+        }
+    }
+
+    false
+}
 
 /// Check if a character can be part of a JavaScript identifier.
 fn is_identifier_char(c: char) -> bool {
@@ -7962,7 +8017,11 @@ fn emit_class_field(field: &ClassStateField, all_fields: &[ClassStateField]) -> 
                 }
             }
         }
-        let wrapped_value = format!("() => {}", derived_expr);
+        let wrapped_value = if derived_expr.trim_start().starts_with('{') {
+            format!("() => ({})", derived_expr)
+        } else {
+            format!("() => {}", derived_expr)
+        };
         output.push_str(&format!(
             "\t\t{} = $.derived({});\n",
             private_name, wrapped_value
@@ -9245,7 +9304,11 @@ fn transform_constructor_assignment(line: &str, fields: &[ClassStateField]) -> S
                                     tv = tv.replace(&tp, &getter);
                                 }
                             }
-                            format!("$.derived(() => {})", tv)
+                            if tv.trim_start().starts_with('{') {
+                                format!("$.derived(() => ({}))", tv)
+                            } else {
+                                format!("$.derived(() => {})", tv)
+                            }
                         }
                         "$derived.by" => format!("$.derived({})", value),
                         _ => format!("$.state({})", value),

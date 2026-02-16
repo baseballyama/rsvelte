@@ -456,6 +456,97 @@ fn unwrap_parenthesized<'a>(expr: &'a OxcExpression<'a>) -> &'a OxcExpression<'a
     }
 }
 
+/// Strip optional markers (`?`) from TypeScript parameter names.
+///
+/// Converts patterns like:
+///   `c?: number = 5` -> `c: number = 5`
+///   `c?: number` -> `c: number`
+///   `c?, d?` -> `c, d`
+///
+/// This is needed because OXC's TS parser may reject `c?: number = 5` as invalid
+/// (optional with default), but Svelte's snippet syntax allows it.
+fn strip_optional_markers(content: &str) -> String {
+    let mut result = String::with_capacity(content.len());
+    let chars: Vec<char> = content.chars().collect();
+    let mut i = 0;
+
+    while i < chars.len() {
+        if chars[i] == '?' {
+            // Check if this `?` is after an identifier (part of `name?:` or `name? =` or `name?,` or `name?)`)
+            // and not inside a string
+            let before_is_ident = i > 0
+                && (chars[i - 1].is_alphanumeric() || chars[i - 1] == '_' || chars[i - 1] == '$');
+            let after_is_valid = if i + 1 < chars.len() {
+                let next = chars[i + 1];
+                next == ':'
+                    || next == ','
+                    || next == ')'
+                    || next == ' '
+                    || next == '\t'
+                    || next == '\n'
+            } else {
+                true // at end of string
+            };
+
+            if before_is_ident && after_is_valid {
+                // Skip the `?` - it's an optional marker
+                i += 1;
+                continue;
+            }
+        }
+        result.push(chars[i]);
+        i += 1;
+    }
+
+    result
+}
+
+/// Split a parameter list at top-level commas (not inside braces, brackets, parens, or strings).
+fn split_top_level_params(content: &str) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut depth = 0i32;
+    let mut in_string: Option<char> = None;
+
+    for c in content.chars() {
+        if let Some(quote) = in_string {
+            current.push(c);
+            if c == quote {
+                in_string = None;
+            }
+            continue;
+        }
+
+        match c {
+            '\'' | '"' | '`' => {
+                in_string = Some(c);
+                current.push(c);
+            }
+            '(' | '[' | '{' | '<' => {
+                depth += 1;
+                current.push(c);
+            }
+            ')' | ']' | '}' | '>' => {
+                depth -= 1;
+                current.push(c);
+            }
+            ',' if depth == 0 => {
+                parts.push(current.clone());
+                current.clear();
+            }
+            _ => {
+                current.push(c);
+            }
+        }
+    }
+
+    if !current.trim().is_empty() {
+        parts.push(current);
+    }
+
+    parts
+}
+
 /// Parse TypeScript function parameters and return them as Expressions.
 /// Input is the content inside parentheses, e.g., "msg: string, count: number"
 pub fn parse_typescript_params(
@@ -484,6 +575,53 @@ pub fn parse_typescript_params(
             let param_expr = convert_formal_parameter(param, offset - 1, line_offsets);
             params.push(param_expr);
         }
+    } else if !result.errors.is_empty() {
+        // OXC TS parser failed (e.g., `c?: number = 5` which is valid Svelte but
+        // might not parse as a TS arrow function param). Try stripping optional markers
+        // (`?` after identifier names) and re-parsing.
+        //
+        // In Svelte snippets, `c?: number = 5` means "optional param with default".
+        // TypeScript technically allows this but some parsers reject it.
+        // We strip `?` from `name?:` and `name? =` patterns to make them parseable.
+        let cleaned = strip_optional_markers(content);
+        let cleaned_wrapped = format!("({}) => {{}}", cleaned);
+        let cleaned_alloc = Allocator::default();
+        let cleaned_parser = OxcParser::new(&cleaned_alloc, &cleaned_wrapped, source_type);
+        let cleaned_result = cleaned_parser.parse();
+
+        if cleaned_result.errors.is_empty()
+            && let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
+                cleaned_result.program.body.first()
+            && let OxcExpression::ArrowFunctionExpression(arrow) = &expr_stmt.expression
+        {
+            for param in &arrow.params.items {
+                let param_expr = convert_formal_parameter(param, offset - 1, line_offsets);
+                params.push(param_expr);
+            }
+        } else {
+            // Still failed - try parsing each parameter individually
+            let parts = split_top_level_params(content);
+            for part in &parts {
+                let part = part.trim();
+                if part.is_empty() {
+                    continue;
+                }
+                let cleaned_part = strip_optional_markers(part);
+                let single_wrapped = format!("({}) => {{}}", cleaned_part);
+                let single_alloc = Allocator::default();
+                let single_parser = OxcParser::new(&single_alloc, &single_wrapped, source_type);
+                let single_result = single_parser.parse();
+                if single_result.errors.is_empty()
+                    && let Some(oxc_ast::ast::Statement::ExpressionStatement(expr_stmt)) =
+                        single_result.program.body.first()
+                    && let OxcExpression::ArrowFunctionExpression(arrow) = &expr_stmt.expression
+                    && let Some(param) = arrow.params.items.first()
+                {
+                    let param_expr = convert_formal_parameter(param, offset - 1, line_offsets);
+                    params.push(param_expr);
+                }
+            }
+        }
     }
 
     // Fallback: parse as comma-separated simple identifiers
@@ -493,6 +631,8 @@ pub fn parse_typescript_params(
             if !part.is_empty() {
                 // Extract just the name (before colon for typed params)
                 let name = part.split(':').next().unwrap_or(part).trim();
+                // Strip optional marker '?' from the end (e.g., "c?" -> "c")
+                let name = name.strip_suffix('?').unwrap_or(name);
                 let part_offset = offset + content.find(part).unwrap_or(0);
                 let expr =
                     create_identifier(name, part_offset, part_offset + name.len(), line_offsets);
@@ -3365,6 +3505,15 @@ fn convert_variable_declaration(
     obj.insert("start".to_string(), Value::Number((start as i64).into()));
     obj.insert("end".to_string(), Value::Number((end as i64).into()));
     obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+    // Convert declarations (before kind to match acorn field order)
+    let declarations: Vec<Value> = decl
+        .declarations
+        .iter()
+        .map(|d| convert_variable_declarator(d, offset, line_offsets))
+        .collect();
+    obj.insert("declarations".to_string(), Value::Array(declarations));
+
     obj.insert(
         "kind".to_string(),
         Value::String(
@@ -3378,14 +3527,6 @@ fn convert_variable_declaration(
             .to_string(),
         ),
     );
-
-    // Convert declarations
-    let declarations: Vec<Value> = decl
-        .declarations
-        .iter()
-        .map(|d| convert_variable_declarator(d, offset, line_offsets))
-        .collect();
-    obj.insert("declarations".to_string(), Value::Array(declarations));
 
     Value::Object(obj)
 }
@@ -3972,16 +4113,7 @@ pub fn parse_program(
         );
     }
 
-    let mut program_value = Value::Object(obj);
-
-    // Remove TypeScript-specific nodes from the parsed program AST.
-    // This matches the official Svelte compiler's behavior of calling
-    // remove_typescript_nodes() after parsing when metadata.ts is true.
-    // See: svelte/packages/svelte/src/compiler/index.js
-    if is_typescript {
-        let _ =
-            super::super::remove_typescript_nodes::remove_typescript_nodes(&mut program_value, &[]);
-    }
+    let program_value = Value::Object(obj);
 
     Expression::Value(program_value)
 }
@@ -4021,15 +4153,6 @@ fn convert_statement_for_program(
             obj.insert("end".to_string(), Value::Number((end as i64).into()));
             obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
 
-            let kind = match var_decl.kind {
-                oxc_ast::ast::VariableDeclarationKind::Var => "var",
-                oxc_ast::ast::VariableDeclarationKind::Let => "let",
-                oxc_ast::ast::VariableDeclarationKind::Const => "const",
-                oxc_ast::ast::VariableDeclarationKind::Using => "using",
-                oxc_ast::ast::VariableDeclarationKind::AwaitUsing => "await using",
-            };
-            obj.insert("kind".to_string(), Value::String(kind.to_string()));
-
             let declarations: Vec<Value> = var_decl
                 .declarations
                 .iter()
@@ -4038,6 +4161,15 @@ fn convert_statement_for_program(
                 })
                 .collect();
             obj.insert("declarations".to_string(), Value::Array(declarations));
+
+            let kind = match var_decl.kind {
+                oxc_ast::ast::VariableDeclarationKind::Var => "var",
+                oxc_ast::ast::VariableDeclarationKind::Let => "let",
+                oxc_ast::ast::VariableDeclarationKind::Const => "const",
+                oxc_ast::ast::VariableDeclarationKind::Using => "using",
+                oxc_ast::ast::VariableDeclarationKind::AwaitUsing => "await using",
+            };
+            obj.insert("kind".to_string(), Value::String(kind.to_string()));
 
             // declare field for TypeScript `declare const/let/var`
             if var_decl.declare {
@@ -4168,16 +4300,6 @@ fn convert_statement_for_program(
                         .clone(),
                     );
 
-                    // exportKind: "type" or "value" (per-specifier)
-                    let spec_export_kind = match spec.export_kind {
-                        oxc_ast::ast::ImportOrExportKind::Type => "type",
-                        oxc_ast::ast::ImportOrExportKind::Value => "value",
-                    };
-                    spec_obj.insert(
-                        "exportKind".to_string(),
-                        Value::String(spec_export_kind.to_string()),
-                    );
-
                     Value::Object(spec_obj)
                 })
                 .collect();
@@ -4206,16 +4328,6 @@ fn convert_statement_for_program(
 
             // attributes (for import attributes)
             obj.insert("attributes".to_string(), Value::Array(vec![]));
-
-            // exportKind: "type" or "value"
-            let export_kind_str = match export_decl.export_kind {
-                oxc_ast::ast::ImportOrExportKind::Type => "type",
-                oxc_ast::ast::ImportOrExportKind::Value => "value",
-            };
-            obj.insert(
-                "exportKind".to_string(),
-                Value::String(export_kind_str.to_string()),
-            );
 
             Some(Value::Object(obj))
         }
@@ -4386,16 +4498,6 @@ fn convert_statement_for_program(
 
             // attributes (for import attributes)
             obj.insert("attributes".to_string(), Value::Array(vec![]));
-
-            // importKind: "type" or "value" (for TypeScript type-only imports)
-            let import_kind_str = match import_decl.import_kind {
-                oxc_ast::ast::ImportOrExportKind::Type => "type",
-                oxc_ast::ast::ImportOrExportKind::Value => "value",
-            };
-            obj.insert(
-                "importKind".to_string(),
-                Value::String(import_kind_str.to_string()),
-            );
 
             Some(Value::Object(obj))
         }
@@ -5057,6 +5159,13 @@ fn convert_declaration_for_program(
             obj.insert("end".to_string(), Value::Number((end as i64).into()));
             obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
 
+            let declarations: Vec<Value> = var_decl
+                .declarations
+                .iter()
+                .filter_map(|d| convert_variable_declarator_for_program(d, offset, line_offsets))
+                .collect();
+            obj.insert("declarations".to_string(), Value::Array(declarations));
+
             let kind = match var_decl.kind {
                 oxc_ast::ast::VariableDeclarationKind::Var => "var",
                 oxc_ast::ast::VariableDeclarationKind::Let => "let",
@@ -5065,13 +5174,6 @@ fn convert_declaration_for_program(
                 oxc_ast::ast::VariableDeclarationKind::AwaitUsing => "await using",
             };
             obj.insert("kind".to_string(), Value::String(kind.to_string()));
-
-            let declarations: Vec<Value> = var_decl
-                .declarations
-                .iter()
-                .filter_map(|d| convert_variable_declarator_for_program(d, offset, line_offsets))
-                .collect();
-            obj.insert("declarations".to_string(), Value::Array(declarations));
 
             // declare field for TypeScript `declare const/let/var`
             if var_decl.declare {
@@ -5218,16 +5320,6 @@ fn convert_import_specifier(
                 .clone(),
             );
 
-            // importKind: "type" or "value" (for TypeScript `import { type X }`)
-            let import_kind_str = match import_spec.import_kind {
-                oxc_ast::ast::ImportOrExportKind::Type => "type",
-                oxc_ast::ast::ImportOrExportKind::Value => "value",
-            };
-            obj.insert(
-                "importKind".to_string(),
-                Value::String(import_kind_str.to_string()),
-            );
-
             Value::Object(obj)
         }
         oxc_ast::ast::ImportDeclarationSpecifier::ImportDefaultSpecifier(default_spec) => {
@@ -5307,6 +5399,12 @@ fn convert_variable_declaration_directly(
         "loc".to_string(),
         create_loc(var_start, var_end, line_offsets),
     );
+    let declarations: Vec<Value> = vd
+        .declarations
+        .iter()
+        .filter_map(|d| convert_variable_declarator_for_program(d, offset, line_offsets))
+        .collect();
+    var_obj.insert("declarations".to_string(), Value::Array(declarations));
     let kind = match vd.kind {
         oxc_ast::ast::VariableDeclarationKind::Var => "var",
         oxc_ast::ast::VariableDeclarationKind::Let => "let",
@@ -5315,12 +5413,6 @@ fn convert_variable_declaration_directly(
         oxc_ast::ast::VariableDeclarationKind::AwaitUsing => "using",
     };
     var_obj.insert("kind".to_string(), Value::String(kind.to_string()));
-    let declarations: Vec<Value> = vd
-        .declarations
-        .iter()
-        .filter_map(|d| convert_variable_declarator_for_program(d, offset, line_offsets))
-        .collect();
-    var_obj.insert("declarations".to_string(), Value::Array(declarations));
     Value::Object(var_obj)
 }
 

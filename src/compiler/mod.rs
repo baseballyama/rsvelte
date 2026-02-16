@@ -417,6 +417,12 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
     };
     let mut ast = phases::phase1_parse::parse(source, parse_options)?;
 
+    // Remove TypeScript nodes from script content if TypeScript is detected.
+    // This matches the official Svelte compiler behavior where remove_typescript_nodes()
+    // is called during compile() but NOT during parse().
+    // See: svelte/packages/svelte/src/compiler/index.js
+    remove_typescript_from_ast(&mut ast);
+
     // Phase 2: Analyze
     let analysis = phases::phase2_analyze::analyze_component(&mut ast, source, &options)?;
 
@@ -451,6 +457,45 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
         metadata: CompileMetadata { runes: runes_mode },
         ast: None, // TODO: Return AST if options.modern_ast is true
     })
+}
+
+/// Remove TypeScript nodes from the parsed AST's script content.
+///
+/// This checks if any script block has `lang="ts"` or `lang="typescript"` attributes,
+/// and if so, applies `remove_typescript_nodes` to strip type annotations.
+/// This matches the official Svelte compiler behavior where TypeScript stripping
+/// happens during compilation, not during parsing.
+fn remove_typescript_from_ast(ast: &mut crate::ast::Root) {
+    use crate::ast::AttributeValue;
+    use crate::ast::AttributeValuePart;
+
+    fn is_typescript_script(script: &crate::ast::Script) -> bool {
+        for attr in &script.attributes {
+            if attr.name.as_str() == "lang"
+                && let AttributeValue::Sequence(parts) = &attr.value
+                && let Some(AttributeValuePart::Text(t)) = parts.first()
+            {
+                let lang = t.data.as_str();
+                return lang == "ts" || lang == "typescript";
+            }
+        }
+        false
+    }
+
+    fn strip_ts_from_script(script: &mut crate::ast::Script) {
+        if is_typescript_script(script) {
+            let crate::ast::js::Expression::Value(ref mut val) = script.content;
+            let _ =
+                phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(val, &[]);
+        }
+    }
+
+    if let Some(ref mut instance) = ast.instance {
+        strip_ts_from_script(instance);
+    }
+    if let Some(ref mut module) = ast.module {
+        strip_ts_from_script(module);
+    }
 }
 
 /// Compile multiple Svelte components in parallel.

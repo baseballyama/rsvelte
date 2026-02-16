@@ -600,9 +600,9 @@ impl serde::Serialize for AttributeValuePart {
         match self {
             AttributeValuePart::Text(text) => {
                 let mut map = serializer.serialize_map(Some(5))?;
-                map.serialize_entry("type", "Text")?;
                 map.serialize_entry("start", &text.start)?;
                 map.serialize_entry("end", &text.end)?;
+                map.serialize_entry("type", "Text")?;
                 map.serialize_entry("raw", text.raw.as_str())?;
                 map.serialize_entry("data", text.data.as_str())?;
                 map.end()

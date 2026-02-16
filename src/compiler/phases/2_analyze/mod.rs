@@ -573,23 +573,30 @@ fn extract_identifiers_from_pattern(pattern: Option<&serde_json::Value>) -> Vec<
 fn promote_legacy_state_bindings(analysis: &mut ComponentAnalysis) {
     // Iterate over all bindings in the root scope (instance scope)
     for binding in &mut analysis.root.bindings {
-        // Only consider 'normal' bindings declared with 'let'
+        // Only consider 'normal' bindings (not already state, derived, prop, etc.)
         if binding.kind != BindingKind::Normal {
-            continue;
-        }
-        if binding.declaration_kind != DeclarationKind::Let {
             continue;
         }
 
         // Check if the binding is updated (reassigned or mutated)
-        let is_updated = binding.reassigned || binding.mutated;
-        if !is_updated {
+        if !binding.is_updated() {
             continue;
         }
 
-        // Check if the binding has any template references
-        let has_template_reference = binding.references.iter().any(|r| r.is_template_reference);
-        if !has_template_reference {
+        // Check if the binding has references in qualifying locations:
+        // - Template (Fragment) references
+        // - StyleDirective references
+        // - $: reactive declaration references
+        // This matches the official Svelte compiler's logic at 2-analyze/index.js L623-633:
+        //   path[path.length - 1].type === 'StyleDirective' ||
+        //   path.some((node) => node.type === 'Fragment') ||
+        //   (path[1].type === 'LabeledStatement' && path[1].label.name === '$')
+        let has_qualifying_reference = binding.references.iter().any(|r| {
+            r.is_template_reference
+                || r.is_style_directive_reference
+                || r.is_reactive_declaration_reference
+        });
+        if !has_qualifying_reference {
             continue;
         }
 
