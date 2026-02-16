@@ -9,76 +9,61 @@
 //! The visitor pattern matches the official Svelte compiler structure at
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/server/visitors/`.
 //!
-//! Each visitor:
-//! - Takes an AST node and a context reference
-//! - Returns OutputPart(s) representing the generated code
-//! - May recursively visit child nodes
-//!
-//! # Visitor List
-//!
-//! The following visitors are planned (matching Svelte's structure):
-//!
-//! ## Template Nodes
-//! - `fragment.rs` - Fragment visitor
-//! - `regular_element.rs` - RegularElement visitor
-//! - `component.rs` - Component visitor
-//! - `svelte_element.rs` - SvelteElement (dynamic element) visitor
-//! - `slot_element.rs` - SlotElement visitor
-//! - `title_element.rs` - TitleElement visitor
-//!
-//! ## Expression/Tags
-//! - `html_tag.rs` - HtmlTag visitor ({@html})
-//! - `render_tag.rs` - RenderTag visitor ({@render})
-//! - `const_tag.rs` - ConstTag visitor ({@const})
-//! - `debug_tag.rs` - DebugTag visitor ({@debug})
-//!
-//! ## Blocks
-//! - `if_block.rs` - IfBlock visitor ({#if})
-//! - `each_block.rs` - EachBlock visitor ({#each})
-//! - `await_block.rs` - AwaitBlock visitor ({#await})
-//! - `key_block.rs` - KeyBlock visitor ({#key})
-//! - `snippet_block.rs` - SnippetBlock visitor ({#snippet})
-//!
-//! ## Special Svelte Elements
-//! - `svelte_component.rs` - svelte:component visitor
-//! - `svelte_self.rs` - svelte:self visitor
-//! - `svelte_fragment.rs` - svelte:fragment visitor
-//! - `svelte_head.rs` - svelte:head visitor
-//! - `svelte_boundary.rs` - svelte:boundary visitor
-//!
-//! # Current Status
-//!
-//! Visitors are currently implemented inline in `../transform_server.rs` as methods
-//! on `ServerCodeGenerator`. This module provides the infrastructure for
-//! gradual extraction into separate files.
-//!
-//! To extract a visitor:
-//! 1. Create a new file (e.g., `html_tag.rs`)
-//! 2. Define the visitor function
-//! 3. Add the module declaration here
-//! 4. Update the call site in transform_server.rs
+//! Each visitor file contains an `impl ServerCodeGenerator` block with the
+//! relevant `generate_*` methods for that node type.
 
 pub mod shared;
 
-// Visitor modules will be added here as they are extracted.
-// Example:
-// pub mod fragment;
-// pub mod regular_element;
-// pub mod component;
-// pub mod html_tag;
-// pub mod render_tag;
-// pub mod if_block;
-// pub mod each_block;
-// pub mod await_block;
-// pub mod key_block;
-// pub mod snippet_block;
-// pub mod svelte_element;
-// pub mod svelte_component;
-// pub mod svelte_self;
-// pub mod svelte_fragment;
-// pub mod svelte_head;
-// pub mod svelte_boundary;
-// pub mod slot_element;
-// pub mod title_element;
-// pub mod const_tag;
-// pub mod debug_tag;
+// Visitor modules - each handles a specific AST node type
+pub mod await_block;
+pub mod component;
+pub mod const_tag;
+pub mod each_block;
+pub mod element;
+pub mod expression_tag;
+pub mod fragment;
+pub mod html_tag;
+pub mod if_block;
+pub mod render_tag;
+pub mod select_element;
+pub mod snippet_block;
+pub mod svelte_boundary;
+pub mod svelte_component;
+pub mod svelte_element;
+pub mod svelte_head;
+pub mod text;
+pub mod title_element;
+
+use super::ServerCodeGenerator;
+use crate::ast::template::TemplateNode;
+use crate::compiler::phases::phase3_transform::TransformError;
+
+impl<'a> ServerCodeGenerator<'a> {
+    pub(crate) fn generate_node(
+        &mut self,
+        node: &TemplateNode,
+        is_root: bool,
+    ) -> Result<(), TransformError> {
+        match node {
+            TemplateNode::Text(text) => self.generate_text(text, is_root),
+            TemplateNode::RegularElement(element) => self.generate_element(element),
+            TemplateNode::ExpressionTag(tag) => self.generate_expression_tag(tag),
+            TemplateNode::Component(component) => self.generate_component_usage(component),
+            TemplateNode::IfBlock(block) => self.generate_if_block(block),
+            TemplateNode::EachBlock(block) => self.generate_each_block(block),
+            TemplateNode::AwaitBlock(block) => self.generate_await_block(block),
+            TemplateNode::KeyBlock(block) => self.generate_key_block(block),
+            TemplateNode::SnippetBlock(block) => self.generate_snippet_block(block),
+            TemplateNode::RenderTag(tag) => self.generate_render_tag(tag),
+            TemplateNode::HtmlTag(tag) => self.generate_html_tag(tag),
+            TemplateNode::SvelteElement(elem) => self.generate_svelte_element(elem),
+            TemplateNode::SvelteBoundary(boundary) => self.generate_svelte_boundary(boundary),
+            TemplateNode::SvelteHead(head) => self.generate_svelte_head(head),
+            TemplateNode::ConstTag(tag) => self.generate_const_tag(tag),
+            TemplateNode::TitleElement(title) => self.generate_title_element(title),
+            TemplateNode::SvelteComponent(elem) => self.generate_svelte_component(elem),
+            TemplateNode::SvelteSelf(elem) => self.generate_svelte_self(elem),
+            _ => Ok(()),
+        }
+    }
+}
