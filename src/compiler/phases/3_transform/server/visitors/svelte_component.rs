@@ -93,26 +93,28 @@ impl<'a> ServerCodeGenerator<'a> {
         let (children, snippets, slot_names) = self
             .generate_component_children_with_snippets(&elem.fragment, &component_let_directives)?;
 
+        let skip_boundary = self.skip_hydration_boundaries;
+
         // Use ComponentWithBindings if there are any bind directives
         if bindings.is_empty() {
             self.output_parts.push(OutputPart::Component {
                 name: component_expr,
                 props_and_spreads,
-                has_prior_content: true,
                 children,
                 snippets,
                 slot_names,
                 dynamic: true,
                 let_directives: component_let_directives,
+                skip_boundary,
             });
         } else {
             self.output_parts.push(OutputPart::ComponentWithBindings {
                 name: component_expr,
                 props_and_spreads,
                 bindings,
-                has_prior_content: true,
                 children,
                 dynamic: true,
+                skip_boundary,
             });
         }
 
@@ -183,26 +185,28 @@ impl<'a> ServerCodeGenerator<'a> {
         let (children, snippets, slot_names) = self
             .generate_component_children_with_snippets(&elem.fragment, &component_let_directives)?;
 
+        let skip_boundary = self.skip_hydration_boundaries;
+
         // svelte:self is NOT dynamic (it always refers to the current component)
         if bindings.is_empty() {
             self.output_parts.push(OutputPart::Component {
                 name: comp_name,
                 props_and_spreads,
-                has_prior_content: true,
                 children,
                 snippets,
                 slot_names,
                 dynamic: false,
                 let_directives: component_let_directives,
+                skip_boundary,
             });
         } else {
             self.output_parts.push(OutputPart::ComponentWithBindings {
                 name: comp_name,
                 props_and_spreads,
                 bindings,
-                has_prior_content: true,
                 children,
                 dynamic: false,
+                skip_boundary,
             });
         }
 

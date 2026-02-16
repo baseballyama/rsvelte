@@ -127,16 +127,12 @@ impl<'a> ServerCodeGenerator<'a> {
         // First comment marker
         self.output_parts.push(OutputPart::Comment);
 
+        // Compute standalone-ness: if the key block contains only a single
+        // Component or RenderTag, the inner hydration boundary can be skipped.
+        let is_standalone = Self::is_standalone_fragment(&block.fragment.nodes);
+
         // Generate fragment content in a block scope
-        let mut body_generator = ServerCodeGenerator::new(
-            self.component_name.clone(),
-            self.source.clone(),
-            None,
-            None,
-            None,
-            self.use_async,
-        );
-        body_generator.constant_vars = self.constant_vars.clone();
+        let mut body_generator = self.new_child_generator(is_standalone);
 
         for node in &block.fragment.nodes {
             // Skip whitespace-only text nodes in key block

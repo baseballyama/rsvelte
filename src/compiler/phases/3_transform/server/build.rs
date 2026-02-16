@@ -371,9 +371,9 @@ export default function {component_name}($$renderer{props_param}) {{
                     name,
                     props_and_spreads,
                     bindings,
-                    has_prior_content,
                     children: _, // TODO: Handle children for components with bindings
                     dynamic,
+                    skip_boundary,
                 } => {
                     // Component with bindings - just generate the component call with getter/setters.
                     // The $$settled/$$render_inner loop is handled at the component level in build().
@@ -483,23 +483,20 @@ export default function {component_name}($$renderer{props_param}) {{
                     }
 
                     // Add <!---->  marker for hydration boundary after binding component
-                    // Add if there's content before OR content after this component
-                    let has_more_content = parts[i + 1..]
-                        .iter()
-                        .any(|p| !matches!(p, OutputPart::Html(s) if s.trim().is_empty()));
-                    if *has_prior_content || has_more_content {
+                    // Skip only if skip_hydration_boundaries is true (standalone fragment)
+                    if !skip_boundary {
                         current_html.push_str("<!---->");
                     }
                 }
                 OutputPart::Component {
                     name,
                     props_and_spreads,
-                    has_prior_content,
                     children,
                     snippets,
                     slot_names,
                     dynamic,
                     let_directives,
+                    skip_boundary,
                 } => {
                     // Flush current HTML before the component call
                     // For dynamic components, add <!---->  marker before the call
@@ -808,34 +805,10 @@ export default function {component_name}($$renderer{props_param}) {{
                         }
                     }
 
-                    // Check if there's content after this component
-                    let has_content_after = parts[i + 1..].iter().any(|p| {
-                        matches!(
-                            p,
-                            OutputPart::Html(h) if !h.trim().is_empty()
-                        ) || matches!(
-                            p,
-                            OutputPart::Expression(_)
-                                | OutputPart::RawExpression(_)
-                                | OutputPart::HtmlExpression(_)
-                                | OutputPart::Component { .. }
-                                | OutputPart::EachBlock { .. }
-                                | OutputPart::IfBlock { .. }
-                                | OutputPart::AwaitBlock { .. }
-                                | OutputPart::SvelteBoundary { .. }
-                                | OutputPart::SvelteHead { .. }
-                                | OutputPart::TitleElement { .. }
-                                | OutputPart::RenderCall { .. }
-                        )
-                    });
-
-                    // Add marker after component if:
-                    // - There's content before (has_prior_content), OR
-                    // - There's content after
-                    // This matches the official Svelte compiler behavior when
-                    // skip_hydration_boundaries is false (which is true when
-                    // the fragment is NOT standalone)
-                    if *has_prior_content || has_content_after {
+                    // Add marker after component unless skip_hydration_boundaries is true.
+                    // The official Svelte compiler adds empty_comment after components
+                    // unless context.state.skip_hydration_boundaries is true.
+                    if !skip_boundary {
                         current_html.push_str("<!---->");
                     }
                 }

@@ -183,16 +183,17 @@ impl<'a> ServerCodeGenerator<'a> {
             return Ok(None);
         }
 
-        // Generate body parts
-        let mut body_generator = ServerCodeGenerator::new(
-            self.component_name.clone(),
-            self.source.clone(),
-            None,
-            None,
-            None,
-            self.use_async,
+        // Compute standalone-ness for the trimmed children
+        let meaningful_nodes: Vec<_> = nodes[start_idx..end_idx].to_vec();
+        let is_standalone = Self::is_standalone_fragment(
+            &meaningful_nodes
+                .iter()
+                .map(|n| (*n).clone())
+                .collect::<Vec<_>>(),
         );
-        body_generator.constant_vars = self.constant_vars.clone();
+
+        // Generate body parts
+        let mut body_generator = self.new_child_generator(is_standalone);
 
         // Check if first meaningful content is text/expression
         // If so, add <!---> anchor to prevent text fusion during hydration
