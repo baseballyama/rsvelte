@@ -279,6 +279,9 @@ pub struct EachBlockMetadata {
     /// Generated unique index identifier name
     #[serde(skip_serializing_if = "Option::is_none")]
     pub index: Option<String>,
+    /// Whether any binding in the each block scope is updated (reassigned or mutated).
+    #[serde(default)]
+    pub context_mutated: bool,
 }
 
 /// An each block: `{#each items as item (key)}...{:else}...{/each}`.

@@ -168,11 +168,25 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
             }
         }
 
-        // NOTE: Binding promotion (Normal -> State) is NOT done here because it would
-        // happen during analyze_template(), before runes auto-detection. Promoting to
-        // State here would cause is_rune() to return true, falsely triggering runes mode.
-        // Instead, promotion is handled by promote_each_expression_bindings() in mod.rs,
-        // which runs AFTER runes detection.
+        // Check if any binding in the each block's scope is updated.
+        // Corresponds to the official compiler's index.js L640-644.
+        {
+            let mut each_scope_names = Vec::new();
+            if let Some(ref context_expr) = block.context {
+                extract_identifiers_from_pattern(context_expr.as_json(), &mut each_scope_names);
+            }
+            if let Some(ref index_name) = block.index {
+                each_scope_names.push(index_name.to_string());
+            }
+            let has_updated = each_scope_names.iter().any(|name| {
+                context.analysis.root.bindings.iter().any(|b| {
+                    b.name == *name
+                        && matches!(b.kind, BindingKind::EachItem | BindingKind::EachIndex)
+                        && b.is_updated()
+                })
+            });
+            block.metadata.context_mutated = has_updated;
+        }
     }
 
     // Mark the subtree as dynamic

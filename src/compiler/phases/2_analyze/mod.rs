@@ -641,30 +641,17 @@ fn collect_each_block_promotions(
     for node in &fragment.nodes {
         match node {
             TemplateNode::EachBlock(each) => {
-                let has_updated_binding = if let Some(ref context_expr) = each.context {
-                    let context_json = context_expr.as_json();
-                    let mut names = Vec::new();
-                    extract_each_pattern_identifiers(context_json, &mut names);
-                    names.iter().any(|name| {
-                        if let Some(binding_idx) = analysis.root.find_binding_any_scope(name) {
-                            let binding = &analysis.root.bindings[binding_idx];
-                            binding.reassigned || binding.mutated
-                        } else {
-                            false
-                        }
-                    })
-                } else {
-                    false
-                };
-
-                if has_updated_binding {
-                    for &dep_idx in &each.metadata.expression.dependencies {
+                // Use pre-computed context_mutated flag from EachBlock visitor.
+                if each.metadata.context_mutated {
+                    for &dep_idx in &each.metadata.transitive_deps {
                         if dep_idx < analysis.root.bindings.len() {
                             let binding = &analysis.root.bindings[dep_idx];
                             if binding.kind == BindingKind::Normal
-                                && !matches!(
+                                && matches!(
                                     binding.declaration_kind,
-                                    DeclarationKind::Import | DeclarationKind::Function
+                                    DeclarationKind::Const
+                                        | DeclarationKind::Let
+                                        | DeclarationKind::Var
                                 )
                             {
                                 promotions.push(dep_idx);
@@ -728,6 +715,7 @@ fn collect_each_block_promotions(
 }
 
 /// Extract identifier names from a destructuring pattern.
+#[allow(dead_code)]
 fn extract_each_pattern_identifiers(node: &serde_json::Value, names: &mut Vec<String>) {
     let node_type = node.get("type").and_then(|t| t.as_str());
     match node_type {
