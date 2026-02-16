@@ -936,6 +936,7 @@ fn transform_module_script_runes(script: &str, analysis: &ComponentAnalysis) -> 
                     &empty_proxy,
                     &empty_raw,
                     analysis.runes,
+                    &[],
                 );
                 transformed_lines.push(transformed);
             }
@@ -1197,6 +1198,29 @@ fn transform_instance_script_for_visitors(
             return;
         }
 
+        // Compute variables whose initial values are known primitives (non-proxyable).
+        // This mirrors the official Svelte compiler's should_proxy() which resolves
+        // identifiers to their binding's initial values.
+        let non_proxy_vars: Vec<String> = analysis
+            .root
+            .bindings
+            .iter()
+            .filter(|b| {
+                !b.reassigned
+                    && b.initial.is_some()
+                    && !matches!(
+                        b.kind,
+                        BindingKind::State
+                            | BindingKind::RawState
+                            | BindingKind::Derived
+                            | BindingKind::Prop
+                            | BindingKind::BindableProp
+                            | BindingKind::StoreSub
+                    )
+            })
+            .map(|b| b.name.clone())
+            .collect();
+
         // Join all accumulated lines into a single statement
         let statement = accumulated.join("\n");
         let first_line_trimmed = accumulated[0].trim();
@@ -1222,6 +1246,7 @@ fn transform_instance_script_for_visitors(
                 proxy_vars,
                 raw_state_vars,
                 analysis.runes,
+                &non_proxy_vars,
             );
             result.push_str(&transformed);
             result.push('\n');
@@ -1310,6 +1335,7 @@ fn transform_instance_script_for_visitors(
             proxy_vars,
             raw_state_vars,
             analysis.runes,
+            &non_proxy_vars,
         );
 
         // Transform prop assignments to prop(prop() + value) syntax
@@ -4523,6 +4549,7 @@ fn transform_state_assignments(
     _proxy_vars: &[String],
     raw_state_vars: &[String],
     is_runes: bool,
+    non_proxy_vars: &[String],
 ) -> String {
     let mut result = line.to_string();
 
@@ -4736,7 +4763,9 @@ fn transform_state_assignments(
                 // $state.raw() variables never need proxy wrapping
                 // Proxy flag is only added in runes mode
                 let is_raw_state = raw_state_vars.contains(var);
-                let needs_proxy = is_runes && !is_raw_state && expression_needs_proxy(expr.trim());
+                let needs_proxy = is_runes
+                    && !is_raw_state
+                    && expression_needs_proxy_with_scope(expr.trim(), non_proxy_vars);
 
                 let replacement = if needs_proxy {
                     format!("$.set({}, {}, true)", var, expr)
@@ -7421,6 +7450,19 @@ fn expression_needs_proxy(expr: &str) -> bool {
     }
 
     false
+}
+
+/// Scope-aware proxy check: returns false for identifiers that are known to be
+/// non-proxyable (e.g., `const min = 2` - `min` is a literal, doesn't need proxy).
+/// Falls back to `expression_needs_proxy` for everything else.
+fn expression_needs_proxy_with_scope(expr: &str, non_proxy_vars: &[String]) -> bool {
+    let trimmed = expr.trim();
+    // If this is a simple identifier that we know resolves to a primitive/literal,
+    // it doesn't need proxy wrapping.
+    if is_simple_identifier(trimmed) && non_proxy_vars.iter().any(|v| v == trimmed) {
+        return false;
+    }
+    expression_needs_proxy(trimmed)
 }
 
 /// Check if an expression is a simple identifier (not a complex expression)
