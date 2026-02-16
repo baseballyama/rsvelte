@@ -151,40 +151,10 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     //   2. The each item is assigned (transform assign callback, e.g. bind:value)
     //   3. The each item is mutated (transform mutate callback)
     // We use the each_index_used/each_index_name mechanism on ComponentClientTransformState
-    // to detect case 1 during body traversal. Cases 2 and 3 are checked statically below
-    // by inspecting the binding's reassigned/mutated flags.
+    // to detect case 1 during body traversal. For cases 2 and 3, we use
+    // each_item_assign_or_mutate/each_item_names to detect item assign/mutate dynamically
+    // during body traversal, matching the official compiler's closure-based approach.
     let mut uses_index = each_node_meta.contains_group_binding;
-
-    // Check if the each item binding is reassigned or mutated (e.g., via bind: directives).
-    // This corresponds to the assign/mutate transform callbacks in the official compiler
-    // which set uses_index = true.
-    if !uses_index && let Some(context_expr) = &node.context {
-        let Expression::Value(val) = context_expr;
-        if let serde_json::Value::Object(obj) = val {
-            let ctx_type = obj.get("type").and_then(|v| v.as_str());
-            if ctx_type == Some("Identifier") {
-                // Simple identifier context - check its binding
-                if let Some(name) = obj.get("name").and_then(|v| v.as_str())
-                    && let Some(binding) = context.state.get_binding(name)
-                    && (binding.reassigned || binding.mutated)
-                {
-                    uses_index = true;
-                }
-            } else if ctx_type == Some("ObjectPattern") || ctx_type == Some("ArrayPattern") {
-                // Destructured context - check all bindings from the pattern
-                let mut declared_names = Vec::new();
-                collect_pattern_names(obj, &mut declared_names);
-                for name in &declared_names {
-                    if let Some(binding) = context.state.get_binding(name)
-                        && (binding.reassigned || binding.mutated)
-                    {
-                        uses_index = true;
-                        break;
-                    }
-                }
-            }
-        }
-    }
 
     let key_uses_index = false; // Will be set properly when visiting key
 
@@ -219,6 +189,29 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
         context.state.each_index_name = Some(index_name.to_string());
         context.state.each_index_used.set(false);
     }
+
+    // Set up item assign/mutate tracking before visiting the body.
+    // Save the previous state so we can restore it after (for nested each blocks).
+    let saved_each_item_names = context.state.each_item_names.clone();
+    let saved_each_item_assign_or_mutate = context.state.each_item_assign_or_mutate.get();
+
+    // Collect the item variable names from the context pattern.
+    let mut item_names = Vec::new();
+    if let Some(context_expr) = &node.context {
+        let Expression::Value(val) = context_expr;
+        if let serde_json::Value::Object(obj) = val {
+            let ctx_type = obj.get("type").and_then(|v| v.as_str());
+            if ctx_type == Some("Identifier") {
+                if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+                    item_names.push(name.to_string());
+                }
+            } else if ctx_type == Some("ObjectPattern") || ctx_type == Some("ArrayPattern") {
+                collect_pattern_names(obj, &mut item_names);
+            }
+        }
+    }
+    context.state.each_item_names = item_names;
+    context.state.each_item_assign_or_mutate.set(false);
 
     // Push the each binding context for legacy mode binding generation.
     // This allows bind_directive to generate correct getters/setters with
@@ -309,9 +302,23 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
         uses_index = true;
     }
 
+    // After visiting the body, check if the each item was assigned or mutated.
+    // This mirrors the official Svelte compiler's dynamic approach where assign/mutate
+    // transform callbacks set uses_index = true.
+    if context.state.each_item_assign_or_mutate.get() {
+        uses_index = true;
+    }
+
     // Restore the previous each_index state (for nested each blocks)
     context.state.each_index_name = saved_each_index_name;
     context.state.each_index_used.set(saved_each_index_used);
+
+    // Restore the previous each_item state (for nested each blocks)
+    context.state.each_item_names = saved_each_item_names;
+    context
+        .state
+        .each_item_assign_or_mutate
+        .set(saved_each_item_assign_or_mutate);
 
     // Restore the original transform map to prevent leaking to sibling blocks
     context.state.transform = saved_transform;

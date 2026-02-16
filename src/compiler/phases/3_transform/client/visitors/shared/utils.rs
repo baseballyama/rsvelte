@@ -511,12 +511,31 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 return assign_fn(JsExpr::Identifier(name.clone()), final_value, needs_proxy);
             }
 
+            // Track each item assignment for uses_index detection.
+            // In the official Svelte compiler, the assign transform callback on the each item
+            // sets `uses_index = true`. Since Rust uses fn pointers (not closures), we track
+            // this via a shared flag on the state.
+            if let JsExpr::Identifier(name) = assign.left.as_ref()
+                && !shadowed.contains(name)
+                && context.state.each_item_names.contains(name)
+            {
+                context.state.each_item_assign_or_mutate.set(true);
+            }
+
             // Check for mutation case: when assigning to a member expression where
             // the base object has a mutate transform (e.g., $store.prop = value)
             // This corresponds to the mutation case in AssignmentExpression.js
             if let JsExpr::Member(_) = assign.left.as_ref() {
                 // Find the base object of the member expression
                 let base_object = get_base_object(assign.left.as_ref());
+
+                // Track each item mutation for uses_index detection.
+                if let JsExpr::Identifier(name) = &base_object
+                    && !shadowed.contains(name)
+                    && context.state.each_item_names.contains(name)
+                {
+                    context.state.each_item_assign_or_mutate.set(true);
+                }
 
                 if let JsExpr::Identifier(name) = base_object
                     && !shadowed.contains(&name)
@@ -634,6 +653,14 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 );
             }
 
+            // Track each item update (++ or --) for uses_index detection.
+            if let JsExpr::Identifier(name) = update.argument.as_ref()
+                && !shadowed.contains(name)
+                && context.state.each_item_names.contains(name)
+            {
+                context.state.each_item_assign_or_mutate.set(true);
+            }
+
             // Check for mutation case: when updating a member expression where
             // the base object has a mutate transform registered.
             // This handles:
@@ -642,6 +669,14 @@ pub fn apply_transforms_to_expression_with_shadowed(
             // - Runes state: name.value++ -> $.get(name).value++
             if let JsExpr::Member(_) = update.argument.as_ref() {
                 let base_object = get_base_object(update.argument.as_ref());
+
+                // Track each item member update for uses_index detection.
+                if let JsExpr::Identifier(name) = &base_object
+                    && !shadowed.contains(name)
+                    && context.state.each_item_names.contains(name)
+                {
+                    context.state.each_item_assign_or_mutate.set(true);
+                }
 
                 if let JsExpr::Identifier(name) = base_object
                     && !shadowed.contains(&name)
