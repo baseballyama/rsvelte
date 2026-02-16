@@ -301,16 +301,8 @@ impl<'a> ComponentContext<'a> {
             transition_directive(trans_directive, self);
 
             // Collect statements added by transition_directive
-            while self.state.init.len() > saved_init_len {
-                if let Some(stmt) = self.state.init.pop() {
-                    inner_init.insert(0, stmt);
-                }
-            }
-            while self.state.after_update.len() > saved_after_update_len {
-                if let Some(stmt) = self.state.after_update.pop() {
-                    inner_after_update.insert(0, stmt);
-                }
-            }
+            inner_init.extend(self.state.init.drain(saved_init_len..));
+            inner_after_update.extend(self.state.after_update.drain(saved_after_update_len..));
 
             // Restore node
             self.state.node = saved_node;
@@ -405,16 +397,8 @@ impl<'a> ComponentContext<'a> {
             }
 
             // Move statements added to context.state to inner state
-            while self.state.init.len() > saved_init_len {
-                if let Some(stmt) = self.state.init.pop() {
-                    inner_init.insert(0, stmt);
-                }
-            }
-            while self.state.update.len() > saved_update_len {
-                if let Some(stmt) = self.state.update.pop() {
-                    inner_update.insert(0, stmt);
-                }
-            }
+            inner_init.extend(self.state.init.drain(saved_init_len..));
+            inner_update.extend(self.state.update.drain(saved_update_len..));
 
             // Restore node
             self.state.node = saved_node;

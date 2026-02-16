@@ -273,83 +273,46 @@ pub fn visit_regular_element(
         transition_directive(trans_directive, context);
 
         // Move any statements added to context.state to element_state instead
-        while context.state.init.len() > init_before {
-            if let Some(stmt) = context.state.init.pop() {
-                element_state_init.insert(0, stmt);
-            }
-        }
-        while context.state.after_update.len() > after_update_before {
-            if let Some(stmt) = context.state.after_update.pop() {
-                element_state_after_update.insert(0, stmt);
-            }
-        }
+        element_state_init.extend(context.state.init.drain(init_before..));
+        element_state_after_update.extend(context.state.after_update.drain(after_update_before..));
     }
 
     // Process animate directives into element_state
     for anim_directive in &animate_directives {
-        // Store current init length to capture any statements added by animate_directive
         let init_before = context.state.init.len();
         let after_update_before = context.state.after_update.len();
 
         animate_directive(anim_directive, context);
 
-        // Move any statements added to context.state to element_state instead
-        while context.state.init.len() > init_before {
-            if let Some(stmt) = context.state.init.pop() {
-                element_state_init.insert(0, stmt);
-            }
-        }
-        while context.state.after_update.len() > after_update_before {
-            if let Some(stmt) = context.state.after_update.pop() {
-                element_state_after_update.insert(0, stmt);
-            }
-        }
+        element_state_init.extend(context.state.init.drain(init_before..));
+        element_state_after_update.extend(context.state.after_update.drain(after_update_before..));
     }
 
     // Process bind directives into element_state
     let parent_node = TemplateNode::RegularElement(node.clone());
     for bind_dir in bindings.values() {
-        // Store current init length to capture any statements added by bind_directive
         let init_before = context.state.init.len();
         let after_update_before = context.state.after_update.len();
 
         bind_directive(bind_dir, context, Some(&parent_node));
 
-        // Move any statements added to context.state to element_state instead
-        while context.state.init.len() > init_before {
-            if let Some(stmt) = context.state.init.pop() {
-                element_state_init.insert(0, stmt);
-            }
-        }
-        while context.state.after_update.len() > after_update_before {
-            if let Some(stmt) = context.state.after_update.pop() {
-                element_state_after_update.insert(0, stmt);
-            }
-        }
+        element_state_init.extend(context.state.init.drain(init_before..));
+        element_state_after_update.extend(context.state.after_update.drain(after_update_before..));
     }
 
     // Process use directives into element_state
-    // According to the official Svelte implementation, actions need to run after
-    // attribute updates in order with bindings/events
     for use_dir in &use_directives {
         let stmt = use_directive(use_dir, context);
         element_state_init.push(stmt);
     }
 
     // Process attach tags into element_state
-    // {@attach} tags are processed similarly to other directives
     for attach in &attach_tags {
-        // Store current init length to capture any statements added by attach_tag
         let init_before = context.state.init.len();
 
         attach_tag(attach, context);
 
-        // Move any statements added to context.state to element_state instead
-        while context.state.init.len() > init_before {
-            if let Some(stmt) = context.state.init.pop() {
-                element_state_init.insert(0, stmt);
-            }
-        }
+        element_state_init.extend(context.state.init.drain(init_before..));
     }
 
     // For input elements, add $.remove_input_defaults() call when needed
