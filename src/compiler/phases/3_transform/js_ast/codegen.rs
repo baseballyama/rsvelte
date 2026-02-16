@@ -537,9 +537,34 @@ fn escape_tabs_in_strings(code: String) -> String {
     let mut string_char = ' ';
     let mut in_template_literal = false;
     let mut template_depth = 0; // Track nested ${...} in template literals
+    let mut in_single_line_comment = false;
+    let mut in_multi_line_comment = false;
 
     while i < chars.len() {
         let c = chars[i];
+
+        // Reset single-line comment at newline
+        if in_single_line_comment {
+            result.push(c);
+            if c == '\n' {
+                in_single_line_comment = false;
+            }
+            i += 1;
+            continue;
+        }
+
+        // Check for end of multi-line comment
+        if in_multi_line_comment {
+            result.push(c);
+            if c == '*' && i + 1 < chars.len() && chars[i + 1] == '/' {
+                result.push('/');
+                i += 2;
+                in_multi_line_comment = false;
+            } else {
+                i += 1;
+            }
+            continue;
+        }
 
         // Check if this character is escaped (preceded by odd number of backslashes)
         let is_escaped = if i > 0 {
@@ -553,6 +578,21 @@ fn escape_tabs_in_strings(code: String) -> String {
         } else {
             false
         };
+
+        // Check for comment start (only when not inside a string or template literal)
+        if !in_string && !in_template_literal && c == '/' && i + 1 < chars.len() {
+            if chars[i + 1] == '/' {
+                in_single_line_comment = true;
+                result.push(c);
+                i += 1;
+                continue;
+            } else if chars[i + 1] == '*' {
+                in_multi_line_comment = true;
+                result.push(c);
+                i += 1;
+                continue;
+            }
+        }
 
         // Handle template literal tracking
         if !in_string {

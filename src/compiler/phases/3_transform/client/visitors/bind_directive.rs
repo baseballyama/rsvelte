@@ -1301,32 +1301,59 @@ fn build_getter_setter(
             (get, Some(set))
         }
     } else {
-        // For non-state, non-prop expressions (e.g., each-block items),
-        // apply transforms only in runes mode to get $.get() wrappers.
-        let transformed = if context.state.analysis.runes {
-            use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
+        // For non-state, non-prop expressions (e.g., each-block items, store member access),
+        // apply transforms to get $.get() wrappers and store mutate handling.
+        //
+        // The getter applies read transforms to the expression.
+        // The setter creates an assignment `expr = $$value` and applies transforms to it,
+        // which triggers the store's mutate transform for store subscription member access.
+        // This mirrors the official compiler: context.visit(b.assignment('=', node.expression, b.id('$$value')))
+        use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
+
+        let transformed_read = if context.state.analysis.runes {
             apply_transforms_to_expression(expr, context)
         } else {
             expr.clone()
+        };
+
+        // Build the setter by creating an assignment expression and applying transforms.
+        // This allows store_sub mutate transforms to kick in for patterns like:
+        //   $obj.a = $$value -> $.store_mutate(obj, $.untrack($obj).a = $$value, $.untrack($obj))
+        let assignment_expr = b::assign(expr.clone(), b::id("$$value"));
+        let transformed_set = if context.state.analysis.runes {
+            apply_transforms_to_expression(&assignment_expr, context)
+        } else {
+            assignment_expr
         };
 
         if dev {
             let get = b::function_expr(
                 Some("get".to_string()),
                 vec![],
-                vec![b::return_value(transformed.clone())],
+                vec![b::return_value(transformed_read)],
             );
             let set = b::function_expr(
                 Some("set".to_string()),
                 vec![b::id_pattern("$$value")],
-                vec![b::stmt(b::assign(transformed, b::id("$$value")))],
+                vec![b::stmt(transformed_set)],
             );
             (get, Some(set))
         } else {
-            let get = b::thunk(transformed.clone());
-            let set_expr = b::assign(transformed, b::id("$$value"));
-            let set = b::arrow(vec![b::id_pattern("$$value")], set_expr);
-            (get, Some(set))
+            let get = b::thunk(transformed_read);
+            let set = b::arrow(vec![b::id_pattern("$$value")], transformed_set);
+
+            // Apply unthunk optimization: if get and set are the same identifier, omit set
+            let same_identifier = match (&get, &set) {
+                (JsExpr::Identifier(get_name), JsExpr::Identifier(set_name)) => {
+                    get_name == set_name
+                }
+                _ => false,
+            };
+            if same_identifier {
+                (get, None)
+            } else {
+                (get, Some(set))
+            }
         }
     }
 }

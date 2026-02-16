@@ -77,8 +77,12 @@ pub fn detect_store_subscriptions(
 
     // Scan template for $xxx identifiers
     collect_dollar_refs_from_fragment(&ast.fragment, &analysis.source, &mut unique_names);
-    // Convert unique names from template to StoreRef (not in module)
-    for name in &unique_names {
+    // Convert unique names from template to StoreRef (not in module).
+    // Sort by first occurrence position in source to match the official Svelte compiler's
+    // AST traversal order (it uses scope.declarations which is a JS Map maintaining insertion order).
+    let mut template_names: Vec<String> = unique_names.into_iter().collect();
+    template_names.sort_by_key(|name| analysis.source.find(name).unwrap_or(usize::MAX));
+    for name in &template_names {
         if !store_refs.iter().any(|r| &r.name == name) {
             store_refs.push(StoreRef {
                 name: name.clone(),
