@@ -6,6 +6,9 @@
 
 pub mod build;
 pub mod helpers;
+pub mod transform_legacy;
+pub mod transform_script;
+pub mod transform_store;
 pub mod types;
 pub mod visitors;
 
