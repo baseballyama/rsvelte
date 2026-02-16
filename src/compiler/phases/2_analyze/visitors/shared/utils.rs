@@ -1509,10 +1509,14 @@ pub fn walk_js_expression(
                         .unwrap_or((0, 0));
                     let is_template_reference =
                         matches!(context.ast_type, super::super::AstType::Template);
+                    // Template expression references are not reactive declaration
+                    // or style directive references
                     context.analysis.root.bindings[binding_idx].add_reference(
                         start as u32,
                         end as u32,
                         is_template_reference,
+                        false,
+                        false,
                     );
 
                     let binding = &context.analysis.root.bindings[binding_idx];

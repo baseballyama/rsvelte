@@ -60,6 +60,7 @@ pub mod arrow_function_expression;
 pub mod assignment_expression;
 pub mod attach_tag;
 pub mod const_tag;
+pub mod debug_tag;
 pub mod expression_converter;
 
 // Additional visitor modules will be added here as they are extracted.

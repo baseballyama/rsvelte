@@ -634,30 +634,31 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 );
             }
 
-            // Check for store subscription mutation case: when updating a member expression
-            // where the base object is a store subscription (e.g., $store[0].value++)
-            // This applies only to store subscriptions (identifiers starting with $)
-            // which need the special $.store_mutate() transformation.
+            // Check for mutation case: when updating a member expression where
+            // the base object has a mutate transform registered.
+            // This handles:
+            // - Store subscriptions: $store[0].value++ -> $.store_mutate(...)
+            // - Legacy state: name.value++ -> $.mutate(name, $.get(name).value++)
+            // - Runes state: name.value++ -> $.get(name).value++
             if let JsExpr::Member(_) = update.argument.as_ref() {
                 let base_object = get_base_object(update.argument.as_ref());
 
                 if let JsExpr::Identifier(name) = base_object
-                    && name.starts_with('$')  // Only store subscriptions
                     && !shadowed.contains(&name)
                     && let Some(transform) = context.state.transform.get(&name)
                     && let Some(mutate_fn) = transform.mutate
                 {
                     // Keep the original update expression, the mutate function
-                    // (store_sub_mutate) will replace the base identifier
-                    // with $.untrack($store)
+                    // will handle replacing the base identifier as needed:
+                    // - store_sub_mutate: replaces with $.untrack($store)
+                    // - mutate_value_legacy: wraps in $.mutate(name, ...)
+                    // - mutate_value_runes: replaces name with $.get(name)
                     let full_update = JsExpr::Update(JsUpdateExpression {
                         operator: update.operator,
                         argument: update.argument.clone(),
                         prefix: update.prefix,
                     });
 
-                    // Apply the mutate transform
-                    // e.g., $store[0].value++ -> $.store_mutate(store, $.untrack($store)[0].value++, $.untrack($store))
                     return mutate_fn(JsExpr::Identifier(name.clone()), full_update);
                 }
             }
@@ -717,7 +718,9 @@ pub fn apply_transforms_to_expression_with_shadowed(
 /// These functions should NOT have their first argument transformed with $.get()
 /// because they expect the raw state reference, not the value.
 fn is_svelte_runtime_set_call(callee: &JsExpr) -> bool {
-    // Check for $.set, $.update, $.update_pre, $.get, $.safe_get patterns
+    // Check for $.set, $.update, $.update_pre, $.get, $.safe_get, $.mutate patterns
+    // These all take a state reference as the first argument that should NOT be
+    // wrapped with $.get()
     if let JsExpr::Member(member) = callee
         && let JsExpr::Identifier(obj_name) = member.object.as_ref()
         && obj_name == "$"
@@ -725,7 +728,7 @@ fn is_svelte_runtime_set_call(callee: &JsExpr) -> bool {
     {
         return matches!(
             prop_name.as_str(),
-            "set" | "update" | "update_pre" | "get" | "safe_get"
+            "set" | "update" | "update_pre" | "get" | "safe_get" | "mutate"
         );
     }
     false

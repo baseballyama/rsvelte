@@ -117,6 +117,8 @@ impl<'a> ComponentContext<'a> {
 
             TemplateNode::ConstTag(const_tag) => self.visit_const_tag(const_tag),
 
+            TemplateNode::DebugTag(debug_tag) => self.visit_debug_tag(debug_tag),
+
             TemplateNode::SvelteBoundary(boundary) => self.visit_svelte_boundary(boundary),
 
             TemplateNode::SvelteHead(head) => self.visit_svelte_head(head),
@@ -580,6 +582,12 @@ impl<'a> ComponentContext<'a> {
     fn visit_const_tag(&mut self, const_tag: &crate::ast::template::ConstTag) -> TransformResult {
         use crate::compiler::phases::phase3_transform::client::visitors::const_tag::const_tag as visit_const_tag_impl;
         visit_const_tag_impl(const_tag, self);
+        TransformResult::None
+    }
+
+    fn visit_debug_tag(&mut self, debug_tag: &crate::ast::template::DebugTag) -> TransformResult {
+        use crate::compiler::phases::phase3_transform::client::visitors::debug_tag::debug_tag as visit_debug_tag_impl;
+        visit_debug_tag_impl(debug_tag, self);
         TransformResult::None
     }
 

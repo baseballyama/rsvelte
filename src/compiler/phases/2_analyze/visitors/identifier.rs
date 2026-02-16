@@ -125,10 +125,33 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         .zip(node.get("end").and_then(|e| e.as_u64()))
         .unwrap_or((0, 0));
     let is_template_reference = matches!(context.ast_type, super::AstType::Template);
+
+    // Check if this reference is inside a `$:` reactive declaration
+    // In the official Svelte compiler: path[1].type === 'LabeledStatement' && path[1].label.name === '$'
+    let is_reactive_declaration_reference = context.js_path.iter().any(|ancestor| {
+        ancestor.get("type").and_then(|t| t.as_str()) == Some("LabeledStatement")
+            && ancestor
+                .get("label")
+                .and_then(|l| l.get("name"))
+                .and_then(|n| n.as_str())
+                == Some("$")
+    });
+
+    // Check if this reference is in a StyleDirective
+    // In the official Svelte compiler, StyleDirective shorthand references are created
+    // in the StyleDirective visitor (scope.js), which appends the directive node to the path.
+    // In our Rust implementation, the identifier visitor is only called from JS/script
+    // processing, so it never encounters StyleDirective context directly.
+    // StyleDirective shorthand references (e.g., `style:height`) are handled
+    // separately in style_directive.rs.
+    let is_style_directive_reference = false;
+
     context.analysis.root.bindings[binding_idx].add_reference(
         start as u32,
         end as u32,
         is_template_reference,
+        is_reactive_declaration_reference,
+        is_style_directive_reference,
     );
 
     // Handle legacy mode special variables

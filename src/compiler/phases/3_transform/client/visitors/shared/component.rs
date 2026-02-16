@@ -1027,7 +1027,52 @@ fn process_bind_directive(
             vec![b::stmt(b::assign(raw_expression.clone(), b::id("$$value")))]
         }
     } else {
-        vec![b::stmt(b::assign(raw_expression.clone(), b::id("$$value")))]
+        // Check if this is a state member mutation (e.g., value.a where value is $state)
+        // In this case, we need to wrap the setter in $.mutate() for legacy mode
+        // or use $.get() for the base in runes mode
+        let state_member_root = if let JsExpr::Member(_) = &raw_expression {
+            // Extract the root identifier from the member expression
+            let mut root = &raw_expression;
+            while let JsExpr::Member(m) = root {
+                root = &m.object;
+            }
+            if let JsExpr::Identifier(name) = root {
+                // Check if this root is a state source
+                context.state.get_binding(name).and_then(|binding| {
+                    if crate::compiler::phases::phase3_transform::client::utils::is_state_source(
+                        binding,
+                        context.state.analysis,
+                    ) {
+                        Some(name.clone())
+                    } else {
+                        None
+                    }
+                })
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        if let Some(root_name) = state_member_root {
+            if context.state.analysis.runes {
+                // In runes mode, replace the root with $.get(root) in the assignment:
+                // $.get(value).a = $$value
+                let assignment = b::assign(transformed_expression.clone(), b::id("$$value"));
+                vec![b::stmt(assignment)]
+            } else {
+                // In legacy mode, wrap in $.mutate():
+                // $.mutate(value, $.get(value).a = $$value)
+                let assignment = b::assign(transformed_expression.clone(), b::id("$$value"));
+                vec![b::stmt(b::call(
+                    b::member_path("$.mutate"),
+                    vec![b::id(&root_name), assignment],
+                ))]
+            }
+        } else {
+            vec![b::stmt(b::assign(raw_expression.clone(), b::id("$$value")))]
+        }
     };
 
     let setter = b::setter(bind.name.as_str(), "$$value", setter_body);

@@ -7,6 +7,7 @@
 use super::super::AnalysisError;
 use super::super::errors;
 use super::VisitorContext;
+use super::shared::fragment::mark_subtree_dynamic;
 use super::shared::utils::{validate_opening_tag, walk_js_expression};
 use crate::ast::template::DebugTag;
 
@@ -32,6 +33,14 @@ pub fn visit(tag: &mut DebugTag, context: &mut VisitorContext) -> Result<(), Ana
         if expr_type != Some("Identifier") {
             return Err(errors::debug_tag_invalid_arguments());
         }
+    }
+
+    // Mark the subtree as dynamic when there are identifiers.
+    // In the official compiler, this happens via the Identifier visitor called from
+    // context.next(). Since our walk_js_expression doesn't route through the
+    // Identifier visitor, we call mark_subtree_dynamic explicitly here.
+    if !tag.identifiers.is_empty() {
+        mark_subtree_dynamic(&context.path);
     }
 
     // Visit the identifiers to track their references

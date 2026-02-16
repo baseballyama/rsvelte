@@ -231,6 +231,10 @@ pub struct BindingReference {
     /// Whether this reference is in the template (Fragment)
     /// Used for legacy mode state promotion
     pub is_template_reference: bool,
+    /// Whether this reference is inside a `$:` reactive declaration
+    pub is_reactive_declaration_reference: bool,
+    /// Whether this reference is in a StyleDirective
+    pub is_style_directive_reference: bool,
 }
 
 impl Binding {
@@ -293,11 +297,20 @@ impl Binding {
     }
 
     /// Add a reference to this binding
-    pub fn add_reference(&mut self, start: u32, end: u32, is_template_reference: bool) {
+    pub fn add_reference(
+        &mut self,
+        start: u32,
+        end: u32,
+        is_template_reference: bool,
+        is_reactive_declaration_reference: bool,
+        is_style_directive_reference: bool,
+    ) {
         self.references.push(BindingReference {
             start,
             end,
             is_template_reference,
+            is_reactive_declaration_reference,
+            is_style_directive_reference,
         });
     }
 

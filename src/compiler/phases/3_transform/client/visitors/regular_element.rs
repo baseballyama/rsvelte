@@ -986,6 +986,7 @@ pub fn visit_regular_element(
     } else if force_merge_child_init
         || node.fragment.metadata.dynamic
         || has_dynamic_children_for_merge(&cleaned.trimmed, &context.state)
+        || has_hoisted_init_producers(&cleaned.hoisted)
     {
         // Dynamic fragment: merge child_state.init + element_state.init
         context.state.init.extend(child_init);
@@ -1064,6 +1065,19 @@ pub fn visit_regular_element(
 
     context.state.template.pop_element();
     TransformResult::None
+}
+
+/// Check if any hoisted nodes produce init statements.
+///
+/// DebugTag nodes are hoisted during clean_nodes but produce `$.template_effect` init
+/// statements when visited. In the official compiler, the Identifier visitor sets
+/// `fragment.metadata.dynamic = true` when identifiers are referenced, which ensures
+/// child_init is merged. Since our Phase 2 analysis doesn't mutate the AST to set
+/// this flag (immutable references), we check for DebugTag presence as a fallback.
+fn has_hoisted_init_producers(hoisted: &[TemplateNode]) -> bool {
+    hoisted
+        .iter()
+        .any(|n| matches!(n, TemplateNode::DebugTag(_)))
 }
 
 /// Check if any trimmed children are dynamic (non-static, non-text).

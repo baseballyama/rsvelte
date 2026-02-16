@@ -12,7 +12,8 @@ use crate::compiler::phases::phase3_transform::client::types::{
 use crate::compiler::phases::phase3_transform::client::utils::is_state_source;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::{
-    JsAssignmentExpression, JsExpr, JsMemberExpression, JsUpdateExpression, JsUpdateOp,
+    JsAssignmentExpression, JsCallExpression, JsExpr, JsMemberExpression, JsUpdateExpression,
+    JsUpdateOp,
 };
 
 /// Turns an identifier into a reactive getter call.
@@ -557,6 +558,30 @@ fn replace_root_identifier_with_getter(
                 property: member.property.clone(),
                 computed: member.computed,
                 optional: member.optional,
+            })
+        }
+        JsExpr::Update(update) => {
+            // For update expressions (e.g., foo.count++), replace in the argument
+            JsExpr::Update(JsUpdateExpression {
+                operator: update.operator,
+                argument: Box::new(replace_root_identifier_with_getter(
+                    &update.argument,
+                    original_id,
+                    replacement,
+                )),
+                prefix: update.prefix,
+            })
+        }
+        JsExpr::Call(call) => {
+            // For call expressions (e.g., list.at(-1)), replace in the callee
+            JsExpr::Call(JsCallExpression {
+                callee: Box::new(replace_root_identifier_with_getter(
+                    &call.callee,
+                    original_id,
+                    replacement,
+                )),
+                arguments: call.arguments.clone(),
+                optional: call.optional,
             })
         }
         JsExpr::Identifier(name) => {

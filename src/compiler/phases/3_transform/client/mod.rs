@@ -4653,8 +4653,13 @@ fn transform_state_assignments(
                     continue;
                 }
 
-                // Check it's not already wrapped
-                if !expr.starts_with("$.") {
+                // Check it's not already wrapped in a $.set() call
+                // Note: We must NOT skip expressions that start with $.
+                // because legitimate RHS values like $.effect_tracking(), $.get(x),
+                // $.proxy(x) etc. should still be wrapped in $.set().
+                // The "already wrapped" check ($.set(var, ...)) is done above at the
+                // `before` prefix check.
+                if !expr.starts_with("$.set(") {
                     // DON'T wrap state variables here - let the later wrap_state_vars_in_expr
                     // call handle it, since that call has the full statement context and can
                     // properly detect function parameter shadowing.
