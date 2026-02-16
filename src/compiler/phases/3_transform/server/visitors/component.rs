@@ -5,7 +5,7 @@ use super::super::helpers::{
     get_let_directives, get_slot_name, is_valid_js_identifier, quote_prop_name,
     strip_ts_type_annotation,
 };
-use super::super::types::{ComponentPropItem, OutputPart};
+use super::super::types::{ComponentBinding, ComponentPropItem, OutputPart};
 use crate::ast::template::{Attribute, AttributeValue, Component, Fragment, TemplateNode};
 use crate::compiler::phases::phase3_transform::TransformError;
 use rustc_hash::FxHashMap;
@@ -157,15 +157,67 @@ impl<'a> ServerCodeGenerator<'a> {
                     if prop_name == "this" {
                         continue;
                     }
-                    let expr_start = bind.expression.start().unwrap_or(0) as usize;
-                    let expr_end = bind.expression.end().unwrap_or(0) as usize;
-                    if expr_end > expr_start && expr_end <= self.source.len() {
-                        let mut var_name = self.source[expr_start..expr_end].trim().to_string();
-                        // Handle shorthand bindings where span might include "bind:"
-                        if let Some(stripped) = var_name.strip_prefix("bind:") {
-                            var_name = stripped.to_string();
+
+                    // Check if the expression is a SequenceExpression (getter/setter pair)
+                    let expr_json = bind.expression.as_json();
+                    let expr_type = expr_json.get("type").and_then(|t| t.as_str()).unwrap_or("");
+
+                    if expr_type == "SequenceExpression" {
+                        // Extract getter and setter from the SequenceExpression
+                        if let Some(expressions) = expr_json
+                            .get("expressions")
+                            .and_then(|e| e.as_array())
+                            .filter(|e| e.len() >= 2)
+                        {
+                            let getter_start = expressions[0]
+                                .get("start")
+                                .and_then(|s| s.as_u64())
+                                .unwrap_or(0)
+                                as usize;
+                            let getter_end = expressions[0]
+                                .get("end")
+                                .and_then(|s| s.as_u64())
+                                .unwrap_or(0) as usize;
+                            let setter_start = expressions[1]
+                                .get("start")
+                                .and_then(|s| s.as_u64())
+                                .unwrap_or(0)
+                                as usize;
+                            let setter_end = expressions[1]
+                                .get("end")
+                                .and_then(|s| s.as_u64())
+                                .unwrap_or(0) as usize;
+
+                            if getter_end > getter_start
+                                && getter_end <= self.source.len()
+                                && setter_end > setter_start
+                                && setter_end <= self.source.len()
+                            {
+                                let getter_expr =
+                                    self.source[getter_start..getter_end].trim().to_string();
+                                let setter_expr =
+                                    self.source[setter_start..setter_end].trim().to_string();
+                                bindings.push(ComponentBinding::SequenceExpression {
+                                    prop_name: prop_name.to_string(),
+                                    getter_expr,
+                                    setter_expr,
+                                });
+                            }
                         }
-                        bindings.push((prop_name.to_string(), var_name));
+                    } else {
+                        let expr_start = bind.expression.start().unwrap_or(0) as usize;
+                        let expr_end = bind.expression.end().unwrap_or(0) as usize;
+                        if expr_end > expr_start && expr_end <= self.source.len() {
+                            let mut var_name = self.source[expr_start..expr_end].trim().to_string();
+                            // Handle shorthand bindings where span might include "bind:"
+                            if let Some(stripped) = var_name.strip_prefix("bind:") {
+                                var_name = stripped.to_string();
+                            }
+                            bindings.push(ComponentBinding::Simple {
+                                prop_name: prop_name.to_string(),
+                                var_name,
+                            });
+                        }
                     }
                 }
                 _ => {}

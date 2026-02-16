@@ -2,7 +2,7 @@
 
 use super::super::ServerCodeGenerator;
 use super::super::helpers::quote_prop_name;
-use super::super::types::{ComponentPropItem, OutputPart};
+use super::super::types::{ComponentBinding, ComponentPropItem, OutputPart};
 use crate::ast::template::{Attribute, SvelteComponentElement, SvelteElement};
 use crate::compiler::phases::phase3_transform::TransformError;
 
@@ -37,7 +37,7 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Build interleaved props/spreads and bindings from attributes
         let mut props_and_spreads: Vec<ComponentPropItem> = Vec::new();
-        let mut bindings: Vec<(String, String)> = Vec::new();
+        let mut bindings: Vec<ComponentBinding> = Vec::new();
         for attr in &elem.attributes {
             match attr {
                 Attribute::Attribute(node) => {
@@ -69,7 +69,10 @@ impl<'a> ServerCodeGenerator<'a> {
                         if let Some(stripped) = var_name.strip_prefix("bind:") {
                             var_name = stripped.to_string();
                         }
-                        bindings.push((bind_name.to_string(), var_name));
+                        bindings.push(ComponentBinding::Simple {
+                            prop_name: bind_name.to_string(),
+                            var_name,
+                        });
                     }
                 }
                 _ => {}
@@ -128,7 +131,7 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Build interleaved props/spreads and bindings from attributes
         let mut props_and_spreads: Vec<ComponentPropItem> = Vec::new();
-        let mut bindings: Vec<(String, String)> = Vec::new();
+        let mut bindings: Vec<ComponentBinding> = Vec::new();
         for attr in &elem.attributes {
             match attr {
                 Attribute::Attribute(node) => {
@@ -159,7 +162,10 @@ impl<'a> ServerCodeGenerator<'a> {
                         if let Some(stripped) = var_name.strip_prefix("bind:") {
                             var_name = stripped.to_string();
                         }
-                        bindings.push((bind_name.to_string(), var_name));
+                        bindings.push(ComponentBinding::Simple {
+                            prop_name: bind_name.to_string(),
+                            var_name,
+                        });
                     }
                 }
                 _ => {}

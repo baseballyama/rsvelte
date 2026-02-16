@@ -296,6 +296,28 @@ impl<'a> ServerCodeGenerator<'a> {
         result
     }
 
+    /// Collect store subscription names from the analysis.
+    /// Returns a list of (store_ref, store_name) pairs like ("$a", "a").
+    pub(crate) fn get_store_sub_names(&self) -> Vec<(String, String)> {
+        if !self.uses_store_subs {
+            return Vec::new();
+        }
+
+        let analysis = match self.analysis {
+            Some(a) => a,
+            None => return Vec::new(),
+        };
+
+        analysis
+            .root
+            .bindings
+            .iter()
+            .filter(|b| matches!(b.kind, BindingKind::StoreSub))
+            .filter(|b| b.name.starts_with('$'))
+            .map(|b| (b.name.clone(), b.name[1..].to_string()))
+            .collect()
+    }
+
     /// Check if a fragment is "standalone" (contains only a single RenderTag or Component).
     /// When standalone, hydration boundaries can be skipped because the parent's anchors are sufficient.
     pub(crate) fn is_standalone_fragment(nodes: &[TemplateNode]) -> bool {
@@ -318,12 +340,21 @@ impl<'a> ServerCodeGenerator<'a> {
             })
             .collect();
 
-        // Standalone if there's exactly one node and it's a RenderTag or Component
-        meaningful_nodes.len() == 1
-            && matches!(
-                meaningful_nodes[0],
-                TemplateNode::RenderTag(_) | TemplateNode::Component(_)
-            )
+        // Standalone if there's exactly one node and it's a non-dynamic RenderTag or Component
+        // (matching official compiler's clean_nodes logic)
+        if meaningful_nodes.len() != 1 {
+            return false;
+        }
+        match meaningful_nodes[0] {
+            TemplateNode::RenderTag(tag) => !tag.metadata.dynamic,
+            TemplateNode::Component(comp) => {
+                !comp.metadata.dynamic
+                    && !comp.attributes.iter().any(|attr| {
+                        matches!(attr, crate::ast::template::Attribute::Attribute(a) if a.name.starts_with("--"))
+                    })
+            }
+            _ => false,
+        }
     }
 
     pub(crate) fn generate_component(&mut self, fragment: &Fragment) -> Result<(), TransformError> {

@@ -6790,11 +6790,35 @@ fn convert_object_pattern(
     obj.insert("end".to_string(), Value::Number((end as i64).into()));
     obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
 
-    let properties: Vec<Value> = obj_pat
+    let mut properties: Vec<Value> = obj_pat
         .properties
         .iter()
         .map(|prop| convert_binding_property(prop, offset, line_offsets))
         .collect();
+
+    // Handle rest element if present (e.g., `...others` in `{ foo, ...others }`)
+    if let Some(rest) = &obj_pat.rest {
+        let rest_start = offset + rest.span.start as usize;
+        let rest_end = offset + rest.span.end as usize;
+
+        let mut rest_obj = Map::new();
+        rest_obj.insert("type".to_string(), Value::String("RestElement".to_string()));
+        rest_obj.insert(
+            "start".to_string(),
+            Value::Number((rest_start as i64).into()),
+        );
+        rest_obj.insert("end".to_string(), Value::Number((rest_end as i64).into()));
+        rest_obj.insert(
+            "loc".to_string(),
+            create_loc(rest_start, rest_end, line_offsets),
+        );
+        rest_obj.insert(
+            "argument".to_string(),
+            convert_binding_pattern(&rest.argument, offset, line_offsets),
+        );
+        properties.push(Value::Object(rest_obj));
+    }
+
     obj.insert("properties".to_string(), Value::Array(properties));
 
     Value::Object(obj)
@@ -7452,13 +7476,42 @@ fn convert_object_pattern_with_adjustment(
         create_loc_for_binding(start, end, line_offsets),
     );
 
-    let properties: Vec<Value> = obj_pat
+    let mut properties: Vec<Value> = obj_pat
         .properties
         .iter()
         .map(|prop| {
             convert_binding_property_with_adjustment(prop, doc_offset, prefix_len, line_offsets)
         })
         .collect();
+
+    // Handle rest element if present (e.g., `...others` in `{ foo, ...others }`)
+    if let Some(rest) = &obj_pat.rest {
+        let rest_start = doc_offset + rest.span.start as usize - prefix_len;
+        let rest_end = doc_offset + rest.span.end as usize - prefix_len;
+
+        let mut rest_obj = Map::new();
+        rest_obj.insert("type".to_string(), Value::String("RestElement".to_string()));
+        rest_obj.insert(
+            "start".to_string(),
+            Value::Number((rest_start as i64).into()),
+        );
+        rest_obj.insert("end".to_string(), Value::Number((rest_end as i64).into()));
+        rest_obj.insert(
+            "loc".to_string(),
+            create_loc_for_binding(rest_start, rest_end, line_offsets),
+        );
+        rest_obj.insert(
+            "argument".to_string(),
+            convert_binding_pattern_with_adjustment(
+                &rest.argument,
+                doc_offset,
+                prefix_len,
+                line_offsets,
+            ),
+        );
+        properties.push(Value::Object(rest_obj));
+    }
+
     obj.insert("properties".to_string(), Value::Array(properties));
 
     Value::Object(obj)

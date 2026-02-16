@@ -152,12 +152,19 @@ impl Parser<'_> {
         // Pass any pending leading comments (HTML comments before the script tag)
         // Also pass the script tag start and end positions for loc calculation
         // (Svelte uses locator(start) for loc.start and locator(parser.index) for loc.end)
+        //
+        // Use self.ts (global TypeScript mode) OR local is_typescript flag.
+        // In the official Svelte compiler, if ANY script tag has lang="ts", ALL scripts
+        // are parsed as TypeScript (parser.ts is set once globally in the constructor).
+        // This is important because instance scripts may use TypeScript syntax like
+        // `import type { Foo }` without having their own lang="ts" attribute.
+        let use_typescript = self.ts || is_typescript;
         let leading_comments = std::mem::take(&mut self.pending_leading_comments);
         let program = super::super::expression::parse_program(
             script_content,
             content_start,
             &self.line_offsets,
-            is_typescript,
+            use_typescript,
             &leading_comments,
             start, // Script tag start position for loc.start
             end,   // Script tag end position (after </script>) for loc.end

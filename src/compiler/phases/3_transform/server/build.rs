@@ -5,13 +5,26 @@
 use super::super::js_ast::normalize_js;
 use super::ServerCodeGenerator;
 use super::helpers::*;
-use super::types::{ComponentPropItem, OutputPart, collect_all_props, has_spreads};
+use super::transform_store::{transform_binding_getter, transform_binding_setter};
+use super::types::{
+    ComponentBinding, ComponentPropItem, OutputPart, collect_all_props, has_spreads,
+};
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn build(self) -> String {
+        let store_subs = self.get_store_sub_names();
+        let store_subs_ref: Vec<(&str, &str)> = store_subs
+            .iter()
+            .map(|(a, b)| (a.as_str(), b.as_str()))
+            .collect();
         let mut each_counter: usize = 0;
-        let body_code = Self::build_parts(&self.output_parts, 1, &mut each_counter);
+        let body_code = Self::build_parts_with_store_subs(
+            &self.output_parts,
+            1,
+            &mut each_counter,
+            &store_subs_ref,
+        );
 
         // Process module script content (context="module") if present
         // Module script runs at module level, outside the component function
@@ -195,7 +208,12 @@ impl<'a> ServerCodeGenerator<'a> {
                 // Wrap in $$renderer.component() with proper destructuring
                 let inner_script = transform_props_spread(&script_code);
                 let mut each_counter: usize = 0;
-                let inner_body = Self::build_parts(&self.output_parts, 2, &mut each_counter);
+                let inner_body = Self::build_parts_with_store_subs(
+                    &self.output_parts,
+                    2,
+                    &mut each_counter,
+                    &store_subs_ref,
+                );
                 // Build instance-level snippets (cannot be hoisted)
                 let instance_snippets = self.build_instance_snippets(2);
                 // Build $.bind_props() call (inside $$renderer.component())
@@ -211,6 +229,29 @@ impl<'a> ServerCodeGenerator<'a> {
                     "\n\t\tif ($$store_subs) $.unsubscribe_stores($$store_subs);\n"
                 } else {
                     ""
+                };
+
+                // If the component uses component bindings, wrap the inner body in $$settled/$$render_inner
+                let inner_body = if uses_component_bindings {
+                    format!(
+                        r#"		let $$settled = true;
+		let $$inner_renderer;
+
+		function $$render_inner($$renderer) {{
+{body_code}		}}
+
+		do {{
+			$$settled = true;
+			$$inner_renderer = $$renderer.copy();
+			$$render_inner($$inner_renderer);
+		}} while (!$$settled);
+
+		$$renderer.subsume($$inner_renderer);
+"#,
+                        body_code = inner_body.replace("\t\t", "\t\t\t") // Increase indentation by 1 tab
+                    )
+                } else {
+                    inner_body
                 };
 
                 format!(
@@ -337,10 +378,11 @@ export default function {component_name}($$renderer{props_param}) {{
         }
     }
 
-    pub(crate) fn build_parts(
+    pub(crate) fn build_parts_with_store_subs(
         parts: &[OutputPart],
         indent_level: usize,
         each_counter: &mut usize,
+        store_subs: &[(&str, &str)],
     ) -> String {
         let mut body_code = String::new();
         let mut current_html = String::new();
@@ -427,16 +469,31 @@ export default function {component_name}($$renderer{props_param}) {{
                         body_code.push_str(&format!("{}\t{{\n", indent));
 
                         let binding_count = bindings.len();
-                        for (idx, (prop_name, var_name)) in bindings.iter().enumerate() {
+                        for (idx, binding) in bindings.iter().enumerate() {
+                            let (prop_name, getter_expr, setter_expr) = match binding {
+                                ComponentBinding::Simple {
+                                    prop_name,
+                                    var_name,
+                                } => (
+                                    prop_name.as_str(),
+                                    transform_binding_getter(var_name, store_subs),
+                                    transform_binding_setter(var_name, store_subs),
+                                ),
+                                ComponentBinding::SequenceExpression {
+                                    prop_name,
+                                    getter_expr,
+                                    setter_expr,
+                                } => (prop_name.as_str(), getter_expr.clone(), setter_expr.clone()),
+                            };
                             body_code.push_str(&format!("{}\t\tget {}() {{\n", indent, prop_name));
-                            body_code.push_str(&format!("{}\t\t\treturn {};\n", indent, var_name));
+                            body_code
+                                .push_str(&format!("{}\t\t\treturn {};\n", indent, getter_expr));
                             body_code.push_str(&format!("{}\t\t}},\n\n", indent));
                             body_code.push_str(&format!(
                                 "{}\t\tset {}($$value) {{\n",
                                 indent, prop_name
                             ));
-                            body_code
-                                .push_str(&format!("{}\t\t\t{} = $$value;\n", indent, var_name));
+                            body_code.push_str(&format!("{}\t\t\t{};\n", indent, setter_expr));
                             body_code.push_str(&format!("{}\t\t\t$$settled = false;\n", indent));
                             if idx < binding_count - 1 {
                                 body_code.push_str(&format!("{}\t\t}},\n\n", indent));
@@ -462,13 +519,28 @@ export default function {component_name}($$renderer{props_param}) {{
 
                         // Generate getter/setter for each binding
                         let binding_count = bindings.len();
-                        for (idx, (prop_name, var_name)) in bindings.iter().enumerate() {
+                        for (idx, binding) in bindings.iter().enumerate() {
+                            let (prop_name, getter_expr, setter_expr) = match binding {
+                                ComponentBinding::Simple {
+                                    prop_name,
+                                    var_name,
+                                } => (
+                                    prop_name.as_str(),
+                                    transform_binding_getter(var_name, store_subs),
+                                    transform_binding_setter(var_name, store_subs),
+                                ),
+                                ComponentBinding::SequenceExpression {
+                                    prop_name,
+                                    getter_expr,
+                                    setter_expr,
+                                } => (prop_name.as_str(), getter_expr.clone(), setter_expr.clone()),
+                            };
                             body_code.push_str(&format!("{}\tget {}() {{\n", indent, prop_name));
-                            body_code.push_str(&format!("{}\t\treturn {};\n", indent, var_name));
+                            body_code.push_str(&format!("{}\t\treturn {};\n", indent, getter_expr));
                             body_code.push_str(&format!("{}\t}},\n\n", indent));
                             body_code
                                 .push_str(&format!("{}\tset {}($$value) {{\n", indent, prop_name));
-                            body_code.push_str(&format!("{}\t\t{} = $$value;\n", indent, var_name));
+                            body_code.push_str(&format!("{}\t\t{};\n", indent, setter_expr));
                             body_code.push_str(&format!("{}\t\t$$settled = false;\n", indent));
                             if idx < binding_count - 1 {
                                 // Trailing comma + blank line between binding pairs
@@ -555,8 +627,12 @@ export default function {component_name}($$renderer{props_param}) {{
                                     "{}\tfunction {}({}) {{\n",
                                     indent, snippet_name, params_str
                                 ));
-                                let snippet_body =
-                                    Self::build_parts(body_parts, indent_level + 2, each_counter);
+                                let snippet_body = Self::build_parts_with_store_subs(
+                                    body_parts,
+                                    indent_level + 2,
+                                    each_counter,
+                                    store_subs,
+                                );
                                 body_code.push_str(&snippet_body);
                                 body_code.push_str(&format!("{}\t}}\n\n", indent));
                             }
@@ -584,7 +660,12 @@ export default function {component_name}($$renderer{props_param}) {{
                                     slot_children.iter().find(|(n, _, _, _)| n == slot_name)
                                 {
                                     // Inline function with optional destructured params
-                                    let fn_body = Self::build_parts(body_parts, 0, each_counter);
+                                    let fn_body = Self::build_parts_with_store_subs(
+                                        body_parts,
+                                        0,
+                                        each_counter,
+                                        store_subs,
+                                    );
                                     let fn_body_trimmed = fn_body.trim();
                                     if params.is_empty() {
                                         slots_entries.push(format!(
@@ -636,8 +717,12 @@ export default function {component_name}($$renderer{props_param}) {{
                             body_code.push_str(&format!("{}\t$$slots: {{\n", indent));
                             for (slot_name, params, body_parts, _) in &slot_children {
                                 let quoted_name = quote_prop_name(slot_name);
-                                let fn_body =
-                                    Self::build_parts(body_parts, indent_level + 3, each_counter);
+                                let fn_body = Self::build_parts_with_store_subs(
+                                    body_parts,
+                                    indent_level + 3,
+                                    each_counter,
+                                    store_subs,
+                                );
                                 if params.is_empty() {
                                     body_code.push_str(&format!(
                                         "{}\t\t{}: ($$renderer) => {{\n{}",
@@ -688,10 +773,11 @@ export default function {component_name}($$renderer{props_param}) {{
                                     "{}\t\tdefault: ($$renderer, {}) => {{\n",
                                     indent, params_str
                                 ));
-                                let children_code = Self::build_parts(
+                                let children_code = Self::build_parts_with_store_subs(
                                     children_parts,
                                     indent_level + 3,
                                     each_counter,
+                                    store_subs,
                                 );
                                 body_code.push_str(&children_code);
                                 body_code.push_str(&format!("{}\t\t}},\n", indent));
@@ -699,10 +785,11 @@ export default function {component_name}($$renderer{props_param}) {{
                                 // Named slot children
                                 for (slot_name, params, body_parts, _) in &slot_children {
                                     let quoted_name = quote_prop_name(slot_name);
-                                    let fn_body = Self::build_parts(
+                                    let fn_body = Self::build_parts_with_store_subs(
                                         body_parts,
                                         indent_level + 3,
                                         each_counter,
+                                        store_subs,
                                     );
                                     if params.is_empty() {
                                         body_code.push_str(&format!(
@@ -726,10 +813,11 @@ export default function {component_name}($$renderer{props_param}) {{
                                     "{}\tchildren: ($$renderer) => {{\n",
                                     indent
                                 ));
-                                let children_code = Self::build_parts(
+                                let children_code = Self::build_parts_with_store_subs(
                                     children_parts,
                                     indent_level + 2,
                                     each_counter,
+                                    store_subs,
                                 );
                                 body_code.push_str(&children_code);
                                 body_code.push_str(&format!("{}\t}},\n", indent));
@@ -740,10 +828,11 @@ export default function {component_name}($$renderer{props_param}) {{
                                     body_code.push_str(&format!("{}\t\tdefault: true,\n", indent));
                                     for (slot_name, params, body_parts, _) in &slot_children {
                                         let quoted_name = quote_prop_name(slot_name);
-                                        let fn_body = Self::build_parts(
+                                        let fn_body = Self::build_parts_with_store_subs(
                                             body_parts,
                                             indent_level + 3,
                                             each_counter,
+                                            store_subs,
                                         );
                                         if params.is_empty() {
                                             body_code.push_str(&format!(
@@ -909,8 +998,12 @@ export default function {component_name}($$renderer{props_param}) {{
                         }
 
                         // Body
-                        let body_code_inner =
-                            Self::build_parts(body, indent_level + 2, each_counter);
+                        let body_code_inner = Self::build_parts_with_store_subs(
+                            body,
+                            indent_level + 2,
+                            each_counter,
+                            store_subs,
+                        );
                         body_code.push_str(&body_code_inner);
 
                         // Close for loop
@@ -923,8 +1016,12 @@ export default function {component_name}($$renderer{props_param}) {{
 
                         // Fallback body
                         if let Some(fb) = fallback {
-                            let fallback_code =
-                                Self::build_parts(fb, indent_level + 1, each_counter);
+                            let fallback_code = Self::build_parts_with_store_subs(
+                                fb,
+                                indent_level + 1,
+                                each_counter,
+                                store_subs,
+                            );
                             body_code.push_str(&fallback_code);
                         }
 
@@ -959,8 +1056,12 @@ export default function {component_name}($$renderer{props_param}) {{
                         }
 
                         // Body
-                        let body_code_inner =
-                            Self::build_parts(body, indent_level + 1, each_counter);
+                        let body_code_inner = Self::build_parts_with_store_subs(
+                            body,
+                            indent_level + 1,
+                            each_counter,
+                            store_subs,
+                        );
                         body_code.push_str(&body_code_inner);
 
                         // Close for loop
@@ -989,6 +1090,7 @@ export default function {component_name}($$renderer{props_param}) {{
                         alternate_body,
                         indent_level,
                         each_counter,
+                        store_subs,
                     );
                     body_code.push_str(&if_code);
 
@@ -1030,8 +1132,12 @@ export default function {component_name}($$renderer{props_param}) {{
                             ));
 
                             // Generate body content
-                            let body_code_inner =
-                                Self::build_parts(body, indent_level + 1, each_counter);
+                            let body_code_inner = Self::build_parts_with_store_subs(
+                                body,
+                                indent_level + 1,
+                                each_counter,
+                                store_subs,
+                            );
                             body_code.push_str(&body_code_inner);
 
                             body_code.push_str(&format!("{}}});\n", indent));
@@ -1065,7 +1171,12 @@ export default function {component_name}($$renderer{props_param}) {{
                     }
 
                     // Body
-                    let body_code_inner = Self::build_parts(body, indent_level + 2, each_counter);
+                    let body_code_inner = Self::build_parts_with_store_subs(
+                        body,
+                        indent_level + 2,
+                        each_counter,
+                        store_subs,
+                    );
                     body_code.push_str(&body_code_inner);
 
                     // Close callback with optional css_hash, classes, styles, flags and is_rich arguments
@@ -1128,8 +1239,12 @@ export default function {component_name}($$renderer{props_param}) {{
                         ));
 
                         // Body
-                        let body_code_inner =
-                            Self::build_parts(body, indent_level + 2, each_counter);
+                        let body_code_inner = Self::build_parts_with_store_subs(
+                            body,
+                            indent_level + 2,
+                            each_counter,
+                            store_subs,
+                        );
                         body_code.push_str(&body_code_inner);
 
                         // Close callback with remaining args
@@ -1145,8 +1260,12 @@ export default function {component_name}($$renderer{props_param}) {{
                         ));
 
                         // Body
-                        let body_code_inner =
-                            Self::build_parts(body, indent_level + 2, each_counter);
+                        let body_code_inner = Self::build_parts_with_store_subs(
+                            body,
+                            indent_level + 2,
+                            each_counter,
+                            store_subs,
+                        );
                         body_code.push_str(&body_code_inner);
 
                         // Close callback with CSS hash
@@ -1161,8 +1280,12 @@ export default function {component_name}($$renderer{props_param}) {{
                         ));
 
                         // Body
-                        let body_code_inner =
-                            Self::build_parts(body, indent_level + 1, each_counter);
+                        let body_code_inner = Self::build_parts_with_store_subs(
+                            body,
+                            indent_level + 1,
+                            each_counter,
+                            store_subs,
+                        );
                         body_code.push_str(&body_code_inner);
 
                         // Close callback
@@ -1196,8 +1319,12 @@ export default function {component_name}($$renderer{props_param}) {{
                         body_code.push_str(&format!("{}\t() => {{}},\n", indent));
                     } else {
                         body_code.push_str(&format!("{}\t() => {{\n", indent));
-                        let pending_code =
-                            Self::build_parts(pending_body, indent_level + 2, each_counter);
+                        let pending_code = Self::build_parts_with_store_subs(
+                            pending_body,
+                            indent_level + 2,
+                            each_counter,
+                            store_subs,
+                        );
                         body_code.push_str(&pending_code);
                         body_code.push_str(&format!("{}\t}},\n", indent));
                     }
@@ -1215,8 +1342,12 @@ export default function {component_name}($$renderer{props_param}) {{
                         } else {
                             body_code.push_str(&format!("{}\t({}) => {{\n", indent, then_param));
                         }
-                        let then_code =
-                            Self::build_parts(then_body, indent_level + 2, each_counter);
+                        let then_code = Self::build_parts_with_store_subs(
+                            then_body,
+                            indent_level + 2,
+                            each_counter,
+                            store_subs,
+                        );
                         body_code.push_str(&then_code);
                         body_code.push_str(&format!("{}\t}}", indent));
                     }
@@ -1247,8 +1378,12 @@ export default function {component_name}($$renderer{props_param}) {{
                     // Render the body in a block (always add block even if empty)
                     body_code.push_str(&format!("{}{{\n", indent));
                     if !body.is_empty() {
-                        let body_code_inner =
-                            Self::build_parts(body, indent_level + 1, each_counter);
+                        let body_code_inner = Self::build_parts_with_store_subs(
+                            body,
+                            indent_level + 1,
+                            each_counter,
+                            store_subs,
+                        );
                         body_code.push_str(&body_code_inner);
                     }
                     body_code.push_str(&format!("{}}}\n\n", indent));
@@ -1271,8 +1406,12 @@ export default function {component_name}($$renderer{props_param}) {{
                     ));
 
                     if !body.is_empty() {
-                        let body_code_inner =
-                            Self::build_parts(body, indent_level + 1, each_counter);
+                        let body_code_inner = Self::build_parts_with_store_subs(
+                            body,
+                            indent_level + 1,
+                            each_counter,
+                            store_subs,
+                        );
                         body_code.push_str(&body_code_inner);
                     }
 
@@ -1290,8 +1429,12 @@ export default function {component_name}($$renderer{props_param}) {{
                     body_code.push_str(&format!("{}$$renderer.title(($$renderer) => {{\n", indent));
 
                     if !body.is_empty() {
-                        let body_code_inner =
-                            Self::build_parts(body, indent_level + 1, each_counter);
+                        let body_code_inner = Self::build_parts_with_store_subs(
+                            body,
+                            indent_level + 1,
+                            each_counter,
+                            store_subs,
+                        );
                         body_code.push_str(&body_code_inner);
                     }
 
@@ -1373,8 +1516,12 @@ export default function {component_name}($$renderer{props_param}) {{
                     // Generate the block scope
                     body_code.push_str(&format!("{}{{\n", indent));
                     if !body.is_empty() {
-                        let body_code_inner =
-                            Self::build_parts(body, indent_level + 1, each_counter);
+                        let body_code_inner = Self::build_parts_with_store_subs(
+                            body,
+                            indent_level + 1,
+                            each_counter,
+                            store_subs,
+                        );
                         body_code.push_str(&body_code_inner);
                     }
                     body_code.push_str(&format!("{}}}\n", indent));
@@ -1416,7 +1563,12 @@ export default function {component_name}($$renderer{props_param}) {{
 
                     // Generate body
                     if !body.is_empty() {
-                        let body_inner = Self::build_parts(body, indent_level + 1, each_counter);
+                        let body_inner = Self::build_parts_with_store_subs(
+                            body,
+                            indent_level + 1,
+                            each_counter,
+                            store_subs,
+                        );
                         body_code.push_str(&body_inner);
                     }
 
@@ -1443,6 +1595,7 @@ export default function {component_name}($$renderer{props_param}) {{
         alternate_body: &Option<Vec<OutputPart>>,
         indent_level: usize,
         each_counter: &mut usize,
+        store_subs: &[(&str, &str)],
     ) -> String {
         let mut code = String::new();
         let indent = "\t".repeat(indent_level);
@@ -1454,7 +1607,12 @@ export default function {component_name}($$renderer{props_param}) {{
         code.push_str(&format!("{}\t$$renderer.push('<!--[-->');\n", indent));
 
         // Generate consequent body
-        let consequent_code = Self::build_parts(consequent_body, indent_level + 1, each_counter);
+        let consequent_code = Self::build_parts_with_store_subs(
+            consequent_body,
+            indent_level + 1,
+            each_counter,
+            store_subs,
+        );
         code.push_str(&consequent_code);
 
         // Close consequent block
@@ -1483,6 +1641,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     nested_alternate,
                     indent_level + 1,
                     each_counter,
+                    store_subs,
                 );
                 code.push_str(&nested_if_code);
                 code.push('\n');
@@ -1503,7 +1662,12 @@ export default function {component_name}($$renderer{props_param}) {{
             code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n", indent));
 
             // Generate alternate body
-            let alternate_code = Self::build_parts(alt_body, indent_level + 1, each_counter);
+            let alternate_code = Self::build_parts_with_store_subs(
+                alt_body,
+                indent_level + 1,
+                each_counter,
+                store_subs,
+            );
             code.push_str(&alternate_code);
 
             // Close else block
@@ -1538,8 +1702,18 @@ export default function {component_name}($$renderer{props_param}) {{
             result.push_str(&format!("function {}({}) {{\n", snippet.name, params));
 
             // Generate body - snippets have their own counter scope
+            let store_subs = self.get_store_sub_names();
+            let store_subs_ref: Vec<(&str, &str)> = store_subs
+                .iter()
+                .map(|(a, b)| (a.as_str(), b.as_str()))
+                .collect();
             let mut snippet_counter: usize = 0;
-            let body = Self::build_parts(&snippet.body_parts, 1, &mut snippet_counter);
+            let body = Self::build_parts_with_store_subs(
+                &snippet.body_parts,
+                1,
+                &mut snippet_counter,
+                &store_subs_ref,
+            );
             result.push_str(&body);
 
             result.push_str("}\n\n");
@@ -1572,9 +1746,18 @@ export default function {component_name}($$renderer{props_param}) {{
             ));
 
             // Generate body - snippets have their own counter scope
+            let store_subs = self.get_store_sub_names();
+            let store_subs_ref: Vec<(&str, &str)> = store_subs
+                .iter()
+                .map(|(a, b)| (a.as_str(), b.as_str()))
+                .collect();
             let mut snippet_counter: usize = 0;
-            let body =
-                Self::build_parts(&snippet.body_parts, indent_level + 1, &mut snippet_counter);
+            let body = Self::build_parts_with_store_subs(
+                &snippet.body_parts,
+                indent_level + 1,
+                &mut snippet_counter,
+                &store_subs_ref,
+            );
             result.push_str(&body);
 
             result.push_str(&format!("{}}}\n\n", indent));

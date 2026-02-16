@@ -165,6 +165,20 @@ pub struct AsyncConsts {
     pub thunks: Vec<JsExpr>,
 }
 
+/// A component binding - either a simple variable binding or a sequence expression binding (getter/setter pair).
+#[derive(Debug)]
+pub(crate) enum ComponentBinding {
+    /// Simple binding: `bind:prop={variable}` or `bind:prop={$store.field}`
+    Simple { prop_name: String, var_name: String },
+    /// Sequence expression binding: `bind:prop={() => val, (v) => { val = v }}`
+    /// The getter and setter are extracted from the SequenceExpression.
+    SequenceExpression {
+        prop_name: String,
+        getter_expr: String,
+        setter_expr: String,
+    },
+}
+
 /// A part of the output - either static HTML or dynamic code.
 #[derive(Debug)]
 pub(crate) enum OutputPart {
@@ -201,7 +215,7 @@ pub(crate) enum OutputPart {
         name: String,
         /// Interleaved props and spreads, preserving source order.
         props_and_spreads: Vec<ComponentPropItem>,
-        bindings: Vec<(String, String)>, // (prop_name, variable_name)
+        bindings: Vec<ComponentBinding>,
         #[allow(dead_code)]
         // Always true for component bindings - comment marker handled in build_parts
         has_prior_content: bool,

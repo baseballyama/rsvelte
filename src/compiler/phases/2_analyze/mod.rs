@@ -148,7 +148,20 @@ pub fn analyze_component(
                     json_has_rune_reference(val)
                 })
                 .unwrap_or(false);
-        if has_rune_bindings || fragment_has_await || instance_has_await || has_rune_references {
+        // Also check the template fragment for rune references.
+        // This is needed for template-only components (no script tags) that use
+        // rune references like {$effect.tracking()}.
+        // In the official Svelte compiler, unresolved references bubble up through
+        // the scope chain to the module scope, which is checked for rune names.
+        // Our scope model doesn't do this bubbling, so we explicitly check the
+        // template fragment here.
+        let template_has_rune_references = fragment_has_rune_reference(&ast.fragment);
+        if has_rune_bindings
+            || fragment_has_await
+            || instance_has_await
+            || has_rune_references
+            || template_has_rune_references
+        {
             analysis.runes = true;
         }
     }
@@ -1350,6 +1363,194 @@ fn json_has_rune_reference(node: &serde_json::Value) -> bool {
     }
 
     false
+}
+
+/// Check if a template fragment contains rune references.
+///
+/// This is needed for template-only components (no script tags) that use rune
+/// references like `{$effect.tracking()}`. The official Svelte compiler detects
+/// these because unresolved references bubble up through the scope chain to the
+/// module scope, which is checked for rune references. Our scope model doesn't
+/// do this bubbling, so we need to explicitly check the template fragment.
+fn fragment_has_rune_reference(fragment: &crate::ast::template::Fragment) -> bool {
+    for node in &fragment.nodes {
+        if node_has_rune_reference(node) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Check if a template node contains a rune reference.
+fn node_has_rune_reference(node: &crate::ast::template::TemplateNode) -> bool {
+    use crate::ast::template::TemplateNode;
+
+    match node {
+        TemplateNode::ExpressionTag(tag) => expression_has_rune_reference(&tag.expression),
+        TemplateNode::RegularElement(elem) => {
+            for attr in &elem.attributes {
+                if attribute_has_rune_reference(attr) {
+                    return true;
+                }
+            }
+            fragment_has_rune_reference(&elem.fragment)
+        }
+        TemplateNode::Component(comp) => {
+            for attr in &comp.attributes {
+                if attribute_has_rune_reference(attr) {
+                    return true;
+                }
+            }
+            fragment_has_rune_reference(&comp.fragment)
+        }
+        TemplateNode::IfBlock(block) => {
+            if expression_has_rune_reference(&block.test) {
+                return true;
+            }
+            if fragment_has_rune_reference(&block.consequent) {
+                return true;
+            }
+            if let Some(ref alternate) = block.alternate
+                && fragment_has_rune_reference(alternate)
+            {
+                return true;
+            }
+            false
+        }
+        TemplateNode::EachBlock(block) => {
+            if expression_has_rune_reference(&block.expression) {
+                return true;
+            }
+            if fragment_has_rune_reference(&block.body) {
+                return true;
+            }
+            if let Some(ref fallback) = block.fallback
+                && fragment_has_rune_reference(fallback)
+            {
+                return true;
+            }
+            false
+        }
+        TemplateNode::KeyBlock(block) => {
+            if expression_has_rune_reference(&block.expression) {
+                return true;
+            }
+            fragment_has_rune_reference(&block.fragment)
+        }
+        TemplateNode::AwaitBlock(block) => {
+            if expression_has_rune_reference(&block.expression) {
+                return true;
+            }
+            if let Some(ref pending) = block.pending
+                && fragment_has_rune_reference(pending)
+            {
+                return true;
+            }
+            if let Some(ref then) = block.then
+                && fragment_has_rune_reference(then)
+            {
+                return true;
+            }
+            if let Some(ref catch) = block.catch
+                && fragment_has_rune_reference(catch)
+            {
+                return true;
+            }
+            false
+        }
+        TemplateNode::SnippetBlock(block) => fragment_has_rune_reference(&block.body),
+        TemplateNode::SvelteBoundary(elem)
+        | TemplateNode::SvelteBody(elem)
+        | TemplateNode::SvelteDocument(elem)
+        | TemplateNode::SvelteFragment(elem)
+        | TemplateNode::SvelteHead(elem)
+        | TemplateNode::SvelteOptions(elem)
+        | TemplateNode::SvelteWindow(elem) => {
+            for attr in &elem.attributes {
+                if attribute_has_rune_reference(attr) {
+                    return true;
+                }
+            }
+            fragment_has_rune_reference(&elem.fragment)
+        }
+        TemplateNode::SvelteSelf(elem) => {
+            for attr in &elem.attributes {
+                if attribute_has_rune_reference(attr) {
+                    return true;
+                }
+            }
+            fragment_has_rune_reference(&elem.fragment)
+        }
+        TemplateNode::SvelteComponent(elem) => {
+            for attr in &elem.attributes {
+                if attribute_has_rune_reference(attr) {
+                    return true;
+                }
+            }
+            fragment_has_rune_reference(&elem.fragment)
+        }
+        TemplateNode::SvelteElement(elem) => {
+            for attr in &elem.attributes {
+                if attribute_has_rune_reference(attr) {
+                    return true;
+                }
+            }
+            fragment_has_rune_reference(&elem.fragment)
+        }
+        TemplateNode::TitleElement(elem) => {
+            for attr in &elem.attributes {
+                if attribute_has_rune_reference(attr) {
+                    return true;
+                }
+            }
+            fragment_has_rune_reference(&elem.fragment)
+        }
+        TemplateNode::SlotElement(elem) => {
+            for attr in &elem.attributes {
+                if attribute_has_rune_reference(attr) {
+                    return true;
+                }
+            }
+            fragment_has_rune_reference(&elem.fragment)
+        }
+        TemplateNode::RenderTag(tag) => expression_has_rune_reference(&tag.expression),
+        TemplateNode::HtmlTag(tag) => expression_has_rune_reference(&tag.expression),
+        TemplateNode::ConstTag(tag) => expression_has_rune_reference(&tag.declaration),
+        _ => false,
+    }
+}
+
+/// Check if an expression (stored as JSON) contains a rune reference.
+fn expression_has_rune_reference(expr: &crate::ast::js::Expression) -> bool {
+    let crate::ast::js::Expression::Value(value) = expr;
+    json_has_rune_reference(value)
+}
+
+/// Check if an attribute contains a rune reference.
+fn attribute_has_rune_reference(attr: &crate::ast::template::Attribute) -> bool {
+    use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart};
+
+    match attr {
+        Attribute::Attribute(attr_node) => match &attr_node.value {
+            AttributeValue::Expression(expr_tag) => {
+                expression_has_rune_reference(&expr_tag.expression)
+            }
+            AttributeValue::Sequence(parts) => parts.iter().any(|part| {
+                if let AttributeValuePart::ExpressionTag(expr_tag) = part {
+                    expression_has_rune_reference(&expr_tag.expression)
+                } else {
+                    false
+                }
+            }),
+            _ => false,
+        },
+        Attribute::OnDirective(dir) => dir
+            .expression
+            .as_ref()
+            .is_some_and(expression_has_rune_reference),
+        Attribute::BindDirective(dir) => expression_has_rune_reference(&dir.expression),
+        _ => false,
+    }
 }
 
 /// Check if an attribute contains an await expression.

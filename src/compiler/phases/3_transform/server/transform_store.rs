@@ -66,9 +66,51 @@ pub(crate) fn replace_store_identifier_in_script(
 
     let mut in_string = false;
     let mut string_char = ' ';
+    let mut in_single_line_comment = false;
+    let mut in_multi_line_comment = false;
 
     while i < chars.len() {
         let c = chars[i];
+
+        // Handle single-line comment end (newline)
+        if in_single_line_comment {
+            result.push(c);
+            if c == '\n' {
+                in_single_line_comment = false;
+            }
+            i += 1;
+            continue;
+        }
+
+        // Handle multi-line comment end (*/)
+        if in_multi_line_comment {
+            result.push(c);
+            if c == '*' && i + 1 < chars.len() && chars[i + 1] == '/' {
+                result.push('/');
+                i += 2;
+                in_multi_line_comment = false;
+            } else {
+                i += 1;
+            }
+            continue;
+        }
+
+        // Detect comment starts (only when not in string)
+        if !in_string && c == '/' && i + 1 < chars.len() {
+            if chars[i + 1] == '/' {
+                // Single-line comment
+                in_single_line_comment = true;
+                result.push(c);
+                i += 1;
+                continue;
+            } else if chars[i + 1] == '*' {
+                // Multi-line comment
+                in_multi_line_comment = true;
+                result.push(c);
+                i += 1;
+                continue;
+            }
+        }
 
         if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
             if !in_string {
@@ -161,6 +203,72 @@ pub(crate) fn replace_store_identifier_in_script(
 /// Check if a character is a valid JavaScript identifier character.
 fn is_js_identifier_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_' || c == '$'
+}
+
+/// Transform a binding var_name for getter context.
+/// If `var_name` starts with a store subscription prefix (e.g., `$a.value`),
+/// transforms it to use `$.store_get()`.
+///
+/// Examples:
+/// - `$a.value` -> `$.store_get($$store_subs ??= {}, '$a', a).value`
+/// - `$form` -> `$.store_get($$store_subs ??= {}, '$form', form)`
+/// - `count` -> `count` (unchanged, not a store ref)
+pub(crate) fn transform_binding_getter(var_name: &str, store_subs: &[(&str, &str)]) -> String {
+    if store_subs.is_empty() {
+        return var_name.to_string();
+    }
+
+    for &(store_ref, store_name) in store_subs {
+        // Check if var_name starts with the store ref (e.g., "$a" in "$a.value")
+        if let Some(after) = var_name.strip_prefix(store_ref) {
+            // After the store ref, must be end-of-string, '.', '[', or '(' (not an ident char)
+            if after.is_empty()
+                || after.starts_with('.')
+                || after.starts_with('[')
+                || after.starts_with('(')
+            {
+                return format!(
+                    "$.store_get($$store_subs ??= {{}}, '{}', {}){}",
+                    store_ref, store_name, after
+                );
+            }
+        }
+    }
+
+    var_name.to_string()
+}
+
+/// Transform a binding var_name for setter context.
+/// If `var_name` starts with a store subscription prefix, transforms it to
+/// use `$.store_mutate()` or `$.store_set()`.
+///
+/// Examples:
+/// - `$a.value` -> `$.store_mutate($$store_subs ??= {}, '$a', a, $.store_get($$store_subs ??= {}, '$a', a).value = $$value)`
+/// - `$form` -> `$.store_set(form, $$value)`
+/// - `count` -> `count = $$value` (unchanged, not a store ref)
+pub(crate) fn transform_binding_setter(var_name: &str, store_subs: &[(&str, &str)]) -> String {
+    if store_subs.is_empty() {
+        return format!("{} = $$value", var_name);
+    }
+
+    for &(store_ref, store_name) in store_subs {
+        // Check if var_name starts with the store ref (e.g., "$a" in "$a.value")
+        if let Some(after) = var_name.strip_prefix(store_ref) {
+            // After the store ref, must be end-of-string, '.', '[', or '(' (not an ident char)
+            if after.is_empty() {
+                // Direct store set: $form = $$value -> $.store_set(form, $$value)
+                return format!("$.store_set({}, $$value)", store_name);
+            } else if after.starts_with('.') || after.starts_with('[') || after.starts_with('(') {
+                // Property access: $a.value = $$value -> $.store_mutate(...)
+                return format!(
+                    "$.store_mutate($$store_subs ??= {{}}, '{}', {}, $.store_get($$store_subs ??= {{}}, '{}', {}){} = $$value)",
+                    store_ref, store_name, store_ref, store_name, after
+                );
+            }
+        }
+    }
+
+    format!("{} = $$value", var_name)
 }
 
 /// Transform store assignments in script content for server-side rendering.
