@@ -71,6 +71,13 @@ pub struct AwaitedDeclaration {
 impl ScriptContent {
     /// Extract script content from an AST Script node and source.
     pub fn from_script(script: &Script, source: &str) -> Self {
+        Self::from_script_with_ts(script, source, false)
+    }
+
+    /// Extract script content from an AST Script node and source,
+    /// with optional forced TypeScript stripping.
+    /// `force_typescript` is true when another script in the component has `lang="ts"`.
+    pub fn from_script_with_ts(script: &Script, source: &str, force_typescript: bool) -> Self {
         let start = script.content.start().unwrap_or(0);
         let end = script.content.end().unwrap_or(0);
         let raw = if (end as usize) > (start as usize) && (end as usize) <= source.len() {
@@ -80,15 +87,17 @@ impl ScriptContent {
         };
 
         // Check if this script uses TypeScript
-        let is_typescript = script.attributes.iter().any(|attr| {
-            if attr.name == "lang"
-                && let crate::ast::template::AttributeValue::Sequence(parts) = &attr.value
-                && let Some(crate::ast::template::AttributeValuePart::Text(text)) = parts.first()
-            {
-                return text.data == "ts" || text.data == "typescript";
-            }
-            false
-        });
+        let is_typescript = force_typescript
+            || script.attributes.iter().any(|attr| {
+                if attr.name == "lang"
+                    && let crate::ast::template::AttributeValue::Sequence(parts) = &attr.value
+                    && let Some(crate::ast::template::AttributeValuePart::Text(text)) =
+                        parts.first()
+                {
+                    return text.data == "ts" || text.data == "typescript";
+                }
+                false
+            });
 
         // Strip TypeScript from the raw content if this is a TypeScript script
         let raw = if is_typescript && !raw.is_empty() {
@@ -945,6 +954,10 @@ pub struct ComponentAnalysis {
     /// Whether experimental.async is enabled
     pub experimental_async: bool,
 
+    /// Whether the component has top-level await in script or template
+    /// (requires async function wrapper when experimental.async is enabled)
+    pub has_await: bool,
+
     /// Whether the component might use runes
     pub maybe_runes: bool,
 
@@ -1093,6 +1106,7 @@ impl ComponentAnalysis {
             name,
             runes: initial_runes,
             experimental_async: options.experimental.r#async,
+            has_await: false,
             maybe_runes: false,
             uses_props: false,
             uses_rest_props: false,
@@ -1134,9 +1148,17 @@ impl ComponentAnalysis {
     /// Extract and store script content from the AST.
     /// This should be called during Phase 2 to pre-extract scripts for Phase 3.
     pub fn extract_scripts(&mut self, ast: &Root) {
+        // Check if any script in the component uses TypeScript.
+        // In Svelte, if the module script has lang="ts", the instance script
+        // is also treated as TypeScript (even without its own lang attribute).
+        let any_script_is_typescript =
+            Self::script_is_typescript_attr(ast.module.as_ref().map(|s| s.as_ref()))
+                || Self::script_is_typescript_attr(ast.instance.as_ref().map(|s| s.as_ref()));
+
         // Extract instance script content
         if let Some(ref script) = ast.instance {
-            let content = ScriptContent::from_script(script, &self.source);
+            let content =
+                ScriptContent::from_script_with_ts(script, &self.source, any_script_is_typescript);
             if content.uses_runes {
                 self.runes = true;
             }
@@ -1145,9 +1167,28 @@ impl ComponentAnalysis {
 
         // Extract module script content
         if let Some(ref script) = ast.module {
-            let content = ScriptContent::from_script(script, &self.source);
+            let content =
+                ScriptContent::from_script_with_ts(script, &self.source, any_script_is_typescript);
             self.module_script_content = Some(content);
         }
+    }
+
+    /// Check if a script node has `lang="ts"` or `lang="typescript"` attribute.
+    fn script_is_typescript_attr(script: Option<&Script>) -> bool {
+        script
+            .map(|s| {
+                s.attributes.iter().any(|attr| {
+                    if attr.name == "lang"
+                        && let crate::ast::template::AttributeValue::Sequence(parts) = &attr.value
+                        && let Some(crate::ast::template::AttributeValuePart::Text(text)) =
+                            parts.first()
+                    {
+                        return text.data == "ts" || text.data == "typescript";
+                    }
+                    false
+                })
+            })
+            .unwrap_or(false)
     }
 
     /// Create scopes for the component.

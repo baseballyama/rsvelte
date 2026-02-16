@@ -46,10 +46,15 @@ pub struct BindingProperty {
 /// Port of the reference `build_bind_this` from `shared/utils.js`.
 /// Handles simple identifiers, sequence expressions, and each-block context variables.
 /// Called by both element `bind:this` (line ~160) and component `bind:this` (component.rs).
+///
+/// `is_element_binding` should be true when binding to a RegularElement (not a component).
+/// This prevents the proxy flag from being added, since element references are always
+/// primitive (DOM nodes). Matches the official compiler's `is_primitive` check.
 pub fn unified_build_bind_this(
     expression: &Expression,
     value: JsExpr,
     context: &mut ComponentContext,
+    is_element_binding: bool,
 ) -> JsExpr {
     use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
         apply_transforms_to_expression, apply_transforms_to_expression_with_shadowed,
@@ -88,7 +93,46 @@ pub fn unified_build_bind_this(
     } else {
         b::assign(raw_expr.clone(), b::id("$$value"))
     };
+
+    // For bind:this on regular elements, the value being assigned is always a DOM element
+    // reference, which should never be proxied. This matches the official Svelte compiler's
+    // behavior where `is_primitive = path.at(-1) === 'BindDirective' && path.at(-2) === 'RegularElement'`
+    // prevents the proxy flag from being added.
+    // For bind:this on components, the value may need proxy (e.g., bind-this-proxy test).
+    let binding_name_for_skip = if is_element_binding {
+        if let JsExpr::Identifier(name) = &raw_expr {
+            Some(name.clone())
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+    let old_skip_proxy = if let Some(ref name) = binding_name_for_skip {
+        if let Some(transform) = context.state.transform.get(name) {
+            let old = transform.skip_proxy;
+            let mut t = transform.clone();
+            t.skip_proxy = true;
+            context.state.transform.insert(name.clone(), t);
+            Some(old)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
     let mut set = apply_transforms_to_expression_with_shadowed(&setter_raw, context, &shadowed);
+
+    // Restore the original skip_proxy value
+    if let Some(ref name) = binding_name_for_skip
+        && let Some(old) = old_skip_proxy
+        && let Some(transform) = context.state.transform.get(name)
+    {
+        let mut t = transform.clone();
+        t.skip_proxy = old;
+        context.state.transform.insert(name.clone(), t);
+    }
 
     // Apply optional chaining to getter MemberExpression nodes only
     if let JsExpr::Member(_) = &get {
@@ -283,7 +327,13 @@ pub fn bind_directive(
     // Generate the appropriate binding call
     // bind:this uses the unified implementation that handles each-block context properly
     let call = if binding_name == "this" {
-        unified_build_bind_this(&node.expression, context.state.node.clone(), context)
+        let is_element = is_regular_element(parent);
+        unified_build_bind_this(
+            &node.expression,
+            context.state.node.clone(),
+            context,
+            is_element,
+        )
     } else if let Some(prop) = property {
         if let Some(event) = prop.event {
             // Use bind_property for bindings with events

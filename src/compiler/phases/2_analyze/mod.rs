@@ -100,6 +100,59 @@ pub fn analyze_component(
     // Corresponds to Svelte's store subscription logic in 2-analyze/index.js L348-444
     store_subscriptions::detect_store_subscriptions(ast, &mut analysis, options.runes)?;
 
+    // Detect await expressions in template and instance script.
+    // This is needed for:
+    // 1. Auto-detecting runes mode (await implies runes)
+    // 2. Marking the component as needing async function wrapper
+    let fragment_has_await = fragment_has_await_expression(&ast.fragment);
+    let instance_has_await = ast
+        .instance
+        .as_ref()
+        .map(|inst| {
+            let crate::ast::js::Expression::Value(ref val) = inst.content;
+            json_has_await_expression(val)
+        })
+        .unwrap_or(false);
+
+    // Track whether the component has await (needed for async function wrapper)
+    if fragment_has_await || instance_has_await {
+        analysis.has_await = true;
+    }
+
+    // Auto-detect runes mode if not explicitly set.
+    // This MUST happen BEFORE the visitor walks because the AwaitExpression visitor
+    // checks analysis.runes to validate top-level await.
+    // In the official Svelte compiler, runes detection happens at L449-451 in 2-analyze/index.js,
+    // before the walk_module/walk_instance visitors run.
+    // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js L449-451
+    // const runes = options.runes ?? (has_await || instance.has_await ||
+    //     Array.from(module.scope.references.keys()).some(is_rune));
+    if options.runes.is_none() && !analysis.runes {
+        let has_rune_bindings = analysis.root.bindings.iter().any(|b| b.is_rune());
+        // Check for rune references in instance and module scripts
+        // This catches cases like standalone $effect(...) or $inspect(...) calls
+        // that don't create bindings but indicate runes mode
+        let has_rune_references = ast
+            .instance
+            .as_ref()
+            .map(|inst| {
+                let crate::ast::js::Expression::Value(ref val) = inst.content;
+                json_has_rune_reference(val)
+            })
+            .unwrap_or(false)
+            || ast
+                .module
+                .as_ref()
+                .map(|module| {
+                    let crate::ast::js::Expression::Value(ref val) = module.content;
+                    json_has_rune_reference(val)
+                })
+                .unwrap_or(false);
+        if has_rune_bindings || fragment_has_await || instance_has_await || has_rune_references {
+            analysis.runes = true;
+        }
+    }
+
     // Handle legacy mode exports
     // In non-runes mode, every exported `let` or `var` becomes a prop (bindable_prop),
     // and everything else becomes an export
@@ -157,52 +210,6 @@ pub fn analyze_component(
 
     // Analyze the template using visitors
     visitors::analyze_template(ast, &mut analysis)?;
-
-    // Auto-detect runes mode if not explicitly set
-    // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js L449-451
-    // const runes = options.runes ?? (has_await || instance.has_await ||
-    //     Array.from(module.scope.references.keys()).some(is_rune));
-    //
-    // If options.runes is not explicitly set (None), we detect runes mode by checking:
-    // 1. If any bindings are rune-based ($state, $derived, etc.)
-    // 2. If the template or instance has await expressions
-    // 3. If the instance or module scripts contain rune references ($effect, $inspect, etc.)
-    //    This matches the official compiler's check for rune references in scope.references.
-    // This must happen after scope/binding analysis but before legacy state promotion.
-    if options.runes.is_none() && !analysis.runes {
-        let has_rune_bindings = analysis.root.bindings.iter().any(|b| b.is_rune());
-        let has_await = fragment_has_await_expression(&ast.fragment);
-        let instance_has_await = ast
-            .instance
-            .as_ref()
-            .map(|inst| {
-                let crate::ast::js::Expression::Value(ref val) = inst.content;
-                json_has_await_expression(val)
-            })
-            .unwrap_or(false);
-        // Check for rune references in instance and module scripts
-        // This catches cases like standalone $effect(...) or $inspect(...) calls
-        // that don't create bindings but indicate runes mode
-        let has_rune_references = ast
-            .instance
-            .as_ref()
-            .map(|inst| {
-                let crate::ast::js::Expression::Value(ref val) = inst.content;
-                json_has_rune_reference(val)
-            })
-            .unwrap_or(false)
-            || ast
-                .module
-                .as_ref()
-                .map(|module| {
-                    let crate::ast::js::Expression::Value(ref val) = module.content;
-                    json_has_rune_reference(val)
-                })
-                .unwrap_or(false);
-        if has_rune_bindings || has_await || instance_has_await || has_rune_references {
-            analysis.runes = true;
-        }
-    }
 
     // Compute maybe_runes: if we are not in runes mode but we have no reserved references
     // ($$props, $$restProps) and no `export let` or `$:` reactive statements, we might be in

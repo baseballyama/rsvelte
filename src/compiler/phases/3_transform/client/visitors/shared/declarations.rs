@@ -612,7 +612,11 @@ fn replace_root_identifier_with_getter(
 ///
 /// A call expression: `$.mutate(node, mutation)`
 fn mutate_value_legacy(node: JsExpr, mutation: JsExpr) -> JsExpr {
-    b::svelte_call("mutate", vec![node, mutation])
+    // In legacy mode, the mutation expression needs the root identifier replaced with $.get()
+    // e.g., state.count++ → $.mutate(state, $.get(state).count++)
+    let get_node = b::svelte_call("get", vec![node.clone()]);
+    let transformed_mutation = replace_root_identifier_with_getter(&mutation, &node, &get_node);
+    b::svelte_call("mutate", vec![node, transformed_mutation])
 }
 
 /// Transform an update expression (++ or --).

@@ -1493,6 +1493,53 @@ fn transform_instance_script_for_visitors(
 // Rune Transformation Functions
 // ============================================================================
 
+/// Find the position of `$state(` in the string, but skip occurrences that are
+/// already transformed (i.e., preceded by `.` as in `$.state(`).
+fn find_unescaped_state_call(s: &str) -> Option<usize> {
+    let mut search_from = 0;
+    while let Some(pos) = s[search_from..].find("$state(") {
+        let abs_pos = search_from + pos;
+        if abs_pos > 0 && s.as_bytes()[abs_pos - 1] == b'.' {
+            search_from = abs_pos + 7;
+            continue;
+        }
+        return Some(abs_pos);
+    }
+    None
+}
+
+/// Find the position of `$derived.by(` in the string, skipping already-transformed occurrences.
+fn find_unescaped_derived_by_call(s: &str) -> Option<usize> {
+    let mut search_from = 0;
+    while let Some(pos) = s[search_from..].find("$derived.by(") {
+        let abs_pos = search_from + pos;
+        if abs_pos > 0 && s.as_bytes()[abs_pos - 1] == b'.' {
+            search_from = abs_pos + 12;
+            continue;
+        }
+        return Some(abs_pos);
+    }
+    None
+}
+
+/// Find the position of `$derived(` in the string, skipping already-transformed occurrences.
+fn find_unescaped_derived_call(s: &str) -> Option<usize> {
+    let mut search_from = 0;
+    while let Some(pos) = s[search_from..].find("$derived(") {
+        let abs_pos = search_from + pos;
+        if abs_pos > 0 && s.as_bytes()[abs_pos - 1] == b'.' {
+            search_from = abs_pos + 9;
+            continue;
+        }
+        if s[abs_pos..].starts_with("$derived.by(") {
+            search_from = abs_pos + 12;
+            continue;
+        }
+        return Some(abs_pos);
+    }
+    None
+}
+
 /// Transform runes for client-side usage with skip and state variable handling.
 #[allow(clippy::too_many_arguments)]
 fn transform_client_runes_with_skip_and_state(
@@ -1548,7 +1595,7 @@ fn transform_client_runes_with_skip_and_state(
     }
 
     // Transform $state(x) to $.state(x) for primitives or $.proxy(x) for objects
-    if let Some(pos) = result.find("$state(") {
+    if let Some(pos) = find_unescaped_state_call(&result) {
         // Check if this is a declaration
         if result[..pos].contains("let ") || result[..pos].contains("const ") {
             // Extract variable name by finding identifier after let/const keyword
@@ -1635,11 +1682,11 @@ fn transform_client_runes_with_skip_and_state(
                     );
                 } else {
                     // Primitives that ARE reassigned need $.state()
-                    result = result.replacen("$state(", "$.state(", 1);
+                    result = format!("{}$.state({}", &result[..pos], &result[pos + 7..]);
                 }
             } else {
                 // Fallback for unparseable content
-                result = result.replacen("$state(", "$.state(", 1);
+                result = format!("{}$.state({}", &result[..pos], &result[pos + 7..]);
             }
         }
     }
@@ -1647,7 +1694,7 @@ fn transform_client_runes_with_skip_and_state(
     // Transform $derived.by() to $.derived() - must be processed BEFORE $derived()
     // $derived.by() already has a callback, so pass it directly
     // But we need to wrap state variable references inside the callback with $.get()
-    if let Some(pos) = result.find("$derived.by(") {
+    if let Some(pos) = find_unescaped_derived_by_call(&result) {
         // Check if this is a destructuring pattern: let { a, b } = $derived.by(expr)
         let before_derived_by = result[..pos].trim();
         let has_destructuring_by = (before_derived_by.contains("let ")
@@ -1681,7 +1728,7 @@ fn transform_client_runes_with_skip_and_state(
                 &result[derived_start + content_end + 1..]
             );
         } else {
-            result = result.replace("$derived.by(", "$.derived(");
+            result = format!("{}$.derived({}", &result[..pos], &result[pos + 12..]);
         }
     }
 
@@ -1689,11 +1736,7 @@ fn transform_client_runes_with_skip_and_state(
     // Handle destructuring patterns specially
     // Loop to handle multiple $derived() calls in a single statement
     // (e.g., inside a function body with multiple derived declarations)
-    while let Some(pos) = result.find("$derived(") {
-        if result[..pos].ends_with("$") {
-            // Already transformed to $.derived() - skip
-            break;
-        }
+    while let Some(pos) = find_unescaped_derived_call(&result) {
         if !(result[..pos].contains("let ") || result[..pos].contains("const ")) {
             break;
         }
@@ -1770,11 +1813,11 @@ fn transform_client_runes_with_skip_and_state(
                         &result[derived_start + content_end + 1..]
                     );
                 } else {
-                    result = result.replacen("$derived(", "$.derived(", 1);
+                    result = format!("{}$.derived({}", &result[..pos], &result[pos + 9..]);
                 }
             }
         } else {
-            result = result.replacen("$derived(", "$.derived(", 1);
+            result = format!("{}$.derived({}", &result[..pos], &result[pos + 9..]);
             break;
         }
     }
@@ -3938,7 +3981,7 @@ fn calculate_prop_flags(name: &str, analysis: &ComponentAnalysis, is_lazy_initia
 /// - Array literals: [1, 2, 3]
 /// - Object literals: { a: 1 }
 /// - Call expressions: foo()
-/// - Template literals with expressions: `${x}`
+/// - Template literals: `hello`, `${x}` (TemplateLiteral != Literal in AST)
 fn is_simple_expression_str(value: &str) -> bool {
     let trimmed = value.trim();
 
@@ -3986,8 +4029,11 @@ fn is_simple_expression_str(value: &str) -> bool {
         }
     }
 
-    // Template literals with expressions are NOT simple
-    if trimmed.starts_with('`') && trimmed.contains("${") {
+    // Template literals are NOT simple (even without expressions like `red`)
+    // The official Svelte compiler only considers Literal, Identifier,
+    // ArrowFunctionExpression, and FunctionExpression as simple.
+    // TemplateLiteral is a different AST node type from Literal.
+    if trimmed.starts_with('`') {
         return false;
     }
 
@@ -4021,7 +4067,6 @@ fn is_simple_expression_str(value: &str) -> bool {
     // - Identifiers: foo, bar
     // - Arrow functions: () => {}, x => x
     // - Function expressions: function() {}
-    // - Simple template literals: `hello`
     // - Binary/logical expressions: a + b, a && b
     // - Conditional expressions: a ? b : c
     true
@@ -4598,9 +4643,11 @@ fn transform_state_assignments(
         // Use a loop to handle multiple assignments of the same variable in one statement
         let assignment_pattern = format!("{} = ", var);
         let mut search_start = 0;
-        if is_variable_declaration(&result, var) {
-            continue;
-        }
+        // Check if a declaration of this variable exists in the statement.
+        // If yes, we need per-occurrence checks (not a blanket skip) because
+        // the declaration and reassignment may be on different lines within the same
+        // multi-line statement (e.g., inside a derived callback).
+        let has_declaration = is_variable_declaration(&result, var);
         while let Some(relative_pos) = result[search_start..].find(&assignment_pattern) {
             let pos = search_start + relative_pos;
 
@@ -4629,6 +4676,32 @@ fn transform_state_assignments(
             {
                 search_start = pos + assignment_pattern.len();
                 continue;
+            }
+
+            // If a declaration of this variable exists in the statement, check
+            // whether THIS specific occurrence is part of a declaration by examining
+            // the text on the same line (or immediately preceding this position).
+            if has_declaration {
+                let last_newline = before.rfind('\n').map(|p| p + 1).unwrap_or(0);
+                let line_text = result[last_newline..pos].trim_start();
+                // Check if this line starts with a declaration keyword
+                if line_text.starts_with("let ")
+                    || line_text.starts_with("const ")
+                    || line_text.starts_with("var ")
+                {
+                    search_start = pos + assignment_pattern.len();
+                    continue;
+                }
+                // Also check for multi-declarator pattern (comma-separated in a declaration)
+                let before_trimmed = before.trim_end();
+                if before_trimmed.ends_with(',')
+                    && (result.trim().starts_with("let ")
+                        || result.trim().starts_with("const ")
+                        || result.trim().starts_with("var "))
+                {
+                    search_start = pos + assignment_pattern.len();
+                    continue;
+                }
             }
 
             let after = &result[pos + assignment_pattern.len()..];

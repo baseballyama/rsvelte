@@ -483,18 +483,26 @@ fn remove_typescript_from_ast(ast: &mut crate::ast::Root) {
     }
 
     fn strip_ts_from_script(script: &mut crate::ast::Script) {
-        if is_typescript_script(script) {
-            let crate::ast::js::Expression::Value(ref mut val) = script.content;
-            let _ =
-                phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(val, &[]);
-        }
+        let crate::ast::js::Expression::Value(ref mut val) = script.content;
+        let _ = phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(val, &[]);
     }
 
-    if let Some(ref mut instance) = ast.instance {
-        strip_ts_from_script(instance);
-    }
-    if let Some(ref mut module) = ast.module {
-        strip_ts_from_script(module);
+    // In Svelte, if ANY script has lang="ts", ALL scripts are treated as TypeScript.
+    // This matches the official compiler behavior where the module script's lang attribute
+    // propagates to the instance script.
+    let any_is_typescript = ast
+        .instance
+        .as_ref()
+        .is_some_and(|s| is_typescript_script(s))
+        || ast.module.as_ref().is_some_and(|s| is_typescript_script(s));
+
+    if any_is_typescript {
+        if let Some(ref mut instance) = ast.instance {
+            strip_ts_from_script(instance);
+        }
+        if let Some(ref mut module) = ast.module {
+            strip_ts_from_script(module);
+        }
     }
 }
 

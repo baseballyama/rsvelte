@@ -1781,7 +1781,7 @@ fn build_bind_this_call(
     context: &mut ComponentContext,
 ) -> JsExpr {
     crate::compiler::phases::phase3_transform::client::visitors::bind_directive::unified_build_bind_this(
-        bind_expr, value, context,
+        bind_expr, value, context, false, // Components are not element bindings
     )
 }
 
