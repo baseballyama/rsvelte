@@ -316,9 +316,9 @@ pub fn build_event_handler(
         // Memoize the handler to avoid re-evaluating on each event
         let handler_name = context.state.memoizer.generate_id("event_handler");
 
-        // Create $.derived(() => handler)
-        let thunk = b::arrow(vec![], js_expr.clone());
-        let derived_call = b::call(b::member_path("$.derived"), vec![thunk]);
+        // Create $.derived(thunk(handler)) - thunk optimizes () => fn() to fn
+        let derived_arg = b::thunk(js_expr.clone());
+        let derived_call = b::call(b::member_path("$.derived"), vec![derived_arg]);
 
         context
             .state

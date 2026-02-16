@@ -1300,34 +1300,34 @@ fn build_getter_setter(
         } else {
             (get, Some(set))
         }
-    } else if dev {
-        // Dev mode: named functions
-        // get = function get() { return expression; }
-        // set = function set($$value) { expression = $$value; }
-        let get = b::function_expr(
-            Some("get".to_string()),
-            vec![],
-            vec![b::return_value(expr.clone())],
-        );
-
-        let set = b::function_expr(
-            Some("set".to_string()),
-            vec![b::id_pattern("$$value")],
-            vec![b::stmt(b::assign(expr.clone(), b::id("$$value")))],
-        );
-
-        (get, Some(set))
     } else {
-        // Prod mode: arrow functions
-        // get = () => expression
-        let get = b::thunk(expr.clone());
+        // For non-state, non-prop expressions (e.g., each-block items),
+        // apply transforms only in runes mode to get $.get() wrappers.
+        let transformed = if context.state.analysis.runes {
+            use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
+            apply_transforms_to_expression(expr, context)
+        } else {
+            expr.clone()
+        };
 
-        // set = ($$value) => expression = $$value
-        // But we can optimize: if get === set, omit set
-        let set_expr = b::assign(expr.clone(), b::id("$$value"));
-        let set = b::arrow(vec![b::id_pattern("$$value")], set_expr);
-
-        (get, Some(set))
+        if dev {
+            let get = b::function_expr(
+                Some("get".to_string()),
+                vec![],
+                vec![b::return_value(transformed.clone())],
+            );
+            let set = b::function_expr(
+                Some("set".to_string()),
+                vec![b::id_pattern("$$value")],
+                vec![b::stmt(b::assign(transformed, b::id("$$value")))],
+            );
+            (get, Some(set))
+        } else {
+            let get = b::thunk(transformed.clone());
+            let set_expr = b::assign(transformed, b::id("$$value"));
+            let set = b::arrow(vec![b::id_pattern("$$value")], set_expr);
+            (get, Some(set))
+        }
     }
 }
 

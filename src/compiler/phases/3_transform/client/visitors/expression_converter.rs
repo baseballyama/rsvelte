@@ -122,10 +122,19 @@ fn convert_identifier(
         // Source props and exported props have transforms registered, so they
         // will be handled by apply_transforms_to_expression() later.
         if !is_source && !is_exported {
+            let prop_name = binding.prop_alias.as_deref().unwrap_or(&name).to_string();
+            let needs_bracket = prop_name.contains('-')
+                || prop_name.chars().next().is_some_and(|c| c.is_ascii_digit());
             return JsExpr::Member(JsMemberExpression {
                 object: Box::new(JsExpr::Identifier("$$props".to_string())),
-                property: JsMemberProperty::Identifier(name),
-                computed: false,
+                property: if needs_bracket {
+                    JsMemberProperty::Expression(Box::new(JsExpr::Literal(JsLiteral::String(
+                        prop_name,
+                    ))))
+                } else {
+                    JsMemberProperty::Identifier(prop_name)
+                },
+                computed: needs_bracket,
                 optional: false,
             });
         }
