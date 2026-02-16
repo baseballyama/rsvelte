@@ -173,15 +173,16 @@ fn transform_client_with_visitors(
     let mut store_setup: Vec<JsStatement> = Vec::new();
     let mut needs_store_cleanup = false;
 
-    // Collect store sub bindings and sort by name for consistent output
-    let mut store_sub_bindings: Vec<&str> = analysis
+    // Collect store sub bindings in declaration order (matching official compiler behavior).
+    // The official compiler iterates scope.declarations (a Map with insertion order).
+    // Our bindings are already in insertion order from detect_store_subscriptions().
+    let store_sub_bindings: Vec<&str> = analysis
         .root
         .bindings
         .iter()
         .filter(|b| matches!(b.kind, BindingKind::StoreSub))
         .map(|b| b.name.as_str())
         .collect();
-    store_sub_bindings.sort();
 
     for (getter_count, store_sub_name) in store_sub_bindings.into_iter().enumerate() {
         let store_name = &store_sub_name[1..]; // e.g., "store"
@@ -878,11 +879,102 @@ fn extract_local_reactive_vars(script: &str) -> Vec<String> {
     // Uses cached regex for performance
     for cap in REGEX_STATE_DERIVED_VAR.captures_iter(script) {
         if let Some(name) = cap.get(1) {
+            // Determine which rune was matched ($state or $derived)
+            let full_match = cap.get(0).unwrap().as_str();
+            let rune_name = if full_match.contains("$state") {
+                "$state"
+            } else {
+                "$derived"
+            };
+
+            // Check if this match is inside a function that has the rune name as a parameter.
+            // If so, the rune name is shadowed and this isn't a real rune declaration.
+            let match_pos = cap.get(0).unwrap().start();
+            if is_inside_function_with_param(script, match_pos, rune_name) {
+                continue;
+            }
+
             vars.push(name.as_str().to_string());
         }
     }
 
     vars
+}
+
+/// Check if a position in the script is inside a function body where `param_name` is a parameter.
+/// This handles cases like `function bar($derived, $effect) { const x = $derived(foo + 1); }`
+/// where `$derived` inside the function body is a function parameter, not a rune.
+fn is_inside_function_with_param(script: &str, pos: usize, param_name: &str) -> bool {
+    // Scan backwards from `pos` to find enclosing function declarations.
+    // Track brace depth to determine which function we're inside.
+    let bytes = script.as_bytes();
+
+    // Find all function declarations with their opening brace positions
+    let mut search_from = 0;
+    while search_from < pos {
+        // Find "function " or "function("
+        let func_keyword = "function";
+        if let Some(func_pos) = script[search_from..].find(func_keyword) {
+            let abs_func_pos = search_from + func_pos;
+            if abs_func_pos >= pos {
+                break;
+            }
+
+            // Find the parameter list opening paren
+            let after_keyword = &script[abs_func_pos + func_keyword.len()..];
+            if let Some(paren_offset) = after_keyword.find('(') {
+                let abs_paren_pos = abs_func_pos + func_keyword.len() + paren_offset;
+
+                // Find closing paren of parameters
+                if let Some(close_paren_len) = find_matching_paren(&script[abs_paren_pos + 1..]) {
+                    let params_str =
+                        &script[abs_paren_pos + 1..abs_paren_pos + 1 + close_paren_len];
+
+                    // Check if param_name is one of the parameters
+                    let has_param = params_str.split(',').any(|p| {
+                        let trimmed = p.trim();
+                        let name = trimmed.split('=').next().unwrap_or(trimmed).trim();
+                        name == param_name
+                    });
+
+                    if has_param {
+                        // Find the opening brace of the function body
+                        let after_params = abs_paren_pos + 1 + close_paren_len + 1;
+                        if let Some(brace_offset) = script[after_params..].find('{') {
+                            let abs_brace_pos = after_params + brace_offset;
+
+                            // Check if `pos` is inside this function body
+                            // by counting brace depth from the opening brace
+                            if abs_brace_pos < pos {
+                                let mut depth = 1;
+                                let mut i = abs_brace_pos + 1;
+                                while i < bytes.len() && depth > 0 {
+                                    if bytes[i] == b'{' {
+                                        depth += 1;
+                                    } else if bytes[i] == b'}' {
+                                        depth -= 1;
+                                    }
+                                    if depth > 0 {
+                                        i += 1;
+                                    }
+                                }
+                                // i now points to the closing brace (or end of string)
+                                if pos > abs_brace_pos && pos < i {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            search_from = abs_func_pos + func_keyword.len();
+        } else {
+            break;
+        }
+    }
+
+    false
 }
 
 /// Extract variable names that are initialized with $state() containing an object or array.
@@ -1576,12 +1668,37 @@ fn transform_instance_script_for_visitors(
             transformed
         };
 
+        // Filter out store_sub_vars that appear as function parameters in this statement.
+        // Function parameters like `function bar($derived, $effect)` shadow the store
+        // subscription within the function body, so we must NOT transform those.
+        let effective_store_sub_vars: Vec<String> = if store_sub_vars
+            .iter()
+            .any(|s| transformed.contains(s.as_str()))
+        {
+            store_sub_vars
+                .iter()
+                .filter(|s| !is_function_parameter_in_statement(&transformed, s))
+                .cloned()
+                .collect()
+        } else {
+            store_sub_vars.to_vec()
+        };
+
         // Transform store subscription assignments to $.store_set()
-        let transformed = transform_store_assignments_client(&transformed, store_sub_vars);
+        let transformed =
+            transform_store_assignments_client(&transformed, &effective_store_sub_vars);
+
+        // Pre-transform store sub names that are used as function calls with arguments.
+        // This handles cases like `$state(0)` -> `$state()(0)` where $state is a store sub
+        // (not a rune) and the parens contain arguments. We need to insert the getter call
+        // `()` before the argument parens.
+        // This must happen BEFORE transform_store_reads_client, which will then see
+        // `$state()` and skip adding another `()` (due to is_already_call check).
+        let transformed = transform_store_sub_calls(&transformed, &effective_store_sub_vars);
 
         // Transform store subscription reads to $store()
         // e.g., `const answer = $foo` -> `const answer = $foo()`
-        let transformed = transform_store_reads_client(&transformed, store_sub_vars);
+        let transformed = transform_store_reads_client(&transformed, &effective_store_sub_vars);
 
         // Wrap state variable reads in $.get() for ALL statements including declarations.
         // This handles cases like:
@@ -1813,8 +1930,17 @@ fn transform_client_runes_with_skip_and_state(
     let effect_is_store_sub = store_sub_vars.contains(&"$effect".to_string());
     let derived_is_store_sub = store_sub_vars.contains(&"$derived".to_string());
 
-    // Skip all $state rune transforms if $state is actually a store subscription
-    if !state_is_store_sub {
+    // Also check if rune names appear as function parameters in this statement.
+    // When a function declares `function bar($derived, $effect)`, those names shadow
+    // the runes within the function body, so rune transforms should be skipped.
+    // Note: This applies to the entire statement because the statement is the whole
+    // function body including the parameter list.
+    let state_is_func_param = is_function_parameter_in_statement(line, "$state");
+    let effect_is_func_param = is_function_parameter_in_statement(line, "$effect");
+    let derived_is_func_param = is_function_parameter_in_statement(line, "$derived");
+
+    // Skip all $state rune transforms if $state is actually a store subscription or function param
+    if !state_is_store_sub && !state_is_func_param {
         // Handle destructuring patterns with $state/$state.raw BEFORE other $state transforms.
         // e.g. `let { num } = $state(setup())` -> `let tmp = setup(), num = $.state($.proxy(tmp.num))`
         if let Some(state_pos) = result
@@ -1989,8 +2115,8 @@ fn transform_client_runes_with_skip_and_state(
         }
     } // end if !state_is_store_sub
 
-    // Skip all $derived rune transforms if $derived is actually a store subscription
-    if !derived_is_store_sub {
+    // Skip all $derived rune transforms if $derived is actually a store subscription or function param
+    if !derived_is_store_sub && !derived_is_func_param {
         // Transform $derived.by() to $.derived() - must be processed BEFORE $derived()
         // $derived.by() already has a callback, so pass it directly
         // But we need to wrap state variable references inside the callback with $.get()
@@ -2147,7 +2273,10 @@ fn transform_client_runes_with_skip_and_state(
     } // end if !derived_is_store_sub
 
     // Transform $state.eager(x) to $.eager(() => x) - thunk wrapping
-    if !state_is_store_sub && let Some(pos) = result.find("$state.eager(") {
+    if !state_is_store_sub
+        && !state_is_func_param
+        && let Some(pos) = result.find("$state.eager(")
+    {
         let eager_start = pos + 13; // after "$state.eager("
         if let Some(content_end) = find_matching_paren(&result[eager_start..]) {
             let content = &result[eager_start..eager_start + content_end];
@@ -2162,8 +2291,8 @@ fn transform_client_runes_with_skip_and_state(
         }
     } // end state.eager guard
 
-    // Skip all $effect rune transforms if $effect is actually a store subscription
-    if !effect_is_store_sub {
+    // Skip all $effect rune transforms if $effect is actually a store subscription or function param
+    if !effect_is_store_sub && !effect_is_func_param {
         // Transform $effect.pending() to $.eager($.pending) - MUST be before $effect transformation
         if result.contains("$effect.pending()") {
             result = result.replace("$effect.pending()", "$.eager($.pending)");
@@ -5704,6 +5833,146 @@ fn transform_store_assignments_client(line: &str, store_sub_vars: &[String]) -> 
     result
 }
 
+/// Check if a store subscription name appears as a function parameter in a statement.
+/// This detects patterns like `function bar($derived, $effect)` where the store sub name
+/// is actually a function parameter, not a store reference.
+fn is_function_parameter_in_statement(statement: &str, store_sub: &str) -> bool {
+    // Look for function declarations or arrow functions with the store sub as a parameter
+    // Patterns: `function name($store` or `($store` in arrow functions
+    // We search for the pattern: `(` ... store_sub ... `,` or `)` without intervening `(`
+    let mut search_from = 0;
+    while let Some(func_pos) = statement[search_from..].find("function ") {
+        let abs_func_pos = search_from + func_pos;
+        // Find the opening paren of the function params
+        if let Some(paren_pos) = statement[abs_func_pos..].find('(') {
+            let abs_paren_pos = abs_func_pos + paren_pos;
+            // Find the closing paren
+            if let Some(close_paren_pos) = find_matching_paren(&statement[abs_paren_pos + 1..]) {
+                let params = &statement[abs_paren_pos + 1..abs_paren_pos + 1 + close_paren_pos];
+                // Check if the store_sub appears as a parameter (word boundary)
+                for param in params.split(',') {
+                    let trimmed = param.trim();
+                    // Handle destructuring and default values
+                    let param_name = trimmed.split('=').next().unwrap_or(trimmed).trim();
+                    if param_name == store_sub {
+                        return true;
+                    }
+                }
+            }
+        }
+        search_from = abs_func_pos + 9;
+    }
+    false
+}
+
+/// Pre-transform store sub names that are used as function calls with arguments.
+///
+/// Handles cases like:
+/// - `$state(0)` -> `$state()(0)` where `$state` is a store sub, not a rune
+/// - `$effect(() => {...})` -> `$effect()(() => {...})` where `$effect` is a store sub
+///
+/// This inserts the getter call `()` between the store sub name and the argument parens.
+/// It's called BEFORE `transform_store_reads_client` so that the `is_already_call` check
+/// in that function will see `$state()` and correctly skip adding another `()`.
+fn transform_store_sub_calls(line: &str, store_sub_vars: &[String]) -> String {
+    if store_sub_vars.is_empty() {
+        return line.to_string();
+    }
+
+    let mut result = line.to_string();
+
+    for store_sub in store_sub_vars {
+        // Find pattern: $name( where $name is a store sub and is followed by `(`
+        // but NOT by `()` (which would be the getter call itself, already inserted).
+        // Also skip when preceded by `const $name = ` (store getter declaration).
+        // Also skip when $name appears as a function parameter.
+        let pattern = format!("{}(", store_sub);
+        let mut new_result = String::new();
+        let mut search_start = 0;
+
+        while let Some(pos) = result[search_start..].find(&pattern) {
+            let abs_pos = search_start + pos;
+
+            // Check if this is a word boundary (not part of a larger identifier)
+            let before_ok = if abs_pos == 0 {
+                true
+            } else {
+                let prev_byte = result.as_bytes()[abs_pos - 1];
+                let prev_char = prev_byte as char;
+                !prev_char.is_alphanumeric() && prev_char != '_' && prev_char != '$'
+            };
+
+            if !before_ok {
+                // Not a word boundary, skip
+                new_result.push_str(&result[search_start..abs_pos + store_sub.len()]);
+                search_start = abs_pos + store_sub.len();
+                continue;
+            }
+
+            // Check if it's followed by `)` immediately (i.e., `$name()` - already a getter call)
+            let paren_pos = abs_pos + store_sub.len(); // position of `(`
+            let after_paren = paren_pos + 1;
+            if after_paren < result.len() && result.as_bytes()[after_paren] == b')' {
+                // This is `$name()` - already a getter call, skip
+                new_result.push_str(&result[search_start..paren_pos]);
+                search_start = paren_pos;
+                continue;
+            }
+
+            // Check if this is inside a function parameter declaration
+            // e.g., `function bar($state, $effect)` - skip these
+            let before_text = &result[..abs_pos];
+            let is_in_func_params = {
+                // Look back for "function xxx(" pattern where our position is inside the parens
+                let mut in_params = false;
+                if let Some(last_func) = before_text.rfind("function ") {
+                    let after_func = &result[last_func..abs_pos];
+                    // Count parens to see if we're inside function params
+                    let open_count = after_func.chars().filter(|c| *c == '(').count();
+                    let close_count = after_func.chars().filter(|c| *c == ')').count();
+                    if open_count > close_count {
+                        in_params = true;
+                    }
+                }
+                in_params
+            };
+
+            if is_in_func_params {
+                // Inside function parameters, skip
+                new_result.push_str(&result[search_start..paren_pos]);
+                search_start = paren_pos;
+                continue;
+            }
+
+            // Check if this is a store getter declaration: `const $name = () => $.store_get(...)`
+            // We should skip this
+            let trimmed_before = before_text.trim();
+            if trimmed_before.ends_with(&format!("const {} =", store_sub))
+                || trimmed_before.ends_with(&format!("let {} =", store_sub))
+                || trimmed_before.ends_with(&format!("var {} =", store_sub))
+            {
+                // This is the getter declaration, skip
+                new_result.push_str(&result[search_start..paren_pos]);
+                search_start = paren_pos;
+                continue;
+            }
+
+            // This is a store sub being called with arguments - insert `()` before the `(`
+            // e.g., `$state(0)` -> `$state()(0)`
+            new_result.push_str(&result[search_start..abs_pos]);
+            new_result.push_str(store_sub);
+            new_result.push_str("()");
+            search_start = paren_pos; // continue from the `(` which will be kept
+        }
+
+        // Append remaining
+        new_result.push_str(&result[search_start..]);
+        result = new_result;
+    }
+
+    result
+}
+
 /// Transform store subscription reads to $store() calls.
 ///
 /// In the client runtime, store subscriptions like $count are getter functions.
@@ -5749,17 +6018,9 @@ fn transform_store_reads_client(line: &str, store_sub_vars: &[String]) -> String
                     !next_char.is_alphanumeric() && next_char != '_' && next_char != '$'
                 };
 
-                // Check if it's NOT already followed by ()
-                let is_already_call = if after_idx < chars.len() {
-                    // Skip whitespace
-                    let mut check_idx = after_idx;
-                    while check_idx < chars.len() && chars[check_idx].is_whitespace() {
-                        check_idx += 1;
-                    }
-                    check_idx < chars.len() && chars[check_idx] == '('
-                } else {
-                    false
-                };
+                // Check if this reference is already followed by `()` (getter call)
+                // If so, skip adding () to avoid double-calling: $x() is already correct
+                let is_already_call = after_idx < chars.len() && chars[after_idx] == '(';
 
                 // Check if this is inside $.untrack() or $.derived() - don't transform there
                 // $.untrack expects a getter function, so $store should remain $store
@@ -5771,14 +6032,21 @@ fn transform_store_reads_client(line: &str, store_sub_vars: &[String]) -> String
                     trimmed_prefix.ends_with("$.untrack(") || trimmed_prefix.ends_with("$.derived(")
                 };
 
-                if before_ok && after_ok && !is_already_call {
+                if before_ok && after_ok {
                     if is_inside_getter_context {
                         // Inside $.untrack() or $.derived(), keep as $store (don't add parentheses)
                         new_result.push_str(store_sub);
                         i += store_sub.len();
                         continue;
+                    } else if is_already_call {
+                        // Already followed by `(` - don't add another `()`
+                        // This handles cases like `$x()` or `$.update_store(x, $x())`
+                        // where the `()` was already generated by store assignment transforms
+                        new_result.push_str(store_sub);
+                        i += store_sub.len();
+                        continue;
                     } else {
-                        // Replace with store_sub()
+                        // Bare store reference - add () to call the getter
                         new_result.push_str(store_sub);
                         new_result.push_str("()");
                         i += store_sub.len();

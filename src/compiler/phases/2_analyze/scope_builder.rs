@@ -1111,19 +1111,46 @@ impl<'a> ScopeBuilder<'a> {
         if let Expression::CallExpression(call) = expr {
             // Handle direct calls like $state(), $derived(), $props()
             if let Expression::Identifier(ident) = &call.callee {
-                match ident.name.as_str() {
-                    "$state" => return BindingKind::State,
-                    "$derived" => return BindingKind::Derived,
-                    "$props" => return BindingKind::Prop,
-                    _ => {}
+                // Check if the callee name (without $) has a binding in the scope chain.
+                // If it does, this is a store call (e.g., $state imported from a store),
+                // not a rune invocation. For example:
+                //   import { state } from './store.js';
+                //   let foo = $state(0); // store call, NOT $state rune
+                //
+                // Also check if the full callee name (with $) has a binding in the scope chain.
+                // If it does, the rune name is shadowed by a parameter or local variable.
+                // For example:
+                //   function bar($derived, $effect) {
+                //     const x = $derived(foo + 1); // NOT a $derived rune, it's a function param
+                //   }
+                let callee_name = ident.name.as_str();
+                let unprefixed = callee_name.strip_prefix('$').unwrap_or(callee_name);
+                let has_unprefixed_binding = self.find_binding_in_scope_chain(unprefixed).is_some();
+                let has_prefixed_binding = self.find_binding_in_scope_chain(callee_name).is_some();
+
+                if !has_unprefixed_binding && !has_prefixed_binding {
+                    match callee_name {
+                        "$state" => return BindingKind::State,
+                        "$derived" => return BindingKind::Derived,
+                        "$props" => return BindingKind::Prop,
+                        _ => {}
+                    }
                 }
             } else if let Expression::StaticMemberExpression(member) = &call.callee {
                 // Handle $state.raw() and $derived.by()
                 if let Expression::Identifier(obj) = &member.object {
-                    match (obj.name.as_str(), member.property.name.as_str()) {
-                        ("$state", "raw") => return BindingKind::RawState,
-                        ("$derived", "by") => return BindingKind::Derived,
-                        _ => {}
+                    let obj_name = obj.name.as_str();
+                    let unprefixed = obj_name.strip_prefix('$').unwrap_or(obj_name);
+                    let has_unprefixed_binding =
+                        self.find_binding_in_scope_chain(unprefixed).is_some();
+                    let has_prefixed_binding = self.find_binding_in_scope_chain(obj_name).is_some();
+
+                    if !has_unprefixed_binding && !has_prefixed_binding {
+                        match (obj_name, member.property.name.as_str()) {
+                            ("$state", "raw") => return BindingKind::RawState,
+                            ("$derived", "by") => return BindingKind::Derived,
+                            _ => {}
+                        }
                     }
                 }
             }

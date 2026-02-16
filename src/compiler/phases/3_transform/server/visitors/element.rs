@@ -724,6 +724,33 @@ impl<'a> ServerCodeGenerator<'a> {
         }
     }
 
+    /// Extract attribute value as a literal string if it's static text.
+    /// Returns Some(value) for text-only attributes, None for dynamic/expression attributes.
+    pub(crate) fn extract_attribute_value_as_literal(
+        &self,
+        node: &AttributeNode,
+    ) -> Result<Option<String>, TransformError> {
+        match &node.value {
+            AttributeValue::True(_) => Ok(None), // Boolean attributes need special handling
+            AttributeValue::Sequence(parts) => {
+                // Only return literal if all parts are text
+                let mut result = String::new();
+                for part in parts {
+                    match part {
+                        AttributeValuePart::Text(text) => {
+                            result.push_str(&text.data);
+                        }
+                        AttributeValuePart::ExpressionTag(_) => {
+                            return Ok(None); // Has dynamic parts
+                        }
+                    }
+                }
+                Ok(Some(result))
+            }
+            AttributeValue::Expression(_) => Ok(None), // Dynamic expression
+        }
+    }
+
     /// Check if select element has a value attribute or bind:value.
     fn select_has_value_attribute(&self, element: &RegularElement) -> bool {
         element.attributes.iter().any(|attr| {

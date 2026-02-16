@@ -262,7 +262,12 @@ pub(crate) enum OutputPart {
         then_param: String,
         pending_body: Vec<OutputPart>,
         then_body: Vec<OutputPart>,
+        /// Catch param - populated by the visitor but not used in server-side output
+        /// (the official Svelte compiler only passes 4 args to $.await on the server)
+        #[allow(dead_code)]
         catch_param: String,
+        /// Catch body - populated by the visitor but not used in server-side output
+        #[allow(dead_code)]
         catch_body: Vec<OutputPart>,
     },
     /// svelte:boundary - async error boundary
@@ -300,6 +305,8 @@ pub(crate) enum OutputPart {
     },
     /// Hydration anchor marker - outputs "<!>" after Components/RenderTags/HtmlTags in select/optgroup
     HydrationAnchor,
+    /// Raw JavaScript statement(s) to emit directly
+    RawStatement(String),
     /// Local snippet function declaration (e.g., `function failed($$renderer, e) { ... }`)
     /// Used for snippets inside svelte:boundary that need to be local functions
     SnippetFunction {

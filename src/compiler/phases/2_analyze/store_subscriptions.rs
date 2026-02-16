@@ -117,37 +117,57 @@ pub fn detect_store_subscriptions(
             continue;
         }
 
-        // Skip rune names ($state, $derived, $props, etc.).
-        // In runes mode, the $ prefix always refers to the rune, not a store subscription.
-        // In legacy mode, skip unless there's a TOP-LEVEL binding for the store name
-        // (e.g., `let state = writable(...)` at the top level makes `$state` a store sub).
+        // Skip rune names ($state, $derived, $props, etc.) UNLESS there's a declaration
+        // for the unprefixed name in the INSTANCE scope that is NOT itself a rune initialization.
         //
-        // IMPORTANT: We must also skip rune names when runes mode hasn't been auto-detected
-        // yet (options.runes is None). This is because detect_store_subscriptions runs
-        // BEFORE runes auto-detection, and code like `const state = $state(...)` inside a
-        // function would create a nested binding for `state`, triggering a false positive
-        // store_invalid_scoped_subscription error. The official Svelte compiler's
-        // create_scopes phase handles this correctly by never creating store subscriptions
-        // for rune names when the binding is in a nested scope.
+        // This mirrors the official Svelte compiler logic (2-analyze/index.js L356-374):
+        //   const declaration = instance.scope.get(store_name);
+        //   const init = declaration?.initial;
+        //   if (
+        //     options.runes === false ||
+        //     !is_rune(name) ||
+        //     (declaration !== null &&
+        //       (get_rune(init, instance.scope) === null || ...))
+        //   )
+        //
+        // IMPORTANT: The official compiler looks up `store_name` in instance.scope, NOT
+        // module.scope. A variable named `state` in the module scope should NOT cause
+        // `$state` to be treated as a store subscription.
+        //
+        // For example, `import { state } from './store.js'` in the instance script creates
+        // a binding for `state`, which is NOT a rune initialization, so `$state` should be
+        // treated as a store subscription.
+        //
+        // But `let state = $state(0)` creates a State binding, so `$state` is a rune.
         if is_rune(ref_name) {
-            if analysis.runes {
-                // Definitely runes mode - always skip rune names
-                continue;
-            }
-            // Check if there's a top-level binding for the store name
-            // Only treat it as a store subscription if the binding is at the top level
-            // We need to check all scopes (module + instance) since the binding might
-            // be in the instance scope (e.g., reactive declarations like `$: z = ...`)
-            if let Some(binding_idx) = analysis.root.find_binding_any_scope(store_name) {
-                let binding = &analysis.root.bindings[binding_idx];
-                if binding.scope_index > 1 {
-                    // The only binding for this name is in a nested scope.
-                    // This is likely a rune usage (e.g., `const state = $state(...)` inside
-                    // a function), not a store subscription. Skip it.
+            // Look for a binding in the instance scope (scope_index == 1).
+            // We iterate all bindings to find one with the right name AND scope_index.
+            let instance_binding = analysis
+                .root
+                .bindings
+                .iter()
+                .find(|b| b.name == store_name && b.scope_index == 1);
+
+            if let Some(binding) = instance_binding {
+                // Check if the binding's initialization is itself a rune call.
+                // If the binding kind is State, RawState, or Derived, it was initialized
+                // with $state(), $state.raw(), or $derived() - so $name IS a rune, not a store.
+                // If the binding is an import or normal let/const without rune init,
+                // then $name should be a store subscription.
+                let is_rune_init = matches!(
+                    binding.kind,
+                    BindingKind::State | BindingKind::RawState | BindingKind::Derived
+                );
+
+                if is_rune_init {
+                    // The binding IS a rune initialization - skip, $name is a rune
                     continue;
                 }
+
+                // The binding exists in instance scope and is NOT a rune init -
+                // fall through to create store sub.
             } else {
-                // No binding at all for the store name - skip rune names
+                // No binding in instance scope - skip rune names (it's a real rune)
                 continue;
             }
         }
@@ -211,9 +231,16 @@ pub fn detect_store_subscriptions(
                 return Err(errors::store_invalid_subscription());
             }
 
-            // Check if we already have a binding for $xxx
-            if analysis.root.find_binding_any_scope(ref_name).is_some() {
-                continue;
+            // Check if we already have a binding for $xxx in the top-level scopes.
+            // We only check bindings in scope 0 (module) or scope 1 (instance),
+            // not nested scopes. A function parameter like `function bar($derived, $effect)`
+            // creates a binding for `$effect` in a nested scope, but should NOT prevent
+            // creating a StoreSub for the top-level `$effect` store subscription.
+            if let Some(binding_idx) = analysis.root.find_binding_any_scope(ref_name) {
+                let binding = &analysis.root.bindings[binding_idx];
+                if binding.scope_index <= 1 {
+                    continue;
+                }
             }
 
             // Create a synthetic StoreSub binding

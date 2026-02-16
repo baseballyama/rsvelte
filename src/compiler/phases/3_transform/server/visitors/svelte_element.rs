@@ -18,7 +18,14 @@ impl<'a> ServerCodeGenerator<'a> {
         let tag_expr = if end > start && end <= self.source.len() {
             self.source[start..end].trim().to_string()
         } else {
-            "null".to_string()
+            // The tag expression might be a synthetic JSON literal (e.g., from this="div")
+            // without start/end positions. Check if it's a string value directly.
+            let json = elem.tag.as_json();
+            if let Some(s) = json.as_str() {
+                format!("'{}'", s)
+            } else {
+                "null".to_string()
+            }
         };
 
         // Generate attributes expression if there are any
@@ -38,6 +45,9 @@ impl<'a> ServerCodeGenerator<'a> {
     }
 
     /// Generate attributes expression for svelte:element.
+    /// In the official compiler, non-spread attributes are rendered as inline HTML strings
+    /// inside a callback: `() => { $$renderer.push(` attr="value"`); }`
+    /// Spread attributes use `$.attributes()` with `${...}` template syntax.
     fn generate_svelte_element_attrs_expr(
         &mut self,
         elem: &SvelteDynamicElement,
@@ -65,24 +75,51 @@ impl<'a> ServerCodeGenerator<'a> {
             .any(|attr| matches!(attr, Attribute::SpreadAttribute(_)));
 
         if has_spread {
-            // Use $.attributes() for spread attributes
+            // Use $.attributes() for spread attributes - callback form with ${...} template
             let attrs_call = self.build_svelte_element_spread_attributes(elem)?;
             if !attrs_call.is_empty() {
-                Ok(Some(attrs_call))
+                // Wrap in callback form: () => { $$renderer.push(`${$.attributes(...)}`); }
+                Ok(Some(format!(
+                    "() => {{\n\t\t$$renderer.push(`{}`);\n\t}}",
+                    attrs_call
+                )))
             } else {
                 Ok(None)
             }
         } else {
-            // Build a simple object for non-spread attributes
-            let mut object_parts: Vec<String> = Vec::new();
+            // Build inline HTML attribute strings for the callback form
+            // The output should be: () => { $$renderer.push(` attr1="val1" attr2="val2"`); }
+            let mut attr_parts: Vec<String> = Vec::new();
+            let css_hash: Option<String> = self.analysis.and_then(|a| {
+                if !a.css.hash.is_empty() {
+                    Some(a.css.hash.clone())
+                } else {
+                    None
+                }
+            });
 
             for attr in &elem.attributes {
                 match attr {
                     Attribute::Attribute(node) => {
                         let name = node.name.as_str();
-                        let value = self.extract_attribute_value_as_string(node)?;
-                        let quoted_name = quote_prop_name(name);
-                        object_parts.push(format!("{}: {}", quoted_name, value));
+                        let value = self.extract_attribute_value_as_literal(node)?;
+                        if let Some(val) = value {
+                            // Check if class needs CSS hash appended
+                            let val = if name == "class" {
+                                if let Some(ref hash) = css_hash {
+                                    format!("{} {}", val, hash).trim().to_string()
+                                } else {
+                                    val
+                                }
+                            } else {
+                                val
+                            };
+                            attr_parts.push(format!(" {}=\"{}\"", name, val));
+                        } else {
+                            // Dynamic attribute - use $.attr()
+                            let expr = self.extract_attribute_value_as_string(node)?;
+                            attr_parts.push(format!("${{$.attr('{}', {})}}", name, expr));
+                        }
                     }
                     Attribute::BindDirective(bind) => {
                         if bind.name == "this" {
@@ -93,18 +130,22 @@ impl<'a> ServerCodeGenerator<'a> {
                         let expr_end = bind.expression.end().unwrap_or(0) as usize;
                         if expr_end > expr_start && expr_end <= self.source.len() {
                             let expr = self.source[expr_start..expr_end].trim().to_string();
-                            let quoted_name = quote_prop_name(name);
-                            object_parts.push(format!("{}: {}", quoted_name, expr));
+                            attr_parts.push(format!("${{$.attr('{}', {})}}", name, expr));
                         }
                     }
                     _ => {}
                 }
             }
 
-            if object_parts.is_empty() {
+            if attr_parts.is_empty() {
                 Ok(None)
             } else {
-                Ok(Some(format!("{{ {} }}", object_parts.join(", "))))
+                // Generate callback form: () => { $$renderer.push(` attr="value"`); }
+                let attrs_str = attr_parts.join("");
+                Ok(Some(format!(
+                    "() => {{\n\t\t$$renderer.push(`{}`);\n\t}}",
+                    attrs_str
+                )))
             }
         }
     }

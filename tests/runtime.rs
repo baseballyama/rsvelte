@@ -112,6 +112,17 @@ fn compare_js(actual: &str, expected: &str) -> bool {
     normalized_actual == normalized_expected
 }
 
+fn compare_js_debug(actual: &str, expected: &str, test_name: &str) -> bool {
+    let normalized_actual = normalize_js(actual);
+    let normalized_expected = normalize_js(expected);
+    let passed = normalized_actual == normalized_expected;
+    if !passed && test_name == "reactive-statement-indirect" {
+        eprintln!("DEBUG NORMALIZED EXPECTED: {}", normalized_expected);
+        eprintln!("DEBUG NORMALIZED ACTUAL  : {}", normalized_actual);
+    }
+    passed
+}
+
 /// Check if actual output writing is enabled via environment variable.
 fn should_write_actual_output() -> bool {
     std::env::var("WRITE_ACTUAL_OUTPUT").is_ok()
@@ -150,7 +161,8 @@ fn run_runtime_fixture_test(category: &str, fixture: &RuntimeFixture) -> TestRes
 
         match compile(&fixture.input, client_options) {
             Ok(compile_result) => {
-                let passed = compare_js(&compile_result.js.code, expected_client);
+                let passed =
+                    compare_js_debug(&compile_result.js.code, expected_client, &fixture.name);
 
                 if write_output {
                     write_actual_output(

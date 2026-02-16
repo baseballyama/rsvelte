@@ -1002,6 +1002,18 @@ fn process_bind_directive(
             set_args.push(b::boolean(true));
         }
         vec![b::stmt(b::call(b::member_path("$.set"), set_args))]
+    } else if is_store_sub {
+        // For direct store subscriptions, use $.store_set(store, $$value)
+        // $store = value -> $.store_set(store, value)
+        let store_name = if let JsExpr::Identifier(name) = &raw_expression {
+            name.strip_prefix('$').unwrap_or(name).to_string()
+        } else {
+            "unknown".to_string()
+        };
+        vec![b::stmt(b::call(
+            b::member_path("$.store_set"),
+            vec![b::id(&store_name), b::id("$$value")],
+        ))]
     } else if is_prop_binding {
         // For props in legacy mode, call the prop function with the value
         // prop($$value) instead of prop = $$value

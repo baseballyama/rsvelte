@@ -532,7 +532,10 @@ fn get_global_keypath(node: &Value, context: &VisitorContext) -> Option<String> 
     let name = n.get("name").and_then(|n| n.as_str())?;
 
     // Check if it's a binding (if so, it's not a global/rune)
-    if context.analysis.root.scope.declarations.contains_key(name) {
+    // Must check ALL scopes (not just root) to detect imports and other declarations
+    // that shadow rune names. For example, `import { state } from './store.js'`
+    // means `$state(0)` is a store call, not a rune call.
+    if context.analysis.root.find_binding_any_scope(name).is_some() {
         return None;
     }
 

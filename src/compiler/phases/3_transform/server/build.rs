@@ -1174,8 +1174,8 @@ export default function {component_name}($$renderer{props_param}) {{
                     then_param,
                     pending_body,
                     then_body,
-                    catch_param,
-                    catch_body,
+                    catch_param: _,
+                    catch_body: _,
                 } => {
                     // Flush current HTML before await block
                     if !current_html.is_empty() {
@@ -1185,6 +1185,8 @@ export default function {component_name}($$renderer{props_param}) {{
                     }
 
                     // Generate $.await call with proper callbacks
+                    // The official Svelte compiler only passes 4 args: $$renderer, promise, pending, then
+                    // The catch callback is NOT included in server-side output
                     body_code.push_str(&format!("{}$.await(\n", indent));
                     body_code.push_str(&format!("{}\t$$renderer,\n", indent));
                     body_code.push_str(&format!("{}\t{},\n", indent, promise));
@@ -1200,7 +1202,7 @@ export default function {component_name}($$renderer{props_param}) {{
                         body_code.push_str(&format!("{}\t}},\n", indent));
                     }
 
-                    // Then callback
+                    // Then callback (last argument - no catch callback on server)
                     if then_body.is_empty() {
                         if then_param.is_empty() {
                             body_code.push_str(&format!("{}\t() => {{}}", indent));
@@ -1217,30 +1219,6 @@ export default function {component_name}($$renderer{props_param}) {{
                             Self::build_parts(then_body, indent_level + 2, each_counter);
                         body_code.push_str(&then_code);
                         body_code.push_str(&format!("{}\t}}", indent));
-                    }
-
-                    // Catch callback (only if catch block exists)
-                    if !catch_body.is_empty() || !catch_param.is_empty() {
-                        body_code.push_str(",\n");
-                        if catch_body.is_empty() {
-                            if catch_param.is_empty() {
-                                body_code.push_str(&format!("{}\t() => {{}}", indent));
-                            } else {
-                                body_code
-                                    .push_str(&format!("{}\t({}) => {{}}", indent, catch_param));
-                            }
-                        } else {
-                            if catch_param.is_empty() {
-                                body_code.push_str(&format!("{}\t() => {{\n", indent));
-                            } else {
-                                body_code
-                                    .push_str(&format!("{}\t({}) => {{\n", indent, catch_param));
-                            }
-                            let catch_code =
-                                Self::build_parts(catch_body, indent_level + 2, each_counter);
-                            body_code.push_str(&catch_code);
-                            body_code.push_str(&format!("{}\t}}", indent));
-                        }
                     }
 
                     body_code.push('\n');
@@ -1404,6 +1382,20 @@ export default function {component_name}($$renderer{props_param}) {{
                 OutputPart::HydrationAnchor => {
                     // Add <!> marker to current HTML (hydration anchor for Components/RenderTags/HtmlTags in select/optgroup)
                     current_html.push_str("<!>");
+                }
+                OutputPart::RawStatement(stmt) => {
+                    // Flush current HTML before raw statement
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+
+                    // Emit the raw statement(s)
+                    for line in stmt.lines() {
+                        body_code.push_str(&format!("{}{}\n", indent, line));
+                    }
+                    body_code.push('\n');
                 }
                 OutputPart::SnippetFunction { name, params, body } => {
                     // Flush current HTML before function declaration

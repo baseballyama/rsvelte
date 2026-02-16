@@ -35,7 +35,8 @@ pub mod text;
 pub mod title_element;
 
 use super::ServerCodeGenerator;
-use crate::ast::template::TemplateNode;
+use super::types::OutputPart;
+use crate::ast::template::{DebugTag, TemplateNode};
 use crate::compiler::phases::phase3_transform::TransformError;
 
 impl<'a> ServerCodeGenerator<'a> {
@@ -63,7 +64,38 @@ impl<'a> ServerCodeGenerator<'a> {
             TemplateNode::TitleElement(title) => self.generate_title_element(title),
             TemplateNode::SvelteComponent(elem) => self.generate_svelte_component(elem),
             TemplateNode::SvelteSelf(elem) => self.generate_svelte_self(elem),
+            TemplateNode::DebugTag(tag) => self.generate_debug_tag(tag),
             _ => Ok(()),
         }
+    }
+
+    /// Generate server-side code for {@debug} tag.
+    /// Emits `console.log({ ...identifiers }); debugger;`
+    fn generate_debug_tag(&mut self, tag: &DebugTag) -> Result<(), TransformError> {
+        // Build identifier list from source
+        let mut ident_names = Vec::new();
+        for ident in &tag.identifiers {
+            let start = ident.start().unwrap_or(0) as usize;
+            let end = ident.end().unwrap_or(0) as usize;
+            if end > start && end <= self.source.len() {
+                let name = self.source[start..end].trim().to_string();
+                ident_names.push(name);
+            }
+        }
+
+        if ident_names.is_empty() {
+            // {@debug} with no identifiers - just emit debugger
+            self.output_parts
+                .push(OutputPart::RawStatement("debugger;".to_string()));
+        } else {
+            // {@debug expr1, expr2} - emit console.log({ expr1, expr2 }); debugger;
+            let obj_entries = ident_names.join(", ");
+            self.output_parts.push(OutputPart::RawStatement(format!(
+                "console.log({{ {} }});\ndebugger;",
+                obj_entries
+            )));
+        }
+
+        Ok(())
     }
 }
