@@ -37,8 +37,9 @@ use crate::compiler::phases::phase2_analyze::scope::{BindingKind, DeclarationKin
 use types::{ComponentClientTransformState, ComponentContext, TransformOptions, TransformResult};
 
 // Cached regular expressions for performance
-static REGEX_STATE_DERIVED_VAR: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?:let|const)\s+(\w+)\s*=\s*\$(?:state|derived)\s*\(").unwrap());
+static REGEX_STATE_DERIVED_VAR: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?:let|const|var)\s+(\w+)\s*=\s*\$(?:state|derived)(?:\.by)?\s*\(").unwrap()
+});
 
 // Regex for sanitizing identifier names - replaces invalid identifier characters
 // Pattern matches:
@@ -137,8 +138,25 @@ fn transform_client_with_visitors(
 
     // Visit the program to set up transforms for props, store subscriptions, etc.
     // This handles legacy mode props ($.prop() getters) and store subscriptions
+    // NOTE: visit_program calls add_state_transformers again internally, so any
+    // transform removals must happen AFTER this call.
     use crate::compiler::phases::phase3_transform::client::visitors::program::visit_program;
     visit_program(&mut context);
+
+    // Remove transforms for variables that have shadowed $state declarations.
+    // Due to a known analysis bug where inner-scope $state() declarations overwrite
+    // the BindingKind of same-named outer-scope bindings (via scope conflation),
+    // add_state_transformers may incorrectly register $.get()/$.set() transforms
+    // for outer variables that are NOT actually $state. We detect this by checking
+    // if a variable name has both a top-level non-$state declaration and an inner-scope
+    // $state declaration in the instance script.
+    // This MUST be done after visit_program() since it calls add_state_transformers again.
+    if let Some(ref script_content) = analysis.instance_script_content {
+        let shadowed_names = extract_shadowed_state_names(&script_content.raw);
+        for name in &shadowed_names {
+            context.state.transform.remove(name);
+        }
+    }
 
     // Call the fragment visitor to transform the template
     // This is the root fragment of the component, so is_root_fragment=true
@@ -746,6 +764,110 @@ fn extract_imports(script: &str) -> (Vec<String>, String) {
     (imports, rest.join("\n"))
 }
 
+/// Extract variable names from top-level (non-nested) declarations that are NOT
+/// $state()/$derived()/$state.raw() calls. This helps detect cases where a name
+/// has a regular declaration at the top level but is shadowed by a $state() declaration
+/// inside a nested function. The text-based transform can't distinguish scopes, so
+/// such names should NOT be wrapped with $.get().
+///
+/// For example:
+/// ```js
+/// function createArray(initial) { let array = $state(initial); ... }
+/// const array = createArray(['x']); // top-level, NOT $state
+/// ```
+/// Returns {"array"} because `array` has a non-$state top-level declaration.
+/// Detect variable names that have BOTH:
+/// 1. A top-level (non-nested) declaration WITHOUT $state/$derived
+/// 2. An inner-scope (nested) declaration WITH $state/$derived
+///
+/// These names indicate a shadowing issue where the text-based transform
+/// would incorrectly apply $.get()/$.set() to the outer variable.
+///
+/// For example:
+/// ```js
+/// function createArray(initial) { let array = $state(initial); ... }
+/// const array = createArray(['x']); // top-level, NOT $state
+/// ```
+/// Returns {"array"} because `array` has shadowing between inner $state and outer non-$state.
+fn extract_shadowed_state_names(script: &str) -> std::collections::HashSet<String> {
+    let mut top_level_non_state: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
+    let mut inner_state: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut brace_depth: i32 = 0;
+
+    for line in script.lines() {
+        let trimmed = line.trim();
+
+        // Check if this line is at the top level BEFORE counting braces in this line
+        let line_starts_at_top = brace_depth == 0;
+
+        // Track brace depth (simple heuristic - doesn't handle strings/comments)
+        for ch in trimmed.chars() {
+            match ch {
+                '{' => brace_depth += 1,
+                '}' => brace_depth -= 1,
+                _ => {}
+            }
+        }
+
+        // Check if this is a let/const/var declaration
+        let has_decl = trimmed.starts_with("let ")
+            || trimmed.starts_with("const ")
+            || trimmed.starts_with("var ");
+
+        if !has_decl {
+            continue;
+        }
+
+        let has_rune = trimmed.contains("$state(")
+            || trimmed.contains("$state.raw(")
+            || trimmed.contains("$state.frozen(")
+            || trimmed.contains("$derived(")
+            || trimmed.contains("$derived.by(");
+
+        // Extract variable name from: let/const/var name = expr
+        let after_keyword = if let Some(rest) = trimmed.strip_prefix("let ") {
+            rest
+        } else if let Some(rest) = trimmed.strip_prefix("const ") {
+            rest
+        } else if let Some(rest) = trimmed.strip_prefix("var ") {
+            rest
+        } else {
+            trimmed
+        };
+
+        let before_eq = if let Some(eq_pos) = after_keyword.find('=') {
+            &after_keyword[..eq_pos]
+        } else if let Some(semi_pos) = after_keyword.find(';') {
+            &after_keyword[..semi_pos]
+        } else {
+            after_keyword
+        };
+
+        let var_name: String = before_eq
+            .trim()
+            .chars()
+            .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '$')
+            .collect();
+
+        if var_name.is_empty() {
+            continue;
+        }
+
+        if line_starts_at_top && !has_rune {
+            top_level_non_state.insert(var_name);
+        } else if !line_starts_at_top && has_rune {
+            inner_state.insert(var_name);
+        }
+    }
+
+    // Return the intersection: names that appear in BOTH sets
+    top_level_non_state
+        .intersection(&inner_state)
+        .cloned()
+        .collect()
+}
+
 /// Extract local reactive variable names from script content.
 /// These are variables declared with $state() or $derived() inside functions
 /// (like inside $effect callbacks) that aren't tracked in analysis.root.bindings.
@@ -772,10 +894,13 @@ fn extract_proxy_vars(script: &str) -> Vec<String> {
     for line in script.lines() {
         let trimmed = line.trim();
 
-        // Look for patterns like: let/const varname = $state({ ... }) or $state([ ... ])
+        // Look for patterns like: let/const/var varname = $state({ ... }) or $state([ ... ])
         if let Some(state_pos) = trimmed.find("$state(") {
             // Check if this is a declaration
-            if trimmed.starts_with("let ") || trimmed.starts_with("const ") {
+            if trimmed.starts_with("let ")
+                || trimmed.starts_with("const ")
+                || trimmed.starts_with("var ")
+            {
                 // Extract variable name (before the = sign)
                 if let Some(eq_pos) = trimmed.find('=') {
                     let decl_part = trimmed[..eq_pos].trim();
@@ -801,12 +926,47 @@ fn extract_proxy_vars(script: &str) -> Vec<String> {
 /// Module-level $state() and $derived() variables get the same $.state(), $.get(), $.set()
 /// transforms as instance-level variables. The official Svelte compiler AST-walks the module
 /// script with the same visitors as the instance script, applying transforms to all scopes.
+///
+/// The key distinction: if a module-level $state() variable is NOT reassigned (is_state_source
+/// returns false), it only gets $.proxy() wrapping (no $.state()), and reads don't need $.get().
 fn transform_module_script_runes(script: &str, analysis: &ComponentAnalysis) -> String {
     let mut result = script.to_string();
 
     // Extract local reactive variable names from the module script
     // These are variables declared with $state() or $derived() inside functions
     let module_state_vars = extract_local_reactive_vars(script);
+
+    // Extract non-reactive module state vars: $state() variables that are NOT reassigned.
+    // In runes mode (immutable=true), non-reassigned $state vars don't need $.state() or $.get().
+    // They only get $.proxy() for objects/arrays. This mirrors the instance-level is_state_source logic.
+    let module_non_reactive_vars: Vec<String> = if analysis.immutable {
+        analysis
+            .root
+            .bindings
+            .iter()
+            .filter(|b| {
+                // Module-level bindings are at scope 0
+                b.scope_index == 0
+                    && matches!(b.kind, BindingKind::State)
+                    && !b.reassigned
+                    && !analysis.accessors
+            })
+            .map(|b| b.name.clone())
+            .collect()
+    } else {
+        Vec::new()
+    };
+
+    // Extract module proxy vars for non-reactive vars
+    let module_proxy_vars = extract_proxy_vars(script);
+
+    // Reactive module state vars = those that need $.get()/$.set()
+    // (i.e. all module state vars except non-reactive ones)
+    let reactive_module_state_vars: Vec<String> = module_state_vars
+        .iter()
+        .filter(|v| !module_non_reactive_vars.contains(v))
+        .cloned()
+        .collect();
 
     // Transform $state.snapshot(x) to $.snapshot(x)
     if result.contains("$state.snapshot(") {
@@ -823,23 +983,83 @@ fn transform_module_script_runes(script: &str, analysis: &ComponentAnalysis) -> 
         result = result.replace("$state.frozen(", "$.state(");
     }
 
-    // Transform $state(x) to $.state(x)
-    // In module context, $state() variables get the same $.state() wrapping as instance-level,
-    // because the official compiler treats them identically via AST visitors.
+    // Transform $state(x) - handling both reassigned and non-reassigned cases.
+    // Non-reassigned vars get $.proxy() only, reassigned vars get $.state($.proxy()).
     while let Some(pos) = result.find("$state(") {
         // Make sure this is not $state.something
         if pos + 7 < result.len() && result.as_bytes()[pos + 6] != b'(' {
             break;
         }
+
+        // Extract variable name for this declaration
+        let var_name = {
+            let before_state = &result[..pos];
+            let mut name = String::new();
+            if before_state.contains("let ")
+                || before_state.contains("const ")
+                || before_state.contains("var ")
+            {
+                let decl_pattern = if before_state.contains("let ") {
+                    "let "
+                } else if before_state.contains("const ") {
+                    "const "
+                } else {
+                    "var "
+                };
+                if let Some(decl_pos) = before_state.rfind(decl_pattern) {
+                    let after_keyword = &before_state[decl_pos + decl_pattern.len()..];
+                    let before_eq = if let Some(eq_pos) = after_keyword.find('=') {
+                        &after_keyword[..eq_pos]
+                    } else {
+                        after_keyword
+                    };
+                    name = before_eq
+                        .trim()
+                        .chars()
+                        .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '$')
+                        .collect::<String>();
+                }
+            }
+            name
+        };
+
+        let is_non_reactive = module_non_reactive_vars.contains(&var_name);
+
         let state_start = pos + 7; // after "$state("
         if let Some(content_end) = find_matching_paren(&result[state_start..]) {
             let content = result[state_start..state_start + content_end].to_string();
             let trimmed_content = content.trim();
             let is_object_or_array =
                 trimmed_content.starts_with('{') || trimmed_content.starts_with('[');
+            let needs_proxy = is_object_or_array || expression_needs_proxy(trimmed_content);
 
-            if is_object_or_array || expression_needs_proxy(trimmed_content) {
-                // Objects/arrays need $.proxy() for deep reactivity AND $.state() for tracking
+            if is_non_reactive {
+                // Non-reassigned: no $.state() wrapper needed
+                if needs_proxy {
+                    result = format!(
+                        "{}$.proxy({}){}",
+                        &result[..pos],
+                        content,
+                        &result[state_start + content_end + 1..]
+                    );
+                } else if trimmed_content.is_empty() {
+                    let extracted_value = "void 0";
+                    result = format!(
+                        "{}{}{}",
+                        &result[..pos],
+                        extracted_value,
+                        &result[state_start + content_end + 1..]
+                    );
+                } else {
+                    result = format!(
+                        "{}{}{}",
+                        &result[..pos],
+                        content,
+                        &result[state_start + content_end + 1..]
+                    );
+                }
+            } else if needs_proxy {
+                // Reassigned: objects/arrays need $.state($.proxy(...))
                 result = format!(
                     "{}$.state($.proxy({})){}",
                     &result[..pos],
@@ -883,13 +1103,11 @@ fn transform_module_script_runes(script: &str, analysis: &ComponentAnalysis) -> 
         if let Some(content_end) = find_matching_paren(&result[derived_start..]) {
             let content = &result[derived_start..derived_start + content_end];
             // Wrap state variables inside the expression with $.get()
-            let empty_non_reactive: Vec<String> = Vec::new();
-            let empty_proxy: Vec<String> = Vec::new();
             let wrapped_content = wrap_state_vars_in_expr(
                 content,
-                &module_state_vars,
-                &empty_non_reactive,
-                &empty_proxy,
+                &reactive_module_state_vars,
+                &module_non_reactive_vars,
+                &module_proxy_vars,
             );
             result = format!(
                 "{}$.derived(() => {}){}",
@@ -910,9 +1128,7 @@ fn transform_module_script_runes(script: &str, analysis: &ComponentAnalysis) -> 
     // if any declaration (let/const/var) for the variable exists in the text.
     // In module scripts, declarations and assignments coexist, so we need to
     // process non-declaration lines separately.
-    if !module_state_vars.is_empty() {
-        let empty_non_reactive: Vec<String> = Vec::new();
-        let empty_proxy: Vec<String> = Vec::new();
+    if !reactive_module_state_vars.is_empty() {
         let empty_raw: Vec<String> = Vec::new();
 
         // Process line by line for assignment transforms
@@ -921,7 +1137,7 @@ fn transform_module_script_runes(script: &str, analysis: &ComponentAnalysis) -> 
         for line in &lines {
             let trimmed = line.trim();
             // Skip declaration lines - they've already been transformed
-            let is_declaration = module_state_vars.iter().any(|var| {
+            let is_declaration = reactive_module_state_vars.iter().any(|var| {
                 trimmed.contains(&format!("let {} = ", var))
                     || trimmed.contains(&format!("const {} = ", var))
                     || trimmed.contains(&format!("var {} = ", var))
@@ -931,9 +1147,9 @@ fn transform_module_script_runes(script: &str, analysis: &ComponentAnalysis) -> 
             } else {
                 let transformed = transform_state_assignments(
                     line,
-                    &module_state_vars,
-                    &empty_non_reactive,
-                    &empty_proxy,
+                    &reactive_module_state_vars,
+                    &module_non_reactive_vars,
+                    &module_proxy_vars,
                     &empty_raw,
                     analysis.runes,
                     &[],
@@ -943,12 +1159,12 @@ fn transform_module_script_runes(script: &str, analysis: &ComponentAnalysis) -> 
         }
         result = transformed_lines.join("\n");
 
-        // Wrap state variable reads in $.get()
+        // Wrap state variable reads in $.get() (only for reactive vars, not non-reactive)
         result = wrap_state_vars_in_expr(
             &result,
-            &module_state_vars,
-            &empty_non_reactive,
-            &empty_proxy,
+            &reactive_module_state_vars,
+            &module_non_reactive_vars,
+            &module_proxy_vars,
         );
     }
 
@@ -981,6 +1197,16 @@ fn transform_instance_script_for_visitors(
 
     // Collect state variables from analysis for $.get() wrapping
     // LegacyReactive bindings (from `$: x = expr`) also need $.get()/$.set() transforms
+    //
+    // Collect state variables from analysis bindings.
+    // NOTE: Due to a known analysis issue where inner-scope $state() declarations can
+    // overwrite the BindingKind of same-named outer-scope bindings (via scope conflation),
+    // some bindings here may be incorrectly marked as State. For the text-based script
+    // transform this is actually OK - the inner function's $state variable references DO
+    // need $.get()/$.set() wrapping, and outer-scope declaration LHS references are
+    // automatically skipped by transform_state_in_expr. The AST-based template transform
+    // is corrected separately (see transform_client_with_visitors where shadowed names
+    // are removed from context.state.transform).
     let mut state_vars: Vec<String> = analysis
         .root
         .bindings
@@ -1016,11 +1242,6 @@ fn transform_instance_script_for_visitors(
             state_vars.push(var);
         }
     }
-
-    // Note: We intentionally do NOT remove state_vars that shadow non-reactive top-level
-    // declarations because the text-based transform is not scope-aware. Removing them
-    // would fix the top-level scope but break the inner scope where $.get() is needed.
-    // A proper fix requires scope-aware text transformation or AST-based transforms.
 
     // Collect proxy vars - variables initialized with $state({ ... }) or $state([ ... ])
     // These are converted to $.proxy() and don't need $.get() wrapping for property access
@@ -1320,6 +1541,7 @@ fn transform_instance_script_for_visitors(
             proxy_vars,
             dev,
             analysis,
+            store_sub_vars,
         );
 
         // Skip empty transformations (e.g., read-only $props() with no defaults)
@@ -1438,7 +1660,9 @@ fn transform_instance_script_for_visitors(
 
         // Skip $props.id() declarations - they will be added as const declarations in the component body
         if (trimmed.contains("= $props.id()") || trimmed.contains("= $.props_id()"))
-            && (trimmed.starts_with("let ") || trimmed.starts_with("const "))
+            && (trimmed.starts_with("let ")
+                || trimmed.starts_with("const ")
+                || trimmed.starts_with("var "))
         {
             line_idx += 1;
             continue;
@@ -1578,57 +1802,99 @@ fn transform_client_runes_with_skip_and_state(
     proxy_vars: &[String],
     dev: bool,
     analysis: &ComponentAnalysis,
+    store_sub_vars: &[String],
 ) -> String {
     let mut result = line.to_string();
 
-    // Handle destructuring patterns with $state/$state.raw BEFORE other $state transforms.
-    // e.g. `let { num } = $state(setup())` -> `let tmp = setup(), num = $.state($.proxy(tmp.num))`
-    if let Some(state_pos) = result
-        .find("$state(")
-        .or_else(|| result.find("$state.raw("))
-    {
-        let before_state = &result[..state_pos];
-        if (before_state.contains("let ") || before_state.contains("const "))
-            && (before_state.contains('{') || before_state.contains('['))
+    // Check which rune names are actually store subscriptions.
+    // When $state or $effect is imported from a store (not a real rune),
+    // we must NOT transform $state(x) to $.state(x) or $effect(x) to $.user_effect(x).
+    let state_is_store_sub = store_sub_vars.contains(&"$state".to_string());
+    let effect_is_store_sub = store_sub_vars.contains(&"$effect".to_string());
+    let derived_is_store_sub = store_sub_vars.contains(&"$derived".to_string());
+
+    // Skip all $state rune transforms if $state is actually a store subscription
+    if !state_is_store_sub {
+        // Handle destructuring patterns with $state/$state.raw BEFORE other $state transforms.
+        // e.g. `let { num } = $state(setup())` -> `let tmp = setup(), num = $.state($.proxy(tmp.num))`
+        if let Some(state_pos) = result
+            .find("$state(")
+            .or_else(|| result.find("$state.raw("))
         {
-            let is_raw = result[state_pos..].starts_with("$state.raw(");
-            if let Some(transformed) = transform_state_destructuring(
-                &result,
-                is_raw,
-                skip_state_vars,
-                state_vars,
-                non_reactive_vars,
-                proxy_vars,
-            ) {
-                return transformed;
+            let before_state = &result[..state_pos];
+            if (before_state.contains("let ")
+                || before_state.contains("const ")
+                || before_state.contains("var "))
+                && (before_state.contains('{') || before_state.contains('['))
+            {
+                let is_raw = result[state_pos..].starts_with("$state.raw(");
+                if let Some(transformed) = transform_state_destructuring(
+                    &result,
+                    is_raw,
+                    skip_state_vars,
+                    state_vars,
+                    non_reactive_vars,
+                    proxy_vars,
+                ) {
+                    return transformed;
+                }
             }
         }
-    }
 
-    // Transform $state.snapshot(x) to $.snapshot(x)
-    if result.contains("$state.snapshot(") {
-        result = result.replace("$state.snapshot(", "$.snapshot(");
-    }
+        // Transform $state.snapshot(x) to $.snapshot(x)
+        if result.contains("$state.snapshot(") {
+            result = result.replace("$state.snapshot(", "$.snapshot(");
+        }
 
-    // Transform $state.raw(x) to $.state(x)
-    if result.contains("$state.raw(") {
-        result = result.replace("$state.raw(", "$.state(");
-    }
+        // Transform $state.raw(x) to $.state(x)
+        if result.contains("$state.raw(") {
+            result = result.replace("$state.raw(", "$.state(");
+        }
 
-    // Transform $state.frozen(x) to $.state(x)
-    if result.contains("$state.frozen(") {
-        result = result.replace("$state.frozen(", "$.state(");
-    }
+        // Transform $state.frozen(x) to $.state(x)
+        if result.contains("$state.frozen(") {
+            result = result.replace("$state.frozen(", "$.state(");
+        }
 
-    // Transform $state(x) to $.state(x) for primitives or $.proxy(x) for objects
-    if let Some(pos) = find_unescaped_state_call(&result) {
-        // Check if this is a declaration
-        if result[..pos].contains("let ") || result[..pos].contains("const ") {
-            // Extract variable name by finding identifier after let/const keyword
+        // Transform $state(x) to $.state(x) for primitives or $.proxy(x) for objects
+        // Loop to handle multiple $state() calls in a single statement
+        // (e.g., inside a function body with multiple state declarations)
+        while let Some(pos) = find_unescaped_state_call(&result) {
+            // Check if this is a declaration
+            if !(result[..pos].contains("let ")
+                || result[..pos].contains("const ")
+                || result[..pos].contains("var "))
+            {
+                break;
+            }
+
+            // Extract variable name by finding identifier after let/const/var keyword
             let decl_pattern = if result[..pos].contains("let ") {
-                "let "
+                // Find the closest declaration keyword before this $state call
+                let let_pos = result[..pos].rfind("let ");
+                let const_pos = result[..pos].rfind("const ");
+                let var_pos = result[..pos].rfind("var ");
+                let max_pos = [let_pos, const_pos, var_pos]
+                    .iter()
+                    .filter_map(|p| *p)
+                    .max();
+                if max_pos == let_pos {
+                    "let "
+                } else if max_pos == const_pos {
+                    "const "
+                } else {
+                    "var "
+                }
+            } else if result[..pos].contains("const ") {
+                let const_pos = result[..pos].rfind("const ");
+                let var_pos = result[..pos].rfind("var ");
+                if var_pos.is_some() && var_pos > const_pos {
+                    "var "
+                } else {
+                    "const "
+                }
             } else {
-                "const "
+                "var "
             };
 
             let var_name = if let Some(decl_pos) = result[..pos].rfind(decl_pattern) {
@@ -1651,7 +1917,7 @@ fn transform_client_runes_with_skip_and_state(
             // Check if we should skip this state variable
             let state_start = pos + 7; // after "$state("
             if let Some(content_end) = find_matching_paren(&result[state_start..]) {
-                let content = &result[state_start..state_start + content_end];
+                let content = result[state_start..state_start + content_end].to_string();
                 let trimmed_content = content.trim();
                 let is_object_or_array =
                     trimmed_content.starts_with('{') || trimmed_content.starts_with('[');
@@ -1674,12 +1940,12 @@ fn transform_client_runes_with_skip_and_state(
                         // Empty $state() should become "void 0" (not "undefined")
                         // to match the official Svelte compiler output
                         let extracted_value = if trimmed_content.is_empty() {
-                            "void 0"
+                            "void 0".to_string()
                         } else if trimmed_content == "undefined" {
                             // Explicit undefined should also become void 0
-                            "void 0"
+                            "void 0".to_string()
                         } else {
-                            content
+                            content.to_string()
                         };
                         result = format!(
                             "{}{}{}",
@@ -1708,115 +1974,55 @@ fn transform_client_runes_with_skip_and_state(
                     );
                 } else {
                     // Primitives that ARE reassigned need $.state()
-                    result = format!("{}$.state({}", &result[..pos], &result[pos + 7..]);
+                    result = format!(
+                        "{}$.state({}){}",
+                        &result[..pos],
+                        content,
+                        &result[state_start + content_end + 1..]
+                    );
                 }
             } else {
                 // Fallback for unparseable content
                 result = format!("{}$.state({}", &result[..pos], &result[pos + 7..]);
+                break;
             }
         }
-    }
+    } // end if !state_is_store_sub
 
-    // Transform $derived.by() to $.derived() - must be processed BEFORE $derived()
-    // $derived.by() already has a callback, so pass it directly
-    // But we need to wrap state variable references inside the callback with $.get()
-    if let Some(pos) = find_unescaped_derived_by_call(&result) {
-        // Check if this is a destructuring pattern: let { a, b } = $derived.by(expr)
-        let before_derived_by = result[..pos].trim();
-        let has_destructuring_by = (before_derived_by.contains("let ")
-            || before_derived_by.contains("const "))
-            && (before_derived_by.contains('{') || before_derived_by.contains('['));
+    // Skip all $derived rune transforms if $derived is actually a store subscription
+    if !derived_is_store_sub {
+        // Transform $derived.by() to $.derived() - must be processed BEFORE $derived()
+        // $derived.by() already has a callback, so pass it directly
+        // But we need to wrap state variable references inside the callback with $.get()
+        // Loop to handle multiple $derived.by() calls in a single statement
+        while let Some(pos) = find_unescaped_derived_by_call(&result) {
+            // Check if this is a destructuring pattern: let { a, b } = $derived.by(expr)
+            let before_derived_by = result[..pos].trim();
+            let has_destructuring_by = (before_derived_by.contains("let ")
+                || before_derived_by.contains("const ")
+                || before_derived_by.contains("var "))
+                && (before_derived_by.contains('{') || before_derived_by.contains('['));
 
-        if has_destructuring_by {
-            // Handle destructuring pattern for $derived.by()
-            // $derived.by() always creates a $$d temp (unlike $derived(identifier) which skips it)
-            if let Some(transformed) = transform_derived_by_destructuring(
-                &result,
-                state_vars,
-                non_reactive_vars,
-                proxy_vars,
-            ) {
-                return transformed;
+            if has_destructuring_by {
+                // Handle destructuring pattern for $derived.by()
+                // $derived.by() always creates a $$d temp (unlike $derived(identifier) which skips it)
+                if let Some(transformed) = transform_derived_by_destructuring(
+                    &result,
+                    state_vars,
+                    non_reactive_vars,
+                    proxy_vars,
+                ) {
+                    return transformed;
+                }
             }
-        }
 
-        let derived_start = pos + 12; // after "$derived.by("
-        if let Some(content_end) = find_matching_paren(&result[derived_start..]) {
-            let content = &result[derived_start..derived_start + content_end];
-            // Wrap state variables inside the callback with $.get()
-            let wrapped_content =
-                wrap_state_vars_in_expr(content, state_vars, non_reactive_vars, proxy_vars);
-            let new_derived = format!("$.derived({})", wrapped_content);
-            result = format!(
-                "{}{}{}",
-                &result[..pos],
-                new_derived,
-                &result[derived_start + content_end + 1..]
-            );
-        } else {
-            result = format!("{}$.derived({}", &result[..pos], &result[pos + 12..]);
-        }
-    }
-
-    // Transform $derived(x) to $.derived(() => x) or $.async_derived() for async
-    // Handle destructuring patterns specially
-    // Loop to handle multiple $derived() calls in a single statement
-    // (e.g., inside a function body with multiple derived declarations)
-    while let Some(pos) = find_unescaped_derived_call(&result) {
-        if !(result[..pos].contains("let ") || result[..pos].contains("const ")) {
-            break;
-        }
-
-        // Check if this is a destructuring pattern
-        let before_derived = result[..pos].trim();
-        let has_destructuring = before_derived.contains('{') || before_derived.contains('[');
-
-        if has_destructuring {
-            // Handle destructuring pattern for $derived
-            if let Some(transformed) =
-                transform_derived_destructuring(&result, state_vars, non_reactive_vars, proxy_vars)
-            {
-                return transformed;
-            }
-        }
-
-        // Find the content inside $derived(...)
-        let derived_start = pos + 9; // after "$derived("
-        if let Some(content_end) = find_matching_paren(&result[derived_start..]) {
-            let content = &result[derived_start..derived_start + content_end];
-            // Wrap in arrow function if not already a function
-            let trimmed_content = content.trim();
-            if !trimmed_content.starts_with("()") && !trimmed_content.starts_with("function") {
-                // Check if the derived expression contains await (async derived)
-                // Note: We need to check for await NOT inside an inner async function
-                let contains_direct_await = contains_direct_await_in_expression(trimmed_content);
-
-                // Wrap state variables inside the derived expression with $.get()
+            let derived_start = pos + 12; // after "$derived.by("
+            if let Some(content_end) = find_matching_paren(&result[derived_start..]) {
+                let content = &result[derived_start..derived_start + content_end];
+                // Wrap state variables inside the callback with $.get()
                 let wrapped_content =
                     wrap_state_vars_in_expr(content, state_vars, non_reactive_vars, proxy_vars);
-
-                // Check if the content is an object literal - if so, wrap in parentheses
-                // to disambiguate from a block statement
-                let wrapped_trimmed = wrapped_content.trim();
-                let is_object_literal = wrapped_trimmed.starts_with('{');
-
-                let new_derived = if contains_direct_await {
-                    // For async derived: $.async_derived(async () => expr)
-                    // The expression may have await calls that need to be preserved
-                    if is_object_literal {
-                        format!("$.async_derived(async () => ({}))", wrapped_content)
-                    } else {
-                        format!("$.async_derived(async () => {})", wrapped_content)
-                    }
-                } else if is_object_literal {
-                    format!("$.derived(() => ({}))", wrapped_content)
-                } else {
-                    // Apply unthunk optimization: $.derived(() => name()) -> $.derived(name)
-                    // This matches the official compiler's b.thunk() + unthunk() behavior
-                    let derived_arg = unthunk_string(&wrapped_content);
-                    format!("$.derived({})", derived_arg)
-                };
-
+                let new_derived = format!("$.derived({})", wrapped_content);
                 result = format!(
                     "{}{}{}",
                     &result[..pos],
@@ -1824,14 +2030,86 @@ fn transform_client_runes_with_skip_and_state(
                     &result[derived_start + content_end + 1..]
                 );
             } else {
-                // The content is already a function - check if it's async
-                // $derived(async () => { ... }) should become $.derived(() => async () => { ... })
-                // Note: returns the async function, NOT invokes it
-                if trimmed_content.starts_with("async ") {
-                    // Wrap: $.derived(() => async () => {...})
+                result = format!("{}$.derived({}", &result[..pos], &result[pos + 12..]);
+                break;
+            }
+        }
+
+        // Transform $derived(x) to $.derived(() => x) or $.async_derived() for async
+        // Handle destructuring patterns specially
+        // Loop to handle multiple $derived() calls in a single statement
+        // (e.g., inside a function body with multiple derived declarations)
+        while let Some(pos) = find_unescaped_derived_call(&result) {
+            if !(result[..pos].contains("let ")
+                || result[..pos].contains("const ")
+                || result[..pos].contains("var "))
+            {
+                break;
+            }
+
+            // Check if this is a destructuring pattern
+            let before_derived = result[..pos].trim();
+            let has_destructuring = before_derived.contains('{') || before_derived.contains('[');
+
+            if has_destructuring {
+                // Handle destructuring pattern for $derived
+                if let Some(transformed) = transform_derived_destructuring(
+                    &result,
+                    state_vars,
+                    non_reactive_vars,
+                    proxy_vars,
+                ) {
+                    return transformed;
+                }
+            }
+
+            // Find the content inside $derived(...)
+            let derived_start = pos + 9; // after "$derived("
+            if let Some(content_end) = find_matching_paren(&result[derived_start..]) {
+                let content = &result[derived_start..derived_start + content_end];
+                // Wrap in arrow function if not already a function
+                let trimmed_content = content.trim();
+                if !trimmed_content.starts_with("()") && !trimmed_content.starts_with("function") {
+                    // Check if the derived expression contains await (async derived)
+                    // Note: We need to check for await NOT inside an inner async function
+                    let contains_direct_await =
+                        contains_direct_await_in_expression(trimmed_content);
+
+                    // Wrap state variables inside the derived expression with $.get()
                     let wrapped_content =
                         wrap_state_vars_in_expr(content, state_vars, non_reactive_vars, proxy_vars);
-                    let new_derived = format!("$.derived(() => {})", wrapped_content);
+
+                    // Check if the content is an object literal - if so, wrap in parentheses
+                    // to disambiguate from a block statement
+                    let wrapped_trimmed = wrapped_content.trim();
+                    let is_object_literal = wrapped_trimmed.starts_with('{');
+
+                    let new_derived = if contains_direct_await {
+                        // For async derived: $.async_derived(async () => expr)
+                        // The expression may have await calls that need to be preserved
+                        if is_object_literal {
+                            format!("$.async_derived(async () => ({}))", wrapped_content)
+                        } else {
+                            format!("$.async_derived(async () => {})", wrapped_content)
+                        }
+                    } else if is_object_literal {
+                        format!("$.derived(() => ({}))", wrapped_content)
+                    } else {
+                        // Check if the content is a store subscription variable (e.g., $store1).
+                        // Store subs are already getter functions, so they can be passed directly
+                        // to $.derived() without wrapping: $.derived($store1) instead of
+                        // $.derived(() => $store1())
+                        let trimmed_wrapped = wrapped_content.trim();
+                        if store_sub_vars.contains(&trimmed_wrapped.to_string()) {
+                            format!("$.derived({})", trimmed_wrapped)
+                        } else {
+                            // Apply unthunk optimization: $.derived(() => name()) -> $.derived(name)
+                            // This matches the official compiler's b.thunk() + unthunk() behavior
+                            let derived_arg = unthunk_string(&wrapped_content);
+                            format!("$.derived({})", derived_arg)
+                        }
+                    };
+
                     result = format!(
                         "{}{}{}",
                         &result[..pos],
@@ -1839,17 +2117,37 @@ fn transform_client_runes_with_skip_and_state(
                         &result[derived_start + content_end + 1..]
                     );
                 } else {
-                    result = format!("{}$.derived({}", &result[..pos], &result[pos + 9..]);
+                    // The content is already a function - check if it's async
+                    // $derived(async () => { ... }) should become $.derived(() => async () => { ... })
+                    // Note: returns the async function, NOT invokes it
+                    if trimmed_content.starts_with("async ") {
+                        // Wrap: $.derived(() => async () => {...})
+                        let wrapped_content = wrap_state_vars_in_expr(
+                            content,
+                            state_vars,
+                            non_reactive_vars,
+                            proxy_vars,
+                        );
+                        let new_derived = format!("$.derived(() => {})", wrapped_content);
+                        result = format!(
+                            "{}{}{}",
+                            &result[..pos],
+                            new_derived,
+                            &result[derived_start + content_end + 1..]
+                        );
+                    } else {
+                        result = format!("{}$.derived({}", &result[..pos], &result[pos + 9..]);
+                    }
                 }
+            } else {
+                result = format!("{}$.derived({}", &result[..pos], &result[pos + 9..]);
+                break;
             }
-        } else {
-            result = format!("{}$.derived({}", &result[..pos], &result[pos + 9..]);
-            break;
         }
-    }
+    } // end if !derived_is_store_sub
 
     // Transform $state.eager(x) to $.eager(() => x) - thunk wrapping
-    if let Some(pos) = result.find("$state.eager(") {
+    if !state_is_store_sub && let Some(pos) = result.find("$state.eager(") {
         let eager_start = pos + 13; // after "$state.eager("
         if let Some(content_end) = find_matching_paren(&result[eager_start..]) {
             let content = &result[eager_start..eager_start + content_end];
@@ -1862,32 +2160,35 @@ fn transform_client_runes_with_skip_and_state(
                 &result[eager_start + content_end + 1..]
             );
         }
-    }
+    } // end state.eager guard
 
-    // Transform $effect.pending() to $.eager($.pending) - MUST be before $effect transformation
-    if result.contains("$effect.pending()") {
-        result = result.replace("$effect.pending()", "$.eager($.pending)");
-    }
+    // Skip all $effect rune transforms if $effect is actually a store subscription
+    if !effect_is_store_sub {
+        // Transform $effect.pending() to $.eager($.pending) - MUST be before $effect transformation
+        if result.contains("$effect.pending()") {
+            result = result.replace("$effect.pending()", "$.eager($.pending)");
+        }
 
-    // Transform $effect.pre(x) to $.user_pre_effect(x) - MUST be before $effect transformation
-    if result.contains("$effect.pre(") {
-        result = result.replace("$effect.pre(", "$.user_pre_effect(");
-    }
+        // Transform $effect.pre(x) to $.user_pre_effect(x) - MUST be before $effect transformation
+        if result.contains("$effect.pre(") {
+            result = result.replace("$effect.pre(", "$.user_pre_effect(");
+        }
 
-    // Transform $effect.root(x) to $.effect_root(x)
-    if result.contains("$effect.root(") {
-        result = result.replace("$effect.root(", "$.effect_root(");
-    }
+        // Transform $effect.root(x) to $.effect_root(x)
+        if result.contains("$effect.root(") {
+            result = result.replace("$effect.root(", "$.effect_root(");
+        }
 
-    // Transform $effect.tracking() to $.effect_tracking()
-    if result.contains("$effect.tracking()") {
-        result = result.replace("$effect.tracking()", "$.effect_tracking()");
-    }
+        // Transform $effect.tracking() to $.effect_tracking()
+        if result.contains("$effect.tracking()") {
+            result = result.replace("$effect.tracking()", "$.effect_tracking()");
+        }
 
-    // Transform $effect(x) to $.user_effect(x)
-    if result.contains("$effect(") {
-        result = result.replace("$effect(", "$.user_effect(");
-    }
+        // Transform $effect(x) to $.user_effect(x)
+        if result.contains("$effect(") {
+            result = result.replace("$effect(", "$.user_effect(");
+        }
+    } // end if !effect_is_store_sub
 
     // Transform $props.id() to $.props_id()
     if result.contains("$props.id()") {
@@ -2030,6 +2331,8 @@ fn transform_derived_destructuring(
         "let"
     } else if trimmed.starts_with("const ") {
         "const"
+    } else if trimmed.starts_with("var ") {
+        "var"
     } else {
         return None;
     };
@@ -2090,6 +2393,8 @@ fn transform_derived_by_destructuring(
         "let"
     } else if trimmed.starts_with("const ") {
         "const"
+    } else if trimmed.starts_with("var ") {
+        "var"
     } else {
         return None;
     };
@@ -2144,6 +2449,8 @@ fn transform_state_destructuring(
         "let"
     } else if trimmed.starts_with("const ") {
         "const"
+    } else if trimmed.starts_with("var ") {
+        "var"
     } else {
         return None;
     };
@@ -2155,7 +2462,7 @@ fn transform_state_destructuring(
 
     // Extract the destructuring pattern between the keyword and the = sign
     let eq_pos = trimmed[..rune_pos].rfind('=')?;
-    let pattern_start = decl_keyword.len() + 1; // skip "let " or "const "
+    let pattern_start = decl_keyword.len() + 1; // skip "let "/"const "/"var "
     let pattern = trimmed[pattern_start..eq_pos].trim();
 
     // Must be a destructuring pattern
@@ -2960,9 +3267,13 @@ fn transform_reactive_statement(
         format!("() => ({})", deps_expr)
     };
 
+    // Don't add trailing semicolon if the body already ends with '}' (block/if statement)
+    // or if the body is a block statement itself
+    let body_needs_semicolon = !transformed_body.trim_end().ends_with('}');
+    let semi = if body_needs_semicolon { ";" } else { "" };
     format!(
-        "$.legacy_pre_effect({}, () => {{\n\t{};\n}});",
-        deps_thunk, transformed_body
+        "$.legacy_pre_effect({}, () => {{\n\t{}{}\n}});",
+        deps_thunk, transformed_body, semi
     )
 }
 
@@ -3188,18 +3499,100 @@ fn body_references_identifier(body: &str, identifier: &str) -> bool {
         return false;
     }
 
+    // Use the recursive check that handles if/else, blocks, and compound statements
+    body_references_identifier_recursive(body.trim(), identifier, &re)
+}
+
+/// Recursively check if an identifier is read (not just assigned to) in a body of code.
+/// Handles block statements, if/else blocks, and compound statements.
+fn body_references_identifier_recursive(body: &str, identifier: &str, re: &regex::Regex) -> bool {
     let trimmed = body.trim();
+
+    if !re.is_match(trimmed) {
+        return false;
+    }
 
     // Handle block statements: strip outer braces and process inner content
     if trimmed.starts_with('{') && trimmed.ends_with('}') {
         let inner = &trimmed[1..trimmed.len() - 1];
-        // Split into statements (semicolon-delimited) and check each one
-        // If the identifier appears as a READ in any statement, it's a dependency
-        return body_references_identifier_in_statements(inner, identifier, &re);
+        return body_references_identifier_in_statements(inner, identifier, re);
     }
 
-    // For simple (non-block) bodies, check for assignment pattern
-    check_identifier_in_statement(trimmed, identifier, &re)
+    // Handle if/else statements: check the condition AND body blocks recursively
+    if let Some(stripped) = trimmed.strip_prefix("if") {
+        let after_if = stripped.trim();
+        if after_if.starts_with('(') {
+            // Find matching closing paren for the condition
+            let mut depth = 0i32;
+            let mut cond_end = None;
+            for (i, ch) in after_if.char_indices() {
+                match ch {
+                    '(' => depth += 1,
+                    ')' => {
+                        depth -= 1;
+                        if depth == 0 {
+                            cond_end = Some(i);
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            if let Some(cond_end_idx) = cond_end {
+                let condition = &after_if[1..cond_end_idx];
+                let after_cond = after_if[cond_end_idx + 1..].trim();
+
+                // Check if identifier is in the condition (always a read)
+                if re.is_match(condition) {
+                    return true;
+                }
+
+                // Extract the if-block body and check recursively
+                if after_cond.starts_with('{') {
+                    // Block body
+                    let mut brace_depth = 0i32;
+                    let mut block_end = None;
+                    for (i, ch) in after_cond.char_indices() {
+                        match ch {
+                            '{' => brace_depth += 1,
+                            '}' => {
+                                brace_depth -= 1;
+                                if brace_depth == 0 {
+                                    block_end = Some(i);
+                                    break;
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    if let Some(block_end_idx) = block_end {
+                        let if_body = &after_cond[..block_end_idx + 1];
+                        if body_references_identifier_recursive(if_body, identifier, re) {
+                            return true;
+                        }
+                        // Check else branch if present
+                        let remainder = after_cond[block_end_idx + 1..].trim();
+                        if let Some(else_part) = remainder.strip_prefix("else") {
+                            return body_references_identifier_recursive(
+                                else_part.trim(),
+                                identifier,
+                                re,
+                            );
+                        }
+                    }
+                } else {
+                    // Single-statement if body (no braces)
+                    // In this case, just check the statement
+                    return check_identifier_in_statement(after_cond, identifier, re);
+                }
+
+                return false;
+            }
+        }
+    }
+
+    // For simple (non-block, non-if) bodies, check for assignment pattern
+    check_identifier_in_statement(trimmed, identifier, re)
 }
 
 /// Check if an identifier is referenced as a read across multiple statements.
@@ -4208,14 +4601,16 @@ fn transform_props_destructuring(
         "let"
     } else if trimmed.starts_with("const ") {
         "const"
+    } else if trimmed.starts_with("var ") {
+        "var"
     } else {
         return None;
     };
 
-    // Check for identifier pattern: let/const props = $props()
+    // Check for identifier pattern: let/const/var props = $props()
     if !trimmed.contains('{') && trimmed.contains("= $props()") {
         // Pattern: let props = $props()
-        let decl_start = if trimmed.starts_with("let ") { 4 } else { 6 };
+        let decl_start = decl_keyword.len() + 1;
         let eq_pos = trimmed.find('=')?;
         let var_name = trimmed[decl_start..eq_pos].trim();
 
@@ -5366,23 +5761,19 @@ fn transform_store_reads_client(line: &str, store_sub_vars: &[String]) -> String
                     false
                 };
 
-                // Check if this is inside $.untrack() - don't transform there
+                // Check if this is inside $.untrack() or $.derived() - don't transform there
                 // $.untrack expects a getter function, so $store should remain $store
-                let is_inside_untrack = {
-                    // Look back for "$.untrack(" pattern
+                // $.derived($store) passes the store getter directly as the derivation function
+                let is_inside_getter_context = {
+                    // Look back for patterns that expect a getter function reference
                     let prefix = &new_result;
-                    let untrack_pattern = "$.untrack(";
-                    if prefix.ends_with(untrack_pattern) {
-                        true
-                    } else {
-                        // Also check for whitespace before the identifier
-                        prefix.trim_end().ends_with(untrack_pattern)
-                    }
+                    let trimmed_prefix = prefix.trim_end();
+                    trimmed_prefix.ends_with("$.untrack(") || trimmed_prefix.ends_with("$.derived(")
                 };
 
                 if before_ok && after_ok && !is_already_call {
-                    if is_inside_untrack {
-                        // Inside $.untrack(), keep as $store (don't add parentheses)
+                    if is_inside_getter_context {
+                        // Inside $.untrack() or $.derived(), keep as $store (don't add parentheses)
                         new_result.push_str(store_sub);
                         i += store_sub.len();
                         continue;
@@ -9613,6 +10004,7 @@ mod tests {
             &[],   // proxy_vars
             false, // dev
             &analysis,
+            &[], // store_sub_vars
         );
         println!("Input:  {}", input);
         println!("Result: {}", result);
@@ -9675,6 +10067,7 @@ fn test_derived_object_literal_double_wrap() {
         &[],   // proxy_vars
         false, // dev
         &analysis,
+        &[], // store_sub_vars
     );
     println!("After first transform: {}", result1);
 
