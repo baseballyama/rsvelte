@@ -17,6 +17,8 @@ impl<'a> ServerCodeGenerator<'a> {
 
         if start + 1 < end && end <= self.source.len() {
             let expr_source = self.source[start + 1..end - 1].trim().to_string();
+            // Strip TypeScript syntax (e.g., non-null assertions `!`)
+            let expr_source = self.strip_ts_from_expr(&expr_source);
 
             // First, try constant variable lookup and folding
             let folded = self.try_fold_with_constants(&expr_source);

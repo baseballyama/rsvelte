@@ -92,6 +92,8 @@ pub(crate) struct ServerCodeGenerator<'a> {
     /// Whether to skip hydration boundaries (empty comment markers after RenderTags/Components)
     /// This is true when the current fragment is "standalone" (contains only a single RenderTag/Component)
     pub(crate) skip_hydration_boundaries: bool,
+    /// Whether the component uses TypeScript (lang="ts")
+    pub(crate) is_typescript: bool,
 }
 
 impl<'a> ServerCodeGenerator<'a> {
@@ -138,6 +140,10 @@ impl<'a> ServerCodeGenerator<'a> {
             })
             .unwrap_or(false);
 
+        // Check if any script uses TypeScript
+        let is_typescript = instance_script.is_some_and(script_is_typescript)
+            || module_script.is_some_and(script_is_typescript);
+
         Self {
             component_name,
             source,
@@ -154,6 +160,7 @@ impl<'a> ServerCodeGenerator<'a> {
             use_async,
             injected_css: None,
             skip_hydration_boundaries: false,
+            is_typescript,
         }
     }
 
@@ -167,11 +174,12 @@ impl<'a> ServerCodeGenerator<'a> {
             module_script: None,
             constant_vars: self.constant_vars.clone(),
             snippets: Vec::new(),
-            analysis: None,
+            analysis: self.analysis,
             uses_store_subs: self.uses_store_subs,
             use_async: self.use_async,
             injected_css: None,
             skip_hydration_boundaries,
+            is_typescript: self.is_typescript,
         }
     }
 
@@ -247,6 +255,28 @@ impl<'a> ServerCodeGenerator<'a> {
             result = result.replace("$effect.pending()", "false");
         }
         result
+    }
+
+    /// Strip TypeScript syntax from a template expression string.
+    ///
+    /// This wraps the expression in a parseable JavaScript statement (`var _ = EXPR;`),
+    /// runs `strip_typescript()` to remove TS-specific syntax (like non-null assertions `!`,
+    /// type assertions `as T`, etc.), then extracts the cleaned expression back.
+    pub(crate) fn strip_ts_from_expr(&self, expr: &str) -> String {
+        if !self.is_typescript {
+            return expr.to_string();
+        }
+        use crate::compiler::phases::phase2_analyze::types::strip_typescript;
+        let wrapper = format!("var _ = {};", expr);
+        let stripped = strip_typescript(&wrapper);
+        // Extract the expression back: "var _ = EXPR;"
+        if let Some(rest) = stripped.strip_prefix("var _ = ") {
+            let result = rest.trim_end_matches(';').trim();
+            result.to_string()
+        } else {
+            // Fallback if stripping changed the structure
+            expr.to_string()
+        }
     }
 
     /// Transform store subscriptions in script content.

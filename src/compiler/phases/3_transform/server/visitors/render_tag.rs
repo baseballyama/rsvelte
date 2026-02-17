@@ -55,6 +55,9 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         let callee_str = self.source[c_start..c_end].trim().to_string();
+        // Strip TypeScript and transform store references in callee
+        let callee_str = self.strip_ts_from_expr(&callee_str);
+        let callee_str = self.transform_store_refs(&callee_str);
 
         // Get arguments
         let mut arg_strs = Vec::new();
@@ -69,7 +72,10 @@ impl<'a> ServerCodeGenerator<'a> {
                     .unwrap_or(0) as usize;
                 let a_end = arg.get("end").and_then(|s: &Value| s.as_u64()).unwrap_or(0) as usize;
                 if a_end > a_start && a_end <= self.source.len() {
-                    arg_strs.push(self.source[a_start..a_end].trim().to_string());
+                    let arg_str = self.source[a_start..a_end].trim().to_string();
+                    let arg_str = self.strip_ts_from_expr(&arg_str);
+                    let arg_str = self.transform_store_refs(&arg_str);
+                    arg_strs.push(arg_str);
                 }
             }
         }

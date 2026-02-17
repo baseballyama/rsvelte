@@ -829,7 +829,7 @@ impl<'a> ServerCodeGenerator<'a> {
         match attr {
             Attribute::Attribute(node) => self.generate_attribute_node(node, element),
             Attribute::BindDirective(bind) => {
-                Self::generate_bind_directive_for_element(bind, &self.source, element)
+                self.generate_bind_directive_for_element_instance(bind, element)
             }
             // Event handlers are not rendered on server
             Attribute::OnDirective(_) => Ok(None),
@@ -837,26 +837,24 @@ impl<'a> ServerCodeGenerator<'a> {
         }
     }
 
-    /// Generate bind directive, optionally with element context for group bindings.
-    fn generate_bind_directive_for_element(
+    /// Instance method wrapper for bind directive generation that applies
+    /// TypeScript stripping and store reference transforms.
+    fn generate_bind_directive_for_element_instance(
+        &self,
         bind: &BindDirective,
-        source: &str,
         element: Option<&RegularElement>,
     ) -> Result<Option<String>, TransformError> {
         let name = bind.name.as_str();
 
         // Skip bindings that should be omitted in SSR
-        // Reference: svelte/packages/svelte/src/compiler/phases/bindings.js
         if Self::should_omit_binding_in_ssr(name) {
             return Ok(None);
         }
 
         // Skip bind:value on file input elements
-        // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/server/visitors/shared/element.js
         if name == "value"
             && let Some(el) = element
         {
-            // Check if this is a file input
             let is_file_input = el.attributes.iter().any(|attr| {
                 if let Attribute::Attribute(node) = attr
                     && node.name.as_str() == "type"
@@ -880,16 +878,18 @@ impl<'a> ServerCodeGenerator<'a> {
         let expr_start = bind.expression.start().unwrap_or(0) as usize;
         let expr_end = bind.expression.end().unwrap_or(0) as usize;
 
-        if expr_end > expr_start && expr_end <= source.len() {
-            let expr = source[expr_start..expr_end].trim().to_string();
+        if expr_end > expr_start && expr_end <= self.source.len() {
+            let expr = self.source[expr_start..expr_end].trim().to_string();
+            // Strip TypeScript syntax and transform store refs
+            let expr = self.strip_ts_from_expr(&expr);
+            let expr = self.transform_store_refs(&expr);
 
             // Handle bind:group specially - convert to checked attribute
             if name == "group" {
-                return Self::generate_group_binding(element, source, &expr);
+                return Self::generate_group_binding(element, &self.source, &expr);
             }
 
             // For bind directives on server, output as $.attr() call
-            // Use third true argument for boolean attributes like checked, open, etc.
             {
                 use crate::compiler::phases::phase3_transform::shared::template::is_boolean_attribute;
                 if is_boolean_attribute(name) {
