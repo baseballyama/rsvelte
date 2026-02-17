@@ -1396,8 +1396,49 @@ impl Parser<'_> {
                     }
                 }
 
-                // Return an actual ConstTag node
-                let declaration = self.parse_js_expression(trimmed, expr_start);
+                // Build a proper VariableDeclaration node, matching the official
+                // Svelte compiler output.  The official compiler uses
+                // `read_pattern` (reads identifier/destructuring + optional TS
+                // type annotation), then `=`, then `read_expression` for the
+                // init.  We approximate this by splitting at the first
+                // top-level `=` we already found.
+                let declaration = if let Some(eq_idx) = first_equals {
+                    // Split into pattern string and init string
+                    let pattern_str = trimmed[..eq_idx].trim();
+                    let init_str = trimmed[eq_idx + 1..].trim();
+
+                    // Strip TypeScript type annotation from pattern if present.
+                    // For a simple identifier like `area: number`, strip `: number`.
+                    // For destructuring like `{ x, y }: Point`, strip `: Point`.
+                    let pattern_clean = strip_type_annotation(pattern_str);
+
+                    // Parse the pattern (LHS)
+                    let pattern_expr = self.parse_js_expression(&pattern_clean, expr_start);
+
+                    // Calculate the offset for the init expression in the
+                    // original source.  `trimmed` starts at `expr_start` in
+                    // the source, and `eq_idx` is the position of `=` within
+                    // `trimmed`.
+                    let init_offset = expr_start
+                        + eq_idx
+                        + 1
+                        + (trimmed[eq_idx + 1..].len() - trimmed[eq_idx + 1..].trim_start().len());
+                    let init_expr = self.parse_js_expression(init_str, init_offset);
+
+                    // Build VariableDeclaration JSON node like the official compiler.
+                    // Use expr_start / expr_end so that the server-side handler
+                    // can still extract the original source text via
+                    // tag.declaration.start() / tag.declaration.end().
+                    build_const_variable_declaration(
+                        &pattern_expr,
+                        &init_expr,
+                        expr_start,
+                        expr_end,
+                    )
+                } else {
+                    // No `=` found – fall back to parsing as a single expression
+                    self.parse_js_expression(trimmed, expr_start)
+                };
 
                 Ok(Some(TemplateNode::ConstTag(ConstTag {
                     start: start as u32,
@@ -1558,4 +1599,103 @@ impl Parser<'_> {
     pub fn parse_js_expression(&self, content: &str, offset: usize) -> Expression {
         self.parse_js_expression_internal(content, offset, false, '{')
     }
+}
+
+/// Strip a TypeScript type annotation from a pattern string.
+///
+/// For simple identifiers: `area: number` -> `area`
+/// For destructuring: `{ x, y }: Point` -> `{ x, y }`
+///
+/// This handles nested braces/brackets so that colons inside destructuring
+/// patterns (like `{ x: aliasX }`) are not mistakenly treated as type
+/// annotations.
+fn strip_type_annotation(pattern: &str) -> String {
+    let chars: Vec<char> = pattern.chars().collect();
+    let mut depth = 0;
+
+    for (i, &c) in chars.iter().enumerate() {
+        match c {
+            '{' | '[' | '(' => depth += 1,
+            '}' | ']' | ')' => depth -= 1,
+            ':' if depth == 0 => {
+                // Found a top-level colon - this is a type annotation
+                return pattern[..i].trim().to_string();
+            }
+            _ => {}
+        }
+    }
+
+    // No type annotation found
+    pattern.to_string()
+}
+
+/// Build a `VariableDeclaration` node from a pattern expression and init
+/// expression.
+///
+/// This creates the same JSON structure as the official Svelte compiler:
+/// ```json
+/// {
+///   "type": "VariableDeclaration",
+///   "kind": "const",
+///   "declarations": [{
+///     "type": "VariableDeclarator",
+///     "id": <pattern>,
+///     "init": <init>
+///   }]
+/// }
+/// ```
+fn build_const_variable_declaration(
+    pattern: &Expression,
+    init: &Expression,
+    decl_start: usize,
+    decl_end: usize,
+) -> Expression {
+    use serde_json::{Map, Value};
+
+    let pattern_value = match pattern {
+        Expression::Value(v) => v.clone(),
+    };
+    let init_value = match init {
+        Expression::Value(v) => v.clone(),
+    };
+
+    // Get positions from the pattern and init for the declarator
+    let id_start = pattern_value
+        .get("start")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(decl_start as u64);
+    let init_end = init_value
+        .get("end")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(decl_end as u64);
+
+    // Build VariableDeclarator
+    let mut declarator = Map::new();
+    declarator.insert(
+        "type".to_string(),
+        Value::String("VariableDeclarator".to_string()),
+    );
+    declarator.insert("id".to_string(), pattern_value);
+    declarator.insert("init".to_string(), init_value);
+    declarator.insert("start".to_string(), Value::Number((id_start as i64).into()));
+    declarator.insert("end".to_string(), Value::Number((init_end as i64).into()));
+
+    // Build VariableDeclaration
+    let mut declaration = Map::new();
+    declaration.insert(
+        "type".to_string(),
+        Value::String("VariableDeclaration".to_string()),
+    );
+    declaration.insert("kind".to_string(), Value::String("const".to_string()));
+    declaration.insert(
+        "declarations".to_string(),
+        Value::Array(vec![Value::Object(declarator)]),
+    );
+    declaration.insert(
+        "start".to_string(),
+        Value::Number((decl_start as i64).into()),
+    );
+    declaration.insert("end".to_string(), Value::Number((decl_end as i64).into()));
+
+    Expression::Value(Value::Object(declaration))
 }

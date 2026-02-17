@@ -209,6 +209,8 @@ pub(crate) enum OutputPart {
         /// - children becomes $.invalid_default_snippet
         /// - default slot content moves to $$slots.default with destructured params
         let_directives: Vec<String>,
+        /// CSS custom properties (e.g., --color="red") to wrap in $.css_props()
+        css_custom_props: Vec<(String, String)>,
     },
     /// Component with bind directives - requires do/while settling
     ComponentWithBindings {
@@ -223,6 +225,9 @@ pub(crate) enum OutputPart {
         children: Option<Vec<OutputPart>>,
         /// Whether this component is dynamic (could be undefined/null)
         dynamic: bool,
+        /// CSS custom properties (e.g., --color="red") to wrap in $.css_props()
+        #[allow(dead_code)]
+        css_custom_props: Vec<(String, String)>,
     },
     Comment,
     /// Each block - produces a for loop

@@ -90,30 +90,39 @@ pub fn process_children<F>(
                     quasi.cooked.push_str(&format!("<!--{}-->", comment.data));
                 }
                 TemplateNode::ExpressionTag(expr_tag) => {
-                    // For now, we don't have scope evaluation, so we treat all expressions as dynamic
-                    // TODO: Implement scope.evaluate() for constant folding
+                    // Try to evaluate the expression at compile time (constant folding)
+                    // This corresponds to state.scope.evaluate(node.expression) in the official compiler
+                    let eval_result = try_evaluate_expression(expr_tag.expression.as_json());
 
-                    // Add the expression with $.escape() call
-                    // TODO: Visit the expression once we have a visitor
-                    let expr_str = extract_expression_string(&expr_tag.expression);
-                    expressions.push(JsExpr::Call(JsCallExpression {
-                        callee: Box::new(JsExpr::Member(JsMemberExpression {
-                            object: Box::new(JsExpr::Identifier("$".to_string())),
-                            property: JsMemberProperty::Identifier("escape".to_string()),
-                            computed: false,
-                            optional: false,
-                        })),
-                        arguments: vec![JsExpr::Identifier(expr_str)],
-                        optional: false,
-                    }));
+                    match eval_result {
+                        EvalResult::Known(value) => {
+                            // Expression evaluates to a known value - fold into template string
+                            // This is equivalent to: quasi.value.cooked += escape_html((evaluated.value ?? '') + '');
+                            quasi.cooked.push_str(&value);
+                        }
+                        EvalResult::Unknown => {
+                            // Expression needs runtime evaluation - emit $.escape() call
+                            let expr_str = extract_expression_string(&expr_tag.expression);
+                            expressions.push(JsExpr::Call(JsCallExpression {
+                                callee: Box::new(JsExpr::Member(JsMemberExpression {
+                                    object: Box::new(JsExpr::Identifier("$".to_string())),
+                                    property: JsMemberProperty::Identifier("escape".to_string()),
+                                    computed: false,
+                                    optional: false,
+                                })),
+                                arguments: vec![JsExpr::Identifier(expr_str)],
+                                optional: false,
+                            }));
 
-                    // Start a new quasi
-                    quasi = JsTemplateElement {
-                        raw: String::new(),
-                        cooked: String::new(),
-                        tail: i + 1 == seq.len(),
-                    };
-                    quasis.push(quasi.clone());
+                            // Start a new quasi
+                            quasi = JsTemplateElement {
+                                raw: String::new(),
+                                cooked: String::new(),
+                                tail: i + 1 == seq.len(),
+                            };
+                            quasis.push(quasi.clone());
+                        }
+                    }
                 }
                 _ => {}
             }
@@ -485,6 +494,159 @@ pub fn create_async_block(
 // =============================================================================
 // Helper functions
 // =============================================================================
+
+/// Evaluate result for compile-time constant expressions.
+///
+/// Corresponds to the `scope.evaluate()` check in the official compiler's
+/// `process_children()` → `flush()` function.
+enum EvalResult {
+    /// Expression evaluates to a known value at compile time.
+    /// The string is the escape_html'd representation.
+    Known(String),
+    /// Expression cannot be evaluated at compile time.
+    Unknown,
+}
+
+/// Try to evaluate an expression at compile time.
+///
+/// Returns `EvalResult::Known(html_escaped_value)` for expressions that can be
+/// statically evaluated (e.g., `null`, `undefined`, `null && fn()`, `false && x`).
+/// Returns `EvalResult::Unknown` for expressions that need runtime evaluation.
+///
+/// This corresponds to `state.scope.evaluate(node.expression)` in the official compiler.
+fn try_evaluate_expression(json: &serde_json::Value) -> EvalResult {
+    let expr_type = json.get("type").and_then(|t| t.as_str()).unwrap_or("");
+
+    match expr_type {
+        "Literal" => {
+            let value = json.get("value");
+            match value {
+                Some(serde_json::Value::Null) => {
+                    // null → escape_html((null ?? '') + '') → ''
+                    EvalResult::Known(String::new())
+                }
+                Some(serde_json::Value::Bool(b)) => {
+                    // true → 'true', false → 'false'
+                    EvalResult::Known(escape_html(&b.to_string()))
+                }
+                Some(serde_json::Value::Number(n)) => {
+                    EvalResult::Known(escape_html(&n.to_string()))
+                }
+                Some(serde_json::Value::String(s)) => EvalResult::Known(escape_html(s)),
+                _ => EvalResult::Unknown,
+            }
+        }
+        "Identifier" => {
+            let name = json.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            if name == "undefined" {
+                // undefined → escape_html((undefined ?? '') + '') → ''
+                EvalResult::Known(String::new())
+            } else {
+                EvalResult::Unknown
+            }
+        }
+        "LogicalExpression" => {
+            let operator = json.get("operator").and_then(|o| o.as_str()).unwrap_or("");
+            let left = json.get("left");
+            let right = json.get("right");
+
+            match operator {
+                "&&" => {
+                    // If left is known and falsy, result is left's value
+                    if let Some(left_json) = left
+                        && let EvalResult::Known(left_val) = try_evaluate_expression(left_json)
+                    {
+                        // Check if the evaluated left value is falsy
+                        // In JS: null, undefined, false, 0, '', NaN are falsy
+                        // After escape_html + (x ?? '') + '' conversion:
+                        // null/undefined → '', false → 'false', 0 → '0', '' → ''
+                        if is_literal_falsy(left_json) {
+                            // null && anything → null → ''
+                            // false && anything → false → 'false'
+                            // 0 && anything → 0 → '0'
+                            return EvalResult::Known(left_val);
+                        }
+                        // If left is known and truthy, result is right's value
+                        if let Some(right_json) = right {
+                            return try_evaluate_expression(right_json);
+                        }
+                    }
+                    EvalResult::Unknown
+                }
+                "||" => {
+                    // If left is known and truthy, result is left's value
+                    if let Some(left_json) = left
+                        && let EvalResult::Known(left_val) = try_evaluate_expression(left_json)
+                    {
+                        if !is_literal_falsy(left_json) {
+                            return EvalResult::Known(left_val);
+                        }
+                        // If left is known and falsy, result is right's value
+                        if let Some(right_json) = right {
+                            return try_evaluate_expression(right_json);
+                        }
+                    }
+                    EvalResult::Unknown
+                }
+                "??" => {
+                    // If left is known and not null/undefined, result is left's value
+                    if let Some(left_json) = left
+                        && let EvalResult::Known(left_val) = try_evaluate_expression(left_json)
+                    {
+                        if !is_literal_nullish(left_json) {
+                            return EvalResult::Known(left_val);
+                        }
+                        // If left is known and nullish, result is right's value
+                        if let Some(right_json) = right {
+                            return try_evaluate_expression(right_json);
+                        }
+                    }
+                    EvalResult::Unknown
+                }
+                _ => EvalResult::Unknown,
+            }
+        }
+        _ => EvalResult::Unknown,
+    }
+}
+
+/// Check if a literal JSON expression AST node is falsy in JavaScript.
+fn is_literal_falsy(json: &serde_json::Value) -> bool {
+    let expr_type = json.get("type").and_then(|t| t.as_str()).unwrap_or("");
+    match expr_type {
+        "Literal" => {
+            let value = json.get("value");
+            match value {
+                Some(serde_json::Value::Null) => true,
+                Some(serde_json::Value::Bool(false)) => true,
+                Some(serde_json::Value::Number(n)) => n.as_f64() == Some(0.0),
+                Some(serde_json::Value::String(s)) => s.is_empty(),
+                _ => false,
+            }
+        }
+        "Identifier" => {
+            let name = json.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            name == "undefined" || name == "NaN"
+        }
+        _ => false,
+    }
+}
+
+/// Check if a literal JSON expression AST node is null or undefined.
+fn is_literal_nullish(json: &serde_json::Value) -> bool {
+    let expr_type = json.get("type").and_then(|t| t.as_str()).unwrap_or("");
+    match expr_type {
+        "Literal" => {
+            let value = json.get("value");
+            matches!(value, Some(serde_json::Value::Null))
+        }
+        "Identifier" => {
+            let name = json.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            name == "undefined"
+        }
+        _ => false,
+    }
+}
 
 /// Extract a string representation of an expression for code generation.
 ///

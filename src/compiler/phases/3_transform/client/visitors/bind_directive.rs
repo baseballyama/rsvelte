@@ -1379,10 +1379,11 @@ fn is_state_variable(expr: &Expression, context: &ComponentContext) -> bool {
                 && let Some(binding) = context.state.get_binding(name)
             {
                 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
-                return matches!(
-                    binding.kind,
-                    BindingKind::State | BindingKind::Derived | BindingKind::RawState
-                );
+                use crate::compiler::phases::phase3_transform::client::utils::is_state_source;
+                // Use is_state_source for state/raw_state (respects immutable/reassigned),
+                // and always return true for derived (they always need $.get())
+                return is_state_source(binding, context.state.analysis)
+                    || matches!(binding.kind, BindingKind::Derived);
             }
             false
         }

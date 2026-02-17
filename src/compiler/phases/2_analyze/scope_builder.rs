@@ -1177,6 +1177,7 @@ impl<'a> ScopeBuilder<'a> {
 
     /// Process an import declaration.
     fn process_import_declaration(&mut self, import_decl: &oxc_ast::ast::ImportDeclaration) {
+        let _source_val = import_decl.source.value.as_str();
         if let Some(specifiers) = &import_decl.specifiers {
             for specifier in specifiers {
                 let name = match specifier {

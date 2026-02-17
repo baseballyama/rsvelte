@@ -148,9 +148,33 @@ fn update_binding_kinds(
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     for path in paths {
-        if let Some(name) = path.get("name").and_then(|n| n.as_str())
-            && let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name)
-        {
+        if let Some(name) = path.get("name").and_then(|n| n.as_str()) {
+            // Find the correct binding for this declaration. When inside a nested function
+            // (function_depth > 0), the merged declarations map might return an outer binding
+            // that shadows the inner one. In that case, search inner scopes for the correct binding.
+            let binding_idx = if context.function_depth > 0 {
+                // Search inner scopes (from deepest to shallowest) for a binding that
+                // was declared INSIDE a nested function (scope_index > 1 for instance code).
+                let mut found = None;
+                for scope in context.analysis.root.all_scopes.iter().rev() {
+                    if let Some(&idx) = scope.declarations.get(name)
+                        && let Some(b) = context.analysis.root.bindings.get(idx)
+                        && b.scope_index > 1
+                    {
+                        found = Some(idx);
+                        break;
+                    }
+                }
+                // Fall back to the declarations map
+                found.or_else(|| context.analysis.root.scope.declarations.get(name).copied())
+            } else {
+                context.analysis.root.scope.declarations.get(name).copied()
+            };
+
+            let binding_idx = match binding_idx {
+                Some(idx) => idx,
+                None => continue,
+            };
             let binding = &mut context.analysis.root.bindings[binding_idx];
 
             // Determine the binding kind based on rune and whether it's a rest element

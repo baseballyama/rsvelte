@@ -412,6 +412,10 @@ pub fn normalize_js(js: &str) -> String {
         .replace_all(&result, "$1'$2'")
         .to_string();
 
+    // Sort import statements to normalize import ordering differences.
+    // Different code generators may produce imports in different orders.
+    let result = sort_import_statements(&result);
+
     // Normalize function names in default exports (Main, Component, etc. -> Component)
     let result = FUNCTION_NAME
         .replace_all(&result, "export default function Component(")
@@ -606,6 +610,12 @@ pub fn normalize_js(js: &str) -> String {
     // but the official Svelte compiler keeps them (e.g., `() => ($.deep_read_state(c()))`).
     // Sequence expressions with commas like `() => (a, b)` keep their parens.
     let result = normalize_arrow_body_parens(&result);
+
+    // Normalize parenthesized arrow functions: (() => { ... }) -> () => { ... }
+    // Source code may wrap arrow functions in parens (e.g., ternary branches),
+    // but the official compiler strips them via AST re-serialization.
+    // Only strip when NOT followed by ( (which would be an IIFE).
+    let result = normalize_parenthesized_arrow_functions(&result);
 
     // Normalize computed property names with string literals: ['x-y-z'] -> 'x-y-z'
     let result = COMPUTED_STRING_PROP.replace_all(&result, "$1").to_string();
@@ -856,6 +866,45 @@ fn normalize_else_braces(code: &str) -> String {
     result
 }
 
+/// Sort import statements to normalize import ordering differences.
+/// Extracts all leading import lines, sorts them, and puts them back.
+fn sort_import_statements(code: &str) -> String {
+    let lines: Vec<&str> = code.lines().collect();
+    let mut import_lines: Vec<&str> = Vec::new();
+    let mut first_non_import_idx = lines.len();
+
+    for (i, line) in lines.iter().enumerate() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("import ") {
+            import_lines.push(line);
+        } else if !trimmed.is_empty() {
+            first_non_import_idx = i;
+            break;
+        }
+        // Skip empty lines within the import block
+    }
+
+    if import_lines.len() <= 1 {
+        return code.to_string();
+    }
+
+    import_lines.sort();
+
+    let mut result = import_lines.join("\n");
+    result.push('\n');
+    for line in &lines[first_non_import_idx..] {
+        result.push_str(line);
+        result.push('\n');
+    }
+
+    // Trim trailing newline to match input
+    if !code.ends_with('\n') {
+        result.pop();
+    }
+
+    result
+}
+
 /// Strip inline comments from a line of code.
 /// Handles `let x = 1; // comment` -> `let x = 1;`
 /// Does NOT strip `//` inside string literals or template expressions.
@@ -1005,19 +1054,15 @@ fn normalize_arrow_braces(code: &str) -> String {
 /// This allows us to compare code that uses separate declaration statements
 /// vs code that uses comma-separated declarations in the same statement.
 fn normalize_consecutive_declarations(code: &str) -> String {
-    // Simple replacement: " const " -> ", " when it appears to be a consecutive declaration
-    // We need to be careful not to replace valid uses of const in other contexts
-    let result = code.to_string();
-
-    // Replace "X) const Y = " with "X), Y = " (consecutive const after function param end)
-    // This handles cases like: $.prop($$props, 'a', 3, true) const b = $.prop(...)
-    let result = result
-        .replace(") const ", "), ")
-        // Handle case without space: ")const "
-        .replace(")const ", "), ");
-
-    // Similarly for let
-    result.replace(") let ", "), ").replace(")let ", "), ")
+    // Normalize consecutive let/const declarations to combined form.
+    // After semicolons are removed and var/const normalized to let:
+    //   "let div1 let div2" -> "let div1, div2"
+    //   "$.prop($$props, 'a', 3, true) let b = $.prop(...)" -> "$.prop($$props, 'a', 3, true), b = $.prop(...)"
+    //
+    // We use a regex to find " let " preceded by an identifier char or )
+    // and replace it with ", " to combine declarations.
+    let re = regex::Regex::new(r"([a-zA-Z0-9_\$\)])\s+let\s+").unwrap();
+    re.replace_all(code, "$1, ").to_string()
 }
 
 /// Normalize a line while preserving string literal contents.
@@ -1591,6 +1636,129 @@ fn normalize_arrow_body_parens(code: &str) -> String {
             result.push(chars[i]);
             i += 1;
         }
+    }
+
+    result
+}
+
+/// Normalize parenthesized arrow functions: `(() => { ... })` -> `() => { ... }`
+///
+/// Source code may wrap arrow functions in redundant parentheses (especially in ternary
+/// branches). The official Svelte compiler strips them via AST re-serialization, but our
+/// string-based server transform preserves them. This normalizer strips the outer parens
+/// when the result is NOT an IIFE (i.e., the closing paren is not followed by `(`).
+///
+/// Handles patterns like:
+/// - `(() => { count++; })` -> `() => { count++; }`
+/// - `((x) => x + 1)` -> `(x) => x + 1`
+///
+/// But preserves IIFEs:
+/// - `(() => { count++; })()` stays as is
+fn normalize_parenthesized_arrow_functions(code: &str) -> String {
+    let chars: Vec<char> = code.chars().collect();
+    let len = chars.len();
+    let mut result = String::with_capacity(code.len());
+    let mut i = 0;
+
+    while i < len {
+        // Look for pattern: `(` followed by `(` (params) or `(` followed by nothing (no params)
+        // that could be a parenthesized arrow function.
+        // We detect: `(` then balanced content containing `=>`, then `)`
+        if chars[i] == '(' && i + 1 < len {
+            // Skip if this `(` is a function call (preceded by identifier char or `)`)
+            // e.g., `$.derived(() => ...)` should NOT strip the parens
+            if i > 0 {
+                let prev = chars[i - 1];
+                if prev.is_alphanumeric() || prev == '_' || prev == '$' || prev == ')' {
+                    result.push(chars[i]);
+                    i += 1;
+                    continue;
+                }
+            }
+
+            // Check if this could be a parenthesized arrow function
+            // Look for the matching closing paren
+            let paren_start = i;
+            let mut depth = 1;
+            let mut j = i + 1;
+            let mut found_arrow = false;
+            let mut arrow_pos = 0;
+            let mut in_string = false;
+            let mut string_char = ' ';
+
+            while j < len && depth > 0 {
+                let c = chars[j];
+                if !in_string {
+                    if (c == '"' || c == '\'' || c == '`') && (j == 0 || chars[j - 1] != '\\') {
+                        in_string = true;
+                        string_char = c;
+                    } else {
+                        match c {
+                            '(' | '[' | '{' => depth += 1,
+                            ')' | ']' | '}' => depth -= 1,
+                            '=' if depth == 1
+                                && j + 1 < len
+                                && chars[j + 1] == '>'
+                                && !found_arrow =>
+                            {
+                                found_arrow = true;
+                                arrow_pos = j;
+                            }
+                            _ => {}
+                        }
+                    }
+                } else if c == string_char && (j == 0 || chars[j - 1] != '\\') {
+                    in_string = false;
+                }
+                if depth > 0 {
+                    j += 1;
+                }
+            }
+
+            // j now points to the closing paren (if depth == 0)
+            if depth == 0 && found_arrow {
+                // Check that the content starts with an arrow function
+                // (params or no params before the arrow)
+                // The content between paren_start+1 and j should be: [params] => body
+                // Also check that it's NOT an IIFE (not followed by `(`)
+                let after_close = j + 1;
+                let is_iife = after_close < len && chars[after_close] == '(';
+
+                if !is_iife {
+                    // Check the content before the arrow is valid (params)
+                    // For simplicity, check that the arrow is at the top level (depth=1)
+                    // and the content before it looks like arrow params
+                    let before_arrow: String = chars[paren_start + 1..arrow_pos].iter().collect();
+                    let before_arrow_trimmed = before_arrow.trim();
+
+                    // Valid arrow param patterns:
+                    // - empty (no args): just whitespace
+                    // - identifier: x
+                    // - destructuring: { a, b }
+                    // - parens: (a, b)
+                    // - async prefix: async (a, b)
+                    let looks_like_arrow_params = before_arrow_trimmed.is_empty()
+                        || before_arrow_trimmed.starts_with('(')
+                        || before_arrow_trimmed
+                            .chars()
+                            .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+                        || before_arrow_trimmed.starts_with("async")
+                        || before_arrow_trimmed.starts_with('{');
+
+                    if looks_like_arrow_params {
+                        // Strip the outer parens: output content without them
+                        for ch in &chars[paren_start + 1..j] {
+                            result.push(*ch);
+                        }
+                        i = j + 1;
+                        continue;
+                    }
+                }
+            }
+        }
+
+        result.push(chars[i]);
+        i += 1;
     }
 
     result
@@ -3048,4 +3216,12 @@ fn test_normalize_js_extended_var_suffix() {
     let with_suffix = "var select_1 = root(); var details_2 = $.child(select_1);";
     let without_suffix = "var select = root(); var details = $.child(select);";
     assert_eq!(normalize_js(with_suffix), normalize_js(without_suffix));
+}
+
+#[test]
+fn test_normalize_parenthesized_arrow() {
+    // Parenthesized arrow functions should be normalized
+    let with_parens = "$.get(checked) ? (() => { $.update(count); }) : undefined";
+    let without_parens = "$.get(checked) ? () => { $.update(count); } : undefined";
+    assert_eq!(normalize_js(with_parens), normalize_js(without_parens));
 }
