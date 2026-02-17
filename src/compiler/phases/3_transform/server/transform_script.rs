@@ -10,14 +10,26 @@ use super::transform_store::transform_store_assignments;
 
 /// Transform script content for server-side rendering.
 pub(crate) fn transform_script_content(script: &str) -> String {
-    transform_script_content_inner(script, false)
+    transform_script_content_inner(script, false, &[])
+}
+
+/// Transform script content with additional bindable prop names from `export { x }` patterns.
+pub(crate) fn transform_script_content_with_props(
+    script: &str,
+    reexported_props: &[String],
+) -> String {
+    transform_script_content_inner(script, false, reexported_props)
 }
 
 pub(crate) fn transform_script_content_module(script: &str) -> String {
-    transform_script_content_inner(script, true)
+    transform_script_content_inner(script, true, &[])
 }
 
-fn transform_script_content_inner(script: &str, is_module: bool) -> String {
+fn transform_script_content_inner(
+    script: &str,
+    is_module: bool,
+    reexported_props: &[String],
+) -> String {
     let script = script.replace("$props()", "$$props");
     let script = transform_rune_call_multiline(&script, "$state.eager(");
     let script = script.replace("$effect.pending()", "false");
@@ -41,6 +53,12 @@ fn transform_script_content_inner(script: &str, is_module: bool) -> String {
         script
     } else {
         strip_export_from_declarations(&script)
+    };
+    // Transform `let x = value` declarations for variables exported via `export { x }`
+    let script = if !reexported_props.is_empty() {
+        transform_reexported_prop_declarations(&script, reexported_props)
+    } else {
+        script
     };
 
     let mut result = String::new();
@@ -1187,13 +1205,72 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                 }
             }
             ClassMember::Method(lines) => {
+                let is_constructor = lines
+                    .first()
+                    .is_some_and(|l| l.trim().contains("constructor("));
+
                 let method_text = lines
                     .iter()
                     .map(|l| format!("\t\t{}", l))
                     .collect::<Vec<_>>()
                     .join("\n");
-                let transformed =
+                let mut transformed =
                     transform_private_derived_accesses_server(&method_text, &derived_private_names);
+
+                // In constructors, convert assignments to derived private fields:
+                // `this.#field = value` → `this.#field(value)`
+                // This only applies when the value is NOT a $.derived() call
+                // (those are already handled by the constructor scanning above)
+                if is_constructor && !derived_private_names.is_empty() {
+                    for private_name in &derived_private_names {
+                        let assign_pattern = format!("this.{} = ", private_name);
+                        let mut new_transformed = String::new();
+                        let mut remaining = transformed.as_str();
+
+                        while let Some(pos) = remaining.find(&assign_pattern) {
+                            new_transformed.push_str(&remaining[..pos]);
+                            let after_assign = &remaining[pos + assign_pattern.len()..];
+
+                            // Check if the value is a $.derived() call - if so, leave as-is
+                            let value_trimmed = after_assign.trim_start();
+                            if value_trimmed.starts_with("$.derived(") {
+                                new_transformed.push_str(&assign_pattern);
+                                remaining = after_assign;
+                                continue;
+                            }
+
+                            // Find the end of the value (semicolon at the same nesting level)
+                            let mut depth = 0;
+                            let mut value_end = None;
+                            for (i, c) in after_assign.char_indices() {
+                                match c {
+                                    '(' | '{' | '[' => depth += 1,
+                                    ')' | '}' | ']' => depth -= 1,
+                                    ';' if depth == 0 => {
+                                        value_end = Some(i);
+                                        break;
+                                    }
+                                    _ => {}
+                                }
+                            }
+
+                            if let Some(end) = value_end {
+                                let value = after_assign[..end].trim();
+                                new_transformed
+                                    .push_str(&format!("this.{}({});", private_name, value));
+                                remaining = &after_assign[end + 1..];
+                            } else {
+                                // No semicolon found, leave as-is
+                                new_transformed.push_str(&assign_pattern);
+                                remaining = after_assign;
+                            }
+                        }
+
+                        new_transformed.push_str(remaining);
+                        transformed = new_transformed;
+                    }
+                }
+
                 new_class_body.push('\n');
                 new_class_body.push_str(&transformed);
                 new_class_body.push('\n');
@@ -1510,4 +1587,114 @@ fn strip_export_from_declarations(script: &str) -> String {
         result.pop();
     }
     result
+}
+
+/// Transform `let x = value` declarations where `x` is exported via `export { x }`.
+/// Converts them to `let x = $.fallback($$props['x'], value)` for server-side rendering,
+/// similar to how `export let x = value` is handled.
+fn transform_reexported_prop_declarations(script: &str, reexported_props: &[String]) -> String {
+    use super::transform_legacy::{is_no_arg_function_call, is_simple_default_value};
+
+    let mut result = String::new();
+
+    for line in script.lines() {
+        let trimmed = line.trim();
+
+        // Check if this is a `let x = value;` or `let x;` declaration for a reexported prop
+        if trimmed.starts_with("let ") || trimmed.starts_with("var ") {
+            let rest = &trimmed[4..]; // skip "let " or "var "
+            let rest_trimmed = rest.trim().trim_end_matches(';').trim();
+
+            // Simple case: `let x = value` or `let x`
+            if let Some(eq_pos) = find_simple_assignment(rest_trimmed) {
+                let name = rest_trimmed[..eq_pos].trim();
+                let value = rest_trimmed[eq_pos + 1..].trim();
+
+                if reexported_props.iter().any(|p| p == name) {
+                    let indent = &line[..line.len() - trimmed.len()];
+                    let transformed = if is_simple_default_value(value) {
+                        format!(
+                            "{}let {} = $.fallback($$props['{}'], {});",
+                            indent, name, name, value
+                        )
+                    } else if let Some(fn_name) = is_no_arg_function_call(value) {
+                        format!(
+                            "{}let {} = $.fallback($$props['{}'], {}, true);",
+                            indent, name, name, fn_name
+                        )
+                    } else {
+                        format!(
+                            "{}let {} = $.fallback($$props['{}'], () => ({}), true);",
+                            indent, name, name, value
+                        )
+                    };
+                    result.push_str(&transformed);
+                    result.push('\n');
+                    continue;
+                }
+            } else {
+                // No assignment: `let x;` -> `let x = $$props['x'];`
+                let name = rest_trimmed.trim();
+                if reexported_props.iter().any(|p| p == name) {
+                    let indent = &line[..line.len() - trimmed.len()];
+                    result.push_str(&format!("{}let {} = $$props['{}'];", indent, name, name));
+                    result.push('\n');
+                    continue;
+                }
+            }
+        }
+
+        result.push_str(line);
+        result.push('\n');
+    }
+
+    if result.ends_with('\n') && !script.ends_with('\n') {
+        result.pop();
+    }
+    result
+}
+
+/// Find assignment `=` in a simple declarator (not inside parentheses, brackets, etc.)
+fn find_simple_assignment(s: &str) -> Option<usize> {
+    let chars: Vec<char> = s.chars().collect();
+    let mut depth = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    for (i, &c) in chars.iter().enumerate() {
+        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char {
+                in_string = false;
+            }
+            continue;
+        }
+
+        if in_string {
+            continue;
+        }
+
+        match c {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            '=' if depth == 0 => {
+                let prev = if i > 0 { Some(chars[i - 1]) } else { None };
+                let next = chars.get(i + 1).copied();
+                if prev != Some('=')
+                    && prev != Some('!')
+                    && prev != Some('<')
+                    && prev != Some('>')
+                    && next != Some('=')
+                    && next != Some('>')
+                {
+                    return Some(i);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    None
 }

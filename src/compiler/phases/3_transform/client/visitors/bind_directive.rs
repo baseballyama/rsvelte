@@ -350,11 +350,25 @@ pub fn bind_directive(
             )
         } else {
             // Fall through to special cases
-            build_special_binding_call(binding_name, &get, &set, context, parent)
+            build_special_binding_call(
+                binding_name,
+                &get,
+                &set,
+                context,
+                parent,
+                Some(&node.expression),
+            )
         }
     } else {
         // Special cases handled by switch
-        build_special_binding_call(binding_name, &get, &set, context, parent)
+        build_special_binding_call(
+            binding_name,
+            &get,
+            &set,
+            context,
+            parent,
+            Some(&node.expression),
+        )
     };
 
     // Check if we need to defer the binding (when element has use: directive)
@@ -401,6 +415,7 @@ fn build_special_binding_call(
     set: &Option<JsExpr>,
     context: &mut ComponentContext,
     parent: Option<&TemplateNode>,
+    directive_expr: Option<&Expression>,
 ) -> JsExpr {
     // Clone node_expr before the match to avoid borrow checker issues
     let node_expr = context.state.node.clone();
@@ -569,7 +584,7 @@ fn build_special_binding_call(
         ),
 
         // Group binding (radio/checkbox groups)
-        "group" => build_group_binding_call(&node_expr, get, set, parent, context),
+        "group" => build_group_binding_call(&node_expr, get, set, parent, context, directive_expr),
 
         // Unknown binding
         _ => {
@@ -617,30 +632,76 @@ fn build_group_binding_call(
     set: &Option<JsExpr>,
     parent: Option<&TemplateNode>,
     context: &mut ComponentContext,
+    directive_expr: Option<&Expression>,
 ) -> JsExpr {
     // TODO: Handle metadata.parent_each_blocks for index tracking
     // For now, use an empty array for indexes
     let indexes = b::empty_array();
 
     // Get binding_group_name from analysis.binding_groups
-    // If not found, create one called "binding_group"
+    // Look up the correct group based on the directive's expression identifier name.
     // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/BindDirective.js L248
-    let binding_group_name = if context.state.analysis.binding_groups.is_empty() {
-        // No binding groups registered - use default name "binding_group"
-        // This shouldn't happen in well-analyzed code, but handle gracefully
-        b::id("binding_group")
-    } else {
-        // Use the first binding group name (for simple cases with single bind:group)
-        // TODO: Properly track which binding group this belongs to via node.metadata
-        let group_name = context
-            .state
-            .analysis
-            .binding_groups
-            .values()
-            .next()
-            .cloned()
-            .unwrap_or_else(|| "binding_group".to_string());
-        b::id(&group_name)
+    let binding_group_name = {
+        // Extract the binding variable name from the directive expression
+        // For `bind:group={radio_group}`, this would be "radio_group"
+        let expr_name = directive_expr.and_then(|expr| {
+            let Expression::Value(val) = expr;
+            // For simple identifier expressions
+            if val.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
+                return val
+                    .get("name")
+                    .and_then(|n| n.as_str())
+                    .map(|s| s.to_string());
+            }
+            // For member expressions, use the leftmost identifier
+            if val.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
+                let mut current = val;
+                while current.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
+                    if let Some(obj) = current.get("object") {
+                        current = obj;
+                    } else {
+                        break;
+                    }
+                }
+                if current.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
+                    return current
+                        .get("name")
+                        .and_then(|n| n.as_str())
+                        .map(|s| s.to_string());
+                }
+            }
+            None
+        });
+
+        // Look up the group name using the expression variable name as the key
+        if let Some(name) = &expr_name {
+            if let Some(group_name) = context.state.analysis.binding_groups.get(name) {
+                b::id(group_name)
+            } else {
+                // Fallback: try first group
+                let group_name = context
+                    .state
+                    .analysis
+                    .binding_groups
+                    .values()
+                    .next()
+                    .cloned()
+                    .unwrap_or_else(|| "binding_group".to_string());
+                b::id(&group_name)
+            }
+        } else if context.state.analysis.binding_groups.is_empty() {
+            b::id("binding_group")
+        } else {
+            let group_name = context
+                .state
+                .analysis
+                .binding_groups
+                .values()
+                .next()
+                .cloned()
+                .unwrap_or_else(|| "binding_group".to_string());
+            b::id(&group_name)
+        }
     };
 
     // We need to additionally invoke the value attribute signal to register it as a dependency,

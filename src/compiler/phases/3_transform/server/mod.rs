@@ -227,6 +227,17 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
+        // Remove BindableProp variables from constant_vars.
+        // Variables exported via `export { x }` are props and can receive values from parents,
+        // so they should NOT be treated as constants even if they have literal initial values.
+        if let Some(analysis) = analysis {
+            for binding in &analysis.root.bindings {
+                if matches!(binding.kind, BindingKind::BindableProp) {
+                    constant_vars.remove(&binding.name);
+                }
+            }
+        }
+
         // Check if the analysis has any StoreSub bindings
         let uses_store_subs = analysis
             .map(|a| {

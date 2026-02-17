@@ -1142,6 +1142,13 @@ fn strip_export_specifiers(script: &str) -> String {
                         end += 1; // skip '}'
                     }
 
+                    // Skip trailing semicolons, whitespace, and newline
+                    while end < len && (chars[end] == ' ' || chars[end] == '\t') {
+                        end += 1;
+                    }
+                    if end < len && chars[end] == ';' {
+                        end += 1; // skip trailing semicolon
+                    }
                     while end < len && (chars[end] == ' ' || chars[end] == '\t') {
                         end += 1;
                     }

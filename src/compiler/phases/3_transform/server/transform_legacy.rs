@@ -184,7 +184,7 @@ fn find_assignment_in_declarator(declarator: &str) -> Option<usize> {
     None
 }
 
-fn is_no_arg_function_call(value: &str) -> Option<&str> {
+pub(crate) fn is_no_arg_function_call(value: &str) -> Option<&str> {
     let trimmed = value.trim();
     if let Some(fn_name) = trimmed.strip_suffix("()")
         && is_simple_identifier(fn_name)
@@ -194,7 +194,7 @@ fn is_no_arg_function_call(value: &str) -> Option<&str> {
     None
 }
 
-fn is_simple_default_value(value: &str) -> bool {
+pub(crate) fn is_simple_default_value(value: &str) -> bool {
     is_simple_expression_string(value.trim())
 }
 

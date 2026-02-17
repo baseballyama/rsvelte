@@ -373,8 +373,12 @@ fn transform_client_with_visitors(
     // for (const group of analysis.binding_groups.values()) {
     //     group_binding_declarations.push(b.const(group.name, b.array([])));
     // }
-    for group_name in analysis.binding_groups.values() {
-        component_body.push(b::const_decl(group_name, b::empty_array()));
+    {
+        let mut group_names: Vec<&String> = analysis.binding_groups.values().collect();
+        group_names.sort(); // Sort to ensure deterministic output order
+        for group_name in group_names {
+            component_body.push(b::const_decl(group_name, b::empty_array()));
+        }
     }
 
     // Add $props.id() declaration if needed
@@ -1570,11 +1574,16 @@ fn transform_instance_script_for_visitors(
         .map(|b| b.name.clone())
         .collect();
 
-    // Check for legacy mode (export let)
+    // Check for legacy mode (export let or export { x })
+    // Also detect `export { x }` patterns which create BindableProp bindings
     let has_legacy_export_let = script_rest.lines().any(|line| {
         let trimmed = line.trim();
         trimmed.starts_with("export let ") || trimmed.starts_with("export let\t")
-    });
+    }) || analysis
+        .root
+        .bindings
+        .iter()
+        .any(|b| matches!(b.kind, BindingKind::BindableProp));
 
     // Collect exported names from analysis (needed for prop filtering below)
     let exported_names: Vec<String> = analysis.exports.iter().map(|e| e.name.clone()).collect();
@@ -10009,16 +10018,11 @@ fn transform_class_fields_client(script: &str) -> String {
     // Build transformed class body preserving original member order
     let mut new_class_body = String::new();
 
-    // 1. Emit constructor-declared fields at the top of the class
-    // Public fields (with getter/setter) come first, then private fields (just backing)
+    // 1. Emit constructor-declared PUBLIC fields at the top of the class
+    // (with getter/setter). Private backing fields come later, just before the constructor.
     // This matches the official Svelte compiler output order.
     for field in &fields {
         if field.constructor_declared && !field.is_private {
-            new_class_body.push_str(&emit_class_field(field, &fields));
-        }
-    }
-    for field in &fields {
-        if field.constructor_declared && field.is_private {
             new_class_body.push_str(&emit_class_field(field, &fields));
         }
     }
@@ -10041,6 +10045,12 @@ fn transform_class_fields_client(script: &str) -> String {
                 }
             }
             ClassMember::Constructor => {
+                // Emit constructor-declared private fields just before the constructor
+                for field in &fields {
+                    if field.constructor_declared && field.is_private {
+                        new_class_body.push_str(&emit_class_field(field, &fields));
+                    }
+                }
                 new_class_body.push('\n');
                 new_class_body.push_str(&format!("\t\tconstructor({}) {{\n", constructor_params));
 

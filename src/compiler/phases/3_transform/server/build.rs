@@ -99,10 +99,19 @@ impl<'a> ServerCodeGenerator<'a> {
             // These are client-side only and should not appear in SSR output
             let raw_script = remove_effect_blocks(&raw_script);
 
-            // Check if script uses $props() or export let (legacy props)
+            // Check if script uses $props() or export let/export { x } (legacy props)
+            let has_bindable_props = self.analysis.is_some_and(|a| {
+                a.root.bindings.iter().any(|b| {
+                    matches!(
+                        b.kind,
+                        crate::compiler::phases::phase2_analyze::scope::BindingKind::BindableProp
+                    )
+                })
+            });
             let uses_props = raw_script.contains("$props()")
                 || raw_script.contains("export let ")
-                || raw_script.contains("export var ");
+                || raw_script.contains("export var ")
+                || has_bindable_props;
 
             // Check if class fields use $state, $state.raw, or $derived runes
             // This requires $$props and $$renderer.component() wrapper
@@ -124,7 +133,37 @@ impl<'a> ServerCodeGenerator<'a> {
             // Apply class field transformation for $derived fields
             let rest = transform_class_fields_server(&rest);
 
-            let transformed = transform_script_content(&rest);
+            // Collect reexported prop names from `export { x }` patterns only
+            // (NOT from `export let x` which is handled by transform_export_let_declarations)
+            let reexported_props: Vec<String> =
+                if has_bindable_props && !raw_script.contains("$props()") {
+                    self.analysis
+                        .map(|a| {
+                            a.root
+                                .bindings
+                                .iter()
+                                .filter(|b| {
+                                    matches!(b.kind, BindingKind::BindableProp) && {
+                                        // Only include if NOT declared via `export let` or `export var`
+                                        let export_let = format!("export let {}", b.name);
+                                        let export_var = format!("export var {}", b.name);
+                                        !raw_script.contains(&export_let)
+                                            && !raw_script.contains(&export_var)
+                                    }
+                                })
+                                .map(|b| b.name.clone())
+                                .collect()
+                        })
+                        .unwrap_or_default()
+                } else {
+                    Vec::new()
+                };
+
+            let transformed = if reexported_props.is_empty() {
+                transform_script_content(&rest)
+            } else {
+                transform_script_content_with_props(&rest, &reexported_props)
+            };
 
             // Prepend legacy reactive variable declarations if any
             let transformed = if legacy_reactive_decl.is_empty() {
