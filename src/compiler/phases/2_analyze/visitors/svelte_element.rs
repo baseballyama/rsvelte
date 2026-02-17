@@ -9,9 +9,7 @@ use super::super::errors;
 use super::VisitorContext;
 use super::shared::fragment;
 use crate::ast::js::Expression;
-use crate::ast::template::{
-    Attribute, AttributeValue, AttributeValuePart, SvelteDynamicElement, TemplateNode,
-};
+use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, SvelteDynamicElement};
 
 const NAMESPACE_SVG: &str = "http://www.w3.org/2000/svg";
 const NAMESPACE_MATHML: &str = "http://www.w3.org/1998/Math/MathML";
@@ -74,54 +72,34 @@ pub fn visit(
         element.metadata.svg = xmlns_value == NAMESPACE_SVG;
         element.metadata.mathml = xmlns_value == NAMESPACE_MATHML;
     } else {
-        // Walk ancestors to determine namespace context
-        let mut i = context.path.len();
-        while i > 0 {
-            i -= 1;
-            let ancestor = context.path[i];
-
-            match ancestor {
-                // Component/SvelteComponent/SvelteFragment/SnippetBlock or root resets namespace
-                TemplateNode::Component(_)
-                | TemplateNode::SvelteComponent(_)
-                | TemplateNode::SvelteFragment(_)
-                | TemplateNode::SnippetBlock(_) => {
-                    // Use component namespace option - check the compile options via analysis
-                    // The component namespace is stored in the AST options
-                    element.metadata.svg = context.analysis.component_namespace_is_svg;
-                    element.metadata.mathml = context.analysis.component_namespace_is_mathml;
-                    break;
-                }
-                // SvelteElement or RegularElement - inherit namespace
-                TemplateNode::SvelteElement(ancestor_elem) => {
-                    element.metadata.svg = ancestor_elem.metadata.svg;
-                    element.metadata.mathml = ancestor_elem.metadata.mathml;
-                    break;
-                }
-                TemplateNode::RegularElement(ancestor_elem) => {
-                    if ancestor_elem.name.as_str() == "foreignObject" {
-                        element.metadata.svg = false;
-                        element.metadata.mathml = false;
-                    } else {
-                        element.metadata.svg = ancestor_elem.metadata.svg;
-                        element.metadata.mathml = ancestor_elem.metadata.mathml;
-                    }
-                    break;
-                }
-                _ => {
-                    // At root level (i == 0), use component namespace
-                    if i == 0 {
-                        element.metadata.svg = context.analysis.component_namespace_is_svg;
-                        element.metadata.mathml = context.analysis.component_namespace_is_mathml;
-                        break;
-                    }
-                    // Otherwise continue walking ancestors
-                }
+        // Walk element_ancestors (tag names) to determine namespace context.
+        // Use element_ancestors instead of context.path to avoid unsafe pointer casts.
+        // Walk from innermost to outermost.
+        use super::regular_element::is_svg;
+        let mut found = false;
+        for ancestor_name in context.element_ancestors.iter().rev() {
+            if ancestor_name == "foreignObject" {
+                element.metadata.svg = false;
+                element.metadata.mathml = false;
+                found = true;
+                break;
+            }
+            if is_svg(ancestor_name) {
+                element.metadata.svg = true;
+                element.metadata.mathml = false;
+                found = true;
+                break;
+            }
+            if super::regular_element::is_mathml(ancestor_name) {
+                element.metadata.svg = false;
+                element.metadata.mathml = true;
+                found = true;
+                break;
             }
         }
 
-        // Handle empty path (element is at root level)
-        if context.path.is_empty() {
+        if !found {
+            // No SVG/MathML ancestor found, use component namespace defaults
             element.metadata.svg = context.analysis.component_namespace_is_svg;
             element.metadata.mathml = context.analysis.component_namespace_is_mathml;
         }
