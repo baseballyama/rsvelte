@@ -543,7 +543,19 @@ fn is_identifier_hoistable(
         let binding = &context.analysis.root.bindings[binding_idx];
         // scope_index 0 = module scope (imports, module script declarations) - safe
         // scope_index >= 1 = instance scope or deeper - prevents hoisting
-        binding.scope_index == 0
+        // Exception: imports are always safe (they're essentially module-level)
+        // This matches the official compiler's check:
+        //   if (binding.kind === 'normal' && binding.declaration_kind === 'import') continue;
+        if binding.scope_index == 0 {
+            return true;
+        }
+        // Imports at instance scope are still safe for hoisting
+        // This matches the official compiler's check:
+        //   if (binding.kind === 'normal' && binding.declaration_kind === 'import') continue;
+        matches!(
+            binding.declaration_kind,
+            crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Import
+        )
     } else {
         // No binding found - assume it's a global, safe to hoist
         true
