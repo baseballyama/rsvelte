@@ -568,39 +568,91 @@ fn get_object_name(expr: &Expression) -> Option<String> {
 }
 
 /// Get a unique collection ID if the inner scope shadows outer scope variables.
-fn get_collection_id_if_needed(node: &EachBlock, context: &ComponentContext) -> Option<String> {
+///
+/// Replicates the official compiler's logic:
+/// ```js
+/// for (const [name] of context.state.scope.declarations) {
+///     if (context.state.scope.parent?.get(name) != null) {
+///         collection_id = context.state.scope.root.unique('$$array');
+///         break;
+///     }
+/// }
+/// ```
+///
+/// `context.state.scope` is the each block's own scope (containing EachItem/EachIndex bindings).
+/// We iterate its declarations and check if the parent scope (or any ancestor) has the same name,
+/// using `scope_root.get_binding()` which walks up the scope chain.
+fn get_collection_id_if_needed(_node: &EachBlock, context: &ComponentContext) -> Option<String> {
+    // Collect names from the each block's context pattern and index
     let mut declared_names: Vec<String> = Vec::new();
 
-    if let Some(ctx) = &node.context {
+    if let Some(ctx) = &_node.context {
         let Expression::Value(val) = ctx;
         if let serde_json::Value::Object(obj) = val {
             collect_pattern_names(obj, &mut declared_names);
         }
     }
 
-    if let Some(index_name) = &node.index {
+    if let Some(index_name) = &_node.index {
         declared_names.push(index_name.to_string());
     }
 
-    // Check if any name declared in the each block's inner scope shadows a name
-    // from an outer scope. This matches the official compiler:
+    // Check if any name declared in the each block's context pattern shadows
+    // a name from the parent scope. context.state.scope IS the parent scope
+    // (the instance scope for top-level each blocks).
+    //
+    // This mirrors the official compiler's logic:
     //   for (const [name] of context.state.scope.declarations) {
-    //       if (context.state.scope.parent?.get(name) != null) {
-    //           collection_id = context.state.scope.root.unique('$$array');
-    //           break;
-    //       }
+    //       if (context.state.scope.parent?.get(name) != null) { ... }
     //   }
     //
-    // Since we don't track the each block's scope separately in the transform,
-    // we check if the declared name has a transform registered (meaning it's a
-    // reactive variable from an outer scope that would be affected by shadowing).
-    // Check if any name declared in the each block's context pattern shadows
-    // a name from an outer scope. We check if the name has a registered transform
-    // (covers state/derived/store variables) OR if it exists in the root scope
-    // declarations AND is NOT the item/index pattern from this same each block.
+    // In the official compiler, context.state.scope is the each block's own scope.
+    // In our code, context.state.scope is the parent scope. So we check if
+    // declared_names exist in the parent scope's declarations or transforms.
+    //
+    // We check:
+    // 1. Transforms (covers reactive variables like reassigned $state, $derived, stores)
+    // 2. Scope declarations filtered by binding kind (covers non-reactive vars at this scope)
+    //
+    // Note: context.state.scope.declarations may include bindings from nested function
+    // scopes due to a scope analysis quirk. We filter by BindingKind to only match
+    // bindings that are definitively at the parent scope level (State, Derived, Prop, etc.)
+    // rather than Normal bindings which could be from nested scopes.
     for name in &declared_names {
+        // Check transforms first (covers reactive variables)
         if context.state.transform.contains_key(name.as_str()) {
             return Some("$$array".to_string());
+        }
+        // Check scope declarations for non-reactive parent-scope variables
+        if let Some(&binding_idx) = context.state.scope.declarations.get(name.as_str())
+            && let Some(binding) = context.state.scope_root.bindings.get(binding_idx)
+        {
+            let is_parent_scope_variable = matches!(
+                binding.kind,
+                BindingKind::State
+                    | BindingKind::RawState
+                    | BindingKind::Derived
+                    | BindingKind::Prop
+                    | BindingKind::BindableProp
+                    | BindingKind::RestProp
+                    | BindingKind::StoreSub
+                    | BindingKind::Store
+                    | BindingKind::LegacyReactive
+            );
+            if is_parent_scope_variable {
+                return Some("$$array".to_string());
+            }
+            // For Normal bindings, also check if it's a function or import declaration
+            // at the instance level (not from nested scopes)
+            if binding.kind == BindingKind::Normal
+                && matches!(
+                    binding.declaration_kind,
+                    crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Function
+                        | crate::compiler::phases::phase2_analyze::scope::DeclarationKind::Import
+                )
+            {
+                return Some("$$array".to_string());
+            }
         }
     }
 
