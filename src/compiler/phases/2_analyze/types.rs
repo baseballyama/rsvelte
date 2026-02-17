@@ -1445,6 +1445,21 @@ pub struct CssAnalysis {
 
     /// DOM structure information for selector matching
     pub dom_structure: DomStructure,
+
+    /// Tag names that appear in CSS selectors (e.g., "div", "span", "my-element")
+    /// Used for per-element scoped marking: only elements whose tag matches
+    /// a CSS selector (or could match via dynamic class) get the scoped hash.
+    pub selector_tag_names: FxHashSet<String>,
+
+    /// Class names that appear in CSS selectors (e.g., "foo", "bar")
+    pub selector_class_names: FxHashSet<String>,
+
+    /// ID names that appear in CSS selectors
+    pub selector_id_names: FxHashSet<String>,
+
+    /// Whether CSS contains a universal selector (*) or pseudo-class that
+    /// could match any element
+    pub has_universal_selector: bool,
 }
 
 /// DOM structure information for CSS selector matching.

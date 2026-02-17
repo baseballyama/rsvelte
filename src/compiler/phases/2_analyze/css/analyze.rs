@@ -363,3 +363,121 @@ fn validate_relative_selector(relative_selector: &serde_json::Value) -> Result<(
     }
     Ok(())
 }
+
+/// Extract CSS selector components from the stylesheet.
+/// This populates selector_tag_names, selector_class_names, selector_id_names,
+/// and has_universal_selector in the CssAnalysis.
+pub fn extract_css_selector_info(stylesheet: &StyleSheet, analysis: &mut ComponentAnalysis) {
+    for child in &stylesheet.children {
+        extract_selectors_from_node(child, analysis);
+    }
+}
+
+fn extract_selectors_from_node(node: &serde_json::Value, analysis: &mut ComponentAnalysis) {
+    if let Some(node_type) = node.get("type").and_then(|t| t.as_str()) {
+        match node_type {
+            "Rule" => {
+                // Extract selectors from the rule's prelude
+                if let Some(prelude) = node.get("prelude") {
+                    extract_selectors_from_prelude(prelude, analysis);
+                }
+                // Recursively process nested rules
+                if let Some(block) = node.get("block")
+                    && let Some(children) = block.get("children").and_then(|c| c.as_array())
+                {
+                    for child in children {
+                        extract_selectors_from_node(child, analysis);
+                    }
+                }
+            }
+            "Atrule" => {
+                if let Some(block) = node.get("block")
+                    && let Some(children) = block.get("children").and_then(|c| c.as_array())
+                {
+                    for child in children {
+                        extract_selectors_from_node(child, analysis);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+fn extract_selectors_from_prelude(prelude: &serde_json::Value, analysis: &mut ComponentAnalysis) {
+    // prelude is a SelectorList with children (ComplexSelectors)
+    if let Some(complex_selectors) = prelude.get("children").and_then(|c| c.as_array()) {
+        for complex_selector in complex_selectors {
+            extract_selectors_from_complex(complex_selector, analysis);
+        }
+    }
+}
+
+fn extract_selectors_from_complex(
+    complex_selector: &serde_json::Value,
+    analysis: &mut ComponentAnalysis,
+) {
+    // ComplexSelector has children (RelativeSelectors)
+    if let Some(relative_selectors) = complex_selector.get("children").and_then(|c| c.as_array()) {
+        for relative_selector in relative_selectors {
+            if let Some(selectors) = relative_selector
+                .get("selectors")
+                .and_then(|s| s.as_array())
+            {
+                for sel in selectors {
+                    extract_simple_selector(sel, analysis);
+                }
+            }
+        }
+    }
+}
+
+fn extract_simple_selector(selector: &serde_json::Value, analysis: &mut ComponentAnalysis) {
+    if let Some(sel_type) = selector.get("type").and_then(|t| t.as_str()) {
+        match sel_type {
+            "TypeSelector" => {
+                if let Some(name) = selector.get("name").and_then(|n| n.as_str()) {
+                    if name == "*" {
+                        analysis.css.has_universal_selector = true;
+                    } else {
+                        analysis.css.selector_tag_names.insert(name.to_string());
+                    }
+                }
+            }
+            "ClassSelector" => {
+                if let Some(name) = selector.get("name").and_then(|n| n.as_str()) {
+                    analysis.css.selector_class_names.insert(name.to_string());
+                }
+            }
+            "IdSelector" => {
+                if let Some(name) = selector.get("name").and_then(|n| n.as_str()) {
+                    analysis.css.selector_id_names.insert(name.to_string());
+                }
+            }
+            "PseudoClassSelector" => {
+                // Process :global() args and other pseudo-classes
+                if let Some(name) = selector.get("name").and_then(|n| n.as_str()) {
+                    if name == "global" {
+                        // Extract selectors from :global() args
+                        if let Some(args) = selector.get("args") {
+                            extract_selectors_from_prelude(args, analysis);
+                        }
+                    } else if name == "is" || name == "where" || name == "not" || name == "has" {
+                        // Extract selectors from pseudo-class args
+                        if let Some(args) = selector.get("args") {
+                            extract_selectors_from_prelude(args, analysis);
+                        }
+                    }
+                }
+            }
+            "NestingSelector" => {
+                // `&` selector - doesn't add any specific match info
+            }
+            "AttributeSelector" => {
+                // Attribute selectors could match any element
+                // We don't need to mark as universal since we check attributes per-element
+            }
+            _ => {}
+        }
+    }
+}

@@ -283,14 +283,18 @@ pub fn analyze_component(
         // Run CSS analysis and validation
         css::analyze_css(stylesheet, &mut analysis)?;
 
+        // Extract CSS selector information for per-element scoping
+        css::extract_css_selector_info(stylesheet, &mut analysis);
+
         // Prune unused selectors
         css::prune_css(stylesheet, &analysis);
 
-        // Mark all elements as scoped if CSS hash is present
-        // This is a simplified approach - the official compiler marks only
-        // elements that match CSS selectors as scoped
+        // Mark elements as scoped based on CSS selector matching.
+        // Only elements that could potentially match a CSS selector get the
+        // scoped hash class. This is a simplified version of the official
+        // compiler's css-prune.js per-element marking.
         if !analysis.css.hash.is_empty() {
-            mark_elements_scoped(&mut ast.fragment);
+            mark_elements_scoped(&mut ast.fragment, &analysis);
         }
     }
 
@@ -786,64 +790,154 @@ fn extract_each_pattern_identifiers(node: &serde_json::Value, names: &mut Vec<St
     }
 }
 
-/// Mark all RegularElement nodes in the fragment as scoped.
-/// This is called when CSS is present in the component.
-fn mark_elements_scoped(fragment: &mut crate::ast::template::Fragment) {
+/// Mark RegularElement nodes in the fragment as scoped based on CSS selector matching.
+/// Only elements that could potentially match a CSS selector get the scoped hash.
+///
+/// This is a simplified version of the official compiler's css-prune.js per-element
+/// marking. It checks if an element could match based on tag name, class attributes,
+/// or other properties.
+fn mark_elements_scoped(
+    fragment: &mut crate::ast::template::Fragment,
+    analysis: &ComponentAnalysis,
+) {
     use crate::ast::template::TemplateNode;
 
     for node in &mut fragment.nodes {
         match node {
             TemplateNode::RegularElement(el) => {
-                el.metadata.scoped = true;
-                mark_elements_scoped(&mut el.fragment);
+                // Check if this element could potentially match any CSS selector
+                el.metadata.scoped = element_could_match_css(el, analysis);
+                mark_elements_scoped(&mut el.fragment, analysis);
             }
             TemplateNode::Component(comp) => {
-                mark_elements_scoped(&mut comp.fragment);
+                mark_elements_scoped(&mut comp.fragment, analysis);
             }
             TemplateNode::IfBlock(if_block) => {
-                mark_elements_scoped(&mut if_block.consequent);
+                mark_elements_scoped(&mut if_block.consequent, analysis);
                 if let Some(ref mut alt) = if_block.alternate {
-                    mark_elements_scoped(alt);
+                    mark_elements_scoped(alt, analysis);
                 }
             }
             TemplateNode::EachBlock(each) => {
-                mark_elements_scoped(&mut each.body);
+                mark_elements_scoped(&mut each.body, analysis);
                 if let Some(ref mut fallback) = each.fallback {
-                    mark_elements_scoped(fallback);
+                    mark_elements_scoped(fallback, analysis);
                 }
             }
             TemplateNode::AwaitBlock(await_block) => {
                 if let Some(ref mut pending) = await_block.pending {
-                    mark_elements_scoped(pending);
+                    mark_elements_scoped(pending, analysis);
                 }
                 if let Some(ref mut then) = await_block.then {
-                    mark_elements_scoped(then);
+                    mark_elements_scoped(then, analysis);
                 }
                 if let Some(ref mut catch) = await_block.catch {
-                    mark_elements_scoped(catch);
+                    mark_elements_scoped(catch, analysis);
                 }
             }
             TemplateNode::KeyBlock(key) => {
-                mark_elements_scoped(&mut key.fragment);
+                mark_elements_scoped(&mut key.fragment, analysis);
             }
             TemplateNode::SnippetBlock(snippet) => {
-                mark_elements_scoped(&mut snippet.body);
+                mark_elements_scoped(&mut snippet.body, analysis);
             }
             TemplateNode::SvelteHead(head) => {
-                mark_elements_scoped(&mut head.fragment);
+                mark_elements_scoped(&mut head.fragment, analysis);
             }
             TemplateNode::SvelteElement(el) => {
-                mark_elements_scoped(&mut el.fragment);
+                mark_elements_scoped(&mut el.fragment, analysis);
             }
             TemplateNode::SlotElement(slot) => {
-                mark_elements_scoped(&mut slot.fragment);
+                mark_elements_scoped(&mut slot.fragment, analysis);
             }
             TemplateNode::TitleElement(title) => {
-                mark_elements_scoped(&mut title.fragment);
+                mark_elements_scoped(&mut title.fragment, analysis);
             }
             _ => {}
         }
     }
+}
+
+/// Check if an element could potentially match any CSS selector.
+///
+/// This is a simplified version of the official compiler's per-element CSS pruning.
+/// An element is considered potentially matching if:
+/// 1. CSS has a universal selector (*), OR
+/// 2. The element's tag name matches a CSS type selector, OR
+/// 3. The element has class-related attributes/directives and CSS has class selectors, OR
+/// 4. The element has an id attribute and CSS has id selectors, OR
+/// 5. The element has a spread attribute (could add any class dynamically)
+///
+/// If CSS has ONLY class selectors (no tag selectors, no universal), elements without
+/// class-related attributes won't be scoped.
+fn element_could_match_css(
+    el: &crate::ast::template::RegularElement,
+    analysis: &ComponentAnalysis,
+) -> bool {
+    let css = &analysis.css;
+
+    // If there's a universal selector, all elements match
+    if css.has_universal_selector {
+        return true;
+    }
+
+    // Check if the element's tag name matches a CSS type selector
+    if css.selector_tag_names.contains(el.name.as_str()) {
+        return true;
+    }
+
+    // Check if element has any class-related attribute, class directive, or spread
+    // that could potentially match a CSS class selector
+    if !css.selector_class_names.is_empty() {
+        use crate::ast::template::Attribute;
+
+        let has_class_related = el.attributes.iter().any(|attr| match attr {
+            Attribute::Attribute(a) => a.name == "class",
+            Attribute::ClassDirective(_) => true,
+            Attribute::SpreadAttribute(_) => true,
+            _ => false,
+        });
+
+        if has_class_related {
+            return true;
+        }
+    }
+
+    // Check if element has an id attribute that could match a CSS id selector
+    if !css.selector_id_names.is_empty() {
+        use crate::ast::template::Attribute;
+        let has_id = el
+            .attributes
+            .iter()
+            .any(|attr| matches!(attr, Attribute::Attribute(a) if a.name == "id"));
+        if has_id {
+            return true;
+        }
+    }
+
+    // Check if element has a spread attribute (could add any class or id dynamically)
+    {
+        use crate::ast::template::Attribute;
+        let has_spread = el
+            .attributes
+            .iter()
+            .any(|attr| matches!(attr, Attribute::SpreadAttribute(_)));
+        if has_spread && (!css.selector_class_names.is_empty() || !css.selector_id_names.is_empty())
+        {
+            return true;
+        }
+    }
+
+    // If CSS has no specific selectors at all (only pseudo/attribute selectors),
+    // be conservative and mark as scoped
+    if css.selector_tag_names.is_empty()
+        && css.selector_class_names.is_empty()
+        && css.selector_id_names.is_empty()
+    {
+        return true;
+    }
+
+    false
 }
 
 /// Analyze a Svelte module (context="module" script).
