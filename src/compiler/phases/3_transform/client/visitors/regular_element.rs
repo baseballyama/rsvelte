@@ -33,7 +33,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::
 use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
 use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
-use crate::compiler::phases::phase3_transform::js_ast::nodes::{JsExpr, JsStatement};
+use crate::compiler::phases::phase3_transform::js_ast::nodes::{JsExpr, JsLiteral, JsStatement};
 use crate::compiler::phases::phase3_transform::utils::{
     clean_nodes, determine_namespace_for_children,
 };
@@ -1006,7 +1006,8 @@ pub fn visit_regular_element(
                 &node_id,
                 result.value,
                 result.has_state,
-                true, // synthetic = true
+                true,  // synthetic = true
+                false, // is_select_with_value = false (synthetic is for option)
                 context,
             );
         } else {
@@ -1018,14 +1019,30 @@ pub fn visit_regular_element(
                     let result =
                         build_attribute_value(&attr.value, context, |expr, _metadata| expr);
 
+                    // For select elements: attribute.value !== true && !is_text_attribute(attribute)
+                    // means a non-text value attribute on a select element
+                    let is_select_with_value = node.name == "select"
+                        && !matches!(&attr.value, AttributeValue::True(_))
+                        && !is_text_attribute(attr);
+
                     build_element_special_value_attribute(
                         &node.name,
                         &node_id,
                         result.value,
                         result.has_state,
                         false, // synthetic = false
+                        is_select_with_value,
                         context,
                     );
+
+                    // For select elements with value, add $.init_select(node)
+                    if is_select_with_value {
+                        context.state.init.push(b::stmt(b::call(
+                            b::member(b::id("$"), "init_select"),
+                            vec![b::id(&node_id)],
+                        )));
+                    }
+
                     break;
                 }
             }
@@ -1473,6 +1490,37 @@ fn find_descendants_recursive(nodes: &[TemplateNode], result: &mut Vec<TemplateN
     }
 }
 
+/// Checks if a transformed value expression is guaranteed to be defined (not undefined).
+/// This is a simplified version of scope.evaluate().is_defined from the official compiler.
+/// Returns true for values that are definitely defined (numbers, strings, booleans, null, objects, arrays).
+/// Returns false for values that might be undefined (identifiers, function calls, $.get() calls, etc).
+/// Checks if a value is known to be defined (not null/undefined).
+/// Approximates scope.evaluate().is_defined from the official compiler.
+/// In the official compiler, is_defined is false when value == null (loose comparison)
+/// or when value is UNKNOWN. So null and undefined are not defined, and any
+/// unresolvable expression is also not defined.
+fn is_value_known_defined(value: &JsExpr) -> bool {
+    match value {
+        // null and undefined literals are explicitly not defined
+        JsExpr::Literal(JsLiteral::Null) => false,
+        JsExpr::Literal(JsLiteral::Undefined) => false,
+        // void expressions (void 0) are undefined
+        JsExpr::Void(_) => false,
+        // Known defined literals: numbers, strings, booleans, regex
+        JsExpr::Literal(JsLiteral::Number(_)) => true,
+        JsExpr::Literal(JsLiteral::String(_)) => true,
+        JsExpr::Literal(JsLiteral::Boolean(_)) => true,
+        JsExpr::Literal(JsLiteral::Regex { .. }) => true,
+        // Arrays and objects are always defined
+        JsExpr::Array(_) => true,
+        JsExpr::Object(_) => true,
+        // Template literals are always strings (defined)
+        JsExpr::TemplateLiteral(_) => true,
+        // Everything else: identifiers, calls, member access, $.get() - treat as UNKNOWN (not defined)
+        _ => false,
+    }
+}
+
 /// Serializes an assignment to the value property of a `<select>`, `<option>` or `<input>` element
 /// that needs the hidden `__value` property.
 ///
@@ -1492,15 +1540,20 @@ fn build_element_special_value_attribute(
     value: JsExpr,
     has_state: bool,
     synthetic: bool,
+    is_select_with_value: bool,
     context: &mut ComponentContext,
 ) {
     // Apply transforms to the value expression (e.g., $.get() wrapping for reactive variables)
     let transformed_value = apply_transforms_to_expression(&value, context);
 
-    // Check if the value is defined (i.e., guaranteed to not be undefined)
-    // For simplicity, we assume values that involve reactive state ($.get() calls) might be undefined
-    // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/RegularElement.js L755-756
-    let value_is_defined = !has_state;
+    // Check if the value is defined (i.e., guaranteed to not be null/undefined)
+    // The official compiler uses scope.evaluate(value).is_defined which checks if
+    // value == null || value === UNKNOWN. We approximate this:
+    // - Literal null/undefined: NOT defined (null == null is true in JS)
+    // - Known literals (numbers, strings, booleans): defined
+    // - Everything else (identifiers, calls, reactive values): NOT defined (could be UNKNOWN)
+    // Reference: svelte/packages/svelte/src/compiler/phases/scope.js L574
+    let value_is_defined = is_value_known_defined(&transformed_value);
 
     // node.__value = transformed_value
     let assignment = b::assign(
@@ -1511,16 +1564,34 @@ fn build_element_special_value_attribute(
     // For non-synthetic values: node.value = (node.__value = transformed_value) ?? ''
     // If value is defined, skip the ?? '' fallback
     // For synthetic values: just node.__value = transformed_value
-    let update = if synthetic {
-        b::stmt(assignment)
+    let set_value_assignment = if synthetic {
+        assignment.clone()
     } else {
         let inner = if value_is_defined {
-            assignment
+            assignment.clone()
         } else {
             // Wrap with ?? '' for potentially undefined values
-            b::nullish(assignment, b::string(""))
+            b::nullish(assignment.clone(), b::string(""))
         };
-        b::stmt(b::assign(b::member(b::id(node_id), "value"), inner))
+        b::assign(b::member(b::id(node_id), "value"), inner)
+    };
+
+    // For select elements with value, wrap in sequence: (set_value_assignment, $.select_option(node, value))
+    // We use Raw statement to preserve parentheses around the sequence expression,
+    // since OXC normalization would strip them (they're technically unnecessary in statement context
+    // but the official compiler always emits them).
+    let update = if is_select_with_value {
+        use crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr;
+        let assign_str = generate_expr(&set_value_assignment);
+        let value_str = generate_expr(&transformed_value);
+        JsStatement::Raw(format!(
+            "(\n\t{},\n\t$.select_option({}, {})\n)",
+            assign_str, node_id, value_str
+        ))
+    } else if synthetic {
+        b::stmt(assignment)
+    } else {
+        b::stmt(set_value_assignment)
     };
 
     if has_state {

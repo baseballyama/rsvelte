@@ -561,6 +561,13 @@ pub fn normalize_js(js: &str) -> String {
         out
     };
 
+    // Normalize parenthesized comma expressions (sequence expressions) in statement context.
+    // OXC strips outer parentheses from sequence expressions in expression-statement context
+    // because they're technically unnecessary: `(a = b, c);` -> `a = b, c;`
+    // The official Svelte compiler keeps them. Normalize by stripping outer parens from
+    // expressions like `(assignment, $.select_option(...))`.
+    let result = normalize_sequence_expression_parens(&result);
+
     // Normalize escaped closing tags in template literals
     // Both `</script>` and `<\/script>` are valid - normalize to unescaped form
     let result = result.replace("<\\/script>", "</script>");
@@ -667,6 +674,84 @@ pub fn normalize_js(js: &str) -> String {
         .join("\n");
 
     result.trim().to_string()
+}
+
+/// Strip outer parentheses from comma expressions (sequence expressions) in statement context.
+/// OXC strips these parens because they're technically unnecessary in expression-statement
+/// context: `(a = b, $.select_option(c, d))` -> `a = b, $.select_option(c, d)`.
+/// The official Svelte compiler keeps them. We normalize by stripping the outer parens
+/// to make both forms equivalent.
+fn normalize_sequence_expression_parens(code: &str) -> String {
+    let bytes = code.as_bytes();
+    let mut result = String::with_capacity(code.len());
+    let mut i = 0;
+
+    while i < bytes.len() {
+        // Look for `(` that could be the start of a parenthesized sequence expression
+        // at statement level. We detect this by checking that the char before is a
+        // statement boundary: space, `{`, `}`, `)`, or start of string.
+        if bytes[i] == b'(' && i + 1 < bytes.len() {
+            let prev_is_statement_boundary = i == 0
+                || bytes[i - 1] == b' '
+                || bytes[i - 1] == b'{'
+                || bytes[i - 1] == b'}'
+                || bytes[i - 1] == b')';
+
+            if prev_is_statement_boundary {
+                // Check if this is NOT a function call: previous non-space char should not be
+                // an identifier char, `)`, or `]`
+                let mut is_call = false;
+                if i > 0 {
+                    let prev = bytes[i - 1];
+                    is_call = prev.is_ascii_alphanumeric()
+                        || prev == b'_'
+                        || prev == b'$'
+                        || prev == b')'
+                        || prev == b']';
+                }
+
+                if !is_call {
+                    // Find the matching closing paren
+                    let mut depth = 1;
+                    let mut j = i + 1;
+                    let mut has_top_level_comma = false;
+                    while j < bytes.len() && depth > 0 {
+                        match bytes[j] {
+                            b'(' | b'[' => depth += 1,
+                            b')' | b']' => depth -= 1,
+                            b',' if depth == 1 => has_top_level_comma = true,
+                            b'\'' | b'"' | b'`' => {
+                                // Skip string/template literals
+                                let quote = bytes[j];
+                                j += 1;
+                                while j < bytes.len() && bytes[j] != quote {
+                                    if bytes[j] == b'\\' {
+                                        j += 1; // skip escaped char
+                                    }
+                                    j += 1;
+                                }
+                            }
+                            _ => {}
+                        }
+                        if depth > 0 {
+                            j += 1;
+                        }
+                    }
+
+                    // If we found a balanced paren with a top-level comma, strip outer parens
+                    if depth == 0 && has_top_level_comma {
+                        result.push_str(&code[i + 1..j]);
+                        i = j + 1;
+                        continue;
+                    }
+                }
+            }
+        }
+        result.push(bytes[i] as char);
+        i += 1;
+    }
+
+    result
 }
 
 /// Remove braces around single statements in if blocks.
