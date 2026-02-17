@@ -249,6 +249,16 @@ impl<'a> ServerCodeGenerator<'a> {
                         AttributeValue::True(_) => {
                             attr_entries.push(format!("{}: true", name));
                         }
+                        AttributeValue::Expression(expr_tag) => {
+                            let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                            let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                            if expr_end > expr_start && expr_end <= self.source.len() {
+                                let expr = self.source[expr_start..expr_end].trim().to_string();
+                                let expr = self.strip_ts_from_expr(&expr);
+                                let expr = self.transform_store_refs(&expr);
+                                attr_entries.push(format!("{}: {}", name, expr));
+                            }
+                        }
                         AttributeValue::Sequence(parts) => {
                             // Check if it's a single expression (like value='{foo}')
                             let expr_parts: Vec<_> = parts
@@ -307,7 +317,6 @@ impl<'a> ServerCodeGenerator<'a> {
                                 attr_entries.push(format!("{}: '{}'", name, value));
                             }
                         }
-                        _ => {}
                     }
                 }
                 Attribute::SpreadAttribute(spread) => {

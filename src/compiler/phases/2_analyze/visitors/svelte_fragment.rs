@@ -17,8 +17,8 @@ pub fn visit(frag: &mut SvelteElement, context: &mut VisitorContext) -> Result<(
         return Err(errors::svelte_fragment_invalid_placement());
     }
 
-    // svelte:fragment is used for named slots
-    context.analysis.uses_slots = true;
+    // Note: <svelte:fragment> does NOT set uses_slots on the parent component.
+    // uses_slots is for components that contain <slot> elements.
 
     // Push fragment owner type for const_tag placement validation
     context

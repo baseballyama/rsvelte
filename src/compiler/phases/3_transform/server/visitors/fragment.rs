@@ -149,7 +149,6 @@ impl<'a> ServerCodeGenerator<'a> {
         nodes: &[&TemplateNode],
     ) -> Result<Option<Vec<OutputPart>>, TransformError> {
         let len = nodes.len();
-
         if len == 0 {
             return Ok(None);
         }

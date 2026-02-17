@@ -65,6 +65,13 @@ impl<'a> ServerCodeGenerator<'a> {
             TemplateNode::SvelteComponent(elem) => self.generate_svelte_component(elem),
             TemplateNode::SvelteSelf(elem) => self.generate_svelte_self(elem),
             TemplateNode::DebugTag(tag) => self.generate_debug_tag(tag),
+            TemplateNode::SvelteFragment(frag) => {
+                // Generate children of <svelte:fragment>
+                for child in &frag.fragment.nodes {
+                    self.generate_node(child, false)?;
+                }
+                Ok(())
+            }
             _ => Ok(()),
         }
     }
