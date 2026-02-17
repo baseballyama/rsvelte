@@ -27,6 +27,29 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
             }
 
+            // Try to extract the variable name and value for constant folding.
+            // If the value is a simple literal, add it to constant_vars so subsequent
+            // expression tags can fold references to this const.
+            if let Some(eq_idx) = declaration_source.find('=') {
+                let var_name = declaration_source[..eq_idx].trim();
+                let var_value = declaration_source[eq_idx + 1..].trim();
+
+                // Only simple identifiers (no destructuring)
+                if var_name
+                    .chars()
+                    .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+                    && !var_name.is_empty()
+                {
+                    // Try to evaluate the value using existing constants
+                    if let Some(folded) = super::super::helpers::try_evaluate_with_constants(
+                        var_value,
+                        &self.constant_vars,
+                    ) {
+                        self.constant_vars.insert(var_name.to_string(), folded);
+                    }
+                }
+            }
+
             self.output_parts
                 .push(OutputPart::ConstDeclaration(declaration_source));
         }
