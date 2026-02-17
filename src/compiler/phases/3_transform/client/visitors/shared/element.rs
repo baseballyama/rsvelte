@@ -409,8 +409,9 @@ pub fn build_style_directives_object(
     for directive in style_directives {
         // Build the expression for this directive
         let expression = if matches!(&directive.value, AttributeValue::True(true)) {
-            // style:color shorthand - use the name as an identifier
-            b::id(directive.name.as_str())
+            // style:color shorthand - apply transforms to get proper prop() calls
+            // This matches the official compiler which uses build_getter(b.id(d.name), context.state)
+            super::utils::apply_transforms_to_expression(&b::id(directive.name.as_str()), context)
         } else {
             // style:color={value} or style:color="value"
             let result = build_attribute_value(&directive.value, context, |expr, _| expr);
