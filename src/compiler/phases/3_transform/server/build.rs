@@ -37,8 +37,14 @@ impl<'a> ServerCodeGenerator<'a> {
                 String::new()
             };
 
-            // Strip TypeScript syntax if the script uses lang="ts"
-            let raw_script = maybe_strip_typescript(raw_script, script);
+            // Strip TypeScript syntax if any script uses lang="ts".
+            // In Svelte, if the module script has lang="ts", the instance script
+            // is also treated as TypeScript (even without its own lang attribute).
+            let raw_script = if self.is_typescript && !raw_script.is_empty() {
+                crate::compiler::phases::phase2_analyze::types::strip_typescript(&raw_script)
+            } else {
+                raw_script
+            };
 
             // Extract imports and transform the rest
             // Use extract_imports_module to keep `export { ... }` statements
@@ -80,8 +86,14 @@ impl<'a> ServerCodeGenerator<'a> {
                 String::new()
             };
 
-            // Strip TypeScript syntax if the script uses lang="ts"
-            let raw_script = maybe_strip_typescript(raw_script, script);
+            // Strip TypeScript syntax if any script uses lang="ts".
+            // In Svelte, if the module script has lang="ts", the instance script
+            // is also treated as TypeScript (even without its own lang attribute).
+            let raw_script = if self.is_typescript && !raw_script.is_empty() {
+                crate::compiler::phases::phase2_analyze::types::strip_typescript(&raw_script)
+            } else {
+                raw_script
+            };
 
             // First, remove $effect, $effect.pre, $effect.root, and $inspect.trace blocks
             // These are client-side only and should not appear in SSR output

@@ -45,6 +45,11 @@ pub struct ScopeBuilder<'a> {
     function_depth: usize,
     /// Whether we are in runes mode
     runes_mode: bool,
+    /// Whether any script in the component uses TypeScript (lang="ts").
+    /// When true, template expressions are parsed as TypeScript so that
+    /// TypeScript syntax in event handlers (e.g., type annotations, `as`, `!`)
+    /// doesn't cause parse failures that would prevent tracking assignments.
+    is_typescript: bool,
     /// Validation errors collected during scope building
     validation_errors: Vec<crate::compiler::phases::phase2_analyze::AnalysisError>,
     /// Possible implicit declarations from `$: x = expr` statements.
@@ -54,8 +59,8 @@ pub struct ScopeBuilder<'a> {
 }
 
 impl<'a> ScopeBuilder<'a> {
-    /// Create a new scope builder with runes mode.
-    pub fn new(source: &'a str, runes_mode: bool) -> Self {
+    /// Create a new scope builder with runes mode and TypeScript flag.
+    pub fn new(source: &'a str, runes_mode: bool, is_typescript: bool) -> Self {
         Self {
             scopes: vec![Scope::new(None)],
             bindings: Vec::new(),
@@ -64,6 +69,7 @@ impl<'a> ScopeBuilder<'a> {
             updates: Vec::new(),
             function_depth: 0,
             runes_mode,
+            is_typescript,
             validation_errors: Vec::new(),
             possible_implicit_declarations: Vec::new(),
         }
@@ -348,19 +354,12 @@ impl<'a> ScopeBuilder<'a> {
 
         let content = &self.source[start..end];
 
-        // Determine if this is TypeScript
-        let is_ts = script.attributes.iter().any(|attr| {
-            if attr.name == "lang"
-                && let crate::ast::template::AttributeValue::Sequence(parts) = &attr.value
-                && let Some(crate::ast::template::AttributeValuePart::Text(text)) = parts.first()
-            {
-                return text.data == "ts" || text.data == "typescript";
-            }
-            false
-        });
-
-        // Parse with OXC
-        let source_type = if is_ts {
+        // Use the component-level TypeScript flag instead of checking per-script attributes.
+        // In Svelte, if any script in the component has lang="ts", ALL scripts (including
+        // the instance script without lang="ts") are treated as TypeScript. This is because
+        // the instance script may use TypeScript syntax like `import type`, `satisfies`, etc.
+        // even without explicitly declaring lang="ts".
+        let source_type = if self.is_typescript {
             SourceType::ts()
         } else {
             SourceType::default()
@@ -824,6 +823,24 @@ impl<'a> ScopeBuilder<'a> {
                         }
                     }
                 }
+            }
+            // TypeScript expression wrappers - unwrap and recurse into the inner expression.
+            // These are produced when parsing with SourceType::ts() and wrap JS expressions
+            // with type information (e.g., `x as number`, `x!`, `x satisfies T`, `<T>x`).
+            Expression::TSAsExpression(ts_expr) => {
+                self.track_expression_updates(&ts_expr.expression);
+            }
+            Expression::TSNonNullExpression(ts_expr) => {
+                self.track_expression_updates(&ts_expr.expression);
+            }
+            Expression::TSSatisfiesExpression(ts_expr) => {
+                self.track_expression_updates(&ts_expr.expression);
+            }
+            Expression::TSTypeAssertion(ts_expr) => {
+                self.track_expression_updates(&ts_expr.expression);
+            }
+            Expression::TSInstantiationExpression(ts_expr) => {
+                self.track_expression_updates(&ts_expr.expression);
             }
             Expression::BooleanLiteral(_)
             | Expression::NullLiteral(_)
@@ -1389,7 +1406,15 @@ impl<'a> ScopeBuilder<'a> {
         let code = format!("({})", expr_source);
 
         let allocator = Allocator::default();
-        let ret = OxcParser::new(&allocator, &code, SourceType::default()).parse();
+        // Use TypeScript parser when any script in the component uses lang="ts",
+        // because template expressions (event handlers, etc.) can contain TypeScript
+        // syntax like type annotations, `as` casts, and non-null assertions.
+        let source_type = if self.is_typescript {
+            SourceType::ts()
+        } else {
+            SourceType::default()
+        };
+        let ret = OxcParser::new(&allocator, &code, source_type).parse();
 
         if ret.errors.is_empty() && !ret.program.body.is_empty() {
             // Get the expression from the parsed program
@@ -1674,11 +1699,12 @@ pub fn build_scopes(
     ast: &Root,
     source: &str,
     runes_mode: bool,
+    is_typescript: bool,
 ) -> (
     ScopeRoot,
     Vec<crate::compiler::phases::phase2_analyze::AnalysisError>,
 ) {
-    let builder = ScopeBuilder::new(source, runes_mode);
+    let builder = ScopeBuilder::new(source, runes_mode, is_typescript);
     builder.build(ast)
 }
 

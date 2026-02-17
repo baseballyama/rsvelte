@@ -163,6 +163,7 @@ pub fn fragment(
         each_item_assign_or_mutate: context.state.each_item_assign_or_mutate.clone(),
         each_item_names: context.state.each_item_names.clone(),
         each_binding_context: context.state.each_binding_context.clone(),
+        local_var_init_types: Vec::new(),
     };
 
     // Swap context.state with our local state so that process_children uses it

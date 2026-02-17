@@ -1071,6 +1071,11 @@ pub struct ComponentAnalysis {
     /// Whether the component namespace (from compile options or <svelte:options>) is MathML.
     /// Used by SvelteElement analysis to determine default namespace context.
     pub component_namespace_is_mathml: bool,
+
+    /// Whether any script in the component uses TypeScript (lang="ts" or lang="typescript").
+    /// Set during `extract_scripts()` and used during scope building to parse template
+    /// expressions as TypeScript.
+    pub is_typescript: bool,
 }
 
 impl ComponentAnalysis {
@@ -1142,6 +1147,7 @@ impl ComponentAnalysis {
             warnings: Vec::new(),
             component_namespace_is_svg: options.namespace == crate::compiler::Namespace::Svg,
             component_namespace_is_mathml: options.namespace == crate::compiler::Namespace::Mathml,
+            is_typescript: false,
         }
     }
 
@@ -1154,6 +1160,9 @@ impl ComponentAnalysis {
         let any_script_is_typescript =
             Self::script_is_typescript_attr(ast.module.as_ref().map(|s| s.as_ref()))
                 || Self::script_is_typescript_attr(ast.instance.as_ref().map(|s| s.as_ref()));
+
+        // Store the TypeScript flag for later use (e.g., scope building)
+        self.is_typescript = any_script_is_typescript;
 
         // Extract instance script content
         if let Some(ref script) = ast.instance {
@@ -1194,8 +1203,9 @@ impl ComponentAnalysis {
     /// Create scopes for the component.
     pub fn create_scopes(&mut self, ast: &Root) -> Result<(), super::AnalysisError> {
         // Build scope tree using ScopeBuilder
+        // Pass is_typescript so template expressions are parsed as TypeScript when needed
         let (scope_root, validation_errors) =
-            super::scope_builder::build_scopes(ast, &self.source, self.runes);
+            super::scope_builder::build_scopes(ast, &self.source, self.runes, self.is_typescript);
         self.root = scope_root;
 
         // Return first validation error if any occurred during scope building

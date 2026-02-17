@@ -109,6 +109,9 @@ fn visit_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<(), An
                         let b = &mut context.analysis.root.bindings[bi];
                         b.initial = extract_literal_string(arg);
                         b.initial_is_defined = is_expression_defined(arg);
+                        // Store the AST node type of the initial value for should_proxy()
+                        b.initial_node_type =
+                            arg.get("type").and_then(|t| t.as_str()).map(String::from);
                     }
                 }
             }
@@ -122,6 +125,9 @@ fn visit_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<(), An
                 let binding = &mut context.analysis.root.bindings[binding_idx];
                 binding.initial = extract_literal_string(init);
                 binding.initial_is_defined = is_expression_defined(init);
+                // Store the AST node type of the initial value for should_proxy()
+                binding.initial_node_type =
+                    init.get("type").and_then(|t| t.as_str()).map(String::from);
             }
         }
     }
@@ -388,6 +394,14 @@ fn process_props_object_pattern(
                             // TODO: Properly serialize expression
                             format!("{:?}", arg)
                         });
+                        // For $bindable(), store the argument's type if available
+                        binding.initial_node_type = init
+                            .get("arguments")
+                            .and_then(|args| args.as_array())
+                            .and_then(|args| args.first())
+                            .and_then(|arg| arg.get("type"))
+                            .and_then(|t| t.as_str())
+                            .map(String::from);
                         binding.kind = BindingKind::BindableProp;
                     } else {
                         // Regular initial value - extract literal if possible.
@@ -398,6 +412,8 @@ fn process_props_object_pattern(
                         // and is_prop_source checks truthiness (any value = has default).
                         binding.initial =
                             extract_literal_string(init).or_else(|| Some(init.to_string()));
+                        binding.initial_node_type =
+                            init.get("type").and_then(|t| t.as_str()).map(String::from);
                     }
                 } else {
                     binding.initial = None;
@@ -465,6 +481,8 @@ fn visit_non_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<()
                 let binding = &mut context.analysis.root.bindings[binding_idx];
                 binding.initial = extract_literal_string(init);
                 binding.initial_is_defined = is_expression_defined(init);
+                binding.initial_node_type =
+                    init.get("type").and_then(|t| t.as_str()).map(String::from);
             }
         }
     }

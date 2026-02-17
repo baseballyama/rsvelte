@@ -6,7 +6,6 @@
 
 use super::types::{ConstantFoldResult, OutputPart};
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, Script, TemplateNode};
-use crate::compiler::phases::phase2_analyze::types::strip_typescript;
 use rustc_hash::FxHashMap;
 
 // Re-export from sibling modules for backward compatibility
@@ -45,6 +44,9 @@ pub(crate) fn is_valid_js_identifier(name: &str) -> bool {
 /// - `n: number` -> `n`
 /// - `n` -> `n` (no change)
 /// - `{ a, b }: Props` -> `{ a, b }` (destructured with type annotation)
+/// - `c?: number` -> `c` (optional parameter)
+/// - `c: number = 4` -> `c = 4` (with default value)
+/// - `c?: number = 5` -> `c = 5` (optional with default)
 ///
 /// This is needed because snippet parameters in `.svelte` files with `lang="ts"`
 /// may include TypeScript type annotations that must not appear in the generated JavaScript.
@@ -76,18 +78,60 @@ pub(crate) fn strip_ts_type_annotation(param: &str) -> String {
         }
     }
 
-    // Handle simple identifier with type annotation: `name: Type`
-    // Be careful not to strip object destructuring rename syntax
-    if let Some(colon_pos) = trimmed.find(':') {
+    // Handle simple identifier with optional marker and type annotation:
+    // - `name: Type`
+    // - `name?: Type`
+    // - `name: Type = default`
+    // - `name?: Type = default`
+    // - `name = default` (no type annotation, just default)
+    //
+    // Strategy: extract the identifier name, then check for `= default` after type
+
+    // Check for `?:` (optional typed) or `:` (typed)
+    let (ident_end, type_start) = if let Some(qc_pos) = trimmed.find("?:") {
+        // `name?: Type`
+        (qc_pos, Some(qc_pos + 2))
+    } else if let Some(colon_pos) = trimmed.find(':') {
         let before = trimmed[..colon_pos].trim();
-        // Only strip if the part before `:` is a valid identifier
-        // (not a destructuring pattern)
         if is_valid_js_identifier(before) {
+            (colon_pos, Some(colon_pos + 1))
+        } else {
+            // Not a simple identifier before colon (e.g., destructuring rename)
+            return trimmed.to_string();
+        }
+    } else if let Some(q_pos) = trimmed.find('?') {
+        // `name?` (optional without type) - strip the `?`
+        let before = trimmed[..q_pos].trim();
+        if is_valid_js_identifier(before) {
+            // Check for `= default` after `?`
+            let after = trimmed[q_pos + 1..].trim();
+            if let Some(stripped) = after.strip_prefix('=') {
+                return format!("{} = {}", before, stripped.trim());
+            }
             return before.to_string();
+        }
+        return trimmed.to_string();
+    } else {
+        // No type annotation at all
+        return trimmed.to_string();
+    };
+
+    let ident = trimmed[..ident_end].trim();
+
+    // Now look for `= default` after the type annotation
+    if let Some(ts) = type_start {
+        let after_type = trimmed[ts..].trim();
+        // Find the `=` that represents the default value.
+        // The `=` might be after a type expression like `number = 4`
+        if let Some(eq_pos) = after_type.find('=') {
+            let default_val = after_type[eq_pos + 1..].trim();
+            if !default_val.is_empty() {
+                return format!("{} = {}", ident, default_val);
+            }
         }
     }
 
-    trimmed.to_string()
+    ident.to_string()
 }
 
 /// Check if a class attribute value needs to be wrapped in $.clsx().
@@ -442,15 +486,6 @@ pub(crate) fn script_is_typescript(script: &Script) -> bool {
         }
         false
     })
-}
-
-/// Strip TypeScript from raw script content if the script is TypeScript.
-pub(crate) fn maybe_strip_typescript(raw_script: String, script: &Script) -> String {
-    if script_is_typescript(script) && !raw_script.is_empty() {
-        strip_typescript(&raw_script)
-    } else {
-        raw_script
-    }
 }
 
 /// Sanitize a name to be a valid JavaScript identifier.

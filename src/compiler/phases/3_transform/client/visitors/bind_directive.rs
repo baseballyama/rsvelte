@@ -83,10 +83,13 @@ pub fn unified_build_bind_this(
         .map(|id| apply_transforms_to_expression(&JsExpr::Identifier(id.name.clone()), context))
         .collect();
 
-    let shadowed: HashSet<String> = each_ids.iter().map(|id| id.name.clone()).collect();
+    let local_scope =
+        crate::compiler::phases::phase3_transform::client::visitors::shared::utils::LocalScope::from_shadowed(
+            each_ids.iter().map(|id| id.name.clone()),
+        );
 
     let getter_raw = getter_expr.as_ref().unwrap_or(&raw_expr);
-    let mut get = apply_transforms_to_expression_with_shadowed(getter_raw, context, &shadowed);
+    let mut get = apply_transforms_to_expression_with_shadowed(getter_raw, context, &local_scope);
 
     let setter_raw = if let Some(ref s) = setter_expr {
         s.clone()
@@ -122,7 +125,7 @@ pub fn unified_build_bind_this(
         None
     };
 
-    let mut set = apply_transforms_to_expression_with_shadowed(&setter_raw, context, &shadowed);
+    let mut set = apply_transforms_to_expression_with_shadowed(&setter_raw, context, &local_scope);
 
     // Restore the original skip_proxy value
     if let Some(ref name) = binding_name_for_skip
@@ -896,21 +899,24 @@ fn build_bind_this_with_each_ids(
     context: &ComponentContext,
     each_ids: &[EachBlockId],
 ) -> JsExpr {
-    use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression_with_shadowed;
+    use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
+        LocalScope, apply_transforms_to_expression_with_shadowed,
+    };
 
-    let shadowed: HashSet<String> = each_ids.iter().map(|id| id.name.clone()).collect();
+    let local_scope = LocalScope::from_shadowed(each_ids.iter().map(|id| id.name.clone()));
     let id_params: Vec<JsPattern> = each_ids.iter().map(|id| b::id_pattern(&id.name)).collect();
 
-    // Transform getter with each-block vars shadowed
-    let transformed_getter = apply_transforms_to_expression_with_shadowed(get, context, &shadowed);
+    // Transform getter with each-block vars in local scope
+    let transformed_getter =
+        apply_transforms_to_expression_with_shadowed(get, context, &local_scope);
 
-    // Transform setter with each-block vars shadowed
+    // Transform setter with each-block vars in local scope
     let transformed_setter = if let Some(setter) = set {
-        apply_transforms_to_expression_with_shadowed(setter, context, &shadowed)
+        apply_transforms_to_expression_with_shadowed(setter, context, &local_scope)
     } else {
         let raw_expr = extract_arrow_body(get);
         let set_expr = b::assign(raw_expr.clone(), b::id("$$value"));
-        apply_transforms_to_expression_with_shadowed(&set_expr, context, &shadowed)
+        apply_transforms_to_expression_with_shadowed(&set_expr, context, &local_scope)
     };
 
     // Build getter: extract body from Arrow, apply optional chaining, add id params

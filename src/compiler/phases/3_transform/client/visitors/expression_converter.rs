@@ -1167,6 +1167,11 @@ fn convert_arrow_function(
 
     let is_async = obj.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
 
+    // Push a new local scope frame for the arrow function body.
+    // This allows should_proxy_value to look up local variable init types
+    // when processing assignments inside the arrow body.
+    context.state.push_local_scope();
+
     let body = if let Some(body_obj) = obj.get("body").and_then(|b| b.as_object()) {
         if body_obj.get("type").and_then(|t| t.as_str()) == Some("BlockStatement") {
             JsArrowBody::Block(convert_block_statement(body_obj, context))
@@ -1179,6 +1184,9 @@ fn convert_arrow_function(
     } else {
         JsArrowBody::Block(JsBlockStatement::new())
     };
+
+    // Pop the local scope frame
+    context.state.pop_local_scope();
 
     JsExpr::Arrow(JsArrowFunction {
         params,
@@ -1201,11 +1209,17 @@ fn convert_function_expression(
 
     let params = convert_params(obj, context);
 
+    // Push a new local scope frame for the function body
+    context.state.push_local_scope();
+
     let body = obj
         .get("body")
         .and_then(|b| b.as_object())
         .map(|b| convert_block_statement(b, context))
         .unwrap_or_default();
+
+    // Pop the local scope frame
+    context.state.pop_local_scope();
 
     let is_async = obj.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
 
@@ -1382,6 +1396,18 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                             let decl_obj = decl.as_object()?;
                             let id = decl_obj.get("id").and_then(|i| i.as_object())?;
                             let name = id.get("name").and_then(|n| n.as_str())?;
+
+                            // Register the init expression's node type for should_proxy() lookups.
+                            // This enables scope-aware identifier tracing for local variables.
+                            if !context.state.local_var_init_types.is_empty()
+                                && let Some(init_json) = decl_obj.get("init")
+                                && let Some(t) = unwrap_ts_expression_type(init_json)
+                            {
+                                context
+                                    .state
+                                    .register_local_var_init_type(name.to_string(), t.to_string());
+                            }
+
                             let init = decl_obj
                                 .get("init")
                                 .map(|i| Box::new(convert_json_value(i, context)));
@@ -1732,7 +1758,7 @@ fn try_transform_assignment(
             && !binding_kind_excludes_proxy
             && context.state.analysis.runes
             && is_non_coercive_operator(operator)
-            && should_proxy_value(right_json);
+            && should_proxy_value(right_json, context);
 
         return Some(assign_fn(b::id(&root_name), value, needs_proxy));
     }
@@ -1771,22 +1797,68 @@ fn is_non_coercive_operator(operator: &str) -> bool {
     matches!(operator, "=" | "||=" | "&&=" | "??=")
 }
 
+/// Unwrap TypeScript expression wrappers (TSAsExpression, TSNonNullExpression, etc.)
+/// and return the underlying AST node type.
+///
+/// For example, `next! as number` -> TSAsExpression wrapping TSNonNullExpression wrapping
+/// Identifier -> returns "Identifier".
+fn unwrap_ts_expression_type(value: &Value) -> Option<&str> {
+    let obj = value.as_object()?;
+    let node_type = obj.get("type").and_then(|t| t.as_str())?;
+
+    match node_type {
+        "TSAsExpression"
+        | "TSNonNullExpression"
+        | "TSSatisfiesExpression"
+        | "TSTypeAssertion"
+        | "TSInstantiationExpression" => {
+            // Unwrap to the inner expression
+            if let Some(expr) = obj.get("expression") {
+                unwrap_ts_expression_type(expr)
+            } else {
+                Some(node_type)
+            }
+        }
+        _ => Some(node_type),
+    }
+}
+
+/// Check if a node type string represents a value that doesn't need proxy.
+///
+/// Returns `false` for node types known to produce primitive values or functions.
+fn should_proxy_node_type_str(node_type: &str) -> bool {
+    !matches!(
+        node_type,
+        "Literal"
+            | "TemplateLiteral"
+            | "ArrowFunctionExpression"
+            | "FunctionExpression"
+            | "UnaryExpression"
+            | "BinaryExpression"
+    )
+}
+
 /// Determines if a value should be wrapped in $.proxy() for deep reactivity.
 ///
 /// Returns `false` for primitives, functions, and literals.
 /// Returns `true` for objects, arrays, and other reference types.
-fn should_proxy_value(value: Option<&Value>) -> bool {
+///
+/// When encountering an Identifier, performs scope-aware lookup:
+/// 1. Check local variable init types (arrow/function-local declarations)
+/// 2. Check analysis scope bindings (component-level declarations)
+/// 3. Fall back to conservative proxy assumption
+fn should_proxy_value(value: Option<&Value>, context: &ComponentContext) -> bool {
     let value = match value {
         Some(v) => v,
         None => return true, // Unknown, conservatively assume proxy needed
     };
 
-    let obj = match value.as_object() {
-        Some(o) => o,
-        None => return false,
-    };
+    // Verify this is an object node
+    if value.as_object().is_none() {
+        return false;
+    }
 
-    let node_type = match obj.get("type").and_then(|t| t.as_str()) {
+    let node_type = match unwrap_ts_expression_type(value) {
         Some(t) => t,
         None => return true, // Unknown type, assume proxy needed
     };
@@ -1800,12 +1872,48 @@ fn should_proxy_value(value: Option<&Value>) -> bool {
         "UnaryExpression" | "BinaryExpression" => false,
         // Template literals are strings (primitives)
         "TemplateLiteral" => false,
-        // Identifiers might need proxy (could reference objects/arrays),
-        // EXCEPT for `undefined` which is a primitive
+        // Identifiers: scope-aware lookup to check what the identifier was initialized with
         "Identifier" => {
-            if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
-                // undefined doesn't need proxy, everything else does
-                name != "undefined"
+            // Get the actual identifier name (may need to unwrap TS wrappers to find it)
+            let name = get_identifier_name_from_json(value);
+            if let Some(name) = name {
+                // `undefined` doesn't need proxy
+                if name == "undefined" {
+                    return false;
+                }
+
+                // 1. Check local variable init types (arrow/function-local declarations)
+                if let Some(init_type) = context.state.get_local_var_init_type(name) {
+                    // Check the types that don't need proxy in the same way as official compiler
+                    match init_type {
+                        "FunctionDeclaration"
+                        | "ClassDeclaration"
+                        | "ImportDeclaration"
+                        | "EachBlock"
+                        | "SnippetBlock" => return true,
+                        _ => return should_proxy_node_type_str(init_type),
+                    }
+                }
+
+                // 2. Check analysis scope bindings (component-level declarations)
+                if let Some(binding) = context.state.get_binding(name)
+                    && !binding.reassigned
+                    && let Some(ref initial_type) = binding.initial_node_type
+                {
+                    match initial_type.as_str() {
+                        "FunctionDeclaration"
+                        | "ClassDeclaration"
+                        | "ImportDeclaration"
+                        | "EachBlock"
+                        | "SnippetBlock" => {
+                            return true;
+                        }
+                        _ => return should_proxy_node_type_str(initial_type),
+                    }
+                }
+
+                // Unknown identifier, conservatively proxy
+                true
             } else {
                 true
             }
@@ -1814,6 +1922,24 @@ fn should_proxy_value(value: Option<&Value>) -> bool {
         "ObjectExpression" | "ArrayExpression" => true,
         // Other expressions might need proxy (e.g., function calls that return objects)
         _ => true,
+    }
+}
+
+/// Extract the identifier name from a JSON value, unwrapping any TypeScript expression wrappers.
+fn get_identifier_name_from_json(value: &Value) -> Option<&str> {
+    let obj = value.as_object()?;
+    let node_type = obj.get("type").and_then(|t| t.as_str())?;
+
+    match node_type {
+        "Identifier" => obj.get("name").and_then(|n| n.as_str()),
+        "TSAsExpression"
+        | "TSNonNullExpression"
+        | "TSSatisfiesExpression"
+        | "TSTypeAssertion"
+        | "TSInstantiationExpression" => obj
+            .get("expression")
+            .and_then(get_identifier_name_from_json),
+        _ => None,
     }
 }
 

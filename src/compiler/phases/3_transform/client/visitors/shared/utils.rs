@@ -3,12 +3,100 @@
 //! Corresponds to utilities in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/utils.js`.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+
+/// Local scope information for tracking shadowed variables and their init expression types.
+///
+/// This is used during expression transformation to:
+/// 1. Prevent transforms on shadowed variables (function parameters, local declarations)
+/// 2. Provide local variable init expression types for should_proxy() lookups
+///    (since the analysis scope doesn't include function-local variables)
+#[derive(Debug, Clone, Default)]
+pub struct LocalScope {
+    /// Variables that are shadowed (should not be transformed).
+    /// Maps variable name -> optional JsExpr type of the init value.
+    /// For parameters, the value is None.
+    /// For const/let declarations, the value is the JsExpr discriminant string
+    /// (e.g., "Binary", "Literal", "Arrow", etc.)
+    vars: HashMap<String, Option<JsExprKind>>,
+}
+
+/// A simplified classification of JsExpr types for should_proxy() decisions.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum JsExprKind {
+    Literal,
+    TemplateLiteral,
+    Arrow,
+    Function,
+    Unary,
+    Binary,
+    Other,
+}
+
+impl LocalScope {
+    fn new() -> Self {
+        Self {
+            vars: HashMap::new(),
+        }
+    }
+
+    /// Create a LocalScope from a set of shadowed variable names.
+    pub fn from_shadowed(names: impl Iterator<Item = String>) -> Self {
+        let mut scope = Self::new();
+        for name in names {
+            scope.add_shadowed(name);
+        }
+        scope
+    }
+
+    fn contains(&self, name: &str) -> bool {
+        self.vars.contains_key(name)
+    }
+
+    fn add_shadowed(&mut self, name: String) {
+        self.vars.insert(name, None);
+    }
+
+    fn add_local_var(&mut self, name: String, init_kind: Option<JsExprKind>) {
+        self.vars.insert(name, init_kind);
+    }
+
+    /// Check if a variable's init expression type indicates it doesn't need proxy.
+    /// Returns Some(false) if definitely no proxy needed, None if unknown.
+    fn should_proxy_for_var(&self, name: &str) -> Option<bool> {
+        if let Some(Some(kind)) = self.vars.get(name) {
+            Some(!matches!(
+                kind,
+                JsExprKind::Literal
+                    | JsExprKind::TemplateLiteral
+                    | JsExprKind::Arrow
+                    | JsExprKind::Function
+                    | JsExprKind::Unary
+                    | JsExprKind::Binary
+            ))
+        } else {
+            None // Unknown - not in local scope or no init info
+        }
+    }
+}
+
+/// Classify a JsExpr into a JsExprKind for proxy decisions.
+fn classify_expr(expr: &JsExpr) -> JsExprKind {
+    match expr {
+        JsExpr::Literal(_) => JsExprKind::Literal,
+        JsExpr::TemplateLiteral(_) => JsExprKind::TemplateLiteral,
+        JsExpr::Arrow(_) => JsExprKind::Arrow,
+        JsExpr::Function(_) => JsExprKind::Function,
+        JsExpr::Unary(_) => JsExprKind::Unary,
+        JsExpr::Binary(_) => JsExprKind::Binary,
+        _ => JsExprKind::Other,
+    }
+}
 
 /// Extract all identifier names from a pattern.
 ///
@@ -41,6 +129,31 @@ fn extract_pattern_names(pattern: &JsPattern, names: &mut HashSet<String>) {
         }
         JsPattern::Assignment(assign) => {
             extract_pattern_names(&assign.left, names);
+        }
+    }
+}
+
+/// Extract all identifier names from a pattern and add them to a LocalScope as shadowed.
+fn extract_pattern_names_to_scope(pattern: &JsPattern, scope: &mut LocalScope) {
+    let mut names = HashSet::new();
+    extract_pattern_names(pattern, &mut names);
+    for name in names {
+        scope.add_shadowed(name);
+    }
+}
+
+/// Scan a block body for variable declarations and register them in the local scope.
+/// This tracks local `const`/`let`/`var` declarations so that should_proxy() can
+/// check their init expression types when they're referenced in assignments.
+fn register_block_local_vars(block: &[JsStatement], scope: &mut LocalScope) {
+    for stmt in block {
+        if let JsStatement::VariableDeclaration(var_decl) = stmt {
+            for decl in &var_decl.declarations {
+                if let JsPattern::Identifier(name) = &decl.id {
+                    let init_kind = decl.init.as_ref().map(|init_expr| classify_expr(init_expr));
+                    scope.add_local_var(name.clone(), init_kind);
+                }
+            }
         }
     }
 }
@@ -93,6 +206,81 @@ fn should_proxy_expr(expr: &JsExpr) -> bool {
     }
 }
 
+/// Determine if a value should be wrapped in $.proxy(), with scope-aware identifier lookup.
+///
+/// This mirrors the official Svelte compiler's `should_proxy` function from
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/client/utils.js`.
+///
+/// For identifiers, it looks up the binding in scope and recursively checks the
+/// binding's initial value type. This handles cases like:
+/// ```ignore
+/// const next = count + 1; // BinaryExpression -> no proxy
+/// count = next;           // next resolves to BinaryExpression -> no proxy
+/// ```
+fn should_proxy_with_context(
+    expr: &JsExpr,
+    context: &ComponentContext,
+    local_scope: &LocalScope,
+) -> bool {
+    match expr {
+        JsExpr::Identifier(name) if name != "undefined" => {
+            // First, check local scope (function-local variables)
+            // This handles cases like:
+            //   (e) => { const next = count + 1; count = next; }
+            // where `next` is a local const with BinaryExpression init
+            if let Some(proxy_needed) = local_scope.should_proxy_for_var(name) {
+                return proxy_needed;
+            }
+
+            // Then check the analysis scope (component-level bindings)
+            if let Some(binding) = context.state.get_binding(name) {
+                // Only trace through if the binding is not reassigned and has an initial value.
+                // This matches the official compiler's check:
+                //   binding !== null && !binding.reassigned && binding.initial !== null
+                if !binding.reassigned
+                    && let Some(ref initial_type) = binding.initial_node_type
+                {
+                    // Don't look through these declaration types
+                    // (they represent bindings, not value expressions)
+                    match initial_type.as_str() {
+                        "FunctionDeclaration"
+                        | "ClassDeclaration"
+                        | "ImportDeclaration"
+                        | "EachBlock"
+                        | "SnippetBlock" => {
+                            return true;
+                        }
+                        _ => {
+                            // Recursively check if initial value type should be proxied
+                            return should_proxy_node_type(initial_type);
+                        }
+                    }
+                }
+            }
+            // Fallback: unknown identifier or no initial value, conservatively proxy
+            true
+        }
+        _ => should_proxy_expr(expr),
+    }
+}
+
+/// Check if a node type (from binding.initial_node_type) should be proxied.
+///
+/// Returns `false` for types known to produce primitive values or functions.
+/// This is the equivalent of calling `should_proxy(binding.initial, null)` in
+/// the official compiler, where `null` scope prevents further identifier lookups.
+fn should_proxy_node_type(node_type: &str) -> bool {
+    !matches!(
+        node_type,
+        "Literal"
+            | "TemplateLiteral"
+            | "ArrowFunctionExpression"
+            | "FunctionExpression"
+            | "UnaryExpression"
+            | "BinaryExpression"
+    )
+}
+
 /// Apply registered transforms to an expression recursively.
 ///
 /// This function walks through the expression tree and applies any registered
@@ -107,27 +295,27 @@ fn should_proxy_expr(expr: &JsExpr) -> bool {
 ///
 /// Returns the transformed expression with all applicable transforms applied.
 pub fn apply_transforms_to_expression(expr: &JsExpr, context: &ComponentContext) -> JsExpr {
-    // Use internal function with empty shadowed set
-    apply_transforms_to_expression_with_shadowed(expr, context, &HashSet::new())
+    // Use internal function with empty local scope
+    apply_transforms_to_expression_with_shadowed(expr, context, &LocalScope::new())
 }
 
 /// Apply transforms while treating specified variables as shadowed (preventing transformation).
 pub fn apply_transforms_to_expression_with_shadowed(
     expr: &JsExpr,
     context: &ComponentContext,
-    shadowed: &HashSet<String>,
+    local_scope: &LocalScope,
 ) -> JsExpr {
-    // Helper macro for recursive calls with current shadowed set
+    // Helper macro for recursive calls with current local scope
     macro_rules! recurse {
         ($e:expr) => {
-            apply_transforms_to_expression_with_shadowed($e, context, shadowed)
+            apply_transforms_to_expression_with_shadowed($e, context, local_scope)
         };
     }
 
     match expr {
         JsExpr::Identifier(name) => {
-            // Skip transforms for shadowed variables (function parameters, etc.)
-            if shadowed.contains(name) {
+            // Skip transforms for shadowed variables (function parameters, local vars)
+            if local_scope.contains(name) {
                 return expr.clone();
             }
             // Track each block index usage for proper callback parameter generation.
@@ -186,7 +374,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
             // that wrap `x` -> `x()`. State variable calls like `saySomething('Tama')` SHOULD become
             // `$.get(saySomething)('Tama')`, not `saySomething('Tama')`.
             let skip_callee_transform = if let JsExpr::Identifier(name) = call.callee.as_ref()
-                && !shadowed.contains(name)
+                && !local_scope.contains(name)
                 && let Some(transform) = context.state.transform.get(name)
             {
                 // Check if this is a prop or store subscription binding
@@ -353,27 +541,27 @@ pub fn apply_transforms_to_expression_with_shadowed(
 
         JsExpr::Arrow(arrow) => {
             // Extract parameter names - these shadow any outer transforms
-            let mut new_shadowed = shadowed.clone();
+            let mut new_scope = local_scope.clone();
             for param in &arrow.params {
-                extract_pattern_names(param, &mut new_shadowed);
+                extract_pattern_names_to_scope(param, &mut new_scope);
             }
 
-            // Transform arrow function bodies with updated shadowed set
+            // Transform arrow function bodies with updated local scope
             let transformed_body = match &arrow.body {
                 JsArrowBody::Expression(expr_box) => JsArrowBody::Expression(Box::new(
-                    apply_transforms_to_expression_with_shadowed(expr_box, context, &new_shadowed),
+                    apply_transforms_to_expression_with_shadowed(expr_box, context, &new_scope),
                 )),
                 JsArrowBody::Block(block) => {
+                    // Scan the block for local variable declarations before transforming
+                    // so that should_proxy() can look up their init expression types
+                    register_block_local_vars(&block.body, &mut new_scope);
+
                     // Transform statements in the block
                     let transformed_body: Vec<JsStatement> = block
                         .body
                         .iter()
                         .map(|stmt| {
-                            apply_transforms_to_statement_with_shadowed(
-                                stmt,
-                                context,
-                                &new_shadowed,
-                            )
+                            apply_transforms_to_statement_with_shadowed(stmt, context, &new_scope)
                         })
                         .collect();
                     JsArrowBody::Block(JsBlockStatement {
@@ -391,19 +579,20 @@ pub fn apply_transforms_to_expression_with_shadowed(
 
         JsExpr::Function(func) => {
             // Extract parameter names - these shadow any outer transforms
-            let mut new_shadowed = shadowed.clone();
+            let mut new_scope = local_scope.clone();
             for param in &func.params {
-                extract_pattern_names(param, &mut new_shadowed);
+                extract_pattern_names_to_scope(param, &mut new_scope);
             }
 
-            // Transform function expression bodies with updated shadowed set
+            // Scan the function body for local variable declarations
+            register_block_local_vars(&func.body.body, &mut new_scope);
+
+            // Transform function expression bodies with updated local scope
             let transformed_body: Vec<JsStatement> = func
                 .body
                 .body
                 .iter()
-                .map(|stmt| {
-                    apply_transforms_to_statement_with_shadowed(stmt, context, &new_shadowed)
-                })
+                .map(|stmt| apply_transforms_to_statement_with_shadowed(stmt, context, &new_scope))
                 .collect();
 
             JsExpr::Function(JsFunctionExpression {
@@ -419,9 +608,9 @@ pub fn apply_transforms_to_expression_with_shadowed(
 
         JsExpr::Assignment(assign) => {
             // For assignments, check if the left side is a state variable that needs transform
-            // Skip if the identifier is shadowed
+            // Skip if the identifier is in local scope (function parameter or local declaration)
             if let JsExpr::Identifier(name) = assign.left.as_ref()
-                && !shadowed.contains(name)
+                && !local_scope.contains(name)
                 && let Some(transform) = context.state.transform.get(name)
                 && let Some(assign_fn) = transform.assign
             {
@@ -506,7 +695,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     && !binding_kind_excludes_proxy
                     && context.state.analysis.runes
                     && is_non_coercive
-                    && should_proxy_expr(&assign.right);
+                    && should_proxy_with_context(&assign.right, context, local_scope);
 
                 return assign_fn(JsExpr::Identifier(name.clone()), final_value, needs_proxy);
             }
@@ -516,7 +705,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
             // sets `uses_index = true`. Since Rust uses fn pointers (not closures), we track
             // this via a shared flag on the state.
             if let JsExpr::Identifier(name) = assign.left.as_ref()
-                && !shadowed.contains(name)
+                && !local_scope.contains(name)
                 && context.state.each_item_names.contains(name)
             {
                 context.state.each_item_assign_or_mutate.set(true);
@@ -531,14 +720,14 @@ pub fn apply_transforms_to_expression_with_shadowed(
 
                 // Track each item mutation for uses_index detection.
                 if let JsExpr::Identifier(name) = &base_object
-                    && !shadowed.contains(name)
+                    && !local_scope.contains(name)
                     && context.state.each_item_names.contains(name)
                 {
                     context.state.each_item_assign_or_mutate.set(true);
                 }
 
                 if let JsExpr::Identifier(name) = base_object
-                    && !shadowed.contains(&name)
+                    && !local_scope.contains(&name)
                     && let Some(transform) = context.state.transform.get(&name)
                     && let Some(mutate_fn) = transform.mutate
                 {
@@ -640,9 +829,9 @@ pub fn apply_transforms_to_expression_with_shadowed(
 
         JsExpr::Update(update) => {
             // For update expressions, check if the argument has an update transform
-            // Skip if the identifier is shadowed
+            // Skip if the identifier is in local scope
             if let JsExpr::Identifier(name) = update.argument.as_ref()
-                && !shadowed.contains(name)
+                && !local_scope.contains(name)
                 && let Some(transform) = context.state.transform.get(name)
                 && let Some(update_fn) = transform.update
             {
@@ -655,7 +844,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
 
             // Track each item update (++ or --) for uses_index detection.
             if let JsExpr::Identifier(name) = update.argument.as_ref()
-                && !shadowed.contains(name)
+                && !local_scope.contains(name)
                 && context.state.each_item_names.contains(name)
             {
                 context.state.each_item_assign_or_mutate.set(true);
@@ -672,14 +861,14 @@ pub fn apply_transforms_to_expression_with_shadowed(
 
                 // Track each item member update for uses_index detection.
                 if let JsExpr::Identifier(name) = &base_object
-                    && !shadowed.contains(name)
+                    && !local_scope.contains(name)
                     && context.state.each_item_names.contains(name)
                 {
                     context.state.each_item_assign_or_mutate.set(true);
                 }
 
                 if let JsExpr::Identifier(name) = base_object
-                    && !shadowed.contains(&name)
+                    && !local_scope.contains(&name)
                     && let Some(transform) = context.state.transform.get(&name)
                     && let Some(mutate_fn) = transform.mutate
                 {
@@ -809,22 +998,22 @@ fn get_base_object(expr: &JsExpr) -> JsExpr {
 /// to all expressions within.
 #[allow(dead_code)]
 fn apply_transforms_to_statement(stmt: &JsStatement, context: &ComponentContext) -> JsStatement {
-    apply_transforms_to_statement_with_shadowed(stmt, context, &HashSet::new())
+    apply_transforms_to_statement_with_shadowed(stmt, context, &LocalScope::new())
 }
 
-/// Apply transforms to a statement recursively with shadowed variable tracking.
+/// Apply transforms to a statement recursively with local scope tracking.
 fn apply_transforms_to_statement_with_shadowed(
     stmt: &JsStatement,
     context: &ComponentContext,
-    shadowed: &HashSet<String>,
+    local_scope: &LocalScope,
 ) -> JsStatement {
     // Helper for expression transforms
     let transform_expr =
-        |e: &JsExpr| apply_transforms_to_expression_with_shadowed(e, context, shadowed);
+        |e: &JsExpr| apply_transforms_to_expression_with_shadowed(e, context, local_scope);
 
     // Helper for recursive statement transforms
     let transform_stmt =
-        |s: &JsStatement| apply_transforms_to_statement_with_shadowed(s, context, shadowed);
+        |s: &JsStatement| apply_transforms_to_statement_with_shadowed(s, context, local_scope);
 
     match stmt {
         JsStatement::Expression(expr_stmt) => JsStatement::Expression(JsExpressionStatement {

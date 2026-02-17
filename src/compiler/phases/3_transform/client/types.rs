@@ -927,6 +927,14 @@ pub struct ComponentClientTransformState<'a> {
     /// to generate correct binding getters/setters with $.invalidate_inner_signals().
     /// Each entry represents a nested each block level.
     pub each_binding_context: Vec<EachBindingContext>,
+
+    /// Local variable init expression types for scope-aware should_proxy() decisions.
+    /// Maps variable name -> AST node type string of the init expression (e.g., "BinaryExpression").
+    /// This is populated during block statement conversion for variables declared with
+    /// `const`/`let`/`var` inside function bodies (arrow functions, function expressions),
+    /// enabling should_proxy() to trace through local identifier references.
+    /// Uses a Vec stack of HashMaps to support nested scopes.
+    pub local_var_init_types: Vec<FxHashMap<String, String>>,
 }
 
 /// Context information for generating bindings inside each blocks.
@@ -1023,6 +1031,7 @@ impl<'a> ComponentClientTransformState<'a> {
             each_item_assign_or_mutate: Rc::new(Cell::new(false)),
             each_item_names: Vec::new(),
             each_binding_context: Vec::new(),
+            local_var_init_types: Vec::new(),
         }
     }
 
@@ -1035,6 +1044,34 @@ impl<'a> ComponentClientTransformState<'a> {
         // Fall back to searching all scopes (including parent chain)
         let index = self.scope_root.find_binding_any_scope(name)?;
         self.scope_root.bindings.get(index)
+    }
+
+    /// Look up a local variable's init expression AST node type.
+    /// Searches all active local scope frames (innermost first).
+    pub fn get_local_var_init_type(&self, name: &str) -> Option<&str> {
+        for frame in self.local_var_init_types.iter().rev() {
+            if let Some(init_type) = frame.get(name) {
+                return Some(init_type.as_str());
+            }
+        }
+        None
+    }
+
+    /// Push a new local scope frame (e.g., entering an arrow/function body).
+    pub fn push_local_scope(&mut self) {
+        self.local_var_init_types.push(FxHashMap::default());
+    }
+
+    /// Pop the current local scope frame (e.g., leaving an arrow/function body).
+    pub fn pop_local_scope(&mut self) {
+        self.local_var_init_types.pop();
+    }
+
+    /// Register a local variable's init expression type in the current scope frame.
+    pub fn register_local_var_init_type(&mut self, name: String, init_type: String) {
+        if let Some(frame) = self.local_var_init_types.last_mut() {
+            frame.insert(name, init_type);
+        }
     }
 }
 

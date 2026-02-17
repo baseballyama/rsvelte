@@ -465,10 +465,35 @@ fn unwrap_parenthesized<'a>(expr: &'a OxcExpression<'a>) -> &'a OxcExpression<'a
 ///
 /// This is needed because OXC's TS parser may reject `c?: number = 5` as invalid
 /// (optional with default), but Svelte's snippet syntax allows it.
-fn strip_optional_markers(content: &str) -> String {
+/// Result of stripping optional markers, including position mapping info.
+struct StrippedOptionalMarkers {
+    /// The cleaned string with `?` markers removed.
+    content: String,
+    /// Byte positions (in the original content) where characters were removed.
+    /// Used to map positions in the cleaned string back to the original string.
+    removed_positions: Vec<usize>,
+}
+
+impl StrippedOptionalMarkers {
+    /// Map a byte position in the cleaned string back to the original string position.
+    fn map_to_original(&self, cleaned_pos: usize) -> usize {
+        let mut original_pos = cleaned_pos;
+        for &removed in &self.removed_positions {
+            if removed <= original_pos {
+                original_pos += 1;
+            } else {
+                break;
+            }
+        }
+        original_pos
+    }
+}
+
+fn strip_optional_markers(content: &str) -> StrippedOptionalMarkers {
     let mut result = String::with_capacity(content.len());
     let chars: Vec<char> = content.chars().collect();
     let mut i = 0;
+    let mut removed_positions = Vec::new();
 
     while i < chars.len() {
         if chars[i] == '?' {
@@ -490,6 +515,7 @@ fn strip_optional_markers(content: &str) -> String {
 
             if before_is_ident && after_is_valid {
                 // Skip the `?` - it's an optional marker
+                removed_positions.push(i);
                 i += 1;
                 continue;
             }
@@ -498,7 +524,10 @@ fn strip_optional_markers(content: &str) -> String {
         i += 1;
     }
 
-    result
+    StrippedOptionalMarkers {
+        content: result,
+        removed_positions,
+    }
 }
 
 /// Split a parameter list at top-level commas (not inside braces, brackets, parens, or strings).
@@ -583,8 +612,8 @@ pub fn parse_typescript_params(
         // In Svelte snippets, `c?: number = 5` means "optional param with default".
         // TypeScript technically allows this but some parsers reject it.
         // We strip `?` from `name?:` and `name? =` patterns to make them parseable.
-        let cleaned = strip_optional_markers(content);
-        let cleaned_wrapped = format!("({}) => {{}}", cleaned);
+        let stripped = strip_optional_markers(content);
+        let cleaned_wrapped = format!("({}) => {{}}", stripped.content);
         let cleaned_alloc = Allocator::default();
         let cleaned_parser = OxcParser::new(&cleaned_alloc, &cleaned_wrapped, source_type);
         let cleaned_result = cleaned_parser.parse();
@@ -595,7 +624,13 @@ pub fn parse_typescript_params(
             && let OxcExpression::ArrowFunctionExpression(arrow) = &expr_stmt.expression
         {
             for param in &arrow.params.items {
-                let param_expr = convert_formal_parameter(param, offset - 1, line_offsets);
+                // When optional markers were stripped, OXC span positions are relative
+                // to the cleaned string. We need to remap them to original positions.
+                let param_expr = if stripped.removed_positions.is_empty() {
+                    convert_formal_parameter(param, offset - 1, line_offsets)
+                } else {
+                    convert_formal_parameter_with_remap(param, offset, line_offsets, &stripped)
+                };
                 params.push(param_expr);
             }
         } else {
@@ -606,8 +641,8 @@ pub fn parse_typescript_params(
                 if part.is_empty() {
                     continue;
                 }
-                let cleaned_part = strip_optional_markers(part);
-                let single_wrapped = format!("({}) => {{}}", cleaned_part);
+                let stripped_part = strip_optional_markers(part);
+                let single_wrapped = format!("({}) => {{}}", stripped_part.content);
                 let single_alloc = Allocator::default();
                 let single_parser = OxcParser::new(&single_alloc, &single_wrapped, source_type);
                 let single_result = single_parser.parse();
@@ -617,7 +652,17 @@ pub fn parse_typescript_params(
                     && let OxcExpression::ArrowFunctionExpression(arrow) = &expr_stmt.expression
                     && let Some(param) = arrow.params.items.first()
                 {
-                    let param_expr = convert_formal_parameter(param, offset - 1, line_offsets);
+                    let part_offset_in_content = content.find(part).unwrap_or(0);
+                    let param_expr = if stripped_part.removed_positions.is_empty() {
+                        convert_formal_parameter(param, offset - 1, line_offsets)
+                    } else {
+                        convert_formal_parameter_with_remap(
+                            param,
+                            offset + part_offset_in_content,
+                            line_offsets,
+                            &stripped_part,
+                        )
+                    };
                     params.push(param_expr);
                 }
             }
@@ -642,6 +687,93 @@ pub fn parse_typescript_params(
     }
 
     params
+}
+
+/// Convert an OXC FormalParameter to our Expression format, remapping span positions
+/// to account for characters (optional markers `?`) that were removed before parsing.
+///
+/// The `base_offset` is the position in the original source where the parameter content starts
+/// (i.e., `params_start`). The `stripped` info tells us where `?` characters were removed
+/// so we can map OXC positions (relative to cleaned content) back to original positions.
+fn convert_formal_parameter_with_remap(
+    param: &oxc_ast::ast::FormalParameter,
+    base_offset: usize,
+    line_offsets: &[usize],
+    stripped: &StrippedOptionalMarkers,
+) -> Expression {
+    // OXC positions are relative to the wrapped string "(cleaned_content) => {}"
+    // So position 1 in OXC = position 0 in cleaned content.
+    // We need: original_source_pos = base_offset + stripped.map_to_original(oxc_pos - 1)
+    //
+    // convert_formal_parameter uses adjusted_offset + oxc_pos for all positions,
+    // where adjusted_offset = offset - 1. So adjusted_offset + oxc_pos = offset - 1 + oxc_pos.
+    // This correctly handles the paren offset: offset - 1 + 1 = offset for position 0 in content.
+    //
+    // For the remapped case, we need: base_offset + stripped.map_to_original(oxc_pos - 1)
+    // = base_offset + (oxc_pos - 1) + num_removed_before(oxc_pos - 1)
+    //
+    // We can't easily pass a mapping function through convert_formal_parameter and all its
+    // sub-calls. Instead, we'll call convert_formal_parameter with adjusted_offset = base_offset - 1
+    // (which gives base_offset - 1 + oxc_pos = base_offset + cleaned_pos, which is WRONG for
+    // positions after removed chars). Then we'll fix up the top-level start/end spans.
+    //
+    // This is a pragmatic fix: the inner spans (like type annotations) may still be slightly off,
+    // but for snippet parameters, only the top-level span is used to extract source text.
+
+    let expr = convert_formal_parameter(param, base_offset - 1, line_offsets);
+
+    // Fix up the top-level span: remap start and end from cleaned positions to original
+    let Expression::Value(mut val) = expr;
+
+    if let Some(obj) = val.as_object_mut() {
+        // Fix start position
+        if let Some(start_val) = obj.get("start").and_then(|s| s.as_u64()) {
+            // start_val = base_offset - 1 + oxc_start = base_offset + (oxc_start - 1)
+            // = base_offset + cleaned_pos
+            let cleaned_pos = start_val as usize - base_offset;
+            let original_pos = base_offset + stripped.map_to_original(cleaned_pos);
+            obj.insert(
+                "start".to_string(),
+                serde_json::Value::Number((original_pos as i64).into()),
+            );
+        }
+
+        // Fix end position
+        if let Some(end_val) = obj.get("end").and_then(|e| e.as_u64()) {
+            let cleaned_pos = end_val as usize - base_offset;
+            let original_pos = base_offset + stripped.map_to_original(cleaned_pos);
+            obj.insert(
+                "end".to_string(),
+                serde_json::Value::Number((original_pos as i64).into()),
+            );
+        }
+
+        // Also fix the "right" field's span if this is an AssignmentPattern
+        // (the default value expression span)
+        if obj.get("type").and_then(|t| t.as_str()) == Some("AssignmentPattern")
+            && let Some(right) = obj.get_mut("right")
+            && let Some(right_obj) = right.as_object_mut()
+        {
+            if let Some(start_val) = right_obj.get("start").and_then(|s| s.as_u64()) {
+                let cleaned_pos = start_val as usize - base_offset;
+                let original_pos = base_offset + stripped.map_to_original(cleaned_pos);
+                right_obj.insert(
+                    "start".to_string(),
+                    serde_json::Value::Number((original_pos as i64).into()),
+                );
+            }
+            if let Some(end_val) = right_obj.get("end").and_then(|e| e.as_u64()) {
+                let cleaned_pos = end_val as usize - base_offset;
+                let original_pos = base_offset + stripped.map_to_original(cleaned_pos);
+                right_obj.insert(
+                    "end".to_string(),
+                    serde_json::Value::Number((original_pos as i64).into()),
+                );
+            }
+        }
+    }
+
+    Expression::Value(val)
 }
 
 /// Convert oxc FormalParameter to our Expression format with type annotations.

@@ -22,18 +22,13 @@ impl<'a> ServerCodeGenerator<'a> {
         };
 
         // Extract parameters (strip TypeScript type annotations)
+        // We extract parameter info from the Expression's JSON structure rather than
+        // relying solely on source spans, because optional markers (e.g., `c?: number = 5`)
+        // can cause parser span offsets to be incorrect when `?` is stripped during parsing.
         let params: Vec<String> = block
             .parameters
             .iter()
-            .map(|p| {
-                let start = p.start().unwrap_or(0) as usize;
-                let end = p.end().unwrap_or(0) as usize;
-                if end > start && end <= self.source.len() {
-                    strip_ts_type_annotation(&self.source[start..end])
-                } else {
-                    String::new()
-                }
-            })
+            .map(|p| Self::extract_snippet_param(p, &self.source))
             .filter(|s| !s.is_empty())
             .collect();
 
@@ -255,5 +250,142 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         Ok(body_generator.output_parts)
+    }
+
+    /// Extract a snippet parameter string from an Expression, stripping TypeScript
+    /// type annotations. This uses the Expression's JSON structure to correctly
+    /// handle cases where the source span may be incorrect (e.g., when optional
+    /// markers like `?` were stripped during parsing, shifting span positions).
+    fn extract_snippet_param(expr: &crate::ast::js::Expression, source: &str) -> String {
+        let json = expr.as_json();
+
+        // Check the node type
+        let node_type = json.get("type").and_then(|t| t.as_str()).unwrap_or("");
+
+        match node_type {
+            "AssignmentPattern" => {
+                // Has a default value: e.g., `c: number = 5` or `c = 5`
+                // Extract the left side (parameter name/pattern) and right side (default value)
+                let left = json.get("left");
+                let right = json.get("right");
+
+                // Extract the left side as a stripped parameter name
+                let left_str = if let Some(left_val) = left {
+                    let left_expr = crate::ast::js::Expression::Value(left_val.clone());
+                    Self::extract_param_name_from_json(left_val, source).unwrap_or_else(|| {
+                        // Fallback: use span
+                        let start = left_expr.start().unwrap_or(0) as usize;
+                        let end = left_expr.end().unwrap_or(0) as usize;
+                        if end > start && end <= source.len() {
+                            strip_ts_type_annotation(&source[start..end])
+                        } else {
+                            String::new()
+                        }
+                    })
+                } else {
+                    String::new()
+                };
+
+                // Extract the right side (default value) from source using its span
+                let right_str = if let Some(right_val) = right {
+                    let right_expr = crate::ast::js::Expression::Value(right_val.clone());
+                    let start = right_expr.start().unwrap_or(0) as usize;
+                    let end = right_expr.end().unwrap_or(0) as usize;
+                    if end > start && end <= source.len() {
+                        source[start..end].trim().to_string()
+                    } else {
+                        // Fallback: try to get value from JSON
+                        Self::extract_snippet_literal_value(right_val)
+                    }
+                } else {
+                    String::new()
+                };
+
+                if left_str.is_empty() {
+                    return String::new();
+                }
+                if right_str.is_empty() {
+                    left_str
+                } else {
+                    format!("{} = {}", left_str, right_str)
+                }
+            }
+            "ObjectPattern" | "ArrayPattern" => {
+                // Destructured parameter: e.g., `{ c }: {c: number}`
+                // Use the source span and strip type annotation
+                let start = expr.start().unwrap_or(0) as usize;
+                let end = expr.end().unwrap_or(0) as usize;
+                if end > start && end <= source.len() {
+                    strip_ts_type_annotation(&source[start..end])
+                } else {
+                    String::new()
+                }
+            }
+            _ => {
+                // Simple identifier or other: e.g., `c: number` or `c`
+                // Use the source span and strip type annotation
+                let start = expr.start().unwrap_or(0) as usize;
+                let end = expr.end().unwrap_or(0) as usize;
+                if end > start && end <= source.len() {
+                    strip_ts_type_annotation(&source[start..end])
+                } else {
+                    // Fallback: try to get name from JSON
+                    Self::extract_param_name_from_json(json, source).unwrap_or_default()
+                }
+            }
+        }
+    }
+
+    /// Extract a parameter name from a JSON value (Identifier node).
+    fn extract_param_name_from_json(json: &serde_json::Value, _source: &str) -> Option<String> {
+        let node_type = json.get("type").and_then(|t| t.as_str())?;
+        match node_type {
+            "Identifier" => json
+                .get("name")
+                .and_then(|n| n.as_str())
+                .map(|s| s.to_string()),
+            "ObjectPattern" => {
+                // Reconstruct from properties
+                let props = json.get("properties").and_then(|p| p.as_array())?;
+                let parts: Vec<String> = props
+                    .iter()
+                    .filter_map(|prop| {
+                        let key = prop.get("key")?;
+                        let key_name = key.get("name").and_then(|n| n.as_str())?;
+                        Some(key_name.to_string())
+                    })
+                    .collect();
+                Some(format!("{{ {} }}", parts.join(", ")))
+            }
+            _ => None,
+        }
+    }
+
+    /// Extract a literal value from a JSON expression node (for snippet default values).
+    fn extract_snippet_literal_value(json: &serde_json::Value) -> String {
+        let node_type = json.get("type").and_then(|t| t.as_str()).unwrap_or("");
+        match node_type {
+            "Literal" | "NumericLiteral" => {
+                if let Some(raw) = json.get("raw").and_then(|r| r.as_str()) {
+                    raw.to_string()
+                } else if let Some(val) = json.get("value") {
+                    match val {
+                        serde_json::Value::Number(n) => n.to_string(),
+                        serde_json::Value::String(s) => format!("'{}'", s),
+                        serde_json::Value::Bool(b) => b.to_string(),
+                        serde_json::Value::Null => "null".to_string(),
+                        _ => String::new(),
+                    }
+                } else {
+                    String::new()
+                }
+            }
+            "Identifier" => json
+                .get("name")
+                .and_then(|n| n.as_str())
+                .unwrap_or("")
+                .to_string(),
+            _ => String::new(),
+        }
     }
 }

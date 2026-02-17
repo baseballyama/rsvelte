@@ -205,6 +205,9 @@ pub struct Binding {
     /// compiler's behavior where snippet blocks (declared with DeclarationKind::Function) are
     /// NOT considered functions since their initial type is SnippetBlock.
     pub initial_is_function: bool,
+    /// The AST node type of the initial value expression (e.g., "BinaryExpression", "Literal").
+    /// Used by should_proxy() to determine if an identifier's initial value needs deep reactivity.
+    pub initial_node_type: Option<String>,
     /// Instance-level declarations may follow (or contain) a top-level `await`. In these cases,
     /// any reads that occur in the template must wait for the corresponding promise to resolve
     /// otherwise the initial value will not have been assigned.
@@ -250,6 +253,7 @@ impl Binding {
             initial: None,
             initial_is_defined: false,
             initial_is_function: false,
+            initial_node_type: None,
             references: SmallVec::new(),
             mutations: SmallVec::new(),
             prop_alias: None,
@@ -274,6 +278,7 @@ impl Binding {
             initial: None,
             initial_is_defined: false,
             initial_is_function: false,
+            initial_node_type: None,
             references: SmallVec::new(),
             mutations: SmallVec::new(),
             prop_alias: None,
