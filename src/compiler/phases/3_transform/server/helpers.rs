@@ -680,6 +680,38 @@ pub(crate) fn transform_props_spread(script: &str) -> String {
 }
 
 /// Extract constant variable bindings from script content.
+/// Try to parse a value as a constant literal and insert into the constants map.
+/// Returns true if the value was successfully inserted.
+fn try_insert_constant_value(
+    value: &str,
+    name: &str,
+    constants: &mut FxHashMap<String, String>,
+) -> bool {
+    if (value.starts_with('\'') && value.ends_with('\''))
+        || (value.starts_with('"') && value.ends_with('"'))
+        || (value.starts_with('`') && value.ends_with('`') && !value.contains("${"))
+    {
+        let content = &value[1..value.len() - 1];
+        constants.insert(name.to_string(), content.to_string());
+        true
+    } else if value == "true" || value == "false" || value == "null" || value == "undefined" {
+        constants.insert(name.to_string(), value.to_string());
+        true
+    } else if let Ok(n) = value.parse::<i64>() {
+        constants.insert(name.to_string(), n.to_string());
+        true
+    } else if let Ok(n) = value.parse::<f64>() {
+        if n.is_finite() {
+            constants.insert(name.to_string(), n.to_string());
+            true
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
+
 pub(crate) fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMap<String, String> {
     let mut constants = FxHashMap::default();
     let mut let_vars: Vec<String> = Vec::new();
@@ -687,6 +719,8 @@ pub(crate) fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMa
     for line in script.lines() {
         let trimmed = line.trim();
 
+        // Skip lines with $state, $derived, or $props - these are reactive and
+        // require proper scope analysis to constant-fold safely
         if trimmed.contains("$state") || trimmed.contains("$derived") || trimmed.contains("$props")
         {
             continue;
@@ -713,27 +747,8 @@ pub(crate) fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMa
                 let name = rest[..eq_idx].trim();
                 let value = rest[eq_idx + 1..].trim().trim_end_matches(';');
 
-                if (value.starts_with('\'') && value.ends_with('\''))
-                    || (value.starts_with('"') && value.ends_with('"'))
-                    || (value.starts_with('`') && value.ends_with('`') && !value.contains("${"))
-                {
-                    let content = &value[1..value.len() - 1];
-                    constants.insert(name.to_string(), content.to_string());
-                    if !is_const {
-                        let_vars.push(name.to_string());
-                    }
-                } else if let Ok(n) = value.parse::<i64>() {
-                    constants.insert(name.to_string(), n.to_string());
-                    if !is_const {
-                        let_vars.push(name.to_string());
-                    }
-                } else if let Ok(n) = value.parse::<f64>()
-                    && n.is_finite()
-                {
-                    constants.insert(name.to_string(), n.to_string());
-                    if !is_const {
-                        let_vars.push(name.to_string());
-                    }
+                if try_insert_constant_value(value, name, &mut constants) && !is_const {
+                    let_vars.push(name.to_string());
                 }
             }
         }
