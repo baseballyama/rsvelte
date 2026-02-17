@@ -38,7 +38,7 @@ use types::{ComponentClientTransformState, ComponentContext, TransformOptions, T
 
 // Cached regular expressions for performance
 static REGEX_STATE_DERIVED_VAR: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?:let|const|var)\s+(\w+)\s*=\s*\$(?:state|derived)(?:\.by)?\s*\(").unwrap()
+    Regex::new(r"(let|const|var)\s+(\w+)\s*=\s*\$(?:state|derived)(?:\.by)?\s*\(").unwrap()
 });
 
 // Regex for sanitizing identifier names - replaces invalid identifier characters
@@ -888,13 +888,14 @@ fn extract_shadowed_state_names(script: &str) -> std::collections::HashSet<Strin
 /// Extract local reactive variable names from script content.
 /// These are variables declared with $state() or $derived() inside functions
 /// (like inside $effect callbacks) that aren't tracked in analysis.root.bindings.
-fn extract_local_reactive_vars(script: &str) -> Vec<String> {
+fn extract_local_reactive_vars(script: &str) -> Vec<(String, bool)> {
     let mut vars = Vec::new();
 
-    // Pattern: let/const varname = $state(...) or let/const varname = $derived(...)
+    // Pattern: (let|const|var) varname = $state(...) or (let|const|var) varname = $derived(...)
     // Uses cached regex for performance
+    // Group 1 = declaration keyword, Group 2 = variable name
     for cap in REGEX_STATE_DERIVED_VAR.captures_iter(script) {
-        if let Some(name) = cap.get(1) {
+        if let Some(name) = cap.get(2) {
             // Determine which rune was matched ($state or $derived)
             let full_match = cap.get(0).unwrap().as_str();
             let rune_name = if full_match.contains("$state") {
@@ -910,7 +911,9 @@ fn extract_local_reactive_vars(script: &str) -> Vec<String> {
                 continue;
             }
 
-            vars.push(name.as_str().to_string());
+            let decl_keyword = cap.get(1).map(|m| m.as_str()).unwrap_or("let");
+            let is_const = decl_keyword == "const";
+            vars.push((name.as_str().to_string(), is_const));
         }
     }
 
@@ -1042,7 +1045,11 @@ fn transform_module_script_runes(script: &str, analysis: &ComponentAnalysis) -> 
 
     // Extract local reactive variable names from the module script
     // These are variables declared with $state() or $derived() inside functions
-    let module_state_vars = extract_local_reactive_vars(script);
+    let module_state_vars_with_const = extract_local_reactive_vars(script);
+    let module_state_vars: Vec<String> = module_state_vars_with_const
+        .iter()
+        .map(|(name, _)| name.clone())
+        .collect();
 
     // Extract non-reactive module state vars: $state() variables that are NOT reassigned.
     // In runes mode (immutable=true), non-reassigned $state vars don't need $.state() or $.get().
@@ -1451,9 +1458,26 @@ fn transform_instance_script_for_visitors(
         .iter()
         .map(|b| b.name.as_str())
         .collect();
-    for var in local_reactive_vars {
+    for (var, is_const) in &local_reactive_vars {
         if !top_level_binding_names.contains(var.as_str()) {
-            state_vars.push(var);
+            // In runes mode (immutable=true), const $state() declarations are non-reactive
+            // since they can never be reassigned. They should NOT get $.state() or $.get()/$.set().
+            // This mirrors is_state_source logic: const means !reassigned, and in runes mode
+            // with immutable=true, that means is_state_source returns false.
+            // Note: $derived() is ALWAYS reactive regardless of const/let.
+            if analysis.immutable && *is_const {
+                // Check if this is a $state (not $derived) - $derived always needs transforms
+                // We check by looking at the script to see if this var is $state or $derived
+                let state_pattern = format!("const {}", var);
+                let is_state_decl = script_rest.contains(&format!("{} = $state(", state_pattern))
+                    || script_rest.contains(&format!("{} = $state.raw(", state_pattern))
+                    || script_rest.contains(&format!("{} = $state.frozen(", state_pattern));
+                if is_state_decl {
+                    // const $state() in runes mode - skip (non-reactive)
+                    continue;
+                }
+            }
+            state_vars.push(var.clone());
         }
     }
 
@@ -1479,7 +1503,7 @@ fn transform_instance_script_for_visitors(
     // (!analysis.immutable || binding.reassigned || analysis.accessors)
     // When immutable=true (runes mode) and the binding is NOT reassigned,
     // is_state_source returns false, meaning no $.state() and no transforms.
-    let non_reactive_state_vars: Vec<String> = if analysis.immutable {
+    let mut non_reactive_state_vars: Vec<String> = if analysis.immutable {
         analysis
             .root
             .scope
@@ -1499,6 +1523,27 @@ fn transform_instance_script_for_visitors(
     } else {
         Vec::new()
     };
+
+    // Also add local const $state() vars to non_reactive_state_vars in runes mode
+    // These are variables declared inside function bodies (like derived callbacks)
+    // that are const and thus never reassigned.
+    // Note: We do NOT filter by top_level_binding_names here because the variable name
+    // may shadow a top-level binding (e.g., `const value = $state(0)` inside a derived callback
+    // where the outer `value` is also a binding). The non_reactive list is used for $state()
+    // unwrapping which operates on the local scope.
+    if analysis.immutable {
+        for (var, is_const) in &local_reactive_vars {
+            if *is_const {
+                let state_pattern = format!("const {}", var);
+                let is_state_decl = script_rest.contains(&format!("{} = $state(", state_pattern))
+                    || script_rest.contains(&format!("{} = $state.raw(", state_pattern))
+                    || script_rest.contains(&format!("{} = $state.frozen(", state_pattern));
+                if is_state_decl && !non_reactive_state_vars.contains(var) {
+                    non_reactive_state_vars.push(var.clone());
+                }
+            }
+        }
+    }
 
     // Collect $state.raw() variables - these never need proxy wrapping
     let raw_state_vars: Vec<String> = analysis
@@ -2344,9 +2389,33 @@ fn transform_client_runes_with_skip_and_state(
             let derived_start = pos + 12; // after "$derived.by("
             if let Some(content_end) = find_matching_paren(&result[derived_start..]) {
                 let content = &result[derived_start..derived_start + content_end];
+
+                // Extract local const $state() declarations from the callback body.
+                // In runes mode, const $state() vars are non-reactive (never reassigned),
+                // so they should not be wrapped with $.get() inside the callback.
+                let local_callback_vars = extract_local_reactive_vars(content);
+                let mut effective_non_reactive = non_reactive_vars.to_vec();
+                if analysis.runes {
+                    for (var, is_const) in &local_callback_vars {
+                        if *is_const {
+                            let state_check = format!("const {} = $state(", var);
+                            let raw_check = format!("const {} = $state.raw(", var);
+                            if (content.contains(&state_check) || content.contains(&raw_check))
+                                && !effective_non_reactive.contains(var)
+                            {
+                                effective_non_reactive.push(var.clone());
+                            }
+                        }
+                    }
+                }
+
                 // Wrap state variables inside the callback with $.get()
-                let wrapped_content =
-                    wrap_state_vars_in_expr(content, state_vars, non_reactive_vars, proxy_vars);
+                let wrapped_content = wrap_state_vars_in_expr(
+                    content,
+                    state_vars,
+                    &effective_non_reactive,
+                    proxy_vars,
+                );
                 let new_derived = format!("$.derived({})", wrapped_content);
                 result = format!(
                     "{}{}{}",
