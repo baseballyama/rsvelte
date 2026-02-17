@@ -169,6 +169,18 @@ impl<'a> ServerCodeGenerator<'a> {
             body_generator.generate_node(node, false)?;
         }
 
-        Ok(body_generator.output_parts)
+        // Include any snippets defined inside the block as inline SnippetFunction parts
+        // This handles cases like `{#if true}{#snippet test()}{/snippet}{/if}`
+        // where the snippet function needs to be emitted inside the if-block body
+        let mut parts = body_generator.output_parts;
+        for snippet in body_generator.snippets {
+            parts.push(OutputPart::SnippetFunction {
+                name: snippet.name,
+                params: snippet.params,
+                body: snippet.body_parts,
+            });
+        }
+
+        Ok(parts)
     }
 }
