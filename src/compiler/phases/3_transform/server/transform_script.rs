@@ -723,8 +723,74 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
     let mut block_lines: Vec<String> = Vec::new();
     let mut block_is_arrow_fn = false;
 
-    for line in class_body.lines() {
+    // For multiline derived fields: accumulate text until parens balance
+    let mut in_derived_field = false;
+    let mut derived_accum = String::new();
+    let mut derived_paren_depth: i32 = 0;
+    let mut derived_field_name = String::new();
+    let mut derived_field_is_private = false;
+    let mut derived_field_is_by = false;
+
+    let all_lines: Vec<&str> = class_body.lines().collect();
+    let mut line_idx = 0;
+
+    while line_idx < all_lines.len() {
+        let line = all_lines[line_idx];
         let trimmed = line.trim();
+        line_idx += 1;
+
+        // Continue accumulating multiline derived field
+        if in_derived_field {
+            derived_accum.push('\n');
+            derived_accum.push_str(trimmed);
+            for c in trimmed.chars() {
+                match c {
+                    '(' | '{' | '[' => derived_paren_depth += 1,
+                    ')' | '}' | ']' => derived_paren_depth -= 1,
+                    _ => {}
+                }
+            }
+            if derived_paren_depth <= 0 {
+                in_derived_field = false;
+                // Now process the complete multiline derived field
+                let full_text = derived_accum.clone();
+                let derived_pattern = if derived_field_is_by {
+                    "$derived.by("
+                } else {
+                    "$derived("
+                };
+                if let Some(derived_pos) = full_text.find(derived_pattern) {
+                    let value_start = derived_pos + derived_pattern.len();
+                    let after_paren = &full_text[value_start..];
+                    if let Some(value_end) = find_matching_paren_server(after_paren) {
+                        let value = after_paren[..value_end].to_string();
+                        let sanitized_name = sanitize_identifier(&derived_field_name);
+                        let private_name = format!("#{}", sanitized_name);
+
+                        let value_str = value.trim();
+                        let wrapped_value = if value_str.starts_with('{') {
+                            format!("({})", value_str)
+                        } else {
+                            value_str.to_string()
+                        };
+
+                        let transformed_line = if derived_field_is_by {
+                            format!("{} = $.derived({})", private_name, wrapped_value)
+                        } else {
+                            format!("{} = $.derived(() => {})", private_name, wrapped_value)
+                        };
+
+                        members.push(ClassMember::Field(transformed_line));
+                        derived_fields.push(DerivedField {
+                            name: derived_field_name.clone(),
+                            is_private: derived_field_is_private,
+                            constructor_declared: false,
+                        });
+                    }
+                }
+            }
+            continue;
+        }
 
         if in_block {
             block_lines.push(trimmed.to_string());
@@ -877,6 +943,22 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                             is_private,
                             constructor_declared: false,
                         });
+                        continue;
+                    } else {
+                        // Multiline derived field - accumulate until parens balance
+                        in_derived_field = true;
+                        derived_accum = trimmed.to_string();
+                        derived_paren_depth = 0;
+                        for c in trimmed.chars() {
+                            match c {
+                                '(' | '{' | '[' => derived_paren_depth += 1,
+                                ')' | '}' | ']' => derived_paren_depth -= 1,
+                                _ => {}
+                            }
+                        }
+                        derived_field_name = name;
+                        derived_field_is_private = is_private;
+                        derived_field_is_by = is_derived_by;
                         continue;
                     }
                 }
@@ -1073,6 +1155,9 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                     continue;
                 }
 
+                // Transform private derived accesses in field values
+                // (e.g., this.#derived inside a $.derived() body should become this.#derived())
+                let line = transform_private_derived_accesses_server(line, &derived_private_names);
                 new_class_body.push_str(&format!("\t\t{}\n", line));
                 for field in derived_fields
                     .iter()
@@ -1080,7 +1165,14 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
                 {
                     let sanitized_name = sanitize_identifier(&field.name);
                     let private_name = format!("#{}", sanitized_name);
-                    if line.starts_with(&private_name) {
+                    // Check exact match: the line starts with the private name and the
+                    // next character is not an identifier char (prevents #on_class matching #on_class_private)
+                    let is_exact_match = line.starts_with(&private_name)
+                        && !line[private_name.len()..]
+                            .chars()
+                            .next()
+                            .is_some_and(|c| c.is_alphanumeric() || c == '_');
+                    if is_exact_match {
                         new_class_body.push('\n');
                         new_class_body.push_str(&format!(
                             "\t\tget {}() {{\n\t\t\treturn this.{}();\n\t\t}}\n",
@@ -1136,9 +1228,13 @@ fn transform_private_derived_accesses_server(
         return code.to_string();
     }
 
+    // Sort by length descending to match longer names first (e.g., #derivedBy before #derived)
+    let mut sorted_names: Vec<&String> = derived_private_names.iter().collect();
+    sorted_names.sort_by_key(|b| std::cmp::Reverse(b.len()));
+
     let mut result = code.to_string();
 
-    for private_name in derived_private_names {
+    for private_name in &sorted_names {
         let search_pattern = format!(".{}", private_name);
         let mut new_result = String::new();
         let mut remaining = result.as_str();
@@ -1148,15 +1244,25 @@ fn transform_private_derived_accesses_server(
 
             let after_match = &remaining[pos + search_pattern.len()..];
 
+            // Check if the next character is an identifier character - if so, this is
+            // a longer name (e.g., #derivedBy when we're looking for #derived) and we
+            // should NOT transform it
+            let next_char = after_match.chars().next();
+            let is_partial_match = next_char.is_some_and(|c| c.is_alphanumeric() || c == '_');
+
+            if is_partial_match {
+                // Not a complete match, skip
+                new_result.push_str(&search_pattern);
+                remaining = after_match;
+                continue;
+            }
+
             let next_non_ws = after_match.chars().find(|c| !c.is_whitespace());
             let is_already_call = next_non_ws == Some('(');
 
-            let is_assignment = if let Some(eq_offset) = after_match.find('=') {
-                let before_eq = &after_match[..eq_offset];
-                before_eq.chars().all(|c| c.is_whitespace())
-                    && after_match.chars().nth(eq_offset + 1) != Some('=')
-            } else {
-                false
+            let is_assignment = {
+                let trimmed_after = after_match.trim_start();
+                trimmed_after.starts_with('=') && !trimmed_after.starts_with("==")
             };
 
             if is_already_call || is_assignment {

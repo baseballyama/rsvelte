@@ -213,6 +213,7 @@ impl<'a> ServerCodeGenerator<'a> {
             self.use_async,
         );
         body_generator.constant_vars = self.constant_vars.clone();
+        body_generator.namespace = self.namespace.clone();
 
         // Check if first meaningful content is text/expression
         // If so, add <!---> anchor to prevent text fusion during hydration

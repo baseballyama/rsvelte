@@ -94,6 +94,9 @@ pub(crate) struct ServerCodeGenerator<'a> {
     pub(crate) skip_hydration_boundaries: bool,
     /// Whether the component uses TypeScript (lang="ts")
     pub(crate) is_typescript: bool,
+    /// Current namespace context (html, svg, mathml).
+    /// In SVG namespace, whitespace-only text nodes between elements are entirely removed.
+    pub(crate) namespace: String,
 }
 
 impl<'a> ServerCodeGenerator<'a> {
@@ -238,6 +241,15 @@ impl<'a> ServerCodeGenerator<'a> {
         let is_typescript = instance_script.is_some_and(script_is_typescript)
             || module_script.is_some_and(script_is_typescript);
 
+        // Determine namespace from component analysis
+        let namespace = if analysis.is_some_and(|a| a.component_namespace_is_svg) {
+            "svg".to_string()
+        } else if analysis.is_some_and(|a| a.component_namespace_is_mathml) {
+            "mathml".to_string()
+        } else {
+            "html".to_string()
+        };
+
         Self {
             component_name,
             source,
@@ -255,6 +267,7 @@ impl<'a> ServerCodeGenerator<'a> {
             injected_css: None,
             skip_hydration_boundaries: false,
             is_typescript,
+            namespace,
         }
     }
 
@@ -274,6 +287,7 @@ impl<'a> ServerCodeGenerator<'a> {
             injected_css: None,
             skip_hydration_boundaries,
             is_typescript: self.is_typescript,
+            namespace: self.namespace.clone(),
         }
     }
 
