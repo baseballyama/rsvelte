@@ -1626,7 +1626,14 @@ pub fn build_template_effect(
     statements: Vec<JsStatement>,
     dependencies: Option<Vec<JsExpr>>,
 ) -> JsStatement {
-    let effect_fn = b::arrow_block(vec![], statements);
+    // Use expression body for single expression statements, block body otherwise
+    let effect_fn = if statements.len() == 1
+        && let JsStatement::Expression(expr_stmt) = &statements[0]
+    {
+        b::arrow(vec![], (*expr_stmt.expression).clone())
+    } else {
+        b::arrow_block(vec![], statements)
+    };
 
     if let Some(deps) = dependencies {
         // $.template_effect_with_values(() => { ... }, [deps])
@@ -1635,7 +1642,7 @@ pub fn build_template_effect(
             vec![effect_fn, b::array(deps)],
         ))
     } else {
-        // $.template_effect(() => { ... })
+        // $.template_effect(() => expr) or $.template_effect(() => { stmts })
         b::stmt(b::call(
             b::member_path("$.template_effect"),
             vec![effect_fn],
@@ -2228,14 +2235,12 @@ pub(crate) fn get_literal_value(
                     let binding = context.state.get_binding(name)?;
 
                     // Only fold if:
-                    // 1. Not a reactive binding ($state, $derived, store, etc.)
-                    // 2. Not updated (reassigned or mutated)
-                    // 3. Not a prop (props come from outside and can change)
+                    // 1. Not updated (reassigned or mutated)
+                    // 2. Not a prop (props come from outside and can change)
                     // This matches Svelte's scope.js evaluate() logic:
                     // if (!binding.updated && binding.initial !== null && !is_prop)
-                    if binding.kind.is_reactive() {
-                        return None;
-                    }
+                    // Note: reactive bindings like $state('hello') CAN be folded if not updated,
+                    // because their initial value is still known at compile time.
                     if binding.is_updated() {
                         return None;
                     }

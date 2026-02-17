@@ -130,6 +130,45 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
+        // Add scope-based constants for $state variables that are not updated.
+        // The text-based extraction skips $state lines, but if scope analysis shows
+        // a $state binding is never reassigned/mutated, we can fold its initial value.
+        if let Some(analysis) = analysis {
+            for binding in &analysis.root.bindings {
+                if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
+                    && !binding.is_updated()
+                    && !constant_vars.contains_key(&binding.name)
+                    && let Some(ref init) = binding.initial
+                {
+                    let trimmed = init.trim();
+                    // Parse the initial value as a constant
+                    if (trimmed.starts_with('\'') && trimmed.ends_with('\''))
+                        || (trimmed.starts_with('"') && trimmed.ends_with('"'))
+                    {
+                        if trimmed.len() >= 2 {
+                            constant_vars.insert(
+                                binding.name.clone(),
+                                trimmed[1..trimmed.len() - 1].to_string(),
+                            );
+                        }
+                    } else if let Ok(n) = trimmed.parse::<i64>() {
+                        constant_vars.insert(binding.name.clone(), n.to_string());
+                    } else if let Ok(n) = trimmed.parse::<f64>() {
+                        if n.is_finite() {
+                            constant_vars.insert(binding.name.clone(), n.to_string());
+                        }
+                    } else {
+                        match trimmed {
+                            "true" | "false" | "null" | "undefined" => {
+                                constant_vars.insert(binding.name.clone(), trimmed.to_string());
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+        }
+
         // Check if the analysis has any StoreSub bindings
         let uses_store_subs = analysis
             .map(|a| {

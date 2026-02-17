@@ -97,6 +97,19 @@ impl<'a> ServerCodeGenerator<'a> {
         // Generate body parts with the appropriate skip_hydration_boundaries flag
         let mut body_generator = self.new_child_generator(is_standalone);
 
+        // Remove constant_vars that are shadowed by the each block's context pattern.
+        // E.g., `{#each items as {method}}` shadows any outer `method` constant.
+        if let Some(ref ctx_name) = context_name {
+            let shadowed_names = extract_pattern_names(ctx_name);
+            for name in &shadowed_names {
+                body_generator.constant_vars.remove(name);
+            }
+            // Also remove index name if it shadows a constant
+            if let Some(ref idx) = index_name {
+                body_generator.constant_vars.remove(idx);
+            }
+        }
+
         // Check if first node is text or expression - if so, add comment marker
         // This prevents text from being fused with surroundings (hydration marker)
         if start_idx < end_idx {
@@ -218,4 +231,142 @@ impl<'a> ServerCodeGenerator<'a> {
 
         Ok(())
     }
+}
+
+/// Extract variable names from a destructuring pattern string.
+/// Handles: simple identifiers, object destructuring `{a, b}`, array destructuring `[a, b]`,
+/// and nested patterns. Also handles renaming like `{method: m}`.
+fn extract_pattern_names(pattern: &str) -> Vec<String> {
+    let mut names = Vec::new();
+    let trimmed = pattern.trim();
+
+    if trimmed.starts_with('{') && trimmed.ends_with('}') {
+        // Object destructuring
+        let inner = &trimmed[1..trimmed.len() - 1];
+        for part in split_top_level(inner) {
+            let part = part.trim();
+            if part.is_empty() {
+                continue;
+            }
+            // Handle rest: ...rest
+            if let Some(rest) = part.strip_prefix("...") {
+                names.push(rest.trim().to_string());
+                continue;
+            }
+            // Handle renaming: key: value or key: {nested}
+            if let Some(colon_idx) = find_top_level_colon(part) {
+                let value_part = part[colon_idx + 1..].trim();
+                // Handle default values: name = default
+                let value_part = if let Some(eq_idx) = find_top_level_eq(value_part) {
+                    value_part[..eq_idx].trim()
+                } else {
+                    value_part
+                };
+                names.extend(extract_pattern_names(value_part));
+            } else {
+                // Simple name, possibly with default: name = default
+                let name = if let Some(eq_idx) = find_top_level_eq(part) {
+                    part[..eq_idx].trim()
+                } else {
+                    part
+                };
+                if is_valid_identifier(name) {
+                    names.push(name.to_string());
+                }
+            }
+        }
+    } else if trimmed.starts_with('[') && trimmed.ends_with(']') {
+        // Array destructuring
+        let inner = &trimmed[1..trimmed.len() - 1];
+        for part in split_top_level(inner) {
+            let part = part.trim();
+            if part.is_empty() {
+                continue;
+            }
+            if let Some(rest) = part.strip_prefix("...") {
+                names.push(rest.trim().to_string());
+            } else {
+                // Handle default values
+                let name_part = if let Some(eq_idx) = find_top_level_eq(part) {
+                    part[..eq_idx].trim()
+                } else {
+                    part
+                };
+                names.extend(extract_pattern_names(name_part));
+            }
+        }
+    } else if is_valid_identifier(trimmed) {
+        names.push(trimmed.to_string());
+    }
+
+    names
+}
+
+/// Split a string by commas, respecting nested brackets/braces.
+fn split_top_level(s: &str) -> Vec<&str> {
+    let mut parts = Vec::new();
+    let mut depth = 0;
+    let mut start = 0;
+    for (i, ch) in s.char_indices() {
+        match ch {
+            '{' | '[' | '(' => depth += 1,
+            '}' | ']' | ')' => depth -= 1,
+            ',' if depth == 0 => {
+                parts.push(&s[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    parts.push(&s[start..]);
+    parts
+}
+
+/// Find the first top-level colon (not inside brackets).
+fn find_top_level_colon(s: &str) -> Option<usize> {
+    let mut depth = 0;
+    for (i, ch) in s.char_indices() {
+        match ch {
+            '{' | '[' | '(' => depth += 1,
+            '}' | ']' | ')' => depth -= 1,
+            ':' if depth == 0 => return Some(i),
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Find the first top-level equals sign (not inside brackets, not ==).
+fn find_top_level_eq(s: &str) -> Option<usize> {
+    let mut depth = 0;
+    let bytes = s.as_bytes();
+    for (i, ch) in s.char_indices() {
+        match ch {
+            '{' | '[' | '(' => depth += 1,
+            '}' | ']' | ')' => depth -= 1,
+            '=' if depth == 0 => {
+                // Make sure it's not == or =>
+                if i + 1 < bytes.len() && (bytes[i + 1] == b'=' || bytes[i + 1] == b'>') {
+                    continue;
+                }
+                return Some(i);
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Check if a string is a valid JavaScript identifier.
+fn is_valid_identifier(s: &str) -> bool {
+    let s = s.trim();
+    if s.is_empty() {
+        return false;
+    }
+    let mut chars = s.chars();
+    let first = chars.next().unwrap();
+    if !first.is_alphabetic() && first != '_' && first != '$' {
+        return false;
+    }
+    chars.all(|c| c.is_alphanumeric() || c == '_' || c == '$')
 }
