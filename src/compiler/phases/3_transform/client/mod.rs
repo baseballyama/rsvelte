@@ -6061,6 +6061,97 @@ fn transform_prop_assignments(line: &str, prop_vars: &[String]) -> String {
                 member_search_start = pos + member_pattern.len();
             }
         }
+
+        // Transform bracket-notation member mutations: varname[expr] = value to varname(varname()[expr] = value, true)
+        // This is needed for bindable props when the member access uses bracket notation
+        // e.g., `rows[row] = ''` -> `rows(rows()[row] = '', true)`
+        let bracket_pattern = format!("{}[", var);
+        let mut bracket_search_start = 0;
+
+        while let Some(relative_pos) = result[bracket_search_start..].find(&bracket_pattern) {
+            let pos = bracket_search_start + relative_pos;
+
+            // Check that this is a word boundary (not part of another identifier)
+            let before = &result[..pos];
+            if !before.is_empty() && is_identifier_char(before.chars().last().unwrap()) {
+                bracket_search_start = pos + bracket_pattern.len();
+                continue;
+            }
+
+            // Check if this is already wrapped (e.g., varname(varname()[...)
+            if before.ends_with(&format!("{}({}()", var, var)) {
+                bracket_search_start = pos + bracket_pattern.len();
+                continue;
+            }
+
+            // Find the matching closing bracket
+            let after_bracket = &result[pos + bracket_pattern.len()..];
+            let mut bracket_depth = 1i32;
+            let mut close_bracket_pos = None;
+            for (i, c) in after_bracket.char_indices() {
+                match c {
+                    '[' => bracket_depth += 1,
+                    ']' => {
+                        bracket_depth -= 1;
+                        if bracket_depth == 0 {
+                            close_bracket_pos = Some(i);
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            let Some(close_pos) = close_bracket_pos else {
+                bracket_search_start = pos + bracket_pattern.len();
+                continue;
+            };
+
+            // After the closing bracket, look for an assignment operator
+            let after_close = &after_bracket[close_pos + 1..];
+            let trimmed_after = after_close.trim_start();
+            let whitespace_len = after_close.len() - trimmed_after.len();
+
+            // Check for simple assignment `= value` (not ==, ===, =>, etc.)
+            if trimmed_after.starts_with('=')
+                && !trimmed_after.starts_with("==")
+                && !trimmed_after.starts_with("=>")
+            {
+                let after_eq = &trimmed_after[1..];
+                let after_eq_trimmed = after_eq.trim_start();
+                let eq_whitespace = after_eq.len() - after_eq_trimmed.len();
+
+                // Find the value expression end
+                let value_end = find_statement_end_client(after_eq_trimmed);
+                let value = after_eq_trimmed[..value_end].trim();
+
+                let bracket_content = &after_bracket[..close_pos];
+
+                // Build: varname(varname()[bracket_content] = value, true)
+                let replacement =
+                    format!("{}({}()[{}] = {}, true)", var, var, bracket_content, value);
+
+                // Calculate original length from the start of varname to end of value
+                let original_len = bracket_pattern.len()
+                    + close_pos
+                    + 1
+                    + whitespace_len
+                    + 1
+                    + eq_whitespace
+                    + value_end;
+
+                let new_result = format!(
+                    "{}{}{}",
+                    &result[..pos],
+                    replacement,
+                    &result[pos + original_len..]
+                );
+                bracket_search_start = pos + replacement.len();
+                result = new_result;
+            } else {
+                bracket_search_start = pos + bracket_pattern.len();
+            }
+        }
     }
 
     result

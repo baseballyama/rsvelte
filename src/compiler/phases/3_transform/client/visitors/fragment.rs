@@ -166,7 +166,10 @@ pub fn fragment(
         in_direct_assignment_lhs: false,
         is_controlled_each: false,
         snippets: Vec::new(),
-        template_nesting_level: 0, // Reset to 0 for root fragment
+        // Root fragment starts at level 0; non-root fragments (e.g., inside {#if}/{#each})
+        // start at level 1 so that snippets inside blocks are not hoisted to the root.
+        // This matches the official compiler's `context.path.length === 1` check.
+        template_nesting_level: if is_root_fragment { 0 } else { 1 },
         each_index_used: context.state.each_index_used.clone(),
         each_index_name: context.state.each_index_name.clone(),
         each_item_assign_or_mutate: context.state.each_item_assign_or_mutate.clone(),
@@ -365,6 +368,8 @@ pub fn fragment(
     let state = std::mem::replace(&mut context.state, saved_state);
 
     // Build the final body
+    // Add snippets, let_directives, and consts (matches official Fragment.js line 154)
+    body.extend(state.snippets);
     body.extend(
         state
             .let_directives

@@ -1675,11 +1675,21 @@ fn convert_assignment_expression(
     // Get the raw right expression for should_proxy check
     let right_json = obj.get("right");
 
+    // Extract the root identifier from the ORIGINAL JSON (before conversion/transforms)
+    // This is necessary because convert_json_value applies read transforms that turn
+    // `rows` into `rows()`, making it impossible to identify the root identifier later.
+    let original_root_name = obj.get("left").and_then(extract_root_identifier_from_json);
+
     // Try to apply reactive transformations for state variables
     // This corresponds to the build_assignment logic in the official Svelte compiler
-    if let Some(transformed) =
-        try_transform_assignment(operator_str, &left, &right, right_json, context)
-    {
+    if let Some(transformed) = try_transform_assignment(
+        operator_str,
+        &left,
+        &right,
+        right_json,
+        original_root_name.as_deref(),
+        context,
+    ) {
         return transformed;
     }
 
@@ -1702,14 +1712,20 @@ fn try_transform_assignment(
     left: &JsExpr,
     right: &JsExpr,
     right_json: Option<&Value>,
+    original_root_name: Option<&str>,
     context: &mut ComponentContext,
 ) -> Option<JsExpr> {
     use crate::compiler::phases::phase3_transform::client::visitors::shared::assignment_helpers::build_assignment_value;
     use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
     use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 
-    // Extract the root identifier from the left-hand side
-    let root_name = extract_root_identifier_from_expr(left)?;
+    // Extract the root identifier from the left-hand side.
+    // First try extracting from the converted expression, then fall back to the
+    // original JSON-extracted root name. This fallback is needed because
+    // convert_json_value applies read transforms (e.g., `rows` -> `rows()`)
+    // which makes the root identifier unrecoverable from the converted expression.
+    let root_name = extract_root_identifier_from_expr(left)
+        .or_else(|| original_root_name.map(|s| s.to_string()))?;
 
     // Check if there's a transform for this identifier
     let transform = context.state.transform.get(&root_name)?;
@@ -1765,12 +1781,9 @@ fn try_transform_assignment(
 
     // Case: Mutation (root identifier !== left, i.e., member expression assignment)
     if let Some(mutate_fn) = transform.mutate {
-        // Apply transforms to both sides of the mutation expression
-        let transformed_left = apply_transforms_to_expression(left, context);
-        let transformed_right = apply_transforms_to_expression(right, context);
-
-        // Build the mutation expression with transformed expressions
-        let mutation_expr = b::assign_op(operator, transformed_left, transformed_right);
+        // left and right are already converted (with read transforms applied by convert_json_value),
+        // so we use them directly for the mutation expression.
+        let mutation_expr = b::assign_op(operator, left.clone(), right.clone());
 
         return Some(mutate_fn(b::id(&root_name), mutation_expr));
     }
@@ -1786,6 +1799,33 @@ fn extract_root_identifier_from_expr(expr: &JsExpr) -> Option<String> {
         JsExpr::Identifier(name) => Some(name.clone()),
         JsExpr::Member(member) => extract_root_identifier_from_expr(&member.object),
         JsExpr::Chain(chain) => extract_root_identifier_from_expr(&chain.expression),
+        _ => None,
+    }
+}
+
+/// Extract the root identifier name from a JSON AST node.
+///
+/// Recursively walks down MemberExpression nodes to find the leftmost Identifier.
+/// This is used to extract the root BEFORE conversion applies read transforms.
+fn extract_root_identifier_from_json(value: &Value) -> Option<String> {
+    let obj = value.as_object()?;
+    let node_type = obj.get("type").and_then(|t| t.as_str())?;
+
+    match node_type {
+        "Identifier" => obj
+            .get("name")
+            .and_then(|n| n.as_str())
+            .map(|s| s.to_string()),
+        "MemberExpression" => obj
+            .get("object")
+            .and_then(extract_root_identifier_from_json),
+        "ChainExpression" => obj
+            .get("expression")
+            .and_then(extract_root_identifier_from_json),
+        // Unwrap TypeScript expression wrappers
+        "TSAsExpression" | "TSNonNullExpression" | "TSSatisfiesExpression" => obj
+            .get("expression")
+            .and_then(extract_root_identifier_from_json),
         _ => None,
     }
 }
