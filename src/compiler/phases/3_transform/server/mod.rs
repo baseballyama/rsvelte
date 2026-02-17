@@ -169,6 +169,61 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
+        // Check if any script uses TypeScript (needed for $derived expression stripping)
+        let is_ts = instance_script.is_some_and(script_is_typescript)
+            || module_script.is_some_and(script_is_typescript);
+
+        // After we have both text-based and scope-based constants, try to fold
+        // $derived() expressions whose inner value can be evaluated with known constants.
+        // $derived values are readonly by definition, so they're safe to fold.
+        if let Some(script) = instance_script {
+            let start = script.content.start().unwrap_or(0) as usize;
+            let end = script.content.end().unwrap_or(0) as usize;
+            if end > start && end <= source.len() {
+                let script_content = &source[start..end];
+                for line in script_content.lines() {
+                    let trimmed = line.trim();
+                    if !trimmed.contains("$derived(") || trimmed.contains("$derived.by(") {
+                        continue;
+                    }
+                    let decl_trimmed = if let Some(rest) = trimmed.strip_prefix("export ") {
+                        rest.trim_start()
+                    } else {
+                        trimmed
+                    };
+                    let decl_start = if decl_trimmed.starts_with("const ") {
+                        Some(6)
+                    } else if decl_trimmed.starts_with("let ") {
+                        Some(4)
+                    } else {
+                        None
+                    };
+                    if let Some(s) = decl_start {
+                        let rest = &decl_trimmed[s..];
+                        if let Some(eq_idx) = rest.find('=') {
+                            let name = rest[..eq_idx].trim();
+                            if name.contains('{')
+                                || name.contains('[')
+                                || constant_vars.contains_key(name)
+                            {
+                                continue;
+                            }
+                            let value = rest[eq_idx + 1..].trim().trim_end_matches(';');
+                            if let Some(inner) = extract_rune_inner(value, "$derived(") {
+                                // Strip TypeScript syntax (as T, !, etc.) from inner expression
+                                let inner = strip_ts_from_derived_inner(&inner, is_ts);
+                                if let Some(folded) =
+                                    try_evaluate_with_constants(&inner, &constant_vars)
+                                {
+                                    constant_vars.insert(name.to_string(), folded);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Check if the analysis has any StoreSub bindings
         let uses_store_subs = analysis
             .map(|a| {

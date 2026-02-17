@@ -24,6 +24,7 @@ fn transform_script_content_inner(script: &str, is_module: bool) -> String {
     let script = script.replace("$effect.tracking()", "false");
     let script = script.replace("$props.id()", "$.props_id($$renderer)");
     let script = transform_state_snapshot_server(&script);
+    let script = transform_object_destructure_state(&script);
     let script = transform_rune_call_multiline(&script, "$state.raw(");
     let script = transform_array_destructure_state(&script);
     let script = transform_rune_call_multiline(&script, "$state(");
@@ -155,6 +156,189 @@ fn format_js_line(line: &str) -> String {
     }
 
     result
+}
+
+/// Transform object destructuring with $state() or $state.raw() in server-side rendering.
+/// e.g., `let { num } = $state(setup())` -> `let tmp = setup(), num = tmp.num`
+/// e.g., `let { num: x } = $state(setup())` -> `let tmp = setup(), x = tmp.num`
+fn transform_object_destructure_state(script: &str) -> String {
+    use regex::Regex;
+    use std::sync::LazyLock;
+
+    // Match patterns like: let { ... } = $state( or let { ... } = $state.raw(
+    static OBJ_DESTRUCT_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"(?m)^(\s*)(let|const)\s+\{([^}]+)\}\s*=\s*\$state(?:\.raw)?\(").unwrap()
+    });
+
+    let mut result = script.to_string();
+    let mut offset: i64 = 0;
+    let mut tmp_counter: usize = 0;
+
+    for cap in OBJ_DESTRUCT_RE.captures_iter(script) {
+        let full_match = cap.get(0).unwrap();
+        let indent = cap.get(1).unwrap().as_str();
+        let _keyword = cap.get(2).unwrap().as_str();
+        let obj_pattern = cap.get(3).unwrap().as_str();
+
+        let start_pos = full_match.end();
+        let remaining = &script[start_pos..];
+        if let Some(paren_end) = find_matching_paren_for_state(remaining) {
+            let value = remaining[..paren_end].trim();
+
+            // Generate tmp variable name
+            let tmp_name = if tmp_counter == 0 {
+                "tmp".to_string()
+            } else {
+                format!("tmp_{}", tmp_counter)
+            };
+            tmp_counter += 1;
+
+            // Parse the object pattern properties
+            let props = parse_object_pattern_properties(obj_pattern);
+
+            let mut transformed = format!("{}let {} = {}", indent, tmp_name, value);
+
+            for prop in &props {
+                match prop {
+                    ObjectPatternProp::Simple(name) => {
+                        // { a } -> a = tmp.a
+                        transformed.push_str(&format!(", {} = {}.{}", name, tmp_name, name));
+                    }
+                    ObjectPatternProp::Renamed { key, value } => {
+                        // { a: x } -> x = tmp.a
+                        transformed.push_str(&format!(", {} = {}.{}", value, tmp_name, key));
+                    }
+                    ObjectPatternProp::WithDefault { name, default } => {
+                        // { a = 5 } -> a = tmp.a ?? 5
+                        transformed.push_str(&format!(
+                            ", {} = {}.{} ?? {}",
+                            name, tmp_name, name, default
+                        ));
+                    }
+                    ObjectPatternProp::RenamedWithDefault {
+                        key,
+                        value,
+                        default,
+                    } => {
+                        // { a: x = 5 } -> x = tmp.a ?? 5
+                        transformed.push_str(&format!(
+                            ", {} = {}.{} ?? {}",
+                            value, tmp_name, key, default
+                        ));
+                    }
+                    ObjectPatternProp::Rest(name) => {
+                        // TODO: Handle rest pattern if needed
+                        transformed.push_str(&format!(", {} = {}.{}", name, tmp_name, name));
+                    }
+                }
+            }
+
+            let match_start = (full_match.start() as i64 + offset) as usize;
+            // +1 to skip the closing paren of $state()
+            let match_end = (start_pos as i64 + paren_end as i64 + offset + 1) as usize;
+
+            result = format!(
+                "{}{}{}",
+                &result[..match_start],
+                transformed,
+                &result[match_end..]
+            );
+
+            let old_len = (full_match.len() + paren_end + 1) as i64;
+            let new_len = transformed.len() as i64;
+            offset += new_len - old_len;
+        }
+    }
+
+    result
+}
+
+#[derive(Debug)]
+enum ObjectPatternProp {
+    Simple(String),
+    Renamed {
+        key: String,
+        value: String,
+    },
+    WithDefault {
+        name: String,
+        default: String,
+    },
+    RenamedWithDefault {
+        key: String,
+        value: String,
+        default: String,
+    },
+    Rest(String),
+}
+
+/// Parse object pattern properties from a string like "a, b: c, d = 5"
+fn parse_object_pattern_properties(pattern: &str) -> Vec<ObjectPatternProp> {
+    let mut props = Vec::new();
+    let mut depth = 0;
+    let mut start = 0;
+
+    for (i, c) in pattern.char_indices() {
+        match c {
+            '[' | '(' | '{' => depth += 1,
+            ']' | ')' | '}' => depth -= 1,
+            ',' if depth == 0 => {
+                let prop = pattern[start..i].trim();
+                if !prop.is_empty() {
+                    props.push(parse_single_object_prop(prop));
+                }
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+
+    let prop = pattern[start..].trim();
+    if !prop.is_empty() {
+        props.push(parse_single_object_prop(prop));
+    }
+
+    props
+}
+
+fn parse_single_object_prop(prop: &str) -> ObjectPatternProp {
+    let prop = prop.trim();
+
+    if prop.starts_with("...") {
+        return ObjectPatternProp::Rest(prop.trim_start_matches("...").trim().to_string());
+    }
+
+    // Check for colon (rename pattern): "key: value" or "key: value = default"
+    if let Some(colon_idx) = prop.find(':') {
+        let key = prop[..colon_idx].trim().to_string();
+        let rest = prop[colon_idx + 1..].trim();
+
+        // Check for default value in the renamed part
+        if let Some(eq_idx) = rest.find('=') {
+            let value = rest[..eq_idx].trim().to_string();
+            let default = rest[eq_idx + 1..].trim().to_string();
+            return ObjectPatternProp::RenamedWithDefault {
+                key,
+                value,
+                default,
+            };
+        }
+
+        return ObjectPatternProp::Renamed {
+            key,
+            value: rest.to_string(),
+        };
+    }
+
+    // Check for default value: "name = default"
+    if let Some(eq_idx) = prop.find('=') {
+        let name = prop[..eq_idx].trim().to_string();
+        let default = prop[eq_idx + 1..].trim().to_string();
+        return ObjectPatternProp::WithDefault { name, default };
+    }
+
+    // Simple property: "name"
+    ObjectPatternProp::Simple(prop.to_string())
 }
 
 /// Transform array destructuring with $state() in server-side rendering.

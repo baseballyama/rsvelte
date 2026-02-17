@@ -881,12 +881,76 @@ fn find_binary_minus(expr: &str) -> Option<usize> {
     None
 }
 
+/// Strip TypeScript syntax from a $derived inner expression for constant folding.
+/// Uses the full TypeScript parser for accurate stripping.
+pub(crate) fn strip_ts_from_derived_inner(expr: &str, is_typescript: bool) -> String {
+    if !is_typescript {
+        return expr.to_string();
+    }
+    // Wrap as a variable declaration for the TS parser
+    let wrapped = format!("var _ = {};", expr);
+    let stripped = crate::compiler::phases::phase2_analyze::types::strip_typescript(&wrapped);
+    // Unwrap back: remove "var _ = " prefix and ";" suffix
+    let stripped = stripped.trim();
+    if let Some(rest) = stripped.strip_prefix("var _ = ") {
+        rest.trim_end_matches(';').trim().to_string()
+    } else {
+        expr.to_string()
+    }
+}
+
+/// Extract the inner expression from a rune call like `$state(expr)` or `$derived(expr)`.
+/// Returns the inner expression string if the pattern matches.
+pub(crate) fn extract_rune_inner(value: &str, prefix: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if !trimmed.starts_with(prefix) {
+        return None;
+    }
+    let after_prefix = &trimmed[prefix.len()..];
+    // Find matching closing paren
+    let mut depth = 1i32;
+    let mut in_string = false;
+    let mut string_char = ' ';
+    for (i, c) in after_prefix.char_indices() {
+        if (c == '"' || c == '\'' || c == '`')
+            && (i == 0 || after_prefix.as_bytes()[i - 1] != b'\\')
+        {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char {
+                in_string = false;
+            }
+            continue;
+        }
+        if in_string {
+            continue;
+        }
+        match c {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => {
+                depth -= 1;
+                if depth == 0 {
+                    let inner = after_prefix[..i].trim().to_string();
+                    if inner.is_empty() {
+                        return Some("void 0".to_string());
+                    }
+                    return Some(inner);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 pub(crate) fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMap<String, String> {
     let mut constants = FxHashMap::default();
     let mut let_vars: Vec<String> = Vec::new();
     // Collect unresolved expressions for a second pass
     let mut unresolved: Vec<(String, String, bool)> = Vec::new(); // (name, expr, is_const)
 
+    // First pass: extract constants from non-rune declarations
     for line in script.lines() {
         let trimmed = line.trim();
 
