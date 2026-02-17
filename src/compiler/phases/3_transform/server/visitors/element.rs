@@ -112,24 +112,48 @@ impl<'a> ServerCodeGenerator<'a> {
         // Start tag
         let mut tag = format!("<{}", name);
 
+        // Track whether we've already emitted the attr_class and attr_style calls
+        let mut emitted_directives = false;
+
         // Attributes - handle class and style specially if directives exist
+        // When we encounter the first class/style directive or class/style attribute that
+        // has corresponding directives, emit BOTH attr_class and attr_style at that position
+        // (attr_class always before attr_style, regardless of source order).
         for attr in &element.attributes {
+            // Check if this attribute is class/style related and should trigger directive emission
+            let is_class_related = matches!(attr, Attribute::ClassDirective(_))
+                || matches!(attr, Attribute::Attribute(node) if node.name.as_str() == "class" && !class_directives.is_empty());
+            let is_style_related = matches!(attr, Attribute::StyleDirective(_))
+                || matches!(attr, Attribute::Attribute(node) if node.name.as_str() == "style" && !style_directives.is_empty());
+
+            if (is_class_related || is_style_related) && !emitted_directives {
+                emitted_directives = true;
+                // Emit attr_class first (if class directives exist)
+                if !class_directives.is_empty() {
+                    let attr_class_call = self.generate_attr_class_call(
+                        &class_directives,
+                        base_class.as_deref(),
+                        css_hash.as_deref(),
+                    )?;
+                    tag.push_str(&attr_class_call);
+                }
+                // Emit attr_style second (if style directives exist)
+                if !style_directives.is_empty() {
+                    let attr_style_call =
+                        self.generate_attr_style_call(&style_directives, base_style.as_deref())?;
+                    tag.push_str(&attr_style_call);
+                }
+                continue;
+            }
+
+            // Skip class/style directives and class/style attributes when directives exist
+            if is_class_related || is_style_related {
+                continue;
+            }
+
             match attr {
-                // Skip class/style directives - handled separately
                 Attribute::ClassDirective(_) | Attribute::StyleDirective(_) => continue,
-                // Skip class attribute if we have class directives
-                Attribute::Attribute(node)
-                    if node.name.as_str() == "class" && !class_directives.is_empty() =>
-                {
-                    continue;
-                }
-                // Skip style attribute if we have style directives
-                Attribute::Attribute(node)
-                    if node.name.as_str() == "style" && !style_directives.is_empty() =>
-                {
-                    continue;
-                }
-                // Handle class attribute specially - add CSS hash if scoped
+                // Handle class attribute specially - add CSS hash if scoped (no directives case)
                 Attribute::Attribute(node) if node.name.as_str() == "class" => {
                     if let Some(attr_str) =
                         self.generate_attribute_node_with_css_hash(node, css_hash.as_deref())?
@@ -147,7 +171,8 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
-        // If element is scoped but has no class attribute, add one with just the hash
+        // If element is scoped but has no class attribute and no class directives,
+        // add a class attribute with just the hash
         if let Some(ref hash) = css_hash
             && base_class.is_none()
             && class_directives.is_empty()
@@ -155,18 +180,21 @@ impl<'a> ServerCodeGenerator<'a> {
             tag.push_str(&format!(" class=\"{}\"", hash));
         }
 
-        // Generate $.attr_class() if we have class directives
-        if !class_directives.is_empty() {
-            let attr_class_call =
-                self.generate_attr_class_call(&class_directives, base_class.as_deref())?;
-            tag.push_str(&attr_class_call);
-        }
-
-        // Generate $.attr_style() if we have style directives
-        if !style_directives.is_empty() {
-            let attr_style_call =
-                self.generate_attr_style_call(&style_directives, base_style.as_deref())?;
-            tag.push_str(&attr_style_call);
+        // If directives weren't emitted (no class/style related attrs found in loop)
+        if (!class_directives.is_empty() || !style_directives.is_empty()) && !emitted_directives {
+            if !class_directives.is_empty() {
+                let attr_class_call = self.generate_attr_class_call(
+                    &class_directives,
+                    base_class.as_deref(),
+                    css_hash.as_deref(),
+                )?;
+                tag.push_str(&attr_class_call);
+            }
+            if !style_directives.is_empty() {
+                let attr_style_call =
+                    self.generate_attr_style_call(&style_directives, base_style.as_deref())?;
+                tag.push_str(&attr_style_call);
+            }
         }
 
         if is_void_element(name) {
@@ -1499,6 +1527,7 @@ impl<'a> ServerCodeGenerator<'a> {
         &self,
         directives: &[&ClassDirective],
         base_class: Option<&str>,
+        css_hash: Option<&str>,
     ) -> Result<String, TransformError> {
         // Build the directives object
         let mut directive_props = Vec::new();
@@ -1519,26 +1548,41 @@ impl<'a> ServerCodeGenerator<'a> {
         let directives_obj = format!("{{ {} }}", directive_props.join(", "));
 
         // Check if base_class is a dynamic expression (marked with __EXPR__: prefix)
-        let base_arg = match base_class {
-            Some(s) if s.starts_with("__EXPR__:") => {
-                // Dynamic expression - use $.clsx(expr) or expr directly
-                let expr = &s["__EXPR__:".len()..];
-                format!("$.clsx({})", expr)
-            }
-            Some(s) if !s.is_empty() => {
-                // Static text value - quote it
-                format!("'{}'", s)
-            }
-            _ => {
-                // No base class
+        let is_dynamic = base_class
+            .map(|s| s.starts_with("__EXPR__:"))
+            .unwrap_or(false);
+
+        let (base_arg, hash_arg) = if is_dynamic {
+            // Dynamic expression - hash goes as separate second argument
+            let expr = &base_class.unwrap()["__EXPR__:".len()..];
+            let base = format!("$.clsx({})", expr);
+            let hash = if let Some(hash) = css_hash {
+                format!("'{}'", hash)
+            } else {
+                "void 0".to_string()
+            };
+            (base, hash)
+        } else {
+            // Static or empty base class - bake hash into first argument
+            let base_str = base_class.unwrap_or("");
+            let base = if let Some(hash) = css_hash {
+                if base_str.is_empty() {
+                    format!("'{}'", hash)
+                } else {
+                    format!("'{} {}'", base_str, hash)
+                }
+            } else if base_str.is_empty() {
                 "''".to_string()
-            }
+            } else {
+                format!("'{}'", base_str)
+            };
+            (base, "void 0".to_string())
         };
 
-        // Output: ${$.attr_class(base, void 0, { 'foo': foo })}
+        // Output: ${$.attr_class(base, hash, { 'foo': foo })}
         Ok(format!(
-            "${{$.attr_class({}, void 0, {})}}",
-            base_arg, directives_obj
+            "${{$.attr_class({}, {}, {})}}",
+            base_arg, hash_arg, directives_obj
         ))
     }
 
