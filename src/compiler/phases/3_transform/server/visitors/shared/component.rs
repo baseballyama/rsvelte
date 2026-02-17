@@ -115,10 +115,9 @@ pub fn build_inline_component<F>(
                     lets.get_mut("default").unwrap().push(let_dir);
                 }
             }
-            Attribute::SpreadAttribute(_spread) => {
-                // TODO: Visit spread attribute and add to props_and_spreads
-                // For now, create a placeholder
-                let spread_expr = JsExpr::Identifier("spread".to_string());
+            Attribute::SpreadAttribute(spread) => {
+                // Convert the spread expression to a JsExpr and add to props_and_spreads
+                let spread_expr = super::utils::convert_expression_simple(&spread.expression);
                 props_and_spreads.push(PropsOrSpread::Spread(transform(spread_expr)));
             }
             Attribute::Attribute(attr) => {

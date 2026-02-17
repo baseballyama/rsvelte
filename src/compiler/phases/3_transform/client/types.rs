@@ -423,19 +423,13 @@ impl<'a> ComponentContext<'a> {
         // This matches the official compiler which visits node.fragment as a separate Fragment,
         // producing its own template block with $.text() / $.append() patterns.
         {
-            // Determine namespace for children based on element metadata.
-            // This matches determine_namespace_for_children() in the official compiler:
-            // svg if metadata.svg, mathml if metadata.mathml, html otherwise.
-            // Importantly, even if the parent namespace is "svg", children of a
-            // svelte:element use the element's own metadata, not the parent's.
+            // For <svelte:element>, children always use "html" namespace for template generation.
+            // The $.element() runtime function handles the actual namespace (svg/mathml) at runtime,
+            // so templates are always created as HTML and adopted into the correct namespace.
             let saved_namespace = self.state.metadata.namespace.clone();
-            if elem.metadata.svg {
-                self.state.metadata.namespace = "svg".to_string();
-            } else if elem.metadata.mathml {
-                self.state.metadata.namespace = "mathml".to_string();
-            } else {
-                self.state.metadata.namespace = "html".to_string();
-            }
+            let saved_svelte_element_child = self.state.metadata.svelte_element_child;
+            self.state.metadata.namespace = "html".to_string();
+            self.state.metadata.svelte_element_child = true;
 
             let content_fragment = crate::ast::template::Fragment {
                 nodes: elem.fragment.nodes.clone(),
@@ -443,8 +437,9 @@ impl<'a> ComponentContext<'a> {
             };
             let fragment_block = visit_fragment_impl(&content_fragment, self, false);
 
-            // Restore namespace
+            // Restore namespace and svelte_element_child flag
             self.state.metadata.namespace = saved_namespace;
+            self.state.metadata.svelte_element_child = saved_svelte_element_child;
 
             // Add the fragment body to the callback
             callback_body.extend(fragment_block.body);
@@ -1126,6 +1121,11 @@ pub struct ComponentMetadata {
 
     /// Whether the element is scoped
     pub scoped: bool,
+
+    /// Whether we're inside a <svelte:element> child context.
+    /// When true, infer_namespace should NOT re-evaluate from children,
+    /// because the namespace is determined at runtime by $.element().
+    pub svelte_element_child: bool,
 }
 
 impl Default for ComponentMetadata {
@@ -1133,6 +1133,7 @@ impl Default for ComponentMetadata {
         Self {
             namespace: "html".to_string(),
             scoped: false,
+            svelte_element_child: false,
         }
     }
 }

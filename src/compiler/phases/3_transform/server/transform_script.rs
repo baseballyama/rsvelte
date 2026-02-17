@@ -29,6 +29,7 @@ fn transform_script_content_inner(script: &str, is_module: bool) -> String {
     let script = transform_rune_call_multiline(&script, "$state(");
     let script = transform_rune_call_multiline(&script, "$derived.by(");
     let script = transform_rune_call_multiline(&script, "$derived(");
+    let script = transform_rune_call_multiline(&script, "$bindable(");
     let script = transform_store_assignments(&script);
     let script = if is_module {
         script
@@ -870,6 +871,24 @@ pub(crate) fn transform_class_fields_server(script: &str) -> String {
     for member in &members {
         match member {
             ClassMember::Field(line) => {
+                // Skip fields that have been converted to constructor-declared derived fields
+                // e.g., `product;` should be skipped when `this.product = $derived(...)` was found
+                let field_name = line
+                    .trim()
+                    .trim_end_matches(';')
+                    .trim_end_matches(':')
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or("");
+                let is_constructor_declared = derived_fields
+                    .iter()
+                    .any(|f| f.constructor_declared && !f.is_private && f.name == field_name);
+                if is_constructor_declared {
+                    // This field is now represented by #name + getter + setter
+                    // generated above, so skip the original field declaration
+                    continue;
+                }
+
                 new_class_body.push_str(&format!("\t\t{}\n", line));
                 for field in derived_fields
                     .iter()
@@ -1144,14 +1163,17 @@ fn remove_rune_statement(script: &str, rune_prefix: &str) -> String {
                         end += 1;
                     }
 
-                    if rune_prefix.starts_with("$inspect") {
+                    if rune_prefix.starts_with("$inspect")
+                        && !rune_prefix.starts_with("$inspect.trace")
+                    {
+                        // $inspect() calls (not $inspect.trace()) should output ;; placeholder
                         result.push_str(";;\n");
-                    }
-                    if !rune_prefix.starts_with("$inspect") {
+                    } else if !rune_prefix.starts_with("$inspect") {
                         while result.ends_with(' ') || result.ends_with('\t') {
                             result.pop();
                         }
                     }
+                    // $inspect.trace() calls are removed entirely (no output)
 
                     i = end;
                     continue;

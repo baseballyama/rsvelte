@@ -489,7 +489,7 @@ pub fn visit_regular_element(
                 // Static text attributes can go in the template
                 let is_true_value = matches!(&attr.value, AttributeValue::True(true));
                 if !is_custom_element
-                    && !cannot_be_set_statically(&attr.name)
+                    && !cannot_be_set_statically(&name)
                     && (is_true_value || is_text_attribute(attr))
                 {
                     let mut value = if is_text_attribute(attr) {
@@ -529,10 +529,7 @@ pub fn visit_regular_element(
                             Some(value)
                         };
 
-                        context
-                            .state
-                            .template
-                            .set_prop(attr.name.to_string(), prop_value);
+                        context.state.template.set_prop(name.clone(), prop_value);
                     }
                 } else if name == "autofocus" {
                     // Special case: autofocus needs $.autofocus() call
@@ -607,17 +604,32 @@ pub fn visit_regular_element(
             }
         }
 
-        // Add CSS scoping class to elements without class attribute or class directives
-        // Corresponds to the logic in the official Svelte's analyze phase (index.js lines 901-914)
-        // that adds a synthetic empty class attribute when scoped but no class exists.
-        // Since we don't modify the AST in phase 2, we add the hash directly to template here.
+        // Add CSS scoping class to elements without class attribute or class directives.
+        // For custom elements: use a runtime $.set_class() call instead of baking into template.
         if is_scoped && class_attribute.is_none() && class_directives.is_empty() {
             let hash = &context.state.analysis.css.hash;
             if !hash.is_empty() {
-                context
-                    .state
-                    .template
-                    .set_prop("class".to_string(), Some(hash.clone()));
+                if is_custom_element {
+                    // Custom elements: use runtime $.set_class() call
+                    let node_id = extract_node_id(&context.state.node);
+                    let is_html_ns =
+                        context.state.metadata.namespace == "html" && node.name != "svg";
+                    let flags = if is_html_ns {
+                        b::number(1.0)
+                    } else {
+                        b::number(0.0)
+                    };
+                    context.state.init.push(b::stmt(b::call(
+                        b::member_path("$.set_class"),
+                        vec![b::id(&node_id), flags, b::string(hash)],
+                    )));
+                } else {
+                    // Regular elements: bake hash into template HTML
+                    context
+                        .state
+                        .template
+                        .set_prop("class".to_string(), Some(hash.clone()));
+                }
             }
         }
 
@@ -728,14 +740,19 @@ pub fn visit_regular_element(
         match n {
             TemplateNode::Text(_) => true,
             TemplateNode::ExpressionTag(expr_tag) => {
-                // Check if expression is non-reactive
+                // Check if expression is non-reactive AND has no non-pure calls.
+                // Non-pure calls (to local functions) need to be in a template_effect
+                // for proper execution context, so they can't use the textContent shortcut.
                 !expression_has_reactive_state(&expr_tag.expression, context)
+                    && !super::shared::utils::expression_has_call(&expr_tag.expression, context)
             }
             _ => false,
         }
     });
 
     let use_text_content = all_text_or_expr && has_expression_tag && all_expressions_static;
+
+    // (textContent optimization debug removed)
 
     // Track whether we used a code path that requires child_init to be merged
     // regardless of whether the children appear static.
@@ -1082,8 +1099,15 @@ fn is_text_attribute(attr: &AttributeNode) -> bool {
 }
 
 /// Get the attribute name (normalized).
-fn get_attribute_name(_node: &RegularElementNode, attr: &AttributeNode) -> String {
-    attr.name.to_string()
+/// For HTML elements (non-SVG, non-MathML), attribute names are lowercased
+/// and mapped through ATTRIBUTE_ALIASES (e.g., ASYNC -> async, READONLY -> readOnly).
+/// Reference: svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/element.js
+fn get_attribute_name(node: &RegularElementNode, attr: &AttributeNode) -> String {
+    if !node.metadata.svg && !node.metadata.mathml {
+        normalize_attribute_string(&attr.name)
+    } else {
+        attr.name.to_string()
+    }
 }
 
 /// Check if an attribute cannot be set statically in the template.
@@ -1132,7 +1156,30 @@ fn is_boolean_attribute(name: &str) -> bool {
     )
 }
 
-/// Normalize attribute name to DOM property name.
+/// Normalize attribute name to DOM property name (returns owned String).
+/// Lowercases the name and maps through ATTRIBUTE_ALIASES.
+/// Reference: svelte/packages/svelte/src/utils.js ATTRIBUTE_ALIASES and normalize_attribute
+fn normalize_attribute_string(name: &str) -> String {
+    let lower = name.to_lowercase();
+    match lower.as_str() {
+        "formnovalidate" => "formNoValidate".to_string(),
+        "ismap" => "isMap".to_string(),
+        "nomodule" => "noModule".to_string(),
+        "playsinline" => "playsInline".to_string(),
+        "readonly" => "readOnly".to_string(),
+        "defaultvalue" => "defaultValue".to_string(),
+        "defaultchecked" => "defaultChecked".to_string(),
+        "srcobject" => "srcObject".to_string(),
+        "novalidate" => "noValidate".to_string(),
+        "allowfullscreen" => "allowFullscreen".to_string(),
+        "disablepictureinpicture" => "disablePictureInPicture".to_string(),
+        "disableremoteplayback" => "disableRemotePlayback".to_string(),
+        _ => lower,
+    }
+}
+
+/// Normalize attribute name to DOM property name (returns &str reference).
+/// For cases where the result doesn't need to be owned.
 /// Reference: svelte/packages/svelte/src/utils.js ATTRIBUTE_ALIASES and normalize_attribute
 fn normalize_attribute(name: &str) -> &str {
     let lower = name.to_lowercase();
@@ -1222,16 +1269,14 @@ fn extract_node_id(expr: &JsExpr) -> String {
 }
 
 /// Build element attribute update expression.
+/// The `name` parameter should already be normalized via `get_attribute_name()`.
 fn build_element_attribute_update(
     element: &RegularElementNode,
     node_id: &str,
-    attr_name: &str,
+    name: &str,
     value: JsExpr,
     attributes: &[Attribute],
 ) -> JsExpr {
-    // Normalize attribute name to DOM property name (e.g., readonly -> readOnly)
-    let name = normalize_attribute(attr_name);
-
     // Special case: muted (Firefox needs property assignment)
     if name == "muted" {
         return b::assign(b::member(b::id(node_id), "muted"), value);
@@ -1291,13 +1336,13 @@ fn build_element_attribute_update(
         }
     }
 
-    // DOM property
+    // DOM property (name is already normalized, e.g., "async", "defer", "required")
     if is_dom_property(name) {
         return b::assign(b::member(b::id(node_id), name), value);
     }
 
-    // Regular attribute (use original attr_name for HTML attribute)
-    let set_fn = if attr_name.starts_with("xlink") {
+    // Regular attribute (use normalized name for HTML attribute)
+    let set_fn = if name.starts_with("xlink") {
         "$.set_xlink_attribute"
     } else {
         "$.set_attribute"
@@ -1305,7 +1350,7 @@ fn build_element_attribute_update(
 
     b::call(
         b::member_path(set_fn),
-        vec![b::id(node_id), b::string(attr_name), value],
+        vec![b::id(node_id), b::string(name), value],
     )
 }
 

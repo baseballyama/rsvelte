@@ -225,10 +225,11 @@ impl<'a> ServerCodeGenerator<'a> {
             return Ok(String::new());
         }
 
-        // Build: $.attributes({ ... }, void 0, void 0, void 0, 4)
-        // The 4 is a flag for dynamic elements
+        // Build: $.attributes({ ... })
+        // For <svelte:element>, no extra flags are needed since the element type
+        // is unknown at compile time (no ELEMENT_IS_INPUT, etc.)
         Ok(format!(
-            "${{$.attributes({{ {} }}, void 0, void 0, void 0, 4)}}",
+            "${{$.attributes({{ {} }})}}",
             object_parts.join(", ")
         ))
     }

@@ -74,13 +74,19 @@ pub fn fragment(
     // Get parent node from path or use the fragment itself
     let parent = context.path.last().copied();
 
-    // Infer namespace for children
-    let namespace = infer_namespace(
-        &context.state.metadata.namespace,
-        parent,
-        &node.nodes,
-        context.state.analysis,
-    );
+    // Infer namespace for children.
+    // When inside a <svelte:element> child context, skip inference since the
+    // namespace is determined at runtime by $.element(), and we always want "html".
+    let namespace = if context.state.metadata.svelte_element_child {
+        context.state.metadata.namespace.clone()
+    } else {
+        infer_namespace(
+            &context.state.metadata.namespace,
+            parent,
+            &node.nodes,
+            context.state.analysis,
+        )
+    };
 
     // Clean and organize nodes
     let cleaned = clean_nodes(
@@ -143,6 +149,9 @@ pub fn fragment(
         metadata: ComponentMetadata {
             namespace: namespace.clone(),
             scoped: context.state.metadata.scoped,
+            // Reset svelte_element_child flag for the new state - it was only
+            // needed to prevent namespace inference at the immediate child level
+            svelte_element_child: false,
         },
         in_constructor: false,
         in_derived: false,

@@ -292,7 +292,16 @@ impl<'a> ServerCodeGenerator<'a> {
                     let start = right_expr.start().unwrap_or(0) as usize;
                     let end = right_expr.end().unwrap_or(0) as usize;
                     if end > start && end <= source.len() {
-                        source[start..end].trim().to_string()
+                        let val = source[start..end].trim().to_string();
+                        // SequenceExpression (comma expression) needs parentheses to preserve semantics
+                        // e.g., `c = (2, 3)` - the span covers `2, 3` but we need `(2, 3)`
+                        let right_type =
+                            right_val.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                        if right_type == "SequenceExpression" {
+                            format!("({})", val)
+                        } else {
+                            val
+                        }
                     } else {
                         // Fallback: try to get value from JSON
                         Self::extract_snippet_literal_value(right_val)

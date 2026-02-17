@@ -93,6 +93,17 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
                 Attribute::Attribute(node) if node.name.as_str() == "style" => {
                     base_style = self.extract_attribute_text_value(node);
+                    // Also extract dynamic expression for style={expr} with style directives
+                    if base_style.is_none()
+                        && let AttributeValue::Expression(expr_tag) = &node.value
+                    {
+                        let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                        let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                        if expr_end > expr_start && expr_end <= self.source.len() {
+                            let raw_expr = self.source[expr_start..expr_end].trim().to_string();
+                            base_style = Some(format!("__EXPR__:{}", raw_expr));
+                        }
+                    }
                 }
                 _ => {}
             }
@@ -879,10 +890,48 @@ impl<'a> ServerCodeGenerator<'a> {
         let expr_end = bind.expression.end().unwrap_or(0) as usize;
 
         if expr_end > expr_start && expr_end <= self.source.len() {
-            let expr = self.source[expr_start..expr_end].trim().to_string();
-            // Strip TypeScript syntax and transform store refs
-            let expr = self.strip_ts_from_expr(&expr);
-            let expr = self.transform_store_refs(&expr);
+            // Check if the expression is a getter/setter pair (SequenceExpression).
+            // In Svelte 5, bind:value={() => val, (v) => val = v} is a getter/setter pair.
+            // For SSR, we only need the getter's value (invoke the getter immediately).
+            let json = bind.expression.as_json();
+            let expr_type = json.get("type").and_then(|t| t.as_str()).unwrap_or("");
+
+            let expr = if expr_type == "SequenceExpression" {
+                // Extract just the getter (first expression in the sequence)
+                // and wrap it in an IIFE: (() => val)()
+                if let Some(expressions) = json.get("expressions").and_then(|e| e.as_array()) {
+                    if let Some(getter) = expressions.first() {
+                        let getter_expr = crate::ast::js::Expression::Value(getter.clone());
+                        let getter_start = getter_expr.start().unwrap_or(0) as usize;
+                        let getter_end = getter_expr.end().unwrap_or(0) as usize;
+                        if getter_end > getter_start && getter_end <= self.source.len() {
+                            let getter_src =
+                                self.source[getter_start..getter_end].trim().to_string();
+                            let getter_src = self.strip_ts_from_expr(&getter_src);
+                            let getter_src = self.transform_store_refs(&getter_src);
+                            // Invoke the getter: (() => val)()
+                            format!("({})() ", getter_src).trim().to_string()
+                        } else {
+                            // Fallback to full expression
+                            let raw = self.source[expr_start..expr_end].trim().to_string();
+                            let raw = self.strip_ts_from_expr(&raw);
+                            self.transform_store_refs(&raw)
+                        }
+                    } else {
+                        let raw = self.source[expr_start..expr_end].trim().to_string();
+                        let raw = self.strip_ts_from_expr(&raw);
+                        self.transform_store_refs(&raw)
+                    }
+                } else {
+                    let raw = self.source[expr_start..expr_end].trim().to_string();
+                    let raw = self.strip_ts_from_expr(&raw);
+                    self.transform_store_refs(&raw)
+                }
+            } else {
+                let raw = self.source[expr_start..expr_end].trim().to_string();
+                let raw = self.strip_ts_from_expr(&raw);
+                self.transform_store_refs(&raw)
+            };
 
             // Handle bind:group specially - convert to checked attribute
             if name == "group" {
@@ -1565,8 +1614,24 @@ impl<'a> ServerCodeGenerator<'a> {
             format!("{{ {} }}", normal_props.join(", "))
         };
 
-        // Output: ${$.attr_style('base', { color: 'red' })}
-        let base = base_style.unwrap_or("");
-        Ok(format!("${{$.attr_style('{}', {})}}", base, directives_arg))
+        // Output: ${$.attr_style('base', { color: 'red' })} or ${$.attr_style(expr, { color: 'red' })}
+        let base_arg = match base_style {
+            Some(s) if s.starts_with("__EXPR__:") => {
+                // Dynamic expression - pass directly without quotes
+                s["__EXPR__:".len()..].to_string()
+            }
+            Some(s) if !s.is_empty() => {
+                // Static text value - quote it
+                format!("'{}'", s)
+            }
+            _ => {
+                // No base style
+                "''".to_string()
+            }
+        };
+        Ok(format!(
+            "${{$.attr_style({}, {})}}",
+            base_arg, directives_arg
+        ))
     }
 }

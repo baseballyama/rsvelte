@@ -334,6 +334,19 @@ pub fn infer_namespace(
         return "html".to_string();
     }
 
+    // For <svelte:element>, the namespace is determined at runtime by $.element().
+    // Templates for its children are always generated as HTML.
+    if let Some(TemplateNode::SvelteElement(elem)) = parent {
+        if elem.metadata.svg {
+            return "svg".to_string();
+        }
+        return if elem.metadata.mathml {
+            "mathml".to_string()
+        } else {
+            "html".to_string()
+        };
+    }
+
     // Re-evaluate namespace for fragments/snippets based on child content.
     // This matches the JS behavior at lines 326-339 of utils.js:
     // For SnippetBlock, Component, SvelteComponent, etc., the namespace is

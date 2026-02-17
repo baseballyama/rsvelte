@@ -2102,7 +2102,7 @@ pub fn build_template_chunk(
                     // Check if the expression references reactive state, contains calls, member expressions, or await
                     let expr_has_state =
                         expression_has_reactive_state(&expr_tag.expression, context);
-                    let expr_has_call = expression_has_call(&expr_tag.expression);
+                    let expr_has_call = expression_has_call(&expr_tag.expression, context);
                     let expr_has_member = expression_has_member(&expr_tag.expression);
                     let expr_has_await = expression_has_await(&expr_tag.expression);
 
@@ -2125,7 +2125,10 @@ pub fn build_template_chunk(
                         expr_has_state,
                     );
 
-                    // Track if any expression has state or call (need reactive update)
+                    // Track if any expression has state, call, or await (need reactive update).
+                    // In the official Svelte compiler, has_call is only set for non-pure calls
+                    // (calls to local functions, not globals like console.log), and when set,
+                    // it also sets has_state. So has_call contributes to reactivity.
                     if expr_has_state || expr_has_call || expr_has_await {
                         has_state = true;
                     }
@@ -2566,6 +2569,8 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                     // Bindings that are always reactive (props, stores, each items, etc.)
                     // These don't go through the is_known check because their values
                     // are inherently dynamic/external.
+                    // Derived bindings are always reactive because their value depends
+                    // on other reactive sources that may change.
                     if matches!(
                         binding.kind,
                         BindingKind::Prop
@@ -2575,6 +2580,7 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                             | BindingKind::StoreSub
                             | BindingKind::EachItem
                             | BindingKind::SnippetParam
+                            | BindingKind::Derived
                     ) {
                         return true;
                     }
@@ -2732,9 +2738,22 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                 }
             }
 
-            // For non-pure functions (user-defined), assume the result could be reactive
-            // because the function may return values derived from reactive state
-            true
+            // For other call expressions, check callee and arguments recursively.
+            // A call is only reactive if the callee or arguments reference reactive state.
+            // This handles cases like console.log('rendering') which should NOT be reactive.
+            if let Some(callee) = obj.get("callee")
+                && has_reactive_state_json(callee, context)
+            {
+                return true;
+            }
+            if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+                for arg in args {
+                    if has_reactive_state_json(arg, context) {
+                        return true;
+                    }
+                }
+            }
+            false
         }
         "BinaryExpression" | "LogicalExpression" => {
             // Check left and right - recurse with JSON reference
@@ -2850,21 +2869,101 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
     }
 }
 
-/// Check if an expression contains a function call.
+/// Check if an expression contains a non-pure function call.
 ///
-/// Returns true if the expression contains a CallExpression at any level.
+/// Matches the official Svelte compiler's behavior: a call is only considered
+/// "has_call" if the callee is NOT pure. Pure callees are global identifiers
+/// (no local binding) like console.log, Math.max, and literals.
+/// Pure calls with only pure arguments are not counted.
 #[inline]
-pub fn expression_has_call(expr: &crate::ast::js::Expression) -> bool {
+pub fn expression_has_call(expr: &crate::ast::js::Expression, context: &ComponentContext) -> bool {
     use crate::ast::js::Expression;
 
     match expr {
-        Expression::Value(json_value) => has_call_json(json_value),
+        Expression::Value(json_value) => has_call_json(json_value, context),
+    }
+}
+
+/// Check if an expression (or its callee) is "pure" in the Svelte sense.
+/// Pure means: the expression doesn't reference any local bindings.
+/// Globals (identifiers without scope bindings) are pure.
+/// Literals are pure.
+/// MemberExpressions on pure objects are pure.
+/// CallExpressions with pure callees and pure arguments are pure.
+#[inline]
+fn is_pure_json(json_value: &serde_json::Value, context: &ComponentContext) -> bool {
+    let Some(obj) = json_value.as_object() else {
+        // Primitives (strings, numbers, booleans, null) are pure
+        return true;
+    };
+    let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
+        return true;
+    };
+
+    match expr_type {
+        "Literal" | "BooleanLiteral" | "NumericLiteral" | "StringLiteral" | "NullLiteral"
+        | "BigIntLiteral" | "RegExpLiteral" => true,
+        "Identifier" => {
+            if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+                // Svelte rune identifiers are NOT pure ($effect, $state, etc.)
+                // In particular, $effect.tracking() is reactive
+                if name.starts_with('$')
+                    && matches!(
+                        name,
+                        "$effect" | "$state" | "$derived" | "$props" | "$bindable" | "$inspect"
+                    )
+                {
+                    return false;
+                }
+                // Check if it has a local binding - globals are pure
+                context.state.get_binding(name).is_none()
+                    && !context.state.transform.contains_key(name)
+            } else {
+                true
+            }
+        }
+        "MemberExpression" => {
+            // Walk to the leftmost object
+            let mut left = json_value;
+            while let Some(left_obj) = left.as_object()
+                && left_obj.get("type").and_then(|t| t.as_str()) == Some("MemberExpression")
+                && let Some(object) = left_obj.get("object")
+            {
+                left = object;
+            }
+            is_pure_json(left, context)
+        }
+        "CallExpression" => {
+            // A call is pure if callee is pure and all args are pure
+            if let Some(callee) = obj.get("callee")
+                && !is_pure_json(callee, context)
+            {
+                return false;
+            }
+            if let Some(args) = obj.get("arguments").and_then(|v| v.as_array()) {
+                for arg in args {
+                    let arg_val = if let Some(arg_obj) = arg.as_object()
+                        && arg_obj.get("type").and_then(|t| t.as_str()) == Some("SpreadElement")
+                    {
+                        arg_obj.get("argument").unwrap_or(arg)
+                    } else {
+                        arg
+                    };
+                    if !is_pure_json(arg_val, context) {
+                        return false;
+                    }
+                }
+            }
+            true
+        }
+        _ => false,
     }
 }
 
 /// Internal helper that processes JSON values directly, avoiding serde_json::from_value overhead.
+/// Only returns true for non-pure calls (calls to local functions or with reactive arguments).
 #[inline]
-fn has_call_json(json_value: &serde_json::Value) -> bool {
+fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> bool {
     let Some(obj) = json_value.as_object() else {
         return false;
     };
@@ -2873,21 +2972,25 @@ fn has_call_json(json_value: &serde_json::Value) -> bool {
     };
 
     match expr_type {
-        "CallExpression" => true,
+        "CallExpression" | "TaggedTemplateExpression" => {
+            // Check if this call is pure (callee is global, all args are pure/global)
+            // Pure calls like console.log('rendering') should NOT set has_call
+            !is_pure_json(json_value, context)
+        }
         "MemberExpression" => {
             if let Some(object) = obj.get("object") {
-                return has_call_json(object);
+                return has_call_json(object, context);
             }
             false
         }
         "BinaryExpression" | "LogicalExpression" => {
             if let Some(left) = obj.get("left")
-                && has_call_json(left)
+                && has_call_json(left, context)
             {
                 return true;
             }
             if let Some(right) = obj.get("right")
-                && has_call_json(right)
+                && has_call_json(right, context)
             {
                 return true;
             }
@@ -2895,14 +2998,14 @@ fn has_call_json(json_value: &serde_json::Value) -> bool {
         }
         "UnaryExpression" => {
             if let Some(argument) = obj.get("argument") {
-                return has_call_json(argument);
+                return has_call_json(argument, context);
             }
             false
         }
         "ConditionalExpression" => {
             for field in ["test", "consequent", "alternate"] {
                 if let Some(val) = obj.get(field)
-                    && has_call_json(val)
+                    && has_call_json(val, context)
                 {
                     return true;
                 }
@@ -2912,7 +3015,7 @@ fn has_call_json(json_value: &serde_json::Value) -> bool {
         "TemplateLiteral" => {
             if let Some(exprs) = obj.get("expressions").and_then(|v| v.as_array()) {
                 for expr_val in exprs {
-                    if has_call_json(expr_val) {
+                    if has_call_json(expr_val, context) {
                         return true;
                     }
                 }
@@ -2922,7 +3025,7 @@ fn has_call_json(json_value: &serde_json::Value) -> bool {
         "ArrayExpression" => {
             if let Some(elements) = obj.get("elements").and_then(|v| v.as_array()) {
                 for elem in elements {
-                    if has_call_json(elem) {
+                    if has_call_json(elem, context) {
                         return true;
                     }
                 }
@@ -2933,7 +3036,7 @@ fn has_call_json(json_value: &serde_json::Value) -> bool {
             if let Some(properties) = obj.get("properties").and_then(|v| v.as_array()) {
                 for prop in properties {
                     if let Some(value) = prop.as_object().and_then(|p| p.get("value"))
-                        && has_call_json(value)
+                        && has_call_json(value, context)
                     {
                         return true;
                     }

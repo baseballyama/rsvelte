@@ -168,6 +168,18 @@ pub fn detect_store_subscriptions(
                     continue;
                 }
 
+                // Special case from official compiler (2-analyze/index.js L370-374):
+                // Allow `import { derived } from 'svelte/store'` in the same file as
+                // `const x = $derived(..)` because one is not a subscription to the other.
+                // When `$derived` is used and `derived` is imported from 'svelte/store',
+                // treat $derived as the rune, not a store subscription.
+                if ref_name == "$derived"
+                    && binding.declaration_kind == DeclarationKind::Import
+                    && is_import_from_svelte_store(store_name, &analysis.source)
+                {
+                    continue;
+                }
+
                 // The binding exists in instance scope and is NOT a rune init -
                 // fall through to create store sub.
             } else {
@@ -417,6 +429,28 @@ fn collect_dollar_identifiers_from_js(js: &str, refs: &mut FxHashSet<String>) {
 /// Check if a character is a valid JavaScript identifier character.
 fn is_identifier_char(c: char) -> bool {
     c.is_alphanumeric() || c == '_' || c == '$'
+}
+
+/// Check if a given name is imported from 'svelte/store' in the source code.
+/// This checks for patterns like:
+///   import { derived } from 'svelte/store'
+///   import { derived } from "svelte/store"
+///   import { writable, derived } from 'svelte/store'
+fn is_import_from_svelte_store(name: &str, source: &str) -> bool {
+    // Look for import statements containing the name from 'svelte/store'
+    for line in source.lines() {
+        let trimmed = line.trim();
+        if !trimmed.starts_with("import ") {
+            continue;
+        }
+        // Check if this import line includes the name and 'svelte/store'
+        if (trimmed.contains("'svelte/store'") || trimmed.contains("\"svelte/store\""))
+            && trimmed.contains(name)
+        {
+            return true;
+        }
+    }
+    false
 }
 
 /// Collect $xxx identifiers from a template fragment.

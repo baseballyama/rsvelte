@@ -353,6 +353,52 @@ pub(crate) fn try_constant_fold_full(expr: &str) -> ConstantFoldResult {
         return ConstantFoldResult::Constant(content.to_string());
     }
 
+    // Handle && operator: if left is known and falsy, result is left's value
+    if let Some(idx) = trimmed.find("&&") {
+        let left = trimmed[..idx].trim();
+        let right = trimmed[idx + 2..].trim();
+
+        match try_constant_fold_full(left) {
+            ConstantFoldResult::Null => {
+                // null && anything => null
+                return ConstantFoldResult::Null;
+            }
+            ConstantFoldResult::Constant(val) => {
+                // Check if the constant value is falsy
+                if is_constant_falsy(&val) {
+                    // false && anything => false, 0 && anything => 0, '' && anything => ''
+                    return ConstantFoldResult::Constant(val);
+                }
+                // Truthy left side, result is right side
+                return try_constant_fold_full(right);
+            }
+            ConstantFoldResult::Dynamic => {}
+        }
+    }
+
+    // Handle || operator: if left is known and truthy, result is left's value
+    if let Some(idx) = trimmed.find("||") {
+        // Make sure it's not inside ?? (e.g., a ?? b || c)
+        let left = trimmed[..idx].trim();
+        let right = trimmed[idx + 2..].trim();
+
+        match try_constant_fold_full(left) {
+            ConstantFoldResult::Null => {
+                // null || anything => anything
+                return try_constant_fold_full(right);
+            }
+            ConstantFoldResult::Constant(val) => {
+                if is_constant_falsy(&val) {
+                    // falsy || anything => anything
+                    return try_constant_fold_full(right);
+                }
+                // Truthy left side, result is left
+                return ConstantFoldResult::Constant(val);
+            }
+            ConstantFoldResult::Dynamic => {}
+        }
+    }
+
     if let Some(idx) = trimmed.find("??") {
         let left = trimmed[..idx].trim();
         let right = trimmed[idx + 2..].trim();
@@ -375,6 +421,12 @@ pub(crate) fn try_constant_fold_full(expr: &str) -> ConstantFoldResult {
     }
 
     ConstantFoldResult::Dynamic
+}
+
+/// Check if a constant folded value is falsy in JavaScript.
+/// This is for string representations of constant values.
+fn is_constant_falsy(val: &str) -> bool {
+    val.is_empty() || val == "0" || val == "false" || val == "NaN"
 }
 
 fn eval_math_expr(expr: &str) -> Option<String> {

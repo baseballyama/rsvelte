@@ -647,7 +647,8 @@ fn process_regular_attribute(
         let result = build_attribute_value(&attr.value, context, |value, _metadata| value);
 
         // Check if this value needs memoization
-        let has_call = super::utils::expression_has_call(&get_original_expression(&attr.value));
+        let has_call =
+            super::utils::expression_has_call(&get_original_expression(&attr.value), context);
         let _has_await = false; // TODO: detect await
 
         // For CSS props, memoization happens when there's a call with state
@@ -697,7 +698,8 @@ fn process_regular_attribute(
     // - memoize_if_state is true AND has_state is true (complex stateful expressions)
     // Note: Pure function calls with literal arguments (like encodeURIComponent('hello'))
     // are NOT memoized because they have no state dependencies.
-    let has_call = super::utils::expression_has_call(&get_original_expression(&attr.value));
+    let has_call =
+        super::utils::expression_has_call(&get_original_expression(&attr.value), context);
     let has_await = false; // TODO: detect await
     let should_memoize =
         (has_call && result.has_state) || has_await || (memoize_if_state && result.has_state);
@@ -1081,6 +1083,29 @@ fn process_bind_directive(
                     b::member_path("$.mutate"),
                     vec![b::id(&root_name), assignment],
                 ))]
+            }
+        } else if matches!(&raw_expression, JsExpr::Member(_)) {
+            // For member expressions where the root has a transform registered
+            // (e.g., {@const obj = ...} where obj needs $.get()), use transformed_expression.
+            // Extract root name and check if it has a read transform.
+            let mut root = &raw_expression;
+            while let JsExpr::Member(m) = root {
+                root = &m.object;
+            }
+            let has_transform = if let JsExpr::Identifier(name) = root {
+                context
+                    .state
+                    .transform
+                    .get(name)
+                    .is_some_and(|t| t.read.is_some())
+            } else {
+                false
+            };
+            if has_transform {
+                let assignment = b::assign(transformed_expression.clone(), b::id("$$value"));
+                vec![b::stmt(assignment)]
+            } else {
+                vec![b::stmt(b::assign(raw_expression.clone(), b::id("$$value")))]
             }
         } else {
             vec![b::stmt(b::assign(raw_expression.clone(), b::id("$$value")))]

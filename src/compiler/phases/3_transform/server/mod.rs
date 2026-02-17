@@ -237,6 +237,8 @@ impl<'a> ServerCodeGenerator<'a> {
     /// Handles: $state.eager(x) -> x, $state.snapshot(x) -> $.snapshot(x),
     ///          $effect.tracking() -> false, $effect.pending() -> false
     pub(crate) fn transform_rune_in_template_expr(expr: &str) -> String {
+        use crate::compiler::phases::phase3_transform::server::transform_script::remove_effect_blocks;
+
         let mut result = expr.to_string();
         // $state.eager(x) -> x (unwrap the rune call)
         if result.contains("$state.eager(") {
@@ -253,6 +255,16 @@ impl<'a> ServerCodeGenerator<'a> {
         // $effect.pending() -> false
         if result.contains("$effect.pending()") {
             result = result.replace("$effect.pending()", "false");
+        }
+        // Remove $effect(), $effect.pre(), $effect.root(), $inspect(), $inspect.trace() blocks
+        // These are client-side only and should be stripped in SSR template expressions too
+        if result.contains("$effect(")
+            || result.contains("$effect.pre(")
+            || result.contains("$effect.root(")
+            || result.contains("$inspect(")
+            || result.contains("$inspect.trace(")
+        {
+            result = remove_effect_blocks(&result);
         }
         result
     }

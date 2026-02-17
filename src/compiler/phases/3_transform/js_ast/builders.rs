@@ -341,10 +341,19 @@ pub fn unthunk(expr: JsExpr) -> JsExpr {
         return expr;
     };
 
-    // Callee must be an identifier
-    let JsExpr::Identifier(callee_name) = call.callee.as_ref() else {
-        return expr;
+    // Callee must be an identifier, or a member expression on the `$` namespace.
+    // In the official Svelte compiler, dotted paths like '$.effect_tracking' are
+    // represented as Identifier nodes. In our AST, they are MemberExpression nodes.
+    // We allow unthunking for `$.xxx` member expressions since these are stable
+    // references to the Svelte runtime.
+    let callee_is_static = match call.callee.as_ref() {
+        JsExpr::Identifier(_) => true,
+        JsExpr::Member(m) => matches!(m.object.as_ref(), JsExpr::Identifier(name) if name == "$"),
+        _ => false,
     };
+    if !callee_is_static {
+        return expr;
+    }
 
     // Check that params match arguments exactly
     // e.g., (a, b) => func(a, b) -> func
@@ -369,7 +378,7 @@ pub fn unthunk(expr: JsExpr) -> JsExpr {
     }
 
     // Optimization applies: return just the callee
-    JsExpr::Identifier(callee_name.clone())
+    call.callee.as_ref().clone()
 }
 
 /// Check if a JsExpr contains any AwaitExpression (not crossing function boundaries).

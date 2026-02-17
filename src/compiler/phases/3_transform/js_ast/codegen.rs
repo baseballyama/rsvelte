@@ -89,8 +89,9 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     // since the blank line rules depend on the line structure (e.g. `}` → statement)
     let code = collapse_single_statement_ifs(code);
     let code = add_blank_lines_for_formatting(code);
-    // Note: oxc codegen escapes </script> to <\/script> in template literals for HTML safety,
-    // and Svelte's output does the same, so we keep this escaping.
+    // OXC codegen escapes </script> to <\/script> in template literals for HTML safety,
+    // but the official Svelte compiler does NOT do this escaping, so we reverse it.
+    let code = code.replace("<\\/script>", "</script>");
     // oxc codegen outputs numbers like .5 instead of 0.5 - add leading zeros
     let code = add_leading_zeros(code);
     // OXC codegen outputs numbers like 2e3 instead of 2000 - expand scientific notation
@@ -2404,7 +2405,7 @@ impl JsCodegen {
     fn emit_member_expression(&mut self, member: &JsMemberExpression) {
         let needs_parens = matches!(
             member.object.as_ref(),
-            JsExpr::Literal(JsLiteral::Number(_))
+            JsExpr::Literal(JsLiteral::Number(_)) | JsExpr::Literal(JsLiteral::String(_))
         );
         if needs_parens {
             self.output.push('(');

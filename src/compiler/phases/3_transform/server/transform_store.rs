@@ -271,6 +271,34 @@ pub(crate) fn transform_binding_setter(var_name: &str, store_subs: &[(&str, &str
     format!("{} = $$value", var_name)
 }
 
+/// Resolve getter/setter expressions for a binding.
+/// For Simple bindings, uses transform_binding_getter/setter.
+/// For SequenceExpression bindings, uses bind_get()/bind_set($$value) variables.
+pub(crate) fn resolve_binding_exprs<'a>(
+    binding: &'a super::types::ComponentBinding,
+    store_subs: &[(&str, &str)],
+) -> (&'a str, String, String) {
+    match binding {
+        super::types::ComponentBinding::Simple {
+            prop_name,
+            var_name,
+        } => (
+            prop_name.as_str(),
+            transform_binding_getter(var_name, store_subs),
+            transform_binding_setter(var_name, store_subs),
+        ),
+        super::types::ComponentBinding::SequenceExpression {
+            prop_name,
+            getter_expr: _,
+            setter_expr: _,
+        } => (
+            prop_name.as_str(),
+            "bind_get()".to_string(),
+            "bind_set($$value)".to_string(),
+        ),
+    }
+}
+
 /// Transform store assignments in script content for server-side rendering.
 pub(crate) fn transform_store_assignments(script: &str) -> String {
     use regex::Regex;

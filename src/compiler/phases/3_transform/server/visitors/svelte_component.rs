@@ -61,6 +61,10 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
                 Attribute::BindDirective(bind) => {
                     let bind_name = bind.name.as_str();
+                    // Skip bind:this on server - it's a DOM reference only needed client-side
+                    if bind_name == "this" {
+                        continue;
+                    }
                     let expr_start = bind.expression.start().unwrap_or(0) as usize;
                     let expr_end = bind.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {
@@ -107,6 +111,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 slot_names,
                 dynamic: true,
                 let_directives: component_let_directives,
+                css_custom_props: Vec::new(),
             });
         } else {
             self.output_parts.push(OutputPart::ComponentWithBindings {
@@ -116,6 +121,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 has_prior_content: true,
                 children,
                 dynamic: true,
+                css_custom_props: Vec::new(),
             });
         }
 
@@ -155,6 +161,10 @@ impl<'a> ServerCodeGenerator<'a> {
                 }
                 Attribute::BindDirective(bind) => {
                     let bind_name = bind.name.as_str();
+                    // Skip bind:this on server - it's a DOM reference only needed client-side
+                    if bind_name == "this" {
+                        continue;
+                    }
                     let expr_start = bind.expression.start().unwrap_or(0) as usize;
                     let expr_end = bind.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {
@@ -200,6 +210,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 slot_names,
                 dynamic: false,
                 let_directives: component_let_directives,
+                css_custom_props: Vec::new(),
             });
         } else {
             self.output_parts.push(OutputPart::ComponentWithBindings {
@@ -209,6 +220,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 has_prior_content: true,
                 children,
                 dynamic: false,
+                css_custom_props: Vec::new(),
             });
         }
 

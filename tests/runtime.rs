@@ -116,9 +116,9 @@ fn compare_js_debug(actual: &str, expected: &str, test_name: &str) -> bool {
     let normalized_actual = normalize_js(actual);
     let normalized_expected = normalize_js(expected);
     let passed = normalized_actual == normalized_expected;
-    if !passed && test_name == "reactive-statement-indirect" {
-        eprintln!("DEBUG NORMALIZED EXPECTED: {}", normalized_expected);
-        eprintln!("DEBUG NORMALIZED ACTUAL  : {}", normalized_actual);
+    if !passed && std::env::var("DEBUG_TEST").ok().as_deref() == Some(test_name) {
+        eprintln!("NORM_EXP: {}", normalized_expected);
+        eprintln!("NORM_ACT: {}", normalized_actual);
     }
     passed
 }

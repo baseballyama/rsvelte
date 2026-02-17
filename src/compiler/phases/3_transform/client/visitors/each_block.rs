@@ -582,13 +582,25 @@ fn get_collection_id_if_needed(node: &EachBlock, context: &ComponentContext) -> 
         declared_names.push(index_name.to_string());
     }
 
-    if let Some(parent_idx) = context.state.scope.parent {
-        for name in &declared_names {
-            for binding in &context.state.scope_root.bindings {
-                if &binding.name == name && binding.scope_index == parent_idx {
-                    return Some("$$array".to_string());
-                }
-            }
+    // Check if any name declared in the each block's inner scope shadows a name
+    // from an outer scope. This matches the official compiler:
+    //   for (const [name] of context.state.scope.declarations) {
+    //       if (context.state.scope.parent?.get(name) != null) {
+    //           collection_id = context.state.scope.root.unique('$$array');
+    //           break;
+    //       }
+    //   }
+    //
+    // Since we don't track the each block's scope separately in the transform,
+    // we check if the declared name has a transform registered (meaning it's a
+    // reactive variable from an outer scope that would be affected by shadowing).
+    // Check if any name declared in the each block's context pattern shadows
+    // a name from an outer scope. We check if the name has a registered transform
+    // (covers state/derived/store variables) OR if it exists in the root scope
+    // declarations AND is NOT the item/index pattern from this same each block.
+    for name in &declared_names {
+        if context.state.transform.contains_key(name.as_str()) {
+            return Some("$$array".to_string());
         }
     }
 

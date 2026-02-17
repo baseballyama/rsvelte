@@ -88,6 +88,11 @@ impl Template {
 
     /// Push a new element onto the template.
     pub fn push_element(&mut self, name: String, start: u32) {
+        // Track if the template contains a <script> tag
+        if name == "script" {
+            self.contains_script_tag = true;
+        }
+
         let element = Element {
             node_type: "element",
             name,

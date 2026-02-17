@@ -155,27 +155,36 @@ impl<'a> ServerCodeGenerator<'a> {
         }
 
         // Find first and last meaningful content
+        // Skip whitespace-only text nodes and comment nodes when trimming
         let mut start_idx = 0;
         let mut end_idx = len;
 
         while start_idx < len {
-            if let TemplateNode::Text(text) = nodes[start_idx]
-                && text.data.trim().is_empty()
-            {
-                start_idx += 1;
-                continue;
+            match nodes[start_idx] {
+                TemplateNode::Text(text) if text.data.trim().is_empty() => {
+                    start_idx += 1;
+                    continue;
+                }
+                TemplateNode::Comment(_) => {
+                    start_idx += 1;
+                    continue;
+                }
+                _ => break,
             }
-            break;
         }
 
         while end_idx > start_idx {
-            if let TemplateNode::Text(text) = nodes[end_idx - 1]
-                && text.data.trim().is_empty()
-            {
-                end_idx -= 1;
-                continue;
+            match nodes[end_idx - 1] {
+                TemplateNode::Text(text) if text.data.trim().is_empty() => {
+                    end_idx -= 1;
+                    continue;
+                }
+                TemplateNode::Comment(_) => {
+                    end_idx -= 1;
+                    continue;
+                }
+                _ => break,
             }
-            break;
         }
 
         // Check if there's any meaningful content

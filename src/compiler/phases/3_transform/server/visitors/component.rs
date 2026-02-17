@@ -38,11 +38,66 @@ impl<'a> ServerCodeGenerator<'a> {
         let mut props_and_spreads: Vec<ComponentPropItem> =
             Vec::with_capacity(component.attributes.len());
         let mut bindings = Vec::with_capacity(2);
+        // CSS custom properties (attributes starting with `--`) are extracted and
+        // used to wrap the component call in $.css_props()
+        let mut css_custom_props: Vec<(String, String)> = Vec::new();
 
         for attr in &component.attributes {
             match attr {
                 Attribute::Attribute(node) => {
                     let name = node.name.as_str();
+                    // CSS custom properties (e.g., --color="red") are handled separately
+                    if name.starts_with("--") {
+                        let value = match &node.value {
+                            AttributeValue::Expression(expr_tag) => {
+                                let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                                let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                                if expr_end > expr_start && expr_end <= self.source.len() {
+                                    self.source[expr_start..expr_end].trim().to_string()
+                                } else {
+                                    "''".to_string()
+                                }
+                            }
+                            AttributeValue::Sequence(parts) => {
+                                // Handle text values like --color="red"
+                                let mut value_str = String::new();
+                                let mut has_expression = false;
+                                for part in parts {
+                                    match part {
+                                        crate::ast::template::AttributeValuePart::Text(text) => {
+                                            value_str.push_str(&text.data);
+                                        }
+                                        crate::ast::template::AttributeValuePart::ExpressionTag(
+                                            expr_tag,
+                                        ) => {
+                                            has_expression = true;
+                                            let expr_start =
+                                                expr_tag.expression.start().unwrap_or(0) as usize;
+                                            let expr_end =
+                                                expr_tag.expression.end().unwrap_or(0) as usize;
+                                            if expr_end > expr_start
+                                                && expr_end <= self.source.len()
+                                            {
+                                                value_str.push_str("${$.stringify(");
+                                                value_str.push_str(
+                                                    self.source[expr_start..expr_end].trim(),
+                                                );
+                                                value_str.push_str(")}");
+                                            }
+                                        }
+                                    }
+                                }
+                                if has_expression {
+                                    format!("`{}`", value_str)
+                                } else {
+                                    format!("'{}'", value_str)
+                                }
+                            }
+                            AttributeValue::True(_) => "true".to_string(),
+                        };
+                        css_custom_props.push((format!("'{}'", name), value));
+                        continue;
+                    }
                     match &node.value {
                         AttributeValue::Expression(expr_tag) => {
                             // Get expression from ExpressionTag's expression field
@@ -259,6 +314,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 slot_names,
                 dynamic: is_dynamic,
                 let_directives: component_let_directives,
+                css_custom_props,
             });
         } else {
             self.output_parts.push(OutputPart::ComponentWithBindings {
@@ -268,6 +324,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 has_prior_content,
                 children,
                 dynamic: is_dynamic,
+                css_custom_props,
             });
         }
 

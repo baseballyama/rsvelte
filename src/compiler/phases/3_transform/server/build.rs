@@ -5,7 +5,7 @@
 use super::super::js_ast::normalize_js;
 use super::ServerCodeGenerator;
 use super::helpers::*;
-use super::transform_store::{transform_binding_getter, transform_binding_setter};
+use super::transform_store::resolve_binding_exprs;
 use super::types::{
     ComponentBinding, ComponentPropItem, OutputPart, collect_all_props, has_spreads,
 };
@@ -75,7 +75,7 @@ impl<'a> ServerCodeGenerator<'a> {
             script_code,
             hoisted_imports,
             script_uses_props,
-            has_class_state_fields,
+            _has_class_state_fields,
             uses_props_spread,
         ) = if let Some(script) = self.instance_script {
             let start = script.content.start().unwrap_or(0) as usize;
@@ -148,23 +148,24 @@ impl<'a> ServerCodeGenerator<'a> {
         };
 
         // Determine if we need $$renderer.component() wrapper
-        // This matches the official compiler's should_inject_context logic
+        // This matches the official compiler's should_inject_context logic (line 259):
+        //   should_inject_context = dev || analysis.needs_context
+        // We don't have dev mode, so just needs_context.
+        // Note: uses_props_spread also needs the wrapper for destructuring.
         let should_inject_context = needs_context;
-        let needs_component_wrapper = should_inject_context
-            || uses_props_spread
-            || has_class_state_fields
-            || self.uses_store_subs;
+        let needs_component_wrapper = should_inject_context || uses_props_spread;
 
         // Determine if we need $$props parameter
-        // This matches the official compiler's should_inject_props logic
+        // This matches the official compiler's should_inject_props logic (lines 306-313):
+        //   should_inject_context || props.length > 0 || analysis.needs_props ||
+        //   analysis.uses_props || analysis.uses_rest_props || analysis.uses_slots ||
+        //   analysis.slot_names.size > 0
         let should_inject_props = should_inject_context
             || analysis_needs_props
             || analysis_uses_props
             || analysis_uses_rest_props
             || analysis_uses_slots
-            || script_uses_props
-            || has_class_state_fields
-            || self.uses_store_subs;
+            || script_uses_props;
 
         let props_param = if should_inject_props { ", $$props" } else { "" };
 
@@ -303,6 +304,19 @@ export default function {component_name}($$renderer{props_param}) {{
                 // Build $.bind_props() call (at top level of component function)
                 let bind_props_code = self.build_bind_props(1);
 
+                // Add store subscription variable declaration and cleanup if needed
+                // In the non-wrapper path, these go directly in the function body
+                let store_subs_decl = if self.uses_store_subs {
+                    "\tvar $$store_subs;\n"
+                } else {
+                    ""
+                };
+                let store_subs_cleanup = if self.uses_store_subs {
+                    "\n\tif ($$store_subs) $.unsubscribe_stores($$store_subs);\n"
+                } else {
+                    ""
+                };
+
                 // If the component uses component bindings, wrap the body in $$render_inner loop
                 let body_section = if uses_component_bindings {
                     // Wrap body_code in $$settled/$$render_inner pattern
@@ -331,7 +345,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     r#"{async_import}import * as $ from 'svelte/internal/server';
 {imports_section}{snippets_section}{css_const_section}{module_section}
 export default function {component_name}($$renderer{props_param}) {{
-{css_add_call}{props_declarations}{script_section}{instance_snippets}{body_section}{bind_props_code}}}"#,
+{css_add_call}{props_declarations}{store_subs_decl}{script_section}{instance_snippets}{body_section}{store_subs_cleanup}{bind_props_code}}}"#,
                     async_import = async_import,
                     imports_section = imports_section,
                     snippets_section = snippets_section,
@@ -341,9 +355,11 @@ export default function {component_name}($$renderer{props_param}) {{
                     props_param = props_param,
                     css_add_call = css_add_call,
                     props_declarations = props_declarations,
+                    store_subs_decl = store_subs_decl,
                     script_section = script_section,
                     instance_snippets = instance_snippets,
                     body_section = body_section,
+                    store_subs_cleanup = store_subs_cleanup,
                     bind_props_code = bind_props_code
                 )
             }
@@ -428,9 +444,35 @@ export default function {component_name}($$renderer{props_param}) {{
                     has_prior_content,
                     children: _, // TODO: Handle children for components with bindings
                     dynamic,
+                    css_custom_props: _, // TODO: Handle CSS custom props for components with bindings
                 } => {
                     // Component with bindings - just generate the component call with getter/setters.
                     // The $$settled/$$render_inner loop is handled at the component level in build().
+
+                    // For SequenceExpression bindings, declare bind_get/bind_set variables
+                    // These must be declared BEFORE any HTML flush (hoisted to top of block)
+                    let has_seq_bindings = bindings
+                        .iter()
+                        .any(|b| matches!(b, ComponentBinding::SequenceExpression { .. }));
+                    if has_seq_bindings {
+                        for binding in bindings.iter() {
+                            if let ComponentBinding::SequenceExpression {
+                                prop_name: _,
+                                getter_expr,
+                                setter_expr,
+                            } = binding
+                            {
+                                body_code.push_str(&format!(
+                                    "{}var bind_get = {};\n\n",
+                                    indent, getter_expr
+                                ));
+                                body_code.push_str(&format!(
+                                    "{}var bind_set = {};\n\n",
+                                    indent, setter_expr
+                                ));
+                            }
+                        }
+                    }
 
                     // Flush any prior HTML content (with dynamic marker if needed)
                     if !current_html.is_empty() {
@@ -482,21 +524,10 @@ export default function {component_name}($$renderer{props_param}) {{
 
                         let binding_count = bindings.len();
                         for (idx, binding) in bindings.iter().enumerate() {
-                            let (prop_name, getter_expr, setter_expr) = match binding {
-                                ComponentBinding::Simple {
-                                    prop_name,
-                                    var_name,
-                                } => (
-                                    prop_name.as_str(),
-                                    transform_binding_getter(var_name, store_subs),
-                                    transform_binding_setter(var_name, store_subs),
-                                ),
-                                ComponentBinding::SequenceExpression {
-                                    prop_name,
-                                    getter_expr,
-                                    setter_expr,
-                                } => (prop_name.as_str(), getter_expr.clone(), setter_expr.clone()),
-                            };
+                            let (prop_name, getter_expr, setter_expr) =
+                                resolve_binding_exprs(binding, store_subs);
+                            let is_seq =
+                                matches!(binding, ComponentBinding::SequenceExpression { .. });
                             body_code.push_str(&format!("{}\t\tget {}() {{\n", indent, prop_name));
                             body_code
                                 .push_str(&format!("{}\t\t\treturn {};\n", indent, getter_expr));
@@ -506,7 +537,10 @@ export default function {component_name}($$renderer{props_param}) {{
                                 indent, prop_name
                             ));
                             body_code.push_str(&format!("{}\t\t\t{};\n", indent, setter_expr));
-                            body_code.push_str(&format!("{}\t\t\t$$settled = false;\n", indent));
+                            if !is_seq {
+                                body_code
+                                    .push_str(&format!("{}\t\t\t$$settled = false;\n", indent));
+                            }
                             if idx < binding_count - 1 {
                                 body_code.push_str(&format!("{}\t\t}},\n\n", indent));
                             } else {
@@ -532,28 +566,19 @@ export default function {component_name}($$renderer{props_param}) {{
                         // Generate getter/setter for each binding
                         let binding_count = bindings.len();
                         for (idx, binding) in bindings.iter().enumerate() {
-                            let (prop_name, getter_expr, setter_expr) = match binding {
-                                ComponentBinding::Simple {
-                                    prop_name,
-                                    var_name,
-                                } => (
-                                    prop_name.as_str(),
-                                    transform_binding_getter(var_name, store_subs),
-                                    transform_binding_setter(var_name, store_subs),
-                                ),
-                                ComponentBinding::SequenceExpression {
-                                    prop_name,
-                                    getter_expr,
-                                    setter_expr,
-                                } => (prop_name.as_str(), getter_expr.clone(), setter_expr.clone()),
-                            };
+                            let (prop_name, getter_expr, setter_expr) =
+                                resolve_binding_exprs(binding, store_subs);
+                            let is_seq =
+                                matches!(binding, ComponentBinding::SequenceExpression { .. });
                             body_code.push_str(&format!("{}\tget {}() {{\n", indent, prop_name));
                             body_code.push_str(&format!("{}\t\treturn {};\n", indent, getter_expr));
                             body_code.push_str(&format!("{}\t}},\n\n", indent));
                             body_code
                                 .push_str(&format!("{}\tset {}($$value) {{\n", indent, prop_name));
                             body_code.push_str(&format!("{}\t\t{};\n", indent, setter_expr));
-                            body_code.push_str(&format!("{}\t\t$$settled = false;\n", indent));
+                            if !is_seq {
+                                body_code.push_str(&format!("{}\t\t$$settled = false;\n", indent));
+                            }
                             if idx < binding_count - 1 {
                                 // Trailing comma + blank line between binding pairs
                                 body_code.push_str(&format!("{}\t}},\n\n", indent));
@@ -584,6 +609,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     slot_names,
                     dynamic,
                     let_directives,
+                    css_custom_props,
                 } => {
                     // Flush current HTML before the component call
                     // For dynamic components, add <!---->  marker before the call
@@ -612,6 +638,7 @@ export default function {component_name}($$renderer{props_param}) {{
 
                     // Use optional chaining for dynamic components
                     let call_syntax = if *dynamic { "?." } else { "" };
+                    let has_css_props = !css_custom_props.is_empty();
 
                     if has_snippets || has_children {
                         // Separate snippets into:
@@ -754,90 +781,203 @@ export default function {component_name}($$renderer{props_param}) {{
                             body_code.push_str(&format!("{}}});\n", indent));
                         } else if let Some(children_parts) = children {
                             // Component with children (default slot) and possibly named slots
-                            let all_props = collect_all_props(props_and_spreads);
                             let has_let_dirs = !let_directives.is_empty();
 
-                            body_code.push_str(&format!(
-                                "{}{}{}($$renderer, {{\n",
-                                indent, name, call_syntax
-                            ));
-
-                            // Props
-                            for prop in &all_props {
-                                body_code.push_str(&format!("{}\t{},\n", indent, prop));
-                            }
-
-                            if has_let_dirs {
-                                // Has let directives on the component:
-                                // children: $.invalid_default_snippet,
-                                // $$slots: { default: ($$renderer, { name }) => { ... }, ... }
+                            if component_has_spreads {
+                                // Has spread attributes + children - use $.spread_props
+                                // Format: Component($$renderer, $.spread_props([
+                                //   { prop1: val1 },
+                                //   spread_expr,
+                                //   { trailing_props, children: ..., $$slots: ... }
+                                // ]))
+                                // The last Props group (if any) gets merged into the
+                                // children/$$slots object instead of being a separate entry.
                                 body_code.push_str(&format!(
-                                    "{}\tchildren: $.invalid_default_snippet,\n",
-                                    indent
+                                    "{}{}{}($$renderer, $.spread_props([\n",
+                                    indent, name, call_syntax
                                 ));
 
-                                // Build $$slots with default slot function having destructured params
-                                body_code.push_str(&format!("{}\t$$slots: {{\n", indent));
+                                // Separate trailing props from the rest
+                                let trailing_props: Vec<String> =
+                                    if let Some(ComponentPropItem::Props(props)) =
+                                        props_and_spreads.last()
+                                    {
+                                        props.clone()
+                                    } else {
+                                        Vec::new()
+                                    };
 
-                                // Default slot with destructured let directive params
-                                let params_str = format!("{{ {} }}", let_directives.join(", "));
-                                body_code.push_str(&format!(
-                                    "{}\t\tdefault: ($$renderer, {}) => {{\n",
-                                    indent, params_str
-                                ));
-                                let children_code = Self::build_parts_with_store_subs(
-                                    children_parts,
-                                    indent_level + 3,
-                                    each_counter,
-                                    store_subs,
-                                );
-                                body_code.push_str(&children_code);
-                                body_code.push_str(&format!("{}\t\t}},\n", indent));
+                                let items_to_emit = if trailing_props.is_empty() {
+                                    props_and_spreads.as_slice()
+                                } else {
+                                    &props_and_spreads[..props_and_spreads.len() - 1]
+                                };
 
-                                // Named slot children
-                                for (slot_name, params, body_parts, _) in &slot_children {
-                                    let quoted_name = quote_prop_name(slot_name);
-                                    let fn_body = Self::build_parts_with_store_subs(
-                                        body_parts,
+                                // Add interleaved props and spreads in order (excluding trailing)
+                                for item in items_to_emit.iter() {
+                                    match item {
+                                        ComponentPropItem::Props(props) => {
+                                            body_code.push_str(&format!(
+                                                "{}\t{{ {} }},\n",
+                                                indent,
+                                                props.join(", ")
+                                            ));
+                                        }
+                                        ComponentPropItem::Spread(expr) => {
+                                            body_code.push_str(&format!("{}\t{},\n", indent, expr));
+                                        }
+                                    }
+                                }
+
+                                // Add final object with trailing props + children and $$slots
+                                body_code.push_str(&format!("{}\t{{\n", indent));
+
+                                // Emit trailing props into this object
+                                for prop in &trailing_props {
+                                    body_code.push_str(&format!("{}\t\t{},\n", indent, prop));
+                                }
+
+                                if has_let_dirs {
+                                    body_code.push_str(&format!(
+                                        "{}\t\tchildren: $.invalid_default_snippet,\n",
+                                        indent
+                                    ));
+
+                                    body_code.push_str(&format!("{}\t\t$$slots: {{\n", indent));
+
+                                    let params_str = format!("{{ {} }}", let_directives.join(", "));
+                                    body_code.push_str(&format!(
+                                        "{}\t\t\tdefault: ($$renderer, {}) => {{\n",
+                                        indent, params_str
+                                    ));
+                                    let children_code = Self::build_parts_with_store_subs(
+                                        children_parts,
+                                        indent_level + 4,
+                                        each_counter,
+                                        store_subs,
+                                    );
+                                    body_code.push_str(&children_code);
+                                    body_code.push_str(&format!("{}\t\t\t}},\n", indent));
+
+                                    for (slot_name, params, body_parts, _) in &slot_children {
+                                        let quoted_name = quote_prop_name(slot_name);
+                                        let fn_body = Self::build_parts_with_store_subs(
+                                            body_parts,
+                                            indent_level + 4,
+                                            each_counter,
+                                            store_subs,
+                                        );
+                                        if params.is_empty() {
+                                            body_code.push_str(&format!(
+                                                "{}\t\t\t{}: ($$renderer) => {{\n{}",
+                                                indent, quoted_name, fn_body
+                                            ));
+                                        } else {
+                                            let params_str = format!("{{ {} }}", params.join(", "));
+                                            body_code.push_str(&format!(
+                                                "{}\t\t\t{}: ($$renderer, {}) => {{\n{}",
+                                                indent, quoted_name, params_str, fn_body
+                                            ));
+                                        }
+                                        body_code.push_str(&format!("{}\t\t\t}},\n", indent));
+                                    }
+
+                                    body_code.push_str(&format!("{}\t\t}}\n", indent));
+                                } else {
+                                    // No let directives - standard children callback
+                                    body_code.push_str(&format!(
+                                        "{}\t\tchildren: ($$renderer) => {{\n",
+                                        indent
+                                    ));
+                                    let children_code = Self::build_parts_with_store_subs(
+                                        children_parts,
                                         indent_level + 3,
                                         each_counter,
                                         store_subs,
                                     );
-                                    if params.is_empty() {
-                                        body_code.push_str(&format!(
-                                            "{}\t\t{}: ($$renderer) => {{\n{}",
-                                            indent, quoted_name, fn_body
-                                        ));
+                                    body_code.push_str(&children_code);
+                                    body_code.push_str(&format!("{}\t\t}},\n", indent));
+
+                                    if has_slot_children {
+                                        body_code.push_str(&format!("{}\t\t$$slots: {{\n", indent));
+                                        body_code
+                                            .push_str(&format!("{}\t\t\tdefault: true,\n", indent));
+                                        for (slot_name, params, body_parts, _) in &slot_children {
+                                            let quoted_name = quote_prop_name(slot_name);
+                                            let fn_body = Self::build_parts_with_store_subs(
+                                                body_parts,
+                                                indent_level + 4,
+                                                each_counter,
+                                                store_subs,
+                                            );
+                                            if params.is_empty() {
+                                                body_code.push_str(&format!(
+                                                    "{}\t\t\t{}: ($$renderer) => {{\n{}",
+                                                    indent, quoted_name, fn_body
+                                                ));
+                                            } else {
+                                                let params_str =
+                                                    format!("{{ {} }}", params.join(", "));
+                                                body_code.push_str(&format!(
+                                                    "{}\t\t\t{}: ($$renderer, {}) => {{\n{}",
+                                                    indent, quoted_name, params_str, fn_body
+                                                ));
+                                            }
+                                            body_code.push_str(&format!("{}\t\t\t}},\n", indent));
+                                        }
+                                        body_code.push_str(&format!("{}\t\t}}\n", indent));
                                     } else {
-                                        let params_str = format!("{{ {} }}", params.join(", "));
                                         body_code.push_str(&format!(
-                                            "{}\t\t{}: ($$renderer, {}) => {{\n{}",
-                                            indent, quoted_name, params_str, fn_body
+                                            "{}\t\t$$slots: {{ default: true }}\n",
+                                            indent
                                         ));
                                     }
-                                    body_code.push_str(&format!("{}\t\t}},\n", indent));
                                 }
 
                                 body_code.push_str(&format!("{}\t}}\n", indent));
+                                body_code.push_str(&format!("{}]));\n", indent));
                             } else {
-                                // No let directives - standard children callback
-                                body_code.push_str(&format!(
-                                    "{}\tchildren: ($$renderer) => {{\n",
-                                    indent
-                                ));
-                                let children_code = Self::build_parts_with_store_subs(
-                                    children_parts,
-                                    indent_level + 2,
-                                    each_counter,
-                                    store_subs,
-                                );
-                                body_code.push_str(&children_code);
-                                body_code.push_str(&format!("{}\t}},\n", indent));
+                                // No spreads - use simple object literal
+                                let all_props = collect_all_props(props_and_spreads);
 
-                                // $$slots with default: true and any named slot children
-                                if has_slot_children {
+                                body_code.push_str(&format!(
+                                    "{}{}{}($$renderer, {{\n",
+                                    indent, name, call_syntax
+                                ));
+
+                                // Props
+                                for prop in &all_props {
+                                    body_code.push_str(&format!("{}\t{},\n", indent, prop));
+                                }
+
+                                if has_let_dirs {
+                                    // Has let directives on the component:
+                                    // children: $.invalid_default_snippet,
+                                    // $$slots: { default: ($$renderer, { name }) => { ... }, ... }
+                                    body_code.push_str(&format!(
+                                        "{}\tchildren: $.invalid_default_snippet,\n",
+                                        indent
+                                    ));
+
+                                    // Build $$slots with default slot function having destructured params
                                     body_code.push_str(&format!("{}\t$$slots: {{\n", indent));
-                                    body_code.push_str(&format!("{}\t\tdefault: true,\n", indent));
+
+                                    // Default slot with destructured let directive params
+                                    let params_str = format!("{{ {} }}", let_directives.join(", "));
+                                    body_code.push_str(&format!(
+                                        "{}\t\tdefault: ($$renderer, {}) => {{\n",
+                                        indent, params_str
+                                    ));
+                                    let children_code = Self::build_parts_with_store_subs(
+                                        children_parts,
+                                        indent_level + 3,
+                                        each_counter,
+                                        store_subs,
+                                    );
+                                    body_code.push_str(&children_code);
+                                    body_code.push_str(&format!("{}\t\t}},\n", indent));
+
+                                    // Named slot children
                                     for (slot_name, params, body_parts, _) in &slot_children {
                                         let quoted_name = quote_prop_name(slot_name);
                                         let fn_body = Self::build_parts_with_store_subs(
@@ -852,7 +992,6 @@ export default function {component_name}($$renderer{props_param}) {{
                                                 indent, quoted_name, fn_body
                                             ));
                                         } else {
-                                            // Destructured params from let directives
                                             let params_str = format!("{{ {} }}", params.join(", "));
                                             body_code.push_str(&format!(
                                                 "{}\t\t{}: ($$renderer, {}) => {{\n{}",
@@ -861,16 +1000,63 @@ export default function {component_name}($$renderer{props_param}) {{
                                         }
                                         body_code.push_str(&format!("{}\t\t}},\n", indent));
                                     }
+
                                     body_code.push_str(&format!("{}\t}}\n", indent));
                                 } else {
-                                    // Only default slot
+                                    // No let directives - standard children callback
                                     body_code.push_str(&format!(
-                                        "{}\t$$slots: {{ default: true }}\n",
+                                        "{}\tchildren: ($$renderer) => {{\n",
                                         indent
                                     ));
+                                    let children_code = Self::build_parts_with_store_subs(
+                                        children_parts,
+                                        indent_level + 2,
+                                        each_counter,
+                                        store_subs,
+                                    );
+                                    body_code.push_str(&children_code);
+                                    body_code.push_str(&format!("{}\t}},\n", indent));
+
+                                    // $$slots with default: true and any named slot children
+                                    if has_slot_children {
+                                        body_code.push_str(&format!("{}\t$$slots: {{\n", indent));
+                                        body_code
+                                            .push_str(&format!("{}\t\tdefault: true,\n", indent));
+                                        for (slot_name, params, body_parts, _) in &slot_children {
+                                            let quoted_name = quote_prop_name(slot_name);
+                                            let fn_body = Self::build_parts_with_store_subs(
+                                                body_parts,
+                                                indent_level + 3,
+                                                each_counter,
+                                                store_subs,
+                                            );
+                                            if params.is_empty() {
+                                                body_code.push_str(&format!(
+                                                    "{}\t\t{}: ($$renderer) => {{\n{}",
+                                                    indent, quoted_name, fn_body
+                                                ));
+                                            } else {
+                                                // Destructured params from let directives
+                                                let params_str =
+                                                    format!("{{ {} }}", params.join(", "));
+                                                body_code.push_str(&format!(
+                                                    "{}\t\t{}: ($$renderer, {}) => {{\n{}",
+                                                    indent, quoted_name, params_str, fn_body
+                                                ));
+                                            }
+                                            body_code.push_str(&format!("{}\t\t}},\n", indent));
+                                        }
+                                        body_code.push_str(&format!("{}\t}}\n", indent));
+                                    } else {
+                                        // Only default slot
+                                        body_code.push_str(&format!(
+                                            "{}\t$$slots: {{ default: true }}\n",
+                                            indent
+                                        ));
+                                    }
                                 }
+                                body_code.push_str(&format!("{}}});\n", indent));
                             }
-                            body_code.push_str(&format!("{}}});\n", indent));
                         }
                     } else if component_has_spreads {
                         // Has spread attributes - use $.spread_props with interleaved items
@@ -893,7 +1079,35 @@ export default function {component_name}($$renderer{props_param}) {{
                     } else {
                         // No children, no snippets, no spreads - simple call
                         let all_props = collect_all_props(props_and_spreads);
-                        if all_props.is_empty() {
+
+                        if has_css_props {
+                            // Wrap component call in $.css_props()
+                            let css_props_str = css_custom_props
+                                .iter()
+                                .map(|(name, value)| format!("{}: {}", name, value))
+                                .collect::<Vec<_>>()
+                                .join(", ");
+                            let inner_indent = format!("{}\t", indent);
+                            body_code.push_str(&format!(
+                                "\n{}$.css_props($$renderer, true, {{ {} }}, () => {{\n",
+                                indent, css_props_str
+                            ));
+                            if all_props.is_empty() {
+                                body_code.push_str(&format!(
+                                    "{}{}{}($$renderer, {{}});\n",
+                                    inner_indent, name, call_syntax
+                                ));
+                            } else {
+                                body_code.push_str(&format!(
+                                    "{}{}{}($$renderer, {{ {} }});\n",
+                                    inner_indent,
+                                    name,
+                                    call_syntax,
+                                    all_props.join(", ")
+                                ));
+                            }
+                            body_code.push_str(&format!("{}}});\n", indent));
+                        } else if all_props.is_empty() {
                             body_code.push_str(&format!(
                                 "{}{}{}($$renderer, {{}});\n",
                                 indent, name, call_syntax
@@ -909,35 +1123,39 @@ export default function {component_name}($$renderer{props_param}) {{
                         }
                     }
 
-                    // Check if there's content after this component
-                    let has_content_after = parts[i + 1..].iter().any(|p| {
-                        matches!(
-                            p,
-                            OutputPart::Html(h) if !h.trim().is_empty()
-                        ) || matches!(
-                            p,
-                            OutputPart::Expression(_)
-                                | OutputPart::RawExpression(_)
-                                | OutputPart::HtmlExpression(_)
-                                | OutputPart::Component { .. }
-                                | OutputPart::EachBlock { .. }
-                                | OutputPart::IfBlock { .. }
-                                | OutputPart::AwaitBlock { .. }
-                                | OutputPart::SvelteBoundary { .. }
-                                | OutputPart::SvelteHead { .. }
-                                | OutputPart::TitleElement { .. }
-                                | OutputPart::RenderCall { .. }
-                        )
-                    });
+                    // For dynamic components, ALWAYS add <!---->  marker after
+                    // the call (it's a hydration boundary). For static components,
+                    // add only if there's surrounding content.
+                    // When CSS custom props are present, skip the marker
+                    // ($.css_props handles its own boundaries).
+                    if !has_css_props {
+                        if *dynamic {
+                            current_html.push_str("<!---->");
+                        } else {
+                            let has_content_after = parts[i + 1..].iter().any(|p| {
+                                matches!(
+                                    p,
+                                    OutputPart::Html(h) if !h.trim().is_empty()
+                                ) || matches!(
+                                    p,
+                                    OutputPart::Expression(_)
+                                        | OutputPart::RawExpression(_)
+                                        | OutputPart::HtmlExpression(_)
+                                        | OutputPart::Component { .. }
+                                        | OutputPart::EachBlock { .. }
+                                        | OutputPart::IfBlock { .. }
+                                        | OutputPart::AwaitBlock { .. }
+                                        | OutputPart::SvelteBoundary { .. }
+                                        | OutputPart::SvelteHead { .. }
+                                        | OutputPart::TitleElement { .. }
+                                        | OutputPart::RenderCall { .. }
+                                )
+                            });
 
-                    // Add marker after component if:
-                    // - There's content before (has_prior_content), OR
-                    // - There's content after
-                    // This matches the official Svelte compiler behavior when
-                    // skip_hydration_boundaries is false (which is true when
-                    // the fragment is NOT standalone)
-                    if *has_prior_content || has_content_after {
-                        current_html.push_str("<!---->");
+                            if *has_prior_content || has_content_after {
+                                current_html.push_str("<!---->");
+                            }
+                        }
                     }
                 }
                 OutputPart::Comment => {

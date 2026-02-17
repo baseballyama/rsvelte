@@ -290,7 +290,9 @@ pub fn build_event_handler(
     // Check if it's an identifier
     if let JsExpr::Identifier(name) = &js_expr {
         // Check if this identifier refers to a function in the scope
-        if let Some(binding) = context.state.get_binding(name) {
+        let binding = context.state.get_binding(name);
+
+        if let Some(binding) = &binding {
             use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 
             // If it's a function binding, use it as-is
@@ -298,12 +300,18 @@ pub fn build_event_handler(
                 // TODO: Check if binding.is_function() - for now, assume it is
                 return js_expr;
             }
+        }
 
-            // If not in dev mode and it's a local variable (not import), use as-is
-            use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
-            if !context.state.dev && binding.declaration_kind != DeclarationKind::Import {
-                return js_expr;
-            }
+        // If not in dev mode and it's not an import, use as-is.
+        // When binding is None (e.g. `undefined`), declaration_kind check
+        // trivially passes (matches JS optional chaining: binding?.declaration_kind !== 'import').
+        use crate::compiler::phases::phase2_analyze::scope::DeclarationKind;
+        if !context.state.dev
+            && binding
+                .as_ref()
+                .is_none_or(|b| b.declaration_kind != DeclarationKind::Import)
+        {
+            return js_expr;
         }
     }
 

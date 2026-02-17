@@ -798,7 +798,7 @@ fn build_style_attribute_value_with_memoization(
         AttributeValue::Expression(expr_tag) => {
             // Single expression value
             let converted = convert_expression(&expr_tag.expression, context);
-            let has_call = super::utils::expression_has_call(&expr_tag.expression);
+            let has_call = super::utils::expression_has_call(&expr_tag.expression, context);
             let has_state =
                 super::utils::expression_has_reactive_state(&expr_tag.expression, context);
 
@@ -837,7 +837,8 @@ fn build_style_attribute_value_with_memoization(
 
                         // Convert and build the expression
                         let converted = convert_expression(&expr_tag.expression, context);
-                        let has_call = super::utils::expression_has_call(&expr_tag.expression);
+                        let has_call =
+                            super::utils::expression_has_call(&expr_tag.expression, context);
                         let expr_has_state = super::utils::expression_has_reactive_state(
                             &expr_tag.expression,
                             context,
@@ -992,7 +993,7 @@ pub fn build_attribute_effect(
                     super::utils::apply_transforms_to_expression(&spread_expr, context);
 
                 // Check if the spread expression has function calls or reactive state
-                let has_call = super::utils::expression_has_call(&spread.expression);
+                let has_call = super::utils::expression_has_call(&spread.expression, context);
                 let has_state =
                     super::utils::expression_has_reactive_state(&spread.expression, context);
 

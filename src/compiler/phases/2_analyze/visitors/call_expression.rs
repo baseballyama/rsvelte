@@ -425,24 +425,19 @@ fn get_global_keypath(node: &Value, context: &VisitorContext) -> Option<String> 
 
     let name = n.get("name").and_then(|n| n.as_str())?;
 
-    // Check if it's a binding (if so, it's not a rune)
-    if context.analysis.root.scope.declarations.contains_key(name) {
+    // Check if it's a binding (if so, it's not a rune/global)
+    // This matches the official Svelte compiler's get_global_keypath in scope.js (L1408-1409):
+    //   const binding = scope.get(n.name);
+    //   if (binding !== null) return null;
+    //
+    // We check if the EXACT name (e.g., "$derived") has a binding.
+    // We do NOT check the unprefixed name (e.g., "derived") here - that check is
+    // handled by detect_store_subscriptions which creates StoreSub bindings when appropriate.
+    // Checking the unprefixed name here would incorrectly treat runes as non-runes when
+    // the unprefixed name is imported (e.g., `import { derived } from 'svelte/store'`
+    // should not prevent `$derived()` from being treated as a rune).
+    if context.analysis.root.find_binding_any_scope(name).is_some() {
         return None;
-    }
-
-    // For rune-like identifiers (e.g., $state), also check if the non-$ version is bound
-    // If so, it's a store subscription, not a rune
-    if name.starts_with('$') && name.len() > 1 {
-        let store_name = &name[1..];
-        if context
-            .analysis
-            .root
-            .scope
-            .declarations
-            .contains_key(store_name)
-        {
-            return None;
-        }
     }
 
     Some(format!("{}{}", name, joined))
