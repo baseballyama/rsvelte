@@ -206,6 +206,7 @@ impl<'a> ComponentContext<'a> {
             Attribute, ClassDirective, LetDirective, OnDirective, StyleDirective,
             TransitionDirective, UseDirective,
         };
+        use crate::compiler::phases::phase3_transform::client::visitors::attach_tag::attach_tag;
         use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
         use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment as visit_fragment_impl;
         use crate::compiler::phases::phase3_transform::client::visitors::shared::element::build_attribute_effect;
@@ -224,10 +225,24 @@ impl<'a> ComponentContext<'a> {
         let mut transition_directives: Vec<TransitionDirective> = Vec::new();
         let mut use_directives: Vec<UseDirective> = Vec::new();
         let mut let_directives: Vec<LetDirective> = Vec::new();
+        let mut attach_tags: Vec<crate::ast::template::AttachTag> = Vec::new();
+        let mut dynamic_namespace: Option<crate::ast::template::AttributeValue> = None;
 
         for attribute in &elem.attributes {
             match attribute {
-                Attribute::Attribute(_) | Attribute::SpreadAttribute(_) => {
+                Attribute::Attribute(attr_node) => {
+                    // Check for xmlns attribute that is not a text attribute
+                    if attr_node.name.as_str() == "xmlns" {
+                        use crate::ast::template::{AttributeValue, AttributeValuePart};
+                        let is_text = matches!(&attr_node.value, AttributeValue::Sequence(parts)
+                            if parts.len() == 1 && matches!(parts.first(), Some(AttributeValuePart::Text(_))));
+                        if !is_text {
+                            dynamic_namespace = Some(attr_node.value.clone());
+                        }
+                    }
+                    attributes.push(attribute.clone());
+                }
+                Attribute::SpreadAttribute(_) => {
                     attributes.push(attribute.clone());
                 }
                 Attribute::ClassDirective(dir) => {
@@ -247,6 +262,9 @@ impl<'a> ComponentContext<'a> {
                 }
                 Attribute::LetDirective(dir) => {
                     let_directives.push(dir.clone());
+                }
+                Attribute::AttachTag(tag) => {
+                    attach_tags.push(tag.clone());
                 }
                 _ => {}
             }
@@ -320,6 +338,22 @@ impl<'a> ComponentContext<'a> {
             inner_init.push(stmt);
 
             // Restore node
+            self.state.node = saved_node;
+        }
+
+        // Process AttachTags
+        // In the official compiler, these go through the else branch: context.visit(attribute, inner_context.state)
+        for attach in &attach_tags {
+            let saved_node = self.state.node.clone();
+            let saved_init_len = self.state.init.len();
+
+            self.state.node = element_id.clone();
+
+            attach_tag(attach, self);
+
+            // Collect statements added by attach_tag
+            inner_init.extend(self.state.init.drain(saved_init_len..));
+
             self.state.node = saved_node;
         }
 
@@ -465,18 +499,32 @@ impl<'a> ComponentContext<'a> {
         let mut element_args = vec![self.state.node.clone(), get_tag, is_svg_or_mathml];
 
         // Only add callback if there are statements in the body
-        if !callback_body.is_empty() {
-            let callback = b::arrow_block(
-                vec![
-                    b::id_pattern(&element_id_name),
-                    b::id_pattern(&anchor_id_name),
-                ],
-                callback_body,
-            );
-            element_args.push(callback);
+        let has_callback = !callback_body.is_empty();
+        let has_dynamic_ns = dynamic_namespace.is_some();
+
+        if has_callback || has_dynamic_ns {
+            if has_callback {
+                let callback = b::arrow_block(
+                    vec![
+                        b::id_pattern(&element_id_name),
+                        b::id_pattern(&anchor_id_name),
+                    ],
+                    callback_body,
+                );
+                element_args.push(callback);
+            } else {
+                // Need a placeholder for callback if only namespace is present
+                // undefined is used as a falsy placeholder
+                element_args.push(b::undefined());
+            }
         }
 
-        // TODO: Add namespace argument if dynamic_namespace is present
+        // Add namespace argument if dynamic_namespace is present
+        if let Some(ns_value) = dynamic_namespace {
+            use crate::compiler::phases::phase3_transform::client::visitors::shared::element::build_attribute_value;
+            let ns_result = build_attribute_value(&ns_value, self, |expr, _| expr);
+            element_args.push(b::thunk(ns_result.value));
+        }
 
         let element_call = b::call(b::member_path("$.element"), element_args);
 

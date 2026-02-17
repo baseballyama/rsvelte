@@ -808,6 +808,12 @@ pub fn visit(
                     super::style_directive::visit(style_dir, context)?;
                 }
             }
+            Attribute::AttachTag(_) => {
+                // Re-borrow the attach tag for the visit call
+                if let Attribute::AttachTag(attach) = &element.attributes[i] {
+                    super::attach_tag::visit(attach, context)?;
+                }
+            }
             _ => {}
         }
     }

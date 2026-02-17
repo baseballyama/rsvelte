@@ -14,14 +14,15 @@ use crate::compiler::phases::phase2_analyze::AnalysisError;
 /// Corresponds to `AttachTag` in AttachTag.js.
 ///
 /// {@attach} tags attach custom behaviors to elements and require dynamic handling.
-pub fn visit(_tag: &AttachTag, context: &mut VisitorContext) -> Result<(), AnalysisError> {
+pub fn visit(tag: &AttachTag, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Mark the subtree as dynamic because attach tags require runtime evaluation
     // In JS: mark_subtree_dynamic(context.path);
     mark_subtree_dynamic(&context.path);
 
-    // TODO: Visit children with expression context
-    // In JS: context.next({ ...context.state, expression: node.metadata.expression });
-    // This requires implementing expression metadata tracking during parsing
+    // Walk the attach expression to detect needs_context, imports, etc.
+    // This ensures that calls like `mount(Child, ...)` or `flushSync()` inside
+    // @attach expressions properly trigger needs_context.
+    super::script::walk_js_node(tag.expression.as_json(), context)?;
 
     // TODO: Check for await expressions in the attach tag expression
     // In JS: if (node.metadata.expression.has_await) { e.illegal_await_expression(node); }
