@@ -51,10 +51,10 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
     // Get the call expression from the render tag
     // The expression should be a CallExpression like `snip()` or `snip(arg1, arg2)`
     let call_expr = unwrap_optional(&node.expression);
-
     // Extract arguments and wrap them in thunks
     // Reference: RenderTag.js lines 22-33
     let raw_args = extract_call_arguments(&call_expr);
+    let mut derived_decls: Vec<JsStatement> = Vec::new();
     let args: Vec<JsExpr> = raw_args
         .iter()
         .enumerate()
@@ -65,7 +65,29 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
             let metadata = ExpressionMetadata::from_template_metadata(&template_metadata);
             // Apply transforms ($.get() wrapping for reactive state variables)
             let built = build_expression(context, &converted, &metadata);
-            b::thunk(built)
+
+            // If the argument expression has a call, we need to memoize it with $.derived()
+            // to avoid re-evaluating the call on every render. This matches the official compiler
+            // behavior in RenderTag.js.
+            // Also check the raw expression type as fallback for cases where analysis didn't
+            // populate the metadata (e.g., when walk_js_expression doesn't find the binding)
+            let has_call_from_expr = match arg {
+                Expression::Value(v) => json_value_has_call(v),
+            };
+            if template_metadata.has_call() || has_call_from_expr {
+                // Generate a unique name like $0, $1, etc.
+                // Use "$0" as the base since plain "$" conflicts with the runtime import.
+                let id_name = context.state.memoizer.generate_id("$0");
+                // Create: let $0 = $.derived(() => expr);
+                derived_decls.push(b::let_decl(
+                    &id_name,
+                    Some(b::call(b::member_path("$.derived"), vec![b::thunk(built)])),
+                ));
+                // Return: () => $.get($0)
+                b::thunk(b::call(b::member_path("$.get"), vec![b::id(&id_name)]))
+            } else {
+                b::thunk(built)
+            }
         })
         .collect();
 
@@ -94,7 +116,15 @@ pub fn render_tag(node: &RenderTag, context: &mut ComponentContext) -> JsStateme
         b::call(snippet_function, call_args)
     };
 
-    b::stmt(call)
+    // If there are derived declarations (for call expression arguments),
+    // wrap everything in a block to scope the derived variables
+    if derived_decls.is_empty() {
+        b::stmt(call)
+    } else {
+        let mut block_body = derived_decls;
+        block_body.push(b::stmt(call));
+        b::block(block_body)
+    }
 }
 
 /// Unwrap optional chain expression if present.
@@ -138,6 +168,30 @@ fn extract_call_callee(expr: &Expression) -> Option<Expression> {
         return Some(Expression::Value(callee.clone()));
     }
     None
+}
+
+/// Recursively check if a JSON value (ESTree node) contains a CallExpression.
+/// Stops recursion at function boundaries (ArrowFunctionExpression, FunctionExpression)
+/// since calls inside those don't affect the outer expression's reactivity.
+fn json_value_has_call(val: &serde_json::Value) -> bool {
+    match val {
+        serde_json::Value::Object(obj) => {
+            if let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) {
+                if expr_type == "CallExpression" {
+                    return true;
+                }
+                if expr_type == "ArrowFunctionExpression"
+                    || expr_type == "FunctionExpression"
+                    || expr_type == "FunctionDeclaration"
+                {
+                    return false;
+                }
+            }
+            obj.values().any(json_value_has_call)
+        }
+        serde_json::Value::Array(arr) => arr.iter().any(json_value_has_call),
+        _ => false,
+    }
 }
 
 #[cfg(test)]

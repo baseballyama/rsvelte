@@ -458,14 +458,33 @@ fn expression_has_call(expression: &crate::ast::js::Expression) -> bool {
     use crate::ast::js::Expression;
 
     match expression {
-        Expression::Value(val) => {
-            if let Some(obj) = val.as_object()
-                && let Some(expr_type) = obj.get("type").and_then(|v| v.as_str())
-            {
-                return expr_type == "CallExpression";
+        Expression::Value(val) => json_value_has_call(val),
+    }
+}
+
+/// Recursively check if a JSON value (ESTree node) contains a CallExpression.
+/// Stops recursion at function boundaries (ArrowFunctionExpression, FunctionExpression)
+/// since calls inside those don't affect the outer expression's reactivity.
+fn json_value_has_call(val: &serde_json::Value) -> bool {
+    match val {
+        serde_json::Value::Object(obj) => {
+            if let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) {
+                if expr_type == "CallExpression" {
+                    return true;
+                }
+                // Don't recurse into function boundaries
+                if expr_type == "ArrowFunctionExpression"
+                    || expr_type == "FunctionExpression"
+                    || expr_type == "FunctionDeclaration"
+                {
+                    return false;
+                }
             }
-            false
+            // Recurse into all object values
+            obj.values().any(json_value_has_call)
         }
+        serde_json::Value::Array(arr) => arr.iter().any(json_value_has_call),
+        _ => false,
     }
 }
 

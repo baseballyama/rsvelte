@@ -952,7 +952,14 @@ fn is_svelte_runtime_set_call(callee: &JsExpr) -> bool {
     {
         return matches!(
             prop_name.as_str(),
-            "set" | "update" | "update_pre" | "get" | "safe_get" | "mutate"
+            "set"
+                | "update"
+                | "update_pre"
+                | "get"
+                | "safe_get"
+                | "mutate"
+                | "update_prop"
+                | "update_pre_prop"
         );
     }
     false

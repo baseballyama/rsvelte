@@ -71,7 +71,9 @@ pub fn animate_directive(node: &AnimateDirective, context: &mut ComponentContext
     };
 
     // Parse the directive name (e.g., "fade" or "custom.animation")
-    let name_expr = parse_directive_name(&node.name);
+    // Apply transforms so that $state/$derived references get $.get() wrapping
+    use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
+    let name_expr = apply_transforms_to_expression(&parse_directive_name(&node.name), context);
 
     // Build the animation call: $.animation(node, () => name, expression)
     let mut statement = b::stmt(b::call(
