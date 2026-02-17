@@ -140,6 +140,18 @@ impl<'a> ServerCodeGenerator<'a> {
             body_generator.generate_node(node, false)?;
         }
 
+        // Special case: if the only meaningful child is a lone <script> element,
+        // add a comment anchor after it. This matches the official compiler's
+        // clean_nodes behavior to ensure run_scripts logic works correctly.
+        if meaningful_nodes.len() == 1
+            && let TemplateNode::RegularElement(el) = meaningful_nodes[0]
+            && el.name.as_str() == "script"
+        {
+            body_generator
+                .output_parts
+                .push(OutputPart::Html("<!---->".to_string()));
+        }
+
         Ok(body_generator.output_parts)
     }
 

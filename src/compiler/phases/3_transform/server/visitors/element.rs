@@ -221,6 +221,20 @@ impl<'a> ServerCodeGenerator<'a> {
                     && !matches!(c, TemplateNode::SnippetBlock(_))
             });
 
+            // Special case: if the only meaningful child is a <script> element,
+            // add a comment anchor after it. This matches the official compiler's
+            // clean_nodes behavior to ensure run_scripts logic can work correctly.
+            let meaningful: Vec<_> = children
+                .iter()
+                .filter(|c| {
+                    !matches!(c, TemplateNode::Text(t) if t.data.trim().is_empty())
+                        && !matches!(c, TemplateNode::Comment(_))
+                        && !matches!(c, TemplateNode::SnippetBlock(_))
+                })
+                .collect();
+            let lone_script = meaningful.len() == 1
+                && matches!(meaningful[0], TemplateNode::RegularElement(el) if el.name.as_str() == "script");
+
             let mut has_output_content = false;
             let mut is_first_content = true;
 
@@ -344,6 +358,14 @@ impl<'a> ServerCodeGenerator<'a> {
                 && Self::is_customizable_select_element(element)
             {
                 self.output_parts.push(OutputPart::HydrationAnchor);
+            }
+
+            // Special case: lone script tag needs a comment anchor
+            // This matches the official compiler's clean_nodes behavior to ensure
+            // run_scripts logic can work correctly (node.replaceWith on a script tag)
+            if lone_script {
+                self.output_parts
+                    .push(OutputPart::Html("<!---->".to_string()));
             }
 
             // End tag

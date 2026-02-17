@@ -77,6 +77,13 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
+        // Try evaluating arithmetic/concatenation expressions with known constants
+        if let Some(value) =
+            super::super::helpers::try_evaluate_with_constants(trimmed, &self.constant_vars)
+        {
+            return ConstantFoldResult::Constant(value);
+        }
+
         // Fall back to generic constant folding
         try_constant_fold_full(trimmed)
     }

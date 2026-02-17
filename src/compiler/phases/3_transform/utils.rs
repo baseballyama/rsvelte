@@ -101,11 +101,28 @@ pub fn clean_nodes(
     }
 
     // Whitespace trimming (unless preserve_whitespace is set)
-    let trimmed = if preserve_whitespace {
+    let mut trimmed = if preserve_whitespace {
         regular
     } else {
         trim_whitespace(parent, &regular, namespace)
     };
+
+    // Special case: Add a comment if this is a lone script tag. This ensures that our
+    // run_scripts logic in template.js will always be able to call node.replaceWith()
+    // on the script tag in order to make it run. If we don't add this and would still
+    // call node.replaceWith() on the script tag, it would be a no-op because the script
+    // tag has no parent.
+    // Corresponds to lines 264-274 of utils.js in the official compiler.
+    if trimmed.len() == 1
+        && let Some(TemplateNode::RegularElement(el)) = trimmed.first()
+        && el.name.as_str() == "script"
+    {
+        trimmed.push(TemplateNode::Comment(crate::ast::template::Comment {
+            start: u32::MAX,
+            end: u32::MAX,
+            data: CompactString::new(""),
+        }));
+    }
 
     // Determine is_standalone
     // In a case like `{#if x}<Foo />{/if}`, we don't need to wrap the child in

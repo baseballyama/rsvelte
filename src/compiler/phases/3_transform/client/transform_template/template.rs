@@ -317,7 +317,10 @@ fn stringify(item: &Node) -> String {
             normalize_template_whitespace(&raw_text)
         }
         Node::Comment(comment) => {
-            if let Some(ref data) = comment.data {
+            // Match JavaScript falsy semantics: empty string is treated as no data
+            if let Some(ref data) = comment.data
+                && !data.is_empty()
+            {
                 format!("<!--{}-->", data)
             } else {
                 "<!>".to_string()
@@ -364,6 +367,7 @@ fn objectify(item: &Node) -> Option<JsExpr> {
         Node::Comment(comment) => comment
             .data
             .as_ref()
+            .filter(|data| !data.is_empty())
             .map(|data| b::array(vec![b::string(format!("// {}", data))])),
         Node::Element(element) => {
             let mut element_array = vec![b::string(element.name.clone())];

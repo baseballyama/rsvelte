@@ -915,10 +915,10 @@ pub fn visit_regular_element(
         // Reset after processing children if needed
         // A reset is only needed if any child would actually advance the hydrate_node cursor.
         // Static elements don't advance the cursor, so they don't need a reset.
-        let needs_reset = cleaned
-            .trimmed
-            .iter()
-            .any(|n| !matches!(n, TemplateNode::Text(_)) && !is_static_element(n, &context.state));
+        let needs_reset = cleaned.trimmed.iter().any(|n| {
+            !matches!(n, TemplateNode::Text(_) | TemplateNode::Comment(_))
+                && !is_static_element(n, &context.state)
+        });
 
         if needs_reset {
             context.state.init.push(b::stmt(b::call(
@@ -1085,9 +1085,10 @@ fn has_dynamic_children_for_merge(
     trimmed: &[TemplateNode],
     state: &ComponentClientTransformState,
 ) -> bool {
-    trimmed
-        .iter()
-        .any(|n| !matches!(n, TemplateNode::Text(_)) && !is_static_element(n, state))
+    trimmed.iter().any(|n| {
+        !matches!(n, TemplateNode::Text(_) | TemplateNode::Comment(_))
+            && !is_static_element(n, state)
+    })
 }
 
 /// Check if a node is a custom element.

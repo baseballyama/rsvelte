@@ -712,9 +712,180 @@ fn try_insert_constant_value(
     }
 }
 
+/// Try to evaluate an expression using known constants.
+/// Returns Some(value) if the expression can be fully evaluated.
+pub(crate) fn try_evaluate_with_constants(
+    expr: &str,
+    constants: &FxHashMap<String, String>,
+) -> Option<String> {
+    let trimmed = expr.trim();
+
+    // Simple variable lookup
+    if let Some(value) = constants.get(trimmed) {
+        return Some(value.clone());
+    }
+
+    // Literal values
+    if let Ok(n) = trimmed.parse::<i64>() {
+        return Some(n.to_string());
+    }
+    if let Ok(n) = trimmed.parse::<f64>()
+        && n.is_finite()
+    {
+        return Some(n.to_string());
+    }
+    if (trimmed.starts_with('\'') && trimmed.ends_with('\''))
+        || (trimmed.starts_with('"') && trimmed.ends_with('"'))
+    {
+        return Some(trimmed[1..trimmed.len() - 1].to_string());
+    }
+
+    // Handle binary operators: *, +, -
+    // Try * first (higher precedence)
+    if let Some(idx) = trimmed.find(" * ") {
+        let left = trimmed[..idx].trim();
+        let right = trimmed[idx + 3..].trim();
+        if let (Some(l), Some(r)) = (
+            try_evaluate_with_constants(left, constants),
+            try_evaluate_with_constants(right, constants),
+        ) {
+            if let (Ok(ln), Ok(rn)) = (l.parse::<i64>(), r.parse::<i64>()) {
+                return Some((ln * rn).to_string());
+            }
+            if let (Ok(ln), Ok(rn)) = (l.parse::<f64>(), r.parse::<f64>())
+                && (ln * rn).is_finite()
+            {
+                let result = ln * rn;
+                if result == (result as i64) as f64 {
+                    return Some((result as i64).to_string());
+                }
+                return Some(result.to_string());
+            }
+        }
+    }
+
+    // Handle + (addition or string concatenation)
+    // Find the + that's not inside quotes
+    if let Some(idx) = find_binary_plus(trimmed) {
+        let left = trimmed[..idx].trim();
+        let right = trimmed[idx + 1..].trim();
+        if let (Some(l), Some(r)) = (
+            try_evaluate_with_constants(left, constants),
+            try_evaluate_with_constants(right, constants),
+        ) {
+            // Try numeric addition first
+            if let (Ok(ln), Ok(rn)) = (l.parse::<i64>(), r.parse::<i64>()) {
+                return Some((ln + rn).to_string());
+            }
+            if let (Ok(ln), Ok(rn)) = (l.parse::<f64>(), r.parse::<f64>())
+                && (ln + rn).is_finite()
+            {
+                let result = ln + rn;
+                if result == (result as i64) as f64 {
+                    return Some((result as i64).to_string());
+                }
+                return Some(result.to_string());
+            }
+            // String concatenation
+            return Some(format!("{}{}", l, r));
+        }
+    }
+
+    // Handle - (subtraction)
+    // Find - that's a binary operator (not unary minus)
+    if let Some(idx) = find_binary_minus(trimmed) {
+        let left = trimmed[..idx].trim();
+        let right = trimmed[idx + 1..].trim();
+        if let (Some(l), Some(r)) = (
+            try_evaluate_with_constants(left, constants),
+            try_evaluate_with_constants(right, constants),
+        ) && let (Ok(ln), Ok(rn)) = (l.parse::<i64>(), r.parse::<i64>())
+        {
+            return Some((ln - rn).to_string());
+        }
+    }
+
+    None
+}
+
+/// Find the index of a binary + operator (not inside quotes or after another operator).
+fn find_binary_plus(expr: &str) -> Option<usize> {
+    let bytes = expr.as_bytes();
+    let mut in_single_quote = false;
+    let mut in_double_quote = false;
+    let mut paren_depth = 0;
+
+    for i in 0..bytes.len() {
+        match bytes[i] {
+            b'\'' if !in_double_quote => in_single_quote = !in_single_quote,
+            b'"' if !in_single_quote => in_double_quote = !in_double_quote,
+            b'(' if !in_single_quote && !in_double_quote => paren_depth += 1,
+            b')' if !in_single_quote && !in_double_quote => paren_depth -= 1,
+            b'+' if !in_single_quote && !in_double_quote && paren_depth == 0 => {
+                // Make sure it's a binary +, not unary
+                // Check that there's a non-whitespace token before it
+                let before = expr[..i].trim_end();
+                if !before.is_empty()
+                    && !before.ends_with('+')
+                    && !before.ends_with('-')
+                    && !before.ends_with('*')
+                    && !before.ends_with('/')
+                    && !before.ends_with('=')
+                    && !before.ends_with('(')
+                {
+                    // Make sure it's not ++ or +=
+                    if i + 1 < bytes.len() && (bytes[i + 1] == b'+' || bytes[i + 1] == b'=') {
+                        continue;
+                    }
+                    return Some(i);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Find the index of a binary - operator (not unary minus).
+fn find_binary_minus(expr: &str) -> Option<usize> {
+    let bytes = expr.as_bytes();
+    let mut in_single_quote = false;
+    let mut in_double_quote = false;
+    let mut paren_depth = 0;
+
+    for i in 0..bytes.len() {
+        match bytes[i] {
+            b'\'' if !in_double_quote => in_single_quote = !in_single_quote,
+            b'"' if !in_single_quote => in_double_quote = !in_double_quote,
+            b'(' if !in_single_quote && !in_double_quote => paren_depth += 1,
+            b')' if !in_single_quote && !in_double_quote => paren_depth -= 1,
+            b'-' if !in_single_quote && !in_double_quote && paren_depth == 0 => {
+                let before = expr[..i].trim_end();
+                if !before.is_empty()
+                    && !before.ends_with('+')
+                    && !before.ends_with('-')
+                    && !before.ends_with('*')
+                    && !before.ends_with('/')
+                    && !before.ends_with('=')
+                    && !before.ends_with('(')
+                {
+                    if i + 1 < bytes.len() && (bytes[i + 1] == b'-' || bytes[i + 1] == b'=') {
+                        continue;
+                    }
+                    return Some(i);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 pub(crate) fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMap<String, String> {
     let mut constants = FxHashMap::default();
     let mut let_vars: Vec<String> = Vec::new();
+    // Collect unresolved expressions for a second pass
+    let mut unresolved: Vec<(String, String, bool)> = Vec::new(); // (name, expr, is_const)
 
     for line in script.lines() {
         let trimmed = line.trim();
@@ -747,9 +918,24 @@ pub(crate) fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMa
                 let name = rest[..eq_idx].trim();
                 let value = rest[eq_idx + 1..].trim().trim_end_matches(';');
 
-                if try_insert_constant_value(value, name, &mut constants) && !is_const {
-                    let_vars.push(name.to_string());
+                if try_insert_constant_value(value, name, &mut constants) {
+                    if !is_const {
+                        let_vars.push(name.to_string());
+                    }
+                } else {
+                    // Save for second pass - might be evaluable once we know more constants
+                    unresolved.push((name.to_string(), value.to_string(), is_const));
                 }
+            }
+        }
+    }
+
+    // Second pass: try to evaluate expressions using the constants we've gathered
+    for (name, expr, is_const) in &unresolved {
+        if let Some(value) = try_evaluate_with_constants(expr, &constants) {
+            constants.insert(name.clone(), value);
+            if !is_const {
+                let_vars.push(name.clone());
             }
         }
     }

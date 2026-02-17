@@ -507,6 +507,26 @@ fn push_static_element_to_template(node: &TemplateNode, template: &mut Template)
                 push_static_element_to_template(child, template);
             }
 
+            // Special case: if the only meaningful child is a lone <script> element,
+            // add a comment anchor after it. This matches clean_nodes behavior in the
+            // official compiler (lines 264-274 of utils.js) to ensure run_scripts
+            // logic can call node.replaceWith() on the script tag.
+            let meaningful_children: Vec<_> = elem
+                .fragment
+                .nodes
+                .iter()
+                .filter(|n| {
+                    !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty())
+                        && !matches!(n, TemplateNode::Comment(_))
+                })
+                .collect();
+            if meaningful_children.len() == 1
+                && let TemplateNode::RegularElement(child_el) = meaningful_children[0]
+                && child_el.name.as_str() == "script"
+            {
+                template.push_comment(Some(String::new()));
+            }
+
             // Close the element
             template.pop_element();
         }

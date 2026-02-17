@@ -131,6 +131,8 @@ impl<'a> ComponentContext<'a> {
 
             TemplateNode::TitleElement(title) => self.visit_title_element(title),
 
+            TemplateNode::Comment(comment) => self.visit_comment(comment),
+
             // Other node types - TODO: implement
             _ => TransformResult::None,
         };
@@ -639,6 +641,16 @@ impl<'a> ComponentContext<'a> {
     ) -> TransformResult {
         use crate::compiler::phases::phase3_transform::client::visitors::title_element::title_element as visit_title_element_impl;
         visit_title_element_impl(title, self);
+        TransformResult::None
+    }
+
+    fn visit_comment(&mut self, comment: &crate::ast::template::Comment) -> TransformResult {
+        // We'll only get here if comments are not filtered out, which they are
+        // unless preserveComments is true. The lone-script synthetic comment
+        // also arrives here. Corresponds to Comment.js in the official compiler.
+        self.state
+            .template
+            .push_comment(Some(comment.data.to_string()));
         TransformResult::None
     }
 
