@@ -726,8 +726,14 @@ impl<'a> ComponentContext<'a> {
                         // Build the $.event() call
                         // For special elements, events are never delegated and always go to init
                         let passive = is_passive_event(event_name);
-                        let event_call =
-                            build_event(event_name, &self.state.node, handler, capture, passive);
+                        let event_call = build_event(
+                            event_name,
+                            &self.state.node,
+                            handler,
+                            capture,
+                            passive,
+                            false,
+                        );
                         self.state.init.push(b::stmt(event_call));
                     }
                 }

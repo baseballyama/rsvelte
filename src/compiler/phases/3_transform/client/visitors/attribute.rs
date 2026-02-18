@@ -5,6 +5,7 @@
 
 use crate::ast::template::{Attribute, AttributeNode};
 use crate::compiler::phases::phase3_transform::client::types::ComponentContext;
+use crate::compiler::phases::phase3_transform::client::visitors::shared::events::build_event;
 use crate::compiler::utils::can_delegate_event;
 
 /// Visit an Attribute node and generate client-side code.
@@ -194,43 +195,38 @@ pub fn visit_event_attribute(node: &AttributeNode, context: &mut ComponentContex
     let delegated = !capture && can_delegate_event(event_name);
 
     if delegated {
-        // Delegated event: assign handler to element property
-        if !context.state.events.contains(event_name) {
-            context.state.events.insert(event_name.to_string());
-        }
+        context.state.events.insert(event_name.to_string());
+    }
 
-        let handler_property_name = format!("__{}", event_name);
-        let assignment = b::assign(
-            b::member(context.state.node.clone(), &handler_property_name),
-            handler,
-        );
+    let passive = is_passive_event(event_name);
 
-        context.state.init.push(b::stmt(assignment));
+    let event_call = build_event(
+        event_name,
+        &context.state.node,
+        handler,
+        capture,
+        if passive == Some(true) { passive } else { None },
+        delegated,
+    );
+    let statement = b::stmt(event_call);
+
+    // Check if the parent is a special element (svelte:window, svelte:document, svelte:body)
+    let is_special_element = context.current_parent().is_some_and(|parent| {
+        use crate::ast::template::TemplateNode;
+        matches!(
+            parent,
+            TemplateNode::SvelteWindow(_)
+                | TemplateNode::SvelteDocument(_)
+                | TemplateNode::SvelteBody(_)
+        )
+    });
+
+    if is_special_element {
+        // Special elements: run parent-first (init)
+        context.state.init.push(statement);
     } else {
-        // Non-delegated event: use $.event()
-        let passive = is_passive_event(event_name);
-
-        let event_call = build_event(event_name, &context.state.node, handler, capture, passive);
-        let statement = b::stmt(event_call);
-
-        // Check if the parent is a special element (svelte:window, svelte:document, svelte:body)
-        let is_special_element = context.current_parent().is_some_and(|parent| {
-            use crate::ast::template::TemplateNode;
-            matches!(
-                parent,
-                TemplateNode::SvelteWindow(_)
-                    | TemplateNode::SvelteDocument(_)
-                    | TemplateNode::SvelteBody(_)
-            )
-        });
-
-        if is_special_element {
-            // Special elements: run parent-first (init)
-            context.state.init.push(statement);
-        } else {
-            // Regular elements: run after update
-            context.state.after_update.push(statement);
-        }
+        // Regular elements: run after update
+        context.state.after_update.push(statement);
     }
 }
 
@@ -375,39 +371,6 @@ pub fn build_event_handler(
         vec![b::rest_pattern(b::id_pattern("$$args"))],
         vec![b::stmt(apply_call)],
     )
-}
-
-/// Build an event listener call.
-///
-/// Creates a call to `$.event(event_name, node, handler, capture, passive)`.
-///
-/// # Corresponds to
-///
-/// `build_event` in
-/// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/events.js`.
-fn build_event(
-    event_name: &str,
-    node: &crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr,
-    handler: crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr,
-    capture: bool,
-    passive: Option<bool>,
-) -> crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr {
-    use crate::compiler::phases::phase3_transform::js_ast::builders as b;
-
-    let mut args = vec![b::string(event_name), node.clone(), handler];
-
-    if capture {
-        args.push(b::boolean(true));
-    } else if passive.is_some() {
-        // If passive is set but capture is not, we need to pass false for capture
-        args.push(b::boolean(false));
-    }
-
-    if let Some(p) = passive {
-        args.push(b::boolean(p));
-    }
-
-    b::call(b::member_path("$.event"), args)
 }
 
 /// Check if an event name indicates a capture event.

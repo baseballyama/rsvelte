@@ -12,41 +12,30 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 
 /// Build an event listener attachment.
 ///
-/// Creates a call to `$.event()` which attaches an event listener to an element.
+/// Creates a call to `$.event()` or `$.delegated()` which attaches an event listener to an element.
 ///
 /// Corresponds to `build_event` in
 /// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/shared/events.js`:
 ///
 /// ```javascript
-/// export function build_event(event_name, node, handler, capture, passive) {
+/// export function build_event(context, event_name, handler, capture, passive, delegated) {
 ///     return b.call(
-///         '$.event',
+///         delegated ? '$.delegated' : '$.event',
 ///         b.literal(event_name),
-///         node,
-///         handler,
+///         context.state.node,
+///         fn,
 ///         capture && b.true,
 ///         passive === undefined ? undefined : b.literal(passive)
 ///     );
 /// }
 /// ```
-///
-/// # Arguments
-///
-/// * `event_name` - The name of the event (e.g., "click", "input")
-/// * `node` - The element to attach the listener to
-/// * `handler` - The handler function
-/// * `capture` - Whether to use capture phase
-/// * `passive` - Whether the listener is passive (None means unspecified)
-///
-/// # Returns
-///
-/// Returns an expression that calls $.event().
 pub fn build_event(
     event_name: &str,
     node: &JsExpr,
     handler: JsExpr,
     capture: bool,
     passive: Option<bool>,
+    delegated: bool,
 ) -> JsExpr {
     let mut args = vec![b::string(event_name), node.clone(), handler];
 
@@ -55,14 +44,15 @@ pub fn build_event(
     }
 
     if let Some(passive_val) = passive {
-        // Ensure we have the capture argument
         if !capture {
             args.push(b::literal(JsLiteral::Undefined));
         }
         args.push(b::boolean(passive_val));
     }
 
-    b::call(b::member_path("$.event"), args)
+    let callee = if delegated { "$.delegated" } else { "$.event" };
+
+    b::call(b::member_path(callee), args)
 }
 
 /// Check if a JSON expression contains a call expression.

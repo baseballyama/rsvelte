@@ -76,5 +76,12 @@ pub fn on_directive(node: &OnDirective, context: &mut ComponentContext) -> JsExp
     };
 
     // Build the $.event() call
-    build_event(&node.name, &context.state.node, handler, capture, passive)
+    build_event(
+        &node.name,
+        &context.state.node,
+        handler,
+        capture,
+        passive,
+        false,
+    )
 }

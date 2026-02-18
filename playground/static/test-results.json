@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-02-18T02:00:11.409053720+00:00",
+  "generated_at": "2026-02-18T03:47:35.957205467+00:00",
   "commit_sha": "04c0368aa8d8",
   "summary": {
     "total": 3175,
-    "passed": 2343,
-    "failed": 620,
+    "passed": 2299,
+    "failed": 664,
     "skipped": 212,
-    "percentage": 79.07526155923051
+    "percentage": 77.59028012149848
   },
   "categories": [
     {
@@ -593,10 +593,10 @@
       "id": "css",
       "name": "CSS",
       "total": 179,
-      "passed": 142,
-      "failed": 36,
+      "passed": 143,
+      "failed": 35,
       "skipped": 0,
-      "percentage": 79.3296089385475,
+      "percentage": 79.88826815642457,
       "tests": [
         {
           "name": "omit-scoping-attribute-class-static",
@@ -715,8 +715,7 @@
         },
         {
           "name": "attribute-selector-html-case-insensitive",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "supports-page",
@@ -3356,10 +3355,10 @@
       "id": "runtime-runes",
       "name": "Runtime Runes",
       "total": 866,
-      "passed": 741,
-      "failed": 97,
+      "passed": 728,
+      "failed": 110,
       "skipped": 28,
-      "percentage": 88.42482100238664,
+      "percentage": 86.87350835322196,
       "tests": [
         {
           "name": "directives",
@@ -3879,7 +3878,8 @@
         },
         {
           "name": "bind-this-raw",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "dynamic-component-nested",
@@ -4129,7 +4129,8 @@
         },
         {
           "name": "state-reuse",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "dynamic-component-transition",
@@ -4428,7 +4429,7 @@
         {
           "name": "async-render-tag",
           "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"`await` is only allowed within async functions and at the top levels of modules\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(1143), length: 5 }, primary: false }]), help: Some(\"Either remove this `await` or add the `async` keyword to the enclosing function\"), note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"`await` is only allowed within async functions and at the top levels of modules\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(951), length: 5 }, primary: false }]), help: Some(\"Either remove this `await` or add the `async` keyword to the enclosing function\"), note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
         },
         {
           "name": "props-default-value-lazy-accessors",
@@ -4492,7 +4493,8 @@
         },
         {
           "name": "svelte-meta-parent",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "async-fork-snippet-dev",
@@ -4563,7 +4565,8 @@
         },
         {
           "name": "multiple-head",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "bound-store-sub",
@@ -4725,7 +4728,7 @@
         {
           "name": "async-prop",
           "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"`await` is only allowed within async functions and at the top levels of modules\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(958), length: 5 }, primary: false }]), help: Some(\"Either remove this `await` or add the `async` keyword to the enclosing function\"), note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"`await` is only allowed within async functions and at the top levels of modules\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(760), length: 5 }, primary: false }]), help: Some(\"Either remove this `await` or add the `async` keyword to the enclosing function\"), note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
         },
         {
           "name": "dot-notation-component",
@@ -4746,7 +4749,8 @@
         },
         {
           "name": "transition-component",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "dynamic-transition",
@@ -5077,7 +5081,8 @@
         },
         {
           "name": "event-context",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "hydrate-modified-input-group",
@@ -5346,7 +5351,7 @@
         {
           "name": "async-svelte-element",
           "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"`await` is only allowed within async functions and at the top levels of modules\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(971), length: 5 }, primary: false }]), help: Some(\"Either remove this `await` or add the `async` keyword to the enclosing function\"), note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"`await` is only allowed within async functions and at the top levels of modules\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(785), length: 5 }, primary: false }]), help: Some(\"Either remove this `await` or add the `async` keyword to the enclosing function\"), note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
         },
         {
           "name": "array-delete-item",
@@ -5519,7 +5524,8 @@
         },
         {
           "name": "nested-script-tag",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "inspect-new-property",
@@ -5718,7 +5724,8 @@
         },
         {
           "name": "bind-this-proxy",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "async-static-derived-after-await",
@@ -5796,7 +5803,8 @@
         },
         {
           "name": "clean-block-inner-effects",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "select-multiple-invalid-value",
@@ -5960,7 +5968,7 @@
         {
           "name": "async-key",
           "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"`await` is only allowed within async functions and at the top levels of modules\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(1004), length: 5 }, primary: false }]), help: Some(\"Either remove this `await` or add the `async` keyword to the enclosing function\"), note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"`await` is only allowed within async functions and at the top levels of modules\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(824), length: 5 }, primary: false }]), help: Some(\"Either remove this `await` or add the `async` keyword to the enclosing function\"), note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
         },
         {
           "name": "event-without-params-clash",
@@ -6399,7 +6407,8 @@
         },
         {
           "name": "attribute-boolean-case-insensitivity",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "random",
@@ -6456,7 +6465,8 @@
         },
         {
           "name": "guard-else-effect",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "async-boundary-pending-live",
@@ -6489,7 +6499,8 @@
         },
         {
           "name": "dynamic-component",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "inspect-derived-3",
@@ -6640,7 +6651,7 @@
         {
           "name": "async-html-tag",
           "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"`await` is only allowed within async functions and at the top levels of modules\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(1002), length: 5 }, primary: false }]), help: Some(\"Either remove this `await` or add the `async` keyword to the enclosing function\"), note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"`await` is only allowed within async functions and at the top levels of modules\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(808), length: 5 }, primary: false }]), help: Some(\"Either remove this `await` or add the `async` keyword to the enclosing function\"), note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
         },
         {
           "name": "snippet-prop-implicit",
@@ -6701,7 +6712,8 @@
         },
         {
           "name": "svelte-component-props-update",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "class-private-state-init",
@@ -6956,10 +6968,10 @@
       "id": "runtime-legacy",
       "name": "Runtime Legacy",
       "total": 1202,
-      "passed": 808,
-      "failed": 394,
+      "passed": 778,
+      "failed": 424,
       "skipped": 0,
-      "percentage": 67.22129783693843,
+      "percentage": 64.72545757071548,
       "tests": [
         {
           "name": "svg",
@@ -7064,7 +7076,8 @@
         },
         {
           "name": "binding-select-initial-value-undefined-2",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "binding-input-group-each-13",
@@ -7345,7 +7358,8 @@
         },
         {
           "name": "binding-select-initial-value-undefined-3",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "spread-component-dynamic-undefined",
@@ -7688,7 +7702,8 @@
         },
         {
           "name": "autofocus",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "each-block-destructured-object-computed-props",
@@ -7758,7 +7773,7 @@
         {
           "name": "head-raw-dynamic",
           "status": "fail",
-          "error_message": "Server JS mismatch"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "reactive-values-function-dependency",
@@ -7788,7 +7803,8 @@
         },
         {
           "name": "if-block-elseif-text",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "attribute-null",
@@ -8074,7 +8090,8 @@
         },
         {
           "name": "binding-select-late",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "module-context-export",
@@ -8107,7 +8124,8 @@
         },
         {
           "name": "binding-select-null-placeholder-2",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "destructuring-between-exports",
@@ -8185,7 +8203,8 @@
         },
         {
           "name": "if-block-outro-nested-else",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "spread-component-immutable",
@@ -8276,7 +8295,8 @@
         },
         {
           "name": "if-block-else-update",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "store-invalidation-while-update-2",
@@ -8393,7 +8413,7 @@
         {
           "name": "attribute-casing",
           "status": "fail",
-          "error_message": "Server JS mismatch"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "lifecycle-next-tick",
@@ -8443,7 +8463,7 @@
         {
           "name": "block-expression-member-access",
           "status": "fail",
-          "error_message": "Server JS mismatch"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "binding-indirect-spread",
@@ -8694,7 +8714,8 @@
         },
         {
           "name": "if-block-compound-outro-no-dependencies",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "destructured-props-5",
@@ -8829,7 +8850,8 @@
         },
         {
           "name": "if-block-elseif-no-else",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "dynamic-element-spread-attributes",
@@ -9701,7 +9723,8 @@
         },
         {
           "name": "dynamic-component-inside-element",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "event-handler-modifier-bubble",
@@ -9911,11 +9934,13 @@
         },
         {
           "name": "await-with-update",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "binding-select-null-placeholder",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "head-title-static-dynamic-element",
@@ -9953,7 +9978,8 @@
         },
         {
           "name": "binding-select-initial-value",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "animation-flip",
@@ -9983,7 +10009,7 @@
         {
           "name": "if-block-outro-computed-function",
           "status": "fail",
-          "error_message": "Server JS mismatch"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "set-in-onstate-dedupes-renders",
@@ -10153,7 +10179,8 @@
         },
         {
           "name": "bitmask-overflow-if-2",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "attribute-partial-number",
@@ -10193,7 +10220,8 @@
         },
         {
           "name": "binding-select-unmatched-2",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "const-tag-each-duplicated-variable1",
@@ -10211,7 +10239,8 @@
         },
         {
           "name": "binding-select",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "store-auto-subscribe-event-callback",
@@ -10308,7 +10337,8 @@
         },
         {
           "name": "empty-component-destroy",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "component-binding-each-nested",
@@ -10317,7 +10347,8 @@
         },
         {
           "name": "bitmask-overflow-if",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "component-static-at-symbol",
@@ -10639,7 +10670,8 @@
         },
         {
           "name": "binding-select-unmatched-3",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "binding-this-component-reactive",
@@ -10712,7 +10744,8 @@
         },
         {
           "name": "binding-select-late-2",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "keyed-each-bind-read-index",
@@ -10786,7 +10819,8 @@
         },
         {
           "name": "binding-select-implicit-option-value",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "transition-js-each-outro-cancelled",
@@ -10833,7 +10867,8 @@
         },
         {
           "name": "binding-select-optgroup",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "dynamic-element-svg-inherit-namespace",
@@ -11057,7 +11092,8 @@
         },
         {
           "name": "dynamic-component-bindings-recreated-b",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "transition-js-nested-each",
@@ -11364,7 +11400,8 @@
         },
         {
           "name": "binding-select-multiple",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "each-block-keyed-html",
@@ -11396,7 +11433,8 @@
         },
         {
           "name": "binding-select-initial-value-undefined",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "store-auto-subscribe-removed-store",
@@ -11529,7 +11567,8 @@
         },
         {
           "name": "dynamic-component-slot",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "before-render-chain-2",
@@ -11644,7 +11683,8 @@
         },
         {
           "name": "transition-js-if-elseif-block-outro",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "attribute-unknown-without-value",
@@ -11695,7 +11735,8 @@
         },
         {
           "name": "binding-select-unmatched",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "ondestroy-deep",
@@ -11784,7 +11825,8 @@
         },
         {
           "name": "if-block-elseif",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "store-auto-subscribe",
@@ -12651,10 +12693,10 @@
       "id": "server-side-rendering",
       "name": "SSR",
       "total": 82,
-      "passed": 81,
-      "failed": 1,
+      "passed": 79,
+      "failed": 3,
       "skipped": 0,
-      "percentage": 98.78048780487805,
+      "percentage": 96.34146341463415,
       "tests": [
         {
           "name": "bindings-zero",
@@ -12722,7 +12764,8 @@
         },
         {
           "name": "falsy-dynamic-component",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "raw-mustaches",
@@ -12919,7 +12962,8 @@
         },
         {
           "name": "attribute-template-literal-sanitization",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "css-injected-options",
