@@ -70,6 +70,23 @@ cargo test test_parser_modern_fixtures -- --nocapture
 cargo bench
 ```
 
+### Upgrading Svelte
+
+Svelte サブモジュールのバージョンを上げる際は、専用スクリプトを使用してください。`compiler/index.js` はビルド成果物（`.gitignore` 対象）のため、サブモジュールを切り替えただけでは古いコンパイラが残り、fixture が正しく生成されません。
+
+```bash
+./scripts/upgrade-svelte.sh 5.52.0
+```
+
+このスクリプトは以下を自動で実行します：
+
+1. サブモジュールを指定バージョンにチェックアウト
+2. Svelte コンパイラをソースからビルド（`pnpm build`）
+3. テスト fixture を再生成
+4. 互換性レポートを実行
+5. ドキュメントを更新
+6. Playground のランタイムバージョンを更新
+
 ## Compatibility
 
 Current compatibility with the official Svelte compiler test suite:
