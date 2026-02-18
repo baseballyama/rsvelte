@@ -945,23 +945,84 @@ fn visit_fragment(frag: &Fragment, context: &mut ComponentContext) -> Vec<JsStat
     // Use the proper fragment visitor to handle all cases correctly
     use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment as fragment_visitor;
 
-    // Reset namespace to "html" before visiting the snippet body.
-    // Snippets define their own template scope, so the namespace should be
-    // determined by the snippet's content, not inherited from the parent context.
-    // For example, a snippet defined inside <svg> but containing <p>hello</p>
-    // should use $.from_html(), not $.from_svg().
-    // This matches the official Svelte compiler behavior where SnippetBlock triggers
-    // re-evaluation of namespace via check_nodes_for_namespace() in infer_namespace().
+    // Determine the namespace for the snippet body from its content.
+    // This matches the official Svelte compiler's check_nodes_for_namespace() logic
+    // which is called when the parent is a SnippetBlock. The snippet's template
+    // namespace is determined by its children, NOT inherited from the parent element.
+    // For example:
+    //   - {#snippet} inside <svg> with <p> children -> "html"
+    //   - {#snippet} inside <svg> with <a><text>...</text></a> children -> "svg"
+    let snippet_namespace = infer_namespace_from_children(&frag.nodes);
     let saved_namespace =
-        std::mem::replace(&mut context.state.metadata.namespace, "html".to_string());
+        std::mem::replace(&mut context.state.metadata.namespace, snippet_namespace);
+
+    // Also temporarily clear the path so that the fragment visitor's infer_namespace()
+    // doesn't see the parent element (e.g., <svg>) and skip child-based inference.
+    // The snippet body is its own template scope.
+    let saved_path = std::mem::take(&mut context.path);
 
     // Snippet body needs is_root_fragment=true to get $.next() when text-first
     let block = fragment_visitor(frag, context, true);
 
-    // Restore the parent namespace
+    // Restore the parent path and namespace
+    context.path = saved_path;
     context.state.metadata.namespace = saved_namespace;
 
     block.body
+}
+
+/// Infer namespace from snippet body children.
+///
+/// Matches the official Svelte compiler's `check_nodes_for_namespace()` logic:
+/// - If all elements are SVG -> "svg"
+/// - If all elements are MathML -> "mathml"
+/// - If any element is regular HTML -> "html"
+/// - If no elements found -> "html" (default)
+fn infer_namespace_from_children(nodes: &[crate::ast::template::TemplateNode]) -> String {
+    use crate::ast::template::TemplateNode;
+
+    let mut found_namespace: Option<&str> = None;
+
+    for node in nodes {
+        match node {
+            TemplateNode::RegularElement(elem) => {
+                if !elem.metadata.svg && !elem.metadata.mathml {
+                    return "html".to_string();
+                }
+                if elem.metadata.svg {
+                    found_namespace = Some(match found_namespace {
+                        None | Some("svg") => "svg",
+                        _ => return "html".to_string(),
+                    });
+                } else if elem.metadata.mathml {
+                    found_namespace = Some(match found_namespace {
+                        None | Some("mathml") => "mathml",
+                        _ => return "html".to_string(),
+                    });
+                }
+            }
+            TemplateNode::SvelteElement(elem) => {
+                if !elem.metadata.svg && !elem.metadata.mathml {
+                    return "html".to_string();
+                }
+                if elem.metadata.svg {
+                    found_namespace = Some(match found_namespace {
+                        None | Some("svg") => "svg",
+                        _ => return "html".to_string(),
+                    });
+                } else if elem.metadata.mathml {
+                    found_namespace = Some(match found_namespace {
+                        None | Some("mathml") => "mathml",
+                        _ => return "html".to_string(),
+                    });
+                }
+            }
+            // For non-element nodes (text, expressions, blocks), continue checking
+            _ => {}
+        }
+    }
+
+    found_namespace.unwrap_or("html").to_string()
 }
 
 /// Helper to convert an AST expression to a JS expression.
