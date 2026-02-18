@@ -102,6 +102,9 @@ harness = false
 name = "compiler"
 harness = false
 
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
 [profile.release]
 lto = "fat"
 codegen-units = 1

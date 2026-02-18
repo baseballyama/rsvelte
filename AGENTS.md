@@ -100,32 +100,32 @@ Pre-commit hooks run `cargo fmt` and `cargo clippy` automatically.
 - Remove outdated information
 - Keep it concise
 
-## Test Status (2026-02-08)
+## Test Status (2026-02-18)
 
 | Suite | Pass/Total | Status |
 |-------|------------|--------|
 | Parser Modern | 22/22 | ✅ 100% |
-| Parser Legacy | 82/82 | ✅ 100% |
-| Compiler Snapshot | 19/20 | ✅ 95% |
-| CSS | 136/178 | 🟢 76% |
-| Validator | 263/310 | 🟢 85% |
-| Compiler Errors | 113/118 | 🟢 96% |
-| Runtime Runes | 574/822 | 🟡 70% |
-| Runtime Legacy | 636/1201 | 🟡 53% |
-| Runtime Browser | 12/30 | ⚠️ 40% |
-| Hydration | 63/75 | 🟢 84% |
 | SSR | 80/80 | ✅ 100% |
+| Parser Legacy | 79/83 | ✅ 96% |
+| Compiler Errors | 112/144 | 🟢 95% |
+| Compiler Snapshot | 17/27 | 🟢 94% |
+| Runtime Runes | 735/845 | 🟢 89% |
+| Hydration | 67/77 | 🟢 88% |
+| Validator | 258/323 | 🟢 83% |
+| CSS | 142/178 | 🟢 80% |
+| Runtime Legacy | 808/1202 | 🟡 67% |
+| Runtime Browser | 17/30 | ⚠️ 57% |
 | Preprocess | 0/19 | ⏸️ N/A |
-| Print | 0/0 | ⏸️ N/A |
+| Print | 0/39 | ⏸️ N/A |
 | Migrate | 0/76 | ⏸️ N/A |
 
-**Overall: 2000/3033 (66%)**
+**Overall: 2337/2940 (79.5%)**
 
 ## Current Focus
 
 ### Phase 3 Client-Side Code Generation (Priority)
 
-Runtime Runes: 70% passing (574/822). Key remaining issues:
+Runtime Runes: 89% passing (735/845). Key remaining issues:
 
 1. Template effect dependency extraction (~28 tests)
 2. Missing $.set() calls for class fields/module context (~19 tests)
