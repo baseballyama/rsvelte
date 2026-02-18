@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-02-18T00:26:21.156666879+00:00",
-  "commit_sha": "123c48d38d1a",
+  "generated_at": "2026-02-18T01:04:03.889216843+00:00",
+  "commit_sha": "04c0368aa8d8",
   "summary": {
-    "total": 3145,
-    "passed": 2337,
-    "failed": 603,
-    "skipped": 205,
-    "percentage": 79.48979591836735
+    "total": 3175,
+    "passed": 2343,
+    "failed": 620,
+    "skipped": 212,
+    "percentage": 79.07526155923051
   },
   "categories": [
     {
@@ -458,12 +458,17 @@
     {
       "id": "snapshot",
       "name": "Compiler Snapshot",
-      "total": 27,
+      "total": 28,
       "passed": 17,
       "failed": 1,
-      "skipped": 9,
+      "skipped": 10,
       "percentage": 94.44444444444444,
       "tests": [
+        {
+          "name": "async-if-chain",
+          "status": "skip",
+          "skip_reason": "Requires unsupported compile options"
+        },
         {
           "name": "async-each-hoisting",
           "status": "skip",
@@ -587,11 +592,11 @@
     {
       "id": "css",
       "name": "CSS",
-      "total": 178,
+      "total": 179,
       "passed": 142,
-      "failed": 35,
+      "failed": 36,
       "skipped": 0,
-      "percentage": 79.7752808988764,
+      "percentage": 79.3296089385475,
       "tests": [
         {
           "name": "omit-scoping-attribute-class-static",
@@ -707,6 +712,11 @@
         {
           "name": "omit-scoping-attribute-attribute-selector-equals-case-insensitive",
           "status": "pass"
+        },
+        {
+          "name": "attribute-selector-html-case-insensitive",
+          "status": "fail",
+          "error_message": "CSS mismatch"
         },
         {
           "name": "supports-page",
@@ -1346,11 +1356,11 @@
     {
       "id": "validator",
       "name": "Validator",
-      "total": 323,
-      "passed": 258,
-      "failed": 49,
+      "total": 325,
+      "passed": 256,
+      "failed": 53,
       "skipped": 11,
-      "percentage": 82.6923076923077,
+      "percentage": 81.52866242038218,
       "tests": [
         {
           "name": "css-invalid-global-selector-2",
@@ -1856,6 +1866,11 @@
           "error_message": "Expected 2 warnings, got 0"
         },
         {
+          "name": "state-referenced-locally-props-identifier",
+          "status": "fail",
+          "error_message": "Expected 2 warnings, got 0"
+        },
+        {
           "name": "namespace-invalid",
           "status": "pass"
         },
@@ -2103,7 +2118,8 @@
         },
         {
           "name": "a11y-no-redundant-roles",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected 38 warnings, got 39"
         },
         {
           "name": "dynamic-element-this",
@@ -2415,7 +2431,8 @@
         },
         {
           "name": "a11y-no-noninteractive-element-to-interactive-role",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Expected 49 warnings, got 55"
         },
         {
           "name": "reactive-module-variable",
@@ -2592,6 +2609,11 @@
         {
           "name": "a11y-no-noninteractive-tabindex",
           "status": "pass"
+        },
+        {
+          "name": "a11y-popover-label",
+          "status": "fail",
+          "error_message": "Expected 1 warnings, got 0"
         },
         {
           "name": "js-scope-catch-clause",
@@ -3333,11 +3355,11 @@
     {
       "id": "runtime-runes",
       "name": "Runtime Runes",
-      "total": 845,
-      "passed": 735,
-      "failed": 87,
-      "skipped": 23,
-      "percentage": 89.41605839416059,
+      "total": 866,
+      "passed": 741,
+      "failed": 97,
+      "skipped": 28,
+      "percentage": 88.42482100238664,
       "tests": [
         {
           "name": "directives",
@@ -3616,6 +3638,11 @@
           "status": "pass"
         },
         {
+          "name": "async-if-hydration",
+          "status": "fail",
+          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"`await` is only allowed within async functions and at the top levels of modules\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(315), length: 5 }, primary: false }]), help: Some(\"Either remove this `await` or add the `async` keyword to the enclosing function\"), note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+        },
+        {
           "name": "attachment-basic",
           "status": "pass"
         },
@@ -3842,6 +3869,11 @@
           "status": "pass"
         },
         {
+          "name": "event-handler-async-delegated",
+          "status": "fail",
+          "error_message": "Client compilation error: Analysis error: legacy_await_invalid: Top-level await is only allowed in Svelte 5 with runes mode"
+        },
+        {
           "name": "bind-getter-setter",
           "status": "pass"
         },
@@ -3904,6 +3936,11 @@
         {
           "name": "derived-unowned-5",
           "status": "pass"
+        },
+        {
+          "name": "async-skipped-branch",
+          "status": "skip",
+          "skip_reason": "Requires unsupported compile options"
         },
         {
           "name": "reactive-identifier",
@@ -4223,6 +4260,10 @@
         },
         {
           "name": "autofocus-with-call",
+          "status": "pass"
+        },
+        {
+          "name": "transition-delayed-events-css",
           "status": "pass"
         },
         {
@@ -4884,6 +4925,11 @@
           "status": "pass"
         },
         {
+          "name": "fork-derived-uncached-3",
+          "status": "skip",
+          "skip_reason": "Requires unsupported compile options"
+        },
+        {
           "name": "hydration-html-changed-ignored",
           "status": "pass"
         },
@@ -4984,6 +5030,11 @@
           "status": "pass"
         },
         {
+          "name": "fork-derived-dependency-rollback",
+          "status": "skip",
+          "skip_reason": "Requires unsupported compile options"
+        },
+        {
           "name": "snippet-const-same-block",
           "status": "pass"
         },
@@ -5067,6 +5118,11 @@
         {
           "name": "error-boundary-21",
           "status": "pass"
+        },
+        {
+          "name": "fork-derived-uncached-2",
+          "status": "skip",
+          "skip_reason": "Requires unsupported compile options"
         },
         {
           "name": "store-subscribe-effect-init",
@@ -5317,11 +5373,21 @@
           "status": "pass"
         },
         {
+          "name": "async-render-hydration",
+          "status": "fail",
+          "error_message": "Client JS mismatch"
+        },
+        {
           "name": "async-linear-order-same-derived",
           "status": "pass"
         },
         {
           "name": "async-no-pending-await-in-block",
+          "status": "fail",
+          "error_message": "Server JS mismatch"
+        },
+        {
+          "name": "async-state-new-branch",
           "status": "fail",
           "error_message": "Server JS mismatch"
         },
@@ -5530,6 +5596,11 @@
           "error_message": "Client JS mismatch"
         },
         {
+          "name": "async-attach-hydration-mismatch",
+          "status": "fail",
+          "error_message": "Client JS mismatch"
+        },
+        {
           "name": "snippet-namespace-1",
           "status": "fail",
           "error_message": "Client JS mismatch"
@@ -5578,6 +5649,10 @@
         },
         {
           "name": "guard-if-nested",
+          "status": "pass"
+        },
+        {
+          "name": "create-context-programmatic",
           "status": "pass"
         },
         {
@@ -5631,6 +5706,10 @@
         },
         {
           "name": "derived-unowned-6",
+          "status": "pass"
+        },
+        {
+          "name": "transition-delayed-events-js",
           "status": "pass"
         },
         {
@@ -5822,6 +5901,16 @@
         {
           "name": "remove-spreaded-handlers",
           "status": "pass"
+        },
+        {
+          "name": "async-error-in-script",
+          "status": "fail",
+          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"`await` is only allowed within async functions and at the top levels of modules\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(247), length: 5 }, primary: false }]), help: Some(\"Either remove this `await` or add the `async` keyword to the enclosing function\"), note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+        },
+        {
+          "name": "async-if-nested",
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "derived-unowned-9",
@@ -6103,6 +6192,10 @@
           "status": "pass"
         },
         {
+          "name": "effect-inside-derived-frozen",
+          "status": "pass"
+        },
+        {
           "name": "lifecycle-render-order-for-children-2",
           "status": "pass"
         },
@@ -6325,6 +6418,10 @@
           "status": "pass"
         },
         {
+          "name": "boundary-effect-error",
+          "status": "pass"
+        },
+        {
           "name": "event-on-3",
           "status": "pass"
         },
@@ -6362,17 +6459,21 @@
           "status": "pass"
         },
         {
+          "name": "async-boundary-pending-live",
+          "status": "pass"
+        },
+        {
+          "name": "async-bind-factory-function-remote",
+          "status": "fail",
+          "error_message": "Client JS mismatch"
+        },
+        {
           "name": "inspect-derived-4",
           "status": "pass"
         },
         {
           "name": "bind-value-input-type-dynamic",
           "status": "pass"
-        },
-        {
-          "name": "not-actual-runes",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
         },
         {
           "name": "attribute-spread-hidden",
@@ -6500,6 +6601,11 @@
           "status": "pass"
         },
         {
+          "name": "async-derived-unmount-undefined-props",
+          "status": "fail",
+          "error_message": "Client JS mismatch"
+        },
+        {
           "name": "class-state-constructor-conflicting-get-name",
           "status": "pass"
         },
@@ -6548,6 +6654,16 @@
         {
           "name": "error-boundary-23",
           "status": "pass"
+        },
+        {
+          "name": "async-each-item-duplication",
+          "status": "fail",
+          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"`await` is only allowed within async functions and at the top levels of modules\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(233), length: 5 }, primary: false }]), help: Some(\"Either remove this `await` or add the `async` keyword to the enclosing function\"), note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+        },
+        {
+          "name": "key-nan",
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "read-version-previous-reaction",
@@ -6675,6 +6791,11 @@
         {
           "name": "effect-root-3",
           "status": "pass"
+        },
+        {
+          "name": "fork-derived-uncached-1",
+          "status": "skip",
+          "skip_reason": "Requires unsupported compile options"
         },
         {
           "name": "error-boundary-25",
@@ -6931,6 +7052,11 @@
         {
           "name": "component-name-deconflicted-globals",
           "status": "pass"
+        },
+        {
+          "name": "store-each-binding-logical",
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "component-binding-private-state",
@@ -7792,11 +7918,6 @@
         {
           "name": "event-handler-each-modifier",
           "status": "pass"
-        },
-        {
-          "name": "store-auto-subscribe-missing-global-template",
-          "status": "fail",
-          "error_message": "Client compilation error: Analysis error: global_reference_invalid: `$missingGlobal` is an illegal variable name. To reference a global variable called `$missingGlobal`, use `globalThis.$missingGlobal`\nhttps://svelte.dev/e/global_reference_invalid"
         },
         {
           "name": "each-block-keyed-empty",
@@ -9095,11 +9216,6 @@
         {
           "name": "deconflict-ctx",
           "status": "pass"
-        },
-        {
-          "name": "store-auto-subscribe-missing-global-script",
-          "status": "fail",
-          "error_message": "Client compilation error: Analysis error: global_reference_invalid: `$missingGlobal` is an illegal variable name. To reference a global variable called `$missingGlobal`, use `globalThis.$missingGlobal`\nhttps://svelte.dev/e/global_reference_invalid"
         },
         {
           "name": "component-event-handler-dynamic",
@@ -11625,6 +11741,11 @@
           "status": "pass"
         },
         {
+          "name": "binding-select-reactive-derived",
+          "status": "fail",
+          "error_message": "Client JS mismatch"
+        },
+        {
           "name": "prop-no-change",
           "status": "pass"
         },
@@ -12047,11 +12168,11 @@
     {
       "id": "runtime-browser",
       "name": "Runtime Browser",
-      "total": 30,
-      "passed": 17,
+      "total": 31,
+      "passed": 18,
       "failed": 13,
       "skipped": 0,
-      "percentage": 56.666666666666664,
+      "percentage": 58.06451612903226,
       "tests": [
         {
           "name": "binding-width-height-initialize",
@@ -12079,6 +12200,10 @@
           "name": "component-css-custom-properties-dynamic",
           "status": "fail",
           "error_message": "Client JS mismatch"
+        },
+        {
+          "name": "hydrate-large-text-node",
+          "status": "pass"
         },
         {
           "name": "inline-style-directive-update-with-spread",
@@ -12191,11 +12316,11 @@
     {
       "id": "hydration",
       "name": "Hydration",
-      "total": 77,
+      "total": 78,
       "passed": 67,
-      "failed": 9,
+      "failed": 10,
       "skipped": 1,
-      "percentage": 88.1578947368421,
+      "percentage": 87.01298701298701,
       "tests": [
         {
           "name": "removes-undefined-attributes",
@@ -12297,6 +12422,11 @@
         {
           "name": "img-src-mismatch",
           "status": "pass"
+        },
+        {
+          "name": "safari-borking-2",
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "noscript",
@@ -12520,11 +12650,11 @@
     {
       "id": "server-side-rendering",
       "name": "SSR",
-      "total": 80,
-      "passed": 80,
-      "failed": 0,
+      "total": 82,
+      "passed": 81,
+      "failed": 1,
       "skipped": 0,
-      "percentage": 100,
+      "percentage": 98.78048780487805,
       "tests": [
         {
           "name": "bindings-zero",
@@ -12641,6 +12771,11 @@
         {
           "name": "component-yield",
           "status": "pass"
+        },
+        {
+          "name": "context-not-set-throws",
+          "status": "fail",
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "head-multiple-title",
@@ -12780,6 +12915,10 @@
         },
         {
           "name": "reactivity-window",
+          "status": "pass"
+        },
+        {
+          "name": "attribute-template-literal-sanitization",
           "status": "pass"
         },
         {
@@ -12967,10 +13106,10 @@
     {
       "id": "print",
       "name": "Print",
-      "total": 39,
+      "total": 40,
       "passed": 0,
       "failed": 0,
-      "skipped": 39,
+      "skipped": 40,
       "percentage": 0,
       "tests": [
         {
@@ -13025,6 +13164,11 @@
         },
         {
           "name": "comment",
+          "status": "skip",
+          "skip_reason": "Print API not implemented"
+        },
+        {
+          "name": "block-element-separation",
           "status": "skip",
           "skip_reason": "Print API not implemented"
         },
