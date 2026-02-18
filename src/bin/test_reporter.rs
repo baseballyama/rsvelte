@@ -179,7 +179,7 @@ fn run_parser_tests(test_type: &str, modern: bool) -> Category {
         match result {
             Ok(ast) => {
                 let expected = fs::read_to_string(&output_path).unwrap_or_default();
-                let actual_json = serde_json::to_string_pretty(&ast).unwrap_or_default();
+                let actual_json = format!("{:?}", ast);
 
                 let actual_normalized = normalize_json(&actual_json);
                 let expected_normalized = normalize_json(&expected);
