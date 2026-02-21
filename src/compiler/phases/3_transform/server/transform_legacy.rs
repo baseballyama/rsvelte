@@ -149,9 +149,16 @@ fn transform_single_export_let(declaration: &str) -> String {
                     name, name, fn_name
                 )
             } else {
+                // Wrap object literals with () to disambiguate from block statements
+                // Arrays, template literals, function calls etc. don't need wrapping
+                let wrapped_value = if default_value.trim_start().starts_with('{') {
+                    format!("({})", default_value)
+                } else {
+                    default_value.to_string()
+                };
                 format!(
-                    "let {} = $.fallback($$props['{}'], () => ({}), true);",
-                    name, name, default_value
+                    "let {} = $.fallback($$props['{}'], () => {}, true);",
+                    name, name, wrapped_value
                 )
             };
             result.push_str(&transformed_default);
@@ -390,7 +397,9 @@ fn is_string_literal(s: &str) -> bool {
         return false;
     }
 
-    for quote in &['"', '\'', '`'] {
+    // Note: backtick template literals are TemplateLiteral AST nodes (not Literal), so they
+    // are NOT simple by the official Svelte compiler's definition.
+    for quote in &['"', '\''] {
         if trimmed.starts_with(*quote) && trimmed.ends_with(*quote) {
             let inner = &trimmed[1..trimmed.len() - 1];
             let chars: Vec<char> = inner.chars().collect();
