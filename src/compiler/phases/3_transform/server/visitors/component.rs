@@ -349,6 +349,8 @@ impl<'a> ServerCodeGenerator<'a> {
         // Key: slot name, Value: (nodes, let_directive_names)
         let mut slot_children: FxHashMap<String, (Vec<&TemplateNode>, Vec<String>)> =
             FxHashMap::default();
+        // Track slot order for deterministic output
+        let mut slot_order: Vec<String> = Vec::new();
 
         // Separate snippets from other children, and group by slot
         for node in &fragment.nodes {
@@ -402,7 +404,10 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
                     _ => get_let_directives(node),
                 };
-                let entry = slot_children.entry(slot_name).or_default();
+                let entry = slot_children.entry(slot_name.clone()).or_insert_with(|| {
+                    slot_order.push(slot_name.clone());
+                    (Vec::new(), Vec::new())
+                });
                 entry.0.push(node);
                 // Merge let directive params (usually there's one element with let directives per slot)
                 for let_dir in let_directive_params {
@@ -445,12 +450,15 @@ impl<'a> ServerCodeGenerator<'a> {
         };
 
         // Process named slot children (non-default) as snippets with let directive params
-        for (slot_name, (nodes, let_dirs)) in slot_children {
-            // Generate children content for this named slot
-            if let Some(slot_parts) = self.generate_children_from_nodes(&nodes)? {
-                // Add as a snippet with the slot name and let directive names as params
-                slot_names.push(slot_name.clone());
-                snippets.push((slot_name, let_dirs, slot_parts, false)); // false = not a true snippet
+        // Use slot_order to maintain source order (slot_children is a HashMap with non-deterministic order)
+        for slot_name in slot_order {
+            if let Some((nodes, let_dirs)) = slot_children.remove(&slot_name) {
+                // Generate children content for this named slot
+                if let Some(slot_parts) = self.generate_children_from_nodes(&nodes)? {
+                    // Add as a snippet with the slot name and let directive names as params
+                    slot_names.push(slot_name.clone());
+                    snippets.push((slot_name, let_dirs, slot_parts, false)); // false = not a true snippet
+                }
             }
         }
 

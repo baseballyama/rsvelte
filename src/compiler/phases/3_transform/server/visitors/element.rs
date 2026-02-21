@@ -489,7 +489,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     // Build style directive: { styleName: expression }
                     let style_name = style_dir.name.as_str();
                     let value = match &style_dir.value {
-                        AttributeValue::True(_) => "true".to_string(),
+                        // Shorthand: style:color means the value is the variable `color`
+                        AttributeValue::True(_) => style_name.to_string(),
                         AttributeValue::Expression(expr) => {
                             let expr_start = expr.expression.start().unwrap_or(0) as usize;
                             let expr_end = expr.expression.end().unwrap_or(0) as usize;
@@ -535,7 +536,12 @@ impl<'a> ServerCodeGenerator<'a> {
                             }
                         }
                     };
-                    style_directive_parts.push(format!("{}: {}", style_name, value));
+                    // Use shorthand syntax when key == value (e.g. { color } instead of { color: color })
+                    if value == style_name {
+                        style_directive_parts.push(style_name.to_string());
+                    } else {
+                        style_directive_parts.push(format!("{}: {}", style_name, value));
+                    }
                 }
                 Attribute::OnDirective(_) => {}
                 _ => {}
@@ -1673,14 +1679,51 @@ impl<'a> ServerCodeGenerator<'a> {
                     dir.name.to_string()
                 }
                 AttributeValue::Sequence(parts) => {
-                    // Static text value
-                    let mut text_val = String::new();
-                    for part in parts {
-                        if let AttributeValuePart::Text(text) = part {
-                            text_val.push_str(&text.data);
+                    // Check if any part is an expression (dynamic value)
+                    let has_expr = parts
+                        .iter()
+                        .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
+                    if has_expr {
+                        // Generate a template literal: `text${$.stringify(expr)}text`
+                        let mut template = String::from("`");
+                        for part in parts {
+                            match part {
+                                AttributeValuePart::Text(text) => {
+                                    template.push_str(
+                                        &text
+                                            .data
+                                            .replace('\\', "\\\\")
+                                            .replace('`', "\\`")
+                                            .replace("${", "\\${"),
+                                    );
+                                }
+                                AttributeValuePart::ExpressionTag(expr_tag) => {
+                                    let expr_start =
+                                        expr_tag.expression.start().unwrap_or(0) as usize;
+                                    let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                                    if expr_end > expr_start && expr_end <= self.source.len() {
+                                        let expr_src = self.source[expr_start..expr_end].trim();
+                                        let transformed = self.transform_store_refs(expr_src);
+                                        template.push_str(&format!(
+                                            "${{$.stringify({})}}",
+                                            transformed
+                                        ));
+                                    }
+                                }
+                            }
                         }
+                        template.push('`');
+                        template
+                    } else {
+                        // Static text value only
+                        let mut text_val = String::new();
+                        for part in parts {
+                            if let AttributeValuePart::Text(text) = part {
+                                text_val.push_str(&text.data);
+                            }
+                        }
+                        format!("'{}'", text_val)
                     }
-                    format!("'{}'", text_val)
                 }
                 AttributeValue::Expression(expr_tag) => {
                     let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
