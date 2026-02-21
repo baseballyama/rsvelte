@@ -318,10 +318,8 @@ pub fn bind_directive(
         build_each_block_getter_setter(&node.expression, &expression, context)
     {
         // Inside an each block - use the each-block-aware getter/setter
-        eprintln!("[DEBUG bind_directive] Using each_result getter/setter");
         each_result
     } else {
-        eprintln!("[DEBUG bind_directive] Falling back to build_getter_setter");
         // Build getter and setter from the expression
         build_getter_setter(&node.expression, &expression, context)
     };
@@ -1609,16 +1607,8 @@ pub fn build_each_block_getter_setter(
             let get = if let Some(transform) = context.state.transform.get(&var_name)
                 && let Some(read_fn) = &transform.read
             {
-                let read_expr = read_fn(b::id(&var_name));
-                eprintln!(
-                    "[DEBUG DestructuredVar] transform found for {}, read_expr={:?}",
-                    var_name, read_expr
-                );
-                let thunked = b::thunk(read_expr);
-                eprintln!("[DEBUG DestructuredVar] thunked={:?}", thunked);
-                thunked
+                b::thunk(read_fn(b::id(&var_name)))
             } else {
-                eprintln!("[DEBUG DestructuredVar] NO transform for {}", var_name);
                 b::id(&var_name)
             };
 
@@ -1689,10 +1679,6 @@ fn analyze_each_binding_expression(
     match expr_type {
         "Identifier" => {
             let name = obj.get("name").and_then(|v| v.as_str())?;
-            eprintln!(
-                "[DEBUG bind_directive] Identifier: name={}, item_name={}, destructured_update_paths={:?}",
-                name, each_ctx.item_name, each_ctx.destructured_update_paths
-            );
 
             if name == each_ctx.item_name {
                 // Direct reference to the each item
@@ -1707,19 +1693,11 @@ fn analyze_each_binding_expression(
             if each_ctx.item_name == "$$item" {
                 // Check if this variable has a known update path from destructured context
                 if let Some(update_path) = each_ctx.destructured_update_paths.get(name) {
-                    eprintln!(
-                        "[DEBUG bind_directive] Returning DestructuredVar: var_name={}, update_path={}",
-                        name, update_path
-                    );
                     return Some(EachBindingExprInfo::DestructuredVar {
                         var_name: name.to_string(),
                         update_path: update_path.clone(),
                     });
                 }
-                eprintln!(
-                    "[DEBUG bind_directive] No update_path found for name={}",
-                    name
-                );
             }
 
             None

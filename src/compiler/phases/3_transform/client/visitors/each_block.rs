@@ -926,13 +926,8 @@ fn build_declarations(
                     );
                 }
 
-                eprintln!("[DEBUG each_block] paths count: {}", paths.len());
                 // For each path, create a getter declaration
                 for path in paths {
-                    eprintln!(
-                        "[DEBUG each_block] path.name={} update_expression={}",
-                        path.name, path.update_expression
-                    );
                     // Track the update_expression for bind_directive to use in setters
                     destructured_update_paths
                         .insert(path.name.clone(), path.update_expression.clone());
