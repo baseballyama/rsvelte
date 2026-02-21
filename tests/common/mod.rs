@@ -2647,9 +2647,10 @@ mod tests {
 
     #[test]
     fn test_normalize_js_removes_empty_lines() {
-        // With full whitespace collapse, empty lines become single spaces
+        // normalize_consecutive_declarations merges consecutive let declarations
+        // so `let a = 1; let b = 2;` becomes `let a = 1, b = 2`
         let input = "const a = 1;\n\nconst b = 2;";
-        let expected = "let a = 1 let b = 2";
+        let expected = "let a = 1, b = 2";
         assert_eq!(normalize_js(input), expected);
     }
 
@@ -2745,9 +2746,10 @@ mod tests {
 
     #[test]
     fn test_normalize_js_multiple_empty_lines() {
-        // With full whitespace collapse, multiple empty lines become single space
+        // normalize_consecutive_declarations merges consecutive let declarations
+        // so `let a = 1; let b = 2;` becomes `let a = 1, b = 2`
         let input = "const a = 1;\n\n\n\nconst b = 2;";
-        let expected = "let a = 1 let b = 2";
+        let expected = "let a = 1, b = 2";
         assert_eq!(normalize_js(input), expected);
     }
 
