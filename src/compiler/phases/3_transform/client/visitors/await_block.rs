@@ -124,7 +124,8 @@ pub fn await_block(node: &AwaitBlock, context: &mut ComponentContext) {
     let mut await_args = vec![context.state.node.clone(), expression, pending_block];
     // Add then block if it exists, or null if catch block follows
     if then_block.is_some() || catch_block.is_some() {
-        await_args.push(then_block.unwrap_or_else(b::null));
+        // Use void 0 (undefined) for missing then block to match official compiler
+        await_args.push(then_block.unwrap_or_else(b::undefined));
     }
     if let Some(catch_fn) = catch_block {
         await_args.push(catch_fn);
