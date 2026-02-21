@@ -445,14 +445,13 @@ pub fn visit_regular_element(
             None
         });
 
-        // Find style attribute for special handling
-        let _style_attribute = attributes.iter().find_map(|attr| {
-            if let Attribute::Attribute(a) = attr
-                && a.name == "style"
-            {
-                return Some(a);
-            }
-            None
+        // Find static style attribute for special handling with style directives
+        // This is used when the style attribute has a static value AND there are style directives.
+        // In that case, the static style value is passed to $.set_style() as the first argument.
+        let static_style_attribute = attributes.iter().find(|attr| {
+            matches!(attr, Attribute::Attribute(a) if a.name == "style"
+                && !style_directives.is_empty()
+                && is_text_attribute(a))
         });
 
         // Track if style has been handled (when style attribute exists)
@@ -480,6 +479,15 @@ pub fn visit_regular_element(
 
                 // Skip class attribute if there are class directives - will be handled separately
                 if name == "class" && !class_directives.is_empty() {
+                    continue;
+                }
+
+                // Skip STATIC TEXT style attribute if there are style directives.
+                // Static style attribute values should be passed to $.set_style() directly,
+                // not baked into the template. They will be handled in the post-loop section.
+                // Dynamic style attributes (style={expr}) must still go through the
+                // else-if name == "style" branch to be properly processed.
+                if name == "style" && !style_directives.is_empty() && is_text_attribute(attr) {
                     continue;
                 }
 
@@ -650,13 +658,22 @@ pub fn visit_regular_element(
             );
         }
 
-        // Handle style directives when there's no style attribute
-        // (If there was a style attribute, it was handled together with style_directives above)
+        // Handle style directives when there's no style attribute (or when the style attribute
+        // was static and was skipped in the loop above - we need to pass its value here).
+        // (If there was a dynamic style attribute, it was already handled together with style_directives above)
         if !style_directives.is_empty() && !style_handled {
             let node_id = extract_node_id(&context.state.node);
+            // Pass static style attribute value if available (when style attr was skipped due to directives)
+            let style_attr_value = static_style_attribute.and_then(|attr| {
+                if let Attribute::Attribute(a) = attr {
+                    Some(&a.value)
+                } else {
+                    None
+                }
+            });
             build_set_style(
                 &node_id,
-                None, // No style attribute
+                style_attr_value, // Pass static style value if available, or None
                 &style_directives,
                 context,
             );
