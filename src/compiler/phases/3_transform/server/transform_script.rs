@@ -1645,8 +1645,39 @@ fn transform_reexported_prop_declarations(
                 }
             } else {
                 // No assignment: `let x;` -> `let x = $$props['prop_name'];`
+                // Also handle multi-declarator: `let a, b, c, d;`
                 let name = rest_trimmed.trim();
-                if let Some((_, prop_name)) =
+
+                // Check if this is a multi-declarator (contains commas at depth 0)
+                let has_commas = name.contains(',');
+                if has_commas {
+                    // Split multi-declarator into individual declarations
+                    let parts: Vec<&str> = name.split(',').map(|s| s.trim()).collect();
+                    let any_is_prop = parts.iter().any(|part| {
+                        let part_name = part.trim_end_matches(';').trim();
+                        reexported_props.iter().any(|(local, _)| local == part_name)
+                    });
+
+                    if any_is_prop {
+                        let indent = &line[..line.len() - trimmed.len()];
+                        for part in &parts {
+                            let part_name = part.trim_end_matches(';').trim();
+                            if let Some((_, prop_name)) = reexported_props
+                                .iter()
+                                .find(|(local, _)| local == part_name)
+                            {
+                                result.push_str(&format!(
+                                    "{}let {} = $$props['{}'];",
+                                    indent, part_name, prop_name
+                                ));
+                            } else {
+                                result.push_str(&format!("{}let {};", indent, part_name));
+                            }
+                            result.push('\n');
+                        }
+                        continue;
+                    }
+                } else if let Some((_, prop_name)) =
                     reexported_props.iter().find(|(local, _)| local == name)
                 {
                     let indent = &line[..line.len() - trimmed.len()];
