@@ -1291,7 +1291,9 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
                 } else {
                     // Pure text - no expressions
-                    let value = template_parts.join("");
+                    // Apply HTML attribute escaping: " -> &quot;, & -> &amp;, < -> &lt;
+                    let raw_value = template_parts.join("");
+                    let value = escape_attr(&raw_value);
                     // Skip empty class attributes (matches official compiler behavior)
                     if name == "class" && value.is_empty() {
                         Ok(None)

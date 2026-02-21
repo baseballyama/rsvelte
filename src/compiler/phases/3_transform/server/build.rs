@@ -135,28 +135,34 @@ impl<'a> ServerCodeGenerator<'a> {
 
             // Collect reexported prop names from `export { x }` patterns only
             // (NOT from `export let x` which is handled by transform_export_let_declarations)
-            let reexported_props: Vec<String> =
-                if has_bindable_props && !raw_script.contains("$props()") {
-                    self.analysis
-                        .map(|a| {
-                            a.root
-                                .bindings
-                                .iter()
-                                .filter(|b| {
-                                    matches!(b.kind, BindingKind::BindableProp) && {
-                                        // Only include if NOT declared via `export let` or `export var`
-                                        // Check both simple (`export let foo`) and comma-separated
-                                        // (`export let foo, bar`) forms.
-                                        !is_declared_via_export_let(&raw_script, b.name.as_str())
-                                    }
-                                })
-                                .map(|b| b.name.clone())
-                                .collect()
-                        })
-                        .unwrap_or_default()
-                } else {
-                    Vec::new()
-                };
+            // Collect (local_name, prop_name) pairs for `export { x as y }` patterns.
+            // prop_name is the exported/public name (the alias if any, otherwise same as local).
+            let reexported_props: Vec<(String, String)> = if has_bindable_props
+                && !raw_script.contains("$props()")
+            {
+                self.analysis
+                    .map(|a| {
+                        a.root
+                            .bindings
+                            .iter()
+                            .filter(|b| {
+                                matches!(b.kind, BindingKind::BindableProp) && {
+                                    // Only include if NOT declared via `export let` or `export var`
+                                    // Check both simple (`export let foo`) and comma-separated
+                                    // (`export let foo, bar`) forms.
+                                    !is_declared_via_export_let(&raw_script, b.name.as_str())
+                                }
+                            })
+                            .map(|b| {
+                                let prop_name = b.prop_alias.as_ref().unwrap_or(&b.name).clone();
+                                (b.name.clone(), prop_name)
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default()
+            } else {
+                Vec::new()
+            };
 
             let transformed = if reexported_props.is_empty() {
                 transform_script_content(&rest)

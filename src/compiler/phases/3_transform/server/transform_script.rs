@@ -16,7 +16,7 @@ pub(crate) fn transform_script_content(script: &str) -> String {
 /// Transform script content with additional bindable prop names from `export { x }` patterns.
 pub(crate) fn transform_script_content_with_props(
     script: &str,
-    reexported_props: &[String],
+    reexported_props: &[(String, String)],
 ) -> String {
     transform_script_content_inner(script, false, reexported_props)
 }
@@ -28,7 +28,7 @@ pub(crate) fn transform_script_content_module(script: &str) -> String {
 fn transform_script_content_inner(
     script: &str,
     is_module: bool,
-    reexported_props: &[String],
+    reexported_props: &[(String, String)],
 ) -> String {
     let script = script.replace("$props()", "$$props");
     let script = transform_rune_call_multiline(&script, "$state.eager(");
@@ -1598,7 +1598,10 @@ fn strip_export_from_declarations(script: &str) -> String {
 /// Transform `let x = value` declarations where `x` is exported via `export { x }`.
 /// Converts them to `let x = $.fallback($$props['x'], value)` for server-side rendering,
 /// similar to how `export let x = value` is handled.
-fn transform_reexported_prop_declarations(script: &str, reexported_props: &[String]) -> String {
+fn transform_reexported_prop_declarations(
+    script: &str,
+    reexported_props: &[(String, String)],
+) -> String {
     use super::transform_legacy::{is_no_arg_function_call, is_simple_default_value};
 
     let mut result = String::new();
@@ -1616,22 +1619,24 @@ fn transform_reexported_prop_declarations(script: &str, reexported_props: &[Stri
                 let name = rest_trimmed[..eq_pos].trim();
                 let value = rest_trimmed[eq_pos + 1..].trim();
 
-                if reexported_props.iter().any(|p| p == name) {
+                if let Some((_, prop_name)) =
+                    reexported_props.iter().find(|(local, _)| local == name)
+                {
                     let indent = &line[..line.len() - trimmed.len()];
                     let transformed = if is_simple_default_value(value) {
                         format!(
                             "{}let {} = $.fallback($$props['{}'], {});",
-                            indent, name, name, value
+                            indent, name, prop_name, value
                         )
                     } else if let Some(fn_name) = is_no_arg_function_call(value) {
                         format!(
                             "{}let {} = $.fallback($$props['{}'], {}, true);",
-                            indent, name, name, fn_name
+                            indent, name, prop_name, fn_name
                         )
                     } else {
                         format!(
                             "{}let {} = $.fallback($$props['{}'], () => ({}), true);",
-                            indent, name, name, value
+                            indent, name, prop_name, value
                         )
                     };
                     result.push_str(&transformed);
@@ -1639,11 +1644,16 @@ fn transform_reexported_prop_declarations(script: &str, reexported_props: &[Stri
                     continue;
                 }
             } else {
-                // No assignment: `let x;` -> `let x = $$props['x'];`
+                // No assignment: `let x;` -> `let x = $$props['prop_name'];`
                 let name = rest_trimmed.trim();
-                if reexported_props.iter().any(|p| p == name) {
+                if let Some((_, prop_name)) =
+                    reexported_props.iter().find(|(local, _)| local == name)
+                {
                     let indent = &line[..line.len() - trimmed.len()];
-                    result.push_str(&format!("{}let {} = $$props['{}'];", indent, name, name));
+                    result.push_str(&format!(
+                        "{}let {} = $$props['{}'];",
+                        indent, name, prop_name
+                    ));
                     result.push('\n');
                     continue;
                 }
