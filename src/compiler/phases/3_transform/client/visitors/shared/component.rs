@@ -880,6 +880,72 @@ fn process_bind_directive(
         return;
     }
 
+    // In legacy mode, check if we're inside an each block and use the each-block-aware getter/setter.
+    // This handles patterns like `bind:value={x}` inside `{#each a as x}` on components.
+    // The getter/setter needs to use `a()[$$index] = $$value` instead of a simple `x = $$value`.
+    // The returned get/set are arrow functions `() => expr` and `($$value) => (body)`.
+    // We extract their bodies to embed directly in the object literal getter/setter methods.
+    if !context.state.analysis.runes
+        && !context.state.each_binding_context.is_empty()
+        && let Some((get_expr, set_expr)) =
+            crate::compiler::phases::phase3_transform::client::visitors::bind_directive::build_each_block_getter_setter(
+                &bind.expression,
+                &raw_expression,
+                context,
+            )
+        {
+            // get_expr is a Raw `() => body` arrow. Extract the body by stripping `() => ` prefix.
+            // This gives us just the expression to use in `return <expr>`.
+            let get_body_str = if let JsExpr::Raw(s) = &get_expr {
+                if let Some(stripped) = s.strip_prefix("() => ") {
+                    stripped.to_string()
+                } else {
+                    s.clone()
+                }
+            } else {
+                // For non-raw exprs, just use them directly
+                use crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr;
+                generate_expr(&get_expr)
+            };
+            let getter = b::getter(
+                bind.name.as_str(),
+                vec![b::return_value(JsExpr::Raw(get_body_str))],
+            );
+
+            if let Some(set_fn) = set_expr {
+                // set_fn is a Raw `($$value) => (body)`. Extract the body by stripping
+                // the `($$value) => ` prefix and outer parens, then re-wrap in parens
+                // with proper formatting to match the official Svelte output.
+                let set_body_str = if let JsExpr::Raw(s) = &set_fn {
+                    let prefix = "($$value) => (";
+                    if s.starts_with(prefix) && s.ends_with(')') {
+                        // Strip the outer `($$value) => (` prefix and trailing `)`
+                        let inner = &s[prefix.len()..s.len() - 1];
+                        format!("(
+					{}
+				)", inner)
+                    } else if let Some(stripped) = s.strip_prefix("($$value) => ") {
+                        stripped.to_string()
+                    } else {
+                        s.clone()
+                    }
+                } else {
+                    use crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr;
+                    format!("({})($$value)", generate_expr(&set_fn))
+                };
+                let setter = b::setter(
+                    bind.name.as_str(),
+                    "$$value",
+                    vec![b::stmt(JsExpr::Raw(set_body_str))],
+                );
+                delayed_props.push(DelayedProp { prop: getter });
+                delayed_props.push(DelayedProp { prop: setter });
+            } else {
+                delayed_props.push(DelayedProp { prop: getter });
+            }
+            return;
+        }
+
     // Check if expression is a sequence (getter/setter pair)
     if let JsExpr::Sequence(seq) = &transformed_expression
         && seq.expressions.len() == 2

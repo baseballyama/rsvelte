@@ -1508,7 +1508,7 @@ fn has_use_directive(parent: Option<&TemplateNode>) -> bool {
 ///
 /// Returns None if we're not inside an each block or the expression doesn't reference
 /// an each item variable.
-fn build_each_block_getter_setter(
+pub fn build_each_block_getter_setter(
     original_expr: &Expression,
     _converted_expr: &JsExpr,
     context: &mut ComponentContext,
@@ -1531,19 +1531,12 @@ fn build_each_block_getter_setter(
     let invalidation = build_invalidation_expr(&each_ctx);
 
     match expr_info {
-        EachBindingExprInfo::DirectItem { item_name } => {
+        EachBindingExprInfo::DirectItem { item_name: _ } => {
             // Direct item reference: bind:value={item}
-            // This is the case where the each item itself is the bound value
-            // Getter: () => $.get(item) or just item
-            // Setter: ($$value) => (collection[index] = $$value, invalidation)
-            let get_expr = if each_ctx.item_reactive {
-                b::call(b::member_path("$.get"), vec![b::id(&item_name)])
-            } else {
-                b::id(&item_name)
-            };
-            let get = b::thunk(get_expr.clone());
-
-            // For direct item assignment, we need collection[index] = $$value
+            // Official Svelte uses collection[$$index] for both getter and setter
+            // (not $.get(item)) because the item is considered "reassigned" via the bind.
+            // Getter: () => collection[$$index]
+            // Setter: ($$value) => (collection[$$index] = $$value, invalidation)
             let collection_access = if let Some(ref coll_id) = each_ctx.collection_id {
                 format!("{}()", coll_id)
             } else {
@@ -1554,6 +1547,11 @@ fn build_each_block_getter_setter(
             } else {
                 each_ctx.index_name.clone()
             };
+
+            // Getter uses collection indexed access (matches official Svelte behavior
+            // when binding.reassigned is true)
+            let get_expr_str = format!("{}[{}]", collection_access, index_access);
+            let get = JsExpr::Raw(format!("() => {}", get_expr_str));
 
             let setter_body = if let Some(ref inv) = invalidation {
                 format!("{}[{}] = $$value, {}", collection_access, index_access, inv)

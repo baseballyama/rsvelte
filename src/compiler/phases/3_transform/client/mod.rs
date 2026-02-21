@@ -6440,6 +6440,78 @@ fn is_function_parameter_in_statement(statement: &str, store_sub: &str) -> bool 
         }
         search_from = abs_func_pos + 9;
     }
+
+    // Also check for arrow function parameters.
+    // Pattern 1: `$store =>` (unparenthesized single arrow param)
+    //   e.g., `derived(count, $count => $count * 2)`
+    let store_sub_len = store_sub.len();
+    let mut pos = 0;
+    while pos + store_sub_len <= statement.len() {
+        if let Some(found) = statement[pos..].find(store_sub) {
+            let abs_found = pos + found;
+            // Check word boundary before
+            let before_ok = if abs_found == 0 {
+                true
+            } else {
+                let prev = statement.as_bytes()[abs_found - 1] as char;
+                !prev.is_alphanumeric() && prev != '_' && prev != '$'
+            };
+            // Check word boundary after
+            let after_pos = abs_found + store_sub_len;
+            let after_ok = if after_pos >= statement.len() {
+                true
+            } else {
+                let next = statement.as_bytes()[after_pos] as char;
+                !next.is_alphanumeric() && next != '_' && next != '$'
+            };
+
+            if before_ok && after_ok {
+                // Check if followed by `=>` (with optional whitespace) = simple arrow param
+                let rest = statement[after_pos..].trim_start();
+                if rest.starts_with("=>") {
+                    return true;
+                }
+
+                // Check if preceded by `(` (possibly with other params) and the paren
+                // group is followed by `=>` = parenthesized arrow param
+                // Look backwards for an opening paren that contains this store_sub as a param
+                if abs_found > 0 {
+                    // Check if we're inside a parenthesized arrow param list
+                    // by looking back for `(` and checking if the `)` after is followed by `=>`
+                    let prefix = &statement[..abs_found];
+                    if let Some(open_paren) = prefix.rfind('(') {
+                        let _params_str = &statement[open_paren + 1..abs_found];
+                        // Check that params_str doesn't contain a sub-expression that would
+                        // indicate this is NOT a simple param list (e.g., no `=>` before ours)
+                        // Find the matching close paren
+                        let from_open = &statement[open_paren + 1..];
+                        if let Some(close_offset) = find_matching_paren(from_open) {
+                            let close_paren = open_paren + 1 + close_offset;
+                            // Check that the close paren is followed by `=>` (arrow function)
+                            // close_paren points to `)`, so skip past it to check what follows
+                            let after_close = statement[close_paren + 1..].trim_start();
+                            if after_close.starts_with("=>") {
+                                // Verify store_sub is indeed a parameter in this list
+                                let params_content = &statement[open_paren + 1..close_paren];
+                                for param in params_content.split(',') {
+                                    let trimmed = param.trim();
+                                    let param_name =
+                                        trimmed.split('=').next().unwrap_or(trimmed).trim();
+                                    if param_name == store_sub {
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            pos = abs_found + store_sub_len;
+        } else {
+            break;
+        }
+    }
+
     false
 }
 
