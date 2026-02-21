@@ -180,14 +180,29 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     // Set up index tracking before visiting the body.
     // Save the previous each_index state so we can restore it after (for nested each blocks).
     let saved_each_index_name = context.state.each_index_name.clone();
-    let saved_each_index_used = context.state.each_index_used.get();
+    // Save the Rc itself so we can restore the outer each's tracking Rc after body traversal
+    let saved_each_index_used_rc = context.state.each_index_used.clone();
 
     // Set the current each block's index name and reset the used flag.
     // During body traversal, apply_transforms_to_expression_with_shadowed will
     // set each_index_used to true if the index identifier is encountered.
     if let Some(ref index_name) = node.index {
+        // Push the OLD index name to the ancestor stack (if any) to allow
+        // detecting when ancestor index variables are used in nested each bodies.
+        // We push the OLD each_index_used Rc (not a reset copy) to the stack,
+        // then replace each_index_used with a NEW Rc for the current each block.
+        if let Some(ref old_index_name) = saved_each_index_name {
+            // Push the existing (outer) Rc to the ancestor stack, so writes to it
+            // during nested body traversal will be visible to the outer each block.
+            context.state.ancestor_each_index_names.push((
+                old_index_name.clone(),
+                context.state.each_index_used.clone(),
+            ));
+        }
         context.state.each_index_name = Some(index_name.to_string());
-        context.state.each_index_used.set(false);
+        // Replace with a NEW Rc so the inner each doesn't share state with outer.
+        // The outer Rc is now in the ancestor stack (if there was an outer index).
+        context.state.each_index_used = ::std::rc::Rc::new(::std::cell::Cell::new(false));
     }
 
     // Set up item assign/mutate tracking before visiting the body.
@@ -310,8 +325,14 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     }
 
     // Restore the previous each_index state (for nested each blocks)
+    // Pop the ancestor stack if we pushed to it (when we had an ancestor index name)
+    if node.index.is_some() && saved_each_index_name.is_some() {
+        context.state.ancestor_each_index_names.pop();
+    }
     context.state.each_index_name = saved_each_index_name;
-    context.state.each_index_used.set(saved_each_index_used);
+    // Restore the OUTER Rc (which now has "was outer i used?" set by ancestor tracking)
+    context.state.each_index_used = saved_each_index_used_rc;
+    // Note: saved_each_index_used_rc already has the correct value from ancestor tracking
 
     // Restore the previous each_item state (for nested each blocks)
     context.state.each_item_names = saved_each_item_names;

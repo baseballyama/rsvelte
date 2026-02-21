@@ -172,6 +172,7 @@ pub fn fragment(
         template_nesting_level: if is_root_fragment { 0 } else { 1 },
         each_index_used: context.state.each_index_used.clone(),
         each_index_name: context.state.each_index_name.clone(),
+        ancestor_each_index_names: context.state.ancestor_each_index_names.clone(),
         each_item_assign_or_mutate: context.state.each_item_assign_or_mutate.clone(),
         each_item_names: context.state.each_item_names.clone(),
         each_binding_context: context.state.each_binding_context.clone(),

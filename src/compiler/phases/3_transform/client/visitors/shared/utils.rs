@@ -326,6 +326,15 @@ pub fn apply_transforms_to_expression_with_shadowed(
             {
                 context.state.each_index_used.set(true);
             }
+            // Also check ancestor each-block index names (for nested each blocks).
+            // When an ancestor's index variable is used inside a nested each block body,
+            // we need to mark the ancestor's index as used too.
+            for (ancestor_idx_name, ancestor_used_flag) in &context.state.ancestor_each_index_names
+            {
+                if name == ancestor_idx_name {
+                    ancestor_used_flag.set(true);
+                }
+            }
             // For reassigned each item identifiers in legacy mode, the read transform should
             // return `collection[$$index]` instead of `$.get(n)`. This matches the official
             // Svelte compiler's behavior:

@@ -972,6 +972,11 @@ pub struct ComponentClientTransformState<'a> {
     /// Used by apply_transforms_to_expression_with_shadowed to detect index accesses.
     pub each_index_name: Option<String>,
 
+    /// Stack of ancestor each-block index entries: (index_name, index_used_flag).
+    /// When inside a nested each block, this allows detecting when an ancestor's
+    /// index variable is used in the nested body.
+    pub ancestor_each_index_names: Vec<(String, Rc<Cell<bool>>)>,
+
     /// Shared flag for tracking whether the each block item variable was assigned or mutated
     /// during body traversal. This mirrors the official Svelte compiler's approach where
     /// `uses_index` is set to `true` inside the assign/mutate transform callbacks.
@@ -1089,6 +1094,7 @@ impl<'a> ComponentClientTransformState<'a> {
             template_nesting_level: 0,
             each_index_used: Rc::new(Cell::new(false)),
             each_index_name: None,
+            ancestor_each_index_names: Vec::new(),
             each_item_assign_or_mutate: Rc::new(Cell::new(false)),
             each_item_names: Vec::new(),
             each_binding_context: Vec::new(),
