@@ -114,9 +114,91 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     let code = restore_original_quotes(code, &original_imports);
     // Restore original quote styles for non-import lines (user source code)
     let code = restore_line_quotes(code, &original_lines);
+    // OXC strips parentheses from single-expression arrow function bodies like
+    // `() => (expr)` → `() => expr`. But the official Svelte compiler (esrap)
+    // preserves these parens for legacy_pre_effect dependency thunks.
+    // Restore them: `legacy_pre_effect(() => expr,` → `legacy_pre_effect(() => (expr),`
+    let code = restore_legacy_pre_effect_thunk_parens(&code);
     // Remove trailing newline to match Svelte compiler output
     let code = code.trim_end_matches('\n').to_string();
     Ok(code)
+}
+
+/// Restore parentheses around single-expression deps thunks in $.legacy_pre_effect() calls.
+///
+/// OXC normalizes `() => (expr)` to `() => expr`, but the official Svelte esrap formatter
+/// preserves the parens (because the AST node is a SequenceExpression even with one element).
+/// This function restores `$.legacy_pre_effect(() => expr, ...)` to
+/// `$.legacy_pre_effect(() => (expr), ...)`.
+fn restore_legacy_pre_effect_thunk_parens(code: &str) -> String {
+    let needle = "$.legacy_pre_effect(() => ";
+    let mut result = code.to_string();
+    let mut search_from = 0;
+
+    while let Some(pos) = result[search_from..].find(needle) {
+        let abs_pos = search_from + pos + needle.len();
+
+        // Check if the expression is already parenthesized
+        if result[abs_pos..].starts_with('(') {
+            // Already has parens, skip
+            // Find the comma after this arg to advance search_from
+            if let Some(comma) = find_next_comma_at_depth_zero(&result, abs_pos) {
+                search_from = comma + 1;
+            } else {
+                break;
+            }
+            continue;
+        }
+
+        // Find the comma that separates the first arg (deps thunk) from the second arg
+        // The first arg ends at depth-0 comma after the `() => expr` part
+        // We need to wrap `expr` in parens: `() => expr,` → `() => (expr),`
+        if let Some(comma_pos) = find_next_comma_at_depth_zero(&result, abs_pos) {
+            let expr = result[abs_pos..comma_pos].trim_end().to_string();
+            let replacement = format!("({})", expr);
+            result.replace_range(abs_pos..comma_pos, &replacement);
+            search_from = abs_pos + replacement.len() + 1;
+        } else {
+            break;
+        }
+    }
+
+    result
+}
+
+/// Find the position of the next comma at depth-0 (not inside parens/brackets/braces).
+fn find_next_comma_at_depth_zero(s: &str, start: usize) -> Option<usize> {
+    let bytes = s.as_bytes();
+    let mut depth = 0i32;
+    let mut i = start;
+
+    while i < bytes.len() {
+        match bytes[i] {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => {
+                if depth == 0 {
+                    return None; // Reached end of surrounding expression
+                }
+                depth -= 1;
+            }
+            b',' if depth == 0 => return Some(i),
+            b'\'' | b'"' | b'`' => {
+                // Skip string literal
+                let quote = bytes[i];
+                i += 1;
+                while i < bytes.len() && bytes[i] != quote {
+                    if bytes[i] == b'\\' {
+                        i += 1; // Skip escaped char
+                    }
+                    i += 1;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+
+    None
 }
 
 /// Collect source lines that contain double-quoted strings.
