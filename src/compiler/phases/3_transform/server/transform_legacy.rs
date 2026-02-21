@@ -696,3 +696,84 @@ fn process_destructured_element(
         vars.push(name.to_string());
     }
 }
+
+/// Reorder legacy reactive `$:` statements in SSR script to appear after all other
+/// script declarations (function declarations, variable declarations, function calls).
+///
+/// In the official Svelte compiler, reactive `$:` statements in SSR mode are placed
+/// AFTER all other script content because reactive computed values should run after
+/// all initialization code.
+///
+/// This function moves `$:` statement lines/blocks to the end of the script content.
+pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> String {
+    let lines: Vec<&str> = script.lines().collect();
+
+    // Check if there are any $: statements and any function declarations
+    let has_reactive = lines.iter().any(|l| l.trim().starts_with("$:"));
+    let has_functions = lines.iter().any(|l| l.trim().starts_with("function "));
+
+    if !has_reactive || !has_functions {
+        return script.to_string();
+    }
+
+    // Separate lines into: non-reactive (including functions) and reactive
+    let mut non_reactive_lines: Vec<&str> = Vec::new();
+    let mut reactive_lines: Vec<Vec<&str>> = Vec::new();
+
+    let mut i = 0;
+    while i < lines.len() {
+        let line = lines[i];
+        let trimmed = line.trim();
+
+        if trimmed.starts_with("$:") {
+            // Collect the full reactive statement (possibly multi-line block)
+            let after = trimmed.strip_prefix("$:").unwrap_or("").trim();
+            let mut stmt_lines = vec![line];
+
+            if after.starts_with('{') && !after.ends_with('}') {
+                // Multi-line block - collect until matching '}'
+                i += 1;
+                let mut depth = after.chars().filter(|&c| c == '{').count() as i32
+                    - after.chars().filter(|&c| c == '}').count() as i32;
+                while i < lines.len() && depth > 0 {
+                    let next = lines[i];
+                    stmt_lines.push(next);
+                    depth += next.chars().filter(|&c| c == '{').count() as i32
+                        - next.chars().filter(|&c| c == '}').count() as i32;
+                    i += 1;
+                }
+            } else {
+                i += 1;
+            }
+
+            reactive_lines.push(stmt_lines);
+        } else {
+            non_reactive_lines.push(line);
+            i += 1;
+        }
+    }
+
+    // Build result: all non-reactive lines first, then reactive statements at the end
+    let mut result = String::new();
+
+    for line in &non_reactive_lines {
+        result.push_str(line);
+        result.push('\n');
+    }
+
+    // Append reactive statements at the end
+    result.push('\n');
+    for stmt in &reactive_lines {
+        for stmt_line in stmt {
+            result.push_str(stmt_line);
+            result.push('\n');
+        }
+    }
+
+    // Remove trailing newline
+    if result.ends_with('\n') {
+        result.pop();
+    }
+
+    result
+}

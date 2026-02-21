@@ -89,7 +89,13 @@ fn transform_script_content_inner(
         result.pop();
     }
 
-    result
+    // In legacy mode (non-module, non-runes), reorder $: reactive statements
+    // to appear after function declarations (to match official Svelte SSR behavior)
+    if !is_module {
+        super::transform_legacy::reorder_reactive_statements_after_functions(&result)
+    } else {
+        result
+    }
 }
 
 fn format_js_line(line: &str) -> String {

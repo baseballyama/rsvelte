@@ -119,6 +119,10 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     // preserves these parens for legacy_pre_effect dependency thunks.
     // Restore them: `legacy_pre_effect(() => expr,` → `legacy_pre_effect(() => (expr),`
     let code = restore_legacy_pre_effect_thunk_parens(&code);
+    // OXC incorrectly formats labeled block statements like `$: { foo = bar;, baz = qux; }`
+    // by adding commas between statements (treating them like sequence expressions).
+    // Fix this by removing the spurious semicolon-comma sequences: `;,` -> `;`
+    let code = code.replace(";,", ";");
     // Remove trailing newline to match Svelte compiler output
     let code = code.trim_end_matches('\n').to_string();
     Ok(code)
