@@ -4,6 +4,65 @@
 //! for server-side code generation, including `export let` declarations, reactive
 //! `$:` statements, and related helper utilities.
 
+/// Check if an export let declaration value appears to be syntactically complete.
+/// Returns true if the expression doesn't need a continuation line.
+fn export_let_declaration_seems_complete(decl: &str) -> bool {
+    // Check for unbalanced braces/parens - if unbalanced, definitely incomplete
+    let mut paren_depth: i32 = 0;
+    let mut bracket_depth: i32 = 0;
+    let mut brace_depth: i32 = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    for c in decl.chars() {
+        if (c == '"' || c == '\'' || c == '`') && !in_string {
+            in_string = true;
+            string_char = c;
+        } else if in_string && c == string_char {
+            in_string = false;
+        } else if !in_string {
+            match c {
+                '(' => paren_depth += 1,
+                ')' => paren_depth -= 1,
+                '[' => bracket_depth += 1,
+                ']' => bracket_depth -= 1,
+                '{' => brace_depth += 1,
+                '}' => brace_depth -= 1,
+                _ => {}
+            }
+        }
+    }
+
+    // If any depth is non-zero, definitely incomplete
+    if paren_depth != 0 || bracket_depth != 0 || brace_depth != 0 || in_string {
+        return false;
+    }
+
+    // If there's an assignment, the right side should be complete
+    // Check for trailing operators that would require continuation
+    let trimmed = decl.trim();
+    if trimmed.ends_with('+')
+        || trimmed.ends_with('-')
+        || trimmed.ends_with('*')
+        || trimmed.ends_with('/')
+        || trimmed.ends_with('%')
+        || trimmed.ends_with('&')
+        || trimmed.ends_with('|')
+        || trimmed.ends_with('^')
+        || trimmed.ends_with('?')
+        || trimmed.ends_with("&&")
+        || trimmed.ends_with("||")
+        || trimmed.ends_with("=>")
+        || trimmed.ends_with('=')
+        || trimmed.ends_with(',')
+    {
+        return false;
+    }
+
+    // If balanced and doesn't end with an operator, it seems complete
+    true
+}
+
 /// Transform `export let` declarations for server-side rendering (legacy/non-runes mode).
 pub(crate) fn transform_export_let_declarations(script: &str) -> String {
     let mut result = String::new();
@@ -16,7 +75,30 @@ pub(crate) fn transform_export_let_declarations(script: &str) -> String {
             let rest = &trimmed[11..];
 
             let mut full_declaration = rest.to_string();
+            // Only continue reading if the expression appears incomplete (unbalanced braces/parens)
+            // AND doesn't look like a valid complete statement.
+            // This handles `export let x = 'value'` (no semicolon) correctly - it's complete
+            // on its own and shouldn't consume the next line.
             while !full_declaration.contains(';') && lines.peek().is_some() {
+                // Check if the current line looks like a complete expression
+                // A simple expression (identifier, string, number, etc.) is complete
+                if export_let_declaration_seems_complete(&full_declaration) {
+                    // Also peek to see if the next line would be a continuation
+                    // (e.g., starts with '.' for method chains, or '&&', '||', etc.)
+                    let next_continues = lines.peek().is_some_and(|next| {
+                        let next_trimmed = next.trim();
+                        next_trimmed.starts_with('.')
+                            || next_trimmed.starts_with("&&")
+                            || next_trimmed.starts_with("||")
+                            || next_trimmed.starts_with('?')
+                            || next_trimmed.starts_with(':')
+                            || next_trimmed.starts_with('+')
+                            || next_trimmed.starts_with('-')
+                    });
+                    if !next_continues {
+                        break;
+                    }
+                }
                 if let Some(next_line) = lines.next() {
                     full_declaration.push(' ');
                     full_declaration.push_str(next_line.trim());
