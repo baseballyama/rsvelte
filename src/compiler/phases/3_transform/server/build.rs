@@ -145,10 +145,9 @@ impl<'a> ServerCodeGenerator<'a> {
                                 .filter(|b| {
                                     matches!(b.kind, BindingKind::BindableProp) && {
                                         // Only include if NOT declared via `export let` or `export var`
-                                        let export_let = format!("export let {}", b.name);
-                                        let export_var = format!("export var {}", b.name);
-                                        !raw_script.contains(&export_let)
-                                            && !raw_script.contains(&export_var)
+                                        // Check both simple (`export let foo`) and comma-separated
+                                        // (`export let foo, bar`) forms.
+                                        !is_declared_via_export_let(&raw_script, b.name.as_str())
                                     }
                                 })
                                 .map(|b| b.name.clone())
@@ -2146,4 +2145,39 @@ export default function {component_name}($$renderer{props_param}) {{
             props.join(", ")
         )
     }
+}
+
+/// Check if a name is declared via `export let` or `export var` in the script.
+/// This handles both simple form (`export let foo;`) and comma-separated form
+/// (`export let foo, bar;`).
+fn is_declared_via_export_let(script: &str, name: &str) -> bool {
+    for line in script.lines() {
+        let trimmed = line.trim();
+        let rest = if let Some(s) = trimmed.strip_prefix("export let ") {
+            s
+        } else if let Some(s) = trimmed.strip_prefix("export var ") {
+            s
+        } else {
+            continue;
+        };
+
+        // Strip trailing semicolon
+        let decl = rest.trim_end_matches(';').trim();
+
+        // Split by comma and check each declarator
+        // This handles: `foo`, `foo = default`, etc.
+        for declarator in decl.split(',') {
+            let declarator = declarator.trim();
+            // Take the name part (before `=` if present)
+            let decl_name = if let Some(eq_pos) = declarator.find('=') {
+                declarator[..eq_pos].trim()
+            } else {
+                declarator
+            };
+            if decl_name == name {
+                return true;
+            }
+        }
+    }
+    false
 }
