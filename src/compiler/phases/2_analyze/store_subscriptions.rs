@@ -168,6 +168,32 @@ pub fn detect_store_subscriptions(
                     continue;
                 }
 
+                // Special case from official compiler (2-analyze/index.js L366-368):
+                // "rune-like names received as props are valid too (but we have to protect
+                //  against $props as store)"
+                //
+                // When `let props = $props()` is used (Identifier pattern), the `props`
+                // binding has kind RestProp. In this case `$props` must NOT be treated as
+                // a store subscription - it is still the $props rune.
+                //
+                // However, if someone writes `let state = $props()`, the `state` binding
+                // also has kind Prop/RestProp, but `$state` references elsewhere SHOULD
+                // still be treated as store subscriptions (per official compiler logic):
+                //   get_rune(init) === '$props' && store_name === 'props'  -> skip (rune)
+                //   get_rune(init) === '$props' && store_name !== 'props'  -> create store
+                //
+                // We replicate this by checking binding kind is Prop/RestProp/BindableProp
+                // (i.e., init was $props()) AND store_name == "props".
+                let is_props_rune_init = matches!(
+                    binding.kind,
+                    BindingKind::Prop | BindingKind::RestProp | BindingKind::BindableProp
+                ) && store_name == "props";
+
+                if is_props_rune_init {
+                    // The binding is `let props = $props()` - $props is the rune, not a store
+                    continue;
+                }
+
                 // Special case from official compiler (2-analyze/index.js L370-374):
                 // Allow `import { derived } from 'svelte/store'` in the same file as
                 // `const x = $derived(..)` because one is not a subscription to the other.
