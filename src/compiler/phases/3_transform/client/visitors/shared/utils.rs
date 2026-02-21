@@ -326,6 +326,30 @@ pub fn apply_transforms_to_expression_with_shadowed(
             {
                 context.state.each_index_used.set(true);
             }
+            // For reassigned each item identifiers in legacy mode, the read transform should
+            // return `collection[$$index]` instead of `$.get(n)`. This matches the official
+            // Svelte compiler's behavior:
+            //   read: (node) => {
+            //     if (binding.reassigned) {
+            //       return b.member(collection_id ? b.call(collection_id) : collection, index, true);
+            //     }
+            //     return (flags & EACH_ITEM_REACTIVE) !== 0 ? get_value(node) : node;
+            //   }
+            if !context.state.analysis.runes
+                && context.state.each_item_names.contains(name)
+                && let Some(binding) = context.state.get_binding(name)
+                && binding.reassigned
+            {
+                // Find the matching each binding context for this item name
+                if let Some(each_ctx) = context.state.each_binding_context.last()
+                    && each_ctx.item_name == *name
+                {
+                    // Build collection[$$index] access
+                    // Note: We do NOT set each_item_assign_or_mutate here - that's only for
+                    // writes (assign/mutate). The read transform just redirects to arr[$$index].
+                    return build_reassigned_item_read(each_ctx);
+                }
+            }
             // Check if there's a transform registered for this identifier
             if let Some(transform) = context.state.transform.get(name)
                 && let Some(read_fn) = transform.read
@@ -843,11 +867,39 @@ pub fn apply_transforms_to_expression_with_shadowed(
             }
 
             // Track each item update (++ or --) for uses_index detection.
+            // For reassigned each items in legacy mode, transform `n++` into
+            // `collection[$$index]++, $.invalidate_inner_signals(() => collection)`
+            // This mirrors the official Svelte compiler's `mutate` transform on each items:
+            //   mutate: (_, mutation) => {
+            //     uses_index = true;
+            //     return b.sequence([mutation, ...sequence]);
+            //   }
             if let JsExpr::Identifier(name) = update.argument.as_ref()
                 && !local_scope.contains(name)
                 && context.state.each_item_names.contains(name)
             {
                 context.state.each_item_assign_or_mutate.set(true);
+
+                // For reassigned each items in legacy mode, we need to transform `n++` to
+                // `collection[$$index]++, $.invalidate_inner_signals(() => collection)`
+                if !context.state.analysis.runes
+                    && let Some(binding) = context.state.get_binding(name)
+                    && binding.reassigned
+                    && let Some(each_ctx) = context.state.each_binding_context.last()
+                    && each_ctx.item_name == *name
+                {
+                    let collection_access = build_reassigned_item_read(each_ctx);
+                    let update_expr = b::update(update.operator, collection_access, update.prefix);
+
+                    // Build the invalidation sequence expressions
+                    let invalidation_exprs = each_ctx.invalidation_exprs.clone();
+                    let mut seq_exprs = vec![update_expr];
+                    if !invalidation_exprs.is_empty() {
+                        let invalidate_inner = build_invalidate_inner_signals(&invalidation_exprs);
+                        seq_exprs.push(invalidate_inner);
+                    }
+                    return b::sequence(seq_exprs);
+                }
             }
 
             // Check for mutation case: when updating a member expression where
@@ -984,6 +1036,63 @@ fn is_svelte_runtime_skip_args_transform(callee: &JsExpr) -> bool {
         );
     }
     false
+}
+
+/// Build the `collection[$$index]` member expression for a reassigned each item.
+///
+/// This mirrors the official Svelte compiler's read transform for reassigned each items:
+/// ```js
+/// if (binding.reassigned) {
+///   return b.member(
+///     collection_id ? b.call(collection_id) : collection,
+///     (flags & EACH_INDEX_REACTIVE) !== 0 ? get_value(index) : index,
+///     true  // computed
+///   );
+/// }
+/// ```
+fn build_reassigned_item_read(
+    each_ctx: &crate::compiler::phases::phase3_transform::client::types::EachBindingContext,
+) -> JsExpr {
+    // Build the collection expression (either $$array() or the collection itself)
+    let collection_expr = if let Some(ref coll_id) = each_ctx.collection_id {
+        // Computed: $$array()
+        b::call(b::id(coll_id), vec![])
+    } else {
+        // Raw collection expression string (already has transforms applied, e.g., $.get(arr))
+        JsExpr::Raw(each_ctx.collection_expr.clone())
+    };
+
+    // Build the index expression (either $.get($$index) for reactive or just $$index)
+    let index_expr = if each_ctx.index_reactive {
+        b::call(b::member_path("$.get"), vec![b::id(&each_ctx.index_name)])
+    } else {
+        b::id(&each_ctx.index_name)
+    };
+
+    // Build the computed member expression: collection[index]
+    b::member_computed(collection_expr, index_expr)
+}
+
+/// Build a `$.invalidate_inner_signals(() => (expr1, expr2, ...))` call.
+///
+/// This mirrors the invalidation sequence used by the official Svelte compiler
+/// when mutating each block items in legacy mode.
+fn build_invalidate_inner_signals(invalidation_exprs: &[String]) -> JsExpr {
+    let exprs: Vec<JsExpr> = invalidation_exprs
+        .iter()
+        .map(|s| JsExpr::Raw(s.clone()))
+        .collect();
+
+    let inner = if exprs.len() == 1 {
+        exprs.into_iter().next().unwrap()
+    } else {
+        b::sequence(exprs)
+    };
+
+    b::call(
+        b::member_path("$.invalidate_inner_signals"),
+        vec![b::thunk(inner)],
+    )
 }
 
 /// Get the base object of a member expression.

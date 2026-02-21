@@ -2010,8 +2010,13 @@ impl Parser<'_> {
                 }
             } else {
                 // Unquoted value ends at whitespace or > (but NOT / alone - it can be part of the value like href=/)
+                // However, /> (self-closing tag) should stop the value parsing
                 let c = self.current_char();
                 if c.is_whitespace() || c == '>' {
+                    break;
+                }
+                // Stop at /> (self-closing tag marker) - don't consume the slash as part of the value
+                if c == '/' && self.match_str("/>") {
                     break;
                 }
             }
@@ -2057,14 +2062,39 @@ impl Parser<'_> {
                 // Reset position after whitespace check (we only peeked)
                 self.index = expr_start + 1;
 
-                // Parse expression content
+                // Parse expression content with string-aware depth counting.
+                // JS string literals (single-quoted, double-quoted, template literals)
+                // may contain `{` and `}` characters that should NOT affect the brace
+                // depth counter. We track the current string delimiter to skip over
+                // their contents correctly.
                 let mut depth = 1;
+                let mut string_char: Option<char> = None;
+                let mut prev_was_backslash = false;
                 while !self.is_eof() && depth > 0 {
                     let c = self.current_char();
-                    if c == '{' {
-                        depth += 1;
-                    } else if c == '}' {
-                        depth -= 1;
+                    if let Some(sc) = string_char {
+                        // Inside a string literal: look for the closing quote,
+                        // handling backslash escapes.
+                        if prev_was_backslash {
+                            prev_was_backslash = false;
+                        } else if c == '\\' {
+                            prev_was_backslash = true;
+                        } else if c == sc {
+                            string_char = None;
+                        }
+                    } else {
+                        match c {
+                            '\'' | '"' | '`' => {
+                                string_char = Some(c);
+                            }
+                            '{' => {
+                                depth += 1;
+                            }
+                            '}' => {
+                                depth -= 1;
+                            }
+                            _ => {}
+                        }
                     }
                     self.advance();
                 }
