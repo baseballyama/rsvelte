@@ -60,6 +60,22 @@ fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
                 "TemplateLiteral" => convert_template_literal(obj, context),
                 "TaggedTemplateExpression" => convert_tagged_template_expression(obj, context),
                 "ChainExpression" => convert_chain_expression(obj, context),
+                "MetaProperty" => {
+                    // ESTree MetaProperty: meta.property (e.g., import.meta, new.target)
+                    let meta = obj
+                        .get("meta")
+                        .and_then(|m| m.as_object())
+                        .and_then(|m| m.get("name"))
+                        .and_then(|n| n.as_str())
+                        .unwrap_or("import");
+                    let property = obj
+                        .get("property")
+                        .and_then(|p| p.as_object())
+                        .and_then(|p| p.get("name"))
+                        .and_then(|n| n.as_str())
+                        .unwrap_or("meta");
+                    JsExpr::Raw(format!("{}.{}", meta, property))
+                }
                 _ => {
                     // Unknown node type - return as raw comment
                     JsExpr::Raw(format!("/* Unknown: {} */", node_type))

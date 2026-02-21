@@ -56,6 +56,8 @@ pub struct ScopeBuilder<'a> {
     /// These become `legacy_reactive` bindings if no existing binding is found.
     /// Reference: scope.js lines 1021, 1323-1328
     possible_implicit_declarations: Vec<String>,
+    /// The scope index of the instance script scope.
+    instance_scope_index: usize,
 }
 
 impl<'a> ScopeBuilder<'a> {
@@ -72,6 +74,7 @@ impl<'a> ScopeBuilder<'a> {
             is_typescript,
             validation_errors: Vec::new(),
             possible_implicit_declarations: Vec::new(),
+            instance_scope_index: 0,
         }
     }
 
@@ -100,6 +103,7 @@ impl<'a> ScopeBuilder<'a> {
         let script_scope = if let Some(ref script) = ast.instance {
             // Create a new scope for instance script with module (scope 0) as parent
             let old_scope = self.push_scope();
+            self.instance_scope_index = self.current_scope;
             self.visit_script(script);
 
             // Process possible implicit declarations from `$: x = expr` statements.
@@ -189,6 +193,7 @@ impl<'a> ScopeBuilder<'a> {
                 bindings: self.bindings,
                 scope: root_scope,
                 all_scopes,
+                instance_scope_index: self.instance_scope_index,
             },
             self.validation_errors,
         )
@@ -1039,6 +1044,17 @@ impl<'a> ScopeBuilder<'a> {
                         self.declare_binding(name, BindingKind::Normal, DeclarationKind::Function);
                     self.bindings[idx].initial_is_function = true;
                 }
+                // Process function body to track assignments inside exported functions.
+                // Without this, reassignments like `export function update() { x = 'new'; }`
+                // would not mark `x` as reassigned, causing state_invalid_export to be missed.
+                let old_scope = self.push_scope();
+                self.function_depth += 1;
+                for param in &func_decl.params.items {
+                    self.process_binding_pattern(&param.pattern, &None, DeclarationKind::Param);
+                }
+                self.process_function_body(&func_decl.body);
+                self.function_depth -= 1;
+                self.pop_scope(old_scope);
             }
             Declaration::ClassDeclaration(class_decl) => {
                 if let Some(id) = &class_decl.id {

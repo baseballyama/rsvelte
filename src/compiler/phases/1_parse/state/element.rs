@@ -254,8 +254,23 @@ impl Parser<'_> {
                 // If we encounter a block closing tag {/ or continuation {:
                 // while inside an element, auto-close the element
                 found_closing_tag = true;
-            } else if self.should_implicitly_close() {
-                // Element was implicitly closed by the next element
+            } else if let Some(reason) = self.should_implicitly_close() {
+                // Element was implicitly closed by the next element.
+                // Track which tag was auto-closed so we can raise the correct error later.
+                // Reference: element.js `parser.last_auto_closed_tag` assignment.
+                let auto_closed_tag_name = match self.stack.last() {
+                    Some(StackEntry::Element { name, .. }) => Some(name.clone()),
+                    _ => None,
+                };
+                if let Some(auto_closed_name) = auto_closed_tag_name {
+                    self.last_auto_closed_tag = Some(
+                        crate::compiler::phases::phase1_parse::parser::LastAutoClosedTag {
+                            tag: auto_closed_name,
+                            reason,
+                            depth: self.stack.len() - 1, // depth after popping
+                        },
+                    );
+                }
                 // Don't consume anything, let the next element be parsed
                 found_closing_tag = true;
             }
@@ -621,17 +636,20 @@ impl Parser<'_> {
 
     /// Check if the next opening tag should implicitly close the current element.
     /// This handles HTML5 optional end tags (e.g., <li> closes a previous <li>).
-    pub fn should_implicitly_close(&self) -> bool {
+    ///
+    /// Returns `Some(reason)` where `reason` is the name of the opening tag that caused
+    /// the implicit close. Returns `None` if no implicit close is needed.
+    pub fn should_implicitly_close(&self) -> Option<CompactString> {
         // Get the IMMEDIATE parent element from the stack (not separated by blocks)
         // We only implicitly close if the direct parent is an element that can be implicitly closed
         let current_element = match self.stack.last() {
             Some(StackEntry::Element { name, .. }) => name.as_str(),
-            _ => return false, // If parent is a block ({#if}, {#each}, etc.), don't implicitly close
+            _ => return None, // If parent is a block ({#if}, {#each}, etc.), don't implicitly close
         };
 
         // Check if the next tag would implicitly close the current element
         if !self.match_str("<") || self.match_str("</") || self.match_str("<!") {
-            return false;
+            return None;
         }
 
         // Look ahead to get the next tag name
@@ -642,19 +660,19 @@ impl Parser<'_> {
             .collect();
 
         if next_tag.is_empty() {
-            return false;
+            return None;
         }
 
         // Components (starting with uppercase) should not trigger implicit closing.
         // Only HTML elements (lowercase) can implicitly close other elements.
         if next_tag.starts_with(|c: char| c.is_uppercase()) {
-            return false;
+            return None;
         }
 
         let next_tag = next_tag.to_lowercase();
 
         // Check implicit closing rules
-        match current_element {
+        let closes = match current_element {
             // <li> is implicitly closed by another <li>
             "li" => next_tag == "li",
             // <p> is implicitly closed by many block-level elements
@@ -706,6 +724,12 @@ impl Parser<'_> {
             // <optgroup> is implicitly closed by <optgroup>
             "optgroup" => next_tag == "optgroup",
             _ => false,
+        };
+
+        if closes {
+            Some(CompactString::from(next_tag))
+        } else {
+            None
         }
     }
 
@@ -1974,52 +1998,6 @@ impl Parser<'_> {
 
         let mut parts = Vec::new();
         let value_start = self.index;
-
-        // For unquoted values starting with {, find the last } before the delimiter
-        // This handles cases like foo={'hi'}.} where the whole thing is one expression
-        if quote.is_none() && self.current_char() == '{' {
-            let expr_start = self.index;
-
-            // Find the end of the unquoted value
-            let mut value_end = self.index;
-            let mut last_brace = None;
-            let mut temp_idx = self.index;
-            while temp_idx < self.source.len() {
-                let c = self.source[temp_idx..].chars().next().unwrap_or('\0');
-                // Unquoted values end at whitespace or > or />
-                if c.is_whitespace() || c == '>' {
-                    break;
-                }
-                // Check for self-closing tag />
-                if c == '/' && self.source.get(temp_idx + 1..temp_idx + 2) == Some(">") {
-                    break;
-                }
-                if c == '}' {
-                    last_brace = Some(temp_idx);
-                }
-                temp_idx += c.len_utf8();
-                value_end = temp_idx;
-            }
-
-            // If the value ends with }, treat the whole thing as an expression
-            if let Some(brace_pos) = last_brace
-                && brace_pos == value_end - 1
-            {
-                // Consume the entire value
-                while self.index < value_end {
-                    self.advance();
-                }
-
-                // The expression content is between { and the last }
-                let expr_content = &self.source[expr_start + 1..brace_pos];
-
-                return Ok(AttributeValue::Expression(ExpressionTag {
-                    start: expr_start as u32,
-                    end: value_end as u32,
-                    expression: self.parse_js_expression(expr_content, expr_start + 1),
-                }));
-            }
-        }
 
         loop {
             if self.is_eof() {

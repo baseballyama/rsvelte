@@ -144,13 +144,14 @@ pub fn detect_store_subscriptions(
         //
         // But `let state = $state(0)` creates a State binding, so `$state` is a rune.
         if is_rune(ref_name) {
-            // Look for a binding in the instance scope (scope_index == 1).
-            // We iterate all bindings to find one with the right name AND scope_index.
+            // Look for a binding in the instance scope.
+            // Use instance_scope_index which may be > 1 if module script has nested scopes.
+            let instance_scope = analysis.root.instance_scope_index;
             let instance_binding = analysis
                 .root
                 .bindings
                 .iter()
-                .find(|b| b.name == store_name && b.scope_index == 1);
+                .find(|b| b.name == store_name && b.scope_index == instance_scope);
 
             if let Some(binding) = instance_binding {
                 // Check if the binding's initialization is itself a rune call.
@@ -231,7 +232,8 @@ pub fn detect_store_subscriptions(
             //
             // Store subscriptions are only valid when the store binding is in
             // the module scope (0) or instance scope (1).
-            if binding.scope_index > 1 {
+            let instance_scope = analysis.root.instance_scope_index;
+            if binding.scope_index != 0 && binding.scope_index != instance_scope {
                 // This is a scoped subscription - the store is not at top level
                 return Err(errors::store_invalid_scoped_subscription());
             }
@@ -280,7 +282,8 @@ pub fn detect_store_subscriptions(
             // creating a StoreSub for the top-level `$effect` store subscription.
             if let Some(binding_idx) = analysis.root.find_binding_any_scope(ref_name) {
                 let binding = &analysis.root.bindings[binding_idx];
-                if binding.scope_index <= 1 {
+                let instance_scope2 = analysis.root.instance_scope_index;
+                if binding.scope_index == 0 || binding.scope_index == instance_scope2 {
                     continue;
                 }
             }

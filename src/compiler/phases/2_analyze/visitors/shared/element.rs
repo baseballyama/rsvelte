@@ -59,7 +59,7 @@ pub fn validate_element(
                 let is_expression = is_expression_attribute(attr);
 
                 if context.analysis.runes {
-                    validate_attribute(attr, node)?;
+                    validate_attribute(attr)?;
 
                     if is_expression && let Some(expression_tag) = get_attribute_expression(attr) {
                         // Check for SequenceExpression

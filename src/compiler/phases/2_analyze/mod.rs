@@ -132,12 +132,28 @@ pub fn analyze_component(
         // Check for rune references in instance and module scripts
         // This catches cases like standalone $effect(...) or $inspect(...) calls
         // that don't create bindings but indicate runes mode
+        // Collect store subscription names to exclude them from rune detection.
+        // Store auto-subscriptions ($store) look like rune references (dollar prefix)
+        // but are NOT runes. If we don't exclude them, a component with $store in the
+        // template would be incorrectly detected as being in runes mode, which would
+        // then reject `export let` with `legacy_export_invalid` error.
+        let store_sub_names: rustc_hash::FxHashSet<&str> = analysis
+            .root
+            .bindings
+            .iter()
+            .filter(|b| matches!(b.kind, BindingKind::StoreSub))
+            .map(|b| b.name.as_str())
+            .collect();
+        // For script checks, we use an empty set (scripts can have both runes and stores,
+        // but store_subs are created from template/instance references after scope building,
+        // so they are not relevant for script-level rune detection).
+        let empty_store_subs: rustc_hash::FxHashSet<&str> = rustc_hash::FxHashSet::default();
         let has_rune_references = ast
             .instance
             .as_ref()
             .map(|inst| {
                 let crate::ast::js::Expression::Value(ref val) = inst.content;
-                json_has_rune_reference(val)
+                json_has_rune_reference(val, &empty_store_subs)
             })
             .unwrap_or(false)
             || ast
@@ -145,7 +161,7 @@ pub fn analyze_component(
                 .as_ref()
                 .map(|module| {
                     let crate::ast::js::Expression::Value(ref val) = module.content;
-                    json_has_rune_reference(val)
+                    json_has_rune_reference(val, &empty_store_subs)
                 })
                 .unwrap_or(false);
         // Also check the template fragment for rune references.
@@ -155,7 +171,8 @@ pub fn analyze_component(
         // the scope chain to the module scope, which is checked for rune names.
         // Our scope model doesn't do this bubbling, so we explicitly check the
         // template fragment here.
-        let template_has_rune_references = fragment_has_rune_reference(&ast.fragment);
+        let template_has_rune_references =
+            fragment_has_rune_reference(&ast.fragment, &store_sub_names);
         if has_rune_bindings
             || fragment_has_await
             || instance_has_await
@@ -223,6 +240,68 @@ pub fn analyze_component(
 
     // Analyze the template using visitors
     visitors::analyze_template(ast, &mut analysis)?;
+
+    // Post-analysis check: validate module script export specifiers.
+    // This mirrors the official Svelte compiler's index.js post-walk checks.
+    // Must run AFTER analyze_template so that analysis.template.snippets is populated.
+    // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js
+    if let Some(ref module) = ast.module {
+        let crate::ast::js::Expression::Value(ref module_json) = module.content;
+        if let Some(body) = module_json.get("body").and_then(|b| b.as_array()) {
+            for node in body {
+                let node_type = node.get("type").and_then(|t| t.as_str());
+                if node_type != Some("ExportNamedDeclaration") {
+                    continue;
+                }
+                // Only check `export { x, y }` (specifiers), not `export function f() {}` (declaration)
+                let has_declaration = node.get("declaration").is_some_and(|d| !d.is_null());
+                if has_declaration {
+                    continue;
+                }
+                // Skip re-exports: `export { x } from 'module'`
+                if node.get("source").is_some_and(|s| !s.is_null()) {
+                    continue;
+                }
+                let Some(specifiers) = node.get("specifiers").and_then(|s| s.as_array()) else {
+                    continue;
+                };
+                for specifier in specifiers {
+                    let Some(local) = specifier.get("local") else {
+                        continue;
+                    };
+                    if local.get("type").and_then(|t| t.as_str()) != Some("Identifier") {
+                        continue;
+                    }
+                    let Some(name) = local.get("name").and_then(|n| n.as_str()) else {
+                        continue;
+                    };
+                    if name.is_empty() {
+                        continue;
+                    }
+                    // Check if binding is in the module scope (scope_index == 0).
+                    // If the binding exists but is NOT in the module scope, it might be
+                    // a snippet or instance-scoped binding that can't be exported.
+                    let module_scope_binding = analysis
+                        .root
+                        .scope
+                        .declarations
+                        .get(name)
+                        .and_then(|&idx| analysis.root.bindings.get(idx))
+                        .filter(|b| b.scope_index == 0);
+
+                    if module_scope_binding.is_none() {
+                        // Not in module scope - check if it's a snippet
+                        if analysis.template.snippets.contains(name) {
+                            return Err(errors::snippet_invalid_export());
+                        }
+                        // If not a snippet and not in any scope at all, export_undefined
+                        // is already raised by the export_named_declaration visitor.
+                        // We only need to handle the snippet case here.
+                    }
+                }
+            }
+        }
+    }
 
     // Compute maybe_runes: if we are not in runes mode but we have no reserved references
     // ($$props, $$restProps) and no `export let` or `$:` reactive statements, we might be in
@@ -1394,13 +1473,17 @@ fn is_rune_name(name: &str) -> bool {
 ///
 /// Corresponds to the check `Array.from(module.scope.references.keys()).some(is_rune)`
 /// in Svelte's `2-analyze/index.js`.
-fn json_has_rune_reference(node: &serde_json::Value) -> bool {
+fn json_has_rune_reference(
+    node: &serde_json::Value,
+    store_subs: &rustc_hash::FxHashSet<&str>,
+) -> bool {
     let node_type = node.get("type").and_then(|t| t.as_str());
 
     // Check if this is an Identifier with a rune name
     if node_type == Some("Identifier")
         && let Some(name) = node.get("name").and_then(|n| n.as_str())
         && is_rune_name(name)
+        && !store_subs.contains(name)
     {
         return true;
     }
@@ -1441,14 +1524,14 @@ fn json_has_rune_reference(node: &serde_json::Value) -> bool {
                 {
                     continue;
                 }
-                if json_has_rune_reference(val) {
+                if json_has_rune_reference(val, store_subs) {
                     return true;
                 }
             }
         }
         serde_json::Value::Array(arr) => {
             for val in arr {
-                if json_has_rune_reference(val) {
+                if json_has_rune_reference(val, store_subs) {
                     return true;
                 }
             }
@@ -1466,9 +1549,12 @@ fn json_has_rune_reference(node: &serde_json::Value) -> bool {
 /// these because unresolved references bubble up through the scope chain to the
 /// module scope, which is checked for rune references. Our scope model doesn't
 /// do this bubbling, so we need to explicitly check the template fragment.
-fn fragment_has_rune_reference(fragment: &crate::ast::template::Fragment) -> bool {
+fn fragment_has_rune_reference(
+    fragment: &crate::ast::template::Fragment,
+    store_subs: &rustc_hash::FxHashSet<&str>,
+) -> bool {
     for node in &fragment.nodes {
-        if node_has_rune_reference(node) {
+        if node_has_rune_reference(node, store_subs) {
             return true;
         }
     }
@@ -1476,83 +1562,88 @@ fn fragment_has_rune_reference(fragment: &crate::ast::template::Fragment) -> boo
 }
 
 /// Check if a template node contains a rune reference.
-fn node_has_rune_reference(node: &crate::ast::template::TemplateNode) -> bool {
+fn node_has_rune_reference(
+    node: &crate::ast::template::TemplateNode,
+    store_subs: &rustc_hash::FxHashSet<&str>,
+) -> bool {
     use crate::ast::template::TemplateNode;
 
     match node {
-        TemplateNode::ExpressionTag(tag) => expression_has_rune_reference(&tag.expression),
+        TemplateNode::ExpressionTag(tag) => {
+            expression_has_rune_reference(&tag.expression, store_subs)
+        }
         TemplateNode::RegularElement(elem) => {
             for attr in &elem.attributes {
-                if attribute_has_rune_reference(attr) {
+                if attribute_has_rune_reference(attr, store_subs) {
                     return true;
                 }
             }
-            fragment_has_rune_reference(&elem.fragment)
+            fragment_has_rune_reference(&elem.fragment, store_subs)
         }
         TemplateNode::Component(comp) => {
             for attr in &comp.attributes {
-                if attribute_has_rune_reference(attr) {
+                if attribute_has_rune_reference(attr, store_subs) {
                     return true;
                 }
             }
-            fragment_has_rune_reference(&comp.fragment)
+            fragment_has_rune_reference(&comp.fragment, store_subs)
         }
         TemplateNode::IfBlock(block) => {
-            if expression_has_rune_reference(&block.test) {
+            if expression_has_rune_reference(&block.test, store_subs) {
                 return true;
             }
-            if fragment_has_rune_reference(&block.consequent) {
+            if fragment_has_rune_reference(&block.consequent, store_subs) {
                 return true;
             }
             if let Some(ref alternate) = block.alternate
-                && fragment_has_rune_reference(alternate)
+                && fragment_has_rune_reference(alternate, store_subs)
             {
                 return true;
             }
             false
         }
         TemplateNode::EachBlock(block) => {
-            if expression_has_rune_reference(&block.expression) {
+            if expression_has_rune_reference(&block.expression, store_subs) {
                 return true;
             }
-            if fragment_has_rune_reference(&block.body) {
+            if fragment_has_rune_reference(&block.body, store_subs) {
                 return true;
             }
             if let Some(ref fallback) = block.fallback
-                && fragment_has_rune_reference(fallback)
+                && fragment_has_rune_reference(fallback, store_subs)
             {
                 return true;
             }
             false
         }
         TemplateNode::KeyBlock(block) => {
-            if expression_has_rune_reference(&block.expression) {
+            if expression_has_rune_reference(&block.expression, store_subs) {
                 return true;
             }
-            fragment_has_rune_reference(&block.fragment)
+            fragment_has_rune_reference(&block.fragment, store_subs)
         }
         TemplateNode::AwaitBlock(block) => {
-            if expression_has_rune_reference(&block.expression) {
+            if expression_has_rune_reference(&block.expression, store_subs) {
                 return true;
             }
             if let Some(ref pending) = block.pending
-                && fragment_has_rune_reference(pending)
+                && fragment_has_rune_reference(pending, store_subs)
             {
                 return true;
             }
             if let Some(ref then) = block.then
-                && fragment_has_rune_reference(then)
+                && fragment_has_rune_reference(then, store_subs)
             {
                 return true;
             }
             if let Some(ref catch) = block.catch
-                && fragment_has_rune_reference(catch)
+                && fragment_has_rune_reference(catch, store_subs)
             {
                 return true;
             }
             false
         }
-        TemplateNode::SnippetBlock(block) => fragment_has_rune_reference(&block.body),
+        TemplateNode::SnippetBlock(block) => fragment_has_rune_reference(&block.body, store_subs),
         TemplateNode::SvelteBoundary(elem)
         | TemplateNode::SvelteBody(elem)
         | TemplateNode::SvelteDocument(elem)
@@ -1561,77 +1652,83 @@ fn node_has_rune_reference(node: &crate::ast::template::TemplateNode) -> bool {
         | TemplateNode::SvelteOptions(elem)
         | TemplateNode::SvelteWindow(elem) => {
             for attr in &elem.attributes {
-                if attribute_has_rune_reference(attr) {
+                if attribute_has_rune_reference(attr, store_subs) {
                     return true;
                 }
             }
-            fragment_has_rune_reference(&elem.fragment)
+            fragment_has_rune_reference(&elem.fragment, store_subs)
         }
         TemplateNode::SvelteSelf(elem) => {
             for attr in &elem.attributes {
-                if attribute_has_rune_reference(attr) {
+                if attribute_has_rune_reference(attr, store_subs) {
                     return true;
                 }
             }
-            fragment_has_rune_reference(&elem.fragment)
+            fragment_has_rune_reference(&elem.fragment, store_subs)
         }
         TemplateNode::SvelteComponent(elem) => {
             for attr in &elem.attributes {
-                if attribute_has_rune_reference(attr) {
+                if attribute_has_rune_reference(attr, store_subs) {
                     return true;
                 }
             }
-            fragment_has_rune_reference(&elem.fragment)
+            fragment_has_rune_reference(&elem.fragment, store_subs)
         }
         TemplateNode::SvelteElement(elem) => {
             for attr in &elem.attributes {
-                if attribute_has_rune_reference(attr) {
+                if attribute_has_rune_reference(attr, store_subs) {
                     return true;
                 }
             }
-            fragment_has_rune_reference(&elem.fragment)
+            fragment_has_rune_reference(&elem.fragment, store_subs)
         }
         TemplateNode::TitleElement(elem) => {
             for attr in &elem.attributes {
-                if attribute_has_rune_reference(attr) {
+                if attribute_has_rune_reference(attr, store_subs) {
                     return true;
                 }
             }
-            fragment_has_rune_reference(&elem.fragment)
+            fragment_has_rune_reference(&elem.fragment, store_subs)
         }
         TemplateNode::SlotElement(elem) => {
             for attr in &elem.attributes {
-                if attribute_has_rune_reference(attr) {
+                if attribute_has_rune_reference(attr, store_subs) {
                     return true;
                 }
             }
-            fragment_has_rune_reference(&elem.fragment)
+            fragment_has_rune_reference(&elem.fragment, store_subs)
         }
-        TemplateNode::RenderTag(tag) => expression_has_rune_reference(&tag.expression),
-        TemplateNode::HtmlTag(tag) => expression_has_rune_reference(&tag.expression),
-        TemplateNode::ConstTag(tag) => expression_has_rune_reference(&tag.declaration),
+        TemplateNode::RenderTag(tag) => expression_has_rune_reference(&tag.expression, store_subs),
+        TemplateNode::HtmlTag(tag) => expression_has_rune_reference(&tag.expression, store_subs),
+        TemplateNode::ConstTag(tag) => expression_has_rune_reference(&tag.declaration, store_subs),
         _ => false,
     }
 }
 
 /// Check if an expression (stored as JSON) contains a rune reference.
-fn expression_has_rune_reference(expr: &crate::ast::js::Expression) -> bool {
+fn expression_has_rune_reference(
+    expr: &crate::ast::js::Expression,
+    store_subs: &rustc_hash::FxHashSet<&str>,
+) -> bool {
     let crate::ast::js::Expression::Value(value) = expr;
-    json_has_rune_reference(value)
+    json_has_rune_reference(value, store_subs)
 }
 
 /// Check if an attribute contains a rune reference.
-fn attribute_has_rune_reference(attr: &crate::ast::template::Attribute) -> bool {
+fn attribute_has_rune_reference(
+    attr: &crate::ast::template::Attribute,
+    store_subs: &rustc_hash::FxHashSet<&str>,
+) -> bool {
     use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart};
 
     match attr {
         Attribute::Attribute(attr_node) => match &attr_node.value {
             AttributeValue::Expression(expr_tag) => {
-                expression_has_rune_reference(&expr_tag.expression)
+                expression_has_rune_reference(&expr_tag.expression, store_subs)
             }
             AttributeValue::Sequence(parts) => parts.iter().any(|part| {
                 if let AttributeValuePart::ExpressionTag(expr_tag) = part {
-                    expression_has_rune_reference(&expr_tag.expression)
+                    expression_has_rune_reference(&expr_tag.expression, store_subs)
                 } else {
                     false
                 }
@@ -1641,8 +1738,8 @@ fn attribute_has_rune_reference(attr: &crate::ast::template::Attribute) -> bool 
         Attribute::OnDirective(dir) => dir
             .expression
             .as_ref()
-            .is_some_and(expression_has_rune_reference),
-        Attribute::BindDirective(dir) => expression_has_rune_reference(&dir.expression),
+            .is_some_and(|e| expression_has_rune_reference(e, store_subs)),
+        Attribute::BindDirective(dir) => expression_has_rune_reference(&dir.expression, store_subs),
         _ => false,
     }
 }

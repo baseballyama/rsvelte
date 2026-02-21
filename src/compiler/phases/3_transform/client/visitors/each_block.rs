@@ -165,7 +165,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
 
     // Build declarations for the render function body
     // This will insert transforms for the item and index into context.state.transform
-    let declarations = build_declarations(
+    let (declarations, destructured_update_paths) = build_declarations(
         node,
         context,
         &item,
@@ -281,7 +281,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
         index_reactive,
         is_runes: context.state.analysis.runes,
         binding_used: binding_used.clone(),
-        destructured_update_paths: FxHashMap::default(),
+        destructured_update_paths,
     });
 
     // Visit the each block body to get the body block
@@ -751,8 +751,9 @@ fn build_declarations(
     collection_id: &Option<String>,
     store_to_invalidate: &Option<String>,
     _uses_index: &mut bool,
-) -> Vec<JsStatement> {
+) -> (Vec<JsStatement>, FxHashMap<String, String>) {
     let mut declarations = Vec::new();
+    let mut destructured_update_paths: FxHashMap<String, String> = FxHashMap::default();
 
     // Build the invalidate_store call if needed
     let invalidate_store = store_to_invalidate.as_ref().map(|store_name| {
@@ -925,8 +926,17 @@ fn build_declarations(
                     );
                 }
 
+                eprintln!("[DEBUG each_block] paths count: {}", paths.len());
                 // For each path, create a getter declaration
                 for path in paths {
+                    eprintln!(
+                        "[DEBUG each_block] path.name={} update_expression={}",
+                        path.name, path.update_expression
+                    );
+                    // Track the update_expression for bind_directive to use in setters
+                    destructured_update_paths
+                        .insert(path.name.clone(), path.update_expression.clone());
+
                     if path.has_default_value {
                         let fallback_expr = build_fallback_expression(
                             &path.expression,
@@ -974,15 +984,17 @@ fn build_declarations(
         }
     }
 
-    declarations
+    (declarations, destructured_update_paths)
 }
 
 /// Information about a destructured path from a pattern.
 struct DestructuredPath {
     /// The binding name
     name: String,
-    /// The expression to access the value
+    /// The expression to access the value (may include $.fallback for defaults)
     expression: String,
+    /// The expression for writing back (without $.fallback, used as assignment LHS)
+    update_expression: String,
     /// Whether this path has a default value (from AssignmentPattern)
     has_default_value: bool,
     /// The default value expression JSON (if has_default_value is true)
@@ -1044,6 +1056,7 @@ fn _extract_destructured_paths(
             paths.push(DestructuredPath {
                 name: name.to_string(),
                 expression: expression.to_string(),
+                update_expression: _update_expression.to_string(),
                 has_default_value,
                 default_value: None,
             });
@@ -1099,7 +1112,8 @@ fn _extract_destructured_paths(
                                         .unwrap_or("$$unknown");
                                     paths.push(DestructuredPath {
                                         name: name.to_string(),
-                                        expression: rest_expression,
+                                        expression: rest_expression.clone(),
+                                        update_expression: rest_expression,
                                         has_default_value,
                                         default_value: None,
                                     });
@@ -1213,7 +1227,8 @@ fn _extract_destructured_paths(
                                     .unwrap_or("$$unknown");
                                 paths.push(DestructuredPath {
                                     name: name.to_string(),
-                                    expression: rest_expression,
+                                    expression: rest_expression.clone(),
+                                    update_expression: rest_expression,
                                     has_default_value,
                                     default_value: None,
                                 });
@@ -1260,6 +1275,7 @@ fn _extract_destructured_paths(
                     paths.push(DestructuredPath {
                         name: name.to_string(),
                         expression: expression.to_string(),
+                        update_expression: _update_expression.to_string(),
                         has_default_value: true,
                         default_value: default_val,
                     });

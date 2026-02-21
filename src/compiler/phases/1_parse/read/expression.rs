@@ -4432,30 +4432,23 @@ fn convert_statement_for_program(
                         .clone(),
                     );
 
-                    // exportKind on specifier (for type-only specifiers: `export { type Foo }`)
-                    let spec_export_kind = match spec.export_kind {
-                        oxc_ast::ast::ImportOrExportKind::Type => "type",
-                        oxc_ast::ast::ImportOrExportKind::Value => "value",
-                    };
-                    spec_obj.insert(
-                        "exportKind".to_string(),
-                        Value::String(spec_export_kind.to_string()),
-                    );
+                    // exportKind on specifier (only for type-only specifiers: `export { type Foo }`)
+                    // Acorn (official Svelte) only emits this field for TypeScript type exports
+                    if spec.export_kind == oxc_ast::ast::ImportOrExportKind::Type {
+                        spec_obj
+                            .insert("exportKind".to_string(), Value::String("type".to_string()));
+                    }
 
                     Value::Object(spec_obj)
                 })
                 .collect();
             obj.insert("specifiers".to_string(), Value::Array(specifiers));
 
-            // Handle exportKind (needed for TypeScript type-only exports: `export type { ... }`)
-            let export_kind_str = match export_decl.export_kind {
-                oxc_ast::ast::ImportOrExportKind::Type => "type",
-                oxc_ast::ast::ImportOrExportKind::Value => "value",
-            };
-            obj.insert(
-                "exportKind".to_string(),
-                Value::String(export_kind_str.to_string()),
-            );
+            // Handle exportKind (only for TypeScript type-only exports: `export type { ... }`)
+            // Acorn (official Svelte) only emits this field for TypeScript type exports
+            if export_decl.export_kind == oxc_ast::ast::ImportOrExportKind::Type {
+                obj.insert("exportKind".to_string(), Value::String("type".to_string()));
+            }
 
             // Handle source
             if let Some(source) = &export_decl.source {
@@ -4648,15 +4641,11 @@ fn convert_statement_for_program(
                     .clone(),
             );
 
-            // Handle importKind (needed for TypeScript type-only imports: `import type { ... }`)
-            let import_kind_str = match import_decl.import_kind {
-                oxc_ast::ast::ImportOrExportKind::Type => "type",
-                oxc_ast::ast::ImportOrExportKind::Value => "value",
-            };
-            obj.insert(
-                "importKind".to_string(),
-                Value::String(import_kind_str.to_string()),
-            );
+            // Handle importKind (only for TypeScript type-only imports: `import type { ... }`)
+            // Acorn (official Svelte) only emits this field for TypeScript type imports
+            if import_decl.import_kind == oxc_ast::ast::ImportOrExportKind::Type {
+                obj.insert("importKind".to_string(), Value::String("type".to_string()));
+            }
 
             // attributes (for import attributes)
             obj.insert("attributes".to_string(), Value::Array(vec![]));
@@ -5482,15 +5471,11 @@ fn convert_import_specifier(
                 .clone(),
             );
 
-            // importKind on specifier (for type-only specifiers: `import { type Foo }`)
-            let spec_import_kind = match import_spec.import_kind {
-                oxc_ast::ast::ImportOrExportKind::Type => "type",
-                oxc_ast::ast::ImportOrExportKind::Value => "value",
-            };
-            obj.insert(
-                "importKind".to_string(),
-                Value::String(spec_import_kind.to_string()),
-            );
+            // importKind on specifier (only for type-only specifiers: `import { type Foo }`)
+            // Acorn (official Svelte) only emits this field for TypeScript type imports
+            if import_spec.import_kind == oxc_ast::ast::ImportOrExportKind::Type {
+                obj.insert("importKind".to_string(), Value::String("type".to_string()));
+            }
 
             Value::Object(obj)
         }

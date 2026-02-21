@@ -89,40 +89,63 @@ fn parse_config(config_content: &str) -> Option<TestConfig> {
 }
 
 /// Extract a string field from JavaScript object.
+/// Handles both single-line (`field: 'value'`) and multi-line (`field:\n\t'value'`) formats.
 fn extract_string_field(content: &str, field: &str) -> Option<String> {
-    // Look for patterns like: code: 'value' or code: "value"
-    let patterns = [
-        format!("{}: '", field),
-        format!("{}: \"", field),
-        format!("{}:'", field),
-        format!("{}:\"", field),
-    ];
+    // Look for the field name followed by a colon, then optional whitespace/newlines, then a quote.
+    // This handles both:
+    //   code: 'value'
+    //   message:
+    //       'value on next line'
+    let field_colon = format!("{}:", field);
+    let mut search_pos = 0;
 
-    for pattern in &patterns {
-        if let Some(start) = content.find(pattern) {
-            let quote_char = if pattern.ends_with('\'') { '\'' } else { '"' };
-            let value_start = start + pattern.len();
-            let rest = &content[value_start..];
-
-            // Find the closing quote, handling escapes
-            let mut value = String::new();
-            let mut escaped = false;
-
-            for c in rest.chars() {
-                if escaped {
-                    value.push(c);
-                    escaped = false;
-                } else if c == '\\' {
-                    escaped = true;
-                } else if c == quote_char {
-                    break;
-                } else {
-                    value.push(c);
-                }
+    while let Some(colon_pos) = content[search_pos..].find(&field_colon) {
+        let abs_colon_pos = search_pos + colon_pos;
+        // Make sure this is actually the field name (preceded by whitespace/start)
+        let before = &content[..abs_colon_pos];
+        if !before.is_empty() {
+            let last_char = before.chars().next_back().unwrap_or(' ');
+            // Field name should be preceded by whitespace or tab
+            if !last_char.is_whitespace() && last_char != '\t' {
+                search_pos = abs_colon_pos + field_colon.len();
+                continue;
             }
-
-            return Some(value);
         }
+
+        let after_colon = &content[abs_colon_pos + field_colon.len()..];
+        // Skip whitespace (including newlines and tabs) to find the opening quote
+        let trimmed = after_colon.trim_start_matches(|c: char| c.is_whitespace());
+        if trimmed.is_empty() {
+            search_pos = abs_colon_pos + field_colon.len();
+            continue;
+        }
+
+        let quote_char = trimmed.chars().next().unwrap();
+        if quote_char != '\'' && quote_char != '"' {
+            search_pos = abs_colon_pos + field_colon.len();
+            continue;
+        }
+
+        let value_start = &trimmed[quote_char.len_utf8()..];
+
+        // Find the closing quote, handling escapes
+        let mut value = String::new();
+        let mut escaped = false;
+
+        for c in value_start.chars() {
+            if escaped {
+                value.push(c);
+                escaped = false;
+            } else if c == '\\' {
+                escaped = true;
+            } else if c == quote_char {
+                break;
+            } else {
+                value.push(c);
+            }
+        }
+
+        return Some(value);
     }
 
     None

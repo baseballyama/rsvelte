@@ -5,17 +5,17 @@
 //! Corresponds to Svelte's `2-analyze/visitors/shared/attribute.js`.
 
 use super::super::super::AnalysisError;
+use super::super::super::errors;
 use super::super::VisitorContext;
-use crate::ast::template::{AttributeNode, ExpressionTag, RegularElement};
+use crate::ast::template::{AttributeNode, AttributeValue, AttributeValuePart, ExpressionTag};
 
 /// Illegal characters in attribute names.
 const ILLEGAL_ATTRIBUTE_CHARS: &[char] = &['"', '\'', '>', '/', '='];
 
 /// Validate an attribute.
-pub fn validate_attribute(
-    attribute: &AttributeNode,
-    _element: &RegularElement,
-) -> Result<(), AnalysisError> {
+///
+/// Corresponds to `validate_attribute` in `shared/attribute.js`.
+pub fn validate_attribute(attribute: &AttributeNode) -> Result<(), AnalysisError> {
     // Check for illegal characters in attribute name
     if attribute
         .name
@@ -26,6 +26,33 @@ pub fn validate_attribute(
             "Attribute name '{}' contains illegal characters",
             attribute.name
         )));
+    }
+
+    // Check for unquoted sequences: an attribute with multiple value parts (ExpressionTag + Text, etc.)
+    // that is not enclosed in quotes. In Svelte, `onclick={() => foo()}}` where the extra `}` creates
+    // a mixed value sequence [ExpressionTag, Text("}")] is invalid.
+    //
+    // The official Svelte check is:
+    //   if attribute.value.length === 1 return; (single part is ok)
+    //   const is_quoted = attribute.value.at(-1)?.end !== attribute.end;
+    //   if (!is_quoted) e.attribute_unquoted_sequence(attribute);
+    //
+    // In our AST, a single Expression variant is the unquoted single-expression case.
+    // A Sequence with length > 1 is the mixed case.
+    // We detect "unquoted" by checking if the last part's end equals the attribute's end
+    // (no closing quote between last part and attribute end).
+    if let AttributeValue::Sequence(parts) = &attribute.value
+        && parts.len() > 1
+    {
+        // Get the end position of the last part
+        let last_end = parts.last().map(|part| match part {
+            AttributeValuePart::ExpressionTag(e) => e.end,
+            AttributeValuePart::Text(t) => t.end,
+        });
+        // If the last part's end equals the attribute's end, the value is unquoted
+        if last_end == Some(attribute.end) {
+            return Err(errors::attribute_unquoted_sequence());
+        }
     }
 
     Ok(())

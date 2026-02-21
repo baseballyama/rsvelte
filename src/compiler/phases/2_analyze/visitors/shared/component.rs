@@ -116,18 +116,21 @@ pub fn visit_component(
                 // In runes mode, validate sequence expressions
                 use super::attribute::{
                     get_attribute_expression, is_expression_attribute,
-                    is_unparenthesized_sequence_expression,
+                    is_unparenthesized_sequence_expression, validate_attribute,
                 };
 
-                if context.analysis.runes
-                    && is_expression_attribute(attr)
-                    && let Some(expression_tag) = get_attribute_expression(attr)
-                    && is_unparenthesized_sequence_expression(
-                        expression_tag,
-                        &context.analysis.source,
-                    )
-                {
-                    return Err(errors::attribute_invalid_sequence_expression());
+                if context.analysis.runes {
+                    validate_attribute(attr)?;
+
+                    if is_expression_attribute(attr)
+                        && let Some(expression_tag) = get_attribute_expression(attr)
+                        && is_unparenthesized_sequence_expression(
+                            expression_tag,
+                            &context.analysis.source,
+                        )
+                    {
+                        return Err(errors::attribute_invalid_sequence_expression());
+                    }
                 }
                 // TODO: validate_attribute_name(attribute);
                 // TODO: if (attribute.name === 'slot') {

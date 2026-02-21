@@ -152,7 +152,8 @@ mod tests {
 
     #[test]
     fn test_escape_html() {
-        assert_eq!(escape_html("<div>"), "&lt;div&gt;");
+        // Official Svelte CONTENT_REGEX = /[&<]/g - does NOT escape >
+        assert_eq!(escape_html("<div>"), "&lt;div>");
         assert_eq!(escape_html("a & b"), "a &amp; b");
         assert_eq!(escape_html("hello"), "hello");
     }
@@ -160,7 +161,8 @@ mod tests {
     #[test]
     fn test_escape_attr() {
         assert_eq!(escape_attr("\"quoted\""), "&quot;quoted&quot;");
-        assert_eq!(escape_attr("<tag>"), "&lt;tag&gt;");
+        // Official Svelte ATTR_REGEX = /[&"<]/g - does NOT escape >
+        assert_eq!(escape_attr("<tag>"), "&lt;tag>");
     }
 
     #[test]

@@ -15,6 +15,11 @@ pub struct ScopeRoot {
     /// All scopes in the component (index 0 is the root scope)
     /// Used for scope chain lookup when validating assignments
     pub all_scopes: Vec<Scope>,
+    /// The scope index of the instance script scope.
+    /// This is 0 if there is no instance script, or the actual index of the
+    /// instance script scope (which may be > 1 if the module script has nested
+    /// scopes like function bodies before the instance script scope is created).
+    pub instance_scope_index: usize,
 }
 
 impl ScopeRoot {
@@ -24,6 +29,7 @@ impl ScopeRoot {
             bindings: Vec::new(),
             scope: Scope::new(None),
             all_scopes: Vec::new(),
+            instance_scope_index: 0,
         }
     }
 

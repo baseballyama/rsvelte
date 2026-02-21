@@ -318,8 +318,10 @@ pub fn bind_directive(
         build_each_block_getter_setter(&node.expression, &expression, context)
     {
         // Inside an each block - use the each-block-aware getter/setter
+        eprintln!("[DEBUG bind_directive] Using each_result getter/setter");
         each_result
     } else {
+        eprintln!("[DEBUG bind_directive] Falling back to build_getter_setter");
         // Build getter and setter from the expression
         build_getter_setter(&node.expression, &expression, context)
     };
@@ -1574,13 +1576,24 @@ fn build_each_block_getter_setter(
             } else {
                 item_name.clone()
             };
-            let get_expr_str = format!("{}.{}", get_base, property_path);
+            let access_prop = |base: &str, prop: &str| -> String {
+                if prop.starts_with('[') {
+                    format!("{}{}", base, prop)
+                } else {
+                    format!("{}.{}", base, prop)
+                }
+            };
+            let get_expr_str = access_prop(&get_base, &property_path);
             let get = JsExpr::Raw(format!("() => {}", get_expr_str));
 
             let setter_body = if let Some(ref inv) = invalidation {
-                format!("{}.{} = $$value, {}", get_base, property_path, inv)
+                format!(
+                    "{} = $$value, {}",
+                    access_prop(&get_base, &property_path),
+                    inv
+                )
             } else {
-                format!("{}.{} = $$value", get_base, property_path)
+                format!("{} = $$value", access_prop(&get_base, &property_path))
             };
 
             let set = JsExpr::Raw(format!("($$value) => (\n\t{}\n)", setter_body));
@@ -1591,9 +1604,25 @@ fn build_each_block_getter_setter(
             update_path,
         } => {
             // Destructured variable: bind:value={f} where f comes from {#each items as { f }}
-            // Getter: the getter function itself (f)
-            // Setter: ($$value) => ($.get($$item).path = $$value, invalidation)
-            let get = b::id(&var_name);
+            // Getter: apply the read transform to get the proper getter expression,
+            //         then wrap in thunk. b::thunk(f()) => f (via unthunk optimization)
+            //         b::thunk($.get(f)) => () => $.get(f)
+            // Setter: ($$value) => (update_path = $$value, invalidation)
+            let get = if let Some(transform) = context.state.transform.get(&var_name)
+                && let Some(read_fn) = &transform.read
+            {
+                let read_expr = read_fn(b::id(&var_name));
+                eprintln!(
+                    "[DEBUG DestructuredVar] transform found for {}, read_expr={:?}",
+                    var_name, read_expr
+                );
+                let thunked = b::thunk(read_expr);
+                eprintln!("[DEBUG DestructuredVar] thunked={:?}", thunked);
+                thunked
+            } else {
+                eprintln!("[DEBUG DestructuredVar] NO transform for {}", var_name);
+                b::id(&var_name)
+            };
 
             let setter_body = if let Some(ref inv) = invalidation {
                 format!("{} = $$value, {}", update_path, inv)
@@ -1662,6 +1691,10 @@ fn analyze_each_binding_expression(
     match expr_type {
         "Identifier" => {
             let name = obj.get("name").and_then(|v| v.as_str())?;
+            eprintln!(
+                "[DEBUG bind_directive] Identifier: name={}, item_name={}, destructured_update_paths={:?}",
+                name, each_ctx.item_name, each_ctx.destructured_update_paths
+            );
 
             if name == each_ctx.item_name {
                 // Direct reference to the each item
@@ -1674,18 +1707,21 @@ fn analyze_each_binding_expression(
             // Look at the each context - if item_name is "$$item", this might be
             // a destructured variable
             if each_ctx.item_name == "$$item" {
-                // The variable might be a destructured path from the each context
-                // We need to check if it was declared in the each block's scope
-                // For destructured items, the getter function (e.g., `f = () => $.get($$item).name.first`)
-                // is already set up. We just need to generate the setter with the update path.
-                if let Some(_transform) = context.state.transform.get(name) {
-                    // This is a transformed variable from the each block (destructured)
-                    // We need to figure out the update path ($.get($$item).path)
-                    // Unfortunately we don't have the exact path here, so we need to
-                    // reconstruct it from the getter function.
-                    // For now, return the info and let the caller handle it.
-                    return None; // Will be handled by the getter function approach below
+                // Check if this variable has a known update path from destructured context
+                if let Some(update_path) = each_ctx.destructured_update_paths.get(name) {
+                    eprintln!(
+                        "[DEBUG bind_directive] Returning DestructuredVar: var_name={}, update_path={}",
+                        name, update_path
+                    );
+                    return Some(EachBindingExprInfo::DestructuredVar {
+                        var_name: name.to_string(),
+                        update_path: update_path.clone(),
+                    });
                 }
+                eprintln!(
+                    "[DEBUG bind_directive] No update_path found for name={}",
+                    name
+                );
             }
 
             None
@@ -1702,7 +1738,7 @@ fn analyze_each_binding_expression(
             }
 
             // Check if the root is a getter function from destructured context
-            // e.g., a().prop where a is a destructured getter
+            // e.g., f().prop where f is a destructured getter
             if each_ctx.item_name == "$$item"
                 && let Some(transform) = context.state.transform.get(&root_name)
                 && transform.is_reactive
@@ -1710,8 +1746,23 @@ fn analyze_each_binding_expression(
                 // This is a reactive (destructured) variable being accessed as member
                 // The getter needs to call the function: root()
                 // Build the access expression and assign expression
-                let access_expr = format!("{}().{}", root_name, property_path);
-                let assign_expr = access_expr.clone();
+                let access_expr = if property_path.starts_with('[') {
+                    format!("{}(){}", root_name, property_path)
+                } else {
+                    format!("{}().{}", root_name, property_path)
+                };
+                // For the assign expression, use the update_path (not the getter call)
+                // so we write to the original location, not via the getter function
+                let assign_expr =
+                    if let Some(base_path) = each_ctx.destructured_update_paths.get(&root_name) {
+                        if property_path.starts_with('[') {
+                            format!("{}{}", base_path, property_path)
+                        } else {
+                            format!("{}.{}", base_path, property_path)
+                        }
+                    } else {
+                        access_expr.clone()
+                    };
                 return Some(EachBindingExprInfo::ComputedAccess {
                     access_expr,
                     assign_expr,

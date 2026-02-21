@@ -229,7 +229,22 @@ impl Parser<'_> {
                             (close_start, close_start + 2 + tag_name.len()),
                         ));
                     } else {
-                        // Non-void closing tag without matching opening tag
+                        // Non-void closing tag without matching opening tag.
+                        // Check if this tag was auto-closed by a nested element.
+                        // If so, raise element_invalid_closing_tag_autoclosed instead.
+                        if let Some(ref last_auto) = self.last_auto_closed_tag
+                            && last_auto.tag == tag_name.as_str()
+                        {
+                            let reason = last_auto.reason.clone();
+                            return Err(crate::error::ParseError::svelte(
+                                "element_invalid_closing_tag_autoclosed",
+                                format!(
+                                    "`</{}>` attempted to close element that was already automatically closed by `<{}>` (cannot nest `<{}>` inside `</{}>`)",
+                                    tag_name, reason, reason, tag_name
+                                ),
+                                (close_start, close_start),
+                            ));
+                        }
                         return Err(crate::error::ParseError::svelte(
                             "element_invalid_closing_tag",
                             format!(
@@ -270,7 +285,7 @@ impl Parser<'_> {
             }
 
             // Check for implicit closing - if the next tag would implicitly close the current element
-            if self.should_implicitly_close() {
+            if self.should_implicitly_close().is_some() {
                 break;
             }
 

@@ -1056,17 +1056,9 @@ let promise = Promise.resolve(42);
                 || code.contains("<p>then ${$.escape(value)}</p>"),
             "Should have then content with escaped value"
         );
-        // Should contain catch callback with error parameter
-        assert!(
-            code.contains("(error) =>"),
-            "Should have catch callback with error"
-        );
-        // Should contain catch body content
-        assert!(
-            code.contains("error ${$.escape(error)}")
-                || code.contains("<p>error ${$.escape(error)}</p>"),
-            "Should have catch content with escaped error"
-        );
+        // NOTE: Official Svelte SSR does NOT include catch callback in $.await()
+        // The SSR $.await() only takes (renderer, promise, pending_fn, then_fn) - no catch.
+        // The :catch block is not rendered server-side.
         // Should contain BLOCK_CLOSE marker
         assert!(code.contains("<!--]-->"), "Should have BLOCK_CLOSE marker");
     }

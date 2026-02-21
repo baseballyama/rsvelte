@@ -1670,6 +1670,10 @@ fn transform_instance_script_for_visitors(
 
     let mut result = String::new();
 
+    // Collect reactive statements to append at end (mirroring official compiler behavior
+    // which appends all $: reactive statements AFTER the rest of instance body code)
+    let mut pending_reactive_statements: Vec<String> = Vec::new();
+
     // Track if we're inside a multi-line export block
     let mut in_export_block = false;
 
@@ -1680,6 +1684,7 @@ fn transform_instance_script_for_visitors(
     #[allow(clippy::too_many_arguments)]
     let process_accumulated = |accumulated: &[String],
                                result: &mut String,
+                               pending_reactive: &mut Vec<String>,
                                state_vars: &[String],
                                non_reactive_state_vars: &[String],
                                proxy_vars: &[String],
@@ -1752,8 +1757,11 @@ fn transform_instance_script_for_visitors(
                 analysis.runes,
                 &non_proxy_vars,
             );
-            result.push_str(&transformed);
-            result.push('\n');
+            // Collect reactive statements to append at end (matching official compiler behavior
+            // which appends all reactive statements after the rest of instance body code)
+            let mut reactive_code = transformed;
+            reactive_code.push('\n');
+            pending_reactive.push(reactive_code);
             return;
         }
 
@@ -2001,6 +2009,7 @@ fn transform_instance_script_for_visitors(
                 process_accumulated(
                     &accumulated_lines,
                     &mut result,
+                    &mut pending_reactive_statements,
                     &state_vars,
                     &non_reactive_state_vars,
                     &proxy_vars,
@@ -2027,6 +2036,7 @@ fn transform_instance_script_for_visitors(
         process_accumulated(
             &accumulated_lines,
             &mut result,
+            &mut pending_reactive_statements,
             &state_vars,
             &non_reactive_state_vars,
             &proxy_vars,
@@ -2042,6 +2052,16 @@ fn transform_instance_script_for_visitors(
             dev,
             has_legacy_export_let,
         );
+    }
+
+    // Append reactive statements at the end, mirroring the official Svelte compiler which
+    // appends all $: reactive statements AFTER the rest of the instance body code.
+    // See: svelte/packages/svelte/src/compiler/phases/3-transform/client/transform-client.js
+    // which does: `for (const [node] of analysis.reactive_statements) { instance.body.push(...) }`
+    if !pending_reactive_statements.is_empty() {
+        for reactive_stmt in &pending_reactive_statements {
+            result.push_str(reactive_stmt);
+        }
     }
 
     result
@@ -7323,10 +7343,17 @@ fn is_in_function_param_position(chars: &[char], var_start_idx: usize, var_end_i
             // But we need to check if we're at the param, not the body
             return true;
         }
-        // It's `param = default`, likely a default parameter
-        // Need to check if we're inside param parens
-        // For now, trust context
-        return true;
+        // It's `==` or `===` (comparison operator, not assignment)
+        // e.g., `b = c === 'a'` - `c` is NOT a function parameter here
+        if k + 1 < chars.len() && chars[k + 1] == '=' {
+            // It's `==` or `===` comparison - this variable is not a parameter
+            // Fall through to return false
+        } else {
+            // It's `param = default`, likely a default parameter
+            // Need to check if we're inside param parens
+            // For now, trust context
+            return true;
+        }
     }
 
     if next_char == ')' {
