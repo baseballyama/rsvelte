@@ -518,23 +518,17 @@ export default function {component_name}($$renderer{props_param}) {{
                         }
                     }
 
-                    // Flush any prior HTML content (with dynamic marker if needed)
+                    // Flush any prior HTML content (with dynamic marker if needed, pushed separately)
                     if !current_html.is_empty() {
-                        if *dynamic {
-                            body_code.push_str(&format!(
-                                "{}$$renderer.push(`{}<!---->`);\n",
-                                indent, current_html
-                            ));
-                        } else {
-                            body_code.push_str(&format!(
-                                "{}$$renderer.push(`{}`);\n",
-                                indent, current_html
-                            ));
-                        }
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
                         current_html.clear();
+                        if *dynamic {
+                            body_code.push_str(&format!("{}$$renderer.push('<!---->');\n", indent));
+                        }
                     } else if *dynamic {
                         // Even if no prior HTML, dynamic components need a marker
-                        body_code.push_str(&format!("{}$$renderer.push(`<!---->`);\n", indent));
+                        body_code.push_str(&format!("{}$$renderer.push('<!---->');\n", indent));
                     }
 
                     // Use optional chaining for dynamic components
@@ -656,23 +650,17 @@ export default function {component_name}($$renderer{props_param}) {{
                     css_custom_props,
                 } => {
                     // Flush current HTML before the component call
-                    // For dynamic components, add <!---->  marker before the call
+                    // For dynamic components, add <!---->  marker before the call (pushed separately)
                     if !current_html.is_empty() {
-                        if *dynamic {
-                            body_code.push_str(&format!(
-                                "{}$$renderer.push(`{}<!---->`);\n",
-                                indent, current_html
-                            ));
-                        } else {
-                            body_code.push_str(&format!(
-                                "{}$$renderer.push(`{}`);\n",
-                                indent, current_html
-                            ));
-                        }
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
                         current_html.clear();
+                        if *dynamic {
+                            body_code.push_str(&format!("{}$$renderer.push('<!---->');\n", indent));
+                        }
                     } else if *dynamic {
                         // Even if no prior HTML, dynamic components need a marker
-                        body_code.push_str(&format!("{}$$renderer.push(`<!---->`);\n", indent));
+                        body_code.push_str(&format!("{}$$renderer.push('<!---->');\n", indent));
                     }
 
                     // Check if we have snippets or children
