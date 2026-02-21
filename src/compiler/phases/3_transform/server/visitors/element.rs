@@ -12,7 +12,7 @@ use crate::ast::template::{
 };
 use crate::compiler::phases::phase3_transform::TransformError;
 use crate::compiler::phases::phase3_transform::shared::{
-    escape_attr, escape_html, is_void_element,
+    escape_attr, escape_html, is_void_element, sanitize_template_string,
 };
 
 impl<'a> ServerCodeGenerator<'a> {
@@ -1251,7 +1251,11 @@ impl<'a> ServerCodeGenerator<'a> {
                 for part in parts {
                     match part {
                         AttributeValuePart::Text(text) => {
-                            current_text.push_str(&escape_attr(&text.data));
+                            // When embedding text in a template literal (as arg to $.attr()),
+                            // sanitize for template literal context: escape \, `, and ${.
+                            // This matches the official Svelte compiler's sanitize_template_string
+                            // applied to quasi.value.cooked (build_attribute_value in utils.js).
+                            current_text.push_str(&sanitize_template_string(&text.data));
                         }
                         AttributeValuePart::ExpressionTag(expr_tag) => {
                             has_expressions = true;

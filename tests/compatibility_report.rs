@@ -466,6 +466,22 @@ fn run_validator_tests() -> CategoryResult {
         let svelte_path = sample_dir.join("input.svelte");
         let module_path = sample_dir.join("input.svelte.js");
 
+        // Skip tests that have `skip: true` in _config.js
+        let config_path = sample_dir.join("_config.js");
+        if config_path.exists()
+            && let Ok(config) = fs::read_to_string(&config_path)
+            && (config.contains("skip: true") || config.contains("skip:true"))
+        {
+            result.add_sample(SampleResult {
+                name,
+                status: TestStatus::Skipped,
+                error: None,
+                skip_reason: Some("Skipped via _config.js".to_string()),
+                details: None,
+            });
+            continue;
+        }
+
         // Skip module tests
         if module_path.exists() && !svelte_path.exists() {
             result.add_sample(SampleResult {

@@ -562,6 +562,12 @@ impl<'a> ServerCodeGenerator<'a> {
             if let TemplateNode::Text(text) = node
                 && text.data.trim().is_empty()
             {
+                // Skip if there is no meaningful content at all (e.g. component with only
+                // <script> blocks and no template nodes - whitespace between/after scripts
+                // should not be emitted as $$renderer.push(` `)).
+                if last_meaningful_idx.is_none() {
+                    continue;
+                }
                 // Skip if before first meaningful content
                 if first_meaningful_idx.is_some() && i < first_meaningful_idx.unwrap() {
                     continue;
