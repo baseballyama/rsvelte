@@ -266,6 +266,39 @@ pub(crate) fn get_let_directives(node: &TemplateNode) -> Vec<String> {
     }
 }
 
+/// Extract let directive parameter patterns including aliases.
+/// Returns strings like "thing" or "thing: x" (for let:thing={x}).
+/// These are used as object destructuring property patterns.
+pub(crate) fn get_let_directive_params(
+    attrs: &[crate::ast::template::Attribute],
+    source: &str,
+) -> Vec<String> {
+    attrs
+        .iter()
+        .filter_map(|attr| {
+            if let crate::ast::template::Attribute::LetDirective(let_dir) = attr {
+                let name = let_dir.name.as_str();
+                if let Some(ref expr) = let_dir.expression {
+                    // Get the expression source text
+                    let expr_start = expr.start().unwrap_or(0) as usize;
+                    let expr_end = expr.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= source.len() {
+                        let expr_src = source[expr_start..expr_end].trim();
+                        // Check if expression is the same as name (no alias needed)
+                        if expr_src != name {
+                            // It's an alias: generate "name: alias"
+                            return Some(format!("{}: {}", name, expr_src));
+                        }
+                    }
+                }
+                Some(name.to_string())
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
 /// Collapse whitespace sequences (including newlines) to single spaces.
 /// This matches the behavior of clean_nodes in the official compiler.
 pub(crate) fn collapse_whitespace(s: &str) -> String {

@@ -373,6 +373,12 @@ pub(crate) fn transform_store_assignments(script: &str) -> String {
             }
             "=" => {
                 let rest = &result[end..];
+                // Skip if this is an arrow function parameter: `$name =>`
+                if rest.trim_start().starts_with('>') {
+                    new_result.push_str(&result[last_end..end]);
+                    last_end = end;
+                    continue;
+                }
                 let value_end = find_statement_end(rest);
                 let value = rest[..value_end].trim();
                 new_result.push_str(&format!("$.store_set({}, {})", store_name, value));

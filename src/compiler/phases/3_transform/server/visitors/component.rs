@@ -2,8 +2,8 @@
 
 use super::super::ServerCodeGenerator;
 use super::super::helpers::{
-    get_let_directives, get_slot_name, is_valid_js_identifier, quote_prop_name,
-    strip_ts_type_annotation,
+    get_let_directive_params, get_let_directives, get_slot_name, is_valid_js_identifier,
+    quote_prop_name, strip_ts_type_annotation,
 };
 use super::super::types::{ComponentBinding, ComponentPropItem, OutputPart};
 use crate::ast::template::{Attribute, AttributeValue, Component, Fragment, TemplateNode};
@@ -279,18 +279,9 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
-        // Collect component-level let directive names (e.g., <Counter let:count>)
-        let component_let_directives: Vec<String> = component
-            .attributes
-            .iter()
-            .filter_map(|attr| {
-                if let Attribute::LetDirective(let_dir) = attr {
-                    Some(let_dir.name.to_string())
-                } else {
-                    None
-                }
-            })
-            .collect();
+        // Collect component-level let directive params including aliases (e.g., <Counter let:count={n}> -> "count: n")
+        let component_let_directives: Vec<String> =
+            get_let_directive_params(&component.attributes, &self.source);
 
         // Extract snippets from the component's fragment and process children
         // Pass component-level let directives so constant folding is suppressed for shadowed vars
@@ -400,13 +391,21 @@ impl<'a> ServerCodeGenerator<'a> {
 
                 snippets.push((snippet_name, params, body_parts, true)); // true = is_true_snippet
             } else {
-                // Get the slot name and let directives from the node's attributes
+                // Get the slot name and let directive params (with aliases) from the node's attributes
                 let slot_name = get_slot_name(node);
-                let let_directives = get_let_directives(node);
+                let let_directive_params = match node {
+                    TemplateNode::RegularElement(elem) => {
+                        get_let_directive_params(&elem.attributes, &self.source)
+                    }
+                    TemplateNode::SvelteFragment(frag) => {
+                        get_let_directive_params(&frag.attributes, &self.source)
+                    }
+                    _ => get_let_directives(node),
+                };
                 let entry = slot_children.entry(slot_name).or_default();
                 entry.0.push(node);
-                // Merge let directives (usually there's one element with let directives per slot)
-                for let_dir in let_directives {
+                // Merge let directive params (usually there's one element with let directives per slot)
+                for let_dir in let_directive_params {
                     if !entry.1.contains(&let_dir) {
                         entry.1.push(let_dir);
                     }
@@ -420,9 +419,16 @@ impl<'a> ServerCodeGenerator<'a> {
         // those names from constant_vars so they're not constant-folded.
         let children = if let Some((default_nodes, _let_dirs)) = slot_children.remove("default") {
             let mut saved_constants: Vec<(String, String)> = Vec::new();
-            for name in component_let_directives {
-                if let Some(value) = self.constant_vars.remove(name) {
-                    saved_constants.push((name.clone(), value));
+            for param in component_let_directives {
+                // For aliased params like "thing: x", the local variable is "x"
+                // For non-aliased params like "thing", the local variable is "thing"
+                let local_name = if let Some(colon_pos) = param.find(':') {
+                    param[colon_pos + 1..].trim().to_string()
+                } else {
+                    param.clone()
+                };
+                if let Some(value) = self.constant_vars.remove(&local_name) {
+                    saved_constants.push((local_name.clone(), value));
                 }
             }
 
