@@ -450,6 +450,23 @@ export default function {component_name}($$renderer{props_param}) {{
         }
     }
 
+    /// Hoist ConstDeclaration parts to the front of a parts slice.
+    /// This mirrors the official Svelte compiler's behavior where @const declarations
+    /// are pushed to state.init (before template) in the EachBlock visitor.
+    fn hoist_const_declarations(parts: &[OutputPart]) -> Vec<OutputPart> {
+        let mut consts: Vec<OutputPart> = Vec::new();
+        let mut rest: Vec<OutputPart> = Vec::new();
+        for part in parts {
+            if matches!(part, OutputPart::ConstDeclaration(_)) {
+                consts.push(part.clone());
+            } else {
+                rest.push(part.clone());
+            }
+        }
+        consts.extend(rest);
+        consts
+    }
+
     pub(crate) fn build_parts_with_store_subs(
         parts: &[OutputPart],
         indent_level: usize,
@@ -1259,9 +1276,10 @@ export default function {component_name}($$renderer{props_param}) {{
                             ));
                         }
 
-                        // Body
+                        // Body - hoist @const declarations to the top of the loop body
+                        let hoisted_body = Self::hoist_const_declarations(body);
                         let body_code_inner = Self::build_parts_with_store_subs(
-                            body,
+                            &hoisted_body,
                             indent_level + 2,
                             each_counter,
                             store_subs,
@@ -1317,9 +1335,10 @@ export default function {component_name}($$renderer{props_param}) {{
                             ));
                         }
 
-                        // Body
+                        // Body - hoist @const declarations to the top of the loop body
+                        let hoisted_body = Self::hoist_const_declarations(body);
                         let body_code_inner = Self::build_parts_with_store_subs(
-                            body,
+                            &hoisted_body,
                             indent_level + 1,
                             each_counter,
                             store_subs,
@@ -1735,6 +1754,66 @@ export default function {component_name}($$renderer{props_param}) {{
                         "{}if ({}) {{\n{}\t$$renderer.push(`${{{}}}`);\n{}}} else {{}}\n\n",
                         indent, var_name, indent, var_name, indent
                     ));
+                }
+                OutputPart::ContentEditableBody {
+                    value_expr,
+                    children_body,
+                } => {
+                    // Flush current HTML before content-editable body
+                    if !current_html.is_empty() {
+                        body_code.push_str(&format!(
+                            "{}$$renderer.push(`{}`);
+
+",
+                            indent, current_html
+                        ));
+                        current_html.clear();
+                    }
+
+                    // Generate:
+                    // if (value) {
+                    //     $$renderer.push(`${value}`);
+                    // } else {
+                    //     /* children */
+                    // }
+                    body_code.push_str(&format!(
+                        "{}if ({}) {{
+",
+                        indent, value_expr
+                    ));
+                    body_code.push_str(&format!(
+                        "{}	$$renderer.push(`${{{}}}`);
+",
+                        indent, value_expr
+                    ));
+                    // Generate children in the else branch
+                    let children_code = Self::build_parts_with_store_subs(
+                        children_body,
+                        indent_level + 1,
+                        each_counter,
+                        store_subs,
+                    );
+                    if children_code.trim().is_empty() {
+                        body_code.push_str(&format!(
+                            "{}}} else {{}}
+
+",
+                            indent
+                        ));
+                    } else {
+                        body_code.push_str(&format!(
+                            "{}}} else {{
+",
+                            indent
+                        ));
+                        body_code.push_str(&children_code);
+                        body_code.push_str(&format!(
+                            "{}}}
+
+",
+                            indent
+                        ));
+                    }
                 }
                 OutputPart::RenderCall {
                     call_str,

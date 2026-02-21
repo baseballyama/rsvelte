@@ -69,6 +69,23 @@ impl<'a> ServerCodeGenerator<'a> {
             None
         };
 
+        // Detect content-editable binding (bind:innerHTML, bind:textContent, bind:innerText)
+        let content_editable_expr: Option<String> = element.attributes.iter().find_map(|attr| {
+            if let Attribute::BindDirective(bind) = attr {
+                let bind_name = bind.name.as_str();
+                if matches!(bind_name, "innerHTML" | "textContent" | "innerText") {
+                    let expr_start = bind.expression.start().unwrap_or(0) as usize;
+                    let expr_end = bind.expression.end().unwrap_or(0) as usize;
+                    if expr_end > expr_start && expr_end <= self.source.len() {
+                        let raw = self.source[expr_start..expr_end].trim().to_string();
+                        let raw = self.transform_store_refs(&raw);
+                        return Some(raw);
+                    }
+                }
+            }
+            None
+        });
+
         for attr in &element.attributes {
             match attr {
                 Attribute::ClassDirective(dir) => {
@@ -161,6 +178,14 @@ impl<'a> ServerCodeGenerator<'a> {
                         tag.push_str(&attr_str);
                     }
                 }
+                Attribute::BindDirective(bind)
+                    if matches!(
+                        bind.name.as_str(),
+                        "innerHTML" | "textContent" | "innerText"
+                    ) =>
+                {
+                    // Skip content-editable bindings in the tag - they're handled as body content
+                }
                 _ => {
                     if let Some(attr_str) =
                         self.generate_attribute_for_element(attr, Some(element))?
@@ -203,6 +228,23 @@ impl<'a> ServerCodeGenerator<'a> {
         } else {
             tag.push('>');
             self.output_parts.push(OutputPart::Html(tag));
+
+            // If we have a content-editable binding, generate children into a sub-generator
+            // and emit ContentEditableBody which will generate the if/else pattern
+            if let Some(ref body_expr) = content_editable_expr {
+                // Generate children into a child generator to capture them as OutputPart
+                let mut children_generator = self.new_child_generator(false);
+                for child in element.fragment.nodes.iter() {
+                    children_generator.generate_node(child, false)?;
+                }
+                self.output_parts.push(OutputPart::ContentEditableBody {
+                    value_expr: body_expr.clone(),
+                    children_body: children_generator.output_parts,
+                });
+                self.output_parts
+                    .push(OutputPart::Html(format!("</{}>", name)));
+                return Ok(());
+            }
 
             // Children - filter and process with position awareness
             // First, filter out comments and find meaningful content boundaries

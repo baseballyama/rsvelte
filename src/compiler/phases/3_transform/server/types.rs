@@ -166,7 +166,7 @@ pub struct AsyncConsts {
 }
 
 /// A component binding - either a simple variable binding or a sequence expression binding (getter/setter pair).
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum ComponentBinding {
     /// Simple binding: `bind:prop={variable}` or `bind:prop={$store.field}`
     Simple { prop_name: String, var_name: String },
@@ -180,7 +180,7 @@ pub(crate) enum ComponentBinding {
 }
 
 /// A part of the output - either static HTML or dynamic code.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum OutputPart {
     Html(String),
     Expression(String),
@@ -309,6 +309,14 @@ pub(crate) enum OutputPart {
     TextareaBody {
         value_expr: String,
     },
+    /// Content-editable body - generates if (value) { push value } else { push children }
+    /// Used for bind:innerHTML, bind:textContent, bind:innerText on elements
+    ContentEditableBody {
+        /// The value expression from the bind directive
+        value_expr: String,
+        /// The fallback children body (rendered in the else branch)
+        children_body: Vec<OutputPart>,
+    },
     /// Render tag call - calls a snippet function
     RenderCall {
         call_str: String,
@@ -336,7 +344,7 @@ pub(crate) enum OutputPart {
 }
 
 /// A snippet definition.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct SnippetDef {
     pub(crate) name: String,
     pub(crate) params: Vec<String>,
@@ -347,7 +355,7 @@ pub(crate) struct SnippetDef {
 
 /// Represents either a group of consecutive props or a spread expression,
 /// preserving the order in which they appear in the source.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum ComponentPropItem {
     /// A group of consecutive regular props (e.g., `foo: 1, bar: 2`)
     Props(Vec<String>),
