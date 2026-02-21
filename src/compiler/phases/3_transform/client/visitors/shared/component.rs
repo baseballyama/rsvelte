@@ -340,7 +340,7 @@ pub fn build_component(
             context
                 .state
                 .template
-                .push_element(wrapper_element.to_string(), 0);
+                .push_element(wrapper_element.to_string(), 0, false);
 
             if !is_svg {
                 context
@@ -1910,7 +1910,7 @@ fn build_with_css_props(
     context
         .state
         .template
-        .push_element(wrapper_element.to_string(), 0);
+        .push_element(wrapper_element.to_string(), 0, false);
 
     if !is_svg {
         context

@@ -11,6 +11,8 @@ pub struct Element {
     pub children: Vec<Node>,
     /// Used for populating __svelte_meta
     pub start: u32,
+    /// True if this is an HTML element (not SVG/MathML) - used for attribute name lowercasing
+    pub is_html: bool,
 }
 
 /// Text node in the template

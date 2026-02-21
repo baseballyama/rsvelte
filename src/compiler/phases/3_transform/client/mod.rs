@@ -6186,6 +6186,135 @@ fn transform_prop_assignments(line: &str, prop_vars: &[String]) -> String {
     result
 }
 
+/// Split a multi-declarator variable statement into individual declarations.
+///
+/// Converts `let a = 1, b = 2, c = 3;` into `["let a = 1;", "let b = 2;", "let c = 3;"]`
+/// while handling nested structures like arrays and objects correctly.
+///
+/// If the line is not a multi-declarator statement, returns None.
+fn split_multi_declarator(line: &str) -> Option<Vec<String>> {
+    // Check if this is a variable declaration
+    let trimmed = line.trim();
+    let (keyword, rest) = if let Some(r) = trimmed.strip_prefix("let ") {
+        ("let", r)
+    } else if let Some(r) = trimmed.strip_prefix("const ") {
+        ("const", r)
+    } else if let Some(r) = trimmed.strip_prefix("var ") {
+        ("var", r)
+    } else {
+        return None;
+    };
+
+    // Check if there's a comma at depth 0 (indicating multiple declarators)
+    let mut depth = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+    let mut has_top_level_comma = false;
+    let chars: Vec<char> = rest.chars().collect();
+
+    for (i, &c) in chars.iter().enumerate() {
+        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char {
+                in_string = false;
+            }
+            continue;
+        }
+        if in_string {
+            continue;
+        }
+        match c {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => {
+                if depth > 0 {
+                    depth -= 1;
+                }
+            }
+            ',' if depth == 0 => {
+                has_top_level_comma = true;
+                break;
+            }
+            _ => {}
+        }
+    }
+
+    if !has_top_level_comma {
+        return None;
+    }
+
+    // Split into declarators at top-level commas
+    let mut declarators: Vec<String> = Vec::new();
+    let mut current = String::new();
+    depth = 0;
+    in_string = false;
+    string_char = ' ';
+
+    for (i, &c) in chars.iter().enumerate() {
+        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char {
+                in_string = false;
+            }
+            current.push(c);
+            continue;
+        }
+        if in_string {
+            current.push(c);
+            continue;
+        }
+        match c {
+            '(' | '[' | '{' => {
+                depth += 1;
+                current.push(c);
+            }
+            ')' | ']' | '}' => {
+                if depth > 0 {
+                    depth -= 1;
+                }
+                current.push(c);
+            }
+            ',' if depth == 0 => {
+                // End of current declarator
+                declarators.push(current.trim().trim_end_matches(';').trim().to_string());
+                current = String::new();
+            }
+            ';' if depth == 0 => {
+                // End of statement
+                if !current.trim().is_empty() {
+                    declarators.push(current.trim().to_string());
+                }
+                current = String::new();
+                break;
+            }
+            _ => {
+                current.push(c);
+            }
+        }
+    }
+    if !current.trim().is_empty() {
+        declarators.push(current.trim().trim_end_matches(';').trim().to_string());
+    }
+
+    if declarators.len() <= 1 {
+        return None;
+    }
+
+    // Get leading whitespace from original line
+    let leading_ws: String = line.chars().take_while(|c| c.is_whitespace()).collect();
+
+    // Convert to individual declarations
+    let result: Vec<String> = declarators
+        .iter()
+        .map(|d| format!("{}{} {};", leading_ws, keyword, d))
+        .collect();
+
+    Some(result)
+}
+
 /// Transform legacy state declarations to $.mutable_source() calls.
 ///
 /// In legacy (non-runes) mode, variables that are promoted to State kind
@@ -6203,6 +6332,16 @@ fn transform_legacy_state_declarations(
 ) -> String {
     if legacy_state_vars.is_empty() {
         return line.to_string();
+    }
+
+    // Handle multi-declarator statements like `let a = 1, b = 2, c = 3;`
+    // Split into individual declarations first to handle each one separately
+    if let Some(split_lines) = split_multi_declarator(line) {
+        let transformed_lines: Vec<String> = split_lines
+            .iter()
+            .map(|l| transform_legacy_state_declarations(l, legacy_state_vars, immutable))
+            .collect();
+        return transformed_lines.join("\n");
     }
 
     let mut result = line.to_string();

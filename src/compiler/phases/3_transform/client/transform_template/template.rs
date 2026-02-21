@@ -87,7 +87,7 @@ impl Template {
     }
 
     /// Push a new element onto the template.
-    pub fn push_element(&mut self, name: String, start: u32) {
+    pub fn push_element(&mut self, name: String, start: u32, is_html: bool) {
         // Track if the template contains a <script> tag
         if name == "script" {
             self.contains_script_tag = true;
@@ -99,6 +99,7 @@ impl Template {
             attributes: IndexMap::new(),
             children: Vec::new(),
             start,
+            is_html,
         };
 
         // Get current path
@@ -331,7 +332,11 @@ fn stringify(item: &Node) -> String {
 
             for (key, value) in &element.attributes {
                 str.push(' ');
-                str.push_str(key);
+                if element.is_html {
+                    str.push_str(&key.to_lowercase());
+                } else {
+                    str.push_str(key);
+                }
                 if let Some(val) = value {
                     str.push_str(&format!("=\"{}\"", escape_attr(val)));
                 }

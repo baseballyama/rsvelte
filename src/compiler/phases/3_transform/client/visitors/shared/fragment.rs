@@ -373,7 +373,11 @@ pub fn process_children<F>(
 
                 if is_static_element(node, &context.state) {
                     // Push the static element to the template
-                    push_static_element_to_template(node, &mut context.state.template);
+                    push_static_element_to_template(
+                        node,
+                        &mut context.state.template,
+                        &context.state.metadata.namespace,
+                    );
                     skipped += 1;
                 } else if let TemplateNode::EachBlock(each) = node {
                     // Special case: single EachBlock in element can be controlled
@@ -465,11 +469,19 @@ pub enum TextOrExpr {
 }
 
 /// Push a static element and its children to the template.
-fn push_static_element_to_template(node: &TemplateNode, template: &mut Template) {
+fn push_static_element_to_template(node: &TemplateNode, template: &mut Template, namespace: &str) {
     match node {
         TemplateNode::RegularElement(elem) => {
+            // Determine if this is an HTML element (not SVG/MathML)
+            let is_html = namespace == "html" && elem.name != "svg";
+            let elem_name = if is_html {
+                elem.name.as_str().to_lowercase()
+            } else {
+                elem.name.to_string()
+            };
+
             // Push the element opening tag
-            template.push_element(elem.name.to_string(), elem.start);
+            template.push_element(elem_name, elem.start, is_html);
 
             // Handle <noscript> - it's rendered empty (children are stripped)
             // This matches the behavior in visit_regular_element
@@ -477,6 +489,9 @@ fn push_static_element_to_template(node: &TemplateNode, template: &mut Template)
                 template.pop_element();
                 return;
             }
+
+            // Determine child namespace for recursion
+            let child_namespace = determine_namespace_for_children(elem, namespace);
 
             // Add attributes
             for attr in &elem.attributes {
@@ -498,13 +513,19 @@ fn push_static_element_to_template(node: &TemplateNode, template: &mut Template)
                     if a.name == "class" && value.as_deref() == Some("") {
                         continue;
                     }
-                    template.set_prop(a.name.to_string(), value);
+                    // Lowercase attribute names for HTML elements (matches official compiler)
+                    let attr_name = if is_html {
+                        a.name.as_str().to_lowercase()
+                    } else {
+                        a.name.to_string()
+                    };
+                    template.set_prop(attr_name, value);
                 }
             }
 
             // Recursively add children
             for child in &elem.fragment.nodes {
-                push_static_element_to_template(child, template);
+                push_static_element_to_template(child, template, &child_namespace);
             }
 
             // Special case: if the only meaningful child is a lone <script> element,
@@ -541,6 +562,7 @@ fn push_static_element_to_template(node: &TemplateNode, template: &mut Template)
 }
 
 use crate::compiler::phases::phase3_transform::client::transform_template::template::Template;
+use crate::compiler::phases::phase3_transform::utils::determine_namespace_for_children;
 
 /// Checks if a <select>, <optgroup>, or <option> element has rich content that requires
 /// special hydration handling with `$.customizable_select()`.

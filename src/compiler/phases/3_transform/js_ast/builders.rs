@@ -508,7 +508,10 @@ pub fn call_trimmed(callee: JsExpr, arguments: Vec<JsExpr>) -> JsExpr {
 
     let mut args = arguments;
 
-    // Remove trailing undefined/void expressions and false boolean literals
+    // Remove trailing undefined/void expressions
+    // Note: We do NOT remove false booleans - they are valid argument values
+    // (e.g., $.set_class(div, 1, false) where false is the class value)
+    // This matches the official b.call behavior: only removes null/undefined, not false
     while let Some(last) = args.last() {
         let is_falsy = match last {
             JsExpr::Identifier(name) if name == "undefined" => true,
@@ -518,7 +521,6 @@ pub fn call_trimmed(callee: JsExpr, arguments: Vec<JsExpr>) -> JsExpr {
                 matches!(unary.operator, JsUnaryOp::Void)
                     && matches!(&*unary.argument, JsExpr::Literal(JsLiteral::Number(n)) if *n == 0.0)
             }
-            JsExpr::Literal(JsLiteral::Boolean(false)) => true,
             _ => false,
         };
 

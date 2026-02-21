@@ -132,10 +132,16 @@ pub fn visit_regular_element(
     context: &mut ComponentContext,
 ) -> TransformResult {
     // Push element to template
+    let is_html = context.state.metadata.namespace == "html" && node.name != "svg";
+    let elem_name = if is_html {
+        node.name.as_str().to_lowercase()
+    } else {
+        node.name.to_string()
+    };
     context
         .state
         .template
-        .push_element(node.name.to_string(), node.start);
+        .push_element(elem_name, node.start, is_html);
 
     // Handle <noscript> - it's skipped entirely
     if node.name == "noscript" {
