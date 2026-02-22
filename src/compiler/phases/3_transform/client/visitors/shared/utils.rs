@@ -2758,14 +2758,16 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                         // Both const and let declarations can be "known" if they:
                         // - Are never reassigned
                         // - Are never mutated
-                        // - Have an initial value that's defined
                         // - Have an initial value that's a literal or known value
+                        //   (includes undefined identifier: `let x = undefined`)
+                        //   Note: initial_is_defined is NOT required here because
+                        //   `undefined` is a compile-time constant even if it's falsy.
+                        //   is_initial_value_literal_or_known handles None → false.
                         let is_known = matches!(
                             binding.declaration_kind,
                             DeclarationKind::Const | DeclarationKind::Let
                         ) && !binding.reassigned
                             && !binding.mutated
-                            && binding.initial_is_defined
                             && is_initial_value_literal_or_known(&binding.initial);
 
                         // has_state is true when the value is NOT known at compile time
@@ -3445,6 +3447,12 @@ fn is_initial_value_literal_or_known(initial: &Option<String>) -> bool {
     // Check for AST JSON format (contains "Literal" type)
     if s.contains("Literal") && !s.contains("TemplateLiteral") {
         // Literal types (NumericLiteral, StringLiteral, BooleanLiteral, NullLiteral)
+        return true;
+    }
+
+    // Check for `undefined` identifier in AST JSON form:
+    // {"type":"Identifier","name":"undefined",...}
+    if s.contains("Identifier") && s.contains("\"undefined\"") {
         return true;
     }
 
