@@ -56,6 +56,35 @@ fn requires_unsupported_options(category: &str, sample_name: &str) -> bool {
     false
 }
 
+/// Read the `accessors` setting from a test's _config.js.
+///
+/// The official Svelte test runner defaults to `accessors: true` for runtime-legacy tests
+/// (see svelte/packages/svelte/tests/runtime-legacy/shared.ts line 224):
+///   accessors: 'accessors' in config ? config.accessors : true
+///
+/// Returns `true` if `accessors` should be enabled (default true unless `accessors: false` in config).
+fn get_accessors_option(category: &str, sample_name: &str) -> bool {
+    if category != "runtime-legacy" {
+        return false;
+    }
+
+    let config_path = svelte_path()
+        .join("packages/svelte/tests")
+        .join(category)
+        .join("samples")
+        .join(sample_name)
+        .join("_config.js");
+
+    if let Ok(config) = fs::read_to_string(&config_path) {
+        // Check for explicit `accessors: false`
+        if config.contains("accessors: false") || config.contains("accessors:false") {
+            return false;
+        }
+    }
+    // Default: true for runtime-legacy (matches official test runner behavior)
+    true
+}
+
 /// A runtime test fixture.
 struct RuntimeFixture {
     name: String,
@@ -63,6 +92,10 @@ struct RuntimeFixture {
     expected_client_js: Option<String>,
     expected_server_js: Option<String>,
     requires_unsupported_options: bool,
+    /// Whether to use accessors=true in CompileOptions.
+    /// Defaults to true for runtime-legacy (matches official test runner behavior).
+    #[allow(dead_code)]
+    accessors: bool,
 }
 
 /// Load a runtime test fixture from fixtures directory.
@@ -84,6 +117,7 @@ fn load_runtime_fixture(category: &str, sample_dir: &Path) -> Option<RuntimeFixt
         expected_client_js,
         expected_server_js,
         requires_unsupported_options: requires_unsupported_options(category, &name),
+        accessors: get_accessors_option(category, &name),
     })
 }
 

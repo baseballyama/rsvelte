@@ -1851,6 +1851,21 @@ fn transform_instance_script_for_visitors(
             &non_proxy_vars,
         );
 
+        // Transform member mutations to $.mutate() calls (only in legacy/non-runes mode).
+        // This handles patterns like `obj.self = obj` → `$.mutate(obj, obj.self = obj)`.
+        // Must run AFTER transform_state_assignments (which handles direct assignments like `x = v`)
+        // and BEFORE wrap_state_vars_in_expr (which will apply $.get() inside the $.mutate()).
+        let transformed = if !analysis.runes && !state_vars.is_empty() {
+            transform_member_mutations(
+                &transformed,
+                state_vars,
+                non_reactive_state_vars,
+                raw_state_vars,
+            )
+        } else {
+            transformed
+        };
+
         // Transform prop assignments to prop(prop() + value) syntax
         // This handles props declared with `export let` in legacy mode
         // Note: We use prop_assignment_transform_vars which excludes RestProp bindings
@@ -3712,15 +3727,42 @@ fn transform_reactive_statement(
             );
             transformed_body = format!("$.set({}, {})", lhs, transformed_rhs);
         } else {
-            // Regular assignment - still transform prop reads on RHS
-            let transformed_rhs = transform_prop_reads_in_expr(rhs, prop_assignment_transform_vars);
-            let transformed_rhs = wrap_state_vars_in_expr(
-                &transformed_rhs,
-                state_vars,
-                non_reactive_state_vars,
-                proxy_vars,
-            );
-            transformed_body = format!("{} = {}", lhs, transformed_rhs);
+            // Check if LHS is a member expression with a state var base
+            // e.g., `b.foo = a.foo` → `$.mutate(b, $.get(b).foo = $.get(a).foo)`
+            let base = extract_member_expression_base(lhs);
+            if let Some(base) = base
+                && state_vars.contains(&base.to_string())
+                && !non_reactive_state_vars.contains(&base.to_string())
+            {
+                // Mutation of state var member
+                let member_part = &lhs[base.len()..]; // ".foo" or "[idx]"
+                let transformed_rhs =
+                    transform_prop_reads_in_expr(rhs, prop_assignment_transform_vars);
+                let transformed_rhs = wrap_state_vars_in_expr(
+                    &transformed_rhs,
+                    state_vars,
+                    non_reactive_state_vars,
+                    proxy_vars,
+                );
+                // Build $.mutate(base, $.get(base).member = rhs)
+                // The first arg of $.mutate() is protected by in_mutate_first_arg check
+                // in wrap_state_vars_in_expr, so `base` won't be double-wrapped.
+                transformed_body = format!(
+                    "$.mutate({}, $.get({}){} = {})",
+                    base, base, member_part, transformed_rhs
+                );
+            } else {
+                // Regular assignment - still transform prop reads on RHS
+                let transformed_rhs =
+                    transform_prop_reads_in_expr(rhs, prop_assignment_transform_vars);
+                let transformed_rhs = wrap_state_vars_in_expr(
+                    &transformed_rhs,
+                    state_vars,
+                    non_reactive_state_vars,
+                    proxy_vars,
+                );
+                transformed_body = format!("{} = {}", lhs, transformed_rhs);
+            }
         }
     } else {
         // Not a simple assignment - handle compound assignments (+=, -=, etc.),
@@ -4158,8 +4200,23 @@ fn check_identifier_in_statement(stmt: &str, identifier: &str, re: &regex::Regex
         }
 
         // If identifier appears on the LHS but is not the whole LHS (e.g., `foo.bar = x`
-        // and identifier is `foo`), it's a read (object access)
+        // and identifier is `foo`), check whether it's ONLY being mutated (base of member
+        // expression) or also read somewhere.
+        // A mutation target like `foo` in `foo.bar = x` is NOT a dependency UNLESS
+        // `foo` also appears on the RHS.
         if re.is_match(lhs) {
+            // Check if the identifier is the base of a member expression on the LHS.
+            // i.e., lhs starts with `identifier.` or `identifier[`
+            let lhs_trimmed = lhs.trim();
+            let is_mutation_base = lhs_trimmed.starts_with(&format!("{}.", identifier))
+                || lhs_trimmed.starts_with(&format!("{}[", identifier));
+            if is_mutation_base {
+                // Only a mutation - not a dependency unless also used on RHS
+                // (RHS check was done above and returned false if found there)
+                return false;
+            }
+            // Otherwise (e.g., nested member expression like `obj.foo.bar = x` and identifier
+            // is `foo`), treat as a read
             return true;
         }
 
@@ -4213,6 +4270,43 @@ fn find_assignment_position(expr: &str) -> Option<usize> {
         i += 1;
     }
     None
+}
+
+/// Extract the base identifier from a member expression like `obj.foo` or `arr[idx]`.
+///
+/// Returns the base identifier name if the input starts with a valid identifier followed
+/// by `.` or `[`. Returns `None` if the input is not a simple member expression.
+///
+/// # Examples
+///
+/// - `"obj.foo"` → `Some("obj")`
+/// - `"arr[idx]"` → `Some("arr")`
+/// - `"obj"` → `None` (no member separator)
+/// - `".foo"` → `None` (empty base)
+fn extract_member_expression_base(lhs: &str) -> Option<&str> {
+    let lhs = lhs.trim();
+    let sep_pos = lhs.find('.').or_else(|| lhs.find('['));
+    if let Some(pos) = sep_pos {
+        let base = &lhs[..pos];
+        // Must be a valid identifier (alphanumeric, underscore, dollar sign)
+        // and non-empty
+        if !base.is_empty()
+            && base
+                .chars()
+                .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+            && base
+                .chars()
+                .next()
+                .map(|c| !c.is_ascii_digit())
+                .unwrap_or(false)
+        {
+            Some(base)
+        } else {
+            None
+        }
+    } else {
+        None
+    }
 }
 
 /// Transform prop reads in an expression to prop() calls.
@@ -11103,6 +11197,91 @@ fn unthunk_string(expr: &str) -> String {
 
     // No optimization possible, wrap in arrow
     format!("() => {}", expr)
+}
+
+/// Transform member expression assignments to `$.mutate()` calls in legacy mode.
+///
+/// Detects statement-level patterns like:
+/// - `var.prop = expr` → `$.mutate(var, var.prop = expr)`
+/// - `var[idx] = expr` → `$.mutate(var, var[idx] = expr)`
+///
+/// Only applies when the base of the member expression is a state variable in
+/// non-runes (legacy) mode.
+///
+/// The subsequent `wrap_state_vars_in_expr` call will handle `$.get()` wrapping
+/// inside the mutation expression (the `in_mutate_first_arg` guard in that
+/// function ensures the first argument of `$.mutate()` is NOT double-wrapped).
+fn transform_member_mutations(
+    line: &str,
+    state_vars: &[String],
+    non_reactive_state_vars: &[String],
+    raw_state_vars: &[String],
+) -> String {
+    let trimmed = line.trim();
+
+    // Skip if already wrapped in $.mutate or $.set or other transforms
+    if trimmed.starts_with("$.mutate(")
+        || trimmed.starts_with("$.set(")
+        || trimmed.starts_with("$.store_set(")
+    {
+        return line.to_string();
+    }
+
+    // Skip declarations (let/const/var/function/class)
+    if trimmed.starts_with("let ")
+        || trimmed.starts_with("const ")
+        || trimmed.starts_with("var ")
+        || trimmed.starts_with("function ")
+        || trimmed.starts_with("class ")
+    {
+        return line.to_string();
+    }
+
+    // Try to find a member mutation pattern for each state variable
+    for var in state_vars {
+        // Skip non-reactive and raw state vars
+        if non_reactive_state_vars.contains(var) || raw_state_vars.contains(var) {
+            continue;
+        }
+
+        // Check for `var.` or `var[` patterns at the start of the trimmed line
+        let dot_pattern = format!("{}.", var);
+        let bracket_pattern = format!("{}[", var);
+
+        let starts_with_dot = trimmed.starts_with(&dot_pattern);
+        let starts_with_bracket = trimmed.starts_with(&bracket_pattern);
+
+        if !starts_with_dot && !starts_with_bracket {
+            continue;
+        }
+
+        // Found a potential mutation. Now find the assignment position.
+        if let Some(eq_pos) = find_assignment_position(trimmed) {
+            let lhs = trimmed[..eq_pos].trim();
+            let rhs_with_semi = trimmed[eq_pos + 1..].trim();
+            let rhs = rhs_with_semi.trim_end_matches(';').trim();
+
+            // Double-check: lhs should start with var and have a member separator
+            let member_part = &lhs[var.len()..]; // ".foo" or "[idx]"
+            if !member_part.starts_with('.') && !member_part.starts_with('[') {
+                continue;
+            }
+
+            // Generate $.mutate(var, var.member = rhs)
+            // The subsequent wrap_state_vars_in_expr will handle $.get() wrapping
+            // inside the mutation expression.
+            let leading_whitespace = &line[..line.len() - line.trim_start().len()];
+            let has_semicolon = trimmed.ends_with(';');
+            let semicolon = if has_semicolon { ";" } else { "" };
+
+            return format!(
+                "{}$.mutate({}, {} = {}){}",
+                leading_whitespace, var, lhs, rhs, semicolon
+            );
+        }
+    }
+
+    line.to_string()
 }
 
 #[cfg(test)]
