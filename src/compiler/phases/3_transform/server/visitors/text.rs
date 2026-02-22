@@ -15,7 +15,9 @@ impl<'a> ServerCodeGenerator<'a> {
     ) -> Result<(), TransformError> {
         let data = &text.data;
 
-        if data.trim().is_empty() {
+        // Non-breaking space (U+00A0) is NOT collapsible whitespace - treat as content
+        let is_whitespace_only = data.chars().all(|c| c != '\u{00A0}' && c.is_whitespace());
+        if is_whitespace_only {
             // Whitespace-only text becomes a single space if not empty,
             // but in SVG/MathML namespace or certain HTML elements (select, tr, table, etc.),
             // whitespace-only text nodes are entirely removed.

@@ -773,8 +773,19 @@ pub fn is_safe_identifier(expression: &Value, context: &VisitorContext) -> bool 
         None => return false,
     };
 
-    // Look up the binding - search all scopes
-    let binding = match context.analysis.root.find_binding_any_scope(name) {
+    // Look up the binding - use current scope for proper lexical scoping
+    // This respects function parameter shadowing: if a function parameter shadows
+    // a prop/bindable_prop, we should find the parameter binding (which is safe),
+    // not the outer prop binding (which would be unsafe and set needs_context incorrectly).
+    // Using get_binding(name, context.scope) walks up the parent chain from the current scope,
+    // matching the behavior of Svelte's scope.get(name) in is_safe_identifier.
+    let binding_idx = if context.scope > 0 {
+        context.analysis.root.get_binding(name, context.scope)
+    } else {
+        // Fall back to root scope lookup for backward compat
+        context.analysis.root.find_binding_any_scope(name)
+    };
+    let binding = match binding_idx {
         Some(idx) => &context.analysis.root.bindings[idx],
         None => return true, // No binding means it's a global, which is safe
     };

@@ -106,6 +106,7 @@ impl<'a> ServerCodeGenerator<'a> {
                             if expr_end > expr_start && expr_end <= self.source.len() {
                                 let expr_source =
                                     self.source[expr_start..expr_end].trim().to_string();
+                                let expr_source = self.transform_store_refs(&expr_source);
                                 // Check if it's a shorthand property (name equals expression)
                                 if expr_source == name && is_valid_js_identifier(name) {
                                     push_component_prop(&mut props_and_spreads, name.to_string());
@@ -130,6 +131,7 @@ impl<'a> ServerCodeGenerator<'a> {
                                 if expr_end > expr_start && expr_end <= self.source.len() {
                                     let expr_source =
                                         self.source[expr_start..expr_end].trim().to_string();
+                                    let expr_source = self.transform_store_refs(&expr_source);
                                     // Check if it's a shorthand property (name equals expression)
                                     if expr_source == name && is_valid_js_identifier(name) {
                                         push_component_prop(
@@ -165,9 +167,10 @@ impl<'a> ServerCodeGenerator<'a> {
                                         let expr_end =
                                             expr_tag.expression.end().unwrap_or(0) as usize;
                                         if expr_end > expr_start && expr_end <= self.source.len() {
+                                            let expr_src = self.source[expr_start..expr_end].trim();
+                                            let transformed = self.transform_store_refs(expr_src);
                                             value_str.push_str("${$.stringify(");
-                                            value_str
-                                                .push_str(self.source[expr_start..expr_end].trim());
+                                            value_str.push_str(&transformed);
                                             value_str.push_str(")}");
                                         }
                                     }
@@ -203,6 +206,7 @@ impl<'a> ServerCodeGenerator<'a> {
                     let expr_end = spread.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {
                         let expr = self.source[expr_start..expr_end].trim().to_string();
+                        let expr = self.transform_store_refs(&expr);
                         props_and_spreads.push(ComponentPropItem::Spread(expr));
                     }
                 }

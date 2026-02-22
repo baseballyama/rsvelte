@@ -5,6 +5,7 @@ use super::super::helpers::quote_prop_name;
 use super::super::types::OutputPart;
 use crate::ast::template::{Attribute, SvelteDynamicElement};
 use crate::compiler::phases::phase3_transform::TransformError;
+use crate::compiler::phases::phase3_transform::shared::template::is_boolean_attribute;
 
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn generate_svelte_element(
@@ -16,7 +17,8 @@ impl<'a> ServerCodeGenerator<'a> {
         let end = elem.tag.end().unwrap_or(0) as usize;
 
         let tag_expr = if end > start && end <= self.source.len() {
-            self.source[start..end].trim().to_string()
+            let raw = self.source[start..end].trim().to_string();
+            self.transform_store_refs(&raw)
         } else {
             // The tag expression might be a synthetic JSON literal (e.g., from this="div")
             // without start/end positions. Check if it's a string value directly.
@@ -118,7 +120,12 @@ impl<'a> ServerCodeGenerator<'a> {
                         } else {
                             // Dynamic attribute - use $.attr()
                             let expr = self.extract_attribute_value_as_string(node)?;
-                            attr_parts.push(format!("${{$.attr('{}', {})}}", name, expr));
+                            // Boolean attributes need a third `true` argument
+                            if is_boolean_attribute(name) {
+                                attr_parts.push(format!("${{$.attr('{}', {}, true)}}", name, expr));
+                            } else {
+                                attr_parts.push(format!("${{$.attr('{}', {})}}", name, expr));
+                            }
                         }
                     }
                     Attribute::BindDirective(bind) => {

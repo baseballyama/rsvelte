@@ -301,10 +301,26 @@ pub(crate) fn get_let_directive_params(
 
 /// Collapse whitespace sequences (including newlines) to single spaces.
 /// This matches the behavior of clean_nodes in the official compiler.
+/// Check if a character is "collapsible" whitespace (NOT non-breaking space).
+/// Non-breaking space (U+00A0) must be preserved as-is, not collapsed.
+fn is_collapsible_whitespace(c: char) -> bool {
+    c != '\u{00A0}' && c.is_whitespace()
+}
+
 pub(crate) fn collapse_whitespace(s: &str) -> String {
-    let trimmed = s.trim();
-    let has_leading_ws = s.chars().next().is_some_and(|c| c.is_whitespace());
-    let has_trailing_ws = s.chars().last().is_some_and(|c| c.is_whitespace());
+    let trimmed: String = s
+        .chars()
+        .skip_while(|c| is_collapsible_whitespace(*c))
+        .collect::<String>()
+        .chars()
+        .rev()
+        .skip_while(|c| is_collapsible_whitespace(*c))
+        .collect::<String>()
+        .chars()
+        .rev()
+        .collect();
+    let has_leading_ws = s.chars().next().is_some_and(is_collapsible_whitespace);
+    let has_trailing_ws = s.chars().last().is_some_and(is_collapsible_whitespace);
 
     // Collapse internal whitespace sequences to single spaces
     let mut result = String::new();
@@ -315,7 +331,7 @@ pub(crate) fn collapse_whitespace(s: &str) -> String {
     }
 
     for c in trimmed.chars() {
-        if c.is_whitespace() {
+        if is_collapsible_whitespace(c) {
             if !in_whitespace {
                 result.push(' ');
                 in_whitespace = true;

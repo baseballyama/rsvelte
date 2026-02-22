@@ -9,6 +9,7 @@ use crate::ast::template::{
     AwaitBlock, ConstTag, EachBlock, Fragment, IfBlock, KeyBlock, RegularElement, Root, Script,
     SnippetBlock, TemplateNode,
 };
+use rustc_hash::FxHashMap;
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
@@ -58,6 +59,13 @@ pub struct ScopeBuilder<'a> {
     possible_implicit_declarations: Vec<String>,
     /// The scope index of the instance script scope.
     instance_scope_index: usize,
+    /// Maps function body start position (from OXC span) to the scope index
+    /// created for that function body. Used to resolve context.scope during visitor phase.
+    function_scope_map: FxHashMap<u32, usize>,
+    /// The start offset of the current script content in the full source.
+    /// Used to convert OXC span positions to full-source positions for function_scope_map.
+    /// This is set to `script.content.start()` at the beginning of each script visit.
+    current_script_offset: usize,
 }
 
 impl<'a> ScopeBuilder<'a> {
@@ -75,6 +83,8 @@ impl<'a> ScopeBuilder<'a> {
             validation_errors: Vec::new(),
             possible_implicit_declarations: Vec::new(),
             instance_scope_index: 0,
+            function_scope_map: FxHashMap::default(),
+            current_script_offset: 0,
         }
     }
 
@@ -194,6 +204,7 @@ impl<'a> ScopeBuilder<'a> {
                 scope: root_scope,
                 all_scopes,
                 instance_scope_index: self.instance_scope_index,
+                function_scope_map: self.function_scope_map,
             },
             self.validation_errors,
         )
@@ -357,6 +368,10 @@ impl<'a> ScopeBuilder<'a> {
             return;
         }
 
+        // Store the script content offset so process_statement can use it
+        // to record correct full-source positions in function_scope_map
+        self.current_script_offset = start;
+
         let content = &self.source[start..end];
 
         // Use the component-level TypeScript flag instead of checking per-script attributes.
@@ -405,6 +420,13 @@ impl<'a> ScopeBuilder<'a> {
                 // Create a new scope for the function body
                 let old_scope = self.push_scope();
                 self.function_depth += 1;
+                // Record function body start → scope index mapping for visitor phase
+                // Use current_script_offset + body.span.start - 1 to match JSON AST positions
+                // (expression.rs uses: offset + body.span.start - 1 for body.start in JSON AST)
+                if let Some(ref body) = func_decl.body {
+                    let key = (self.current_script_offset + body.span.start as usize) as u32;
+                    self.function_scope_map.insert(key, self.current_scope);
+                }
 
                 // Declare function parameters in the new scope
                 for param in &func_decl.params.items {
@@ -646,6 +668,13 @@ impl<'a> ScopeBuilder<'a> {
                 // Create a new scope for the arrow function body
                 let old_scope = self.push_scope();
                 self.function_depth += 1;
+                // Record function body start → scope index mapping for visitor phase
+                // For arrow functions with block body, use offset + span.start - 1
+                {
+                    let key =
+                        (self.current_script_offset + arrow_func.body.span.start as usize) as u32;
+                    self.function_scope_map.insert(key, self.current_scope);
+                }
 
                 // Declare function parameters in the new scope
                 for param in &arrow_func.params.items {
@@ -664,6 +693,11 @@ impl<'a> ScopeBuilder<'a> {
                 // Create a new scope for the function body
                 let old_scope = self.push_scope();
                 self.function_depth += 1;
+                // Record function body start → scope index mapping for visitor phase
+                if let Some(ref body) = func_expr.body {
+                    let key = (self.current_script_offset + body.span.start as usize) as u32;
+                    self.function_scope_map.insert(key, self.current_scope);
+                }
 
                 // Declare function parameters in the new scope
                 for param in &func_expr.params.items {
@@ -1049,6 +1083,13 @@ impl<'a> ScopeBuilder<'a> {
                 // would not mark `x` as reassigned, causing state_invalid_export to be missed.
                 let old_scope = self.push_scope();
                 self.function_depth += 1;
+                // Record function body start → scope index mapping for visitor phase
+                // Use current_script_offset + body.span.start - 1 to match JSON AST positions
+                // (expression.rs uses: offset + body.span.start - 1 for body.start in JSON AST)
+                if let Some(ref body) = func_decl.body {
+                    let key = (self.current_script_offset + body.span.start as usize) as u32;
+                    self.function_scope_map.insert(key, self.current_scope);
+                }
                 for param in &func_decl.params.items {
                     self.process_binding_pattern(&param.pattern, &None, DeclarationKind::Param);
                 }

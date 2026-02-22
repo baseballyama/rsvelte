@@ -20,6 +20,11 @@ pub struct ScopeRoot {
     /// instance script scope (which may be > 1 if the module script has nested
     /// scopes like function bodies before the instance script scope is created).
     pub instance_scope_index: usize,
+    /// Maps function body start position to the scope index created for that function.
+    /// Used by the visitor to properly track `context.scope` when entering function bodies.
+    /// Key: start position of the function body (BlockStatement start)
+    /// Value: scope index in all_scopes
+    pub function_scope_map: FxHashMap<u32, usize>,
 }
 
 impl ScopeRoot {
@@ -30,6 +35,7 @@ impl ScopeRoot {
             scope: Scope::new(None),
             all_scopes: Vec::new(),
             instance_scope_index: 0,
+            function_scope_map: FxHashMap::default(),
         }
     }
 

@@ -34,6 +34,20 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     // Increment function depth
     context.function_depth += 1;
 
+    // Look up the scope for this function body from the function_scope_map
+    // This enables is_safe_identifier to correctly resolve lexical scoping
+    let body_start: Option<u32> = node
+        .get("body")
+        .and_then(|b| b.get("start"))
+        .and_then(|s| s.as_u64())
+        .map(|s| s as u32);
+    let saved_scope = context.scope;
+    if let Some(start) = body_start
+        && let Some(&scope_idx) = context.analysis.root.function_scope_map.get(&start)
+    {
+        context.scope = scope_idx;
+    }
+
     // Visit function body
     let result = if let Some(body) = node.get("body") {
         super::script::walk_js_node(body, context)
@@ -41,8 +55,9 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         Ok(())
     };
 
-    // Decrement function depth
+    // Decrement function depth and restore scope
     context.function_depth -= 1;
+    context.scope = saved_scope;
 
     result
 }

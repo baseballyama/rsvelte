@@ -19,6 +19,20 @@ use serde_json::Value;
 /// * `context` - The visitor context
 pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Visit the function with incremented function depth
+    // Look up the scope for this function body from the function_scope_map
+    // This enables is_safe_identifier to correctly resolve lexical scoping
+    let body_start: Option<u32> = node
+        .get("body")
+        .and_then(|b| b.get("start"))
+        .and_then(|s| s.as_u64())
+        .map(|s| s as u32);
+    let saved_scope = context.scope;
+    if let Some(start) = body_start
+        && let Some(&scope_idx) = context.analysis.root.function_scope_map.get(&start)
+    {
+        context.scope = scope_idx;
+    }
+
     let mut result = Ok(());
     visit_function(context, |ctx| {
         // Visit function body
@@ -29,5 +43,6 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         }
     });
 
+    context.scope = saved_scope;
     result
 }
