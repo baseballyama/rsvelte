@@ -249,6 +249,8 @@ pub(crate) enum OutputPart {
         test_expr: String,
         consequent_body: Vec<OutputPart>,
         alternate_body: Option<Vec<OutputPart>>,
+        /// True if this is an `{:else if}` continuation (flatten as `else if` in parent chain)
+        is_elseif: bool,
     },
     /// svelte:element - dynamic element
     SvelteElement {

@@ -34,6 +34,7 @@ impl<'a> ServerCodeGenerator<'a> {
             test_expr,
             consequent_body,
             alternate_body,
+            is_elseif: block.elseif,
         });
 
         Ok(())
@@ -59,9 +60,11 @@ impl<'a> ServerCodeGenerator<'a> {
             })
             .collect();
 
-        // If there's exactly one node and it's an IfBlock, this is an else-if chain
+        // If there's exactly one node and it's an IfBlock with elseif=true, this is an else-if chain.
+        // When elseif=false, it's a separate {#if} block nested inside {:else}, not a chain.
         if meaningful_nodes.len() == 1
             && let TemplateNode::IfBlock(nested_if) = meaningful_nodes[0]
+            && nested_if.elseif
         {
             // For else-if, we return a nested IfBlock OutputPart directly
             let nested_test_start = nested_if.test.start().unwrap_or(0) as usize;
@@ -86,6 +89,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 test_expr: nested_test_expr,
                 consequent_body: nested_consequent,
                 alternate_body: nested_alternate,
+                is_elseif: true,
             }]);
         }
 

@@ -3857,6 +3857,16 @@ fn transform_reactive_statement(
             .join(", ")
     };
 
+    // Replace `break $;` with `return;` since the reactive block becomes a function callback.
+    // Also transform labeled break in the form `break $` (without semicolon at the end of block).
+    let transformed_body = transformed_body
+        .replace("break $;", "return;")
+        .replace("break $\n", "return;\n");
+
+    // Unwrap block statements: if the body is `{ ... }`, extract the inner content
+    // to put it directly in the callback (avoiding double-block wrapping).
+    let (inner_body, is_block) = unwrap_block_statement_owned(&transformed_body);
+
     // Build the $.legacy_pre_effect() call
     // The dependency expression is always wrapped in parentheses to support:
     // 1. Multiple deps: () => (dep1, dep2) - sequence expression
@@ -3867,14 +3877,93 @@ fn transform_reactive_statement(
         format!("() => ({})", deps_expr)
     };
 
-    // Don't add trailing semicolon if the body already ends with '}' (block/if statement)
-    // or if the body is a block statement itself
-    let body_needs_semicolon = !transformed_body.trim_end().ends_with('}');
-    let semi = if body_needs_semicolon { ";" } else { "" };
-    format!(
-        "$.legacy_pre_effect({}, () => {{\n\t{}{}\n}});",
-        deps_thunk, transformed_body, semi
-    )
+    if is_block {
+        // Body was a block statement; inner_body has dedented content
+        // The inner content lines should be indented one level for the callback body
+        let indented = inner_body
+            .lines()
+            .map(|line| {
+                if line.trim().is_empty() {
+                    String::new()
+                } else {
+                    format!("\t{}", line)
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        format!(
+            "$.legacy_pre_effect({}, () => {{\n{}\n}});",
+            deps_thunk, indented
+        )
+    } else {
+        // Don't add trailing semicolon if the body already ends with '}' (block/if statement)
+        // or if the body is a block statement itself
+        let body_needs_semicolon = !inner_body.trim_end().ends_with('}');
+        let semi = if body_needs_semicolon { ";" } else { "" };
+        format!(
+            "$.legacy_pre_effect({}, () => {{\n\t{}{}\n}});",
+            deps_thunk, inner_body, semi
+        )
+    }
+}
+
+/// Unwrap a block statement `{ ... }` and return (inner_content, is_block).
+/// If the body is a block statement, returns the dedented inner content with is_block=true.
+/// Otherwise returns (body, false).
+fn unwrap_block_statement_owned(body: &str) -> (String, bool) {
+    let trimmed = body.trim();
+    if !trimmed.starts_with('{') || !trimmed.ends_with('}') {
+        return (body.to_string(), false);
+    }
+
+    // Find the matching closing brace of the outermost block
+    let mut depth = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+    let mut chars = trimmed.char_indices().peekable();
+
+    while let Some((i, c)) = chars.next() {
+        if in_string {
+            if c == '\\' {
+                chars.next(); // Skip escaped char
+            } else if c == string_char {
+                in_string = false;
+            }
+        } else {
+            match c {
+                '"' | '\'' | '`' => {
+                    in_string = true;
+                    string_char = c;
+                }
+                '{' => depth += 1,
+                '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        if i == trimmed.len() - 1 {
+                            // This is the outermost block - extract inner content
+                            let inner = &trimmed[1..i];
+                            // Trim the leading newline if present
+                            let inner = inner.strip_prefix('\n').unwrap_or(inner);
+                            let inner = inner.strip_suffix('\n').unwrap_or(inner);
+                            // Remove one level of tab indentation from all non-empty lines
+                            let dedented = inner
+                                .lines()
+                                .map(|line| line.strip_prefix('\t').unwrap_or(line).to_string())
+                                .collect::<Vec<_>>()
+                                .join("\n");
+                            return (dedented, true);
+                        } else {
+                            // There's more content after the }, not a simple block
+                            return (body.to_string(), false);
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    (body.to_string(), false)
 }
 
 /// Transform update expressions (++ / --) for prop variables.
@@ -5375,28 +5464,50 @@ fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> String {
             // Remove trailing semicolon from value (after comment removal)
             let value = value.trim_end_matches(';').trim();
 
-            // Check if the value is a "simple expression" that can be passed directly
-            // Non-simple expressions need to be wrapped in a thunk and use PROPS_IS_LAZY_INITIAL
-            let is_simple = is_simple_expression_str(value);
+            // Check if the value is a store accessor (e.g., $foo)
+            // Store accessors like $foo become $foo() calls after transformation.
+            // The official compiler handles this by passing the store getter function
+            // directly with PROPS_IS_LAZY_INITIAL set (same as no-arg call expressions).
+            let is_store_accessor = value.starts_with('$')
+                && value.len() > 1
+                && value[1..].chars().all(|c| c.is_alphanumeric() || c == '_')
+                && analysis
+                    .root
+                    .bindings
+                    .iter()
+                    .any(|b| b.name == value && matches!(b.kind, BindingKind::StoreSub));
 
-            // Calculate flags: PROPS_IS_BINDABLE + PROPS_IS_UPDATED + PROPS_IS_LAZY_INITIAL
-            let flags = calculate_prop_flags(name, analysis, !is_simple);
-
-            if is_simple {
+            if is_store_accessor {
+                // Store accessor: pass the getter function directly with PROPS_IS_LAZY_INITIAL
+                let flags = calculate_prop_flags(name, analysis, true);
                 results.push(format!(
                     "let {} = $.prop($$props, '{}', {}, {});",
                     name, name, flags, value
                 ));
             } else {
-                // Wrap non-simple values in a thunk: () => value
-                // When value starts with '{', wrap in parens to prevent
-                // OXC from parsing `() => {...}` as arrow with block body
-                // instead of arrow returning object literal
-                let lazy_arg = make_lazy_prop_arg(value);
-                results.push(format!(
-                    "let {} = $.prop($$props, '{}', {}, {});",
-                    name, name, flags, lazy_arg
-                ));
+                // Check if the value is a "simple expression" that can be passed directly
+                // Non-simple expressions need to be wrapped in a thunk and use PROPS_IS_LAZY_INITIAL
+                let is_simple = is_simple_expression_str(value);
+
+                // Calculate flags: PROPS_IS_BINDABLE + PROPS_IS_UPDATED + PROPS_IS_LAZY_INITIAL
+                let flags = calculate_prop_flags(name, analysis, !is_simple);
+
+                if is_simple {
+                    results.push(format!(
+                        "let {} = $.prop($$props, '{}', {}, {});",
+                        name, name, flags, value
+                    ));
+                } else {
+                    // Wrap non-simple values in a thunk: () => value
+                    // When value starts with '{', wrap in parens to prevent
+                    // OXC from parsing `() => {...}` as arrow with block body
+                    // instead of arrow returning object literal
+                    let lazy_arg = make_lazy_prop_arg(value);
+                    results.push(format!(
+                        "let {} = $.prop($$props, '{}', {}, {});",
+                        name, name, flags, lazy_arg
+                    ));
+                }
             }
         } else {
             let name = decl;

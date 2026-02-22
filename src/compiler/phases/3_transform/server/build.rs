@@ -1379,6 +1379,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     test_expr,
                     consequent_body,
                     alternate_body,
+                    is_elseif: _,
                 } => {
                     // Flush current HTML before if block
                     if !current_html.is_empty() {
@@ -1951,8 +1952,8 @@ export default function {component_name}($$renderer{props_param}) {{
     }
 
     /// Build an if statement with proper block markers.
-    /// Following the official Svelte compiler, else-if chains are generated as nested if statements
-    /// inside the else branch, each with their own block markers.
+    /// Following the official Svelte compiler, else-if chains are flattened into
+    /// `else if (test) { <!--[N--> ... }` branches with incrementing indices.
     pub(crate) fn build_if_statement(
         test_expr: &str,
         consequent_body: &[OutputPart],
@@ -1982,65 +1983,65 @@ export default function {component_name}($$renderer{props_param}) {{
         // Close consequent block
         code.push_str(&format!("{}}}", indent));
 
-        // Handle alternate (else/else-if)
-        if let Some(alt_body) = alternate_body {
-            // Check if the alternate is another IfBlock (else-if chain)
-            if alt_body.len() == 1
-                && let OutputPart::IfBlock {
-                    test_expr: nested_test,
-                    consequent_body: nested_consequent,
-                    alternate_body: nested_alternate,
-                } = &alt_body[0]
-            {
-                // else-if case: wrap in else block with block_open_else marker and nested if
-                code.push_str(" else {\n");
+        // Flatten else-if chain: collect all branches
+        let mut elseif_index: usize = 1; // next branch index (1, 2, ...)
+        let mut current_alt = alternate_body.as_deref();
 
-                // Add opening marker for else (BLOCK_OPEN_ELSE = <!--[!-->)
-                code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n\n", indent));
+        loop {
+            match current_alt {
+                None => {
+                    // No alternate at all - add empty else with BLOCK_OPEN_ELSE
+                    code.push_str(" else {\n");
+                    code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n", indent));
+                    code.push_str(&format!("{}}}", indent));
+                    break;
+                }
+                Some(alt_body) => {
+                    // Check if this alternate is a single else-if IfBlock (is_elseif=true)
+                    if alt_body.len() == 1
+                        && let OutputPart::IfBlock {
+                            test_expr: nested_test,
+                            consequent_body: nested_consequent,
+                            alternate_body: nested_alternate,
+                            is_elseif: true,
+                        } = &alt_body[0]
+                    {
+                        // else-if case: emit `else if (test) { <!--[N--> ... }`
+                        let marker = format!("<!--[{}-->", elseif_index);
+                        elseif_index += 1;
 
-                // Generate nested if statement with increased indentation
-                let nested_if_code = Self::build_if_statement(
-                    nested_test,
-                    nested_consequent,
-                    nested_alternate,
-                    indent_level + 1,
-                    each_counter,
-                    store_subs,
-                );
-                code.push_str(&nested_if_code);
-                code.push('\n');
+                        code.push_str(&format!(" else if ({}) {{\n", nested_test));
+                        code.push_str(&format!("{}\t$$renderer.push('{}');\n", indent, marker));
 
-                // Add closing marker for nested if
-                code.push_str(&format!("\n{}\t$$renderer.push(`<!--]-->`);\n", indent));
+                        let branch_code = Self::build_parts_with_store_subs(
+                            nested_consequent,
+                            indent_level + 1,
+                            each_counter,
+                            store_subs,
+                        );
+                        code.push_str(&branch_code);
+                        code.push_str(&format!("{}}}", indent));
 
-                // Close else block
-                code.push_str(&format!("{}}}", indent));
+                        // Advance to next alternate
+                        current_alt = nested_alternate.as_deref();
+                    } else {
+                        // Regular else (final branch in chain, or non-elseif block inside else)
+                        code.push_str(" else {\n");
+                        code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n", indent));
 
-                return code;
+                        let alternate_code = Self::build_parts_with_store_subs(
+                            alt_body,
+                            indent_level + 1,
+                            each_counter,
+                            store_subs,
+                        );
+                        code.push_str(&alternate_code);
+
+                        code.push_str(&format!("{}}}", indent));
+                        break;
+                    }
+                }
             }
-
-            // Regular else case (not else-if)
-            code.push_str(" else {\n");
-
-            // Add opening marker for else (BLOCK_OPEN_ELSE = <!--[!-->)
-            code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n", indent));
-
-            // Generate alternate body
-            let alternate_code = Self::build_parts_with_store_subs(
-                alt_body,
-                indent_level + 1,
-                each_counter,
-                store_subs,
-            );
-            code.push_str(&alternate_code);
-
-            // Close else block
-            code.push_str(&format!("{}}}", indent));
-        } else {
-            // No alternate - add empty else with BLOCK_OPEN_ELSE
-            code.push_str(" else {\n");
-            code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n", indent));
-            code.push_str(&format!("{}}}", indent));
         }
 
         code
