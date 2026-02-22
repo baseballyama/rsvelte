@@ -2715,6 +2715,25 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                         return true;
                     }
 
+                    // For State/RawState bindings in runes mode (immutable=true) with no initial
+                    // value (i.e., `$state()` called with no args):
+                    // - is_state_source = false (not reassigned)
+                    // - initial_is_defined = false (no initial value → compiles to `void 0`)
+                    // - The binding effectively compiles to `undefined`, which is a known constant.
+                    // → treat as non-reactive (is_known = true).
+                    //
+                    // Note: We don't apply this for State with an initial value (like
+                    // `$state([1,2,3])`) because even when is_state_source=false, the array
+                    // is wrapped in $.proxy() and IS reactive through proxy semantics.
+                    if matches!(binding.kind, BindingKind::State | BindingKind::RawState)
+                        && !binding.initial_is_defined
+                    {
+                        use crate::compiler::phases::phase3_transform::client::utils::is_state_source;
+                        if !is_state_source(binding, context.state.analysis) {
+                            return false;
+                        }
+                    }
+
                     // For State, RawState, Derived, and Normal bindings:
                     // Match Svelte's logic: has_state is true when:
                     //   binding.kind !== 'static' &&
