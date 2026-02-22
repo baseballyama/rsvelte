@@ -306,6 +306,40 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
         }
     }
 
+    // Determine if the each item is reassigned (e.g., via bind:value).
+    // We look up the EachItem binding directly from the scope root's all_scopes
+    // to avoid getting the wrong binding (e.g., a same-named outer State variable).
+    // The EachItem binding will have BindingKind::EachItem and the correct reassigned flag.
+    let item_reassigned = if !context.state.analysis.runes {
+        // Find the EachItem binding specifically (not just any binding with that name)
+        let mut found_reassigned = false;
+        for scope in &context.state.scope_root.all_scopes {
+            if let Some(&binding_idx) = scope.declarations.get(item_name.as_str())
+                && let Some(binding) = context.state.scope_root.bindings.get(binding_idx)
+                && binding.kind == BindingKind::EachItem
+            {
+                found_reassigned = binding.reassigned;
+                break;
+            }
+        }
+        // Also check root scope
+        if !found_reassigned
+            && let Some(&binding_idx) = context
+                .state
+                .scope_root
+                .scope
+                .declarations
+                .get(item_name.as_str())
+            && let Some(binding) = context.state.scope_root.bindings.get(binding_idx)
+            && binding.kind == BindingKind::EachItem
+        {
+            found_reassigned = binding.reassigned;
+        }
+        found_reassigned
+    } else {
+        false
+    };
+
     let binding_used = Rc::new(Cell::new(false));
     context.state.each_binding_context.push(EachBindingContext {
         item_name: item_name.clone(),
@@ -320,6 +354,8 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
         destructured_update_paths,
         contains_group_binding: each_node_meta.contains_group_binding,
         binding_group_name: each_node_meta.binding_group_name.clone(),
+        store_to_invalidate: store_to_invalidate.clone(),
+        item_reassigned,
     });
 
     // Visit the each block body to get the body block
@@ -598,6 +634,14 @@ fn get_object_name(expr: &Expression) -> Option<String> {
                     Some("MemberExpression") => {
                         if let Some(object) = obj.get("object") {
                             get_object_name(&Expression::Value(object.clone()))
+                        } else {
+                            None
+                        }
+                    }
+                    // Handle LogicalExpression like `$items ?? []` by recursing into the left operand
+                    Some("LogicalExpression") | Some("BinaryExpression") => {
+                        if let Some(left) = obj.get("left") {
+                            get_object_name(&Expression::Value(left.clone()))
                         } else {
                             None
                         }

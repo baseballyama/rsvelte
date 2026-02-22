@@ -1054,6 +1054,17 @@ pub struct EachBindingContext {
     /// Set from EachBlock.metadata.binding_group_name during transform.
     /// Used by bind_directive to look up the correct group variable.
     pub binding_group_name: Option<String>,
+
+    /// If the each block iterates over a store subscription, this contains the store name
+    /// (e.g., "$items" for `{#each $items as item}`).
+    /// Used by bind_directive to add `$.invalidate_store($$stores, '$items')` to setters.
+    pub store_to_invalidate: Option<String>,
+
+    /// Whether the each item binding was reassigned (e.g., via bind:value).
+    /// When true, reads should use `$$array()[$$index]` instead of `$.get(item)`.
+    /// This is a cached version of the EachItem binding's `reassigned` flag,
+    /// used to avoid scope lookup confusion when a same-named outer variable exists.
+    pub item_reassigned: bool,
 }
 
 impl<'a> ComponentClientTransformState<'a> {

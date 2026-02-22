@@ -350,23 +350,21 @@ pub fn apply_transforms_to_expression_with_shadowed(
             // inner each block. For example, in {#each selected_array as selected} containing
             // {#each values as value} with bind:group={selected}, `selected` is from the outer
             // each block, and should use selected_array()[$$index_1] when read inside the inner.
+            // Check if this identifier is a reassigned each-block item.
+            // Use each_binding_context.item_reassigned (not get_binding().reassigned) because
+            // get_binding() may return the wrong binding when an outer variable has the same name
+            // (e.g., `{#each a as a}` where outer `a` is State and inner EachItem `a` is reassigned).
             if !context.state.analysis.runes
-                && let Some(binding) = context.state.get_binding(name)
-                && binding.reassigned
-            {
-                // Find the matching each binding context for this item name
-                // (search all ancestor contexts, not just the innermost one)
-                if let Some(each_ctx) = context
+                && let Some(each_ctx) = context
                     .state
                     .each_binding_context
                     .iter()
-                    .find(|ctx| ctx.item_name == *name)
-                {
-                    // Build collection[$$index] access
-                    // Note: We do NOT set each_item_assign_or_mutate here - that's only for
-                    // writes (assign/mutate). The read transform just redirects to arr[$$index].
-                    return build_reassigned_item_read(each_ctx);
-                }
+                    .find(|ctx| ctx.item_name == *name && ctx.item_reassigned)
+            {
+                // Build collection[$$index] access
+                // Note: We do NOT set each_item_assign_or_mutate here - that's only for
+                // writes (assign/mutate). The read transform just redirects to arr[$$index].
+                return build_reassigned_item_read(each_ctx);
             }
             // Check if there's a transform registered for this identifier
             if let Some(transform) = context.state.transform.get(name)
@@ -1351,20 +1349,20 @@ pub fn build_expression(
     // For props/templates/imports, we wrap in $.deep_read_state().
     collect_reactive_references(expression, context, &mut sequence_exprs);
 
-    if sequence_exprs.is_empty() {
-        // No state dependencies found, return value as-is
-        return value;
-    }
-
     // Wrap the value in $.untrack(() => value)
     // b::thunk applies the unthunk optimization: () => func() -> func
-    let thunk = b::thunk(value);
+    // NOTE: We always wrap with $.untrack even if there are no reactive dependencies,
+    // matching the official Svelte compiler behavior in build_expression:
+    // sequence.expressions.push(b.call('$.untrack', b.thunk(value)));
+    // return sequence;
+    let thunk = b::thunk(value.clone());
     let untracked = b::call(b::member_path("$.untrack"), vec![thunk]);
 
     // Add the untracked value as the last expression in the sequence
     sequence_exprs.push(untracked);
 
     // Return a sequence expression: (dep1, dep2, ..., $.untrack(() => value))
+    // If sequence has just one element (only $.untrack), it simplifies to ($.untrack(...))
     b::sequence(sequence_exprs)
 }
 
@@ -1530,10 +1528,22 @@ fn collect_reactive_references_inner(
             // }
 
             // First, look up the binding for this identifier
+            // Use the transform map as primary source of truth for reactive bindings.
+            // Note: get_binding() may return a binding from a different scope (e.g., a function
+            // parameter named `item` when inside an {#each items as item} block).
+            // The transform map, however, is set up correctly per-scope by each block and
+            // other block visitors, so it correctly identifies which bindings are reactive.
+            let has_transform = context.state.transform.get(name.as_str()).is_some();
             let binding_info = context.state.get_binding(name);
 
-            // Determine if this identifier should be included based on binding kind
+            // Determine if this identifier should be included based on binding kind.
+            // If a transform is registered, ALWAYS include - the transform represents the
+            // correct scope-aware reactive binding (e.g., EachItem, not a same-named function param).
+            // This mirrors the official Svelte compiler which uses metadata.references (scope-aware).
             let should_include = if name == "$$props" || name == "$$restProps" {
+                true
+            } else if has_transform {
+                // Transform registered means this identifier is reactive in the current scope
                 true
             } else if let Some(binding) = binding_info {
                 use crate::compiler::phases::phase2_analyze::scope::{
@@ -1543,9 +1553,6 @@ fn collect_reactive_references_inner(
                 // (matches: binding.kind === 'normal' && binding.declaration_kind !== 'import' -> continue)
                 !(binding.kind == BindingKind::Normal
                     && binding.declaration_kind != DeclarationKind::Import)
-            } else if context.state.transform.get(name).is_some() {
-                // Has a transform registered (could be a synthetic binding)
-                true
             } else {
                 false
             };
@@ -1558,21 +1565,16 @@ fn collect_reactive_references_inner(
 
             // For reassigned each-block items in legacy mode, the dependency getter
             // should use collection[$$index] instead of $.get(item).
-            // This matches the official Svelte compiler's read transform for reassigned bindings:
-            //   if (binding.reassigned) {
-            //     return b.member(collection_id ? b.call(collection_id) : collection, index, true);
-            //   }
-            //
+            // Use each_binding_context.item_reassigned (not binding_info.reassigned) because
+            // get_binding() may return the wrong binding when an outer variable has the same name.
             // We check ALL ancestor each_binding_contexts (not just the innermost), so that
             // items from outer each blocks (e.g., `selected` in nested {#each}) are handled.
             if !context.state.analysis.runes
-                && let Some(binding) = binding_info
-                && binding.reassigned
                 && let Some(each_ctx) = context
                     .state
                     .each_binding_context
                     .iter()
-                    .find(|ctx| ctx.item_name == *name)
+                    .find(|ctx| ctx.item_name == *name && ctx.item_reassigned)
             {
                 let reassigned_read = build_reassigned_item_read(each_ctx);
                 getters.push(reassigned_read);

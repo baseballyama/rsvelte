@@ -3798,12 +3798,13 @@ fn transform_reactive_statement(
     } else {
         // Not a simple assignment - handle compound assignments (+=, -=, etc.),
         // update expressions (++/--), and reads.
-        // First transform prop compound assignments (e.g., `count += 1` → `count(count() + 1)`)
-        let temp = transform_prop_assignments(body, prop_assignment_transform_vars);
-        // Transform prop update expressions like `x++` to `$.update_prop(x)`
-        let temp = transform_prop_update_expressions(&temp, prop_assignment_transform_vars);
-        // Also transform state update expressions
+        // Transform prop update expressions like `x++` to `$.update_prop(x)` FIRST,
+        // before transform_prop_assignments runs (which would incorrectly turn `x++` into `x(x() + 1)`)
+        let temp = transform_prop_update_expressions(body, prop_assignment_transform_vars);
+        // Also transform state update expressions before compound assignments
         let temp = transform_state_update_expressions(&temp, state_vars, non_reactive_state_vars);
+        // Then transform prop compound assignments (e.g., `count += 1` → `count(count() + 1)`)
+        let temp = transform_prop_assignments(&temp, prop_assignment_transform_vars);
         // Then transform reads
         let temp = transform_prop_reads_in_expr(&temp, prop_assignment_transform_vars);
         // Transform state member-expression mutations (e.g., `object[key] = []`)
@@ -6403,7 +6404,9 @@ fn transform_state_assignments(
 /// This handles:
 /// - Simple assignment: `x = value` → `x(value)`
 /// - Compound assignment: `x += value` → `x(x() + value)`
-/// - Update expressions: `x++` → `x(x() + 1)`, `++x` → `x(x() + 1)`
+///
+/// Note: Update expressions (x++, --x, etc.) are handled by transform_prop_update_expressions
+/// which must be called BEFORE this function.
 fn transform_prop_assignments(line: &str, prop_vars: &[String]) -> String {
     if prop_vars.is_empty() {
         return line.to_string();
@@ -6421,41 +6424,9 @@ fn transform_prop_assignments(line: &str, prop_vars: &[String]) -> String {
     let mut result = line.to_string();
 
     for var in prop_vars {
-        // Transform ++varname to varname(varname() + 1) (returns new value, but we don't track that)
-        let pre_inc_pattern = format!("++{}", var);
-        result = replace_with_word_boundary(
-            &result,
-            &pre_inc_pattern,
-            &format!("{}({}() + 1)", var, var),
-            true,
-        );
-
-        // Transform --varname to varname(varname() - 1)
-        let pre_dec_pattern = format!("--{}", var);
-        result = replace_with_word_boundary(
-            &result,
-            &pre_dec_pattern,
-            &format!("{}({}() - 1)", var, var),
-            true,
-        );
-
-        // Transform varname++ to varname(varname() + 1)
-        let post_inc_pattern = format!("{}++", var);
-        result = replace_with_word_boundary(
-            &result,
-            &post_inc_pattern,
-            &format!("{}({}() + 1)", var, var),
-            false,
-        );
-
-        // Transform varname-- to varname(varname() - 1)
-        let post_dec_pattern = format!("{}--", var);
-        result = replace_with_word_boundary(
-            &result,
-            &post_dec_pattern,
-            &format!("{}({}() - 1)", var, var),
-            false,
-        );
+        // Note: x++ / x-- / ++x / --x are handled by transform_prop_update_expressions
+        // which runs BEFORE this function. By the time we get here, update expressions
+        // have already been converted to $.update_prop(x) / $.update_pre_prop(x).
 
         // Transform compound assignments: varname += expr to varname(varname() + (expr))
         for op in &["+=", "-=", "*=", "/=", "%=", "**="] {
