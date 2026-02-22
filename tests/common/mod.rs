@@ -387,6 +387,12 @@ pub fn normalize_js(js: &str) -> String {
         // pattern the official compiler adds for template text content. Both `expr ?? ''`
         // and `expr` are semantically equivalent for display purposes.
         static ref NULLISH_EMPTY_STRING: Regex = Regex::new(r"\s*\?\?\s*''").unwrap();
+        // Normalize adjacent renderer push calls where second is just '<!---->'.
+        // The official compiler may merge: push(`X`) push('<!---->') -> push(`X<!--->`)
+        // Or keep them separate. Both forms are semantically equivalent.
+        static ref MERGE_COMMENT_PUSH: Regex =
+            Regex::new(r#"\$\$renderer\.push\(`([^`]*)`\) \$\$renderer\.push\('<!---->'\)"#)
+                .unwrap();
     }
 
     // Remove block comments (including JSDoc) before other processing
@@ -590,6 +596,13 @@ pub fn normalize_js(js: &str) -> String {
 
     // Remove semicolons for normalization
     let result = result.replace(';', "");
+
+    // Normalize adjacent $$renderer.push calls where second is just '<!---->'.
+    // Official compiler may merge: push(`X`) push('<!---->') -> push(`X<!---->`).
+    // Both forms are semantically equivalent.
+    let result = MERGE_COMMENT_PUSH
+        .replace_all(&result, r"$$$$renderer.push(`${1}<!---->`)")
+        .to_string();
 
     // Normalize trailing commas: (a, b,) -> (a, b) and [a, b,] -> [a, b]
     let result = TRAILING_COMMA.replace_all(&result, "$1").to_string();
@@ -3344,5 +3357,19 @@ fn test_normalize_js_nbsp_hex_escape() {
         normalize_js(actual),
         normalize_js(expected),
         "normalize_js should make \\xA0 equal to literal U+00A0"
+    );
+}
+
+#[test]
+fn test_normalize_js_merge_comment_push() {
+    // Test that adjacent $$renderer.push calls where second is just '<!---->' normalize
+    // to the same form as a merged push. The official compiler may merge them or not.
+    let actual = r#"$$renderer.push(`<h1>Test</h1> `);
+    $$renderer.push('<!---->');"#;
+    let expected = r#"$$renderer.push(`<h1>Test</h1> <!---->`)"#;
+    assert_eq!(
+        normalize_js(actual),
+        normalize_js(expected),
+        "normalize_js should merge adjacent renderer.push calls where second is <!---->"
     );
 }
