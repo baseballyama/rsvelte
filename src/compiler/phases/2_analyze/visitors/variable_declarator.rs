@@ -319,6 +319,30 @@ fn process_props_object_pattern(
         for property in properties {
             let prop_type = property.get("type").and_then(|t| t.as_str());
 
+            // Handle RestElement: `let { a, ...rest } = $props()`
+            // The `rest` binding must be classified as RestProp so that
+            // store_subscriptions.rs does not treat `$props` as a store.
+            if prop_type == Some("RestElement") {
+                if let Some(arg) = property.get("argument")
+                    && arg.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                    && let Some(name) = arg.get("name").and_then(|n| n.as_str())
+                {
+                    // Try the same lookup as for Identifier pattern (root scope first)
+                    let binding_idx = context
+                        .analysis
+                        .root
+                        .scope
+                        .declarations
+                        .get(name)
+                        .copied()
+                        .or_else(|| context.analysis.root.find_binding_any_scope(name));
+                    if let Some(idx) = binding_idx {
+                        context.analysis.root.bindings[idx].kind = BindingKind::RestProp;
+                    }
+                }
+                continue;
+            }
+
             if prop_type != Some("Property") {
                 continue;
             }

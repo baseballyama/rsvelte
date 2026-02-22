@@ -1182,11 +1182,35 @@ impl<'a> ScopeBuilder<'a> {
                 }
             }
             BindingPattern::ObjectPattern(obj) => {
+                // Detect if this ObjectPattern is initialized from $props().
+                // We need to detect this here (before update_binding_kinds runs in Phase 2
+                // variable_declarator.rs) because detect_store_subscriptions runs before
+                // the variable_declarator visitor and needs the correct kind for rest props.
+                let is_props_init = init
+                    .as_ref()
+                    .map(|i| matches!(self.detect_binding_kind_from_expr(i), BindingKind::Prop))
+                    .unwrap_or(false);
+
                 for prop in &obj.properties {
                     self.process_binding_pattern(&prop.value, &None, decl_kind);
                 }
                 if let Some(rest) = &obj.rest {
-                    self.process_binding_pattern(&rest.argument, &None, decl_kind);
+                    if is_props_init {
+                        // For `let { ...rest } = $props()`, the rest binding must be RestProp
+                        // so that detect_store_subscriptions correctly identifies $props as
+                        // a rune (not a store subscription).
+                        if let BindingPattern::BindingIdentifier(ident) = &rest.argument {
+                            self.declare_binding(
+                                ident.name.to_string(),
+                                BindingKind::RestProp,
+                                decl_kind,
+                            );
+                        } else {
+                            self.process_binding_pattern(&rest.argument, &None, decl_kind);
+                        }
+                    } else {
+                        self.process_binding_pattern(&rest.argument, &None, decl_kind);
+                    }
                 }
             }
             BindingPattern::ArrayPattern(arr) => {
