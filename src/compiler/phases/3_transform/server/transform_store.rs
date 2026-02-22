@@ -68,6 +68,12 @@ pub(crate) fn replace_store_identifier_in_script(
     let mut string_char = ' ';
     let mut in_single_line_comment = false;
     let mut in_multi_line_comment = false;
+    // Track function parameters that shadow the store ref.
+    // Each entry is (min_brace_depth, min_paren_depth): shadow is active while
+    // brace_depth >= min_brace_depth AND paren_depth >= min_paren_depth.
+    let mut shadowed_params: Vec<(i32, i32)> = Vec::new();
+    let mut brace_depth: i32 = 0;
+    let mut paren_depth: i32 = 0;
 
     while i < chars.len() {
         let c = chars[i];
@@ -130,6 +136,21 @@ pub(crate) fn replace_store_identifier_in_script(
             continue;
         }
 
+        // Track brace and paren depth for parameter shadowing
+        if c == '{' {
+            brace_depth += 1;
+        } else if c == '}' {
+            brace_depth -= 1;
+            // Pop any parameter shadows that ended at this depth
+            shadowed_params.retain(|&(b, _)| b <= brace_depth);
+        } else if c == '(' {
+            paren_depth += 1;
+        } else if c == ')' {
+            paren_depth -= 1;
+            // Pop any parameter shadows that ended at this paren depth
+            shadowed_params.retain(|&(_, p)| p <= paren_depth);
+        }
+
         if i + store_ref_len <= chars.len() {
             let mut matches = true;
             for (j, ref_char) in store_ref_chars.iter().enumerate() {
@@ -155,6 +176,21 @@ pub(crate) fn replace_store_identifier_in_script(
                 while j < chars.len() && chars[j].is_whitespace() {
                     j += 1;
                 }
+
+                // Detect fat arrow `=>` first - this is an arrow function parameter, not an assignment
+                let is_fat_arrow = j + 1 < chars.len() && chars[j] == '=' && chars[j + 1] == '>';
+
+                // If this is `$store =>`, register it as a shadowed parameter and skip
+                if !prev_is_ident && !next_is_ident && is_fat_arrow {
+                    // This is an arrow function parameter: `$store => ...`
+                    // Record that this store ref is shadowed in the arrow function body
+                    shadowed_params.push((brace_depth, paren_depth));
+                    // Output the store ref as-is (it's a parameter name)
+                    result.push_str(store_ref);
+                    i += store_ref_len;
+                    continue;
+                }
+
                 let is_assignment = j < chars.len()
                     && (chars[j] == '='
                         || (j + 1 < chars.len()
@@ -181,7 +217,44 @@ pub(crate) fn replace_store_identifier_in_script(
                     let is_in_store_call =
                         preceding.ends_with("$.store_set(") || preceding.ends_with("$.store_get(");
 
-                    if !is_in_store_call {
+                    // Check if the store ref is currently shadowed by a function parameter
+                    let is_shadowed = shadowed_params
+                        .iter()
+                        .any(|&(b, p)| b <= brace_depth && p <= paren_depth);
+
+                    // Check if this is a function parameter usage: `$store =>` or `($store)`
+                    // If `$store` is followed by `=>`, this is a parameter declaration
+                    let is_param_decl = {
+                        let mut k = j;
+                        while k < chars.len()
+                            && (chars[k] == ' ' || chars[k] == '\t' || chars[k] == '\n')
+                        {
+                            k += 1;
+                        }
+                        if k + 1 < chars.len() && chars[k] == '=' && chars[k + 1] == '>' {
+                            // This is `$store =>` - parameter declaration
+                            // Record that this store ref is shadowed until the arrow function ends
+                            // Find where the arrow function body starts (after =>)
+                            let body_start = k + 2;
+                            // Skip whitespace after =>
+                            let mut m = body_start;
+                            while m < chars.len()
+                                && (chars[m] == ' ' || chars[m] == '\t' || chars[m] == '\n')
+                            {
+                                m += 1;
+                            }
+                            // If body starts with {, record current brace_depth
+                            // Body will end when brace_depth returns to current value
+                            // Actually we pre-record the CURRENT brace depth + 1 (after entering the body)
+                            // The shadow is active while brace_depth >= recorded value
+                            shadowed_params.push((brace_depth, paren_depth));
+                            true
+                        } else {
+                            false
+                        }
+                    };
+
+                    if !is_in_store_call && !is_shadowed && !is_param_decl {
                         result.push_str(&format!(
                             "$.store_get($$store_subs ??= {{}}, '{}', {})",
                             store_ref, store_name
@@ -338,7 +411,6 @@ pub(crate) fn transform_store_assignments(script: &str) -> String {
         let full_match = cap.get(0).unwrap();
         let start = full_match.start();
         let end = full_match.end();
-
         if start < last_end {
             continue;
         }
@@ -375,7 +447,9 @@ pub(crate) fn transform_store_assignments(script: &str) -> String {
                 let rest = &result[end..];
                 // Skip if this is an arrow function parameter: `$name =>`
                 if rest.trim_start().starts_with('>') {
-                    new_result.push_str(&result[last_end..end]);
+                    // The prefix result[last_end..start] was already pushed above.
+                    // Push just the matched portion result[start..end] to keep $name = unchanged.
+                    new_result.push_str(&result[start..end]);
                     last_end = end;
                     continue;
                 }
