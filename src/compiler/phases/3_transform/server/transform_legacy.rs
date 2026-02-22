@@ -733,7 +733,8 @@ fn extract_identifiers_from_pattern(
     }
 
     if is_simple_identifier(trimmed) {
-        if !declared.contains(trimmed) {
+        // Skip store subscriptions (identifiers starting with $) - they're handled separately
+        if !declared.contains(trimmed) && !trimmed.starts_with('$') {
             vars.push(trimmed.to_string());
         }
         return;
