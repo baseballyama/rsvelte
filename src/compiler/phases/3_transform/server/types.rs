@@ -234,7 +234,11 @@ pub(crate) enum OutputPart {
     EachBlock {
         iterable: String,
         context_name: Option<String>,
+        /// The loop counter variable name. When contains_group_binding, this is $$index_N.
         index_name: Option<String>,
+        /// The alias for the index inside the loop body (e.g., `let index = $$index_1`).
+        /// Only set when contains_group_binding is true and there's a user-defined index name.
+        index_alias: Option<String>,
         body: Vec<OutputPart>,
         /// Fallback content (for {:else} clause)
         #[allow(dead_code)]

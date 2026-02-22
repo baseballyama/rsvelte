@@ -1045,6 +1045,15 @@ pub struct EachBindingContext {
     /// e.g., "f" -> "$.get($$item).name.first"
     /// Used by bind_directive to generate correct setters for destructured each variables.
     pub destructured_update_paths: FxHashMap<String, String>,
+
+    /// Whether this each block contains a bind:group directive that references its item or index.
+    /// When true, this each block's index ($$index_N) should be included in the bind:group indexes array.
+    pub contains_group_binding: bool,
+
+    /// The binding group name assigned to this each block (e.g., "binding_group", "binding_group_1").
+    /// Set from EachBlock.metadata.binding_group_name during transform.
+    /// Used by bind_directive to look up the correct group variable.
+    pub binding_group_name: Option<String>,
 }
 
 impl<'a> ComponentClientTransformState<'a> {

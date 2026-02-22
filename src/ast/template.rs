@@ -279,6 +279,11 @@ pub struct EachBlockMetadata {
     /// Generated unique index identifier name
     #[serde(skip_serializing_if = "Option::is_none")]
     pub index: Option<String>,
+    /// The binding group name (e.g., "binding_group", "binding_group_1") assigned to this each block.
+    /// Set when `contains_group_binding=true` by the analysis phase.
+    /// Used by the transform phase to look up the correct group for $.bind_group().
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub binding_group_name: Option<String>,
 }
 
 /// An each block: `{#each items as item (key)}...{:else}...{/each}`.

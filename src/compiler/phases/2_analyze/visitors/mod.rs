@@ -199,6 +199,11 @@ pub struct VisitorContext<'a> {
     /// specific fragment owners (IfBlock, EachBlock, AwaitBlock, KeyBlock, SnippetBlock,
     /// Component, SvelteFragment, SvelteBoundary, or elements with slot attribute).
     pub fragment_owner_stack: Vec<FragmentOwnerType>,
+    /// The current scope during template analysis.
+    /// This is updated when entering scope-creating constructs like EachBlocks
+    /// to allow correct binding lookup for directives inside those constructs.
+    /// Used by bind_directive analysis to find the correct binding for bind:group.
+    pub current_template_scope: usize,
 }
 
 /// Type of ancestor that can "own" a slot attribute.
@@ -294,6 +299,7 @@ impl<'a> VisitorContext<'a> {
             is_direct_child_of_component: false,
             slot_owner_ancestors: Vec::new(),
             fragment_owner_stack: vec![FragmentOwnerType::Root],
+            current_template_scope: 0,
         }
     }
 

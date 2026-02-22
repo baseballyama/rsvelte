@@ -257,17 +257,38 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     // Compute invalidation expressions from transitive deps
     // In the official compiler, transitive_deps come from analysis and contain the
     // bindings that need invalidation when an each item is mutated/assigned.
-    // Since our analysis doesn't populate transitive_deps yet, we derive invalidation
-    // from the collection expression and parent each block collection expressions.
+    // We use node.metadata.transitive_deps when available, falling back to the
+    // collection expression or collection_id for simple cases.
     let mut invalidation_exprs = Vec::new();
     if !context.state.analysis.runes {
         if let Some(ref coll_id) = collection_id {
+            // Collection is a prop ID - just call it
             invalidation_exprs.push(format!("{}()", coll_id));
+        } else if !each_node_meta.transitive_deps.is_empty() {
+            // Use the transitive_deps from analysis (proper dep tracking).
+            // These contain the actual bindings that the collection depends on.
+            // Apply transforms to get the proper getter expressions.
+            use crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr;
+            for binding_idx in &each_node_meta.transitive_deps {
+                if let Some(binding) = context.state.scope_root.bindings.get(*binding_idx) {
+                    let expr = if let Some(transform) = context.state.transform.get(&binding.name) {
+                        if let Some(read_fn) = &transform.read {
+                            read_fn(b::id(&binding.name))
+                        } else {
+                            b::id(&binding.name)
+                        }
+                    } else {
+                        b::id(&binding.name)
+                    };
+                    let expr_str = generate_expr(&expr);
+                    if !invalidation_exprs.contains(&expr_str) {
+                        invalidation_exprs.push(expr_str);
+                    }
+                }
+            }
         } else {
             // Fallback: use the collection expression as the invalidation target.
-            // This is correct because in the official compiler, transitive_deps
-            // typically contains the expression dependencies of the collection,
-            // which in simple cases is just the collection variable itself.
+            // This is used when transitive_deps is empty (e.g., simple state variables).
             // The collection_expr_str already has transforms applied (e.g., prop()
             // calls for props, $.get() for state variables).
             invalidation_exprs.push(collection_expr_str.clone());
@@ -297,6 +318,8 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
         is_runes: context.state.analysis.runes,
         binding_used: binding_used.clone(),
         destructured_update_paths,
+        contains_group_binding: each_node_meta.contains_group_binding,
+        binding_group_name: each_node_meta.binding_group_name.clone(),
     });
 
     // Visit the each block body to get the body block

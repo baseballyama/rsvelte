@@ -3806,6 +3806,10 @@ fn transform_reactive_statement(
         let temp = transform_state_update_expressions(&temp, state_vars, non_reactive_state_vars);
         // Then transform reads
         let temp = transform_prop_reads_in_expr(&temp, prop_assignment_transform_vars);
+        // Transform state member-expression mutations (e.g., `object[key] = []`)
+        // to `$.mutate(object, $.get(object)[key] = [])`. Must run before wrap_state_vars_in_expr
+        // so identifiers are still in their original form.
+        let temp = transform_state_member_mutations(&temp, state_vars, non_reactive_state_vars);
         // Transform state var assignments to $.set() before wrapping reads in $.get()
         let temp = transform_state_set_in_reactive(&temp, state_vars, non_reactive_state_vars);
         transformed_body =
@@ -4069,6 +4073,299 @@ fn transform_state_set_in_reactive(
             result = new_result;
         }
     }
+    result
+}
+
+/// Transform member-expression assignments of state variables to `$.mutate()` calls.
+///
+/// Converts patterns like:
+///   `state_var[expr] = rhs` → `$.mutate(state_var, $.get(state_var)[expr] = rhs)`
+///   `state_var.prop = rhs` → `$.mutate(state_var, $.get(state_var).prop = rhs)`
+///
+/// This handles nested cases (inside callbacks, if blocks, etc.) where the assignment
+/// is not at the top level of the reactive statement.
+///
+/// This must run BEFORE `wrap_state_vars_in_expr` to operate on the original
+/// identifier names before they are rewritten to `$.get(state_var)`.
+fn transform_state_member_mutations(
+    expr: &str,
+    state_vars: &[String],
+    non_reactive_vars: &[String],
+) -> String {
+    let mut result = expr.to_string();
+
+    for var in state_vars {
+        if non_reactive_vars.contains(var) {
+            continue;
+        }
+
+        let var_chars: Vec<char> = var.chars().collect();
+        let var_len = var_chars.len();
+
+        let mut new_result = String::new();
+        let chars: Vec<char> = result.chars().collect();
+        let mut i = 0;
+        let mut in_string: Option<char> = None;
+        let mut in_line_comment = false;
+        let mut in_block_comment = false;
+
+        while i < chars.len() {
+            let c = chars[i];
+
+            // Handle line comments
+            if in_line_comment {
+                new_result.push(c);
+                if c == '\n' {
+                    in_line_comment = false;
+                }
+                i += 1;
+                continue;
+            }
+            // Handle block comments
+            if in_block_comment {
+                new_result.push(c);
+                if c == '*' && i + 1 < chars.len() && chars[i + 1] == '/' {
+                    new_result.push('/');
+                    i += 2;
+                    in_block_comment = false;
+                } else {
+                    i += 1;
+                }
+                continue;
+            }
+            // Detect comment start
+            if in_string.is_none() && c == '/' && i + 1 < chars.len() {
+                if chars[i + 1] == '/' {
+                    in_line_comment = true;
+                    new_result.push(c);
+                    i += 1;
+                    continue;
+                } else if chars[i + 1] == '*' {
+                    in_block_comment = true;
+                    new_result.push(c);
+                    i += 1;
+                    continue;
+                }
+            }
+
+            // Handle string boundaries
+            if in_string.is_none() {
+                if c == '\'' || c == '"' || c == '`' {
+                    in_string = Some(c);
+                    new_result.push(c);
+                    i += 1;
+                    continue;
+                }
+            } else if Some(c) == in_string {
+                // Check for escape
+                let escaped = i > 0 && {
+                    let mut backslash_count = 0;
+                    let mut j = i - 1;
+                    while chars[j] == '\\' {
+                        backslash_count += 1;
+                        if j == 0 {
+                            break;
+                        }
+                        j -= 1;
+                    }
+                    backslash_count % 2 == 1
+                };
+                if !escaped {
+                    in_string = None;
+                }
+                new_result.push(c);
+                i += 1;
+                continue;
+            }
+            if in_string.is_some() {
+                new_result.push(c);
+                i += 1;
+                continue;
+            }
+
+            // Try to match the state var at position i
+            if i + var_len <= chars.len() {
+                let potential: String = chars[i..i + var_len].iter().collect();
+                if potential == *var {
+                    let before_ok = i == 0 || !is_identifier_char(chars[i - 1]);
+                    let after_ok = i + var_len < chars.len()
+                        && (chars[i + var_len] == '[' || chars[i + var_len] == '.');
+                    // Also check it's not already after `$.get(` or `$.mutate(` or $.set(
+                    let already_wrapped = {
+                        let prefix_len = "$.get(".len();
+                        i >= prefix_len && {
+                            let prefix: String = chars[i - prefix_len..i].iter().collect();
+                            prefix == "$.get("
+                        }
+                    } || {
+                        let prefix_len = "$.mutate(".len();
+                        i >= prefix_len && {
+                            let prefix: String = chars[i - prefix_len..i].iter().collect();
+                            prefix == "$.mutate("
+                        }
+                    } || {
+                        // Check if preceded by dot (member access of something else)
+                        i > 0 && chars[i - 1] == '.'
+                    };
+
+                    if before_ok && after_ok && !already_wrapped {
+                        // Scan forward to find the full member expression LHS and the `=` sign
+                        // The LHS is `var` followed by member accesses (`.prop` or `[expr]`)
+                        // We need to find the position of `=` (but not `==`, `!=`, `<=`, `>=`)
+                        let member_start = i + var_len; // position of `[` or `.`
+                        let mut j = member_start;
+                        let mut depth = 0i32; // bracket/paren depth
+                        let mut eq_pos = None;
+                        let mut scan_in_string: Option<char> = None;
+
+                        while j < chars.len() {
+                            let ch = chars[j];
+
+                            // Handle strings inside the member expression
+                            if let Some(s) = scan_in_string {
+                                if ch == s {
+                                    scan_in_string = None;
+                                }
+                                j += 1;
+                                continue;
+                            }
+                            if ch == '\'' || ch == '"' || ch == '`' {
+                                scan_in_string = Some(ch);
+                                j += 1;
+                                continue;
+                            }
+
+                            match ch {
+                                '[' | '(' => {
+                                    depth += 1;
+                                    j += 1;
+                                }
+                                ']' | ')' => {
+                                    if depth == 0 {
+                                        break; // Left the outer bracket context
+                                    }
+                                    depth -= 1;
+                                    j += 1;
+                                }
+                                '{' => {
+                                    // Object literal or block inside member expr - stop here
+                                    // unless we're already inside brackets
+                                    if depth == 0 {
+                                        break;
+                                    }
+                                    depth += 1;
+                                    j += 1;
+                                }
+                                '}' => {
+                                    if depth == 0 {
+                                        break;
+                                    }
+                                    depth -= 1;
+                                    j += 1;
+                                }
+                                '=' if depth == 0 => {
+                                    // Check it's not `==`, `!=`, `<=`, `>=`
+                                    let is_double_eq = j + 1 < chars.len() && chars[j + 1] == '=';
+                                    let is_compound = j > 0
+                                        && matches!(
+                                            chars[j - 1],
+                                            '!' | '<'
+                                                | '>'
+                                                | '='
+                                                | '+'
+                                                | '-'
+                                                | '*'
+                                                | '/'
+                                                | '%'
+                                                | '|'
+                                                | '&'
+                                                | '?'
+                                                | '^'
+                                        );
+                                    if !is_double_eq && !is_compound {
+                                        eq_pos = Some(j);
+                                    }
+                                    break;
+                                }
+                                _ => {
+                                    j += 1;
+                                }
+                            }
+                        }
+
+                        if let Some(eq_idx) = eq_pos {
+                            // Extract member part (between var and `=`)
+                            let member_part: String = chars[member_start..eq_idx].iter().collect();
+                            let member_part = member_part.trim_end();
+
+                            // Skip whitespace after `=`
+                            let rhs_start = eq_idx + 1;
+                            // Find end of RHS (until `;` or `}` or `,` at depth 0)
+                            let mut rhs_end = chars.len();
+                            let mut rhs_j = rhs_start;
+                            let mut rhs_depth = 0i32;
+                            let mut rhs_in_string: Option<char> = None;
+                            while rhs_j < chars.len() {
+                                let rc = chars[rhs_j];
+                                if let Some(s) = rhs_in_string {
+                                    if rc == s {
+                                        rhs_in_string = None;
+                                    }
+                                    rhs_j += 1;
+                                    continue;
+                                }
+                                match rc {
+                                    '\'' | '"' | '`' => {
+                                        rhs_in_string = Some(rc);
+                                        rhs_j += 1;
+                                    }
+                                    '(' | '[' | '{' => {
+                                        rhs_depth += 1;
+                                        rhs_j += 1;
+                                    }
+                                    ')' | ']' | '}' => {
+                                        if rhs_depth == 0 {
+                                            rhs_end = rhs_j;
+                                            break;
+                                        }
+                                        rhs_depth -= 1;
+                                        rhs_j += 1;
+                                    }
+                                    ';' if rhs_depth == 0 => {
+                                        rhs_end = rhs_j;
+                                        break;
+                                    }
+                                    _ => {
+                                        rhs_j += 1;
+                                    }
+                                }
+                            }
+
+                            let rhs: String = chars[rhs_start..rhs_end].iter().collect();
+                            let rhs = rhs.trim();
+
+                            if !rhs.is_empty() {
+                                // Generate: $.mutate(var, $.get(var)<member_part> = rhs)
+                                let mutate_expr = format!(
+                                    "$.mutate({}, $.get({}){} = {})",
+                                    var, var, member_part, rhs
+                                );
+                                new_result.push_str(&mutate_expr);
+                                i = rhs_end;
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+
+            new_result.push(chars[i]);
+            i += 1;
+        }
+
+        result = new_result;
+    }
+
     result
 }
 

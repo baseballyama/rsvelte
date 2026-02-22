@@ -292,24 +292,11 @@ fn visit_common(
             });
         }
 
-        // Create a unique binding group name and register it in the analysis
-        // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/BindDirective.js L249-262
-        //
-        // The key for the binding group is based on the expression identifiers.
-        // For simple cases, we use the binding name as the key.
-        // The generated name follows the pattern "binding_group" (or "binding_group_1", etc.)
-        let key = binding_name.to_string();
-
-        if !context.analysis.binding_groups.contains_key(&key) {
-            // Generate a unique name for this binding group
-            let group_count = context.analysis.binding_groups.len();
-            let group_name = if group_count == 0 {
-                "binding_group".to_string()
-            } else {
-                format!("binding_group_{}", group_count)
-            };
-            context.analysis.binding_groups.insert(key, group_name);
-        }
+        // Note: Binding group name registration (populating analysis.binding_groups) is done
+        // in mod.rs's mark_each_block_group_bindings, which runs after template analysis.
+        // That function uses the full keypath + EachBlock position as keys to correctly
+        // differentiate between multiple bind:group directives that happen to share the
+        // same variable name (e.g., two {#each x as selected} blocks with bind:group={selected}).
     }
 
     // Check for each block binding with rest

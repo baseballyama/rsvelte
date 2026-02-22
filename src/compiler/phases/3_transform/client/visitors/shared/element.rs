@@ -282,28 +282,27 @@ fn extract_expression_from_tag(expr_tag: &ExpressionTag) -> JsExpr {
 
 /// Extract metadata from an ExpressionTag.
 ///
-/// TODO: This is a placeholder - implement proper metadata extraction.
+/// Walks the JSON AST to determine has_call and has_member_expression flags.
 fn extract_metadata_from_tag(expr_tag: &ExpressionTag) -> ExpressionMetadata {
     use crate::ast::js::Expression;
 
-    // For now, analyze the expression to guess metadata
-    let (has_call, has_member, has_state) = match &expr_tag.expression {
+    let (has_call, has_member, has_assignment) = match &expr_tag.expression {
         Expression::Value(val) => {
             // Check if this is a literal value (number, string, boolean, null)
-            // Literal values never have state
+            // Literal values never have calls or member expressions
             let is_literal = is_literal_value(val);
 
             if is_literal {
                 (false, false, false)
             } else {
-                let expr_str = val.to_string();
-                (
-                    expr_str.contains('('),
-                    expr_str.contains('.'),
-                    // Only mark as having state if it references $state or $derived runes
-                    // or is an identifier that might be reactive
-                    expr_str.contains("$state") || expr_str.contains("$derived"),
-                )
+                // Walk the AST properly to detect CallExpression and MemberExpression nodes.
+                // Note: val.to_string() produces JSON, NOT JS source code, so we CANNOT
+                // use string-contains('(') to detect call expressions.
+                let has_call = ast_contains_node_type(val, "CallExpression");
+                let has_member = ast_contains_node_type(val, "MemberExpression");
+                let has_assignment = ast_contains_node_type(val, "AssignmentExpression")
+                    || ast_contains_node_type(val, "UpdateExpression");
+                (has_call, has_member, has_assignment)
             }
         }
     };
@@ -311,12 +310,36 @@ fn extract_metadata_from_tag(expr_tag: &ExpressionTag) -> ExpressionMetadata {
     let mut metadata = ExpressionMetadata::default();
     metadata.set_has_call(has_call);
     metadata.set_has_await(super::utils::expression_has_await(&expr_tag.expression));
-    metadata.set_has_state(has_state);
+    // has_state is set by the caller using expression_has_reactive_state
+    metadata.set_has_state(false);
     metadata.set_has_member_expression(has_member);
-    metadata.set_has_assignment(false); // TODO: Detect assignment
+    metadata.set_has_assignment(has_assignment);
     metadata.set_dynamic(false);
     // blockers defaults to empty Vec
     metadata
+}
+
+/// Walk a JSON AST value and return true if any node has the given `type` field value.
+///
+/// This is used to detect AST node types like "CallExpression", "MemberExpression", etc.
+/// without converting the entire AST to a string.
+fn ast_contains_node_type(val: &serde_json::Value, node_type: &str) -> bool {
+    match val {
+        serde_json::Value::Object(obj) => {
+            // Check this node's type
+            if obj
+                .get("type")
+                .and_then(|t| t.as_str())
+                .is_some_and(|t| t == node_type)
+            {
+                return true;
+            }
+            // Recurse into all fields (children)
+            obj.values().any(|v| ast_contains_node_type(v, node_type))
+        }
+        serde_json::Value::Array(arr) => arr.iter().any(|v| ast_contains_node_type(v, node_type)),
+        _ => false,
+    }
 }
 
 /// Check if a JSON value represents a literal (non-reactive) value.
@@ -442,6 +465,7 @@ pub fn build_style_directives_object(
 }
 
 /// Check if an AttributeValue contains an await expression.
+#[allow(dead_code)]
 fn attr_has_await_expr(attr_value: &AttributeValue) -> bool {
     match attr_value {
         AttributeValue::True(_) => false,
@@ -492,23 +516,33 @@ pub fn build_set_class(
 ) {
     // Build the class value from the attribute
     let (mut class_value, mut has_state) = if let Some(attr_value) = class_attribute {
-        let has_await = attr_has_await_expr(attr_value);
         // Check if we need to wrap in $.clsx() before building the value
         let should_clsx = needs_clsx(attr_value);
 
-        let result = build_attribute_value(attr_value, context, |expr, _| expr);
+        // Capture the metadata from build_attribute_value to correctly determine
+        // has_call for the memoizer. In the reference implementation, the memoize
+        // callback receives `metadata` from `chunk.metadata.expression` and passes
+        // it directly to `memoizer.add(value, metadata)`.
+        let mut captured_metadata: Option<ExpressionMetadata> = None;
+        let result = build_attribute_value(attr_value, context, |expr, metadata| {
+            captured_metadata = Some(metadata.clone());
+            expr
+        });
         let value = if should_clsx {
             // Wrap in $.clsx() for dynamic class expressions
             b::call(b::member_path("$.clsx"), vec![result.value])
         } else {
             result.value
         };
-        // Route through memoizer AFTER build_attribute_value (avoids borrow conflict)
-        // This ensures await expressions end up in the async memoizer queue
+        // Route through memoizer with the correct metadata.
+        // Use the captured metadata to determine has_call and has_await correctly.
+        let meta = captured_metadata.unwrap_or_default();
+        let has_call = meta.has_call();
+        let has_await = meta.has_await();
         let value = context.state.memoizer.add_memoized(
             value,
-            false,     // has_call
-            has_await, // has_await - route await expressions to async memoizer
+            has_call,  // Use actual has_call from expression metadata
+            has_await, // Use actual has_await from expression metadata
             false,     // memoize_if_state
             result.has_state,
         );

@@ -4,7 +4,7 @@
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/AssignmentExpression.js`.
 
 use super::shared::assignment_helpers::*;
-use super::shared::utils::validate_mutation;
+use super::shared::utils::{apply_transforms_to_expression, validate_mutation};
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
@@ -172,10 +172,13 @@ fn build_assignment(
     if let Some(t) = transform
         && let Some(mutate_fn) = t.mutate
     {
-        // Build the mutation expression
-        // TODO: Visit left and right for full transformation
-        // For now, use them directly
-        let mutation_expr = b::assign_op(operator, left.clone(), right.clone());
+        // Build the mutation expression.
+        // We must visit (transform) left and right so that reactive reads inside the
+        // assignment get wrapped properly, e.g. `object[key] = []` becomes
+        // `$.mutate(object, $.get(object)[key] = [])`.
+        let visited_left = apply_transforms_to_expression(left, context);
+        let visited_right = apply_transforms_to_expression(right, context);
+        let mutation_expr = b::assign_op(operator, visited_left, visited_right);
 
         return Some(mutate_fn(object.clone(), mutation_expr));
     }

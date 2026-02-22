@@ -28,7 +28,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::fragmen
     TextOrExpr, is_static_element, process_children,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
-    apply_transforms_to_expression, build_template_chunk, expression_has_reactive_state,
+    build_template_chunk, expression_has_reactive_state,
 };
 use crate::compiler::phases::phase3_transform::client::visitors::transition_directive::transition_directive;
 use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
@@ -1559,8 +1559,10 @@ fn build_element_special_value_attribute(
     is_select_with_value: bool,
     context: &mut ComponentContext,
 ) {
-    // Apply transforms to the value expression (e.g., $.get() wrapping for reactive variables)
-    let transformed_value = apply_transforms_to_expression(&value, context);
+    // The `value` parameter is already transformed (comes from build_attribute_value which
+    // applies build_expression -> apply_transforms_to_expression). Do NOT apply transforms
+    // again here, as that would cause double-transformation (e.g., value() -> value()()).
+    let transformed_value = value;
 
     // Check if the value is defined (i.e., guaranteed to not be null/undefined)
     // The official compiler uses scope.evaluate(value).is_defined which checks if

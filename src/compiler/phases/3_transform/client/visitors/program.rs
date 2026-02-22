@@ -108,15 +108,25 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
                     // context.state.transform[name] = {
                     //     read: b.call,  // foo -> foo()
                     //     assign: (node, value) => b.call(node, value),
-                    //     mutate: ...
+                    //     mutate: (node, value) => {
+                    //         if (binding.kind === 'bindable_prop') return b.call(node, value, b.true);
+                    //         return value;
+                    //     }
                     // };
                     //
                     // Check if this prop should be a source (needs transformation)
                     if is_prop_source_binding(binding, &context.state) {
+                        // For BindableProp, mutations must notify the parent: node(mutation, true)
+                        // For regular Prop, mutations are passed through unchanged.
+                        let mutate_fn = if matches!(binding.kind, BindingKind::BindableProp) {
+                            prop_bindable_mutate
+                        } else {
+                            prop_mutate
+                        };
                         let transform = IdentifierTransform {
                             read: Some(prop_read),
                             assign: Some(prop_assign),
-                            mutate: Some(prop_mutate),
+                            mutate: Some(mutate_fn),
                             update: Some(prop_update),
                             skip_proxy: false,
                             is_defined: false,
@@ -385,33 +395,45 @@ fn prop_update(operator: JsUpdateOp, argument: JsExpr, prefix: bool) -> JsExpr {
     b::svelte_call(method, args)
 }
 
-/// Transform a prop mutation.
+/// Transform a regular prop mutation (passthrough).
 ///
-/// For mutations like `foo.bar = value`, we need to call the getter,
-/// mutate the result, and trigger an update.
+/// For regular (non-bindable) props, mutations are passed through unchanged.
+/// The prop transformation in the caller handles any necessary wrapping.
 ///
-/// In legacy mode with bindable_prop, mutations become:
-/// `foo($.mutate(foo(), mutation))`
+/// This corresponds to the reference implementation in Program.js:
+/// ```js
+/// mutate: (node, value) => {
+///     return value; // passthrough for non-bindable prop
+/// }
+/// ```
+///
+/// # Arguments
+///
+/// * `_node` - The prop identifier (unused for passthrough)
+/// * `mutation` - The mutation expression (returned as-is)
+fn prop_mutate(_node: JsExpr, mutation: JsExpr) -> JsExpr {
+    mutation
+}
+
+/// Transform a bindable prop mutation.
+///
+/// For bindable props, mutations must notify the parent component by calling
+/// the prop function with the mutation result and `true` as a second argument:
+/// `foo(mutation, true)`
+///
+/// This corresponds to the reference implementation in Program.js:
+/// ```js
+/// mutate: (node, value) => {
+///     if (binding.kind === 'bindable_prop') return b.call(node, value, b.true);
+/// }
+/// ```
 ///
 /// # Arguments
 ///
 /// * `node` - The prop identifier (e.g., `foo`)
-/// * `mutation` - The mutation expression (e.g., `foo.bar = value`)
-fn prop_mutate(node: JsExpr, mutation: JsExpr) -> JsExpr {
-    // For bindable props in legacy mode, we need to:
-    // 1. Get the current value: foo()
-    // 2. Apply the mutation
-    // 3. Update via: foo($.mutate(foo(), mutation))
-    //
-    // For regular props, just return the mutation
-    // (the prop transformation in the caller handles wrapping)
-    b::call(
-        node.clone(),
-        vec![b::call(
-            b::member_path("$.mutate"),
-            vec![b::call(node, vec![]), mutation],
-        )],
-    )
+/// * `mutation` - The mutation expression (e.g., `foo()[0] = value`)
+fn prop_bindable_mutate(node: JsExpr, mutation: JsExpr) -> JsExpr {
+    b::call(node, vec![mutation, b::boolean(true)])
 }
 
 #[cfg(test)]

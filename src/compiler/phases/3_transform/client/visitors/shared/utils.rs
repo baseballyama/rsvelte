@@ -344,14 +344,23 @@ pub fn apply_transforms_to_expression_with_shadowed(
             //     }
             //     return (flags & EACH_ITEM_REACTIVE) !== 0 ? get_value(node) : node;
             //   }
+            //
+            // Note: We check all ancestor each_binding_contexts (not just the innermost one),
+            // because a reassigned item from an outer each block may be referenced inside an
+            // inner each block. For example, in {#each selected_array as selected} containing
+            // {#each values as value} with bind:group={selected}, `selected` is from the outer
+            // each block, and should use selected_array()[$$index_1] when read inside the inner.
             if !context.state.analysis.runes
-                && context.state.each_item_names.contains(name)
                 && let Some(binding) = context.state.get_binding(name)
                 && binding.reassigned
             {
                 // Find the matching each binding context for this item name
-                if let Some(each_ctx) = context.state.each_binding_context.last()
-                    && each_ctx.item_name == *name
+                // (search all ancestor contexts, not just the innermost one)
+                if let Some(each_ctx) = context
+                    .state
+                    .each_binding_context
+                    .iter()
+                    .find(|ctx| ctx.item_name == *name)
                 {
                     // Build collection[$$index] access
                     // Note: We do NOT set each_item_assign_or_mutate here - that's only for
@@ -764,23 +773,66 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     && let Some(transform) = context.state.transform.get(&name)
                     && let Some(mutate_fn) = transform.mutate
                 {
-                    // DO NOT apply read transforms to the left side here!
-                    // The mutate function (e.g., store_sub_mutate) is responsible for
-                    // replacing the base identifier with $.untrack($store) as needed.
-                    // We only transform the right side of the assignment.
                     let transformed_right = recurse!(&assign.right);
 
-                    // Create the assignment expression with the original left side
-                    // and the transformed right side. The mutate function will handle
-                    // replacing the store reference with $.untrack($store).
+                    // For prop bindings (Prop/BindableProp), we need to apply read transforms
+                    // to the left side so that prop calls appear in the mutation expression.
+                    // e.g., `selected[0] = $$value` -> `selected(selected()[0] = $$value, true)`
+                    // The left side `selected[0]` must become `selected()[0]` inside the mutation.
+                    //
+                    // For store subscriptions, we do NOT recurse the left side because
+                    // store_sub_mutate handles the replacement with $.untrack($store) internally.
+                    // Recursing would turn `$store` into `$store()` which is wrong there.
+                    let is_prop_binding = {
+                        use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+                        context
+                            .state
+                            .get_binding(&name)
+                            .map(|b| {
+                                matches!(b.kind, BindingKind::Prop | BindingKind::BindableProp)
+                            })
+                            .unwrap_or(false)
+                    };
+
+                    let is_store_sub = {
+                        use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+                        context
+                            .state
+                            .get_binding(&name)
+                            .map(|b| matches!(b.kind, BindingKind::StoreSub))
+                            .unwrap_or(false)
+                    };
+
+                    let mutation_left = if is_prop_binding {
+                        // Prop bindings: recurse full left side so prop call appears
+                        // e.g., `selected[0] = $$value` -> `selected(selected()[0] = $$value, true)`
+                        Box::new(recurse!(&assign.left))
+                    } else if is_store_sub {
+                        // Store subscriptions: keep original left side for store_sub_mutate to handle
+                        // Recursing would turn `$store` into `$store()` which is wrong
+                        assign.left.clone()
+                    } else {
+                        // State/mutable source bindings: transform computed property indices
+                        // so that reactive each-item variables inside brackets get $.get() wrappers.
+                        // e.g., `list[key] = $$value` → mutation_left = `list[$.get(key)] = $$value`
+                        // then mutate_value_legacy replaces `list` → `$.get(list)` to get:
+                        //   `$.get(list)[$.get(key)] = $$value`
+                        Box::new(transform_computed_indices_only(
+                            &assign.left,
+                            context,
+                            local_scope,
+                        ))
+                    };
+
                     let full_assignment = JsExpr::Assignment(JsAssignmentExpression {
                         operator: assign.operator,
-                        left: assign.left.clone(),
+                        left: mutation_left,
                         right: Box::new(transformed_right),
                     });
 
                     // Apply the mutate transform
                     // e.g., $store.prop = value -> $.store_mutate(store, $.untrack($store).prop = value, $.untrack($store))
+                    // e.g., selected[0] = value -> selected(selected()[0] = value, true)
                     return mutate_fn(JsExpr::Identifier(name.clone()), full_assignment);
                 }
             }
@@ -1092,11 +1144,9 @@ fn build_invalidate_inner_signals(invalidation_exprs: &[String]) -> JsExpr {
         .map(|s| JsExpr::Raw(s.clone()))
         .collect();
 
-    let inner = if exprs.len() == 1 {
-        exprs.into_iter().next().unwrap()
-    } else {
-        b::sequence(exprs)
-    };
+    // Always wrap in sequence parens, even for a single expression.
+    // The official compiler always produces `() => (expr)` not `() => expr`.
+    let inner = b::sequence(exprs);
 
     b::call(
         b::member_path("$.invalidate_inner_signals"),
@@ -1114,6 +1164,50 @@ fn get_base_object(expr: &JsExpr) -> JsExpr {
         JsExpr::Member(member) => get_base_object(&member.object),
         JsExpr::Call(call) => get_base_object(&call.callee),
         _ => expr.clone(),
+    }
+}
+
+/// Transform only the computed property indices in a member expression, leaving the root identifier alone.
+///
+/// This is used for state/mutable-source mutation left sides. For example:
+/// `list[key]` → `list[$.get(key)]` (transforms `key` to `$.get(key)` but leaves `list` as-is)
+///
+/// This allows `mutate_value_legacy` to then replace `list` with `$.get(list)`,
+/// resulting in the correct: `$.get(list)[$.get(key)] = $$value`
+fn transform_computed_indices_only(
+    expr: &JsExpr,
+    context: &ComponentContext,
+    local_scope: &LocalScope,
+) -> JsExpr {
+    match expr {
+        JsExpr::Member(member) => {
+            // Recurse into object (but still only transform computed indices there too)
+            let transformed_object =
+                transform_computed_indices_only(&member.object, context, local_scope);
+
+            // For computed properties, apply full transforms to the index expression
+            let transformed_property = match &member.property {
+                JsMemberProperty::Expression(prop_expr) if member.computed => {
+                    JsMemberProperty::Expression(Box::new(
+                        apply_transforms_to_expression_with_shadowed(
+                            prop_expr,
+                            context,
+                            local_scope,
+                        ),
+                    ))
+                }
+                other => other.clone(),
+            };
+
+            JsExpr::Member(JsMemberExpression {
+                object: Box::new(transformed_object),
+                property: transformed_property,
+                computed: member.computed,
+                optional: member.optional,
+            })
+        }
+        // For non-member expressions (like an identifier at the root), keep as-is
+        other => other.clone(),
     }
 }
 
@@ -1461,6 +1555,29 @@ fn collect_reactive_references_inner(
             }
 
             seen.insert(name.clone());
+
+            // For reassigned each-block items in legacy mode, the dependency getter
+            // should use collection[$$index] instead of $.get(item).
+            // This matches the official Svelte compiler's read transform for reassigned bindings:
+            //   if (binding.reassigned) {
+            //     return b.member(collection_id ? b.call(collection_id) : collection, index, true);
+            //   }
+            //
+            // We check ALL ancestor each_binding_contexts (not just the innermost), so that
+            // items from outer each blocks (e.g., `selected` in nested {#each}) are handled.
+            if !context.state.analysis.runes
+                && let Some(binding) = binding_info
+                && binding.reassigned
+                && let Some(each_ctx) = context
+                    .state
+                    .each_binding_context
+                    .iter()
+                    .find(|ctx| ctx.item_name == *name)
+            {
+                let reassigned_read = build_reassigned_item_read(each_ctx);
+                getters.push(reassigned_read);
+                return;
+            }
 
             // Build the getter by applying the read transform if one exists
             // (mirrors build_getter in the official compiler)

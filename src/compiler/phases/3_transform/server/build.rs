@@ -1214,6 +1214,7 @@ export default function {component_name}($$renderer{props_param}) {{
                     iterable,
                     context_name,
                     index_name,
+                    index_alias,
                     body,
                     fallback,
                 } => {
@@ -1271,9 +1272,21 @@ export default function {component_name}($$renderer{props_param}) {{
                         // Context variable (only if there's a context)
                         if let Some(ctx_name) = context_name {
                             body_code.push_str(&format!(
-                                "{}\t\tlet {} = {}[{}];\n\n",
+                                "{}\t\tlet {} = {}[{}];\n",
                                 indent, ctx_name, array_var, index_var
                             ));
+                        }
+
+                        // Index alias (when contains_group_binding: `let original_name = $$index_N`)
+                        if let Some(alias) = index_alias {
+                            body_code.push_str(&format!(
+                                "{}\t\tlet {} = {};\n",
+                                indent, alias, index_var
+                            ));
+                        }
+
+                        if context_name.is_some() || index_alias.is_some() {
+                            body_code.push('\n');
                         }
 
                         // Body - hoist @const declarations to the top of the loop body
@@ -1330,9 +1343,19 @@ export default function {component_name}($$renderer{props_param}) {{
                         // Context variable (only if there's a context)
                         if let Some(ctx_name) = context_name {
                             body_code.push_str(&format!(
-                                "{}\tlet {} = {}[{}];\n\n",
+                                "{}\tlet {} = {}[{}];\n",
                                 indent, ctx_name, array_var, index_var
                             ));
+                        }
+
+                        // Index alias (when contains_group_binding: `let original_name = $$index_N`)
+                        if let Some(alias) = index_alias {
+                            body_code
+                                .push_str(&format!("{}\tlet {} = {};\n", indent, alias, index_var));
+                        }
+
+                        if context_name.is_some() || index_alias.is_some() {
+                            body_code.push('\n');
                         }
 
                         // Body - hoist @const declarations to the top of the loop body

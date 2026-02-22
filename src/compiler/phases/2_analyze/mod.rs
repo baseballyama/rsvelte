@@ -352,6 +352,16 @@ pub fn analyze_component(
         promote_each_expression_bindings(&ast.fragment, &mut analysis);
     }
 
+    // Mark EachBlocks that contain bind:group directives referencing their items.
+    // This sets contains_group_binding = true and assigns unique index names ($$index_1, etc.)
+    // for any EachBlock whose item variable is bound via bind:group.
+    // Corresponds to: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/BindDirective.js
+    // lines 232-242 (setting parent.metadata.contains_group_binding = true).
+    {
+        let mut index_counter = 0usize;
+        mark_each_block_group_bindings(&mut ast.fragment, &mut index_counter, &mut analysis);
+    }
+
     // Build sibling relationships for CSS analysis
     // This must happen after template analysis builds the DOM structure
     control_flow::build_sibling_relationships(&mut analysis.css.dom_structure, &ast.fragment);
@@ -1831,6 +1841,458 @@ fn attribute_has_await(attr: &crate::ast::template::Attribute) -> bool {
         Attribute::OnDirective(dir) => dir.expression.as_ref().is_some_and(expression_has_await),
         Attribute::BindDirective(dir) => expression_has_await(&dir.expression),
         _ => false,
+    }
+}
+
+/// Mark EachBlocks that contain bind:group directives referencing their items.
+///
+/// This post-analysis pass walks the template recursively, maintaining a stack of
+/// ancestor EachBlocks. When a bind:group directive is found, it extracts the
+/// identifier from the binding expression and marks any ancestor EachBlock that
+/// declares that identifier with `contains_group_binding = true`.
+///
+/// It also assigns unique index names ($$index, $$index_1, etc.) to these EachBlocks,
+/// which are used by the transform phase to generate the correct `indexes` array
+/// for `$.bind_group()` calls.
+///
+/// Corresponds to: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/BindDirective.js
+/// lines 229-242 (the `parent.metadata.contains_group_binding = true` logic).
+fn mark_each_block_group_bindings(
+    fragment: &mut crate::ast::template::Fragment,
+    index_counter: &mut usize,
+    analysis: &mut ComponentAnalysis,
+) {
+    // Step 1: Assign unique metadata.index to ALL each blocks in POST-ORDER traversal.
+    // This matches the official Svelte compiler's create_scopes phase which assigns
+    // scope.root.unique('$$index') to each EachBlock in post-order (children before parents).
+    assign_each_block_indices_in_fragment(fragment, index_counter);
+
+    // Step 2: Mark contains_group_binding for each blocks that contain bind:group directives.
+    // Also assigns unique binding_group_name to each marked EachBlock.
+    // Walk with a mutable stack of ancestor EachBlocks (raw pointers for mutation)
+    let mut ancestor_stack: Vec<*mut crate::ast::template::EachBlock> = Vec::new();
+    mark_group_bindings_in_fragment(fragment, &mut ancestor_stack, analysis);
+}
+
+/// Phase 1: Assign unique $$index_N names to ALL each blocks in post-order traversal.
+/// This ensures consistent numbering that matches the official compiler.
+fn assign_each_block_indices_in_fragment(
+    fragment: &mut crate::ast::template::Fragment,
+    index_counter: &mut usize,
+) {
+    for node in &mut fragment.nodes {
+        assign_each_block_indices_in_node(node, index_counter);
+    }
+}
+
+fn assign_each_block_indices_in_node(
+    node: &mut crate::ast::template::TemplateNode,
+    index_counter: &mut usize,
+) {
+    use crate::ast::template::TemplateNode;
+    match node {
+        TemplateNode::EachBlock(each) => {
+            // Post-order: visit children FIRST
+            assign_each_block_indices_in_fragment(&mut each.body, index_counter);
+            if let Some(ref mut fallback) = each.fallback {
+                assign_each_block_indices_in_fragment(fallback, index_counter);
+            }
+            // Then assign index to this each block
+            // Naming: $$index (first), $$index_1, $$index_2, ...
+            let idx_name = if *index_counter == 0 {
+                "$$index".to_string()
+            } else {
+                format!("$$index_{}", index_counter)
+            };
+            *index_counter += 1;
+            each.metadata.index = Some(idx_name);
+        }
+        TemplateNode::RegularElement(el) => {
+            assign_each_block_indices_in_fragment(&mut el.fragment, index_counter);
+        }
+        TemplateNode::Component(comp) => {
+            assign_each_block_indices_in_fragment(&mut comp.fragment, index_counter);
+        }
+        TemplateNode::SvelteComponent(comp) => {
+            assign_each_block_indices_in_fragment(&mut comp.fragment, index_counter);
+        }
+        TemplateNode::SvelteElement(el) => {
+            assign_each_block_indices_in_fragment(&mut el.fragment, index_counter);
+        }
+        TemplateNode::SvelteSelf(s) => {
+            assign_each_block_indices_in_fragment(&mut s.fragment, index_counter);
+        }
+        TemplateNode::IfBlock(if_block) => {
+            assign_each_block_indices_in_fragment(&mut if_block.consequent, index_counter);
+            if let Some(ref mut alt) = if_block.alternate {
+                assign_each_block_indices_in_fragment(alt, index_counter);
+            }
+        }
+        TemplateNode::AwaitBlock(await_block) => {
+            if let Some(ref mut pending) = await_block.pending {
+                assign_each_block_indices_in_fragment(pending, index_counter);
+            }
+            if let Some(ref mut then) = await_block.then {
+                assign_each_block_indices_in_fragment(then, index_counter);
+            }
+            if let Some(ref mut catch) = await_block.catch {
+                assign_each_block_indices_in_fragment(catch, index_counter);
+            }
+        }
+        TemplateNode::KeyBlock(key) => {
+            assign_each_block_indices_in_fragment(&mut key.fragment, index_counter);
+        }
+        TemplateNode::SnippetBlock(snippet) => {
+            assign_each_block_indices_in_fragment(&mut snippet.body, index_counter);
+        }
+        TemplateNode::SvelteHead(head) => {
+            assign_each_block_indices_in_fragment(&mut head.fragment, index_counter);
+        }
+        TemplateNode::SlotElement(slot) => {
+            assign_each_block_indices_in_fragment(&mut slot.fragment, index_counter);
+        }
+        _ => {}
+    }
+}
+
+fn mark_group_bindings_in_fragment(
+    fragment: &mut crate::ast::template::Fragment,
+    ancestor_stack: &mut Vec<*mut crate::ast::template::EachBlock>,
+    analysis: &mut ComponentAnalysis,
+) {
+    for node in &mut fragment.nodes {
+        mark_group_bindings_in_node(node, ancestor_stack, analysis);
+    }
+}
+
+fn mark_group_bindings_in_node(
+    node: &mut crate::ast::template::TemplateNode,
+    ancestor_stack: &mut Vec<*mut crate::ast::template::EachBlock>,
+    analysis: &mut ComponentAnalysis,
+) {
+    use crate::ast::template::{Attribute, TemplateNode};
+
+    match node {
+        TemplateNode::EachBlock(each) => {
+            // Push this each block onto the ancestor stack
+            let each_ptr: *mut crate::ast::template::EachBlock = each as *mut _;
+            ancestor_stack.push(each_ptr);
+
+            // Visit body (and fallback)
+            mark_group_bindings_in_fragment(&mut each.body, ancestor_stack, analysis);
+            if let Some(ref mut fallback) = each.fallback {
+                mark_group_bindings_in_fragment(fallback, ancestor_stack, analysis);
+            }
+
+            // Pop from ancestor stack
+            ancestor_stack.pop();
+        }
+        TemplateNode::RegularElement(el) => {
+            // Check attributes for bind:group directives
+            for attr in &el.attributes {
+                if let Attribute::BindDirective(bind) = attr
+                    && bind.name == "group"
+                {
+                    // Extract ALL identifier names from the binding expression.
+                    // For `bind:group={selected_array[index]}`, this gives [selected_array, index].
+                    // This mirrors the official compiler's extract_all_identifiers_from_expression().
+                    let mut ids: Vec<String> = Vec::new();
+                    extract_all_identifiers_from_expr(bind.expression.as_json(), &mut ids);
+
+                    // Compute the keypath for this expression (used as binding group key).
+                    // This mirrors the official compiler's keypath from extract_all_identifiers_from_expression.
+                    // Example: `$order.scoops` → "$order.scoops", `list[key]` → "list.[key]"
+                    let keypath = build_binding_keypath(bind.expression.as_json());
+
+                    // Walk ancestor each blocks from innermost to outermost.
+                    // For each each block, check if any of the current `ids` are declared by it.
+                    // If so, mark it as contains_group_binding.
+                    // This mirrors: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/BindDirective.js L227-242
+                    //
+                    // KEY INVARIANT: One bind:group expression = ONE binding group.
+                    // All ancestor EachBlocks matched for the same bind:group expression share the same group name.
+                    // We first collect ALL matched each blocks, then assign ONE group name to all of them.
+                    let mut matched_each_ptrs: Vec<*mut crate::ast::template::EachBlock> =
+                        Vec::new();
+                    let mut ids_for_matching = ids.clone();
+                    for each_ptr in ancestor_stack.iter().rev() {
+                        // SAFETY: We're the only one with access to this node while
+                        // processing. The raw pointer is valid for the duration of the
+                        // parent call since it came from a mutable reference.
+                        let each = unsafe { &**each_ptr };
+
+                        // Collect all identifiers declared by this each block
+                        // (both the context pattern and the index variable)
+                        let mut declared: Vec<String> = Vec::new();
+                        if let Some(ref ctx) = each.context {
+                            extract_each_pattern_identifiers(ctx.as_json(), &mut declared);
+                        }
+                        if let Some(ref idx) = each.index {
+                            declared.push(idx.to_string());
+                        }
+
+                        // Check if any of the current binding expression identifiers
+                        // are declared by this each block
+                        let references: Vec<String> = ids_for_matching
+                            .iter()
+                            .filter(|id| declared.contains(id))
+                            .cloned()
+                            .collect();
+
+                        if !references.is_empty() {
+                            matched_each_ptrs.push(*each_ptr);
+                            // Remove matched ids.
+                            ids_for_matching.retain(|id| !references.contains(id));
+                            // Always add the each block's expression identifiers for transitive
+                            // dependency tracking. This ensures that when an inner each block
+                            // matches (e.g., `data as item` matching `item`), we also check
+                            // the outer each blocks that declare the inner each's expression
+                            // variable (e.g., `list as { id, data }` declaring `data`).
+                            // This mirrors the official Svelte compiler's parent_each_blocks logic.
+                            extract_all_identifiers_from_expr(
+                                each.expression.as_json(),
+                                &mut ids_for_matching,
+                            );
+                        }
+                    }
+
+                    let any_each_block_matched = !matched_each_ptrs.is_empty();
+
+                    if any_each_block_matched {
+                        // Determine the single group name for this bind:group expression.
+                        // Each bind:group expression gets ONE group name, shared by ALL
+                        // ancestor EachBlocks that are matched.
+                        //
+                        // We use a composite key = keypath + ":" + sorted each block starts
+                        // to uniquely identify this bind:group expression. This differentiates:
+                        // - Two bind:group expressions with same keypath but different each blocks (test 4)
+                        // - One bind:group expression that spans multiple ancestor each blocks (test 5)
+                        let starts: Vec<String> = matched_each_ptrs
+                            .iter()
+                            .map(|p| {
+                                let e = unsafe { &**p };
+                                e.start.to_string()
+                            })
+                            .collect();
+                        let composite_key = format!("{}:{}", keypath, starts.join(","));
+
+                        let group_name =
+                            if let Some(existing) = analysis.binding_groups.get(&composite_key) {
+                                existing.clone()
+                            } else {
+                                // New unique group: assign a fresh group name
+                                let group_count = analysis.binding_groups.len();
+                                let name = if group_count == 0 {
+                                    "binding_group".to_string()
+                                } else {
+                                    format!("binding_group_{}", group_count)
+                                };
+                                analysis
+                                    .binding_groups
+                                    .insert(composite_key.clone(), name.clone());
+                                name
+                            };
+
+                        // Assign the SAME group name to ALL matched ancestor EachBlocks
+                        for each_ptr in &matched_each_ptrs {
+                            let each = unsafe { &mut **each_ptr };
+                            each.metadata.contains_group_binding = true;
+                            // Only set if not already set (in case multiple bind:group expressions
+                            // share ancestor each blocks with different group names - each block
+                            // uses its first-assigned group name)
+                            if each.metadata.binding_group_name.is_none() {
+                                each.metadata.binding_group_name = Some(group_name.clone());
+                            }
+                        }
+                    }
+
+                    // If no ancestor EachBlock declared any of the binding expression identifiers,
+                    // this is a "standalone" bind:group (like bind:group={current} or bind:group={$order.scoops}).
+                    // Register it in analysis.binding_groups using the keypath as key.
+                    if !any_each_block_matched && !analysis.binding_groups.contains_key(&keypath) {
+                        let group_count = analysis.binding_groups.len();
+                        let group_name = if group_count == 0 {
+                            "binding_group".to_string()
+                        } else {
+                            format!("binding_group_{}", group_count)
+                        };
+                        analysis.binding_groups.insert(keypath, group_name);
+                    }
+                }
+            }
+
+            // Visit child elements
+            mark_group_bindings_in_fragment(&mut el.fragment, ancestor_stack, analysis);
+        }
+        TemplateNode::Component(comp) => {
+            mark_group_bindings_in_fragment(&mut comp.fragment, ancestor_stack, analysis);
+        }
+        TemplateNode::SvelteComponent(comp) => {
+            mark_group_bindings_in_fragment(&mut comp.fragment, ancestor_stack, analysis);
+        }
+        TemplateNode::SvelteElement(el) => {
+            mark_group_bindings_in_fragment(&mut el.fragment, ancestor_stack, analysis);
+        }
+        TemplateNode::SvelteSelf(s) => {
+            mark_group_bindings_in_fragment(&mut s.fragment, ancestor_stack, analysis);
+        }
+        TemplateNode::IfBlock(if_block) => {
+            mark_group_bindings_in_fragment(&mut if_block.consequent, ancestor_stack, analysis);
+            if let Some(ref mut alt) = if_block.alternate {
+                mark_group_bindings_in_fragment(alt, ancestor_stack, analysis);
+            }
+        }
+        TemplateNode::AwaitBlock(await_block) => {
+            if let Some(ref mut pending) = await_block.pending {
+                mark_group_bindings_in_fragment(pending, ancestor_stack, analysis);
+            }
+            if let Some(ref mut then) = await_block.then {
+                mark_group_bindings_in_fragment(then, ancestor_stack, analysis);
+            }
+            if let Some(ref mut catch) = await_block.catch {
+                mark_group_bindings_in_fragment(catch, ancestor_stack, analysis);
+            }
+        }
+        TemplateNode::KeyBlock(key) => {
+            mark_group_bindings_in_fragment(&mut key.fragment, ancestor_stack, analysis);
+        }
+        TemplateNode::SnippetBlock(snippet) => {
+            mark_group_bindings_in_fragment(&mut snippet.body, ancestor_stack, analysis);
+        }
+        TemplateNode::SvelteHead(head) => {
+            mark_group_bindings_in_fragment(&mut head.fragment, ancestor_stack, analysis);
+        }
+        TemplateNode::SlotElement(slot) => {
+            mark_group_bindings_in_fragment(&mut slot.fragment, ancestor_stack, analysis);
+        }
+        _ => {}
+    }
+}
+
+/// Extract ALL identifier names from an expression.
+/// For `selected_array[index]`, returns `["selected_array", "index"]`.
+/// Mirrors `extract_all_identifiers_from_expression` in the official compiler.
+fn extract_all_identifiers_from_expr(expr: &serde_json::Value, ids: &mut Vec<String>) {
+    let obj = match expr.as_object() {
+        Some(o) => o,
+        None => return,
+    };
+    let expr_type = match obj.get("type").and_then(|t| t.as_str()) {
+        Some(t) => t,
+        None => return,
+    };
+    match expr_type {
+        "Identifier" => {
+            if let Some(name) = obj.get("name").and_then(|n| n.as_str())
+                && !ids.contains(&name.to_string())
+            {
+                ids.push(name.to_string());
+            }
+        }
+        "MemberExpression" => {
+            if let Some(object) = obj.get("object") {
+                extract_all_identifiers_from_expr(object, ids);
+            }
+            // Only extract computed property identifiers (e.g., [index] in arr[index])
+            if obj.get("computed").and_then(|c| c.as_bool()) == Some(true)
+                && let Some(property) = obj.get("property")
+            {
+                extract_all_identifiers_from_expr(property, ids);
+            }
+        }
+        "CallExpression" => {
+            if let Some(callee) = obj.get("callee") {
+                extract_all_identifiers_from_expr(callee, ids);
+            }
+            if let Some(args) = obj.get("arguments").and_then(|a| a.as_array()) {
+                for arg in args {
+                    extract_all_identifiers_from_expr(arg, ids);
+                }
+            }
+        }
+        "BinaryExpression" | "LogicalExpression" => {
+            if let Some(left) = obj.get("left") {
+                extract_all_identifiers_from_expr(left, ids);
+            }
+            if let Some(right) = obj.get("right") {
+                extract_all_identifiers_from_expr(right, ids);
+            }
+        }
+        "ConditionalExpression" => {
+            if let Some(test) = obj.get("test") {
+                extract_all_identifiers_from_expr(test, ids);
+            }
+            if let Some(consequent) = obj.get("consequent") {
+                extract_all_identifiers_from_expr(consequent, ids);
+            }
+            if let Some(alternate) = obj.get("alternate") {
+                extract_all_identifiers_from_expr(alternate, ids);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Build a keypath string from a binding expression.
+/// This mirrors the `extract_all_identifiers_from_expression` function in the official Svelte
+/// compiler (utils/ast.js), which builds a keypath string for use as a binding group key.
+///
+/// Examples:
+/// - `selected` → `"selected"`
+/// - `$order.scoops` → `"$order.scoops"`
+/// - `list[key]` → `"list.[key]"`
+/// - `arr[i][j]` → `"arr.[i].[j]"`
+fn build_binding_keypath(expr: &serde_json::Value) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    build_keypath_parts(expr, &mut parts);
+    parts.join(".")
+}
+
+fn build_keypath_parts(expr: &serde_json::Value, parts: &mut Vec<String>) {
+    let obj = match expr.as_object() {
+        Some(o) => o,
+        None => return,
+    };
+    let expr_type = match obj.get("type").and_then(|t| t.as_str()) {
+        Some(t) => t,
+        None => return,
+    };
+    match expr_type {
+        "Identifier" => {
+            if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
+                parts.push(name.to_string());
+            }
+        }
+        "MemberExpression" => {
+            // Walk the object part
+            if let Some(object) = obj.get("object") {
+                build_keypath_parts(object, parts);
+            }
+            // Handle the property part
+            let computed = obj
+                .get("computed")
+                .and_then(|c| c.as_bool())
+                .unwrap_or(false);
+            if computed {
+                // Computed property: arr[idx] → push "[idx]"
+                if let Some(property) = obj.get("property") {
+                    let prop_str = build_binding_keypath(property);
+                    parts.push(format!("[{}]", prop_str));
+                }
+            } else if let Some(property) = obj.get("property")
+                && let Some(name) = property.get("name").and_then(|n| n.as_str())
+            {
+                // Static property: obj.prop → push "prop"
+                parts.push(name.to_string());
+            }
+        }
+        _ => {
+            // For other expression types (CallExpression, etc.), fall back to a
+            // representation that includes all identifiers
+            let mut ids: Vec<String> = Vec::new();
+            extract_all_identifiers_from_expr(expr, &mut ids);
+            parts.extend(ids);
+        }
     }
 }
 

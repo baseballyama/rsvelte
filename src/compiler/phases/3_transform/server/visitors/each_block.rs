@@ -34,8 +34,21 @@ impl<'a> ServerCodeGenerator<'a> {
             None
         };
 
-        // Get optional index name from the parser
-        let index_name = block.index.as_ref().map(|idx| idx.to_string());
+        // Get optional index name from the parser.
+        // When contains_group_binding is true, use the metadata.index ($$index_N) as the loop
+        // counter, and add a `let original_index = $$index_N` inside the loop body.
+        // This mirrors the official compiler's EachBlock.js (server):
+        //   const index = each_node_meta.contains_group_binding || !node.index ? each_node_meta.index : b.id(node.index);
+        //   if (index.name !== node.index && node.index != null) { each.push(b.let(node.index, index)); }
+        let (index_name, index_alias) = if block.metadata.contains_group_binding {
+            // Use the unique $$index_N name for the loop variable
+            let meta_index = block.metadata.index.clone();
+            // The original user-defined index name becomes an alias inside the loop body
+            let alias = block.index.as_ref().map(|idx| idx.to_string());
+            (meta_index, alias)
+        } else {
+            (block.index.as_ref().map(|idx| idx.to_string()), None)
+        };
 
         // Filter body nodes - skip leading/trailing whitespace
         let body_nodes: Vec<_> = block.body.nodes.iter().collect();
@@ -108,6 +121,10 @@ impl<'a> ServerCodeGenerator<'a> {
             // Also remove index name if it shadows a constant
             if let Some(ref idx) = index_name {
                 body_generator.constant_vars.remove(idx);
+            }
+            // Also remove the index alias (original user-defined name) if present
+            if let Some(ref alias) = index_alias {
+                body_generator.constant_vars.remove(alias);
             }
         }
 
@@ -230,6 +247,7 @@ impl<'a> ServerCodeGenerator<'a> {
             iterable,
             context_name,
             index_name,
+            index_alias,
             body: body_generator.output_parts,
             fallback,
         });

@@ -621,6 +621,55 @@ fn build_bind_property_call(
     b::call(b::member_path("$.bind_property"), args)
 }
 
+/// Build the keypath string for a binding expression.
+/// For `selected` → `"selected"`, `$order.scoops` → `"$order.scoops"`, `list[key]` → `"list.[key]"`.
+/// This must match the key generation in `mark_group_bindings_in_node` (analysis phase).
+fn build_group_binding_keypath(expr: &serde_json::Value) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    build_group_keypath_parts(expr, &mut parts);
+    parts.join(".")
+}
+
+fn build_group_keypath_parts(expr: &serde_json::Value, parts: &mut Vec<String>) {
+    let obj = match expr.as_object() {
+        Some(o) => o,
+        None => return,
+    };
+    let expr_type = match obj.get("type").and_then(|t| t.as_str()) {
+        Some(t) => t,
+        None => return,
+    };
+    match expr_type {
+        "Identifier" => {
+            if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
+                parts.push(name.to_string());
+            }
+        }
+        "MemberExpression" => {
+            if let Some(object) = obj.get("object") {
+                build_group_keypath_parts(object, parts);
+            }
+            let computed = obj
+                .get("computed")
+                .and_then(|c| c.as_bool())
+                .unwrap_or(false);
+            if computed {
+                if let Some(property) = obj.get("property") {
+                    let prop_str = build_group_binding_keypath(property);
+                    parts.push(format!("[{}]", prop_str));
+                }
+            } else if let Some(property) = obj.get("property")
+                && let Some(name) = property.get("name").and_then(|n| n.as_str())
+            {
+                parts.push(name.to_string());
+            }
+        }
+        _ => {
+            // Fallback: just push type or empty
+        }
+    }
+}
+
 /// Build a group binding call.
 ///
 /// This corresponds to the 'group' case in BindDirective.js (lines 214-255).
@@ -634,51 +683,44 @@ fn build_group_binding_call(
     context: &mut ComponentContext,
     directive_expr: Option<&Expression>,
 ) -> JsExpr {
-    // TODO: Handle metadata.parent_each_blocks for index tracking
-    // For now, use an empty array for indexes
-    let indexes = b::empty_array();
-
-    // Get binding_group_name from analysis.binding_groups
-    // Look up the correct group based on the directive's expression identifier name.
+    // Get binding_group_name from the innermost ancestor EachBindingContext that has
+    // contains_group_binding=true and binding_group_name set.
+    // This is the new approach: analysis phase assigns group names on EachBlock metadata,
+    // which are stored in EachBindingContext.binding_group_name during transform.
     // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/BindDirective.js L248
-    let binding_group_name = {
-        // Extract the binding variable name from the directive expression
-        // For `bind:group={radio_group}`, this would be "radio_group"
-        let expr_name = directive_expr.and_then(|expr| {
-            let Expression::Value(val) = expr;
-            // For simple identifier expressions
-            if val.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
-                return val
-                    .get("name")
-                    .and_then(|n| n.as_str())
-                    .map(|s| s.to_string());
-            }
-            // For member expressions, use the leftmost identifier
-            if val.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
-                let mut current = val;
-                while current.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
-                    if let Some(obj) = current.get("object") {
-                        current = obj;
-                    } else {
-                        break;
-                    }
-                }
-                if current.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
-                    return current
-                        .get("name")
-                        .and_then(|n| n.as_str())
-                        .map(|s| s.to_string());
-                }
-            }
-            None
-        });
+    let binding_group_name;
+    {
+        // Strategy 1: For EachItem-based bind:group, look up via the innermost ancestor
+        // EachBindingContext that has contains_group_binding=true and a binding_group_name.
+        // This covers cases like bind:group={selected} inside {#each items as selected}.
+        let each_group = context
+            .state
+            .each_binding_context
+            .iter()
+            .rev()
+            .find(|ctx| ctx.contains_group_binding && ctx.binding_group_name.is_some())
+            .and_then(|ctx| ctx.binding_group_name.as_ref())
+            .cloned();
 
-        // Look up the group name using the expression variable name as the key
-        if let Some(name) = &expr_name {
-            if let Some(group_name) = context.state.analysis.binding_groups.get(name) {
-                b::id(group_name)
+        if let Some(group_name) = each_group {
+            binding_group_name = b::id(&group_name);
+        } else {
+            // Strategy 2: For non-EachItem bind:group (like bind:group={current} or
+            // bind:group={$order.scoops}), look up in analysis.binding_groups by keypath.
+            // The keypath must match what mark_group_bindings_in_node used when registering.
+            let keypath = directive_expr
+                .map(|expr| {
+                    let Expression::Value(val) = expr;
+                    build_group_binding_keypath(val)
+                })
+                .unwrap_or_default();
+
+            if let Some(group_name) = context.state.analysis.binding_groups.get(&keypath).cloned() {
+                binding_group_name = b::id(&group_name);
+            } else if context.state.analysis.binding_groups.is_empty() {
+                binding_group_name = b::id("binding_group");
             } else {
-                // Fallback: try first group
+                // Fallback: use the first registered group
                 let group_name = context
                     .state
                     .analysis
@@ -687,20 +729,40 @@ fn build_group_binding_call(
                     .next()
                     .cloned()
                     .unwrap_or_else(|| "binding_group".to_string());
-                b::id(&group_name)
+                binding_group_name = b::id(&group_name);
             }
-        } else if context.state.analysis.binding_groups.is_empty() {
-            b::id("binding_group")
+        }
+    }
+
+    // Build the indexes array for bind:group.
+    // This corresponds to `node.metadata.parent_each_blocks.map(each => each.metadata.index)`.
+    // We use the contains_group_binding flag set during analysis to identify which each blocks
+    // should contribute their index to the bind:group indexes array.
+    // The official compiler's parent_each_blocks is in innermost-first order (walk from innermost
+    // ancestor to outermost), so we iterate the stack in reverse (innermost first).
+    // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/BindDirective.js L215-220
+    let indexes = {
+        let mut idx_exprs: Vec<JsExpr> = Vec::new();
+        for each_ctx in context.state.each_binding_context.iter().rev() {
+            // Include this each block's index if it was marked as containing a group binding.
+            // The analysis phase sets contains_group_binding=true for each blocks that declare
+            // identifiers referenced by the bind:group expression.
+            if each_ctx.contains_group_binding {
+                // The index_name is either $$index_N (from metadata.index) or the user-defined name.
+                // When contains_group_binding=true, index_name is always $$index_N.
+                let idx = b::id(&each_ctx.index_name);
+                if each_ctx.index_reactive {
+                    // Keyed block with index: wrap in $.get()
+                    idx_exprs.push(b::call(b::member_path("$.get"), vec![idx]));
+                } else {
+                    idx_exprs.push(idx);
+                }
+            }
+        }
+        if idx_exprs.is_empty() {
+            b::empty_array()
         } else {
-            let group_name = context
-                .state
-                .analysis
-                .binding_groups
-                .values()
-                .next()
-                .cloned()
-                .unwrap_or_else(|| "binding_group".to_string());
-            b::id(&group_name)
+            b::array(idx_exprs)
         }
     };
 
@@ -730,13 +792,23 @@ fn build_group_binding_call(
             // Build the value expression for dependency tracking
             let value_expr = build_value_expression(value, context);
 
+            // The return value should be the "visited" expression - the directive expression
+            // with all transforms applied. This mirrors the official compiler's:
+            //   b.return(expression)  // where expression = context.visit(node.expression)
+            // For prop variables, this gives `current()` instead of just `current`.
+            // For state variables, this gives `$.get(state)`.
+            use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
+            let return_expr = if let Some(dir_expr) = directive_expr {
+                let converted = convert_expression(dir_expr, context);
+                apply_transforms_to_expression(&converted, context)
+            } else {
+                unwrap_thunk(get)
+            };
+
             // Create a getter that first evaluates the value expression (for dependency tracking),
             // then returns the group expression
             // () => { value_expr; return get_expr; }
-            group_getter = b::thunk_block(vec![
-                b::stmt(value_expr),
-                b::return_value(unwrap_thunk(get)),
-            ]);
+            group_getter = b::thunk_block(vec![b::stmt(value_expr), b::return_value(return_expr)]);
         }
     }
 
@@ -779,6 +851,30 @@ fn unwrap_thunk(expr: &JsExpr) -> JsExpr {
     }
 }
 
+/// Check if a raw expression JSON is a member expression (has dots, subscript access).
+fn expression_json_is_member(val: &serde_json::Value) -> bool {
+    let obj = match val.as_object() {
+        Some(o) => o,
+        None => return false,
+    };
+    let expr_type = match obj.get("type").and_then(|t| t.as_str()) {
+        Some(t) => t,
+        None => return false,
+    };
+    match expr_type {
+        "MemberExpression" => true,
+        "CallExpression" => {
+            // For call expressions, check the callee
+            if let Some(callee) = obj.get("callee") {
+                expression_json_is_member(callee)
+            } else {
+                false
+            }
+        }
+        _ => false,
+    }
+}
+
 /// Build a value expression from an attribute value.
 /// This builds the expression and applies necessary transforms for dependency tracking.
 fn build_value_expression(value: &AttributeValue, context: &mut ComponentContext) -> JsExpr {
@@ -793,9 +889,17 @@ fn build_value_expression(value: &AttributeValue, context: &mut ComponentContext
             let has_state =
                 super::shared::utils::expression_has_reactive_state(&expr_tag.expression, context);
 
+            // Check if the expression is a member expression - this affects how
+            // build_expression handles it in legacy mode (uses untrack + sequence pattern)
+            let has_member_expression = {
+                let Expression::Value(val) = &expr_tag.expression;
+                expression_json_is_member(val)
+            };
+
             // Build the expression with transforms applied
             let mut metadata = ExpressionMetadata::default();
             metadata.set_has_state(has_state);
+            metadata.set_has_member_expression(has_member_expression);
 
             build_expression(context, &converted, &metadata)
         }
@@ -808,9 +912,14 @@ fn build_value_expression(value: &AttributeValue, context: &mut ComponentContext
                         &expr_tag.expression,
                         context,
                     );
+                    let has_member_expression = {
+                        let Expression::Value(val) = &expr_tag.expression;
+                        expression_json_is_member(val)
+                    };
 
                     let mut metadata = ExpressionMetadata::default();
                     metadata.set_has_state(has_state);
+                    metadata.set_has_member_expression(has_member_expression);
 
                     return build_expression(context, &converted, &metadata);
                 }
@@ -1377,21 +1486,19 @@ fn build_getter_setter(
         // This mirrors the official compiler: context.visit(b.assignment('=', node.expression, b.id('$$value')))
         use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
 
-        let transformed_read = if context.state.analysis.runes {
-            apply_transforms_to_expression(expr, context)
-        } else {
-            expr.clone()
-        };
+        // Apply transforms in BOTH runes and legacy mode so that prop member access
+        // gets the correct getter call form (e.g., `selected[0]` -> `selected()[0]`).
+        // Previously legacy mode skipped transforms, but this caused prop member bindings
+        // like `bind:group={selected[0]}` to use `selected[0]` instead of `selected()[0]`.
+        let transformed_read = apply_transforms_to_expression(expr, context);
 
         // Build the setter by creating an assignment expression and applying transforms.
         // This allows store_sub mutate transforms to kick in for patterns like:
         //   $obj.a = $$value -> $.store_mutate(obj, $.untrack($obj).a = $$value, $.untrack($obj))
+        // Also applies prop mutation transforms in legacy mode:
+        //   selected[0] = $$value -> selected(selected()[0] = $$value, true)
         let assignment_expr = b::assign(expr.clone(), b::id("$$value"));
-        let transformed_set = if context.state.analysis.runes {
-            apply_transforms_to_expression(&assignment_expr, context)
-        } else {
-            assignment_expr
-        };
+        let transformed_set = apply_transforms_to_expression(&assignment_expr, context);
 
         if dev {
             let get = b::function_expr(
@@ -1516,11 +1623,18 @@ pub fn build_each_block_getter_setter(
         return None;
     }
 
-    // Check if we're inside an each block
-    let each_ctx = context.state.each_binding_context.last()?.clone();
+    // Check if we're inside an each block at all
+    if context.state.each_binding_context.is_empty() {
+        return None;
+    }
 
-    // Determine what the expression references
-    let expr_info = analyze_each_binding_expression(original_expr, context)?;
+    // Determine what the expression references, searching ALL ancestor each contexts.
+    // Returns (expr_info, matched_ctx_index) where matched_ctx_index is the index into
+    // each_binding_context of the each block that declares the referenced variable.
+    let (expr_info, matched_ctx_idx) = analyze_each_binding_expression(original_expr, context)?;
+
+    // Get the matched each context (might be an ancestor, not just the innermost)
+    let each_ctx = context.state.each_binding_context[matched_ctx_idx].clone();
 
     // Mark that this binding used the each context (for uses_index tracking)
     each_ctx.binding_used.set(true);
@@ -1535,6 +1649,30 @@ pub fn build_each_block_getter_setter(
             // (not $.get(item)) because the item is considered "reassigned" via the bind.
             // Getter: () => collection[$$index]
             // Setter: ($$value) => (collection[$$index] = $$value, invalidation)
+
+            // Build collection access as a proper AST node so unwrap_thunk can work on
+            // the resulting arrow function (b::thunk requires a structured JsExpr::Arrow).
+            let collection_expr = if let Some(ref coll_id) = each_ctx.collection_id {
+                // collection is a prop (function call): selected_array()
+                b::call(b::id(coll_id), vec![])
+            } else {
+                // collection is a raw expression (e.g., component prop or literal)
+                JsExpr::Raw(each_ctx.collection_expr.clone())
+            };
+            let index_expr = if each_ctx.index_reactive {
+                b::call(b::member_path("$.get"), vec![b::id(&each_ctx.index_name)])
+            } else {
+                b::id(&each_ctx.index_name)
+            };
+
+            // Build collection[index] as a computed member expression
+            let member_expr = b::member_computed(collection_expr.clone(), index_expr.clone());
+
+            // Getter: () => collection[index]  (structured arrow, unwrap_thunk-compatible)
+            let get = b::thunk(member_expr.clone());
+
+            // Setter: ($$value) => (collection[index] = $$value, invalidation)
+            // Build as a raw string since assignment and sequence expressions need special handling
             let collection_access = if let Some(ref coll_id) = each_ctx.collection_id {
                 format!("{}()", coll_id)
             } else {
@@ -1545,12 +1683,6 @@ pub fn build_each_block_getter_setter(
             } else {
                 each_ctx.index_name.clone()
             };
-
-            // Getter uses collection indexed access (matches official Svelte behavior
-            // when binding.reassigned is true)
-            let get_expr_str = format!("{}[{}]", collection_access, index_access);
-            let get = JsExpr::Raw(format!("() => {}", get_expr_str));
-
             let setter_body = if let Some(ref inv) = invalidation {
                 format!("{}[{}] = $$value, {}", collection_access, index_access, inv)
             } else {
@@ -1564,14 +1696,36 @@ pub fn build_each_block_getter_setter(
             item_name,
             property_path,
         } => {
-            // Property of each item: bind:value={item.prop} or bind:value={item.a.b}
-            // Getter: () => $.get(item).prop
+            // Property of each item: bind:value={item.prop} or bind:value={item.a.b} or bind:value={item[expr]}
+            // Getter: () => $.get(item).prop  OR  () => $.get(item)[$.get(expr)]
             // Setter: ($$value) => ($.get(item).prop = $$value, invalidation)
             let get_base = if each_ctx.item_reactive {
                 format!("$.get({})", item_name)
             } else {
                 item_name.clone()
             };
+
+            // Apply transforms to the property path (for computed properties like [index]).
+            // E.g., [index] where index is a reactive each item becomes [$.get(index)].
+            let transformed_prop_path = if property_path.starts_with('[') {
+                // Extract the identifier inside the brackets
+                let inner = &property_path[1..property_path.len() - 1];
+                if let Some(transform) = context.state.transform.get(inner)
+                    && let Some(read_fn) = &transform.read
+                {
+                    let transformed = read_fn(b::id(inner));
+                    let transformed_str =
+                        crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
+                            &transformed,
+                        );
+                    format!("[{}]", transformed_str)
+                } else {
+                    property_path.clone()
+                }
+            } else {
+                property_path.clone()
+            };
+
             let access_prop = |base: &str, prop: &str| -> String {
                 if prop.starts_with('[') {
                     format!("{}{}", base, prop)
@@ -1579,17 +1733,21 @@ pub fn build_each_block_getter_setter(
                     format!("{}.{}", base, prop)
                 }
             };
-            let get_expr_str = access_prop(&get_base, &property_path);
-            let get = JsExpr::Raw(format!("() => {}", get_expr_str));
+            let get_expr_str = access_prop(&get_base, &transformed_prop_path);
+            // Use a proper Arrow expression so that unwrap_thunk can strip the () => prefix
+            let get = b::thunk(JsExpr::Raw(get_expr_str.clone()));
 
             let setter_body = if let Some(ref inv) = invalidation {
                 format!(
                     "{} = $$value, {}",
-                    access_prop(&get_base, &property_path),
+                    access_prop(&get_base, &transformed_prop_path),
                     inv
                 )
             } else {
-                format!("{} = $$value", access_prop(&get_base, &property_path))
+                format!(
+                    "{} = $$value",
+                    access_prop(&get_base, &transformed_prop_path)
+                )
             };
 
             let set = JsExpr::Raw(format!("($$value) => (\n\t{}\n)", setter_body));
@@ -1666,12 +1824,15 @@ enum EachBindingExprInfo {
 }
 
 /// Analyze whether a binding expression references an each block item.
+/// Returns `(EachBindingExprInfo, matched_context_index)` where `matched_context_index` is
+/// the index into `each_binding_context` of the each block that declares the referenced variable.
+/// Searches ALL ancestor each contexts (not just the innermost), so that bindings in nested
+/// each blocks can match variables from outer each blocks (e.g., `bind:group={selected}` inside
+/// `{#each values as value}` where `selected` comes from the ancestor `{#each selected_array as selected}`).
 fn analyze_each_binding_expression(
     expr: &Expression,
     context: &ComponentContext,
-) -> Option<EachBindingExprInfo> {
-    let each_ctx = context.state.each_binding_context.last()?;
-
+) -> Option<(EachBindingExprInfo, usize)> {
     let Expression::Value(val) = expr;
     let obj = val.as_object()?;
     let expr_type = obj.get("type").and_then(|v| v.as_str())?;
@@ -1680,23 +1841,33 @@ fn analyze_each_binding_expression(
         "Identifier" => {
             let name = obj.get("name").and_then(|v| v.as_str())?;
 
-            if name == each_ctx.item_name {
-                // Direct reference to the each item
-                return Some(EachBindingExprInfo::DirectItem {
-                    item_name: name.to_string(),
-                });
-            }
+            // Search ALL ancestor each contexts for a matching item name.
+            // We prefer the innermost match (search from last to first).
+            for (idx, each_ctx) in context.state.each_binding_context.iter().enumerate().rev() {
+                if name == each_ctx.item_name {
+                    // Direct reference to this each block's item
+                    return Some((
+                        EachBindingExprInfo::DirectItem {
+                            item_name: name.to_string(),
+                        },
+                        idx,
+                    ));
+                }
 
-            // Check if this is a destructured variable from the each block
-            // Look at the each context - if item_name is "$$item", this might be
-            // a destructured variable
-            if each_ctx.item_name == "$$item" {
-                // Check if this variable has a known update path from destructured context
-                if let Some(update_path) = each_ctx.destructured_update_paths.get(name) {
-                    return Some(EachBindingExprInfo::DestructuredVar {
-                        var_name: name.to_string(),
-                        update_path: update_path.clone(),
-                    });
+                // Check if this is a destructured variable from the each block
+                // Look at the each context - if item_name is "$$item", this might be
+                // a destructured variable
+                if each_ctx.item_name == "$$item" {
+                    // Check if this variable has a known update path from destructured context
+                    if let Some(update_path) = each_ctx.destructured_update_paths.get(name) {
+                        return Some((
+                            EachBindingExprInfo::DestructuredVar {
+                                var_name: name.to_string(),
+                                update_path: update_path.clone(),
+                            },
+                            idx,
+                        ));
+                    }
                 }
             }
 
@@ -1706,31 +1877,41 @@ fn analyze_each_binding_expression(
             // item.prop, item.a.b, item[0], etc.
             let (root_name, property_path) = extract_member_path(obj)?;
 
-            if root_name == each_ctx.item_name {
-                return Some(EachBindingExprInfo::ItemProperty {
-                    item_name: root_name,
-                    property_path,
-                });
-            }
+            // Search ALL ancestor each contexts for a matching item name.
+            for (idx, each_ctx) in context.state.each_binding_context.iter().enumerate().rev() {
+                if root_name == each_ctx.item_name {
+                    return Some((
+                        EachBindingExprInfo::ItemProperty {
+                            item_name: root_name,
+                            property_path,
+                        },
+                        idx,
+                    ));
+                }
 
-            // Check if the root is a getter function from destructured context
-            // e.g., f().prop where f is a destructured getter
-            if each_ctx.item_name == "$$item"
-                && let Some(transform) = context.state.transform.get(&root_name)
-                && transform.is_reactive
-            {
-                // This is a reactive (destructured) variable being accessed as member
-                // The getter needs to call the function: root()
-                // Build the access expression and assign expression
-                let access_expr = if property_path.starts_with('[') {
-                    format!("{}(){}", root_name, property_path)
-                } else {
-                    format!("{}().{}", root_name, property_path)
-                };
-                // For the assign expression, use the update_path (not the getter call)
-                // so we write to the original location, not via the getter function
-                let assign_expr =
-                    if let Some(base_path) = each_ctx.destructured_update_paths.get(&root_name) {
+                // Check if the root is a getter function from destructured context
+                // e.g., f().prop where f is a destructured getter (not a direct each item
+                // like `arg` from {#each list as arg}, which uses $.get(arg) not arg()).
+                // Only take this path if root_name is actually in the destructured paths
+                // of this each context, to distinguish lambda getters from $.get() sources.
+                if each_ctx.item_name == "$$item"
+                    && each_ctx.destructured_update_paths.contains_key(&root_name)
+                    && let Some(transform) = context.state.transform.get(&root_name)
+                    && transform.is_reactive
+                {
+                    // This is a reactive (destructured) variable being accessed as member
+                    // The getter needs to call the function: root()
+                    // Build the access expression and assign expression
+                    let access_expr = if property_path.starts_with('[') {
+                        format!("{}(){}", root_name, property_path)
+                    } else {
+                        format!("{}().{}", root_name, property_path)
+                    };
+                    // For the assign expression, use the update_path (not the getter call)
+                    // so we write to the original location, not via the getter function
+                    let assign_expr = if let Some(base_path) =
+                        each_ctx.destructured_update_paths.get(&root_name)
+                    {
                         if property_path.starts_with('[') {
                             format!("{}{}", base_path, property_path)
                         } else {
@@ -1739,10 +1920,14 @@ fn analyze_each_binding_expression(
                     } else {
                         access_expr.clone()
                     };
-                return Some(EachBindingExprInfo::ComputedAccess {
-                    access_expr,
-                    assign_expr,
-                });
+                    return Some((
+                        EachBindingExprInfo::ComputedAccess {
+                            access_expr,
+                            assign_expr,
+                        },
+                        idx,
+                    ));
+                }
             }
 
             None
