@@ -6646,6 +6646,10 @@ fn convert_expression_for_program(
             let end = offset + regex.span.end as usize;
             create_regex_literal(regex, start, end, line_offsets)
         }
+        // Parenthesized expressions - unwrap and return the inner expression
+        OxcExpression::ParenthesizedExpression(paren) => {
+            convert_expression_for_program(&paren.expression, offset, line_offsets)
+        }
         // TypeScript expression wrappers - unwrap and return the inner expression
         OxcExpression::TSAsExpression(ts_as) => {
             convert_expression_for_program(&ts_as.expression, offset, line_offsets)
