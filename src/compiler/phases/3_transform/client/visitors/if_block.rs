@@ -3,7 +3,7 @@
 //! Corresponds to `IfBlock` in
 //! `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/IfBlock.js`.
 
-use crate::ast::template::{Fragment, IfBlock};
+use crate::ast::template::{Fragment, IfBlock, TemplateNode};
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
 use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment as visit_fragment_impl;
@@ -13,69 +13,173 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 
+/// Collect all flattened if/elseif branches from an IfBlock chain.
+///
+/// This traverses the alternate chain and collects each IfBlock that has
+/// `elseif: true` into a flat list. This mirrors the official compiler's
+/// `node.metadata.flattened` array.
+///
+/// Returns a list of IfBlock references starting with `node`, followed by
+/// all elseif branches in order. The final else (plain Fragment) is NOT
+/// included — it can be found as `result.last().alternate`.
+/// Find an elseif IfBlock in a fragment, ignoring whitespace-only text nodes.
+///
+/// Returns `Some(inner)` only if the fragment contains an IfBlock with `elseif: true`
+/// and no other non-whitespace content. This mirrors the official compiler's
+/// `alt.nodes.length === 1 && alt.nodes[0].type === 'IfBlock'` check, but is more
+/// lenient about surrounding whitespace text nodes (which our parser sometimes emits).
+fn get_elseif_block(fragment: &crate::ast::template::Fragment) -> Option<&IfBlock> {
+    let mut found: Option<&IfBlock> = None;
+    for node in &fragment.nodes {
+        match node {
+            TemplateNode::Text(text) => {
+                // Skip whitespace-only text nodes
+                if !text.data.trim().is_empty() {
+                    return None;
+                }
+            }
+            TemplateNode::IfBlock(inner) if inner.elseif => {
+                if found.is_some() {
+                    return None; // Multiple IfBlocks — not a simple elseif chain
+                }
+                found = Some(inner);
+            }
+            _ => return None, // Non-whitespace, non-elseif content
+        }
+    }
+    found
+}
+
+fn collect_branches(node: &IfBlock) -> Vec<&IfBlock> {
+    let mut branches: Vec<&IfBlock> = vec![node];
+    let mut current = node;
+    while let Some(fragment) = &current.alternate {
+        if let Some(inner) = get_elseif_block(fragment) {
+            branches.push(inner);
+            current = inner;
+        } else {
+            break;
+        }
+    }
+    branches
+}
+
 /// Visit an if block.
 ///
 /// Generates code to conditionally render the consequent or alternate branches.
 /// Uses the `$.if` runtime function to handle reactive conditionals.
 ///
-/// # Arguments
-///
-/// * `node` - The if block node
-/// * `context` - The component transformation context
-///
-/// # Behavior
-///
-/// - Creates arrow functions for the consequent and alternate branches
-/// - Visits the consequent and alternate fragments using the Fragment visitor
-/// - Generates a call to `$.if(anchor, ($$render) => { if (test) $$render(consequent) ... })`
-/// - If the condition is async, wraps the entire block in `$.async()`
-/// - Handles elseif chains specially for transition behavior
+/// This generates a flat if/else-if/else chain for elseif blocks,
+/// and wraps conditions with `has_call` in `$.derived()` to avoid
+/// re-running function calls unnecessarily.
 ///
 /// # Generated Code
 ///
-/// For a simple if block like `{#if condition}content{/if}`, this generates:
+/// For `{#if a}{:else if b}{:else}{/if}`, this generates:
 ///
 /// ```javascript
 /// {
-///     var consequent = ($$anchor) => {
-///         // Fragment body for the consequent
-///     };
+///     var consequent = ($$anchor) => { ... };
+///     var consequent_1 = ($$anchor) => { ... };
+///     var alternate = ($$anchor) => { ... };
 ///
 ///     $.if(node, ($$render) => {
-///         if (condition) $$render(consequent);
+///         if (a) $$render(consequent);
+///         else if (b) $$render(consequent_1, 1);
+///         else $$render(alternate, false);
 ///     });
 /// }
 /// ```
 pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
     // Push a comment placeholder into the template
-    // This is where the if block content will be dynamically inserted
     context.state.template.push_comment(None);
 
-    // Collect statements to build the if block
     let mut statements = Vec::new();
 
-    // Visit the consequent fragment using the Fragment visitor
-    // The Fragment visitor handles template creation and hoisting
-    let consequent_block = visit_fragment(&node.consequent, context, false);
-    let consequent_id_name = context.state.memoizer.generate_id("consequent");
-    let consequent_id = b::id(&consequent_id_name);
+    let has_await = node.metadata.expression.has_await();
+    let is_async = has_await;
 
-    // Create: var consequent = ($$anchor) => { ... }
-    statements.push(b::var_decl(
-        &consequent_id_name,
-        Some(b::arrow_block(
-            vec![b::id_pattern("$$anchor")],
-            consequent_block.body,
-        )),
-    ));
+    // For the async wrapper, we need the expression from the top-level node
+    let async_expression = if is_async {
+        let converted_expr = convert_expression(&node.test, context);
+        let expr_metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
+        Some(build_expression(context, &converted_expr, &expr_metadata))
+    } else {
+        None
+    };
 
-    // Handle the alternate branch if present
-    let alternate_id = if let Some(ref alternate_fragment) = node.alternate {
-        let alternate_block = visit_fragment(alternate_fragment, context, false);
+    // Collect all flattened if/elseif branches
+    let branches = collect_branches(node);
+
+    // For each branch, build:
+    // - var consequent_n = ($$anchor) => { ... }
+    // - (optional) var d = $.derived(() => test)
+    // - The (test, render_stmt) pair for the chain
+    struct BranchData {
+        test: JsExpr,
+        render_stmt: JsStatement,
+    }
+    let mut branch_data: Vec<BranchData> = Vec::new();
+
+    for (index, branch) in branches.iter().enumerate() {
+        // Visit the consequent fragment
+        let consequent_block = visit_fragment(&branch.consequent, context, false);
+        let consequent_id_name = context.state.memoizer.generate_id("consequent");
+        let consequent_id = b::id(&consequent_id_name);
+
+        // var consequent_n = ($$anchor) => { ... }
+        statements.push(b::var_decl(
+            &consequent_id_name,
+            Some(b::arrow_block(
+                vec![b::id_pattern("$$anchor")],
+                consequent_block.body,
+            )),
+        ));
+
+        // Build the test expression for this branch
+        let test = if branch.metadata.expression.has_await() {
+            // Await is resolved by the $.async wrapper — use $$condition
+            b::call(b::member_path("$.get"), vec![b::id("$$condition")])
+        } else {
+            let converted = convert_expression(&branch.test, context);
+            let meta = ExpressionMetadata::from_template_metadata(&branch.metadata.expression);
+            let expr = build_expression(context, &converted, &meta);
+
+            if branch.metadata.expression.has_call() {
+                // Wrap in $.derived() to avoid re-running function calls
+                let derived_id_name = context.state.memoizer.generate_id("d");
+                let derived_id = b::id(&derived_id_name);
+                statements.push(b::var_decl(
+                    &derived_id_name,
+                    Some(b::call(b::member_path("$.derived"), vec![b::thunk(expr)])),
+                ));
+                b::call(b::member_path("$.get"), vec![derived_id])
+            } else {
+                expr
+            }
+        };
+
+        // $$render(consequent_n) or $$render(consequent_n, index) for elseif branches
+        let render_stmt = if index == 0 {
+            b::stmt(b::call(b::id("$$render"), vec![consequent_id]))
+        } else {
+            b::stmt(b::call(
+                b::id("$$render"),
+                vec![consequent_id, b::number(index as f64)],
+            ))
+        };
+
+        branch_data.push(BranchData { test, render_stmt });
+    }
+
+    // Handle the final else branch (if the last branch has a non-elseif alternate)
+    let last_branch = branches.last().expect("at least one branch");
+    let final_alt_stmt = if let Some(alt_fragment) = &last_branch.alternate {
+        let alternate_block = visit_fragment(alt_fragment, context, false);
         let alternate_id_name = context.state.memoizer.generate_id("alternate");
-        let alt_id = b::id(&alternate_id_name);
+        let alternate_id = b::id(&alternate_id_name);
 
-        // Create: var alternate = ($$anchor) => { ... }
+        // var alternate = ($$anchor) => { ... }
         statements.push(b::var_decl(
             &alternate_id_name,
             Some(b::arrow_block(
@@ -84,90 +188,57 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
             )),
         ));
 
-        Some(alt_id)
+        // $$render(alternate, false)
+        Some(b::stmt(b::call(
+            b::id("$$render"),
+            vec![alternate_id, b::boolean(false)],
+        )))
     } else {
         None
     };
 
-    // Check if the expression is async (from Phase 2 analysis metadata)
-    let is_async = node.metadata.expression.is_async();
+    // Build the flat if/else-if/else chain from right to left
+    let mut if_chain: Option<JsStatement> = final_alt_stmt;
+    for data in branch_data.into_iter().rev() {
+        let new_if = b::if_stmt(data.test, data.render_stmt, if_chain);
+        if_chain = Some(new_if);
+    }
 
-    // Convert the test expression first
-    let converted_expr = convert_expression(&node.test, context);
-
-    // Build the expression with proper reactivity handling
-    // This corresponds to: const expression = build_expression(context, node.test, node.metadata.expression);
-    let expr_metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
-    let expression = build_expression(context, &converted_expr, &expr_metadata);
-
-    // If async, wrap in $.get($$condition), otherwise use the expression directly
-    let test = if is_async {
-        b::call(b::member_path("$.get"), vec![b::id("$$condition")])
+    // Build $.if() arguments
+    let render_body = if let Some(chain) = if_chain {
+        vec![chain]
     } else {
-        expression.clone()
+        vec![]
     };
 
-    // Build the args for $.if()
-    // Args: [anchor, ($$render) => { if (test) $$render(consequent) else $$render(alternate, false) }]
     let mut args = vec![
         context.state.node.clone(),
-        // Create the render callback: ($$render) => { if (test) ... }
-        b::arrow_block(
-            vec![b::id_pattern("$$render")],
-            vec![b::if_stmt(
-                test,
-                b::stmt(b::call(b::id("$$render"), vec![consequent_id])),
-                alternate_id.map(|alt_id| {
-                    b::stmt(b::call(b::id("$$render"), vec![alt_id, b::boolean(false)]))
-                }),
-            )],
-        ),
+        b::arrow_block(vec![b::id_pattern("$$render")], render_body),
     ];
 
     // Handle elseif: add true as third argument
-    // This affects transition behavior
-    // We treat:
-    //   {#if x}...{:else}{#if y}...{/if}{/if}
-    // differently from:
-    //   {#if x}...{:else if y}...{/if}
-    // In the first case, the transition will only play when `y` changes,
-    // but in the second it should play when `x` or `y` change — both are considered 'local'
+    // This affects transition behavior (EFFECT_TRANSPARENT)
     if node.elseif {
         args.push(b::boolean(true));
     }
 
-    // Create the $.if() call
     let if_call = b::call(b::member_path("$.if"), args);
-
-    // Add metadata (for dev mode source location tracking)
     let if_statement = add_svelte_meta(if_call);
     statements.push(if_statement);
 
     // If async, wrap in $.async()
     if is_async {
-        // Get blockers from metadata (Phase 2 analysis)
-        // In the JS implementation: node.metadata.expression.blockers()
-        // For now, use empty array as blockers collection is not yet implemented in Phase 2
+        let expression = async_expression.expect("async_expression set when is_async");
         let blockers = b::array(vec![]);
 
-        // Create the thunk array
-        // In JS: b.array([b.thunk(expression, node.metadata.expression.has_await)])
-        let has_await = node.metadata.expression.has_await();
-        let expression_array = if has_await {
-            // For async expressions with await, mark the thunk as async
-            b::array(vec![b::async_thunk(expression.clone())])
-        } else {
-            b::array(vec![b::thunk(expression.clone())])
-        };
+        // b.array([b.thunk(expression, true)])
+        let expression_array = b::array(vec![b::async_thunk(expression.clone())]);
 
-        // Extract the anchor parameter name from context.state.node
-        // Typically this will be an identifier like "$$anchor"
         let anchor_param = match &context.state.node {
             JsExpr::Identifier(name) => b::id_pattern(name),
-            _ => b::id_pattern("$$anchor"), // Fallback
+            _ => b::id_pattern("$$anchor"),
         };
 
-        // Create: $.async(anchor, blockers, [() => expr], (anchor, $$condition) => { ... })
         let async_call = b::call(
             b::member_path("$.async"),
             vec![
@@ -180,30 +251,15 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
 
         context.state.init.push(b::stmt(async_call));
     } else {
-        // Not async: just add the block of statements
         context.state.init.push(b::block(statements));
     }
 }
 
 /// Visit a fragment and return its block statement.
-///
-/// This is a helper function that uses the Fragment visitor to process
-/// a fragment and returns the generated block statement with template
-/// creation, hoisting, and content rendering.
-///
-/// `is_root_fragment` controls whether `$.next()` can be generated for
-/// text-first content. For IfBlock consequent/alternate, this should be `false`
-/// because they handle their own templates independently.
 fn visit_fragment(
     fragment: &Fragment,
     context: &mut ComponentContext<'_>,
     is_root_fragment: bool,
 ) -> JsBlockStatement {
-    // Use the Fragment visitor which handles:
-    // - Template creation (root_x = $.from_html(...))
-    // - Hoisting template declarations to context.state.hoisted
-    // - Creating fragment instance (var fragment = root_x())
-    // - Processing child nodes
-    // - Appending to anchor ($.append($$anchor, fragment))
     visit_fragment_impl(fragment, context, is_root_fragment)
 }
