@@ -388,6 +388,10 @@ pub fn build_set_attribute(element: JsExpr, name: &str, value: JsExpr) -> JsStat
 ///
 /// Note: The expressions in class directives need to be converted to function calls
 /// if they reference props (e.g., `foo` becomes `foo()`).
+///
+/// When the directives contain function calls or reactive state, the resulting object
+/// is memoized via `context.state.memoizer.add_memoized()`, which causes the template_effect
+/// to use `($0) => ...` parameter syntax with `[() => object]` as the values array.
 pub fn build_class_directives_object(
     class_directives: &[ClassDirective],
     context: &mut ComponentContext,
@@ -396,12 +400,25 @@ pub fn build_class_directives_object(
 
     let mut properties = Vec::with_capacity(class_directives.len());
     let mut has_state = false;
+    let mut has_call_or_state = false;
+    let has_await = false;
 
     for directive in class_directives {
         // Check if this directive has reactive state
-        if super::utils::expression_has_reactive_state(&directive.expression, context) {
+        let directive_has_state =
+            super::utils::expression_has_reactive_state(&directive.expression, context);
+        if directive_has_state {
             has_state = true;
         }
+
+        // Check if directive has calls (non-pure function calls)
+        let directive_has_call = super::utils::expression_has_call(&directive.expression, context);
+
+        // Note: we only track has_call (not has_state) for memoization purposes.
+        // In the official compiler, `memoize_if_state = false` for class directives,
+        // so only has_call and has_await trigger memoization.
+        has_call_or_state = has_call_or_state || directive_has_call;
+        // Note: has_await handling could be added here if needed
 
         // Convert the expression using the expression converter
         let expression = convert_expression(&directive.expression, context);
@@ -413,7 +430,24 @@ pub fn build_class_directives_object(
         properties.push(b::prop(directive.name.to_string(), expression));
     }
 
-    (b::object(properties), has_state)
+    let directives_obj = b::object(properties);
+
+    // Memoize the object if it has calls or await, matching the official Svelte compiler:
+    // `const should_memoize = metadata.has_call || metadata.has_await || (memoize_if_state && metadata.has_state);`
+    // Note: `memoize_if_state = false` by default in `build_class_directives_object`, so we only
+    // memoize based on has_call or has_await. Props without calls (e.g., `class:foo` shorthand)
+    // have has_state=true but has_call=false and should NOT be memoized.
+    let has_call = has_call_or_state; // has_call_or_state only includes directive_has_call now
+    let result_expr = if has_call || has_await {
+        context
+            .state
+            .memoizer
+            .add_memoized(directives_obj, has_call, has_await, false, has_state)
+    } else {
+        directives_obj
+    };
+
+    (result_expr, has_state)
 }
 
 /// Build an object from style directives.
