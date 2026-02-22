@@ -341,7 +341,14 @@ pub fn analyze_component(
     // treat the expression as being mutated as well.
     // This promotes bindings referenced in the each expression to 'state'.
     // Corresponds to Svelte's 2-analyze/index.js L638-674
+    //
+    // We use two complementary approaches:
+    // 1. scope_builder collected `each_block_collection_infos` with per-scope EachItem info.
+    //    This correctly handles shadowing (e.g., `{#each a as { a }}`).
+    // 2. The `promote_each_expression_bindings` fallback handles cases where the EachItem
+    //    binding name doesn't shadow the collection name.
     if !analysis.runes {
+        promote_each_collection_from_scope_info(&mut analysis);
         promote_each_expression_bindings(&ast.fragment, &mut analysis);
     }
 
@@ -674,10 +681,25 @@ fn extract_identifiers_from_pattern(pattern: Option<&serde_json::Value>) -> Vec<
 ///
 /// Corresponds to Svelte's 2-analyze/index.js L618-636
 fn promote_legacy_state_bindings(analysis: &mut ComponentAnalysis) {
+    // The instance scope index: bindings declared at scope >= instance_scope_index
+    // are in the instance script (or nested functions within it). Module-scope
+    // bindings (scope 0, when a <script module> block exists) should NOT be promoted
+    // because they are plain JavaScript variables, not reactive signals.
+    // In the official Svelte compiler, only instance-scope bindings are considered.
+    let instance_scope_index = analysis.root.instance_scope_index;
+
     // Iterate over all bindings in the root scope (instance scope)
     for binding in &mut analysis.root.bindings {
         // Only consider 'normal' bindings (not already state, derived, prop, etc.)
         if binding.kind != BindingKind::Normal {
+            continue;
+        }
+
+        // Skip module-scope bindings (declared in <script module> at scope 0).
+        // These are plain JS variables that should not become reactive signals.
+        // Only instance-scope bindings (scope_index >= instance_scope_index) are promoted.
+        // When instance_scope_index == 0 there is no module script, so all bindings qualify.
+        if instance_scope_index > 0 && binding.scope_index < instance_scope_index {
             continue;
         }
 
@@ -706,6 +728,51 @@ fn promote_legacy_state_bindings(analysis: &mut ComponentAnalysis) {
         // Promote to 'state' kind
         binding.kind = BindingKind::State;
     }
+}
+
+/// Promote collection bindings to State using per-scope information from scope_builder.
+///
+/// This correctly handles cases where the each block context pattern shadows the collection
+/// variable (e.g., `{#each a as { a }}`). In such cases, `find_binding_any_scope("a")`
+/// would find the OUTER `a` (not the EachItem `a`), so the existing
+/// `promote_each_expression_bindings` fails to detect the mutation.
+///
+/// `each_block_collection_infos` stores (parent_scope_idx, each_scope_idx, collection_names)
+/// with updates already applied, so we can correctly check EachItem binding update status.
+///
+/// Mirrors official Svelte compiler index.js L638-674.
+fn promote_each_collection_from_scope_info(analysis: &mut ComponentAnalysis) {
+    let each_infos = std::mem::take(&mut analysis.root.each_block_collection_infos);
+    for (parent_scope, _each_scope, collection_names) in &each_infos {
+        // The each_block_collection_infos was already filtered to only include entries
+        // where at least one EachItem binding is updated (done in scope_builder build()).
+        // So any entry here should trigger promotion.
+        let to_promote: Vec<usize> = collection_names
+            .iter()
+            .filter_map(|name| {
+                analysis.root.all_scopes[*parent_scope]
+                    .declarations
+                    .get(name.as_str())
+                    .copied()
+            })
+            .collect();
+        for idx in to_promote {
+            if idx < analysis.root.bindings.len() {
+                let binding = &mut analysis.root.bindings[idx];
+                if binding.kind == BindingKind::Normal
+                    && !matches!(
+                        binding.declaration_kind,
+                        DeclarationKind::Import | DeclarationKind::Function
+                    )
+                {
+                    binding.kind = BindingKind::State;
+                    binding.mutated = true;
+                }
+            }
+        }
+    }
+    // Restore (in case something reads it later, though currently nothing does)
+    analysis.root.each_block_collection_infos = each_infos;
 }
 
 /// If an `each` binding is reassigned/mutated, treat the expression as being mutated as well.

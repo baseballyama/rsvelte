@@ -66,6 +66,10 @@ pub struct ScopeBuilder<'a> {
     /// Used to convert OXC span positions to full-source positions for function_scope_map.
     /// This is set to `script.content.start()` at the beginning of each script visit.
     current_script_offset: usize,
+    /// Information about each blocks whose collection variables may need State promotion.
+    /// Collected during template visit and processed after all updates are applied.
+    /// Each entry: (parent_scope_idx, each_scope_idx, collection_identifier_names)
+    each_block_collection_infos: Vec<(usize, usize, Vec<String>)>,
 }
 
 impl<'a> ScopeBuilder<'a> {
@@ -85,6 +89,7 @@ impl<'a> ScopeBuilder<'a> {
             instance_scope_index: 0,
             function_scope_map: FxHashMap::default(),
             current_script_offset: 0,
+            each_block_collection_infos: Vec::new(),
         }
     }
 
@@ -195,6 +200,23 @@ impl<'a> ScopeBuilder<'a> {
             }
         }
 
+        // Filter each_block_collection_infos to only include entries where at least
+        // one EachItem binding in the each scope is updated. This allows mod.rs to
+        // process them after runes detection without re-checking binding update status.
+        // We filter here because the update status is now finalized (all updates applied).
+        let each_block_collection_infos: Vec<(usize, usize, Vec<String>)> =
+            std::mem::take(&mut self.each_block_collection_infos)
+                .into_iter()
+                .filter(|(_, each_scope, _)| {
+                    self.scopes[*each_scope].declarations.values().any(|&idx| {
+                        self.bindings
+                            .get(idx)
+                            .map(|b| b.kind == BindingKind::EachItem && b.is_updated())
+                            .unwrap_or(false)
+                    })
+                })
+                .collect();
+
         // Return the root scope with all scopes preserved for proper lookup
         let all_scopes = std::mem::take(&mut self.scopes);
         let root_scope = all_scopes.first().cloned().unwrap_or_default();
@@ -205,6 +227,7 @@ impl<'a> ScopeBuilder<'a> {
                 all_scopes,
                 instance_scope_index: self.instance_scope_index,
                 function_scope_map: self.function_scope_map,
+                each_block_collection_infos,
             },
             self.validation_errors,
         )
@@ -1519,6 +1542,20 @@ impl<'a> ScopeBuilder<'a> {
             self.visit_fragment(fallback);
         }
 
+        // Official Svelte compiler logic (index.js lines 638-674):
+        // "if an `each` binding is reassigned/mutated, treat the expression as being mutated as well"
+        // Store info about this each block for post-update processing.
+        // We can't check is_updated() yet because updates are processed after the template visit.
+        let each_scope = self.current_scope;
+        let collection_names = {
+            let json = block.expression.as_json();
+            let mut ids = Vec::new();
+            collect_identifiers_from_json(json, &mut ids);
+            ids
+        };
+        self.each_block_collection_infos
+            .push((old_scope, each_scope, collection_names));
+
         self.pop_scope(old_scope);
     }
 
@@ -1746,6 +1783,36 @@ impl<'a> ScopeBuilder<'a> {
             }
             _ => {}
         }
+    }
+}
+
+/// Recursively collect all Identifier names from a JSON AST value.
+///
+/// Used by `promote_each_collection_bindings_if_updated` to extract identifiers
+/// from a collection expression so their bindings can be promoted to State kind.
+fn collect_identifiers_from_json(val: &serde_json::Value, result: &mut Vec<String>) {
+    match val {
+        serde_json::Value::Object(obj) => {
+            if obj.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
+                if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
+                    result.push(name.to_string());
+                }
+                // Don't recurse into Identifier children (start/end/loc are not sub-expressions)
+            } else {
+                for (key, v) in obj {
+                    // Skip position fields and type field to avoid false matches
+                    if key != "start" && key != "end" && key != "loc" && key != "type" {
+                        collect_identifiers_from_json(v, result);
+                    }
+                }
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for v in arr {
+                collect_identifiers_from_json(v, result);
+            }
+        }
+        _ => {}
     }
 }
 

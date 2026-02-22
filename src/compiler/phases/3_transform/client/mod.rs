@@ -299,6 +299,15 @@ fn transform_client_with_visitors(
         0
     };
 
+    // Check if there are any prop bindings (Prop or BindableProp) that require $$props
+    // This is needed for legacy mode where props are accessed via $.prop($$props, 'name', flags)
+    let has_prop_bindings = analysis.root.bindings.iter().any(|b| {
+        matches!(
+            b.kind,
+            BindingKind::Prop | BindingKind::BindableProp | BindingKind::RestProp
+        )
+    });
+
     let should_inject_context = options.dev
         || analysis.needs_context
         || !analysis.reactive_statements.is_empty()
@@ -308,15 +317,6 @@ fn transform_client_with_visitors(
         || bindable_prop_count > 0;
     // Note: needs_store_cleanup does NOT require context injection ($.push/$.pop)
     // Store subscriptions are independent of the component context
-
-    // Check if there are any prop bindings (Prop or BindableProp) that require $$props
-    // This is needed for legacy mode where props are accessed via $.prop($$props, 'name', flags)
-    let has_prop_bindings = analysis.root.bindings.iter().any(|b| {
-        matches!(
-            b.kind,
-            BindingKind::Prop | BindingKind::BindableProp | BindingKind::RestProp
-        )
-    });
 
     // Determine if we need $$props parameter
     let should_inject_props = should_inject_context
@@ -1769,6 +1769,19 @@ fn transform_instance_script_for_visitors(
         if has_legacy_export_let && first_line_trimmed.starts_with("export let ") {
             // Use the full statement for multi-line export declarations
             let transformed = transform_export_let(&statement, analysis);
+            // After converting to $.prop(), apply prop read wrapping to the DEFAULT VALUE
+            // inside $.prop() calls. wrap_prop_source_reads skips lines containing $.prop(),
+            // so we need to apply it only to the interior of the default value expression.
+            // This handles cases like: export let click_1 = () => { logs.push('click_1'); }
+            // where `logs` is a prop and should become `logs()` inside the default value.
+            let transformed = if !prop_assignment_transform_vars.is_empty() {
+                apply_prop_reads_in_prop_default_values(
+                    &transformed,
+                    prop_assignment_transform_vars,
+                )
+            } else {
+                transformed
+            };
             result.push_str(&transformed);
             result.push('\n');
             return;
@@ -3697,45 +3710,43 @@ fn transform_reactive_statement(
     let transformed_body;
 
     // First, check if this is an assignment statement: `c = expr`
+    // We must guard against ternary expressions like `a ? b = x : b = y` where
+    // find_assignment_position returns a position inside the ternary branch. In that
+    // case the LHS would contain `?` which is not a valid assignment target.
     if let Some(eq_pos) = find_assignment_position(body) {
         let lhs = body[..eq_pos].trim();
         let rhs = body[eq_pos + 1..].trim();
-
-        // If the LHS is a prop variable, transform to prop(value) call
-        if prop_assignment_transform_vars.contains(&lhs.to_string()) {
-            // Transform the RHS - wrap prop references in prop() calls
-            let transformed_rhs = transform_prop_reads_in_expr(rhs, prop_assignment_transform_vars);
-            // Also wrap state vars in $.get() calls
-            let transformed_rhs = wrap_state_vars_in_expr(
-                &transformed_rhs,
-                state_vars,
-                non_reactive_state_vars,
-                proxy_vars,
-            );
-
-            transformed_body = format!("{}({})", lhs, transformed_rhs);
-        } else if state_vars.contains(&lhs.to_string())
-            && !non_reactive_state_vars.contains(&lhs.to_string())
-        {
-            // State var assignment → $.set(lhs, rhs)
-            let transformed_rhs = transform_prop_reads_in_expr(rhs, prop_assignment_transform_vars);
-            let transformed_rhs = wrap_state_vars_in_expr(
-                &transformed_rhs,
-                state_vars,
-                non_reactive_state_vars,
-                proxy_vars,
-            );
-            transformed_body = format!("$.set({}, {})", lhs, transformed_rhs);
+        // If the LHS contains `?` it means the `=` was found inside a ternary branch;
+        // fall through to the non-assignment (else) path instead.
+        if lhs.contains('?') {
+            // Treat as non-assignment expression
+            let temp = transform_prop_assignments(body, prop_assignment_transform_vars);
+            let temp = transform_prop_update_expressions(&temp, prop_assignment_transform_vars);
+            let temp =
+                transform_state_update_expressions(&temp, state_vars, non_reactive_state_vars);
+            let temp = transform_prop_reads_in_expr(&temp, prop_assignment_transform_vars);
+            let temp = transform_state_set_in_reactive(&temp, state_vars, non_reactive_state_vars);
+            transformed_body =
+                wrap_state_vars_in_expr(&temp, state_vars, non_reactive_state_vars, proxy_vars);
         } else {
-            // Check if LHS is a member expression with a state var base
-            // e.g., `b.foo = a.foo` → `$.mutate(b, $.get(b).foo = $.get(a).foo)`
-            let base = extract_member_expression_base(lhs);
-            if let Some(base) = base
-                && state_vars.contains(&base.to_string())
-                && !non_reactive_state_vars.contains(&base.to_string())
+            // If the LHS is a prop variable, transform to prop(value) call
+            if prop_assignment_transform_vars.contains(&lhs.to_string()) {
+                // Transform the RHS - wrap prop references in prop() calls
+                let transformed_rhs =
+                    transform_prop_reads_in_expr(rhs, prop_assignment_transform_vars);
+                // Also wrap state vars in $.get() calls
+                let transformed_rhs = wrap_state_vars_in_expr(
+                    &transformed_rhs,
+                    state_vars,
+                    non_reactive_state_vars,
+                    proxy_vars,
+                );
+
+                transformed_body = format!("{}({})", lhs, transformed_rhs);
+            } else if state_vars.contains(&lhs.to_string())
+                && !non_reactive_state_vars.contains(&lhs.to_string())
             {
-                // Mutation of state var member
-                let member_part = &lhs[base.len()..]; // ".foo" or "[idx]"
+                // State var assignment → $.set(lhs, rhs)
                 let transformed_rhs =
                     transform_prop_reads_in_expr(rhs, prop_assignment_transform_vars);
                 let transformed_rhs = wrap_state_vars_in_expr(
@@ -3744,26 +3755,46 @@ fn transform_reactive_statement(
                     non_reactive_state_vars,
                     proxy_vars,
                 );
-                // Build $.mutate(base, $.get(base).member = rhs)
-                // The first arg of $.mutate() is protected by in_mutate_first_arg check
-                // in wrap_state_vars_in_expr, so `base` won't be double-wrapped.
-                transformed_body = format!(
-                    "$.mutate({}, $.get({}){} = {})",
-                    base, base, member_part, transformed_rhs
-                );
+                transformed_body = format!("$.set({}, {})", lhs, transformed_rhs);
             } else {
-                // Regular assignment - still transform prop reads on RHS
-                let transformed_rhs =
-                    transform_prop_reads_in_expr(rhs, prop_assignment_transform_vars);
-                let transformed_rhs = wrap_state_vars_in_expr(
-                    &transformed_rhs,
-                    state_vars,
-                    non_reactive_state_vars,
-                    proxy_vars,
-                );
-                transformed_body = format!("{} = {}", lhs, transformed_rhs);
+                // Check if LHS is a member expression with a state var base
+                // e.g., `b.foo = a.foo` → `$.mutate(b, $.get(b).foo = $.get(a).foo)`
+                let base = extract_member_expression_base(lhs);
+                if let Some(base) = base
+                    && state_vars.contains(&base.to_string())
+                    && !non_reactive_state_vars.contains(&base.to_string())
+                {
+                    // Mutation of state var member
+                    let member_part = &lhs[base.len()..]; // ".foo" or "[idx]"
+                    let transformed_rhs =
+                        transform_prop_reads_in_expr(rhs, prop_assignment_transform_vars);
+                    let transformed_rhs = wrap_state_vars_in_expr(
+                        &transformed_rhs,
+                        state_vars,
+                        non_reactive_state_vars,
+                        proxy_vars,
+                    );
+                    // Build $.mutate(base, $.get(base).member = rhs)
+                    // The first arg of $.mutate() is protected by in_mutate_first_arg check
+                    // in wrap_state_vars_in_expr, so `base` won't be double-wrapped.
+                    transformed_body = format!(
+                        "$.mutate({}, $.get({}){} = {})",
+                        base, base, member_part, transformed_rhs
+                    );
+                } else {
+                    // Regular assignment - still transform prop reads on RHS
+                    let transformed_rhs =
+                        transform_prop_reads_in_expr(rhs, prop_assignment_transform_vars);
+                    let transformed_rhs = wrap_state_vars_in_expr(
+                        &transformed_rhs,
+                        state_vars,
+                        non_reactive_state_vars,
+                        proxy_vars,
+                    );
+                    transformed_body = format!("{} = {}", lhs, transformed_rhs);
+                }
             }
-        }
+        } // close the `else` branch of `if lhs.contains('?')`
     } else {
         // Not a simple assignment - handle compound assignments (+=, -=, etc.),
         // update expressions (++/--), and reads.
@@ -3786,18 +3817,39 @@ fn transform_reactive_statement(
     // $state from a runes-component, where mutations don't trigger an update on the prop as a whole.
     // State vars become $.get(var) - simple get since they are mutable_source variables.
     // Reference: LabeledStatement.js in the official compiler
+    //
+    // Dependencies are sorted by their first occurrence in the body (left-to-right order),
+    // matching the official Svelte compiler's Phase 2 dependency ordering.
     let has_deps = !prop_dependencies.is_empty() || !state_dependencies.is_empty();
     let deps_expr = if !has_deps {
         "".to_string()
     } else {
-        let mut all_deps: Vec<String> = Vec::new();
+        // Find the first occurrence position of an identifier in the body text.
+        let find_pos = |name: &str| -> usize {
+            let pattern = format!(r"\b{}\b", regex::escape(name));
+            if let Ok(re) = regex::Regex::new(&pattern) {
+                re.find(body).map(|m| m.start()).unwrap_or(usize::MAX)
+            } else {
+                usize::MAX
+            }
+        };
+        // Build unified dep list: (position, expression_string)
+        let mut unified_deps: Vec<(usize, String)> = Vec::new();
         for dep in &prop_dependencies {
-            all_deps.push(format!("$.deep_read_state({}())", dep));
+            let pos = find_pos(dep);
+            unified_deps.push((pos, format!("$.deep_read_state({}())", dep)));
         }
         for dep in &state_dependencies {
-            all_deps.push(format!("$.get({})", dep));
+            let pos = find_pos(dep);
+            unified_deps.push((pos, format!("$.get({})", dep)));
         }
-        all_deps.join(", ")
+        // Sort by first occurrence in body so deps match official compiler output order
+        unified_deps.sort_by_key(|&(pos, _)| pos);
+        unified_deps
+            .into_iter()
+            .map(|(_, expr)| expr)
+            .collect::<Vec<_>>()
+            .join(", ")
     };
 
     // Build the $.legacy_pre_effect() call
@@ -4836,6 +4888,156 @@ fn transform_let_with_reexported_props(line: &str, analysis: &ComponentAnalysis)
     }
 
     Some(results.join("\n"))
+}
+
+/// Apply prop source read transformations inside the default value of $.prop() calls.
+///
+/// `wrap_prop_source_reads` skips lines containing `$.prop(`, so this function specifically
+/// handles the default value expressions inside `$.prop($$props, 'name', flags, DEFAULT)`.
+/// This is needed when export-let default values contain references to other props,
+/// e.g.: `export let click_1 = () => { logs.push('click_1'); }`
+/// where `logs` is a prop and should become `logs()` inside the default value.
+fn apply_prop_reads_in_prop_default_values(line: &str, prop_vars: &[String]) -> String {
+    // Split $.prop() calls into prefix + default-value + suffix, transform the default value only.
+    // The pattern is: $.prop($$props, 'name', N, DEFAULT)
+    // We find each $.prop( and extract the 4th argument.
+    let mut result = String::new();
+    let mut search_from = 0;
+
+    while let Some(prop_pos) = line[search_from..].find("$.prop(") {
+        let abs_pos = search_from + prop_pos;
+
+        // Copy everything before this $.prop( unchanged
+        result.push_str(&line[search_from..abs_pos]);
+
+        // Parse the $.prop(...) call to find the 4th argument
+        let after_prop = &line[abs_pos + 7..]; // after "$.prop("
+        let chars: Vec<char> = after_prop.chars().collect();
+        let mut i = 0;
+        let mut depth = 1i32;
+        let mut arg_count = 0;
+        let mut fourth_arg_start: Option<usize> = None;
+        let mut fourth_arg_end: Option<usize> = None;
+        let mut in_string: Option<char> = None;
+        let mut char_byte_positions: Vec<usize> = Vec::new();
+
+        // Build char→byte mapping
+        {
+            let mut byte_pos = 0;
+            for ch in after_prop.chars() {
+                char_byte_positions.push(byte_pos);
+                byte_pos += ch.len_utf8();
+            }
+            char_byte_positions.push(byte_pos);
+        }
+
+        while i < chars.len() {
+            let c = chars[i];
+
+            // Handle strings
+            if let Some(quote) = in_string {
+                if c == '\\' && i + 1 < chars.len() {
+                    i += 2;
+                    continue;
+                }
+                if c == quote {
+                    in_string = None;
+                }
+                i += 1;
+                continue;
+            }
+
+            match c {
+                '"' | '\'' | '`' => {
+                    in_string = Some(c);
+                }
+                '(' | '[' | '{' => depth += 1,
+                ')' | ']' | '}' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        // End of $.prop() call
+                        if fourth_arg_start.is_some() {
+                            fourth_arg_end = Some(i);
+                        }
+                        break;
+                    }
+                }
+                ',' if depth == 1 => {
+                    arg_count += 1;
+                    if arg_count == 3 {
+                        // The 4th argument starts after this comma
+                        // Skip any whitespace
+                        let mut j = i + 1;
+                        while j < chars.len() && chars[j].is_whitespace() {
+                            j += 1;
+                        }
+                        fourth_arg_start = Some(j);
+                    }
+                }
+                _ => {}
+            }
+            i += 1;
+        }
+
+        // Now reconstruct the $.prop() call with transformed 4th arg
+        if let (Some(start_char), Some(end_char)) = (fourth_arg_start, fourth_arg_end) {
+            let start_byte = char_byte_positions[start_char];
+            let end_byte = char_byte_positions[end_char];
+            let before_default = &after_prop[..start_byte];
+            let default_val = &after_prop[start_byte..end_byte];
+            let _after_default = &after_prop[end_byte..];
+
+            let transformed_default = wrap_prop_source_reads(default_val, prop_vars);
+            result.push_str("$.prop(");
+            result.push_str(before_default);
+            result.push_str(&transformed_default);
+            // Continue parsing from after the closing paren
+            let close_byte = char_byte_positions[end_char + 1];
+            result.push_str(&after_prop[end_byte..close_byte]);
+            search_from = abs_pos + 7 + close_byte;
+        } else {
+            // No 4th arg found, copy $.prop(...) as-is
+            result.push_str("$.prop(");
+            // Find where the $.prop() call ends
+            if let Some(end_char) = {
+                let mut ec = None;
+                let mut d = 1i32;
+                let mut s: Option<char> = None;
+                for (ci, ch) in chars.iter().enumerate() {
+                    if let Some(q) = s {
+                        if *ch == q {
+                            s = None;
+                        }
+                        continue;
+                    }
+                    match ch {
+                        '"' | '\'' | '`' => s = Some(*ch),
+                        '(' | '[' | '{' => d += 1,
+                        ')' | ']' | '}' => {
+                            d -= 1;
+                            if d == 0 {
+                                ec = Some(ci);
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                ec
+            } {
+                let end_byte = char_byte_positions[end_char + 1];
+                result.push_str(&after_prop[..end_byte]);
+                search_from = abs_pos + 7 + end_byte;
+            } else {
+                result.push_str(after_prop);
+                search_from = line.len();
+            }
+        }
+    }
+
+    // Copy remaining
+    result.push_str(&line[search_from..]);
+    result
 }
 
 fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> String {

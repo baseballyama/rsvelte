@@ -25,6 +25,10 @@ pub struct ScopeRoot {
     /// Key: start position of the function body (BlockStatement start)
     /// Value: scope index in all_scopes
     pub function_scope_map: FxHashMap<u32, usize>,
+    /// Information about each blocks whose collection variables may need State promotion.
+    /// Each entry: (parent_scope_idx, each_scope_idx, collection_identifier_names).
+    /// Processed in Phase 2 analyze after runes detection (only in legacy mode).
+    pub each_block_collection_infos: Vec<(usize, usize, Vec<String>)>,
 }
 
 impl ScopeRoot {
@@ -36,6 +40,7 @@ impl ScopeRoot {
             all_scopes: Vec::new(),
             instance_scope_index: 0,
             function_scope_map: FxHashMap::default(),
+            each_block_collection_infos: Vec::new(),
         }
     }
 
