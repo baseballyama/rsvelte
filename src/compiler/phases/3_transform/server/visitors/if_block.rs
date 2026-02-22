@@ -4,6 +4,7 @@ use super::super::ServerCodeGenerator;
 use super::super::types::OutputPart;
 use crate::ast::template::{Fragment, IfBlock, TemplateNode};
 use crate::compiler::phases::phase3_transform::TransformError;
+use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
 
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn generate_if_block(&mut self, block: &IfBlock) -> Result<(), TransformError> {
@@ -51,7 +52,7 @@ impl<'a> ServerCodeGenerator<'a> {
             .iter()
             .filter(|n| {
                 if let TemplateNode::Text(text) = n {
-                    !text.data.trim().is_empty()
+                    !is_svelte_whitespace_only(&text.data)
                 } else {
                     true
                 }
@@ -96,7 +97,7 @@ impl<'a> ServerCodeGenerator<'a> {
         // Skip leading whitespace and comments (comments don't produce output)
         while start_idx < len {
             match nodes[start_idx] {
-                TemplateNode::Text(text) if text.data.trim().is_empty() => {
+                TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
                     start_idx += 1;
                     continue;
                 }
@@ -111,7 +112,7 @@ impl<'a> ServerCodeGenerator<'a> {
         // Skip trailing whitespace and comments
         while end_idx > start_idx {
             match nodes[end_idx - 1] {
-                TemplateNode::Text(text) if text.data.trim().is_empty() => {
+                TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
                     end_idx -= 1;
                     continue;
                 }

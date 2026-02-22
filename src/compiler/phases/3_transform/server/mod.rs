@@ -18,6 +18,7 @@ use crate::ast::template::{Fragment, Root, Script, TemplateNode};
 use crate::compiler::CompileOptions;
 use crate::compiler::phases::phase2_analyze::ComponentAnalysis;
 use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
 use helpers::*;
 use types::{OutputPart, SnippetDef};
 
@@ -487,7 +488,7 @@ impl<'a> ServerCodeGenerator<'a> {
         let meaningful_nodes: Vec<_> = nodes
             .iter()
             .filter(|n| match n {
-                TemplateNode::Text(text) => !text.data.trim().is_empty(),
+                TemplateNode::Text(text) => !is_svelte_whitespace_only(&text.data),
                 TemplateNode::Comment(_) => false,
                 // These node types are hoisted out by clean_nodes in the official compiler
                 TemplateNode::SnippetBlock(_) => false,
@@ -525,7 +526,7 @@ impl<'a> ServerCodeGenerator<'a> {
         // Helper to check if a node is "meaningful" for SSR output purposes
         // SvelteWindow, SvelteDocument, SvelteBody don't render anything in SSR
         let is_ssr_meaningful = |n: &&TemplateNode| {
-            !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty())
+            !matches!(n, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data))
                 && !matches!(n, TemplateNode::Comment(_))
                 && !matches!(n, TemplateNode::SvelteWindow(_))
                 && !matches!(n, TemplateNode::SvelteDocument(_))
@@ -560,7 +561,7 @@ impl<'a> ServerCodeGenerator<'a> {
         for (i, node) in nodes.iter().enumerate() {
             // Skip whitespace-only text at root level
             if let TemplateNode::Text(text) = node
-                && text.data.trim().is_empty()
+                && is_svelte_whitespace_only(&text.data)
             {
                 // Skip if there is no meaningful content at all (e.g. component with only
                 // <script> blocks and no template nodes - whitespace between/after scripts

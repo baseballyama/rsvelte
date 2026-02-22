@@ -6,6 +6,7 @@ use super::super::types::OutputPart;
 use crate::ast::template::{Attribute, Fragment, SvelteElement, TemplateNode};
 use crate::compiler::phases::phase3_transform::TransformError;
 use crate::compiler::phases::phase3_transform::shared::escape_html;
+use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
 
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn generate_svelte_boundary(
@@ -152,7 +153,7 @@ impl<'a> ServerCodeGenerator<'a> {
         let mut start_idx = 0;
         while start_idx < len {
             if let TemplateNode::Text(text) = body_nodes[start_idx]
-                && text.data.trim().is_empty()
+                && is_svelte_whitespace_only(&text.data)
             {
                 start_idx += 1;
                 continue;
@@ -164,7 +165,7 @@ impl<'a> ServerCodeGenerator<'a> {
         let mut end_idx = len;
         while end_idx > start_idx {
             if let TemplateNode::Text(text) = body_nodes[end_idx - 1]
-                && text.data.trim().is_empty()
+                && is_svelte_whitespace_only(&text.data)
             {
                 end_idx -= 1;
                 continue;

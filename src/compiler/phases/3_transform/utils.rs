@@ -10,16 +10,66 @@ use compact_str::CompactString;
 use regex::Regex;
 use std::sync::LazyLock;
 
-/// Regex for text that is only whitespace
-static REGEX_NOT_WHITESPACE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\S").unwrap());
+/// Regex for text that is not whitespace (matches Svelte's definition: only space/tab/CR/LF are whitespace,
+/// not &nbsp; which is \u{00A0}). See patterns.js: `Not \S because that also removes explicit whitespace
+/// defined through things like &nbsp;`
+static REGEX_NOT_WHITESPACE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[^ \t\r\n]").unwrap());
 
-/// Regex for leading whitespace
+/// Regex for leading whitespace (only space/tab/CR/LF, not &nbsp;)
 static REGEX_STARTS_WITH_WHITESPACES: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^\s+").unwrap());
+    LazyLock::new(|| Regex::new(r"^[ \t\r\n]+").unwrap());
 
-/// Regex for trailing whitespace
+/// Regex for trailing whitespace (only space/tab/CR/LF, not &nbsp;)
 static REGEX_ENDS_WITH_WHITESPACES: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\s+$").unwrap());
+    LazyLock::new(|| Regex::new(r"[ \t\r\n]+$").unwrap());
+
+/// Check if a string consists entirely of HTML-whitespace characters.
+///
+/// Svelte defines whitespace as: space, tab, carriage return, newline, and form feed.
+/// This deliberately excludes non-breaking space (\u{00A0} from `&nbsp;`), which
+/// is treated as content, not whitespace. This matches the official Svelte compiler's
+/// `regex_not_whitespace = /[^ \t\r\n]/` pattern.
+pub fn is_svelte_whitespace_only(s: &str) -> bool {
+    s.chars()
+        .all(|c| matches!(c, ' ' | '\t' | '\r' | '\n' | '\x0C'))
+}
+
+/// Trim Svelte whitespace from both ends of a string.
+///
+/// Only trims space, tab, carriage return, newline, and form feed.
+/// Does NOT trim non-breaking space (\u{00A0}).
+pub fn svelte_trim(s: &str) -> &str {
+    let is_ws = |c: char| matches!(c, ' ' | '\t' | '\r' | '\n' | '\x0C');
+    let start = s
+        .char_indices()
+        .find(|(_, c)| !is_ws(*c))
+        .map_or(s.len(), |(i, _)| i);
+    let end = s
+        .char_indices()
+        .rfind(|(_, c)| !is_ws(*c))
+        .map_or(0, |(i, c)| i + c.len_utf8());
+    if start > end { "" } else { &s[start..end] }
+}
+
+/// Trim Svelte whitespace from the start of a string.
+pub fn svelte_trim_start(s: &str) -> &str {
+    let is_ws = |c: char| matches!(c, ' ' | '\t' | '\r' | '\n' | '\x0C');
+    let start = s
+        .char_indices()
+        .find(|(_, c)| !is_ws(*c))
+        .map_or(s.len(), |(i, _)| i);
+    &s[start..]
+}
+
+/// Trim Svelte whitespace from the end of a string.
+pub fn svelte_trim_end(s: &str) -> &str {
+    let is_ws = |c: char| matches!(c, ' ' | '\t' | '\r' | '\n' | '\x0C');
+    let end = s
+        .char_indices()
+        .rfind(|(_, c)| !is_ws(*c))
+        .map_or(0, |(i, c)| i + c.len_utf8());
+    &s[..end]
+}
 
 /// Result of cleaning nodes.
 #[derive(Debug, Clone)]

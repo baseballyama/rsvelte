@@ -7,6 +7,7 @@ use crate::ast::template::{
     Attribute, AttributeValue, AttributeValuePart, RegularElement, TemplateNode,
 };
 use crate::compiler::phases::phase3_transform::TransformError;
+use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
 
 impl<'a> ServerCodeGenerator<'a> {
     /// Generate <select> element using $$renderer.select().
@@ -87,7 +88,7 @@ impl<'a> ServerCodeGenerator<'a> {
 
         while start_idx < len {
             if let TemplateNode::Text(text) = children[start_idx]
-                && text.data.trim().is_empty()
+                && is_svelte_whitespace_only(&text.data)
             {
                 start_idx += 1;
                 continue;
@@ -97,7 +98,7 @@ impl<'a> ServerCodeGenerator<'a> {
 
         while end_idx > start_idx {
             if let TemplateNode::Text(text) = children[end_idx - 1]
-                && text.data.trim().is_empty()
+                && is_svelte_whitespace_only(&text.data)
             {
                 end_idx -= 1;
                 continue;
@@ -109,7 +110,7 @@ impl<'a> ServerCodeGenerator<'a> {
         // This matches the clean_nodes behavior in the official compiler
         for node in children.iter().take(end_idx).skip(start_idx) {
             if let TemplateNode::Text(text) = node
-                && text.data.trim().is_empty()
+                && is_svelte_whitespace_only(&text.data)
             {
                 continue;
             }
@@ -393,7 +394,7 @@ impl<'a> ServerCodeGenerator<'a> {
         // Skip leading whitespace
         while start_idx < len {
             if let TemplateNode::Text(text) = children[start_idx]
-                && text.data.trim().is_empty()
+                && is_svelte_whitespace_only(&text.data)
             {
                 start_idx += 1;
                 continue;
@@ -404,7 +405,7 @@ impl<'a> ServerCodeGenerator<'a> {
         // Skip trailing whitespace
         while end_idx > start_idx {
             if let TemplateNode::Text(text) = children[end_idx - 1]
-                && text.data.trim().is_empty()
+                && is_svelte_whitespace_only(&text.data)
             {
                 end_idx -= 1;
                 continue;

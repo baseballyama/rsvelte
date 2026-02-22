@@ -5,6 +5,7 @@ use super::super::types::OutputPart;
 use crate::ast::template::{EachBlock, TemplateNode};
 use crate::compiler::phases::phase3_transform::TransformError;
 use crate::compiler::phases::phase3_transform::shared::escape_html;
+use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
 
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn generate_each_block(&mut self, block: &EachBlock) -> Result<(), TransformError> {
@@ -47,7 +48,7 @@ impl<'a> ServerCodeGenerator<'a> {
         // Skip leading whitespace
         while start_idx < len {
             if let TemplateNode::Text(text) = body_nodes[start_idx]
-                && text.data.trim().is_empty()
+                && is_svelte_whitespace_only(&text.data)
             {
                 start_idx += 1;
                 continue;
@@ -58,7 +59,7 @@ impl<'a> ServerCodeGenerator<'a> {
         // Skip trailing whitespace
         while end_idx > start_idx {
             if let TemplateNode::Text(text) = body_nodes[end_idx - 1]
-                && text.data.trim().is_empty()
+                && is_svelte_whitespace_only(&text.data)
             {
                 end_idx -= 1;
                 continue;
@@ -117,7 +118,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 body_generator.output_parts.push(OutputPart::Comment);
             } else if let TemplateNode::Text(text) = body_nodes[start_idx] {
                 // Only add comment if text has non-whitespace content after trimming
-                if !text.data.trim().is_empty() {
+                if !is_svelte_whitespace_only(&text.data) {
                     body_generator.output_parts.push(OutputPart::Comment);
                 }
             }
@@ -136,7 +137,7 @@ impl<'a> ServerCodeGenerator<'a> {
             // Skip whitespace-only text after ConstTag
             if prev_was_const
                 && let TemplateNode::Text(text) = node
-                && text.data.trim().is_empty()
+                && is_svelte_whitespace_only(&text.data)
             {
                 prev_was_const = false;
                 continue;
@@ -181,12 +182,16 @@ impl<'a> ServerCodeGenerator<'a> {
             // Skip leading whitespace-only text nodes
             let start = fallback_nodes
                 .iter()
-                .position(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()))
+                .position(
+                    |n| !matches!(n, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data)),
+                )
                 .unwrap_or(fallback_nodes.len());
             // Skip trailing whitespace-only text nodes
             let end = fallback_nodes
                 .iter()
-                .rposition(|n| !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty()))
+                .rposition(
+                    |n| !matches!(n, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data)),
+                )
                 .map(|i| i + 1)
                 .unwrap_or(0);
             fallback_nodes = fallback_nodes[start..end].to_vec();
@@ -204,7 +209,7 @@ impl<'a> ServerCodeGenerator<'a> {
             // This matches the behavior of the main each body
             if let Some(first_node) = fallback_nodes.first() {
                 match first_node {
-                    TemplateNode::Text(text) if !text.data.trim().is_empty() => {
+                    TemplateNode::Text(text) if !is_svelte_whitespace_only(&text.data) => {
                         fallback_generator.output_parts.push(OutputPart::Comment);
                     }
                     TemplateNode::ExpressionTag(_) => {

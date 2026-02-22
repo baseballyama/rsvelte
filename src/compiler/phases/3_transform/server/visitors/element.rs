@@ -14,6 +14,9 @@ use crate::compiler::phases::phase3_transform::TransformError;
 use crate::compiler::phases::phase3_transform::shared::{
     escape_attr, escape_html, is_void_element, sanitize_template_string,
 };
+use crate::compiler::phases::phase3_transform::utils::{
+    is_svelte_whitespace_only, svelte_trim, svelte_trim_end, svelte_trim_start,
+};
 
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn generate_element(
@@ -253,12 +256,12 @@ impl<'a> ServerCodeGenerator<'a> {
             // Find first and last non-whitespace, non-comment, non-snippet children
             // Snippet blocks are hoisted and don't produce inline output
             let _first_content = children.iter().position(|c| {
-                !matches!(c, TemplateNode::Text(t) if t.data.trim().is_empty())
+                !matches!(c, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data))
                     && !matches!(c, TemplateNode::Comment(_))
                     && !matches!(c, TemplateNode::SnippetBlock(_))
             });
             let last_content = children.iter().rposition(|c| {
-                !matches!(c, TemplateNode::Text(t) if t.data.trim().is_empty())
+                !matches!(c, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data))
                     && !matches!(c, TemplateNode::Comment(_))
                     && !matches!(c, TemplateNode::SnippetBlock(_))
             });
@@ -269,7 +272,7 @@ impl<'a> ServerCodeGenerator<'a> {
             let meaningful: Vec<_> = children
                 .iter()
                 .filter(|c| {
-                    !matches!(c, TemplateNode::Text(t) if t.data.trim().is_empty())
+                    !matches!(c, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data))
                         && !matches!(c, TemplateNode::Comment(_))
                         && !matches!(c, TemplateNode::SnippetBlock(_))
                 })
@@ -289,7 +292,7 @@ impl<'a> ServerCodeGenerator<'a> {
                 // For text nodes, check if it should become a space
                 if let TemplateNode::Text(text) = child {
                     let data = &text.data;
-                    if data.trim().is_empty() {
+                    if is_svelte_whitespace_only(data) {
                         // For certain elements, skip all whitespace-only text nodes entirely
                         // This matches the clean_nodes behavior in the official compiler:
                         // - SVG elements (except <text>) strip internal whitespace
@@ -359,9 +362,9 @@ impl<'a> ServerCodeGenerator<'a> {
                         let is_last = last_content.is_some() && i == last_content.unwrap();
                         let trimmed = if is_last {
                             // Both first and last - trim both sides
-                            data.trim()
+                            svelte_trim(data)
                         } else {
-                            data.trim_start()
+                            svelte_trim_start(data)
                         };
                         if !trimmed.is_empty() {
                             // Collapse internal whitespace
@@ -376,7 +379,7 @@ impl<'a> ServerCodeGenerator<'a> {
 
                     // Check if this is the last content - trim trailing
                     if last_content.is_some() && i == last_content.unwrap() {
-                        let trimmed = data.trim_end();
+                        let trimmed = svelte_trim_end(data);
                         if !trimmed.is_empty() {
                             let collapsed = collapse_whitespace(trimmed);
                             self.output_parts
@@ -643,12 +646,12 @@ impl<'a> ServerCodeGenerator<'a> {
                 .collect();
 
             // Find first and last non-whitespace content children
-            let _first_content = children
-                .iter()
-                .position(|c| !matches!(c, TemplateNode::Text(t) if t.data.trim().is_empty()));
-            let last_content = children
-                .iter()
-                .rposition(|c| !matches!(c, TemplateNode::Text(t) if t.data.trim().is_empty()));
+            let _first_content = children.iter().position(
+                |c| !matches!(c, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data)),
+            );
+            let last_content = children.iter().rposition(
+                |c| !matches!(c, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data)),
+            );
 
             let mut has_output_content = false;
             let mut is_first_content = true;
@@ -675,7 +678,7 @@ impl<'a> ServerCodeGenerator<'a> {
             for (i, child) in children.iter().enumerate() {
                 if let TemplateNode::Text(text) = *child {
                     let data = &text.data;
-                    if data.trim().is_empty() {
+                    if is_svelte_whitespace_only(data) {
                         if can_remove_whitespace {
                             continue;
                         }
@@ -694,9 +697,9 @@ impl<'a> ServerCodeGenerator<'a> {
                     if is_first_content {
                         let is_last = last_content.is_some() && i == last_content.unwrap();
                         let trimmed = if is_last {
-                            data.trim()
+                            svelte_trim(data)
                         } else {
-                            data.trim_start()
+                            svelte_trim_start(data)
                         };
                         if !trimmed.is_empty() {
                             let collapsed = collapse_whitespace(trimmed);
@@ -710,7 +713,7 @@ impl<'a> ServerCodeGenerator<'a> {
 
                     // Handle last content text node - trim trailing whitespace
                     if last_content.is_some() && i == last_content.unwrap() {
-                        let trimmed = data.trim_end();
+                        let trimmed = svelte_trim_end(data);
                         if !trimmed.is_empty() {
                             let collapsed = collapse_whitespace(trimmed);
                             self.output_parts
@@ -1438,7 +1441,7 @@ impl<'a> ServerCodeGenerator<'a> {
                         .filter(|p| matches!(p, AttributeValuePart::ExpressionTag(_)))
                         .count();
                     let all_text_is_whitespace = parts.iter().all(|p| match p {
-                        AttributeValuePart::Text(t) => t.data.trim().is_empty(),
+                        AttributeValuePart::Text(t) => is_svelte_whitespace_only(&t.data),
                         _ => true,
                     });
                     if expr_count == 1

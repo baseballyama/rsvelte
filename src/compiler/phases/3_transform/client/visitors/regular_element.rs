@@ -34,6 +34,7 @@ use crate::compiler::phases::phase3_transform::client::visitors::transition_dire
 use crate::compiler::phases::phase3_transform::client::visitors::use_directive::use_directive;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::{JsExpr, JsLiteral, JsStatement};
+use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
 use crate::compiler::phases::phase3_transform::utils::{
     clean_nodes, determine_namespace_for_children,
 };
@@ -1416,7 +1417,7 @@ fn is_customizable_select_element(node: &RegularElementNode) -> bool {
                     // Text nodes directly in <select> or <optgroup> are rich content
                     // (only if non-empty after trim)
                     if (node.name == "select" || node.name == "optgroup")
-                        && !text.data.trim().is_empty()
+                        && !is_svelte_whitespace_only(&text.data)
                     {
                         return true;
                     }
@@ -1457,7 +1458,7 @@ fn find_descendants_recursive(nodes: &[TemplateNode], result: &mut Vec<TemplateN
 
             // Text nodes: yield if non-whitespace
             TemplateNode::Text(text) => {
-                if !text.data.trim().is_empty() {
+                if !is_svelte_whitespace_only(&text.data) {
                     result.push(node.clone());
                 }
             }

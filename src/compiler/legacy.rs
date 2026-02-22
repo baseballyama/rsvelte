@@ -32,9 +32,10 @@ use crate::ast::{
 
 // Regex patterns for whitespace handling
 static REGEX_STARTS_WITH_WHITESPACE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"^\s+").unwrap());
-static REGEX_ENDS_WITH_WHITESPACE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s+$").unwrap());
-static REGEX_NOT_WHITESPACE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\S").unwrap());
+    LazyLock::new(|| Regex::new(r"^[ \t\r\n]+").unwrap());
+static REGEX_ENDS_WITH_WHITESPACE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"[ \t\r\n]+$").unwrap());
+static REGEX_NOT_WHITESPACE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[^ \t\r\n]").unwrap());
 
 /// Converter from UTF-8 byte positions to UTF-16 code unit positions.
 struct Utf8ToUtf16 {

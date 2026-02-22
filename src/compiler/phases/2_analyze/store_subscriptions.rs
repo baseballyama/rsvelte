@@ -335,6 +335,72 @@ fn collect_dollar_refs_from_script_with_context(
     collect_dollar_identifiers_from_js_with_context(content, start, refs, in_module);
 }
 
+/// Check if a `$xxx` identifier at position `ident_end` in `chars` is being
+/// used as a function parameter declaration.
+///
+/// Returns true if:
+/// - It's immediately followed by `=>` (arrow function: `$x => ...`)
+/// - It's preceded (ignoring whitespace) by `(` or `,` AND followed by `)` or `,` or `=>`
+///
+/// This is a heuristic to avoid creating StoreSub bindings for function parameters
+/// like `($count) => $count * 2` in `derived(store, $count => ...)`.
+fn is_dollar_ident_parameter(chars: &[char], ident_start: usize, ident_end: usize) -> bool {
+    let len = chars.len();
+
+    // Check what comes after the identifier (skip whitespace)
+    let mut j = ident_end;
+    while j < len && (chars[j] == ' ' || chars[j] == '\t') {
+        j += 1;
+    }
+
+    // Case 1: `$x => ...` - direct arrow function parameter
+    if j + 1 < len && chars[j] == '=' && chars[j + 1] == '>' {
+        return true;
+    }
+
+    // Case 2: `($x)`, `($x, ...)`, `(..., $x)` - parenthesized parameter
+    // Check if preceded by '(' or ',' (ignoring whitespace)
+    if ident_start > 0 {
+        let mut k = ident_start as isize - 1;
+        while k >= 0 && (chars[k as usize] == ' ' || chars[k as usize] == '\t') {
+            k -= 1;
+        }
+        if k >= 0 && (chars[k as usize] == '(' || chars[k as usize] == ',') {
+            // Also check what follows: should be `)`, `,`, or `=>`
+            // (avoid false positives in function calls like `derived(store, $count)`)
+            if j < len && (chars[j] == ')' || chars[j] == ',') {
+                // Look ahead more to check if this is indeed a function parameter list
+                // followed by `=>` rather than just a function call argument
+                let mut paren_depth = 0i32;
+                let mut m = j;
+                while m < len {
+                    match chars[m] {
+                        '(' => paren_depth += 1,
+                        ')' => {
+                            if paren_depth == 0 {
+                                // Found the closing paren - check if followed by =>
+                                let mut n = m + 1;
+                                while n < len && (chars[n] == ' ' || chars[n] == '\t') {
+                                    n += 1;
+                                }
+                                if n + 1 < len && chars[n] == '=' && chars[n + 1] == '>' {
+                                    return true;
+                                }
+                                break;
+                            }
+                            paren_depth -= 1;
+                        }
+                        _ => {}
+                    }
+                    m += 1;
+                }
+            }
+        }
+    }
+
+    false
+}
+
 /// Collect $xxx identifiers from a JavaScript string with context.
 fn collect_dollar_identifiers_from_js_with_context(
     js: &str,
@@ -380,11 +446,16 @@ fn collect_dollar_identifiers_from_js_with_context(
                 // Only add if we have more than just $
                 // (bare $ detection is handled separately via proper AST analysis)
                 if ident.len() > 1 {
-                    refs.push(StoreRef {
-                        name: ident,
-                        position: base_offset + ident_start,
-                        in_module,
-                    });
+                    // Skip if this dollar identifier is used as a function parameter
+                    // (e.g., `$count => $count * 2` or `($count) => ...`)
+                    // Such uses are NOT store subscriptions - they're local parameter names.
+                    if !is_dollar_ident_parameter(&chars, ident_start, i) {
+                        refs.push(StoreRef {
+                            name: ident,
+                            position: base_offset + ident_start,
+                            in_module,
+                        });
+                    }
                 }
                 continue;
             }

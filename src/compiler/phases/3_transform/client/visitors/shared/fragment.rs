@@ -10,6 +10,7 @@ use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_template_chunk;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
+use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
 
 /// NON_STATIC_PROPERTIES - properties that cannot be set statically
 const NON_STATIC_PROPERTIES: &[&str] = &["autofocus", "muted", "defaultValue", "defaultChecked"];
@@ -537,7 +538,7 @@ fn push_static_element_to_template(node: &TemplateNode, template: &mut Template,
                 .nodes
                 .iter()
                 .filter(|n| {
-                    !matches!(n, TemplateNode::Text(t) if t.data.trim().is_empty())
+                    !matches!(n, TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data))
                         && !matches!(n, TemplateNode::Comment(_))
                 })
                 .collect();
@@ -591,7 +592,7 @@ fn is_customizable_select_element(node: &RegularElement) -> bool {
                     // Text nodes directly in <select> or <optgroup> are rich content
                     // (only if non-empty after trim)
                     if (node.name == "select" || node.name == "optgroup")
-                        && !text.data.trim().is_empty()
+                        && !is_svelte_whitespace_only(&text.data)
                     {
                         return true;
                     }
@@ -626,7 +627,7 @@ fn find_descendants_recursive(nodes: &[TemplateNode], result: &mut Vec<TemplateN
 
             // Text nodes: yield if non-whitespace
             TemplateNode::Text(text) => {
-                if !text.data.trim().is_empty() {
+                if !is_svelte_whitespace_only(&text.data) {
                     result.push(node.clone());
                 }
             }

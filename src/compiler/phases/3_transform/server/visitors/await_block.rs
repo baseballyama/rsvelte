@@ -5,6 +5,7 @@ use super::super::helpers::trim_output_parts;
 use super::super::types::OutputPart;
 use crate::ast::template::{AwaitBlock, KeyBlock, TemplateNode};
 use crate::compiler::phases::phase3_transform::TransformError;
+use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
 
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn generate_await_block(
@@ -141,7 +142,7 @@ impl<'a> ServerCodeGenerator<'a> {
         for node in &block.fragment.nodes {
             // Skip whitespace-only text nodes in key block
             if let TemplateNode::Text(text) = node
-                && text.data.trim().is_empty()
+                && is_svelte_whitespace_only(&text.data)
             {
                 continue;
             }

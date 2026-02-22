@@ -381,6 +381,8 @@ pub fn normalize_js(js: &str) -> String {
         static ref COMPUTED_STRING_PROP: Regex = Regex::new(r"\[('(?:[^'\\]|\\.)*')\]").unwrap();
         // Normalize unicode escapes to characters: \u{73} -> s, \u{41} -> A, etc.
         static ref UNICODE_ESCAPE: Regex = Regex::new(r"\\u\{([0-9a-fA-F]+)\}").unwrap();
+        // Normalize hex escapes \xNN to characters: \xA0 -> literal non-breaking space, etc.
+        static ref HEX_ESCAPE: Regex = Regex::new(r"\\x([0-9a-fA-F]{2})").unwrap();
         // Normalize ?? '' (nullish coalescing to empty string) - this is a common safety
         // pattern the official compiler adds for template text content. Both `expr ?? ''`
         // and `expr` are semantically equivalent for display purposes.
@@ -521,16 +523,16 @@ pub fn normalize_js(js: &str) -> String {
         let mut changed = true;
         while changed {
             changed = false;
-            let bytes = out.as_bytes();
             let mut new_out = String::with_capacity(out.len());
             let mut i = 0;
-            while i < bytes.len() {
+            while i < out.len() {
                 // Look for pattern `($.`
-                if i + 2 < bytes.len()
-                    && bytes[i] == b'('
-                    && bytes[i + 1] == b'$'
-                    && bytes[i + 2] == b'.'
+                if i + 2 < out.len()
+                    && out.as_bytes()[i] == b'('
+                    && out.as_bytes()[i + 1] == b'$'
+                    && out.as_bytes()[i + 2] == b'.'
                 {
+                    let bytes = out.as_bytes();
                     // Find matching closing paren for the outer `(`
                     let mut depth = 1;
                     let mut j = i + 1;
@@ -553,8 +555,10 @@ pub fn normalize_js(js: &str) -> String {
                         continue;
                     }
                 }
-                new_out.push(bytes[i] as char);
-                i += 1;
+                // Use proper UTF-8 char decoding instead of byte-as-char to preserve multi-byte chars
+                let ch = out[i..].chars().next().unwrap();
+                new_out.push(ch);
+                i += ch.len_utf8();
             }
             out = new_out;
         }
@@ -641,6 +645,20 @@ pub fn normalize_js(js: &str) -> String {
 
     // Normalize unicode escapes to their character equivalents
     let result = UNICODE_ESCAPE
+        .replace_all(&result, |caps: &regex::Captures| {
+            let hex = &caps[1];
+            if let Ok(code_point) = u32::from_str_radix(hex, 16)
+                && let Some(c) = char::from_u32(code_point)
+            {
+                return c.to_string();
+            }
+            caps[0].to_string()
+        })
+        .to_string();
+
+    // Normalize hex escapes (\xNN) to their character equivalents: \xA0 -> literal non-breaking space
+    // OXC codegen may output non-ASCII chars as \xNN while the official compiler outputs them literally
+    let result = HEX_ESCAPE
         .replace_all(&result, |caps: &regex::Captures| {
             let hex = &caps[1];
             if let Ok(code_point) = u32::from_str_radix(hex, 16)
@@ -747,8 +765,10 @@ fn normalize_sequence_expression_parens(code: &str) -> String {
                 }
             }
         }
-        result.push(bytes[i] as char);
-        i += 1;
+        // Use proper UTF-8 char decoding instead of byte-as-char to preserve multi-byte chars
+        let ch = code[i..].chars().next().unwrap();
+        result.push(ch);
+        i += ch.len_utf8();
     }
 
     result
@@ -3311,4 +3331,18 @@ fn test_normalize_parenthesized_arrow() {
     let with_parens = "$.get(checked) ? (() => { $.update(count); }) : undefined";
     let without_parens = "$.get(checked) ? () => { $.update(count); } : undefined";
     assert_eq!(normalize_js(with_parens), normalize_js(without_parens));
+}
+
+#[test]
+fn test_normalize_js_nbsp_hex_escape() {
+    // Test that \xA0 escape in actual output matches literal \u{00A0} in expected output
+    // OXC codegen outputs non-ASCII chars as \xNN escape sequences, while the official
+    // Svelte compiler outputs them as literal UTF-8 bytes. Both should normalize to the same.
+    let actual = "div.textContent = '\\xA0hello';";
+    let expected = "div.textContent = '\u{00A0}hello';";
+    assert_eq!(
+        normalize_js(actual),
+        normalize_js(expected),
+        "normalize_js should make \\xA0 equal to literal U+00A0"
+    );
 }

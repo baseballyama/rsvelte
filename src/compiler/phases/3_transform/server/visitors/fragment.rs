@@ -5,6 +5,7 @@ use super::super::types::OutputPart;
 use crate::ast::template::{Fragment, TemplateNode};
 use crate::compiler::phases::phase3_transform::TransformError;
 use crate::compiler::phases::phase3_transform::shared::escape_html;
+use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
 
 impl<'a> ServerCodeGenerator<'a> {
     /// Generate body parts from a fragment.
@@ -42,7 +43,7 @@ impl<'a> ServerCodeGenerator<'a> {
         let mut start_idx = 0;
         while start_idx < len {
             match nodes[start_idx] {
-                TemplateNode::Text(text) if text.data.trim().is_empty() => {
+                TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
                     start_idx += 1;
                     continue;
                 }
@@ -58,7 +59,7 @@ impl<'a> ServerCodeGenerator<'a> {
         let mut end_idx = len;
         while end_idx > start_idx {
             match nodes[end_idx - 1] {
-                TemplateNode::Text(text) if text.data.trim().is_empty() => {
+                TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
                     end_idx -= 1;
                     continue;
                 }
@@ -109,7 +110,7 @@ impl<'a> ServerCodeGenerator<'a> {
             // Skip whitespace-only text nodes after ConstTag
             if prev_was_const_tag
                 && let TemplateNode::Text(text) = node
-                && text.data.trim().is_empty()
+                && is_svelte_whitespace_only(&text.data)
             {
                 prev_was_const_tag = false;
                 continue;
@@ -172,7 +173,7 @@ impl<'a> ServerCodeGenerator<'a> {
 
         while start_idx < len {
             match nodes[start_idx] {
-                TemplateNode::Text(text) if text.data.trim().is_empty() => {
+                TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
                     start_idx += 1;
                     continue;
                 }
@@ -186,7 +187,7 @@ impl<'a> ServerCodeGenerator<'a> {
 
         while end_idx > start_idx {
             match nodes[end_idx - 1] {
-                TemplateNode::Text(text) if text.data.trim().is_empty() => {
+                TemplateNode::Text(text) if is_svelte_whitespace_only(&text.data) => {
                     end_idx -= 1;
                     continue;
                 }
