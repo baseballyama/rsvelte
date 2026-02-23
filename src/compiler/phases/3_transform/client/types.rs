@@ -1208,6 +1208,10 @@ pub struct ComponentClientTransformState<'a> {
     /// enabling should_proxy() to trace through local identifier references.
     /// Uses a Vec stack of HashMaps to support nested scopes.
     pub local_var_init_types: Vec<FxHashMap<String, String>>,
+
+    /// Counter for generating unique `$$array` variable names in destructure assignment IIFEs.
+    /// Corresponds to `context.state.scope.generate('$$array')` in the official compiler.
+    pub destructure_array_counter: usize,
 }
 
 /// Context information for generating bindings inside each blocks.
@@ -1326,7 +1330,20 @@ impl<'a> ComponentClientTransformState<'a> {
             each_item_names: Vec::new(),
             each_binding_context: Vec::new(),
             local_var_init_types: Vec::new(),
+            destructure_array_counter: 0,
         }
+    }
+
+    /// Generate a unique `$$array` name for destructure assignment IIFEs.
+    /// First call returns `$$array`, subsequent calls return `$$array_1`, `$$array_2`, etc.
+    pub fn generate_array_name(&mut self) -> String {
+        let name = if self.destructure_array_counter == 0 {
+            "$$array".to_string()
+        } else {
+            format!("$$array_{}", self.destructure_array_counter)
+        };
+        self.destructure_array_counter += 1;
+        name
     }
 
     /// Get a binding by name from the current scope or parent scopes.

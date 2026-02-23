@@ -1765,6 +1765,24 @@ fn convert_assignment_expression(
 ) -> JsExpr {
     let operator_str = obj.get("operator").and_then(|o| o.as_str()).unwrap_or("=");
 
+    // Check if the LHS is a destructuring pattern (ArrayPattern or ObjectPattern).
+    // If so, we need to decompose it into individual assignments and potentially
+    // wrap in an IIFE with $.to_array() calls.
+    // This corresponds to visit_assignment_expression in shared/assignments.js.
+    if let Some(left_val) = obj.get("left") {
+        let left_type = left_val
+            .as_object()
+            .and_then(|o| o.get("type"))
+            .and_then(|t| t.as_str())
+            .unwrap_or("");
+
+        if matches!(left_type, "ArrayPattern" | "ObjectPattern" | "RestElement")
+            && let Some(result) = try_destructure_assignment(left_val, obj.get("right"), context)
+        {
+            return result;
+        }
+    }
+
     let operator = match operator_str {
         "=" => JsAssignmentOp::Assign,
         "+=" => JsAssignmentOp::AddAssign,
@@ -1951,6 +1969,392 @@ fn try_transform_assignment(
             b::id(&root_name)
         };
         return Some(mutate_fn(node_id, mutation_expr));
+    }
+
+    None
+}
+
+// ============================================================================
+// Destructure assignment handling
+// ============================================================================
+
+/// A decomposed path from a destructuring pattern.
+/// Represents a single assignment target extracted from a pattern like `[a, b]` or `{x, y}`.
+struct DestructuredPath {
+    /// The target node (Identifier or MemberExpression) as JSON
+    node: Value,
+    /// The expression to access this value from the RHS (e.g., `$$value.x` or `$$array[0]`)
+    expression: JsExpr,
+}
+
+/// An intermediate array variable inserted for array destructuring.
+/// Represents `var $$array = $.to_array(expression, length)`.
+struct ArrayInsert {
+    /// The generated variable name (e.g., `$$array`, `$$array_1`)
+    id: String,
+    /// The `$.to_array(...)` call expression
+    value: JsExpr,
+}
+
+/// Try to handle a destructuring assignment expression.
+///
+/// When the LHS is an ArrayPattern or ObjectPattern, this decomposes the destructure
+/// into individual assignments and checks if any target has a reactive transform.
+/// If so, generates an IIFE (Immediately Invoked Function Expression) pattern.
+///
+/// This corresponds to `visit_assignment_expression` in
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/shared/assignments.js`.
+fn try_destructure_assignment(
+    left_json: &Value,
+    right_json: Option<&Value>,
+    context: &mut ComponentContext,
+) -> Option<JsExpr> {
+    use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
+    // Convert the RHS expression
+    let rhs_converted = right_json.map(|r| convert_json_value(r, context))?;
+
+    // Determine if we need a cache variable ($$value)
+    let should_cache = !matches!(&rhs_converted, JsExpr::Identifier(_));
+    let rhs_ref = if should_cache {
+        b::id("$$value")
+    } else {
+        rhs_converted.clone()
+    };
+
+    // Extract paths from the destructuring pattern
+    let mut inserts: Vec<ArrayInsert> = Vec::new();
+    let mut paths: Vec<DestructuredPath> = Vec::new();
+    extract_destructure_paths(&mut paths, &mut inserts, left_json, &rhs_ref, context);
+
+    // For each path, try to build a reactive assignment
+    let mut changed = false;
+    let mut assignments: Vec<JsExpr> = Vec::new();
+
+    for path in &paths {
+        if let Some(assignment) = try_build_single_assignment(path, context) {
+            changed = true;
+            assignments.push(assignment);
+        } else {
+            // No reactive transform needed - generate a normal assignment
+            let target = convert_json_value(&path.node, context);
+            assignments.push(b::assign(target, path.expression.clone()));
+        }
+    }
+
+    if !changed {
+        // No reactive transforms were needed - return None to fall through to normal handling
+        return None;
+    }
+
+    // Determine if the assignment is standalone (an ExpressionStatement)
+    // In the official compiler, this is checked via `context.path.at(-1).type.endsWith('Statement')`
+    // For our purposes, we assume it's standalone if we're in a statement position.
+    // We use a heuristic: if should_cache is true (non-identifier RHS) or has inserts,
+    // we always generate the IIFE form.
+
+    if !inserts.is_empty() || should_cache {
+        // Generate IIFE: (($$value) => { var $$array = ...; assignments; })(rhs)
+        // or (($$value) => { var $$array = ...; assignments; return $$value; })(rhs)
+        let mut statements: Vec<JsStatement> = Vec::new();
+
+        // Add array insert declarations
+        for insert in &inserts {
+            statements.push(JsStatement::VariableDeclaration(JsVariableDeclaration {
+                kind: JsVariableKind::Var,
+                declarations: vec![JsVariableDeclarator {
+                    id: JsPattern::Identifier(insert.id.clone()),
+                    init: Some(Box::new(insert.value.clone())),
+                }],
+            }));
+        }
+
+        // Add assignment statements
+        for assignment in &assignments {
+            statements.push(JsStatement::Expression(JsExpressionStatement {
+                expression: Box::new(assignment.clone()),
+            }));
+        }
+
+        // Note: The official compiler adds `return $$value` when the assignment is NOT standalone
+        // (i.e., used as part of a larger expression). We add it unconditionally when
+        // the expression is part of a sequence or similar context.
+        // For now, we don't add the return - most destructure assignments are standalone.
+        // If needed, the caller can detect non-standalone context.
+
+        let arrow = b::arrow_block(
+            vec![JsPattern::Identifier("$$value".to_string())],
+            statements,
+        );
+        return Some(b::call(arrow, vec![rhs_converted]));
+    }
+
+    // No inserts and no cache needed: generate sequence expression
+    // (assignment1, assignment2, ...)
+    if assignments.len() == 1 {
+        return Some(assignments.into_iter().next().unwrap());
+    }
+
+    Some(JsExpr::Sequence(JsSequenceExpression {
+        expressions: assignments,
+    }))
+}
+
+/// Extract destructured assignment paths from a JSON pattern node.
+///
+/// This recursively decomposes `ArrayPattern`, `ObjectPattern`, and `AssignmentPattern`
+/// nodes into individual `DestructuredPath` entries, each representing a single assignment target.
+///
+/// Corresponds to `_extract_paths` in `svelte/packages/svelte/src/compiler/utils/ast.js`.
+fn extract_destructure_paths(
+    paths: &mut Vec<DestructuredPath>,
+    inserts: &mut Vec<ArrayInsert>,
+    param: &Value,
+    expression: &JsExpr,
+    context: &mut ComponentContext,
+) {
+    use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
+    let obj = match param.as_object() {
+        Some(o) => o,
+        None => return,
+    };
+    let node_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+
+    match node_type {
+        "Identifier" | "MemberExpression" => {
+            paths.push(DestructuredPath {
+                node: param.clone(),
+                expression: expression.clone(),
+            });
+        }
+
+        "ObjectPattern" => {
+            if let Some(properties) = obj.get("properties").and_then(|p| p.as_array()) {
+                for prop in properties {
+                    let prop_obj = match prop.as_object() {
+                        Some(o) => o,
+                        None => continue,
+                    };
+                    let prop_type = prop_obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+
+                    if prop_type == "RestElement" {
+                        // Rest element: { ...rest } = obj
+                        // Generate: $.exclude_from_object(expression, [keys...])
+                        let mut key_literals: Vec<JsExpr> = Vec::new();
+                        for p in properties {
+                            if let Some(p_obj) = p.as_object() {
+                                let p_type =
+                                    p_obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                                if p_type == "Property"
+                                    && let Some(key) = p_obj.get("key").and_then(|k| k.as_object())
+                                {
+                                    let key_type =
+                                        key.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                                    let computed = p_obj
+                                        .get("computed")
+                                        .and_then(|c| c.as_bool())
+                                        .unwrap_or(false);
+
+                                    if key_type == "Identifier" && !computed {
+                                        if let Some(name) = key.get("name").and_then(|n| n.as_str())
+                                        {
+                                            key_literals.push(b::string(name));
+                                        }
+                                    } else if key_type == "Literal" {
+                                        if let Some(val) = key.get("value") {
+                                            if let Some(s) = val.as_str() {
+                                                key_literals.push(b::string(s));
+                                            } else if let Some(n) = val.as_f64() {
+                                                key_literals.push(b::string(n.to_string()));
+                                            }
+                                        }
+                                    } else {
+                                        // Computed key: String(key)
+                                        let key_expr = convert_json_value(
+                                            &Value::Object(key.clone()),
+                                            context,
+                                        );
+                                        key_literals.push(b::call(b::id("String"), vec![key_expr]));
+                                    }
+                                }
+                            }
+                        }
+
+                        let rest_expr = b::call(
+                            b::member_path("$.exclude_from_object"),
+                            vec![expression.clone(), b::array(key_literals)],
+                        );
+
+                        if let Some(argument) = prop_obj.get("argument") {
+                            extract_destructure_paths(
+                                paths, inserts, argument, &rest_expr, context,
+                            );
+                        }
+                    } else {
+                        // Regular property: { key: value } = obj
+                        let key = prop_obj.get("key");
+                        let computed = prop_obj
+                            .get("computed")
+                            .and_then(|c| c.as_bool())
+                            .unwrap_or(false);
+
+                        let member_expr = if let Some(key_val) = key {
+                            let key_obj = key_val.as_object();
+                            let key_type = key_obj
+                                .and_then(|k| k.get("type"))
+                                .and_then(|t| t.as_str())
+                                .unwrap_or("");
+
+                            if key_type == "Identifier" && !computed {
+                                // obj.key
+                                let name = key_obj
+                                    .and_then(|k| k.get("name"))
+                                    .and_then(|n| n.as_str())
+                                    .unwrap_or("unknown");
+                                b::member(expression.clone(), name)
+                            } else {
+                                // obj[key] (computed or literal)
+                                let key_expr = convert_json_value(key_val, context);
+                                b::member_computed(expression.clone(), key_expr)
+                            }
+                        } else {
+                            expression.clone()
+                        };
+
+                        let value = prop_obj.get("value").unwrap_or(param);
+                        extract_destructure_paths(paths, inserts, value, &member_expr, context);
+                    }
+                }
+            }
+        }
+
+        "ArrayPattern" => {
+            let elements = obj
+                .get("elements")
+                .and_then(|e| e.as_array())
+                .cloned()
+                .unwrap_or_default();
+
+            // Check if the last element is a RestElement
+            let has_rest = elements
+                .last()
+                .and_then(|e| if e.is_null() { None } else { e.as_object() })
+                .and_then(|o| o.get("type"))
+                .and_then(|t| t.as_str())
+                == Some("RestElement");
+
+            // Generate intermediate array variable: var $$array = $.to_array(expression, length)
+            let array_name = context.state.generate_array_name();
+            let array_id = b::id(&array_name);
+
+            let to_array_args = if has_rest {
+                vec![expression.clone()]
+            } else {
+                vec![expression.clone(), b::number(elements.len() as f64)]
+            };
+
+            inserts.push(ArrayInsert {
+                id: array_name.clone(),
+                value: b::call(b::member_path("$.to_array"), to_array_args),
+            });
+
+            for (i, element) in elements.iter().enumerate() {
+                if element.is_null() {
+                    continue; // Skip holes in array patterns
+                }
+
+                let elem_obj = match element.as_object() {
+                    Some(o) => o,
+                    None => continue,
+                };
+                let elem_type = elem_obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+
+                if elem_type == "RestElement" {
+                    // ...rest = array.slice(i)
+                    let rest_expr = b::call(
+                        b::member(array_id.clone(), "slice"),
+                        vec![b::number(i as f64)],
+                    );
+
+                    if let Some(argument) = elem_obj.get("argument") {
+                        extract_destructure_paths(paths, inserts, argument, &rest_expr, context);
+                    }
+                } else {
+                    // element = array[i]
+                    let index_expr = b::member_computed(array_id.clone(), b::number(i as f64));
+                    extract_destructure_paths(paths, inserts, element, &index_expr, context);
+                }
+            }
+        }
+
+        "AssignmentPattern" => {
+            // Default value: { x = defaultValue } or [x = defaultValue]
+            // Generate: expression === undefined ? defaultValue : expression
+            let left = obj.get("left");
+            let right = obj.get("right");
+
+            if let (Some(left_val), Some(right_val)) = (left, right) {
+                let default_val = convert_json_value(right_val, context);
+                let fallback_expr = b::conditional(
+                    b::binary_str("===", expression.clone(), b::id("undefined")),
+                    default_val,
+                    expression.clone(),
+                );
+                extract_destructure_paths(paths, inserts, left_val, &fallback_expr, context);
+            }
+        }
+
+        _ => {}
+    }
+}
+
+/// Try to build a single reactive assignment from a destructured path.
+///
+/// This checks if the target identifier has a reactive transform (assign or mutate)
+/// and generates the appropriate call ($.set(), $.mutate(), $.store_set(), etc.).
+///
+/// Returns `None` if no reactive transform is needed (plain variable).
+fn try_build_single_assignment(
+    path: &DestructuredPath,
+    context: &mut ComponentContext,
+) -> Option<JsExpr> {
+    use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
+    let node_obj = path.node.as_object()?;
+    let node_type = node_obj.get("type").and_then(|t| t.as_str())?;
+
+    // Extract the root identifier name from the target
+    let root_name = extract_root_identifier_from_json(&path.node)?;
+
+    // Check if there's a transform for this identifier and copy the function pointers
+    // we need before any mutable borrows
+    let transform = context.state.transform.get(&root_name)?;
+    let assign_fn = transform.assign;
+    let mutate_fn = transform.mutate;
+    let replacement_id = transform.replacement_id.clone();
+
+    if node_type == "Identifier"
+        && root_name == node_obj.get("name").and_then(|n| n.as_str()).unwrap_or("")
+    {
+        // Direct identifier assignment: x = value -> $.set(x, value)
+        if let Some(assign_fn) = assign_fn {
+            // For destructure assignments, we don't need proxy (always using "=" operator)
+            return Some(assign_fn(b::id(&root_name), path.expression.clone(), false));
+        }
+    } else {
+        // Member expression assignment: obj.prop = value -> $.mutate(obj, obj.prop = value)
+        if let Some(mutate_fn) = mutate_fn {
+            let target = convert_json_value(&path.node, context);
+            let mutation_expr = b::assign(target, path.expression.clone());
+
+            let node_id = if let Some(ref replacement) = replacement_id {
+                b::id(replacement)
+            } else {
+                b::id(&root_name)
+            };
+            return Some(mutate_fn(node_id, mutation_expr));
+        }
     }
 
     None

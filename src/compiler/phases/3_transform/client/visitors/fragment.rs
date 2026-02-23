@@ -177,6 +177,7 @@ pub fn fragment(
         each_item_names: context.state.each_item_names.clone(),
         each_binding_context: context.state.each_binding_context.clone(),
         local_var_init_types: Vec::new(),
+        destructure_array_counter: context.state.destructure_array_counter,
     };
 
     // Swap context.state with our local state so that process_children uses it

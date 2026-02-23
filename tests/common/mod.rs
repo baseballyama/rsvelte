@@ -213,9 +213,9 @@ fn normalize_generated_var_names(code: &str) -> String {
         static ref VAR_WITH_SUFFIX: Regex = Regex::new(
             r"\b(node|text|button|div|span|p|a|input|form|fragment|consequent|alternate|each|if_block|component|each_array|snippets|spread_props)_(\d+)\b"
         ).unwrap();
-        // Separate pattern for $$index_N and $$length_N (no word boundary before $$)
+        // Separate pattern for $$index_N, $$length_N, and $$array_N (no word boundary before $$)
         static ref DOLLAR_VAR_WITH_SUFFIX: Regex = Regex::new(
-            r"(\$\$index|\$\$length)_(\d+)"
+            r"(\$\$index|\$\$length|\$\$array)_(\d+)"
         ).unwrap();
     }
 
@@ -333,8 +333,8 @@ pub fn normalize_js(js: &str) -> String {
         static ref FUNCTION_NAME: Regex = Regex::new(r"(?m)^export default function \w+\(").unwrap();
         // Normalize $.comment() and $.text() to $.marker() (both serve as markers)
         static ref MARKER_FN: Regex = Regex::new(r"\$\.(comment|text)\(\)").unwrap();
-        // Separately handle $$index_N and $$length patterns (can't use \b with $)
-        static ref INDEX_SUFFIX: Regex = Regex::new(r"\$\$(index|length)_(\d+)").unwrap();
+        // Separately handle $$index_N, $$length_N, and $$array_N patterns (can't use \b with $)
+        static ref INDEX_SUFFIX: Regex = Regex::new(r"\$\$(index|length|array)_(\d+)").unwrap();
         // Normalize $$body_N patterns to $$body (SSR textarea content variables)
         static ref BODY_SUFFIX: Regex = Regex::new(r"\$\$body_(\d+)").unwrap();
         // Normalize "function (" to "function("

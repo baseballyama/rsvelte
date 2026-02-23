@@ -1471,6 +1471,8 @@ fn transform_instance_script_for_visitors(
     ARRAY_LOOKUP_COUNTER.with(|c| c.set(0));
     // Reset the tmp counter for $state destructuring
     STATE_TMP_COUNTER.with(|c| c.set(0));
+    // Reset the destructure assignment array counter
+    DESTRUCTURE_ARRAY_COUNTER.with(|c| c.set(0));
 
     // First, transform class fields with $state and $derived
     let script = transform_class_fields_client(script);
@@ -1967,6 +1969,14 @@ fn transform_instance_script_for_visitors(
         if transformed.trim().is_empty() {
             return;
         }
+
+        // Transform destructure assignments targeting reactive variables into IIFE patterns.
+        // This must run BEFORE transform_state_assignments and transform_member_mutations
+        // because it decomposes destructure patterns into individual assignments that those
+        // transforms can then process.
+        // Corresponds to visit_assignment_expression in shared/assignments.js.
+        let transformed =
+            transform_destructure_assignments(&transformed, state_vars, store_sub_vars);
 
         // Transform state variable assignments to $.set()
         let transformed = transform_state_assignments(
@@ -12113,6 +12123,659 @@ fn unthunk_string(expr: &str) -> String {
 
     // No optimization possible, wrap in arrow
     format!("() => {}", expr)
+}
+
+/// Transform destructuring assignment expressions targeting reactive variables
+/// into IIFE patterns.
+///
+/// Handles:
+/// - Array destructure: `[a, b] = [expr1, expr2]` -> IIFE with `$.to_array()`
+/// - Object destructure: `({a, b} = obj)` -> IIFE with individual assignments
+///
+/// The generated IIFE decomposes the destructure into individual assignments
+/// which are then processed by `transform_state_assignments` (for `$.set()`)
+/// and `transform_member_mutations` (for `$.mutate()`).
+///
+/// This runs BEFORE other assignment transforms in the pipeline.
+///
+/// Corresponds to `visit_assignment_expression` in
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/shared/assignments.js`.
+fn transform_destructure_assignments(
+    statement: &str,
+    state_vars: &[String],
+    store_sub_vars: &[String],
+) -> String {
+    let mut result = statement.to_string();
+
+    // Process the statement, looking for destructure assignments.
+    // We scan for patterns and replace them with IIFEs.
+    while let Some(transformed) =
+        find_and_transform_one_destructure(&result, state_vars, store_sub_vars)
+    {
+        result = transformed;
+    }
+
+    result
+}
+
+// Counter for generating unique $$array names in the string-based pipeline.
+// Uses thread-local storage since the transform functions are called in sequence.
+thread_local! {
+    static DESTRUCTURE_ARRAY_COUNTER: Cell<usize> = const { Cell::new(0) };
+}
+
+/// Find and transform one destructure assignment in the statement.
+/// Returns `Some(transformed)` if a destructure was found and transformed,
+/// or `None` if no more destructures to transform.
+fn find_and_transform_one_destructure(
+    statement: &str,
+    state_vars: &[String],
+    store_sub_vars: &[String],
+) -> Option<String> {
+    let chars: Vec<char> = statement.chars().collect();
+    let len = chars.len();
+
+    // Scan for `] =` or `} =` patterns that indicate destructure assignments.
+    // We need to be careful to avoid:
+    // - Already-transformed IIFE patterns ($.to_array, $.set, etc.)
+    // - Regular object/array literals on the RHS of assignments
+    // - Patterns inside strings or comments
+
+    let mut i = 0;
+    let mut in_string: Option<char> = None;
+
+    while i < len {
+        let c = chars[i];
+
+        // Track string boundaries
+        if in_string.is_none() {
+            if c == '\'' || c == '"' || c == '`' {
+                in_string = Some(c);
+                i += 1;
+                continue;
+            }
+        } else if Some(c) == in_string && (i == 0 || chars[i - 1] != '\\') {
+            in_string = None;
+            i += 1;
+            continue;
+        }
+
+        if in_string.is_some() {
+            i += 1;
+            continue;
+        }
+
+        // Look for `] =` or `} =` (possibly with spaces)
+        // But NOT `]= ` or `]=` (without space before =, which could be another pattern)
+        if (c == ']' || c == '}') && i + 1 < len {
+            // Find the `=` after the bracket
+            let mut j = i + 1;
+            while j < len && chars[j] == ' ' {
+                j += 1;
+            }
+            if j < len && chars[j] == '=' && (j + 1 >= len || chars[j + 1] != '=') {
+                // Found a potential destructure assignment
+                // Find the matching opening bracket
+                let close_bracket = c;
+                let open_bracket = if c == ']' { '[' } else { '{' };
+
+                // Walk backwards from position `i` to find the matching open bracket
+                if let Some(pattern_start) =
+                    find_matching_open_bracket(statement, i, open_bracket, close_bracket)
+                {
+                    // Check if this is a destructure we should transform
+                    let pattern_str = &statement[pattern_start..=i];
+                    let rhs_start = j + 1; // after the `=`
+
+                    // For array patterns `[...]`, check if the `[` is a member access rather than a
+                    // destructure pattern. If the char before `[` is an identifier char, `)`, or `]`,
+                    // this is a member expression like `arr[idx] = value`, not `[target] = rhs`.
+                    if open_bracket == '[' && pattern_start > 0 {
+                        let before_char = chars[pattern_start - 1];
+                        if before_char.is_ascii_alphanumeric()
+                            || before_char == '_'
+                            || before_char == '$'
+                            || before_char == ')'
+                            || before_char == ']'
+                        {
+                            i = j + 1;
+                            continue;
+                        }
+                    }
+
+                    // Skip if the pattern starts after a `let`, `const`, `var` keyword
+                    // (those are declaration destructures, not assignment destructures)
+                    let before_pattern = statement[..pattern_start].trim_end();
+                    if before_pattern.ends_with("let")
+                        || before_pattern.ends_with("const")
+                        || before_pattern.ends_with("var")
+                    {
+                        i = j + 1;
+                        continue;
+                    }
+
+                    // Skip if this is inside a $.to_array or already transformed pattern
+                    if before_pattern.ends_with("$.to_array(") || before_pattern.contains("$$array")
+                    {
+                        i = j + 1;
+                        continue;
+                    }
+
+                    // Extract target identifiers from the pattern
+                    let targets = extract_destructure_targets(pattern_str);
+
+                    // Check if any target is a reactive variable
+                    let has_reactive_target = targets
+                        .iter()
+                        .any(|t| state_vars.contains(t) || store_sub_vars.contains(t));
+
+                    if !has_reactive_target {
+                        i = j + 1;
+                        continue;
+                    }
+
+                    // Find the end of the RHS expression
+                    let rhs_end = find_destructure_rhs_end(statement, rhs_start);
+                    let rhs_str = statement[rhs_start..rhs_end].trim();
+
+                    if rhs_str.is_empty() {
+                        i = j + 1;
+                        continue;
+                    }
+
+                    // Check for surrounding parentheses: `(pattern = rhs)` or `(pattern = rhs);`
+                    // We need to handle the wrapping parens from `({x} = obj)` syntax
+                    let mut actual_start = pattern_start;
+                    let mut actual_end = rhs_end;
+
+                    let before = statement[..pattern_start].trim_end();
+                    if before.ends_with('(') {
+                        let paren_pos = statement[..pattern_start].rfind('(').unwrap();
+                        // Check if there's a matching `)` after the RHS
+                        let after_rhs = &statement[rhs_end..];
+                        if let Some(close_paren_offset) = after_rhs.find(')') {
+                            actual_start = paren_pos;
+                            actual_end = rhs_end + close_paren_offset + 1;
+                        }
+                    }
+
+                    // Generate the IIFE replacement
+                    let iife = generate_destructure_iife(close_bracket, pattern_str, rhs_str);
+
+                    // Replace the destructure expression with the IIFE
+                    let mut new_statement = String::new();
+                    new_statement.push_str(&statement[..actual_start]);
+                    new_statement.push_str(&iife);
+                    new_statement.push_str(&statement[actual_end..]);
+
+                    return Some(new_statement);
+                }
+            }
+        }
+
+        i += 1;
+    }
+
+    None
+}
+
+/// Find the matching opening bracket, respecting nesting and strings.
+fn find_matching_open_bracket(
+    s: &str,
+    close_pos: usize,
+    open_bracket: char,
+    close_bracket: char,
+) -> Option<usize> {
+    let chars: Vec<char> = s.chars().collect();
+    let mut depth = 1;
+    let mut i = close_pos;
+
+    // Walk backwards
+    while i > 0 {
+        i -= 1;
+        let c = chars[i];
+
+        if c == close_bracket {
+            depth += 1;
+        } else if c == open_bracket {
+            depth -= 1;
+            if depth == 0 {
+                return Some(i);
+            }
+        }
+    }
+
+    None
+}
+
+/// Extract root identifier names from a destructure pattern string.
+/// For `[a, b[0], c.prop]`, returns `["a", "b", "c"]`.
+/// For `{x, y: z, w}`, returns `["x", "z", "w"]`.
+fn extract_destructure_targets(pattern: &str) -> Vec<String> {
+    let mut targets = Vec::new();
+    let trimmed = pattern.trim();
+
+    // Remove outer brackets
+    let inner = if (trimmed.starts_with('[') && trimmed.ends_with(']'))
+        || (trimmed.starts_with('{') && trimmed.ends_with('}'))
+    {
+        &trimmed[1..trimmed.len() - 1]
+    } else {
+        trimmed
+    };
+
+    // Split on commas (respecting nested brackets)
+    let parts = split_on_commas(inner);
+
+    for part in &parts {
+        let part = part.trim();
+        if part.is_empty() || part == "..." {
+            continue;
+        }
+
+        // Handle rest element: ...rest
+        let part = if let Some(rest) = part.strip_prefix("...") {
+            rest.trim()
+        } else {
+            part
+        };
+
+        // Handle object property with rename: key: value
+        let part = if let Some(colon_pos) = find_top_level_colon(part) {
+            part[colon_pos + 1..].trim()
+        } else {
+            part
+        };
+
+        // Handle default value: target = default
+        let part = if let Some(eq_pos) = find_top_level_equals(part) {
+            part[..eq_pos].trim()
+        } else {
+            part
+        };
+
+        // Extract root identifier from the target
+        // For `a`, returns `a`
+        // For `a[0]`, returns `a`
+        // For `a.prop`, returns `a`
+        if let Some(root) = extract_root_identifier(part) {
+            targets.push(root);
+        }
+
+        // Also recurse into nested patterns
+        if part.starts_with('[') || part.starts_with('{') {
+            let nested = extract_destructure_targets(part);
+            targets.extend(nested);
+        }
+    }
+
+    targets
+}
+
+/// Split a string on top-level commas (not inside brackets, parens, or strings).
+fn split_on_commas(s: &str) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut depth = 0;
+    let mut in_string: Option<char> = None;
+
+    for c in s.chars() {
+        if in_string.is_some() {
+            current.push(c);
+            if Some(c) == in_string {
+                in_string = None;
+            }
+            continue;
+        }
+
+        match c {
+            '\'' | '"' | '`' => {
+                in_string = Some(c);
+                current.push(c);
+            }
+            '(' | '[' | '{' => {
+                depth += 1;
+                current.push(c);
+            }
+            ')' | ']' | '}' => {
+                depth -= 1;
+                current.push(c);
+            }
+            ',' if depth == 0 => {
+                parts.push(current.clone());
+                current.clear();
+            }
+            _ => {
+                current.push(c);
+            }
+        }
+    }
+
+    if !current.is_empty() {
+        parts.push(current);
+    }
+
+    parts
+}
+
+/// Find the position of a top-level colon in a string (not inside brackets or strings).
+fn find_top_level_colon(s: &str) -> Option<usize> {
+    let mut depth = 0;
+    let mut in_string: Option<char> = None;
+
+    for (i, c) in s.char_indices() {
+        if in_string.is_some() {
+            if Some(c) == in_string {
+                in_string = None;
+            }
+            continue;
+        }
+
+        match c {
+            '\'' | '"' | '`' => in_string = Some(c),
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            ':' if depth == 0 => return Some(i),
+            _ => {}
+        }
+    }
+
+    None
+}
+
+/// Find the position of a top-level `=` in a string (not `==` or `===`).
+fn find_top_level_equals(s: &str) -> Option<usize> {
+    let chars: Vec<char> = s.chars().collect();
+    let mut depth = 0;
+    let mut in_string: Option<char> = None;
+
+    for (i, &c) in chars.iter().enumerate() {
+        if in_string.is_some() {
+            if Some(c) == in_string {
+                in_string = None;
+            }
+            continue;
+        }
+
+        match c {
+            '\'' | '"' | '`' => in_string = Some(c),
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            '=' if depth == 0 => {
+                // Make sure it's not == or ===
+                if i + 1 < chars.len() && chars[i + 1] == '=' {
+                    continue;
+                }
+                // Make sure it's not != or <=, >=
+                if i > 0 && matches!(chars[i - 1], '!' | '<' | '>') {
+                    continue;
+                }
+                return Some(i);
+            }
+            _ => {}
+        }
+    }
+
+    None
+}
+
+/// Extract the root identifier from a string like `a`, `a[0]`, `a.prop`.
+fn extract_root_identifier(s: &str) -> Option<String> {
+    let s = s.trim();
+    if s.is_empty() {
+        return None;
+    }
+
+    // Check if it starts with an identifier character
+    let first = s.chars().next()?;
+    if !first.is_ascii_alphabetic() && first != '_' && first != '$' {
+        return None;
+    }
+
+    let mut end = 0;
+    for c in s.chars() {
+        if c.is_ascii_alphanumeric() || c == '_' || c == '$' {
+            end += c.len_utf8();
+        } else {
+            break;
+        }
+    }
+
+    if end > 0 {
+        Some(s[..end].to_string())
+    } else {
+        None
+    }
+}
+
+/// Find the end of the RHS expression in a destructure assignment.
+/// Handles balanced brackets, parentheses, and semicolons.
+fn find_destructure_rhs_end(statement: &str, start: usize) -> usize {
+    let chars: Vec<char> = statement.chars().collect();
+    let len = chars.len();
+    let mut i = start;
+    let mut depth = 0;
+    let mut in_string: Option<char> = None;
+
+    // Skip leading whitespace
+    while i < len && chars[i].is_whitespace() {
+        i += 1;
+    }
+
+    let expr_start = i;
+
+    while i < len {
+        let c = chars[i];
+
+        if in_string.is_some() {
+            if Some(c) == in_string && (i == 0 || chars[i - 1] != '\\') {
+                in_string = None;
+            }
+            i += 1;
+            continue;
+        }
+
+        match c {
+            '\'' | '"' | '`' => {
+                in_string = Some(c);
+                i += 1;
+            }
+            '(' | '[' | '{' => {
+                depth += 1;
+                i += 1;
+            }
+            ')' => {
+                if depth == 0 {
+                    // This closing paren belongs to an outer context
+                    return i;
+                }
+                depth -= 1;
+                i += 1;
+            }
+            ']' | '}' => {
+                if depth == 0 {
+                    return i;
+                }
+                depth -= 1;
+                i += 1;
+            }
+            ';' if depth == 0 => {
+                return i;
+            }
+            ',' if depth == 0 => {
+                // Could be end of expression in sequence
+                return i;
+            }
+            _ => {
+                i += 1;
+            }
+        }
+    }
+
+    // If we didn't find a terminator, include everything to the end
+    // but trim trailing whitespace and newlines
+    let mut end = len;
+    while end > expr_start && chars[end - 1].is_whitespace() {
+        end -= 1;
+    }
+    end
+}
+
+/// Generate an IIFE for a destructure assignment.
+///
+/// For array patterns: `(($$value) => { var $$array = $.to_array($$value, N); target1 = $$array[0]; ... })(rhs)`
+/// For object patterns: `(($$value) => { target1 = $$value.key1; ... })(rhs)`
+fn generate_destructure_iife(
+    pattern_type: char, // ']' for array, '}' for object
+    pattern_str: &str,
+    rhs_str: &str,
+) -> String {
+    let trimmed = pattern_str.trim();
+
+    // Remove outer brackets (both array `[...]` and object `{...}`)
+    let inner = &trimmed[1..trimmed.len() - 1];
+
+    let parts = split_on_commas(inner);
+
+    if pattern_type == ']' {
+        // Array destructure
+        let array_name = DESTRUCTURE_ARRAY_COUNTER.with(|c| {
+            let count = c.get();
+            let name = if count == 0 {
+                "$$array".to_string()
+            } else {
+                format!("$$array_{}", count)
+            };
+            c.set(count + 1);
+            name
+        });
+
+        // Check if last element is a rest element
+        let has_rest = parts
+            .last()
+            .map(|p| p.trim().starts_with("..."))
+            .unwrap_or(false);
+
+        let to_array_args = if has_rest {
+            "$.to_array($$value)".to_string()
+        } else {
+            format!("$.to_array($$value, {})", parts.len())
+        };
+
+        let mut body_lines = Vec::new();
+        body_lines.push(format!("\tvar {} = {};", array_name, to_array_args));
+        body_lines.push(String::new()); // blank line
+
+        for (idx, part) in parts.iter().enumerate() {
+            let part = part.trim();
+            if part.is_empty() {
+                continue; // Skip holes
+            }
+
+            if let Some(rest_target) = part.strip_prefix("...") {
+                let rest_target = rest_target.trim();
+                body_lines.push(format!(
+                    "\t{} = {}.slice({});",
+                    rest_target, array_name, idx
+                ));
+            } else {
+                // Handle default value: `target = default`
+                let (target, default_val) = if let Some(eq_pos) = find_top_level_equals(part) {
+                    let t = part[..eq_pos].trim();
+                    let d = part[eq_pos + 1..].trim();
+                    (t, Some(d))
+                } else {
+                    (part, None)
+                };
+
+                if let Some(default_val) = default_val {
+                    body_lines.push(format!(
+                        "\t{} = {}[{}] !== undefined ? {}[{}] : {};",
+                        target, array_name, idx, array_name, idx, default_val
+                    ));
+                } else {
+                    body_lines.push(format!("\t{} = {}[{}];", target, array_name, idx));
+                }
+            }
+        }
+
+        let body = body_lines.join("\n");
+        format!("(($$value) => {{\n{}\n}})({})", body, rhs_str)
+    } else {
+        // Object destructure
+        let mut body_lines = Vec::new();
+
+        for part in &parts {
+            let part = part.trim();
+            if part.is_empty() {
+                continue;
+            }
+
+            if let Some(rest_target) = part.strip_prefix("...") {
+                // Rest element: ...rest = $.exclude_from_object($$value, [keys...])
+                let rest_target = rest_target.trim();
+                let keys: Vec<String> = parts
+                    .iter()
+                    .filter(|p| !p.trim().starts_with("..."))
+                    .map(|p| {
+                        let p = p.trim();
+                        // Extract the key name
+                        if let Some(colon_pos) = find_top_level_colon(p) {
+                            let key = p[..colon_pos].trim();
+                            format!("'{}'", key)
+                        } else {
+                            // Shorthand or just identifier with possible default
+                            let name = if let Some(eq_pos) = find_top_level_equals(p) {
+                                p[..eq_pos].trim()
+                            } else {
+                                p
+                            };
+                            format!("'{}'", name)
+                        }
+                    })
+                    .collect();
+                body_lines.push(format!(
+                    "\t{} = $.exclude_from_object($$value, [{}]);",
+                    rest_target,
+                    keys.join(", ")
+                ));
+            } else if let Some(colon_pos) = find_top_level_colon(part) {
+                // Key-value pair: key: target
+                let key = part[..colon_pos].trim();
+                let target = part[colon_pos + 1..].trim();
+
+                // Handle default value
+                if let Some(eq_pos) = find_top_level_equals(target) {
+                    let actual_target = target[..eq_pos].trim();
+                    let default_val = target[eq_pos + 1..].trim();
+                    body_lines.push(format!(
+                        "\t{} = $$value.{} !== undefined ? $$value.{} : {};",
+                        actual_target, key, key, default_val
+                    ));
+                } else {
+                    body_lines.push(format!("\t{} = $$value.{};", target, key));
+                }
+            } else {
+                // Shorthand: {x} means key=x, target=x
+                let name = if let Some(eq_pos) = find_top_level_equals(part) {
+                    let actual_name = part[..eq_pos].trim();
+                    let default_val = part[eq_pos + 1..].trim();
+                    body_lines.push(format!(
+                        "\t{} = $$value.{} !== undefined ? $$value.{} : {};",
+                        actual_name, actual_name, actual_name, default_val
+                    ));
+                    continue;
+                } else {
+                    part
+                };
+
+                body_lines.push(format!("\t{} = $$value.{};", name, name));
+            }
+        }
+
+        let body = body_lines.join("\n");
+        format!("(($$value) => {{\n{}\n}})({})", body, rhs_str)
+    }
 }
 
 /// Transform member expression assignments to `$.mutate()` calls in legacy mode.
