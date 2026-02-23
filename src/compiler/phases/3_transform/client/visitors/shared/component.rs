@@ -68,7 +68,9 @@ pub fn build_component(
     let mut props_and_spreads: Vec<PropsEntry> = Vec::new();
     let mut delayed_props: Vec<DelayedProp> = Vec::new();
     let mut lets: Vec<JsStatement> = Vec::new();
-    let mut let_names: Vec<String> = Vec::new();
+    // Each entry is (name, read_source) where read_source is Some(derived_name) for
+    // destructured bindings like let:thing={{num}} -> ("num", Some("thing"))
+    let mut let_names: Vec<(String, Option<String>)> = Vec::new();
     let mut events: FxHashMap<String, Vec<JsExpr>> = FxHashMap::default();
     let mut custom_css_props: Vec<JsObjectMember> = Vec::new();
     let mut bind_this: Option<Expression> = None;
@@ -518,7 +520,7 @@ fn process_let_directive(
     let_dir: &LetDirective,
     context: &mut ComponentContext,
     lets: &mut Vec<JsStatement>,
-    let_names: &mut Vec<String>,
+    let_names: &mut Vec<(String, Option<String>)>,
 ) {
     let prop_name = &let_dir.name;
 
@@ -554,7 +556,8 @@ fn process_let_directive(
         };
 
         // Track the name for transform registration (done in build_slot_function)
-        let_names.push(name.clone());
+        // Simple let directives have no read_source
+        let_names.push((name.clone(), None));
 
         // Generate: const name = $.derived_safe_equal(() => $$slotProps.prop_name)
         // or: const name = $.derived(() => $$slotProps.prop_name) in runes mode
@@ -568,8 +571,69 @@ fn process_let_directive(
             "const {} = {}(() => $$slotProps.{});",
             name, derived_fn, prop_name,
         )));
+    } else {
+        // Destructured case: let:x={{y, z}} or let:x={[a, b]}
+        // Generates: const derived_name = $.derived(() => { let {y, z} = $$slotProps.x; return {y, z}; })
+        // And tracks binding names for transform registration
+        if let Some(expr) = &let_dir.expression {
+            let Expression::Value(val) = expr;
+            if let serde_json::Value::Object(obj) = val {
+                let expr_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+
+                // Extract binding names from the expression
+                let mut binding_names: Vec<String> = Vec::new();
+                if expr_type == "ObjectExpression" {
+                    if let Some(serde_json::Value::Array(props)) = obj.get("properties") {
+                        for prop in props {
+                            if let Some(name) = prop
+                                .get("key")
+                                .and_then(|k| k.get("name"))
+                                .and_then(|n| n.as_str())
+                            {
+                                binding_names.push(name.to_string());
+                            }
+                        }
+                    }
+                } else if expr_type == "ArrayExpression"
+                    && let Some(serde_json::Value::Array(elements)) = obj.get("elements")
+                {
+                    for elem in elements {
+                        if let Some(name) = elem.get("name").and_then(|n| n.as_str()) {
+                            binding_names.push(name.to_string());
+                        }
+                    }
+                }
+
+                if !binding_names.is_empty() {
+                    // Generate unique name for the derived variable
+                    let derived_name = context.state.memoizer.generate_id(prop_name);
+
+                    // Track derived_name (no read_source, it's the source itself)
+                    let_names.push((derived_name.clone(), None));
+                    // Track each binding name with read_source pointing to the derived variable
+                    for binding_name in &binding_names {
+                        let_names.push((binding_name.clone(), Some(derived_name.clone())));
+                    }
+
+                    // Build the destructuring pattern
+                    let destructuring_pattern = if expr_type == "ObjectExpression" {
+                        format!("{{ {} }}", binding_names.join(", "))
+                    } else {
+                        format!("[{}]", binding_names.join(", "))
+                    };
+
+                    // Build the return object: { a, b }
+                    let return_obj = format!("{{ {} }}", binding_names.join(", "));
+
+                    // Note: destructured case always uses $.derived (not $.derived_safe_equal)
+                    lets.push(JsStatement::Raw(format!(
+                        "const {} = $.derived(() => {{\n\t\t\t\t\tlet {} = $$slotProps.{};\n\n\t\t\t\t\treturn {};\n\t\t\t\t}});",
+                        derived_name, destructuring_pattern, prop_name, return_obj,
+                    )));
+                }
+            }
+        }
     }
-    // TODO: Handle destructured let:x={{y, z}} case
 }
 
 /// Process an OnDirective (event handler).
@@ -1408,7 +1472,7 @@ fn build_slot_function(
     slot_name: &str,
     slot_scope_applies_to_itself: bool,
     lets: &[JsStatement],
-    let_names: &[String],
+    let_names: &[(String, Option<String>)],
     context: &mut ComponentContext,
 ) -> Option<JsExpr> {
     if children.is_empty() {
@@ -1425,12 +1489,12 @@ fn build_slot_function(
 
     // Register let directive transforms if this is the appropriate slot
     if should_apply_let_transforms {
-        for name in let_names {
+        for (name, read_source) in let_names {
             context.state.transform.insert(
                 name.clone(),
                 crate::compiler::phases::phase3_transform::client::types::IdentifierTransform {
                     read: Some(|node| b::call(b::member_path("$.get"), vec![node])),
-                    read_source: None,
+                    read_source: read_source.clone(),
                     assign: None,
                     mutate: None,
                     update: None,
@@ -1448,7 +1512,7 @@ fn build_slot_function(
 
     // Remove let directive transforms after visiting children
     if should_apply_let_transforms {
-        for name in let_names {
+        for (name, _) in let_names {
             context.state.transform.remove(name);
         }
     }
@@ -1583,6 +1647,17 @@ fn visit_slot_children(
                 vec![b::id("$$anchor"), b::id(&id_name)],
             )));
         }
+    } else if cleaned.trimmed.len() == 1
+        && matches!(
+            cleaned.trimmed[0],
+            TemplateNode::SvelteFragment(_) | TemplateNode::TitleElement(_)
+        )
+    {
+        // Single child not needing template (SvelteFragment or TitleElement).
+        // Mirrors Fragment.js `is_single_child_not_needing_template` check.
+        // SvelteFragment is a transparent wrapper - just visit it directly
+        // and let it handle its own template/init/close.
+        context.visit_node(&cleaned.trimmed[0], None);
     } else if cleaned.is_standalone {
         // Handle standalone case: single component/render tag doesn't need template processing
         // For standalone components, just visit them directly

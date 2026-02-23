@@ -25,7 +25,9 @@ use serde_json::Value;
 pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisError> {
     // Determine if this is top-level await (TLA)
     // TLA is when we're in the instance script at function depth 1
-    let tla = context.function_depth == 1;
+    // Reference: AwaitExpression.js line 11:
+    //   const tla = context.state.ast_type === 'instance' && context.state.function_depth === 1;
+    let tla = context.ast_type == super::AstType::Instance && context.function_depth == 1;
 
     // Check if this await is in a reactive expression
     // Note: In full implementation, we would check:

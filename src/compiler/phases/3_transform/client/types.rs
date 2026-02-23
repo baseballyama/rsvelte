@@ -133,6 +133,8 @@ impl<'a> ComponentContext<'a> {
 
             TemplateNode::Comment(comment) => self.visit_comment(comment),
 
+            TemplateNode::SvelteFragment(frag) => self.visit_svelte_fragment(frag),
+
             // Other node types - TODO: implement
             _ => TransformResult::None,
         };
@@ -651,6 +653,209 @@ impl<'a> ComponentContext<'a> {
         self.state
             .template
             .push_comment(Some(comment.data.to_string()));
+        TransformResult::None
+    }
+
+    /// Visit a SvelteFragment node.
+    ///
+    /// Corresponds to `SvelteFragment.js` in the official Svelte compiler:
+    /// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/SvelteFragment.js`
+    ///
+    /// SvelteFragment nodes (`<svelte:fragment>`) are wrappers that:
+    /// 1. Define a named slot (via `slot="name"` attribute)
+    /// 2. Provide `let:` directives that expose slot props to children
+    /// 3. Their CHILDREN are what should be rendered in the slot
+    ///
+    /// The visitor processes let: directives (registering transforms and creating
+    /// derived declarations), then visits the inner fragment children.
+    fn visit_svelte_fragment(
+        &mut self,
+        frag: &crate::ast::template::SvelteElement,
+    ) -> TransformResult {
+        use crate::ast::template::Attribute;
+        use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment as visit_fragment_impl;
+        use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
+        // Process let: directives
+        // This generates `const name = $.derived_safe_equal(() => $$slotProps.prop_name)`
+        // and registers read transforms so the children can access the slot props
+        let mut let_stmts: Vec<JsStatement> = Vec::new();
+        let mut let_names: Vec<String> = Vec::new();
+
+        for attribute in &frag.attributes {
+            if let Attribute::LetDirective(let_dir) = attribute {
+                let prop_name = &let_dir.name;
+
+                // Check if expression is an Identifier or null (simple case)
+                let is_simple = match &let_dir.expression {
+                    None => true,
+                    Some(expr) => {
+                        let crate::ast::js::Expression::Value(val) = expr;
+                        if let serde_json::Value::Object(obj) = val {
+                            obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                        } else {
+                            true
+                        }
+                    }
+                };
+
+                if is_simple {
+                    // Simple case: let:x or let:x={y}
+                    let name = match &let_dir.expression {
+                        Some(expr) => {
+                            let crate::ast::js::Expression::Value(val) = expr;
+                            if let serde_json::Value::Object(obj) = val {
+                                obj.get("name")
+                                    .and_then(|n| n.as_str())
+                                    .unwrap_or(prop_name)
+                                    .to_string()
+                            } else {
+                                prop_name.to_string()
+                            }
+                        }
+                        None => prop_name.to_string(),
+                    };
+
+                    let_names.push(name.clone());
+
+                    let derived_fn = if self.state.analysis.runes {
+                        "$.derived"
+                    } else {
+                        "$.derived_safe_equal"
+                    };
+
+                    let_stmts.push(JsStatement::Raw(format!(
+                        "const {} = {}(() => $$slotProps.{});",
+                        name, derived_fn, prop_name,
+                    )));
+
+                    // Register transform so children can read this variable via $.get()
+                    self.state.transform.insert(
+                        name.clone(),
+                        IdentifierTransform {
+                            read: Some(|node| b::call(b::member_path("$.get"), vec![node])),
+                            read_source: None,
+                            assign: None,
+                            mutate: None,
+                            update: None,
+                            skip_proxy: false,
+                            is_defined: false,
+                            is_reactive: true,
+                        },
+                    );
+                } else {
+                    // Destructured case: let:x={{y, z}} or let:x={[a, b]}
+                    // Generates: const derived_name = $.derived(() => { let {y, z} = $$slotProps.x; return {y, z}; })
+                    // And registers transforms: y -> $.get(derived_name).y, z -> $.get(derived_name).z
+                    if let Some(expr) = &let_dir.expression {
+                        let crate::ast::js::Expression::Value(val) = expr;
+                        if let serde_json::Value::Object(obj) = val {
+                            let expr_type = obj.get("type").and_then(|t| t.as_str()).unwrap_or("");
+
+                            // Extract binding names from the expression
+                            let mut binding_names: Vec<String> = Vec::new();
+                            if expr_type == "ObjectExpression" {
+                                // Object destructuring: {y, z}
+                                if let Some(serde_json::Value::Array(props)) = obj.get("properties")
+                                {
+                                    for prop in props {
+                                        if let Some(name) = prop
+                                            .get("key")
+                                            .and_then(|k| k.get("name"))
+                                            .and_then(|n| n.as_str())
+                                        {
+                                            binding_names.push(name.to_string());
+                                        }
+                                    }
+                                }
+                            } else if expr_type == "ArrayExpression"
+                                && let Some(serde_json::Value::Array(elements)) =
+                                    obj.get("elements")
+                            {
+                                for elem in elements {
+                                    if let Some(name) = elem.get("name").and_then(|n| n.as_str()) {
+                                        binding_names.push(name.to_string());
+                                    }
+                                }
+                            }
+
+                            if !binding_names.is_empty() {
+                                // Generate unique name for the derived variable
+                                let derived_name = self.state.memoizer.generate_id(prop_name);
+                                let_names.push(derived_name.clone());
+
+                                // Register transforms for each binding:
+                                // binding_name -> $.get(derived_name).binding_name
+                                for binding_name in &binding_names {
+                                    let derived_name_clone = derived_name.clone();
+                                    let_names.push(binding_name.clone());
+                                    self.state.transform.insert(
+                                        binding_name.clone(),
+                                        IdentifierTransform {
+                                            read: Some(|node| {
+                                                // The node is the identifier (e.g., `num`)
+                                                // We need to produce: $.get(derived_name).num
+                                                // But we can't capture derived_name in a fn pointer.
+                                                // Instead we use read_source which is checked
+                                                // in apply_transforms_to_expression.
+                                                b::call(b::member_path("$.get"), vec![node])
+                                            }),
+                                            read_source: Some(derived_name_clone),
+                                            assign: None,
+                                            mutate: None,
+                                            update: None,
+                                            skip_proxy: false,
+                                            is_defined: false,
+                                            is_reactive: true,
+                                        },
+                                    );
+                                }
+
+                                // Build the destructuring pattern
+                                let destructuring_pattern = if expr_type == "ObjectExpression" {
+                                    format!("{{ {} }}", binding_names.join(", "))
+                                } else {
+                                    format!("[{}]", binding_names.join(", "))
+                                };
+
+                                // Build the return object: { a, b }
+                                let return_obj = format!("{{ {} }}", binding_names.join(", "));
+
+                                // Generate: const derived_name = $.derived(() => {
+                                //   let { y, z } = $$slotProps.prop_name;
+                                //   return { y, z };
+                                // })
+                                // Note: destructured case always uses $.derived (not $.derived_safe_equal)
+                                let_stmts.push(JsStatement::Raw(format!(
+                                    "const {} = $.derived(() => {{\n\t\t\t\t\tlet {} = $$slotProps.{};\n\n\t\t\t\t\treturn {};\n\t\t\t\t}});",
+                                    derived_name, destructuring_pattern, prop_name, return_obj,
+                                )));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Push the let directive statements to init
+        for stmt in &let_stmts {
+            self.state.init.push(stmt.clone());
+        }
+
+        // Visit the inner fragment and push its body statements to init
+        // This mirrors: context.state.init.push(...context.visit(node.fragment).body);
+        let inner_fragment = crate::ast::template::Fragment {
+            nodes: frag.fragment.nodes.clone(),
+            ..Default::default()
+        };
+        let block = visit_fragment_impl(&inner_fragment, self, false);
+        self.state.init.extend(block.body);
+
+        // Clean up transforms registered by let: directives
+        for name in &let_names {
+            self.state.transform.remove(name);
+        }
+
         TransformResult::None
     }
 
