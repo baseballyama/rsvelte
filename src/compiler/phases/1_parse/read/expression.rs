@@ -4755,6 +4755,27 @@ fn convert_statement_for_program(
                 obj.insert("implements".to_string(), Value::Bool(true));
             }
 
+            // Decorators: include so remove_typescript_nodes can detect them
+            if !class_decl.decorators.is_empty() {
+                let decorators: Vec<Value> = class_decl
+                    .decorators
+                    .iter()
+                    .map(|dec| {
+                        let dec_start = offset + dec.span.start as usize;
+                        let dec_end = offset + dec.span.end as usize;
+                        let mut dec_obj = Map::new();
+                        dec_obj.insert("type".to_string(), Value::String("Decorator".to_string()));
+                        dec_obj.insert(
+                            "start".to_string(),
+                            Value::Number((dec_start as i64).into()),
+                        );
+                        dec_obj.insert("end".to_string(), Value::Number((dec_end as i64).into()));
+                        Value::Object(dec_obj)
+                    })
+                    .collect();
+                obj.insert("decorators".to_string(), Value::Array(decorators));
+            }
+
             Some(Value::Object(obj))
         }
         oxc_ast::ast::Statement::ReturnStatement(ret_stmt) => {
@@ -5286,6 +5307,60 @@ fn convert_statement_for_program(
 
             Some(Value::Object(obj))
         }
+        // TypeScript enum declarations - emit as TSEnumDeclaration so remove_typescript_nodes can detect them
+        oxc_ast::ast::Statement::TSEnumDeclaration(enum_decl) => {
+            let start = offset + enum_decl.span.start as usize;
+            let end = offset + enum_decl.span.end as usize;
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("TSEnumDeclaration".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            Some(Value::Object(obj))
+        }
+
+        // TypeScript module/namespace declarations - emit so remove_typescript_nodes can detect them
+        oxc_ast::ast::Statement::TSModuleDeclaration(module_decl) => {
+            let start = offset + module_decl.span.start as usize;
+            let end = offset + module_decl.span.end as usize;
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("TSModuleDeclaration".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+            // Include body so remove_typescript_nodes can check for non-type nodes
+            // Structure: node.body = { body: [...statements...] }
+            // This matches what remove_typescript_nodes expects at node.get("body").and_then(|b| b.get("body"))
+            if let Some(ref body) = module_decl.body {
+                match body {
+                    oxc_ast::ast::TSModuleDeclarationBody::TSModuleBlock(block) => {
+                        let block_body: Vec<Value> = block
+                            .body
+                            .iter()
+                            .filter_map(|stmt| {
+                                convert_statement_for_program(stmt, offset, line_offsets)
+                            })
+                            .collect();
+                        let mut block_obj = Map::new();
+                        block_obj.insert("body".to_string(), Value::Array(block_body));
+                        obj.insert("body".to_string(), Value::Object(block_obj));
+                    }
+                    oxc_ast::ast::TSModuleDeclarationBody::TSModuleDeclaration(_inner) => {
+                        // Nested module declaration - just include empty body
+                    }
+                }
+            }
+
+            Some(Value::Object(obj))
+        }
+
         // Add more statement types as needed
         _ => None,
     }
@@ -5418,6 +5493,54 @@ fn convert_declaration_for_program(
                 obj.insert("id".to_string(), id_expr.as_json().clone());
             } else {
                 obj.insert("id".to_string(), Value::Null);
+            }
+
+            Value::Object(obj)
+        }
+        // TypeScript enum declarations
+        oxc_ast::ast::Declaration::TSEnumDeclaration(enum_decl) => {
+            let start = offset + enum_decl.span.start as usize;
+            let end = offset + enum_decl.span.end as usize;
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("TSEnumDeclaration".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            Value::Object(obj)
+        }
+        // TypeScript module/namespace declarations
+        oxc_ast::ast::Declaration::TSModuleDeclaration(module_decl) => {
+            let start = offset + module_decl.span.start as usize;
+            let end = offset + module_decl.span.end as usize;
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("TSModuleDeclaration".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+
+            // Include body for non-type node detection
+            if let Some(ref body) = module_decl.body {
+                match body {
+                    oxc_ast::ast::TSModuleDeclarationBody::TSModuleBlock(block) => {
+                        let block_body: Vec<Value> = block
+                            .body
+                            .iter()
+                            .filter_map(|stmt| {
+                                convert_statement_for_program(stmt, offset, line_offsets)
+                            })
+                            .collect();
+                        let mut block_obj = Map::new();
+                        block_obj.insert("body".to_string(), Value::Array(block_body));
+                        obj.insert("body".to_string(), Value::Object(block_obj));
+                    }
+                    oxc_ast::ast::TSModuleDeclarationBody::TSModuleDeclaration(_inner) => {}
+                }
             }
 
             Value::Object(obj)
@@ -6785,6 +6908,35 @@ fn convert_class_element_for_program(
             // TypeScript: declare field (for `declare bar: string;` in class)
             if prop.declare {
                 obj.insert("declare".to_string(), Value::Bool(true));
+            }
+
+            Some(Value::Object(obj))
+        }
+        oxc_ast::ast::ClassElement::AccessorProperty(prop) => {
+            // TC39 accessor keyword property (not yet stage 4)
+            // Emit as PropertyDefinition with accessor: true so remove_typescript_nodes can detect it
+            let start = offset + prop.span.start as usize;
+            let end = offset + prop.span.end as usize;
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("PropertyDefinition".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert("loc".to_string(), create_loc(start, end, line_offsets));
+            obj.insert("accessor".to_string(), Value::Bool(true));
+            obj.insert("static".to_string(), Value::Bool(prop.r#static));
+            obj.insert("computed".to_string(), Value::Bool(prop.computed));
+
+            let key = convert_property_key(&prop.key, offset, line_offsets);
+            obj.insert("key".to_string(), key);
+
+            if let Some(ref value) = prop.value {
+                let val = convert_expression_for_program(value, offset, line_offsets);
+                obj.insert("value".to_string(), val.as_json().clone());
+            } else {
+                obj.insert("value".to_string(), Value::Null);
             }
 
             Some(Value::Object(obj))

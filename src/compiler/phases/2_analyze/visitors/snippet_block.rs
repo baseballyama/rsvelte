@@ -34,8 +34,17 @@ pub fn visit(block: &mut SnippetBlock, context: &mut VisitorContext) -> Result<(
         .fragment_owner_stack
         .push(super::FragmentOwnerType::SnippetBlock);
 
+    // Reset parent_element to None for snippet body analysis
+    // Snippets create their own rendering context, so text node validation
+    // should not check against the parent element of the snippet declaration site.
+    // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/SnippetBlock.js L26
+    let old_parent_element = context.parent_element.take();
+
     // Analyze the body
     fragment::analyze(&mut block.body, context)?;
+
+    // Restore parent_element
+    context.parent_element = old_parent_element;
 
     // Pop fragment owner type
     context.fragment_owner_stack.pop();

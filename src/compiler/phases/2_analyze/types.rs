@@ -1076,6 +1076,11 @@ pub struct ComponentAnalysis {
     /// Set during `extract_scripts()` and used during scope building to parse template
     /// expressions as TypeScript.
     pub is_typescript: bool,
+
+    /// Module scope declarations - maps names to binding indices.
+    /// Used to detect conflicts between instance-level declarations and module imports.
+    /// Populated during module script analysis.
+    pub module_scope_declarations: FxHashMap<String, usize>,
 }
 
 impl ComponentAnalysis {
@@ -1148,6 +1153,7 @@ impl ComponentAnalysis {
             component_namespace_is_svg: options.namespace == crate::compiler::Namespace::Svg,
             component_namespace_is_mathml: options.namespace == crate::compiler::Namespace::Mathml,
             is_typescript: false,
+            module_scope_declarations: FxHashMap::default(),
         }
     }
 

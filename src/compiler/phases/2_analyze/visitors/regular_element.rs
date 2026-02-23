@@ -193,7 +193,7 @@ pub fn is_void(name: &str) -> bool {
 
 /// Check if a tag is valid with its parent.
 /// Returns an error message if invalid, or None if valid.
-fn is_tag_valid_with_parent(child_tag: &str, parent_tag: &str) -> Option<String> {
+pub(super) fn is_tag_valid_with_parent(child_tag: &str, parent_tag: &str) -> Option<String> {
     // Custom elements can be anything
     if child_tag.contains('-') || parent_tag.contains('-') {
         return None;

@@ -252,7 +252,7 @@ fn run_validator_test(fixture: &ValidatorFixture) -> TestResult {
                             || (expected_error.code == "typescript_invalid_feature"
                                 && (error_str.contains("Parameter modifiers can only be used in TypeScript")
                                     || error_str.contains("namespace")
-                                    || error_str.contains("TS")
+                                    || error_str.contains("TypeScriptInvalidFeature")
                                     // Enum declarations cause parse errors
                                     || error_str.contains("Parse errors")))
                             // Reserved words cause parse errors

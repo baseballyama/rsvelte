@@ -204,6 +204,9 @@ pub struct VisitorContext<'a> {
     /// to allow correct binding lookup for directives inside those constructs.
     /// Used by bind_directive analysis to find the correct binding for bind:group.
     pub current_template_scope: usize,
+    /// Whether we're currently inside a {@const} tag expression.
+    /// Used to detect invalid rune usage (e.g., $derived() inside {@const}).
+    pub in_const_tag: bool,
 }
 
 /// Type of ancestor that can "own" a slot attribute.
@@ -300,6 +303,7 @@ impl<'a> VisitorContext<'a> {
             slot_owner_ancestors: Vec::new(),
             fragment_owner_stack: vec![FragmentOwnerType::Root],
             current_template_scope: 0,
+            in_const_tag: false,
         }
     }
 

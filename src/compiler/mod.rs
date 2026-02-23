@@ -421,7 +421,7 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
     // This matches the official Svelte compiler behavior where remove_typescript_nodes()
     // is called during compile() but NOT during parse().
     // See: svelte/packages/svelte/src/compiler/index.js
-    remove_typescript_from_ast(&mut ast);
+    remove_typescript_from_ast(&mut ast)?;
 
     // Phase 2: Analyze
     let analysis = phases::phase2_analyze::analyze_component(&mut ast, source, &options)?;
@@ -465,7 +465,7 @@ pub fn compile(source: &str, options: CompileOptions) -> Result<CompileResult, C
 /// and if so, applies `remove_typescript_nodes` to strip type annotations.
 /// This matches the official Svelte compiler behavior where TypeScript stripping
 /// happens during compilation, not during parsing.
-fn remove_typescript_from_ast(ast: &mut crate::ast::Root) {
+fn remove_typescript_from_ast(ast: &mut crate::ast::Root) -> Result<(), crate::error::ParseError> {
     use crate::ast::AttributeValue;
     use crate::ast::AttributeValuePart;
 
@@ -482,9 +482,11 @@ fn remove_typescript_from_ast(ast: &mut crate::ast::Root) {
         false
     }
 
-    fn strip_ts_from_script(script: &mut crate::ast::Script) {
+    fn strip_ts_from_script(
+        script: &mut crate::ast::Script,
+    ) -> Result<(), crate::error::ParseError> {
         let crate::ast::js::Expression::Value(ref mut val) = script.content;
-        let _ = phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(val, &[]);
+        phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(val, &[])
     }
 
     // In Svelte, if ANY script has lang="ts", ALL scripts are treated as TypeScript.
@@ -498,120 +500,128 @@ fn remove_typescript_from_ast(ast: &mut crate::ast::Root) {
 
     if any_is_typescript {
         if let Some(ref mut instance) = ast.instance {
-            strip_ts_from_script(instance);
+            strip_ts_from_script(instance)?;
         }
         if let Some(ref mut module) = ast.module {
-            strip_ts_from_script(module);
+            strip_ts_from_script(module)?;
         }
         // Also strip TypeScript from the fragment (template expressions).
         // The official Svelte compiler calls remove_typescript_nodes on the entire fragment:
         // `fragment: parsed.fragment && remove_typescript_nodes(parsed.fragment)`
-        strip_ts_from_fragment(&mut ast.fragment);
+        strip_ts_from_fragment(&mut ast.fragment)?;
     }
+    Ok(())
 }
 
 /// Strip TypeScript annotations from a single Expression::Value.
-fn strip_ts_from_expression(expr: &mut crate::ast::js::Expression) {
+fn strip_ts_from_expression(
+    expr: &mut crate::ast::js::Expression,
+) -> Result<(), crate::error::ParseError> {
     let crate::ast::js::Expression::Value(val) = expr;
-    let _ = phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(val, &[]);
+    phases::phase1_parse::remove_typescript_nodes::remove_typescript_nodes(val, &[])
 }
 
 /// Strip TypeScript annotations from all Expression nodes in a Fragment.
-fn strip_ts_from_fragment(fragment: &mut crate::ast::template::Fragment) {
+fn strip_ts_from_fragment(
+    fragment: &mut crate::ast::template::Fragment,
+) -> Result<(), crate::error::ParseError> {
     for node in &mut fragment.nodes {
-        strip_ts_from_template_node(node);
+        strip_ts_from_template_node(node)?;
     }
+    Ok(())
 }
 
 /// Strip TypeScript annotations from a TemplateNode and all its descendants.
-fn strip_ts_from_template_node(node: &mut crate::ast::template::TemplateNode) {
+fn strip_ts_from_template_node(
+    node: &mut crate::ast::template::TemplateNode,
+) -> Result<(), crate::error::ParseError> {
     use crate::ast::template::TemplateNode;
     match node {
         TemplateNode::Text(_) | TemplateNode::Comment(_) => {}
         TemplateNode::ExpressionTag(tag) => {
-            strip_ts_from_expression(&mut tag.expression);
+            strip_ts_from_expression(&mut tag.expression)?;
         }
         TemplateNode::HtmlTag(tag) => {
-            strip_ts_from_expression(&mut tag.expression);
+            strip_ts_from_expression(&mut tag.expression)?;
         }
         TemplateNode::ConstTag(tag) => {
-            strip_ts_from_expression(&mut tag.declaration);
+            strip_ts_from_expression(&mut tag.declaration)?;
         }
         TemplateNode::DebugTag(tag) => {
             for expr in &mut tag.identifiers {
-                strip_ts_from_expression(expr);
+                strip_ts_from_expression(expr)?;
             }
         }
         TemplateNode::RenderTag(tag) => {
-            strip_ts_from_expression(&mut tag.expression);
+            strip_ts_from_expression(&mut tag.expression)?;
         }
         TemplateNode::AttachTag(tag) => {
-            strip_ts_from_expression(&mut tag.expression);
+            strip_ts_from_expression(&mut tag.expression)?;
         }
         TemplateNode::IfBlock(block) => {
-            strip_ts_from_expression(&mut block.test);
-            strip_ts_from_fragment(&mut block.consequent);
+            strip_ts_from_expression(&mut block.test)?;
+            strip_ts_from_fragment(&mut block.consequent)?;
             if let Some(ref mut alt) = block.alternate {
-                strip_ts_from_fragment(alt);
+                strip_ts_from_fragment(alt)?;
             }
         }
         TemplateNode::EachBlock(block) => {
-            strip_ts_from_expression(&mut block.expression);
+            strip_ts_from_expression(&mut block.expression)?;
             if let Some(ref mut ctx) = block.context {
-                strip_ts_from_expression(ctx);
+                strip_ts_from_expression(ctx)?;
             }
             if let Some(ref mut key) = block.key {
-                strip_ts_from_expression(key);
+                strip_ts_from_expression(key)?;
             }
-            strip_ts_from_fragment(&mut block.body);
+            strip_ts_from_fragment(&mut block.body)?;
             if let Some(ref mut fallback) = block.fallback {
-                strip_ts_from_fragment(fallback);
+                strip_ts_from_fragment(fallback)?;
             }
         }
         TemplateNode::AwaitBlock(block) => {
-            strip_ts_from_expression(&mut block.expression);
+            strip_ts_from_expression(&mut block.expression)?;
             if let Some(ref mut val) = block.value {
-                strip_ts_from_expression(val);
+                strip_ts_from_expression(val)?;
             }
             if let Some(ref mut err) = block.error {
-                strip_ts_from_expression(err);
+                strip_ts_from_expression(err)?;
             }
             if let Some(ref mut pending) = block.pending {
-                strip_ts_from_fragment(pending);
+                strip_ts_from_fragment(pending)?;
             }
             if let Some(ref mut then) = block.then {
-                strip_ts_from_fragment(then);
+                strip_ts_from_fragment(then)?;
             }
             if let Some(ref mut catch) = block.catch {
-                strip_ts_from_fragment(catch);
+                strip_ts_from_fragment(catch)?;
             }
         }
         TemplateNode::KeyBlock(block) => {
-            strip_ts_from_expression(&mut block.expression);
-            strip_ts_from_fragment(&mut block.fragment);
+            strip_ts_from_expression(&mut block.expression)?;
+            strip_ts_from_fragment(&mut block.fragment)?;
         }
         TemplateNode::SnippetBlock(block) => {
-            strip_ts_from_expression(&mut block.expression);
+            strip_ts_from_expression(&mut block.expression)?;
             for param in &mut block.parameters {
-                strip_ts_from_expression(param);
+                strip_ts_from_expression(param)?;
             }
-            strip_ts_from_fragment(&mut block.body);
+            strip_ts_from_fragment(&mut block.body)?;
         }
         TemplateNode::RegularElement(el) => {
-            strip_ts_from_attributes(&mut el.attributes);
-            strip_ts_from_fragment(&mut el.fragment);
+            strip_ts_from_attributes(&mut el.attributes)?;
+            strip_ts_from_fragment(&mut el.fragment)?;
         }
         TemplateNode::Component(el) => {
-            strip_ts_from_attributes(&mut el.attributes);
-            strip_ts_from_fragment(&mut el.fragment);
+            strip_ts_from_attributes(&mut el.attributes)?;
+            strip_ts_from_fragment(&mut el.fragment)?;
         }
         TemplateNode::TitleElement(el) => {
-            strip_ts_from_attributes(&mut el.attributes);
-            strip_ts_from_fragment(&mut el.fragment);
+            strip_ts_from_attributes(&mut el.attributes)?;
+            strip_ts_from_fragment(&mut el.fragment)?;
         }
         TemplateNode::SlotElement(el) => {
-            strip_ts_from_attributes(&mut el.attributes);
-            strip_ts_from_fragment(&mut el.fragment);
+            strip_ts_from_attributes(&mut el.attributes)?;
+            strip_ts_from_fragment(&mut el.fragment)?;
         }
         TemplateNode::SvelteBody(el)
         | TemplateNode::SvelteDocument(el)
@@ -621,88 +631,95 @@ fn strip_ts_from_template_node(node: &mut crate::ast::template::TemplateNode) {
         | TemplateNode::SvelteOptions(el)
         | TemplateNode::SvelteSelf(el)
         | TemplateNode::SvelteWindow(el) => {
-            strip_ts_from_attributes(&mut el.attributes);
-            strip_ts_from_fragment(&mut el.fragment);
+            strip_ts_from_attributes(&mut el.attributes)?;
+            strip_ts_from_fragment(&mut el.fragment)?;
         }
         TemplateNode::SvelteComponent(el) => {
-            strip_ts_from_expression(&mut el.expression);
-            strip_ts_from_attributes(&mut el.attributes);
-            strip_ts_from_fragment(&mut el.fragment);
+            strip_ts_from_expression(&mut el.expression)?;
+            strip_ts_from_attributes(&mut el.attributes)?;
+            strip_ts_from_fragment(&mut el.fragment)?;
         }
         TemplateNode::SvelteElement(el) => {
-            strip_ts_from_expression(&mut el.tag);
-            strip_ts_from_attributes(&mut el.attributes);
-            strip_ts_from_fragment(&mut el.fragment);
+            strip_ts_from_expression(&mut el.tag)?;
+            strip_ts_from_attributes(&mut el.attributes)?;
+            strip_ts_from_fragment(&mut el.fragment)?;
         }
     }
+    Ok(())
 }
 
 /// Strip TypeScript annotations from attribute expressions.
-fn strip_ts_from_attributes(attrs: &mut [crate::ast::template::Attribute]) {
+fn strip_ts_from_attributes(
+    attrs: &mut [crate::ast::template::Attribute],
+) -> Result<(), crate::error::ParseError> {
     use crate::ast::template::Attribute;
     for attr in attrs {
         match attr {
             Attribute::SpreadAttribute(spread) => {
-                strip_ts_from_expression(&mut spread.expression);
+                strip_ts_from_expression(&mut spread.expression)?;
             }
             Attribute::AttachTag(tag) => {
-                strip_ts_from_expression(&mut tag.expression);
+                strip_ts_from_expression(&mut tag.expression)?;
             }
             Attribute::BindDirective(bind) => {
-                strip_ts_from_expression(&mut bind.expression);
+                strip_ts_from_expression(&mut bind.expression)?;
             }
             Attribute::OnDirective(on) => {
                 if let Some(ref mut expr) = on.expression {
-                    strip_ts_from_expression(expr);
+                    strip_ts_from_expression(expr)?;
                 }
             }
             Attribute::ClassDirective(class) => {
-                strip_ts_from_expression(&mut class.expression);
+                strip_ts_from_expression(&mut class.expression)?;
             }
             Attribute::StyleDirective(style) => {
-                strip_ts_from_attribute_value(&mut style.value);
+                strip_ts_from_attribute_value(&mut style.value)?;
             }
             Attribute::TransitionDirective(transition) => {
                 if let Some(ref mut expr) = transition.expression {
-                    strip_ts_from_expression(expr);
+                    strip_ts_from_expression(expr)?;
                 }
             }
             Attribute::AnimateDirective(animate) => {
                 if let Some(ref mut expr) = animate.expression {
-                    strip_ts_from_expression(expr);
+                    strip_ts_from_expression(expr)?;
                 }
             }
             Attribute::UseDirective(use_dir) => {
                 if let Some(ref mut expr) = use_dir.expression {
-                    strip_ts_from_expression(expr);
+                    strip_ts_from_expression(expr)?;
                 }
             }
             Attribute::Attribute(attr_node) => {
                 // AttributeNode values may contain expressions in their parts
-                strip_ts_from_attribute_value(&mut attr_node.value);
+                strip_ts_from_attribute_value(&mut attr_node.value)?;
             }
             Attribute::LetDirective(_) => {}
         }
     }
+    Ok(())
 }
 
 /// Strip TypeScript from attribute values.
-fn strip_ts_from_attribute_value(value: &mut crate::ast::AttributeValue) {
+fn strip_ts_from_attribute_value(
+    value: &mut crate::ast::AttributeValue,
+) -> Result<(), crate::error::ParseError> {
     use crate::ast::AttributeValue;
     use crate::ast::AttributeValuePart;
     match value {
         AttributeValue::Expression(tag) => {
-            strip_ts_from_expression(&mut tag.expression);
+            strip_ts_from_expression(&mut tag.expression)?;
         }
         AttributeValue::Sequence(parts) => {
             for part in parts {
                 if let AttributeValuePart::ExpressionTag(tag) = part {
-                    strip_ts_from_expression(&mut tag.expression);
+                    strip_ts_from_expression(&mut tag.expression)?;
                 }
             }
         }
         AttributeValue::True(_) => {}
     }
+    Ok(())
 }
 
 /// Compile multiple Svelte components in parallel.

@@ -549,11 +549,20 @@ pub fn validate_no_const_assignment(
                 // Use scope chain lookup to find the correct binding
                 // This respects lexical scoping - inner bindings shadow outer ones
                 //
-                // First try current scope, then fall back to root scope
+                // First try current scope, then fall back to instance scope, then root scope
                 let binding_idx = context
                     .analysis
                     .root
                     .get_binding(name, context.scope)
+                    .or_else(|| {
+                        // Fallback to instance scope (template expressions can access instance bindings)
+                        let instance_scope_idx = context.analysis.root.instance_scope_index;
+                        if instance_scope_idx > 0 {
+                            context.analysis.root.get_binding(name, instance_scope_idx)
+                        } else {
+                            None
+                        }
+                    })
                     .or_else(|| {
                         // Fallback to root scope declarations
                         context.analysis.root.scope.declarations.get(name).copied()
@@ -681,17 +690,29 @@ pub fn validate_block_not_empty(
 /// * `id` - The variable declarator pattern (Identifier, ArrayPattern, ObjectPattern)
 /// * `context` - The visitor context
 pub fn ensure_no_module_import_conflict(
-    id: &Value,
-    _context: &VisitorContext,
+    node: &Value,
+    context: &VisitorContext,
 ) -> Result<(), AnalysisError> {
+    // Only check in instance script at top-level instance scope
+    // Corresponds to: state.ast_type === 'instance' && state.scope === state.analysis.instance.scope
+    // Instance script starts at function_depth 1, nested functions are >= 2
+    if !matches!(context.ast_type, super::super::AstType::Instance) || context.function_depth != 1 {
+        return Ok(());
+    }
+
     // Extract identifiers from the pattern
+    let id = node.get("id").unwrap_or(node);
     let identifiers = extract_identifiers(id);
 
-    for _name in identifiers {
+    for name in identifiers {
         // Check if this name conflicts with a module import
-        // TODO: Implement proper module scope checking
-        // For now, just check if the name exists in module scope
-        // This requires tracking module scope separately from instance scope
+        if context
+            .analysis
+            .module_scope_declarations
+            .contains_key(&name)
+        {
+            return Err(errors::declaration_duplicate_module_import());
+        }
     }
 
     Ok(())
@@ -1631,11 +1652,20 @@ pub fn walk_js_expression(
                 // Check if this is a rune call
                 let rune_name = get_rune_name(callee, context);
 
-                // NOTE: We do NOT validate rune placement here.
-                // Rune placement validation is handled by call_expression.rs during
-                // the script visitor walk, which has proper context about the JS AST path.
-                // Template expressions may contain valid rune calls (e.g., $state() inside
-                // event handler arrow functions, class constructors, etc.).
+                // Validate rune placement for state/derived runes inside {@const} tags.
+                // These runes are always invalid in {@const} context since {@const} is not
+                // a proper variable declaration initializer.
+                // Other rune validations are handled by call_expression.rs during the script
+                // visitor walk.
+                if let Some(ref rn) = rune_name
+                    && matches!(
+                        rn.as_str(),
+                        "$state" | "$state.raw" | "$derived" | "$derived.by"
+                    )
+                    && context.in_const_tag
+                {
+                    return Err(errors::state_invalid_placement(rn));
+                }
 
                 if rune_name.is_none() && !is_safe_identifier(callee, context) {
                     context.analysis.needs_context = true;
@@ -1761,7 +1791,9 @@ pub fn walk_js_expression(
             // Mark expression as having assignment
             metadata.set_has_assignment(true);
         }
-        Some("ArrowFunctionExpression") | Some("FunctionExpression") => {
+        Some("ArrowFunctionExpression")
+        | Some("FunctionExpression")
+        | Some("FunctionDeclaration") => {
             // Increment function depth for nested functions
             // This is important for detecting scoped store subscriptions
             context.function_depth += 1;
@@ -1949,6 +1981,42 @@ pub fn walk_js_statement(
             }
             if let Some(body) = statement.get("body") {
                 walk_js_statement(body, context, metadata)?;
+            }
+        }
+        Some("FunctionDeclaration") => {
+            // Walk function declarations like function expressions
+            // This is needed to validate assignments inside nested functions
+            // (e.g., function inner() { foo = 1; } where foo is a const)
+            walk_js_expression(statement, context, metadata)?;
+        }
+        Some("SwitchStatement") => {
+            if let Some(discriminant) = statement.get("discriminant") {
+                walk_js_expression(discriminant, context, metadata)?;
+            }
+            if let Some(cases) = statement.get("cases").and_then(|c| c.as_array()) {
+                for case in cases {
+                    if let Some(test) = case.get("test") {
+                        walk_js_expression(test, context, metadata)?;
+                    }
+                    if let Some(consequent) = case.get("consequent").and_then(|c| c.as_array()) {
+                        for stmt in consequent {
+                            walk_js_statement(stmt, context, metadata)?;
+                        }
+                    }
+                }
+            }
+        }
+        Some("TryStatement") => {
+            if let Some(block) = statement.get("block") {
+                walk_js_statement(block, context, metadata)?;
+            }
+            if let Some(handler) = statement.get("handler")
+                && let Some(body) = handler.get("body")
+            {
+                walk_js_statement(body, context, metadata)?;
+            }
+            if let Some(finalizer) = statement.get("finalizer") {
+                walk_js_statement(finalizer, context, metadata)?;
             }
         }
         _ => {}

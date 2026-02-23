@@ -47,7 +47,9 @@ pub fn visit(tag: &mut ConstTag, context: &mut VisitorContext) -> Result<(), Ana
         return Err(errors::const_tag_invalid_placement());
     }
 
-    // Visit the declaration expression
+    // Visit the declaration expression with in_const_tag flag set
+    context.in_const_tag = true;
+
     let crate::ast::js::Expression::Value(value) = &tag.declaration;
 
     let decl_type = value.get("type").and_then(|t| t.as_str());
@@ -71,5 +73,6 @@ pub fn visit(tag: &mut ConstTag, context: &mut VisitorContext) -> Result<(), Ana
         walk_js_expression(right, context, &mut tag.metadata.expression)?;
     }
 
+    context.in_const_tag = false;
     Ok(())
 }

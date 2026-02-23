@@ -199,18 +199,9 @@ pub fn analyze_component(
     // - Instance scope: function_depth = 1 (child of module scope, not porous)
     // - Functions inside instance: function_depth = 2, etc.
     // We mirror this by setting the initial function_depth based on ast_type.
-    if let Some(ref instance) = ast.instance {
-        // Validate script attributes - warn for unknown attributes
-        validate_script_attributes(&instance.attributes, &mut analysis);
-
-        let script_ast = instance.content.as_json();
-        let mut context = visitors::VisitorContext::new(&mut analysis);
-        context.ast_type = visitors::AstType::Instance;
-        // Instance script starts at function_depth 1 (like Svelte's scope system)
-        context.function_depth = 1;
-        visitors::visit_script(script_ast, &mut context)?;
-    }
-
+    //
+    // Order matches official Svelte: module first, then instance, then template.
+    // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js L706-726
     if let Some(ref module) = ast.module {
         // Validate script attributes - warn for unknown attributes
         validate_script_attributes(&module.attributes, &mut analysis);
@@ -235,6 +226,39 @@ pub fn analyze_component(
         context.ast_type = visitors::AstType::Module;
         // Module script stays at function_depth 0
         context.function_depth = 0;
+        visitors::visit_script(script_ast, &mut context)?;
+    }
+
+    // Snapshot module scope declarations (imports) for conflict detection during instance
+    // script analysis. Scope data is populated during Phase 1 scope building, so we can
+    // do this before analyzing the instance script.
+    // Reference: ensure_no_module_import_conflict checks module.scope.get(id.name)?.declaration_kind === 'import'
+    {
+        let module_decls: rustc_hash::FxHashMap<String, usize> = analysis
+            .root
+            .scope
+            .declarations
+            .iter()
+            .filter(|&(_, idx)| {
+                analysis.root.bindings.get(*idx).is_some_and(|b| {
+                    b.declaration_kind
+                        == crate::compiler::phases::phase2_analyze::DeclarationKind::Import
+                })
+            })
+            .map(|(name, idx)| (name.clone(), *idx))
+            .collect();
+        analysis.module_scope_declarations = module_decls;
+    }
+
+    if let Some(ref instance) = ast.instance {
+        // Validate script attributes - warn for unknown attributes
+        validate_script_attributes(&instance.attributes, &mut analysis);
+
+        let script_ast = instance.content.as_json();
+        let mut context = visitors::VisitorContext::new(&mut analysis);
+        context.ast_type = visitors::AstType::Instance;
+        // Instance script starts at function_depth 1 (like Svelte's scope system)
+        context.function_depth = 1;
         visitors::visit_script(script_ast, &mut context)?;
     }
 

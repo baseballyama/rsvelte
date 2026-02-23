@@ -954,6 +954,20 @@ impl Parser<'_> {
             // Create the attribute name from the expression (shorthand)
             let name = expr_content.trim().to_string();
 
+            // Check for reserved words in shorthand attributes
+            // In the official Svelte, read_identifier() checks is_reserved(name)
+            // Reference: svelte/packages/svelte/src/compiler/phases/1-parse/index.js L248
+            if crate::compiler::phases::phase1_parse::utils::is_reserved(&name) {
+                return Err(crate::error::ParseError::svelte(
+                    "unexpected_reserved_word",
+                    format!(
+                        "'{}' is a reserved word in JavaScript and cannot be used here",
+                        name
+                    ),
+                    (expr_start, expr_start),
+                ));
+            }
+
             // Calculate name_loc
             let name_loc = self.create_name_loc(expr_start, expr_end);
 
