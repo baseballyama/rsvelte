@@ -1515,6 +1515,9 @@ pub struct CssDomElement {
     pub possible_next_general: Vec<(usize, SiblingCertainty)>,
     /// Whether this element has content (non-empty children)
     pub has_content: bool,
+    /// Whether this element has a dynamic tag name (svelte:element)
+    /// When true, any type selector matches this element
+    pub is_dynamic_tag: bool,
 }
 
 /// Export information.

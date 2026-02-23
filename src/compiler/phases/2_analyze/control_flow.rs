@@ -271,7 +271,7 @@ fn collect_elements(
     path: Vec<FragmentSegment>,
     current_branches: Option<&FxHashSet<BranchId>>,
 ) {
-    collect_elements_impl(fragment, ctx, path, current_branches, None, None, None);
+    collect_elements_impl(fragment, ctx, path, current_branches, None, None, vec![]);
 }
 
 /// Collect elements from a control flow branch, using a fixed position for all elements.
@@ -282,7 +282,7 @@ fn collect_elements_with_position(
     current_branches: Option<&FxHashSet<BranchId>>,
     fixed_position: usize,
     fixed_sub_position: Option<usize>,
-    each_block_id: Option<(Vec<FragmentSegment>, usize)>,
+    each_block_ids: Vec<(Vec<FragmentSegment>, usize)>,
 ) {
     collect_elements_impl(
         fragment,
@@ -291,7 +291,7 @@ fn collect_elements_with_position(
         current_branches,
         Some(fixed_position),
         fixed_sub_position,
-        each_block_id,
+        each_block_ids,
     );
 }
 
@@ -303,7 +303,7 @@ fn collect_elements_impl(
     current_branches: Option<&FxHashSet<BranchId>>,
     fixed_position: Option<usize>,
     fixed_sub_position: Option<usize>,
-    each_block_id: Option<(Vec<FragmentSegment>, usize)>,
+    each_block_ids: Vec<(Vec<FragmentSegment>, usize)>,
 ) {
     let branches = current_branches.cloned().unwrap_or_default();
 
@@ -333,8 +333,9 @@ fn collect_elements_impl(
 
                 ctx.element_info.insert(dom_idx, info);
 
-                // Track each block body membership for cross-iteration siblings
-                if let Some(ref each_id) = each_block_id {
+                // Track each block body membership for cross-iteration siblings.
+                // Register in ALL ancestor each blocks, not just the innermost one.
+                for each_id in &each_block_ids {
                     ctx.each_body_elements
                         .entry(each_id.clone())
                         .or_default()
@@ -394,7 +395,7 @@ fn collect_elements_impl(
                     Some(&consequent_branches),
                     block_position,
                     sub_pos,
-                    each_block_id.clone(),
+                    each_block_ids.clone(),
                 );
 
                 // Alternate branch (if any)
@@ -411,7 +412,7 @@ fn collect_elements_impl(
                         Some(&alternate_branches),
                         block_position,
                         sub_pos,
-                        each_block_id.clone(),
+                        each_block_ids.clone(),
                     );
                 }
 
@@ -430,6 +431,10 @@ fn collect_elements_impl(
 
                 // Each block body ID for cross-iteration sibling tracking
                 let each_id = (path.clone(), block_position);
+
+                // Build the stack of each block IDs: current ancestors + this block
+                let mut body_each_ids = each_block_ids.clone();
+                body_each_ids.push(each_id);
 
                 // Each blocks without a fallback are non-exhaustive (body might
                 // render 0 times). Elements inside get SUB_POS_INSIDE_BLOCK so
@@ -454,7 +459,7 @@ fn collect_elements_impl(
                     Some(&body_branches),
                     block_position,
                     body_sub_pos,
-                    Some(each_id),
+                    body_each_ids,
                 );
 
                 // Fallback (if any)
@@ -471,7 +476,7 @@ fn collect_elements_impl(
                         Some(&fallback_branches),
                         block_position,
                         None,
-                        None, // Fallback doesn't have cross-iteration siblings
+                        vec![], // Fallback doesn't have cross-iteration siblings
                     );
                 }
 
@@ -501,7 +506,7 @@ fn collect_elements_impl(
                         Some(&pending_branches),
                         block_position,
                         None,
-                        None,
+                        each_block_ids.clone(),
                     );
                 }
 
@@ -519,7 +524,7 @@ fn collect_elements_impl(
                         Some(&then_branches),
                         block_position,
                         None,
-                        None,
+                        each_block_ids.clone(),
                     );
                 }
 
@@ -537,7 +542,7 @@ fn collect_elements_impl(
                         Some(&catch_branches),
                         block_position,
                         None,
-                        None,
+                        each_block_ids.clone(),
                     );
                 }
 
@@ -576,10 +581,55 @@ fn collect_elements_impl(
                 ctx.increment_position();
             }
 
-            TemplateNode::SvelteElement(_) => {
-                // Dynamic element - count it but don't analyze further
+            TemplateNode::SvelteElement(element) => {
+                // svelte:element is treated like a regular element for sibling detection,
+                // but uses SUB_POS_INSIDE_BLOCK because the dynamic tag might not render
+                // (e.g., this={null}), so it should not be a definite barrier for adjacency
+                let dom_idx = ctx.current_dom_idx;
                 ctx.current_dom_idx += 1;
-                ctx.increment_position();
+
+                let position = fixed_position.unwrap_or_else(|| ctx.current_position());
+                let sub_pos = fixed_sub_position.unwrap_or(SUB_POS_INSIDE_BLOCK);
+
+                let internal_order = ctx.internal_order_counter;
+                ctx.internal_order_counter += 1;
+
+                let info = ElementInfo {
+                    dom_idx,
+                    fragment_path: path.clone(),
+                    position_in_fragment: position,
+                    sub_position: sub_pos,
+                    internal_order,
+                    branches: branches.clone(),
+                };
+
+                ctx.element_info.insert(dom_idx, info);
+
+                // Track each block body membership
+                for each_id in &each_block_ids {
+                    ctx.each_body_elements
+                        .entry(each_id.clone())
+                        .or_default()
+                        .push(dom_idx);
+                }
+
+                // Track position mapping
+                let key = (path.clone(), position);
+                ctx.position_to_elements
+                    .entry(key)
+                    .or_default()
+                    .push((dom_idx, branches.clone()));
+
+                if fixed_position.is_none() {
+                    ctx.increment_position();
+                }
+
+                // Process children
+                let mut child_path = path.clone();
+                child_path.push(FragmentSegment::Element(dom_idx));
+                ctx.push_position();
+                collect_elements(&element.fragment, ctx, child_path, Some(&branches));
+                ctx.pop_position();
             }
 
             _ => {

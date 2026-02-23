@@ -32,9 +32,12 @@ pub fn visit(
     // Mark that we have dynamic elements (can't safely prune type selectors)
     context.analysis.css.has_dynamic_elements = true;
 
-    // Extract class names from svelte:element attributes for CSS unused selector detection.
+    // Extract class names and ID from svelte:element attributes for CSS selector detection.
     // Since svelte:element can resolve to any element, we still need to know which classes
     // are used so the CSS pruner can keep the right selectors.
+    let mut element_classes = rustc_hash::FxHashSet::default();
+    let mut element_id = None;
+
     for attr in &element.attributes {
         match attr {
             Attribute::Attribute(attr_node) if attr_node.name == "class" => {
@@ -49,6 +52,7 @@ pub fn visit(
                                             .css
                                             .used_classes
                                             .insert(class_name.to_string());
+                                        element_classes.insert(class_name.to_string());
                                     }
                                 }
                                 AttributeValuePart::ExpressionTag(_) => {
@@ -63,15 +67,53 @@ pub fn visit(
                     _ => {}
                 }
             }
+            Attribute::Attribute(attr_node) if attr_node.name == "id" => {
+                if let AttributeValue::Sequence(parts) = &attr_node.value
+                    && parts.len() == 1
+                    && let Some(AttributeValuePart::Text(text)) = parts.first()
+                {
+                    element_id = Some(text.data.to_string());
+                }
+            }
             Attribute::ClassDirective(cd) => {
                 context
                     .analysis
                     .css
                     .used_classes
                     .insert(cd.name.to_string());
+                element_classes.insert(cd.name.to_string());
             }
             _ => {}
         }
+    }
+
+    // Create DOM element for CSS sibling combinator detection
+    let parent_idx = context.current_parent_idx();
+    let is_root_child = context.dom_element_stack.is_empty();
+    let dom_element = super::super::types::CssDomElement {
+        tag_name: String::new(), // Dynamic tag, will use is_dynamic_tag
+        classes: element_classes,
+        id: element_id,
+        parent_idx,
+        children_idx: Vec::new(),
+        is_root_child,
+        possible_prev_adjacent: Vec::new(),
+        possible_next_adjacent: Vec::new(),
+        possible_prev_general: Vec::new(),
+        possible_next_general: Vec::new(),
+        has_content: !element.fragment.nodes.is_empty(),
+        is_dynamic_tag: true,
+    };
+
+    let element_idx = context.add_dom_element(dom_element);
+
+    // Update parent's children list
+    if let Some(parent_idx) = parent_idx
+        && parent_idx < context.analysis.css.dom_structure.elements.len()
+    {
+        context.analysis.css.dom_structure.elements[parent_idx]
+            .children_idx
+            .push(element_idx);
     }
 
     // Check that svelte:element has a 'this' attribute with a value
@@ -195,6 +237,9 @@ pub fn visit(
         .fragment_owner_stack
         .push(super::FragmentOwnerType::SvelteElement);
 
+    // Push this element index to DOM element stack for tracking children
+    context.dom_element_stack.push(element_idx);
+
     // Save and update the SVG/MathML namespace state for child analysis.
     // Child svelte:element nodes will check these fields to determine their namespace.
     let saved_svg = context.analysis.component_namespace_is_svg;
@@ -208,6 +253,9 @@ pub fn visit(
     // Restore namespace state
     context.analysis.component_namespace_is_svg = saved_svg;
     context.analysis.component_namespace_is_mathml = saved_mathml;
+
+    // Pop this element from DOM element stack
+    context.dom_element_stack.pop();
 
     // Restore context
     context.fragment_owner_stack.pop();

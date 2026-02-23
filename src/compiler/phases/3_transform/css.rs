@@ -1297,8 +1297,9 @@ fn selector_matches_element(
         return true;
     }
 
-    // Check tag name
+    // Check tag name (dynamic tags match any type selector)
     if let Some(ref tag) = info.tag_name
+        && !el.is_dynamic_tag
         && el.tag_name != *tag
     {
         return false;
@@ -1843,27 +1844,9 @@ fn transform_rule_preserving(
         return;
     }
 
-    // Check if the rule is empty (no declarations, or all nested rules are unused/empty)
-    if is_rule_empty(node, ctx, is_in_global_block) {
-        // Comment out empty rules
-        output.push_str("/* (empty) ");
-
-        // Get the original rule text
-        let rule_start = node_start.saturating_sub(css_start);
-        let rule_end = node_end.saturating_sub(css_start);
-        if rule_end <= css_source.len() && rule_start < rule_end {
-            let original = &css_source[rule_start..rule_end];
-            // Escape any */ in the content
-            let escaped = original.replace("*/", "*\\/");
-            output.push_str(&escaped);
-        }
-
-        output.push_str("*/");
-        *last_end = node_end;
-        return;
-    }
-
     // Check if the rule is unused (selector doesn't match any template elements)
+    // NOTE: Must check unused BEFORE empty, because an unused selector with nested
+    // content (like @media rules) should be marked (unused) not (empty)
     if let Some(prelude) = node.get("prelude") {
         let unused_status = check_selector_unused(prelude, ctx);
         if unused_status != UnusedStatus::Used {
@@ -1885,6 +1868,26 @@ fn transform_rule_preserving(
             *last_end = node_end;
             return;
         }
+    }
+
+    // Check if the rule is empty (no declarations, or all nested rules are unused/empty)
+    if is_rule_empty(node, ctx, is_in_global_block) {
+        // Comment out empty rules
+        output.push_str("/* (empty) ");
+
+        // Get the original rule text
+        let rule_start = node_start.saturating_sub(css_start);
+        let rule_end = node_end.saturating_sub(css_start);
+        if rule_end <= css_source.len() && rule_start < rule_end {
+            let original = &css_source[rule_start..rule_end];
+            // Escape any */ in the content
+            let escaped = original.replace("*/", "*\\/");
+            output.push_str(&escaped);
+        }
+
+        output.push_str("*/");
+        *last_end = node_end;
+        return;
     }
 
     // Get the prelude (selector list)
@@ -2314,13 +2317,22 @@ fn transform_selector_list(
                 // This selector is used
                 // First, flush any buffered unused selectors
                 if !unused_buffer.is_empty() {
-                    result.push_str(" /* (unused) ");
-                    result.push_str(&unused_buffer);
-                    result.push_str("*/");
+                    if has_output {
+                        // Between used selectors: <used> /* (unused) <selectors>*/, <next used>
+                        result.push_str(" /* (unused) ");
+                        result.push_str(&unused_buffer);
+                        result.push_str("*/");
+                        result.push_str(separator);
+                    } else {
+                        // Before first used selector: /* (unused) <selectors>,*/ <used>
+                        result.push_str("/* (unused) ");
+                        result.push_str(&unused_buffer);
+                        result.push_str(",*/ ");
+                    }
                     unused_buffer.clear();
                 }
-                // Output separator if not first
-                if has_output {
+                // Output separator if not first (only when no unused prefix was flushed)
+                else if has_output {
                     result.push_str(separator);
                 }
                 // Output the transformed selector
@@ -3008,8 +3020,8 @@ fn transform_is_not_complex_selector(
                 if name == " " {
                     result.push(' ');
                 } else if result.is_empty() {
-                    // First combinator - no leading space, no trailing space
-                    // This handles :has(~span) where ~span has no spaces
+                    // First combinator - no leading or trailing space
+                    // This handles :has(>y) where the combinator starts the selector
                     result.push_str(name);
                 } else {
                     result.push_str(&format!(" {} ", name));
