@@ -554,6 +554,7 @@ fn create_call_transform()
 -> crate::compiler::phases::phase3_transform::client::types::IdentifierTransform {
     crate::compiler::phases::phase3_transform::client::types::IdentifierTransform {
         read: Some(|expr| b::call(expr, vec![])),
+        read_source: None,
         assign: None,
         mutate: None,
         update: None,
@@ -569,6 +570,7 @@ fn create_get_value_transform()
 -> crate::compiler::phases::phase3_transform::client::types::IdentifierTransform {
     crate::compiler::phases::phase3_transform::client::types::IdentifierTransform {
         read: Some(|expr| b::call(b::member_path("$.get"), vec![expr])),
+        read_source: None,
         assign: None,
         mutate: None,
         update: None,

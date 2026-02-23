@@ -229,6 +229,7 @@ fn create_derived_block_argument(
             name.clone(),
             crate::compiler::phases::phase3_transform::client::types::IdentifierTransform {
                 read: Some(get_value),
+                read_source: None,
                 assign: None,
                 mutate: None,
                 update: None,
@@ -295,6 +296,7 @@ fn create_derived_block_argument(
             id.clone(),
             crate::compiler::phases::phase3_transform::client::types::IdentifierTransform {
                 read: Some(get_value),
+                read_source: None,
                 assign: None,
                 mutate: None,
                 update: None,

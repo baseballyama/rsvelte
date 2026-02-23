@@ -81,7 +81,13 @@ impl<'a> ScopeBuilder<'a> {
             current_scope: 0,
             source,
             updates: Vec::new(),
-            function_depth: 0,
+            // Initialize function_depth to 1 to match the official Svelte compiler's scope structure:
+            // In the official compiler, scope.function_depth = parent.function_depth + 1 for non-porous
+            // scopes. The root scope has depth 0, the instance scope has depth 1. This means:
+            // - Variables at the top level of the instance script have function_depth = 1 (→ error)
+            // - Variables inside a function body have function_depth = 2 (→ OK)
+            // The validate_identifier_name check is `(!function_depth || function_depth <= 1)`.
+            function_depth: 1,
             runes_mode,
             is_typescript,
             validation_errors: Vec::new(),
@@ -366,15 +372,25 @@ impl<'a> ScopeBuilder<'a> {
         );
 
         // Validate identifier name (check for invalid $ prefixes)
-        // In runes mode, we don't pass function_depth (validation always runs)
-        // In legacy mode, we pass function_depth so validation skips in nested functions
-        let function_depth = if self.runes_mode {
-            None
-        } else {
-            Some(self.function_depth)
-        };
-        if let Err(e) = validate_identifier_name(&binding, function_depth) {
-            self.validation_errors.push(e);
+        // In runes mode: validate without function_depth (all levels validated)
+        // In legacy mode: validate with function_depth so bindings inside function bodies
+        //   (function_depth >= 2) are allowed. This matches the official Svelte compiler's
+        //   scope.js behavior where `function_depth <= 1` means instance scope level only.
+        //
+        // Official Svelte scope.js:
+        //   this.function_depth = parent ? parent.function_depth + (porous ? 0 : 1) : 0;
+        //   validate_identifier_name(binding, this.function_depth);
+        //   validate_identifier_name checks: (!function_depth || function_depth <= 1)
+        //   So function_depth >= 2 (inside a function body) allows $ prefixed names.
+        {
+            let function_depth = if self.runes_mode {
+                None
+            } else {
+                Some(self.function_depth)
+            };
+            if let Err(e) = validate_identifier_name(&binding, function_depth) {
+                self.validation_errors.push(e);
+            }
         }
 
         self.bindings.push(binding);

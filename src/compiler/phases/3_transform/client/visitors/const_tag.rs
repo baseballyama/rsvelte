@@ -10,11 +10,13 @@
 use crate::ast::js::Expression;
 use crate::ast::template::ConstTag;
 use crate::compiler::phases::phase3_transform::client::types::*;
-use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
+use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::{
+    convert_expression, convert_param_pattern,
+};
 use crate::compiler::phases::phase3_transform::client::visitors::shared::declarations::get_value;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_expression;
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
-use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
+use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 
 /// Visit a const tag.
 ///
@@ -50,8 +52,8 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
     // We need to extract the declarators from it
     let declaration = &node.declaration;
 
-    // Parse the declaration to get the id and init
-    let (id_name, init_expr, is_identifier) = match parse_variable_declaration(declaration) {
+    // Parse the declaration to get the id pattern, init, and whether it's a simple identifier
+    let parsed = match parse_variable_declaration(declaration) {
         Some(result) => result,
         None => {
             // If we can't parse the declaration, skip it
@@ -59,10 +61,17 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
         }
     };
 
-    if is_identifier {
+    if parsed.is_identifier {
         // Simple identifier case: `{@const doubled = value * 2}`
+        let id_name = parsed.id_name;
+
+        // Guard against empty name (parser failed to parse complex pattern)
+        if id_name.is_empty() {
+            return;
+        }
+
         // Convert the init expression to JS AST
-        let converted_init = convert_expression(&init_expr, context);
+        let converted_init = convert_expression(&parsed.init_expr, context);
 
         // Build the expression with transforms applied
         let expr_metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
@@ -79,6 +88,7 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
             id_name.clone(),
             IdentifierTransform {
                 read: Some(get_value),
+                read_source: None,
                 assign: None,
                 mutate: None,
                 update: None,
@@ -92,16 +102,258 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
         // Add the const declaration to state.consts
         // This will be output as: const doubled = $.derived_safe_equal(() => ...)
         add_const_declaration(context, &id_name, derived_expr, &node.metadata.expression);
+    } else {
+        // Destructuring pattern case: `{@const { x, y } = point}`
+        //
+        // Following the official Svelte compiler (ConstTag.js lines 38-86):
+        // 1. Extract identifiers from the destructuring pattern
+        // 2. Generate a unique temp variable (computed_const)
+        // 3. Create a child state where destructured identifiers have no transform
+        //    (they are not signals inside the derived computation)
+        // 4. Build: computed_const = $.derived_safe_equal(() => {
+        //        const { x, y } = init;
+        //        return { x, y };
+        //    })
+        // 5. Register read transforms: x -> $.get(computed_const).x
+
+        let pattern_json = match &parsed.pattern_json {
+            Some(json) => json.clone(),
+            None => return,
+        };
+
+        // Extract all identifiers from the destructuring pattern
+        let identifiers = extract_identifiers_from_pattern(&pattern_json);
+        if identifiers.is_empty() {
+            return;
+        }
+
+        // Generate a unique temp variable name
+        let tmp_name = context.state.memoizer.generate_id("computed_const");
+
+        // Create a child transform map where all destructured identifiers have
+        // no transform (they are regular variables inside the derived computation,
+        // not signals yet)
+        let mut child_transform = context.state.transform.clone();
+        for id_name in &identifiers {
+            child_transform.remove(id_name);
+        }
+
+        // Save the original transform and temporarily swap in the child transform
+        let original_transform = std::mem::replace(&mut context.state.transform, child_transform);
+
+        // Convert and build the init expression with the child state
+        let converted_init = convert_expression(&parsed.init_expr, context);
+        let expr_metadata = ExpressionMetadata::from_template_metadata(&node.metadata.expression);
+        let built_init = build_expression(context, &converted_init, &expr_metadata);
+
+        // Restore the original transform
+        context.state.transform = original_transform;
+
+        // Convert the destructuring pattern to JsPattern
+        let pattern = convert_param_pattern(&pattern_json, context);
+
+        // Build the block body:
+        // const { x, y } = init;
+        // return { x, y };
+        let const_stmt = if let Some(pat) = pattern {
+            b::var_decl_pattern(JsVariableKind::Const, pat, Some(built_init))
+        } else {
+            // Fallback: generate raw destructuring statement
+            let pattern_str = render_pattern_as_string(&pattern_json);
+            let init_str =
+                crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
+                    &built_init,
+                );
+            JsStatement::Raw(format!("const {} = {};", pattern_str, init_str))
+        };
+
+        // Create the return object: { x, y }
+        // Using shorthand properties: prop("x", id("x")) which auto-detects shorthand
+        let return_props: Vec<JsObjectMember> = identifiers
+            .iter()
+            .map(|name| b::prop(name.clone(), b::id(name)))
+            .collect();
+        let return_obj = b::object(return_props);
+        let return_stmt = b::return_stmt(Some(return_obj));
+
+        // Create the block expression as a thunk with block body: () => { const {...} = init; return {...}; }
+        // We use thunk_block directly instead of create_derived + arrow_block to avoid
+        // double wrapping (create_derived already wraps in thunk)
+        let block_thunk = b::thunk_block(vec![const_stmt, return_stmt]);
+
+        // Create derived expression wrapping the block thunk
+        let is_async = node.metadata.expression.has_await();
+        let derived_expr = if is_async {
+            b::svelte_call("async_derived", vec![block_thunk])
+        } else if context.state.analysis.runes {
+            b::svelte_call("derived", vec![block_thunk])
+        } else {
+            b::svelte_call("derived_safe_equal", vec![block_thunk])
+        };
+
+        // Add the const declaration for the temp variable
+        add_const_declaration(context, &tmp_name, derived_expr, &node.metadata.expression);
+
+        // Register read transforms for each destructured identifier:
+        // x -> $.get(computed_const).x
+        for id_name in &identifiers {
+            context.state.transform.insert(
+                id_name.clone(),
+                IdentifierTransform {
+                    read: None,
+                    read_source: Some(tmp_name.clone()),
+                    assign: None,
+                    mutate: None,
+                    update: None,
+                    skip_proxy: false,
+                    is_defined: false,
+                    is_reactive: true,
+                },
+            );
+        }
     }
-    // Destructuring pattern case: `{@const { x, y } = point}`
-    //
-    // NOTE: Destructuring in @const is more complex and requires a different approach
-    // for the transform functions (they need to capture state, but Rust function pointers
-    // cannot capture state). For now, we skip this case.
-    //
-    // TODO: Implement destructuring @const support. This would require either:
-    // 1. Changing IdentifierTransform to use Box<dyn Fn> instead of fn pointers
-    // 2. Or storing the temp variable name in a different way
+}
+
+/// Extract all identifier names from a destructuring pattern JSON.
+///
+/// Handles ObjectPattern, ArrayPattern, RestElement, and AssignmentPattern.
+fn extract_identifiers_from_pattern(pattern: &serde_json::Value) -> Vec<String> {
+    let mut identifiers = Vec::new();
+    collect_identifiers(pattern, &mut identifiers);
+    identifiers
+}
+
+fn collect_identifiers(pattern: &serde_json::Value, out: &mut Vec<String>) {
+    let pat_type = pattern.get("type").and_then(|v| v.as_str());
+    match pat_type {
+        Some("Identifier") => {
+            if let Some(name) = pattern.get("name").and_then(|v| v.as_str()) {
+                out.push(name.to_string());
+            }
+        }
+        // Handle both ObjectPattern (official AST) and ObjectExpression (our parser's AST)
+        Some("ObjectPattern") | Some("ObjectExpression") => {
+            if let Some(properties) = pattern.get("properties").and_then(|v| v.as_array()) {
+                for prop in properties {
+                    let prop_type = prop.get("type").and_then(|v| v.as_str());
+                    if prop_type == Some("RestElement") || prop_type == Some("SpreadElement") {
+                        if let Some(arg) = prop.get("argument") {
+                            collect_identifiers(arg, out);
+                        }
+                    } else if let Some(value) = prop.get("value") {
+                        collect_identifiers(value, out);
+                    }
+                }
+            }
+        }
+        // Handle both ArrayPattern (official AST) and ArrayExpression (our parser's AST)
+        Some("ArrayPattern") | Some("ArrayExpression") => {
+            if let Some(elements) = pattern.get("elements").and_then(|v| v.as_array()) {
+                for elem in elements {
+                    if !elem.is_null() {
+                        collect_identifiers(elem, out);
+                    }
+                }
+            }
+        }
+        Some("RestElement") | Some("SpreadElement") => {
+            if let Some(arg) = pattern.get("argument") {
+                collect_identifiers(arg, out);
+            }
+        }
+        Some("AssignmentPattern") | Some("AssignmentExpression") => {
+            if let Some(left) = pattern.get("left") {
+                collect_identifiers(left, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Render a pattern JSON as a string for raw output fallback.
+fn render_pattern_as_string(pattern: &serde_json::Value) -> String {
+    let pat_type = pattern.get("type").and_then(|v| v.as_str());
+    match pat_type {
+        Some("Identifier") => pattern
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("_")
+            .to_string(),
+        Some("ObjectPattern") | Some("ObjectExpression") => {
+            let props: Vec<String> = pattern
+                .get("properties")
+                .and_then(|v| v.as_array())
+                .map(|props| {
+                    props
+                        .iter()
+                        .map(|prop| {
+                            let prop_type = prop.get("type").and_then(|v| v.as_str());
+                            if prop_type == Some("RestElement") {
+                                let arg = prop
+                                    .get("argument")
+                                    .map(render_pattern_as_string)
+                                    .unwrap_or_default();
+                                format!("...{}", arg)
+                            } else {
+                                let key = prop
+                                    .get("key")
+                                    .and_then(|k| k.get("name"))
+                                    .and_then(|n| n.as_str())
+                                    .unwrap_or("_");
+                                let value = prop.get("value").map(render_pattern_as_string);
+                                let shorthand = prop
+                                    .get("shorthand")
+                                    .and_then(|s| s.as_bool())
+                                    .unwrap_or(false);
+                                if shorthand || value.as_deref() == Some(key) {
+                                    key.to_string()
+                                } else if let Some(val) = value {
+                                    format!("{}: {}", key, val)
+                                } else {
+                                    key.to_string()
+                                }
+                            }
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            format!("{{ {} }}", props.join(", "))
+        }
+        Some("ArrayPattern") | Some("ArrayExpression") => {
+            let elems: Vec<String> = pattern
+                .get("elements")
+                .and_then(|v| v.as_array())
+                .map(|elems| {
+                    elems
+                        .iter()
+                        .map(|elem| {
+                            if elem.is_null() {
+                                String::new()
+                            } else {
+                                render_pattern_as_string(elem)
+                            }
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            format!("[{}]", elems.join(", "))
+        }
+        Some("RestElement") => {
+            let arg = pattern
+                .get("argument")
+                .map(render_pattern_as_string)
+                .unwrap_or_default();
+            format!("...{}", arg)
+        }
+        Some("AssignmentPattern") => {
+            // We don't render defaults in the const destructuring pattern
+            pattern
+                .get("left")
+                .map(render_pattern_as_string)
+                .unwrap_or_default()
+        }
+        _ => "_".to_string(),
+    }
 }
 
 /// Create a derived expression.
@@ -168,17 +420,26 @@ fn add_const_declaration(
     }
 }
 
+/// Parsed variable declaration result.
+struct ParsedDeclaration {
+    /// The identifier name (empty for destructuring patterns)
+    id_name: String,
+    /// The initializer expression
+    init_expr: Expression,
+    /// Whether the id is a simple identifier (true) or destructuring pattern (false)
+    is_identifier: bool,
+    /// The raw JSON pattern for destructuring (None for simple identifiers)
+    pattern_json: Option<serde_json::Value>,
+}
+
 /// Parse a VariableDeclaration or AssignmentExpression from an Expression to extract the id and init.
-///
-/// Returns (id_name, init_expression, is_identifier) where is_identifier is true
-/// if the id is a simple identifier (not destructuring).
 ///
 /// This handles two formats:
 /// 1. VariableDeclaration (official Svelte parser format):
 ///    `{ type: "VariableDeclaration", declarations: [{ id, init }] }`
 /// 2. AssignmentExpression (our Rust parser format):
 ///    `{ type: "AssignmentExpression", left: id, right: init }`
-fn parse_variable_declaration(expr: &Expression) -> Option<(String, Expression, bool)> {
+fn parse_variable_declaration(expr: &Expression) -> Option<ParsedDeclaration> {
     match expr {
         Expression::Value(json_value) => {
             let obj = json_value.as_object()?;
@@ -201,11 +462,21 @@ fn parse_variable_declaration(expr: &Expression) -> Option<(String, Expression, 
                     if id_type == "Identifier" {
                         let name = id_obj.get("name")?.as_str()?.to_string();
                         let init_expr = Expression::Value(init.clone());
-                        Some((name, init_expr, true))
+                        Some(ParsedDeclaration {
+                            id_name: name,
+                            init_expr,
+                            is_identifier: true,
+                            pattern_json: None,
+                        })
                     } else {
                         // Destructuring pattern
                         let init_expr = Expression::Value(init.clone());
-                        Some(("".to_string(), init_expr, false))
+                        Some(ParsedDeclaration {
+                            id_name: String::new(),
+                            init_expr,
+                            is_identifier: false,
+                            pattern_json: Some(id.clone()),
+                        })
                     }
                 }
                 "AssignmentExpression" => {
@@ -219,11 +490,21 @@ fn parse_variable_declaration(expr: &Expression) -> Option<(String, Expression, 
                     if left_type == "Identifier" {
                         let name = left_obj.get("name")?.as_str()?.to_string();
                         let init_expr = Expression::Value(right.clone());
-                        Some((name, init_expr, true))
+                        Some(ParsedDeclaration {
+                            id_name: name,
+                            init_expr,
+                            is_identifier: true,
+                            pattern_json: None,
+                        })
                     } else {
                         // Destructuring pattern
                         let init_expr = Expression::Value(right.clone());
-                        Some(("".to_string(), init_expr, false))
+                        Some(ParsedDeclaration {
+                            id_name: String::new(),
+                            init_expr,
+                            is_identifier: false,
+                            pattern_json: Some(left.clone()),
+                        })
                     }
                 }
                 _ => None,
@@ -256,8 +537,100 @@ mod tests {
         let result = parse_variable_declaration(&expr);
 
         assert!(result.is_some());
-        let (name, _init, is_identifier) = result.unwrap();
-        assert_eq!(name, "doubled");
-        assert!(is_identifier);
+        let parsed = result.unwrap();
+        assert_eq!(parsed.id_name, "doubled");
+        assert!(parsed.is_identifier);
+        assert!(parsed.pattern_json.is_none());
+    }
+
+    #[test]
+    fn test_parse_variable_declaration_destructuring() {
+        let json = serde_json::json!({
+            "type": "VariableDeclaration",
+            "declarations": [{
+                "type": "VariableDeclarator",
+                "id": {
+                    "type": "ObjectPattern",
+                    "properties": [{
+                        "type": "Property",
+                        "key": { "type": "Identifier", "name": "x" },
+                        "value": { "type": "Identifier", "name": "x" },
+                        "shorthand": true
+                    }, {
+                        "type": "Property",
+                        "key": { "type": "Identifier", "name": "y" },
+                        "value": { "type": "Identifier", "name": "y" },
+                        "shorthand": true
+                    }]
+                },
+                "init": { "type": "Identifier", "name": "point" }
+            }]
+        });
+
+        let expr = Expression::Value(json);
+        let result = parse_variable_declaration(&expr);
+
+        assert!(result.is_some());
+        let parsed = result.unwrap();
+        assert!(!parsed.is_identifier);
+        assert!(parsed.pattern_json.is_some());
+    }
+
+    #[test]
+    fn test_extract_identifiers_object_pattern() {
+        let pattern = serde_json::json!({
+            "type": "ObjectPattern",
+            "properties": [{
+                "type": "Property",
+                "key": { "type": "Identifier", "name": "x" },
+                "value": { "type": "Identifier", "name": "x" },
+                "shorthand": true
+            }, {
+                "type": "Property",
+                "key": { "type": "Identifier", "name": "y" },
+                "value": { "type": "Identifier", "name": "y" },
+                "shorthand": true
+            }]
+        });
+
+        let identifiers = extract_identifiers_from_pattern(&pattern);
+        assert_eq!(identifiers, vec!["x", "y"]);
+    }
+
+    #[test]
+    fn test_extract_identifiers_array_pattern() {
+        let pattern = serde_json::json!({
+            "type": "ArrayPattern",
+            "elements": [
+                { "type": "Identifier", "name": "a" },
+                { "type": "Identifier", "name": "b" }
+            ]
+        });
+
+        let identifiers = extract_identifiers_from_pattern(&pattern);
+        assert_eq!(identifiers, vec!["a", "b"]);
+    }
+
+    #[test]
+    fn test_extract_identifiers_nested() {
+        let pattern = serde_json::json!({
+            "type": "ObjectPattern",
+            "properties": [{
+                "type": "Property",
+                "key": { "type": "Identifier", "name": "a" },
+                "value": {
+                    "type": "ObjectPattern",
+                    "properties": [{
+                        "type": "Property",
+                        "key": { "type": "Identifier", "name": "b" },
+                        "value": { "type": "Identifier", "name": "b" },
+                        "shorthand": true
+                    }]
+                }
+            }]
+        });
+
+        let identifiers = extract_identifiers_from_pattern(&pattern);
+        assert_eq!(identifiers, vec!["b"]);
     }
 }

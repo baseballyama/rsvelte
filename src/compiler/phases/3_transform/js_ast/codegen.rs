@@ -2463,8 +2463,13 @@ impl JsCodegen {
 
         match &arrow.body {
             JsArrowBody::Expression(expr) => {
-                // Wrap object literals in parentheses
-                if matches!(expr.as_ref(), JsExpr::Object(_)) {
+                // Wrap object literals in parentheses to avoid being parsed as block
+                // statements. Also wrap assignment expressions to avoid ambiguity when
+                // the LHS starts with `{` (object destructuring pattern).
+                let needs_parens = matches!(expr.as_ref(), JsExpr::Object(_))
+                    || matches!(expr.as_ref(), JsExpr::Assignment(a)
+                        if matches!(a.left.as_ref(), JsExpr::Raw(s) if s.starts_with('{')));
+                if needs_parens {
                     self.output.push('(');
                     self.emit_expression(expr);
                     self.output.push(')');

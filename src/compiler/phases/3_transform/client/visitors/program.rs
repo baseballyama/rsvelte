@@ -88,6 +88,7 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
 
                     let transform = IdentifierTransform {
                         read: Some(store_sub_read),
+                        read_source: None,
                         assign: Some(store_sub_assign),
                         mutate: Some(store_sub_mutate),
                         update: Some(store_sub_update),
@@ -125,6 +126,7 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
                         };
                         let transform = IdentifierTransform {
                             read: Some(prop_read),
+                            read_source: None,
                             assign: Some(prop_assign),
                             mutate: Some(mutate_fn),
                             update: Some(prop_update),

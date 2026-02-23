@@ -9756,12 +9756,11 @@ fn expression_needs_proxy(expr: &str) -> bool {
     }
 
     // Identifiers (except primitives like undefined, null, true, false)
-    // could be objects/arrays passed as arguments, so they need proxy
-    if is_simple_identifier(trimmed)
-        && !matches!(
-            trimmed,
-            "undefined" | "null" | "true" | "false" | "NaN" | "Infinity"
-        )
+    // could be objects/arrays passed as arguments, so they need proxy.
+    // Note: NaN and Infinity are Identifiers in ESTree (not Literals), so the
+    // official Svelte compiler's should_proxy() returns true for them. We must
+    // NOT exclude them here.
+    if is_simple_identifier(trimmed) && !matches!(trimmed, "undefined" | "null" | "true" | "false")
     {
         return true;
     }

@@ -1,23 +1,16 @@
-use svelte_compiler_rust::{CompileOptions, GenerateMode, compile};
-
+use svelte_compiler_rust::{CompileOptions, GenerateMode, compile, compiler::CssMode};
 fn main() {
-    let source = r#"<script>
-	let { count=0 } = $props();
-
-	export {
-		count
-	}
-</script>
-
-<p>{count}</p>"#;
-
-    let client_options = CompileOptions {
-        filename: Some("main.svelte".to_string()),
+    let src_path = "/workspace/svelte/packages/svelte/tests/runtime-legacy/samples/each-block-keyed-random-permute/main.svelte";
+    let src = std::fs::read_to_string(src_path).expect("cannot read");
+    let opts = CompileOptions {
         generate: GenerateMode::Client,
+        filename: Some("main.svelte".to_string()),
+        css: CssMode::External,
+        accessors: true,
         ..Default::default()
     };
-
-    let client_result = compile(source, client_options).expect("Failed to compile client");
-    println!("=== OUR CLIENT ===");
-    println!("{}", client_result.js.code);
+    match compile(&src, opts) {
+        Ok(r) => println!("SUCCESS:\n{}", r.js.code),
+        Err(e) => eprintln!("ERROR: {:?}", e),
+    }
 }

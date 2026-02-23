@@ -367,10 +367,19 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 return build_reassigned_item_read(each_ctx);
             }
             // Check if there's a transform registered for this identifier
-            if let Some(transform) = context.state.transform.get(name)
-                && let Some(read_fn) = transform.read
-            {
-                return read_fn(JsExpr::Identifier(name.clone()));
+            if let Some(transform) = context.state.transform.get(name) {
+                // Handle @const destructuring: read_source means this identifier
+                // is part of a destructured @const declaration, so reads become
+                // $.get(computed_const).identifier_name
+                if let Some(ref source_var) = transform.read_source {
+                    return b::member(
+                        b::svelte_call("get", vec![JsExpr::Identifier(source_var.clone())]),
+                        name.clone(),
+                    );
+                }
+                if let Some(read_fn) = transform.read {
+                    return read_fn(JsExpr::Identifier(name.clone()));
+                }
             }
             expr.clone()
         }
@@ -3314,6 +3323,30 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
             }
             false
         }
+        "SequenceExpression" => {
+            // Check all expressions in the sequence for calls
+            // e.g., (bar, $effect.tracking()) should return true because of the call
+            if let Some(exprs) = obj.get("expressions").and_then(|v| v.as_array()) {
+                for expr_val in exprs {
+                    if has_call_json(expr_val, context) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        "AssignmentExpression" => {
+            if let Some(right) = obj.get("right") {
+                return has_call_json(right, context);
+            }
+            false
+        }
+        "SpreadElement" => {
+            if let Some(argument) = obj.get("argument") {
+                return has_call_json(argument, context);
+            }
+            false
+        }
         _ => false,
     }
 }
@@ -3414,6 +3447,26 @@ fn has_member_json(json_value: &serde_json::Value) -> bool {
                     {
                         return true;
                     }
+                }
+            }
+            false
+        }
+        "SequenceExpression" => {
+            if let Some(exprs) = obj.get("expressions").and_then(|v| v.as_array()) {
+                for expr_val in exprs {
+                    if has_member_json(expr_val) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        "AssignmentExpression" => {
+            for field in ["left", "right"] {
+                if let Some(val) = obj.get(field)
+                    && has_member_json(val)
+                {
+                    return true;
                 }
             }
             false

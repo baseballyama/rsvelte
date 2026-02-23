@@ -76,6 +76,17 @@ fn convert_json_value(value: &Value, context: &mut ComponentContext) -> JsExpr {
                         .unwrap_or("meta");
                     JsExpr::Raw(format!("{}.{}", meta, property))
                 }
+                "ObjectPattern" | "ArrayPattern" => {
+                    // Destructuring patterns used as LHS in assignment expressions.
+                    // e.g., `({ x } = { x: 1 })` or `([x] = [2])`
+                    // Convert through JsPattern and render to string.
+                    let value_ref = Value::Object(obj.clone());
+                    if let Some(pattern) = convert_param_pattern(&value_ref, context) {
+                        JsExpr::Raw(pattern_to_string(&pattern))
+                    } else {
+                        JsExpr::Raw(format!("/* Unknown: {} */", node_type))
+                    }
+                }
                 _ => {
                     // Unknown node type - return as raw comment
                     JsExpr::Raw(format!("/* Unknown: {} */", node_type))
@@ -1297,7 +1308,9 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
                 .and_then(|a| convert_param_pattern(a, context))?;
             Some(JsPattern::Rest(Box::new(argument)))
         }
-        "ObjectPattern" => {
+        // Handle both ObjectPattern (official AST) and ObjectExpression (our parser's AST
+        // for destructuring in @const tags)
+        "ObjectPattern" | "ObjectExpression" => {
             let properties = obj
                 .get("properties")
                 .and_then(|p| p.as_array())
@@ -1307,19 +1320,64 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
                         .filter_map(|prop| {
                             let prop_obj = prop.as_object()?;
                             let prop_type = prop_obj.get("type").and_then(|t| t.as_str())?;
-                            if prop_type == "RestElement" {
+                            if prop_type == "RestElement" || prop_type == "SpreadElement" {
                                 let arg = prop_obj
                                     .get("argument")
                                     .and_then(|a| convert_param_pattern(a, context))?;
                                 Some(JsObjectPatternProperty::Rest(Box::new(arg)))
                             } else {
                                 let key_val = prop_obj.get("key").and_then(|k| k.as_object())?;
-                                let key_name = key_val.get("name").and_then(|n| n.as_str())?;
-                                let key = JsPropertyKey::Identifier(key_name.to_string());
+                                let key_type =
+                                    key_val.get("type").and_then(|t| t.as_str()).unwrap_or("");
+
+                                // Handle Identifier keys, Literal keys, and computed keys
+                                let (key, fallback_name) = if key_type == "Literal" {
+                                    // Literal key: { 'the-area': area } or { 2: sum }
+                                    if let Some(val) = key_val.get("value") {
+                                        if let Some(s) = val.as_str() {
+                                            (
+                                                JsPropertyKey::Literal(JsLiteral::String(
+                                                    s.to_string(),
+                                                )),
+                                                None,
+                                            )
+                                        } else if let Some(n) = val.as_u64() {
+                                            (
+                                                JsPropertyKey::Literal(JsLiteral::Number(n as f64)),
+                                                None,
+                                            )
+                                        } else if let Some(n) = val.as_f64() {
+                                            (JsPropertyKey::Literal(JsLiteral::Number(n)), None)
+                                        } else {
+                                            return None;
+                                        }
+                                    } else {
+                                        return None;
+                                    }
+                                } else if key_type == "Identifier" {
+                                    // Identifier key: { x } or { x: y }
+                                    let name = key_val.get("name").and_then(|n| n.as_str())?;
+                                    (
+                                        JsPropertyKey::Identifier(name.to_string()),
+                                        Some(name.to_string()),
+                                    )
+                                } else {
+                                    // Computed key (e.g., TemplateLiteral): { [`key${expr}`]: value }
+                                    let key_expr = convert_json_value(
+                                        &Value::Object(key_val.clone()),
+                                        context,
+                                    );
+                                    (JsPropertyKey::Computed(Box::new(key_expr)), None)
+                                };
+
                                 let value_pat = prop_obj
                                     .get("value")
                                     .and_then(|v| convert_param_pattern(v, context))
-                                    .unwrap_or_else(|| JsPattern::Identifier(key_name.to_string()));
+                                    .or_else(|| {
+                                        fallback_name
+                                            .as_ref()
+                                            .map(|n| JsPattern::Identifier(n.clone()))
+                                    })?;
                                 let shorthand = prop_obj
                                     .get("shorthand")
                                     .and_then(|s| s.as_bool())
@@ -1341,7 +1399,8 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
                 .unwrap_or_default();
             Some(JsPattern::Object(JsObjectPattern { properties }))
         }
-        "ArrayPattern" => {
+        // Handle both ArrayPattern (official AST) and ArrayExpression (our parser's AST)
+        "ArrayPattern" | "ArrayExpression" => {
             let elements = obj
                 .get("elements")
                 .and_then(|e| e.as_array())
@@ -1364,6 +1423,87 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
             .get("name")
             .and_then(|n| n.as_str())
             .map(|n| JsPattern::Identifier(n.to_string())),
+    }
+}
+
+/// Render a JsPattern to a JavaScript source string.
+///
+/// This mirrors the `emit_pattern` logic in the codegen but produces a String directly.
+/// Used when a destructuring pattern needs to be embedded as a `JsExpr::Raw`.
+pub fn pattern_to_string(pattern: &JsPattern) -> String {
+    match pattern {
+        JsPattern::Identifier(name) => name.clone(),
+        JsPattern::Array(arr) => {
+            let mut s = String::from("[");
+            for (i, elem) in arr.elements.iter().enumerate() {
+                if i > 0 {
+                    s.push_str(", ");
+                }
+                if let Some(p) = elem {
+                    s.push_str(&pattern_to_string(p));
+                }
+            }
+            s.push(']');
+            s
+        }
+        JsPattern::Object(obj) => {
+            let mut s = String::from("{ ");
+            for (i, prop) in obj.properties.iter().enumerate() {
+                if i > 0 {
+                    s.push_str(", ");
+                }
+                match prop {
+                    JsObjectPatternProperty::Property {
+                        key,
+                        value,
+                        shorthand,
+                        computed,
+                    } => {
+                        if *shorthand {
+                            s.push_str(&pattern_to_string(value));
+                        } else {
+                            if *computed {
+                                s.push('[');
+                            }
+                            match key {
+                                JsPropertyKey::Identifier(n) => s.push_str(n),
+                                JsPropertyKey::Literal(lit) => match lit {
+                                    JsLiteral::String(n) => {
+                                        s.push('"');
+                                        s.push_str(n);
+                                        s.push('"');
+                                    }
+                                    JsLiteral::Number(n) => s.push_str(&n.to_string()),
+                                    _ => s.push_str(&format!("{:?}", lit)),
+                                },
+                                JsPropertyKey::Computed(_e) => {
+                                    // Computed keys in destructuring patterns are unusual;
+                                    // render a placeholder
+                                    s.push_str("/* computed */");
+                                }
+                            }
+                            if *computed {
+                                s.push(']');
+                            }
+                            s.push_str(": ");
+                            s.push_str(&pattern_to_string(value));
+                        }
+                    }
+                    JsObjectPatternProperty::Rest(inner) => {
+                        s.push_str("...");
+                        s.push_str(&pattern_to_string(inner));
+                    }
+                }
+            }
+            s.push_str(" }");
+            s
+        }
+        JsPattern::Rest(inner) => {
+            format!("...{}", pattern_to_string(inner))
+        }
+        JsPattern::Assignment(assign) => {
+            format!("{} = /* default */", pattern_to_string(&assign.left))
+        }
     }
 }
 
@@ -1424,8 +1564,11 @@ fn convert_statement(stmt: &Value, context: &mut ComponentContext) -> Option<JsS
                                     .register_local_var_init_type(name.to_string(), t.to_string());
                             }
 
+                            // In ESTree, `init: null` means no initializer (e.g., `let x;`).
+                            // We must filter out JSON null so we don't generate `let x = null;`.
                             let init = decl_obj
                                 .get("init")
+                                .filter(|i| !i.is_null())
                                 .map(|i| Box::new(convert_json_value(i, context)));
                             Some(JsVariableDeclarator {
                                 id: JsPattern::Identifier(name.to_string()),

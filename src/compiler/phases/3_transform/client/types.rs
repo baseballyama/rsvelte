@@ -1168,6 +1168,16 @@ pub struct IdentifierTransform {
     /// How to read the identifier
     pub read: Option<fn(JsExpr) -> JsExpr>,
 
+    /// Optional source variable for @const destructuring reads.
+    ///
+    /// When set, the read transform produces `$.get(read_source).identifier_name`
+    /// instead of the normal `$.get(identifier_name)`. This is used for destructured
+    /// `{@const}` declarations where multiple identifiers share a single derived value.
+    ///
+    /// For example, `{@const { x, y } = point}` generates a computed_const variable,
+    /// and reads of `x` become `$.get(computed_const).x`.
+    pub read_source: Option<String>,
+
     /// How to assign to the identifier
     ///
     /// Parameters:

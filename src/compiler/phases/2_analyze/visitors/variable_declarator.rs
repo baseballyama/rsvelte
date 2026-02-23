@@ -484,15 +484,12 @@ fn visit_non_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<()
         Vec::new()
     };
 
-    // Validate identifier names for dollar prefix (also applies in non-runes mode)
-    for path in &paths {
-        if let Some(name) = path.get("name").and_then(|n| n.as_str())
-            && let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name)
-        {
-            let binding = &context.analysis.root.bindings[binding_idx];
-            utils::validate_identifier_name(binding, Some(context.function_depth))?;
-        }
-    }
+    // NOTE: In non-runes mode, we do NOT validate dollar-prefix identifiers for
+    // variable declarations. In the official Svelte compiler, `validate_identifier_name`
+    // is only called in VariableDeclarator.js when in runes mode (not in legacy mode).
+    // In legacy mode, `$foo` top-level variables become store subscriptions (not errors),
+    // and `$foo` inside function bodies are allowed as local variables shadowing stores.
+    // See: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/VariableDeclarator.js
 
     // Check for invalid rune usage
     if let Some(init) = init

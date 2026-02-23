@@ -920,6 +920,7 @@ fn build_declarations(
         context.state.transform.insert(
             index_name.to_string(),
             IdentifierTransform {
+                read_source: None,
                 read: if index_reactive {
                     Some(|node| b::call(b::member_path("$.get"), vec![node]))
                 } else {
@@ -948,6 +949,7 @@ fn build_declarations(
                 context.state.transform.insert(
                     name.to_string(),
                     IdentifierTransform {
+                        read_source: None,
                         read: Some(|node| b::call(b::member_path("$.get"), vec![node])),
                         assign: None,
                         mutate: None,
@@ -1003,6 +1005,7 @@ fn build_declarations(
                     context.state.transform.insert(
                         insert.id.clone(),
                         IdentifierTransform {
+                            read_source: None,
                             read: Some(|node| b::call(b::member_path("$.get"), vec![node])),
                             assign: None,
                             mutate: None,
@@ -1034,6 +1037,7 @@ fn build_declarations(
                         context.state.transform.insert(
                             path.name.clone(),
                             IdentifierTransform {
+                                read_source: None,
                                 read: Some(|node| b::call(b::member_path("$.get"), vec![node])),
                                 assign: None,
                                 mutate: None,
@@ -1052,6 +1056,7 @@ fn build_declarations(
                         context.state.transform.insert(
                             path.name.clone(),
                             IdentifierTransform {
+                                read_source: None,
                                 read: Some(|node| b::call(node, vec![])),
                                 assign: None,
                                 mutate: None,

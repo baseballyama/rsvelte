@@ -455,6 +455,14 @@ async function generateRuntimeFixture(sampleDir, outputDir, config) {
 
   // Determine if this is a runtime-runes test based on the output path
   const isRuntimeRunes = outputDir.includes('/runtime-runes/');
+  const isRuntimeLegacy = outputDir.includes('/runtime-legacy/');
+
+  // For runtime-legacy tests, accessors defaults to true (matching official test runner behavior)
+  // See svelte/packages/svelte/tests/runtime-legacy/shared.ts line 224:
+  //   accessors: 'accessors' in config ? config.accessors : true
+  const accessorsDefault = isRuntimeLegacy
+    ? ('accessors' in config ? config.accessors : true)
+    : undefined;
 
   const compileOptions = {
     dev: config.compileOptions?.dev ?? false,
@@ -462,6 +470,8 @@ async function generateRuntimeFixture(sampleDir, outputDir, config) {
     // Enable experimental.async for runtime-runes tests
     // This matches the official Svelte compiler behavior and test configuration
     ...(isRuntimeRunes ? { experimental: { async: true } } : {}),
+    // Apply accessors default for runtime-legacy tests
+    ...(accessorsDefault !== undefined ? { accessors: accessorsDefault } : {}),
     ...config.compileOptions,
   };
 

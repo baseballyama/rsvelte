@@ -97,6 +97,7 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
                 // The mutate transform wraps mutations in $.store_mutate()
                 let transform = IdentifierTransform {
                     read: Some(store_sub_read),
+                    read_source: None,
                     assign: Some(store_sub_assign),
                     mutate: Some(store_sub_mutate),
                     update: Some(store_sub_update),
@@ -121,6 +122,7 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
                     let is_bindable = matches!(binding.kind, BindingKind::BindableProp);
                     let transform = IdentifierTransform {
                         read: Some(prop_source_read),
+                        read_source: None,
                         assign: Some(prop_source_assign),
                         mutate: Some(if is_bindable {
                             prop_bindable_mutate
@@ -173,6 +175,7 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
                 let skip_proxy = matches!(binding.kind, BindingKind::RawState);
                 let transform = IdentifierTransform {
                     read: Some(read_fn),
+                    read_source: None,
                     assign: Some(assign_fn),
                     mutate: Some(mutate_fn),
                     update: Some(update_value),

@@ -401,6 +401,46 @@ fn is_dollar_ident_parameter(chars: &[char], ident_start: usize, ident_end: usiz
     false
 }
 
+/// Check if a `$xxx` identifier at position `ident_start` is being declared as a
+/// variable (let/const/var $xxx) rather than being a store subscription reference.
+///
+/// Returns true if `$xxx` is preceded (ignoring whitespace) by `let`, `const`, or `var`.
+fn is_dollar_ident_variable_declaration(chars: &[char], ident_start: usize) -> bool {
+    if ident_start == 0 {
+        return false;
+    }
+    // Skip backwards over whitespace
+    let mut k = ident_start as isize - 1;
+    while k >= 0 && (chars[k as usize] == ' ' || chars[k as usize] == '\t') {
+        k -= 1;
+    }
+    if k < 0 {
+        return false;
+    }
+    // Check for `let`, `const`, `var` keywords ending at position k
+    let pos = k as usize;
+    if pos >= 2 && &chars[pos - 2..=pos].iter().collect::<String>() == "let" {
+        // Make sure not part of a longer word
+        let before = if pos >= 3 { chars[pos - 3] } else { ' ' };
+        if !before.is_alphanumeric() && before != '_' && before != '$' {
+            return true;
+        }
+    }
+    if pos >= 4 && &chars[pos - 4..=pos].iter().collect::<String>() == "const" {
+        let before = if pos >= 5 { chars[pos - 5] } else { ' ' };
+        if !before.is_alphanumeric() && before != '_' && before != '$' {
+            return true;
+        }
+    }
+    if pos >= 2 && &chars[pos - 2..=pos].iter().collect::<String>() == "var" {
+        let before = if pos >= 3 { chars[pos - 3] } else { ' ' };
+        if !before.is_alphanumeric() && before != '_' && before != '$' {
+            return true;
+        }
+    }
+    false
+}
+
 /// Collect $xxx identifiers from a JavaScript string with context.
 fn collect_dollar_identifiers_from_js_with_context(
     js: &str,
@@ -413,8 +453,66 @@ fn collect_dollar_identifiers_from_js_with_context(
     let chars: Vec<char> = js.chars().collect();
     let len = chars.len();
     let mut i = 0;
+    let mut in_string: Option<char> = None; // track if inside a string literal
+    let mut in_line_comment = false; // track // comments
+    let mut in_block_comment = false; // track /* */ comments
 
     while i < len {
+        let c = chars[i];
+
+        // Handle line comment end
+        if in_line_comment {
+            if c == '\n' {
+                in_line_comment = false;
+            }
+            i += 1;
+            continue;
+        }
+
+        // Handle block comment end
+        if in_block_comment {
+            if c == '*' && i + 1 < len && chars[i + 1] == '/' {
+                in_block_comment = false;
+                i += 2;
+            } else {
+                i += 1;
+            }
+            continue;
+        }
+
+        // Handle string content
+        if let Some(quote) = in_string {
+            if c == '\\' {
+                // Escape sequence - skip next char
+                i += 2;
+                continue;
+            } else if c == quote {
+                in_string = None;
+            }
+            i += 1;
+            continue;
+        }
+
+        // Check for comment starts
+        if c == '/' && i + 1 < len {
+            if chars[i + 1] == '/' {
+                in_line_comment = true;
+                i += 2;
+                continue;
+            } else if chars[i + 1] == '*' {
+                in_block_comment = true;
+                i += 2;
+                continue;
+            }
+        }
+
+        // Check for string starts
+        if c == '"' || c == '\'' || c == '`' {
+            in_string = Some(c);
+            i += 1;
+            continue;
+        }
+
         // Check for $ that could start an identifier
         if chars[i] == '$' {
             // Check if this is a valid identifier start (not part of a larger identifier)
@@ -449,7 +547,10 @@ fn collect_dollar_identifiers_from_js_with_context(
                     // Skip if this dollar identifier is used as a function parameter
                     // (e.g., `$count => $count * 2` or `($count) => ...`)
                     // Such uses are NOT store subscriptions - they're local parameter names.
-                    if !is_dollar_ident_parameter(&chars, ident_start, i) {
+                    // Also skip if this is a variable declaration (let/const/var $xxx).
+                    if !is_dollar_ident_parameter(&chars, ident_start, i)
+                        && !is_dollar_ident_variable_declaration(&chars, ident_start)
+                    {
                         refs.push(StoreRef {
                             name: ident,
                             position: base_offset + ident_start,
@@ -775,8 +876,18 @@ fn collect_dollar_refs_from_expression(
         let start = start as usize;
         let end = end as usize;
         if end <= source.len() && start < end {
-            let expr_source = &source[start..end];
-            collect_dollar_identifiers_from_js(expr_source, refs);
+            // Use the context-aware variant that filters out function parameters and
+            // variable declarations (let/const/var $xxx) to avoid false positives.
+            let mut context_refs: Vec<StoreRef> = Vec::new();
+            collect_dollar_identifiers_from_js_with_context(
+                &source[start..end],
+                start,
+                &mut context_refs,
+                false,
+            );
+            for r in context_refs {
+                refs.insert(r.name);
+            }
         }
     }
 }

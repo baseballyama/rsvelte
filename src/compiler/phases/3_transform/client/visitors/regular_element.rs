@@ -102,6 +102,7 @@ fn process_element_let_directives(
                 name.clone(),
                 crate::compiler::phases::phase3_transform::client::types::IdentifierTransform {
                     read: Some(|node| b::call(b::member_path("$.get"), vec![node])),
+                    read_source: None,
                     assign: None,
                     mutate: None,
                     update: None,
