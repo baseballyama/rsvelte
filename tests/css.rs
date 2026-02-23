@@ -230,8 +230,8 @@ fn test_css() {
                 }
             }
         }
-        if failed.len() > 20 {
-            println!("  ... and {} more", failed.len() - 20);
+        if failed.len() > 50 {
+            println!("  ... and {} more", failed.len() - 50);
         }
     }
 

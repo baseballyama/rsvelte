@@ -794,36 +794,76 @@ impl<'a> CssParser<'a> {
                 continue;
             }
 
-            // Handle nested at-rules (like @apply)
+            // Handle nested at-rules (like @apply, @media, etc.)
             if self.current_char() == '@' {
-                // Skip the at-rule until ; or }
                 let at_start = self.offset + self.index;
-                while !self.is_eof() && self.current_char() != ';' && self.current_char() != '}' {
+                // Read the at-rule name
+                self.advance(); // skip '@'
+                let name_start = self.index;
+                while !self.is_eof()
+                    && !self.current_char().is_whitespace()
+                    && self.current_char() != '{'
+                    && self.current_char() != ';'
+                    && self.current_char() != '('
+                {
                     self.advance();
                 }
-                let at_end = self.offset + self.index;
-                self.eat_optional(";");
+                let at_name = self.source[name_start..self.index].to_string();
 
-                // Create an Atrule node for the nested at-rule
-                let at_text = &self.source[at_start - self.offset..at_end - self.offset];
-                let at_name = at_text
-                    .trim_start_matches('@')
-                    .split_whitespace()
-                    .next()
-                    .unwrap_or("");
-                let at_prelude = at_text
-                    .trim_start_matches('@')
-                    .trim_start_matches(at_name)
-                    .trim()
-                    .to_string();
+                // Read the prelude (everything before { or ;)
+                let prelude_start = self.index;
+                let mut paren_depth = 0;
+                while !self.is_eof() {
+                    let ch = self.current_char();
+                    if ch == '(' {
+                        paren_depth += 1;
+                    } else if ch == ')' {
+                        paren_depth -= 1;
+                    } else if paren_depth == 0 && (ch == '{' || ch == ';') {
+                        break;
+                    }
+                    self.advance();
+                }
+                let at_prelude = self.source[prelude_start..self.index].trim().to_string();
+
+                // Check if the at-rule has a block
+                let block = if !self.is_eof() && self.current_char() == '{' {
+                    self.eat_optional("{");
+                    // Track brace depth to properly skip nested blocks
+                    let mut brace_depth = 1;
+                    while !self.is_eof() && brace_depth > 0 {
+                        match self.current_char() {
+                            '{' => brace_depth += 1,
+                            '}' => brace_depth -= 1,
+                            _ => {}
+                        }
+                        if brace_depth > 0 {
+                            self.advance();
+                        }
+                    }
+                    self.eat_optional("}");
+                    // Return a non-null block value so the at-rule is recognized as having a block
+                    let block_end = self.offset + self.index;
+                    let mut block_obj = Map::new();
+                    block_obj.insert("type".to_string(), Value::String("Block".to_string()));
+                    block_obj.insert("start".to_string(), Value::Number((at_start as i64).into()));
+                    block_obj.insert("end".to_string(), Value::Number((block_end as i64).into()));
+                    block_obj.insert("children".to_string(), Value::Array(Vec::new()));
+                    Value::Object(block_obj)
+                } else {
+                    self.eat_optional(";");
+                    Value::Null
+                };
+
+                let at_end = self.offset + self.index;
 
                 let mut at_obj = Map::new();
                 at_obj.insert("type".to_string(), Value::String("Atrule".to_string()));
                 at_obj.insert("start".to_string(), Value::Number((at_start as i64).into()));
                 at_obj.insert("end".to_string(), Value::Number((at_end as i64).into()));
-                at_obj.insert("name".to_string(), Value::String(at_name.to_string()));
+                at_obj.insert("name".to_string(), Value::String(at_name));
                 at_obj.insert("prelude".to_string(), Value::String(at_prelude));
-                at_obj.insert("block".to_string(), Value::Null);
+                at_obj.insert("block".to_string(), block);
                 declarations.push(Value::Object(at_obj));
 
                 self.skip_whitespace();
@@ -872,6 +912,27 @@ impl<'a> CssParser<'a> {
         let mut depth = 0;
         let mut i = 0;
 
+        // If it starts with & (nesting selector), it's always a nested rule
+        // Skip the & and any following selector parts including pseudo-classes
+        if chars.first() == Some(&'&') {
+            i = 1;
+            // After &, skip any combination of selector parts
+            // (identifiers, pseudo-classes like :hover, classes like .foo, etc.)
+            // until we find a { which confirms it's a nested rule
+            while i < chars.len() {
+                let c = chars[i];
+                match c {
+                    '(' | '[' => depth += 1,
+                    ')' | ']' => depth -= 1,
+                    '{' if depth == 0 => return true,
+                    ';' | '}' if depth == 0 => return false,
+                    _ => {}
+                }
+                i += 1;
+            }
+            return false;
+        }
+
         // If it starts with : followed by an identifier and then {, it's a pseudo-class selector
         // like :global { ... } or :hover { ... }
         if chars.first() == Some(&':') {
@@ -896,7 +957,23 @@ impl<'a> CssParser<'a> {
                 ')' | ']' => depth -= 1,
                 '{' if depth == 0 => return true,
                 ':' if depth == 0 => {
-                    // This looks like a property: value declaration
+                    // Distinguish between property: value (declaration) and selector :pseudo-class
+                    // If the ':' follows whitespace, it's likely a pseudo-class in a selector
+                    // (e.g., "p :global", "div :hover")
+                    // If the ':' directly follows a non-whitespace char, it's a declaration
+                    // (e.g., "color:", "font-size:")
+                    if i > 0 && chars[i - 1].is_whitespace() {
+                        // ':' after whitespace - likely a pseudo-class selector, skip it
+                        // Skip past the pseudo-class name
+                        i += 1;
+                        while i < chars.len()
+                            && (chars[i].is_alphanumeric() || chars[i] == '-' || chars[i] == '_')
+                        {
+                            i += 1;
+                        }
+                        continue;
+                    }
+                    // ':' directly after non-whitespace - this is a property: value declaration
                     return false;
                 }
                 ';' | '}' if depth == 0 => return false,
