@@ -262,6 +262,13 @@ pub fn analyze_component(
         visitors::visit_script(script_ast, &mut context)?;
     }
 
+    // Check for cyclical reactive statement dependencies ($: a = b + 1; $: b = a + 1;)
+    // This must run after instance script analysis.
+    // Corresponds to: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js L810
+    if !analysis.runes {
+        check_reactive_declaration_cycles(ast, &analysis)?;
+    }
+
     // Analyze the template using visitors
     visitors::analyze_template(ast, &mut analysis)?;
 
@@ -508,6 +515,203 @@ fn body_has_let_declaration(body: &[serde_json::Value], name: &str) -> bool {
         }
     }
     false
+}
+
+/// Check for cyclical dependencies in reactive `$:` statements.
+///
+/// Extracts assignment targets and dependency references from each `$:` statement
+/// in the instance script, then checks for cycles using the graph cycle detection.
+///
+/// Corresponds to the `order_reactive_statements()` call in Svelte's 2-analyze/index.js L810.
+fn check_reactive_declaration_cycles(
+    ast: &Root,
+    analysis: &ComponentAnalysis,
+) -> Result<(), AnalysisError> {
+    let Some(ref instance) = ast.instance else {
+        return Ok(());
+    };
+
+    let script_ast = instance.content.as_json();
+    let Some(body) = script_ast.get("body").and_then(|v| v.as_array()) else {
+        return Ok(());
+    };
+
+    // Collect reactive statements and their assignments/dependencies
+    // Each entry: (assignments: Vec<String>, dependencies: Vec<String>)
+    let mut reactive_stmts: Vec<(Vec<String>, Vec<String>)> = Vec::new();
+
+    for node in body {
+        if node.get("type").and_then(|v| v.as_str()) != Some("LabeledStatement") {
+            continue;
+        }
+        let label_name = node
+            .get("label")
+            .and_then(|l| l.get("name"))
+            .and_then(|n| n.as_str());
+        if label_name != Some("$") {
+            continue;
+        }
+
+        let Some(body_node) = node.get("body") else {
+            continue;
+        };
+
+        // Extract assigned variable names and dependency variable names
+        let mut assignments: Vec<String> = Vec::new();
+        let mut dependencies: Vec<String> = Vec::new();
+
+        // Check if body is ExpressionStatement with AssignmentExpression
+        if body_node.get("type").and_then(|v| v.as_str()) == Some("ExpressionStatement") {
+            if let Some(expr) = body_node.get("expression") {
+                if expr.get("type").and_then(|v| v.as_str()) == Some("AssignmentExpression") {
+                    // LHS: extract assigned identifiers
+                    if let Some(left) = expr.get("left") {
+                        cycle_extract_pattern_ids(left, &mut assignments);
+                    }
+                    // RHS: extract dependency identifiers
+                    if let Some(right) = expr.get("right") {
+                        cycle_collect_js_ids(right, &mut dependencies);
+                    }
+                } else {
+                    // Not an assignment - all identifiers are dependencies
+                    cycle_collect_js_ids(expr, &mut dependencies);
+                }
+            }
+        } else {
+            // Block statement or other - collect all identifiers as dependencies
+            cycle_collect_js_ids(body_node, &mut dependencies);
+        }
+
+        // Filter: only include variables that are declared in the instance scope
+        // (not global variables like console, Math, etc.)
+        let instance_scope_idx = analysis.root.instance_scope_index;
+        assignments.retain(|name| {
+            analysis
+                .root
+                .get_binding(name, instance_scope_idx)
+                .is_some()
+                || analysis.root.scope.declarations.contains_key(name)
+        });
+        dependencies.retain(|name| {
+            analysis
+                .root
+                .get_binding(name, instance_scope_idx)
+                .is_some()
+                || analysis.root.scope.declarations.contains_key(name)
+        });
+
+        // Remove self-dependencies (assigned variables that also appear as dependencies)
+        dependencies.retain(|dep| !assignments.contains(dep));
+
+        if !assignments.is_empty() {
+            reactive_stmts.push((assignments, dependencies));
+        }
+    }
+
+    // Build edges for cycle detection: (assignment_name, dependency_name)
+    let mut edges: Vec<(String, String)> = Vec::new();
+    for (assignments, dependencies) in &reactive_stmts {
+        for assignment in assignments {
+            for dependency in dependencies {
+                edges.push((assignment.clone(), dependency.clone()));
+            }
+        }
+    }
+
+    // Check for cycles
+    if let Some(cycle) = utils::check_graph_for_cycles(&edges) {
+        let cycle_str = cycle.join(" \u{2192} "); // → character
+        return Err(errors::reactive_declaration_cycle(&cycle_str));
+    }
+
+    Ok(())
+}
+
+/// Extract identifier names from a pattern (LHS of assignment) for reactive cycle detection.
+fn cycle_extract_pattern_ids(node: &serde_json::Value, out: &mut Vec<String>) {
+    match node.get("type").and_then(|v| v.as_str()) {
+        Some("Identifier") => {
+            if let Some(name) = node.get("name").and_then(|v| v.as_str())
+                && !out.contains(&name.to_string())
+            {
+                out.push(name.to_string());
+            }
+        }
+        Some("MemberExpression") => {
+            // For member expressions like `obj.prop`, extract the root object identifier
+            if let Some(obj) = node.get("object") {
+                cycle_extract_pattern_ids(obj, out);
+            }
+        }
+        Some("ArrayPattern") => {
+            if let Some(elements) = node.get("elements").and_then(|v| v.as_array()) {
+                for elem in elements {
+                    if !elem.is_null() {
+                        cycle_extract_pattern_ids(elem, out);
+                    }
+                }
+            }
+        }
+        Some("ObjectPattern") => {
+            if let Some(props) = node.get("properties").and_then(|v| v.as_array()) {
+                for prop in props {
+                    if let Some(value) = prop.get("value") {
+                        cycle_extract_pattern_ids(value, out);
+                    }
+                }
+            }
+        }
+        Some("AssignmentPattern") => {
+            if let Some(left) = node.get("left") {
+                cycle_extract_pattern_ids(left, out);
+            }
+        }
+        Some("RestElement") => {
+            if let Some(argument) = node.get("argument") {
+                cycle_extract_pattern_ids(argument, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Recursively collect all identifier references from a JS AST node for reactive cycle detection.
+fn cycle_collect_js_ids(node: &serde_json::Value, out: &mut Vec<String>) {
+    if let Some(node_type) = node.get("type").and_then(|v| v.as_str()) {
+        if node_type == "Identifier" {
+            if let Some(name) = node.get("name").and_then(|v| v.as_str())
+                && !out.contains(&name.to_string())
+            {
+                out.push(name.to_string());
+            }
+            return;
+        }
+        // Skip function bodies - they create their own scope
+        if matches!(
+            node_type,
+            "FunctionExpression" | "ArrowFunctionExpression" | "FunctionDeclaration"
+        ) {
+            return;
+        }
+    }
+    // Recurse into all object/array children
+    if let Some(obj) = node.as_object() {
+        for (key, value) in obj {
+            // Skip metadata keys
+            if key == "type" || key == "start" || key == "end" || key == "loc" {
+                continue;
+            }
+            if value.is_object() {
+                cycle_collect_js_ids(value, out);
+            } else if let Some(arr) = value.as_array() {
+                for item in arr {
+                    if item.is_object() {
+                        cycle_collect_js_ids(item, out);
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// Process legacy mode exports.

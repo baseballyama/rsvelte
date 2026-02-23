@@ -72,6 +72,60 @@ impl Parser<'_> {
         let content_end = self.index;
         let style_content = &self.source[content_start..content_end];
 
+        // Check for mismatched/unclosed CSS string quotes.
+        // A string that starts with `"` must end with `"`, and `'` must end with `'`.
+        // If a string is not properly closed, we report `unexpected_eof`.
+        // This corresponds to CSS-Tree's lexer error handling in the official Svelte compiler.
+        {
+            let mut in_string = false;
+            let mut string_char = '\0';
+            let mut in_block_comment = false;
+            let css_chars: Vec<char> = style_content.chars().collect();
+            let mut i = 0;
+            while i < css_chars.len() {
+                let ch = css_chars[i];
+                if in_block_comment {
+                    if ch == '*' && i + 1 < css_chars.len() && css_chars[i + 1] == '/' {
+                        in_block_comment = false;
+                        i += 2;
+                        continue;
+                    }
+                    i += 1;
+                    continue;
+                }
+                if in_string {
+                    if ch == '\\' {
+                        // Escape sequence - skip next char
+                        i += 2;
+                        continue;
+                    }
+                    if ch == string_char {
+                        in_string = false;
+                    }
+                    i += 1;
+                    continue;
+                }
+                if ch == '/' && i + 1 < css_chars.len() && css_chars[i + 1] == '*' {
+                    in_block_comment = true;
+                    i += 2;
+                    continue;
+                }
+                if ch == '"' || ch == '\'' {
+                    in_string = true;
+                    string_char = ch;
+                }
+                i += 1;
+            }
+            if in_string {
+                // String was not closed - report unexpected_eof at the end of style content
+                return Err(crate::error::ParseError::svelte(
+                    "unexpected_eof",
+                    "Unexpected end of input",
+                    (content_end, content_end),
+                ));
+            }
+        }
+
         // Consume </style followed by optional whitespace and >
         if self.match_str("</style") {
             self.advance_by(7); // consume '</style'
