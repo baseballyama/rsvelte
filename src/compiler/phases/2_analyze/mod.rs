@@ -698,6 +698,13 @@ fn promote_legacy_state_bindings(analysis: &mut ComponentAnalysis) {
     // In the official Svelte compiler, only instance-scope bindings are considered.
     let instance_scope_index = analysis.root.instance_scope_index;
 
+    // If there's no instance script, no bindings should be promoted.
+    // This handles the case where there's only a <script module> tag.
+    // Module-level bindings are plain JavaScript, not reactive signals.
+    if analysis.instance_script_content.is_none() {
+        return;
+    }
+
     // Iterate over all bindings in the root scope (instance scope)
     for binding in &mut analysis.root.bindings {
         // Only consider 'normal' bindings (not already state, derived, prop, etc.)

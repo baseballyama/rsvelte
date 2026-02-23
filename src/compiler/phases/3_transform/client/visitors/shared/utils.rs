@@ -378,7 +378,14 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     );
                 }
                 if let Some(read_fn) = transform.read {
-                    return read_fn(JsExpr::Identifier(name.clone()));
+                    // If this transform has a replacement_id, use it instead of the original name.
+                    // This is used for legacy reactive imports where `numbers` -> `$$_import_numbers()`.
+                    let input_id = if let Some(ref replacement) = transform.replacement_id {
+                        JsExpr::Identifier(replacement.clone())
+                    } else {
+                        JsExpr::Identifier(name.clone())
+                    };
+                    return read_fn(input_id);
                 }
             }
             expr.clone()
@@ -1594,7 +1601,14 @@ fn collect_reactive_references_inner(
             // (mirrors build_getter in the official compiler)
             let getter = if let Some(transform) = context.state.transform.get(name) {
                 if let Some(read_fn) = transform.read {
-                    read_fn(JsExpr::Identifier(name.clone()))
+                    // If this transform has a replacement_id, use it instead of the original name.
+                    // This is used for legacy reactive imports where `numbers` -> `$$_import_numbers()`.
+                    let input_id = if let Some(ref replacement) = transform.replacement_id {
+                        JsExpr::Identifier(replacement.clone())
+                    } else {
+                        JsExpr::Identifier(name.clone())
+                    };
+                    read_fn(input_id)
                 } else {
                     JsExpr::Identifier(name.clone())
                 }

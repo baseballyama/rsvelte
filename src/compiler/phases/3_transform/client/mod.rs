@@ -172,6 +172,30 @@ fn transform_client_with_visitors(
     let module_level_snippets = std::mem::take(&mut context.state.module_level_snippets);
     let instance_level_snippets = std::mem::take(&mut context.state.instance_level_snippets);
     let events = std::mem::take(&mut context.state.events);
+    let legacy_reactive_imports = std::mem::take(&mut context.state.legacy_reactive_imports);
+
+    // Collect reactive import names for legacy mode.
+    // In legacy mode, mutated imports in the instance scope are wrapped with $.reactive_import()
+    // and all references in the instance body use $$_import_X() instead of $.get(X).
+    // Module-level imports (in <script module>) are NOT wrapped.
+    // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/Program.js L18-41
+    let reactive_import_names: Vec<String> =
+        if !analysis.runes && analysis.instance_script_content.is_some() {
+            let instance_scope_index = analysis.root.instance_scope_index;
+            analysis
+                .root
+                .bindings
+                .iter()
+                .filter(|b| {
+                    b.declaration_kind == DeclarationKind::Import
+                        && b.mutated
+                        && b.scope_index == instance_scope_index
+                })
+                .map(|b| b.name.clone())
+                .collect()
+        } else {
+            Vec::new()
+        };
 
     // Collect store subscription bindings and generate setup code
     // Reference: transform-client.js lines 211-254
@@ -217,11 +241,17 @@ fn transform_client_with_visitors(
                 )
         });
 
+        // Check if the store is a reactive import (mutated instance import in legacy mode)
+        let is_reactive_import = reactive_import_names.contains(&store_name.to_string());
+
         // Generate: const $store = () => $.store_get(store, '$store', $$stores);
         // or: const $store = () => $.store_get(store(), '$store', $$stores); for prop stores
         // or: const $store = () => $.store_get($.get(store), '$store', $$stores); for derived/state stores
+        // or: const $store = () => $.store_get($$_import_store(), '$store', $$stores); for reactive imports
         let store_access = if is_prop_store {
             format!("{}()", store_name)
+        } else if is_reactive_import {
+            format!("$$_import_{}()", store_name)
         } else if is_derived_or_state {
             format!("$.get({})", store_name)
         } else {
@@ -331,6 +361,60 @@ fn transform_client_with_visitors(
     // Pre-allocate for typical component body size
     let mut component_body: Vec<JsStatement> = Vec::with_capacity(32);
 
+    // Add legacy $$sanitized_props / $$restProps / $$slots declarations at the top.
+    // These must come BEFORE $.push().
+    // Reference: transform-client.js lines 458-497
+    if !analysis.runes {
+        // $$sanitized_props: when uses_props or uses_rest_props
+        if analysis.uses_props || analysis.uses_rest_props {
+            let mut to_remove = vec![
+                "'children'".to_string(),
+                "'$$slots'".to_string(),
+                "'$$events'".to_string(),
+                "'$$legacy'".to_string(),
+            ];
+            if analysis.custom_element.is_some() {
+                to_remove.push("'$$host'".to_string());
+            }
+            component_body.push(JsStatement::Raw(format!(
+                "const $$sanitized_props = $.legacy_rest_props($$props, [{}]);",
+                to_remove.join(", ")
+            )));
+        }
+
+        // $$restProps: when uses_rest_props
+        if analysis.uses_rest_props {
+            // Collect named props to exclude
+            let mut named_props: Vec<String> = Vec::new();
+
+            // Add export names (aliases take precedence)
+            for export in &analysis.exports {
+                let name = export.alias.as_deref().unwrap_or(&export.name);
+                named_props.push(format!("'{}'", name));
+            }
+
+            // Add bindable prop names/aliases
+            for binding in &analysis.root.bindings {
+                if matches!(binding.kind, BindingKind::BindableProp) {
+                    let name = binding.prop_alias.as_deref().unwrap_or(&binding.name);
+                    named_props.push(format!("'{}'", name));
+                }
+            }
+
+            component_body.push(JsStatement::Raw(format!(
+                "const $$restProps = $.legacy_rest_props($$sanitized_props, [{}]);",
+                named_props.join(", ")
+            )));
+        }
+
+        // $$slots: when uses_slots
+        if analysis.uses_slots {
+            component_body.push(JsStatement::Raw(
+                "const $$slots = $.sanitize_slots($$props);".to_string(),
+            ));
+        }
+    }
+
     // Add $.push at the start if injecting context
     if should_inject_context {
         let mut push_args = vec![
@@ -406,8 +490,20 @@ fn transform_client_with_visitors(
     // Add instance script content (transformed runes)
     // This includes $state, $derived, $effect, $props transformations
     if let Some(ref content) = analysis.instance_script_content {
-        let transformed_script =
-            transform_instance_script_for_visitors(&content.raw, analysis, options.dev);
+        let mut transformed_script = transform_instance_script_for_visitors(
+            &content.raw,
+            analysis,
+            options.dev,
+            &reactive_import_names,
+        );
+
+        // Post-process reactive imports: replace $.get(X)/$.mutate(X,...) with $$_import_X()
+        for name in &reactive_import_names {
+            let import_id = format!("$$_import_{}", name);
+            transformed_script =
+                replace_state_with_reactive_import(&transformed_script, name, &import_id);
+        }
+
         // Only add if there's actual content (not just whitespace)
         let trimmed = transformed_script.trim();
         if !trimmed.is_empty() {
@@ -697,6 +793,10 @@ fn transform_client_with_visitors(
             body.push(JsStatement::Raw(import_line));
         }
     }
+
+    // Add legacy reactive imports (after all imports, before other declarations)
+    // Reference: transform-client.js line 211: module.body.unshift(...state.legacy_reactive_imports)
+    body.extend(legacy_reactive_imports);
 
     // Add module-level snippets (after imports, before module script exports)
     // This ensures `const foo = ...` comes before `export { foo }`
@@ -1359,6 +1459,7 @@ fn transform_instance_script_for_visitors(
     script: &str,
     analysis: &ComponentAnalysis,
     dev: bool,
+    reactive_import_names: &[String],
 ) -> String {
     if script.is_empty() {
         return String::new();
@@ -1414,6 +1515,16 @@ fn transform_instance_script_for_visitors(
             None
         })
         .collect();
+
+    // Ensure reactive import names are included in state_vars for $.get()/$.mutate() wrapping.
+    // The post-processing step will convert these to $$_import_X() patterns.
+    // This is needed because not all reactive import bindings are promoted to State
+    // (e.g., imports that are only mutated but not referenced in template/$: declarations).
+    for name in reactive_import_names {
+        if !state_vars.contains(name) {
+            state_vars.push(name.clone());
+        }
+    }
 
     // Collect var-declared state/derived vars that need $.safe_get() instead of $.get()
     // var declarations are hoisted, so they can be read before initialization.
@@ -1656,12 +1767,15 @@ fn transform_instance_script_for_visitors(
     // Collect legacy state variables (in non-runes mode, State bindings are promoted
     // from Normal bindings that are updated and referenced in template)
     // These need $.mutable_source() wrapping
+    // Exclude reactive import bindings - they use $.reactive_import() not $.mutable_source()
     let legacy_state_vars: Vec<(String, Option<String>, DeclarationKind)> = if !analysis.runes {
         analysis
             .root
             .bindings
             .iter()
-            .filter(|b| matches!(b.kind, BindingKind::State))
+            .filter(|b| {
+                matches!(b.kind, BindingKind::State) && !reactive_import_names.contains(&b.name)
+            })
             .map(|b| (b.name.clone(), b.initial.clone(), b.declaration_kind))
             .collect()
     } else {
@@ -4584,7 +4698,9 @@ fn body_references_identifier(body: &str, identifier: &str) -> bool {
     let escaped = regex::escape(identifier);
     // Use alternation boundary for ALL identifiers (both `$foo` and `count`)
     // to correctly handle the `$`-prefixed store subscription case.
-    let pattern = format!(r"(^|[^a-zA-Z0-9_$]){}([^a-zA-Z0-9_$]|$)", escaped);
+    // Also exclude `.` from valid preceding characters to avoid matching property
+    // accesses like `obj.prop` when checking for standalone `prop` references.
+    let pattern = format!(r"(^|[^a-zA-Z0-9_$\.]){}([^a-zA-Z0-9_$]|$)", escaped);
     let re = match regex::Regex::new(&pattern) {
         Ok(re) => re,
         Err(_) => return false,
@@ -9499,9 +9615,25 @@ fn is_on_left_side_of_assignment(chars: &[char], var_start: usize, var_len: usiz
                             }
                         }
                         // Not a declaration - check if this is a destructuring assignment
-                        // Find the matching closing `]` and check if `=` follows
-                        if is_destructuring_assignment_at(chars, j, '[', ']') {
-                            found = true;
+                        // BUT first check if the `[` is a computed property access (NOT destructuring).
+                        // A computed property access is `obj[key]` where `[` is preceded by
+                        // an identifier char, `)`, `]`, or `}` (expression-continuation tokens).
+                        // In that case, the variable inside `[...]` is NOT a destructuring target.
+                        let is_computed_property = if k > 0 {
+                            let prev_char = chars[k - 1];
+                            is_identifier_char(prev_char)
+                                || prev_char == ')'
+                                || prev_char == ']'
+                                || prev_char == '}'
+                        } else {
+                            false
+                        };
+
+                        if !is_computed_property {
+                            // Find the matching closing `]` and check if `=` follows
+                            if is_destructuring_assignment_at(chars, j, '[', ']') {
+                                found = true;
+                            }
                         }
                         break;
                     }
@@ -12269,6 +12401,163 @@ fn transform_member_mutations(
     }
 
     result
+}
+
+/// Replace state variable patterns with reactive import patterns in a transformed script.
+///
+/// After the text-based transform produces `$.get(name)`, `$.set(name, ...)`, `$.mutate(name, ...)`,
+/// this function replaces those patterns with the reactive import equivalents:
+/// - `$.get(name)` -> `import_id()`
+/// - `$.mutate(name, EXPR)` -> `import_id(EXPR)`
+/// - `$.set(name, EXPR)` -> `import_id(EXPR)`
+/// - bare `name` (as identifier) -> `import_id()`
+///
+/// This is used for legacy mode where mutated imports are wrapped with `$.reactive_import()`.
+fn replace_state_with_reactive_import(script: &str, name: &str, import_id: &str) -> String {
+    let mut result = script.to_string();
+
+    // 1. Replace $.get(name) -> import_id()
+    let get_pattern = format!("$.get({})", name);
+    let get_replacement = format!("{}()", import_id);
+    result = result.replace(&get_pattern, &get_replacement);
+
+    // 2. Replace $.mutate(name, EXPR) -> import_id(EXPR)
+    // We need to find the matching closing paren for $.mutate(name, ...)
+    let mutate_prefix = format!("$.mutate({}, ", name);
+    while let Some(start) = result.find(&mutate_prefix) {
+        let after_prefix = start + mutate_prefix.len();
+        // Find the matching closing paren
+        if let Some(end) = find_matching_close_paren(&result[after_prefix..]) {
+            let inner = &result[after_prefix..after_prefix + end];
+            let replacement = format!("{}({})", import_id, inner);
+            result = format!(
+                "{}{}{}",
+                &result[..start],
+                replacement,
+                &result[after_prefix + end + 1..] // +1 to skip the closing ')'
+            );
+        } else {
+            break;
+        }
+    }
+
+    // 3. Replace $.set(name, EXPR) -> import_id(EXPR) (in case assignments are generated)
+    let set_prefix = format!("$.set({}, ", name);
+    while let Some(start) = result.find(&set_prefix) {
+        let after_prefix = start + set_prefix.len();
+        if let Some(end) = find_matching_close_paren(&result[after_prefix..]) {
+            let inner = &result[after_prefix..after_prefix + end];
+            let replacement = format!("{}({})", import_id, inner);
+            result = format!(
+                "{}{}{}",
+                &result[..start],
+                replacement,
+                &result[after_prefix + end + 1..]
+            );
+        } else {
+            break;
+        }
+    }
+
+    // 4. Replace remaining bare identifier references.
+    // After steps 1-3, any remaining bare `name` identifiers should become `import_id()`.
+    // We need to be careful to only replace whole-word occurrences that aren't:
+    // - Part of the import_id itself ($$_import_name)
+    // - Part of another identifier
+    // - On the LHS of a declaration
+    let chars: Vec<char> = result.chars().collect();
+    let name_chars: Vec<char> = name.chars().collect();
+    let name_len = name_chars.len();
+    let import_id_len = import_id.len();
+    let mut new_result = String::with_capacity(result.len());
+    let mut i = 0;
+
+    while i < chars.len() {
+        // Check if the next chars match the import_id (skip it to avoid infinite recursion)
+        if i + import_id_len <= chars.len() {
+            let candidate: String = chars[i..i + import_id_len].iter().collect();
+            if candidate == import_id {
+                new_result.push_str(import_id);
+                i += import_id_len;
+                continue;
+            }
+        }
+
+        // Check if current position matches the bare name
+        if i + name_len <= chars.len() {
+            let candidate: String = chars[i..i + name_len].iter().collect();
+            if candidate == name {
+                // Check word boundary before
+                let before_ok = if i == 0 {
+                    true
+                } else {
+                    let prev = chars[i - 1];
+                    !prev.is_alphanumeric() && prev != '_' && prev != '$'
+                };
+                // Check word boundary after
+                let after_ok = if i + name_len >= chars.len() {
+                    true
+                } else {
+                    let next = chars[i + name_len];
+                    !next.is_alphanumeric() && next != '_' && next != '$'
+                };
+
+                if before_ok && after_ok {
+                    // Replace with import_id()
+                    new_result.push_str(&format!("{}()", import_id));
+                    i += name_len;
+                    continue;
+                }
+            }
+        }
+
+        new_result.push(chars[i]);
+        i += 1;
+    }
+
+    new_result
+}
+
+/// Find the position of the matching close parenthesis in a string.
+/// The string starts AFTER the opening context (e.g., after "$.mutate(name, ").
+/// Returns the index of the closing ')' relative to the start of the string,
+/// or None if not found.
+fn find_matching_close_paren(s: &str) -> Option<usize> {
+    let mut depth = 1; // We're already inside one paren level
+    let chars: Vec<char> = s.chars().collect();
+    let mut i = 0;
+    let mut in_string = false;
+    let mut string_char = '"';
+
+    while i < chars.len() {
+        let c = chars[i];
+
+        if in_string {
+            if c == string_char && (i == 0 || chars[i - 1] != '\\') {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+
+        match c {
+            '"' | '\'' | '`' => {
+                in_string = true;
+                string_char = c;
+            }
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i);
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+
+    None
 }
 
 #[cfg(test)]

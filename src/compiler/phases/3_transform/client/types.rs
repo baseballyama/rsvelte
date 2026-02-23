@@ -741,6 +741,7 @@ impl<'a> ComponentContext<'a> {
                             skip_proxy: false,
                             is_defined: false,
                             is_reactive: true,
+                            replacement_id: None,
                         },
                     );
                 } else {
@@ -807,6 +808,7 @@ impl<'a> ComponentContext<'a> {
                                             skip_proxy: false,
                                             is_defined: false,
                                             is_reactive: true,
+                                            replacement_id: None,
                                         },
                                     );
                                 }
@@ -1418,6 +1420,13 @@ pub struct IdentifierTransform {
     /// Set to false for non-reactive each block indices/items (unkeyed blocks).
     /// When false, expressions using this identifier don't need template_effect wrapping.
     pub is_reactive: bool,
+
+    /// Optional replacement identifier name.
+    ///
+    /// When set, the identifier is replaced with this name before applying read/mutate transforms.
+    /// Used for legacy reactive imports where `numbers` becomes `$$_import_numbers()`.
+    /// The read transform is then applied to the replacement identifier.
+    pub replacement_id: Option<String>,
 }
 
 /// Component metadata.

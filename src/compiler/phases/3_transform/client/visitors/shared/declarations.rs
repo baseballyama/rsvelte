@@ -89,6 +89,16 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
     for (name, binding_idx) in context.state.scope.declarations.iter() {
         // Get the binding from the root scope
         if let Some(binding) = context.state.scope_root.bindings.get(*binding_idx) {
+            // Skip import bindings that already have a transform registered.
+            // In legacy mode, mutated imports get $.reactive_import() transforms in visit_program,
+            // and those must not be overwritten by $.get()/$.set() state transforms.
+            // Import bindings can be promoted to State by promote_legacy_state_bindings,
+            // but the reactive_import transform takes priority.
+            if binding.declaration_kind == DeclarationKind::Import
+                && context.state.transform.contains_key(name)
+            {
+                continue;
+            }
             // Handle store subscriptions ($store)
             // Reference: Program.js lines 45-102
             if matches!(binding.kind, BindingKind::StoreSub) {
@@ -105,6 +115,7 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
                     is_defined: false,
                     // Store subscriptions are reactive
                     is_reactive: true,
+                    replacement_id: None,
                 };
                 context.state.transform.insert(name.clone(), transform);
                 continue;
@@ -134,6 +145,7 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
                         is_defined: false,
                         // Props are reactive
                         is_reactive: true,
+                        replacement_id: None,
                     };
                     context.state.transform.insert(name.clone(), transform);
                 } else {
@@ -183,6 +195,7 @@ pub fn add_state_transformers(context: &mut ComponentContext) {
                     is_defined: false,
                     // State sources ($state, $derived, legacy reactive) are reactive
                     is_reactive: true,
+                    replacement_id: None,
                 };
 
                 // Register the transform in the state

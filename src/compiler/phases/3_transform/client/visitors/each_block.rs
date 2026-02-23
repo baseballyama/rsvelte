@@ -932,6 +932,7 @@ fn build_declarations(
                 skip_proxy: false,
                 is_defined: true,
                 is_reactive: index_reactive,
+                replacement_id: None,
             },
         );
     }
@@ -957,6 +958,7 @@ fn build_declarations(
                         skip_proxy: false,
                         is_defined: false,
                         is_reactive: true,
+                        replacement_id: None,
                     },
                 );
             }
@@ -1013,6 +1015,7 @@ fn build_declarations(
                             skip_proxy: false,
                             is_defined: false,
                             is_reactive: true,
+                            replacement_id: None,
                         },
                     );
                 }
@@ -1045,6 +1048,7 @@ fn build_declarations(
                                 skip_proxy: false,
                                 is_defined: false,
                                 is_reactive: true,
+                                replacement_id: None,
                             },
                         );
                     } else {
@@ -1064,6 +1068,7 @@ fn build_declarations(
                                 skip_proxy: false,
                                 is_defined: false,
                                 is_reactive: true,
+                                replacement_id: None,
                             },
                         );
                     }

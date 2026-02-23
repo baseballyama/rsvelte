@@ -1944,7 +1944,13 @@ fn try_transform_assignment(
         // so we use them directly for the mutation expression.
         let mutation_expr = b::assign_op(operator, left.clone(), right.clone());
 
-        return Some(mutate_fn(b::id(&root_name), mutation_expr));
+        // Use replacement_id if set (e.g., reactive imports: numbers -> $$_import_numbers)
+        let node_id = if let Some(ref replacement) = transform.replacement_id {
+            b::id(replacement)
+        } else {
+            b::id(&root_name)
+        };
+        return Some(mutate_fn(node_id, mutation_expr));
     }
 
     None
@@ -2280,7 +2286,13 @@ fn try_transform_update(
             prefix,
         });
 
-        return Some(mutate_fn(b::id(&root_name), update_expr));
+        // Use replacement_id if set (e.g., reactive imports: numbers -> $$_import_numbers)
+        let node_id = if let Some(ref replacement) = transform.replacement_id {
+            b::id(replacement)
+        } else {
+            b::id(&root_name)
+        };
+        return Some(mutate_fn(node_id, update_expr));
     }
 
     None

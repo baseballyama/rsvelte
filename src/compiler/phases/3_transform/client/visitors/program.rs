@@ -44,22 +44,88 @@ use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
     // Legacy mode transformations (non-runes)
     if !context.state.analysis.runes {
-        // Mark $$props for transformation to $$sanitized_props
-        // This will be handled during identifier visiting
+        // Transform $$props reads to $$sanitized_props in legacy mode.
+        // This ensures that spread attributes ({...$$props}) use the sanitized version
+        // that has internal properties (children, $$slots, $$events, $$legacy) removed.
+        // Reference: Program.js L14-16
+        if context.state.analysis.uses_props || context.state.analysis.uses_rest_props {
+            let transform = IdentifierTransform {
+                read: Some(sanitized_props_read),
+                read_source: None,
+                assign: None,
+                mutate: None,
+                update: None,
+                skip_proxy: false,
+                is_defined: false,
+                is_reactive: true,
+                replacement_id: None,
+            };
+            context
+                .state
+                .transform
+                .insert("$$props".to_string(), transform);
+        }
 
-        // Handle mutated imports in instance scope
-        if let Some(ref _instance) = context.state.analysis.instance {
-            // Iterate through scope declarations to find mutated imports
-            for binding_idx in context.state.scope.declarations.values() {
-                if let Some(binding) = context.state.scope_root.bindings.get(*binding_idx) {
-                    // Check if this is a mutated import
-                    if binding.declaration_kind == DeclarationKind::Import && binding.mutated {
-                        // Mark this import for reactive wrapping
-                        // The actual transformation will happen during visitor traversal
-                        // For now, we just note that this needs special handling
+        // Handle mutated imports in instance scope.
+        // In legacy mode, mutated imports inside the instance script need to be wrapped
+        // with $.reactive_import() so they can be re-evaluated after mutations.
+        // Reference: svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/Program.js L18-41
+        let instance_scope_index = context.state.scope_root.instance_scope_index;
+
+        // Collect mutated instance imports from all bindings.
+        // Only instance-level imports are wrapped with $.reactive_import().
+        // Module-level imports (in <script module>) are NOT wrapped.
+        // We check binding.scope_index == instance_scope_index to ensure we only
+        // pick up instance-level imports.
+        let has_instance_script = context.state.analysis.instance_script_content.is_some();
+        let reactive_import_names: Vec<String> = if has_instance_script {
+            context
+                .state
+                .scope_root
+                .bindings
+                .iter()
+                .filter_map(|binding| {
+                    if binding.declaration_kind == DeclarationKind::Import
+                        && binding.mutated
+                        && binding.scope_index == instance_scope_index
+                    {
+                        Some(binding.name.clone())
+                    } else {
+                        None
                     }
-                }
-            }
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
+
+        for name in reactive_import_names {
+            let import_id = format!("$$_import_{}", name);
+
+            // Register transform: reads become $$_import_X(), mutations become $$_import_X(mutation)
+            let transform = IdentifierTransform {
+                read: Some(reactive_import_read),
+                read_source: None,
+                assign: None,
+                mutate: Some(reactive_import_mutate),
+                update: None,
+                skip_proxy: false,
+                is_defined: false,
+                is_reactive: true,
+                replacement_id: Some(import_id.clone()),
+            };
+
+            context.state.transform.insert(name.clone(), transform);
+
+            // Generate: var $$_import_X = $.reactive_import(() => X)
+            let stmt = b::var_decl(
+                &import_id,
+                Some(b::call(
+                    b::member_path("$.reactive_import"),
+                    vec![b::arrow(vec![], b::id(&name))],
+                )),
+            );
+            context.state.legacy_reactive_imports.push(stmt);
         }
     }
 
@@ -96,6 +162,7 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
                         is_defined: false,
                         // Store subscriptions are reactive
                         is_reactive: true,
+                        replacement_id: None,
                     };
 
                     context.state.transform.insert(name.clone(), transform);
@@ -133,6 +200,7 @@ pub fn visit_program(context: &mut ComponentContext) -> Option<JsProgram> {
                             skip_proxy: false,
                             is_defined: false,
                             is_reactive: true,
+                            replacement_id: None,
                         };
 
                         context.state.transform.insert(name.clone(), transform);
@@ -436,6 +504,53 @@ fn prop_mutate(_node: JsExpr, mutation: JsExpr) -> JsExpr {
 /// * `mutation` - The mutation expression (e.g., `foo()[0] = value`)
 fn prop_bindable_mutate(node: JsExpr, mutation: JsExpr) -> JsExpr {
     b::call(node, vec![mutation, b::boolean(true)])
+}
+
+// ============================================================================
+// Reactive import transform functions
+// ============================================================================
+
+/// Transform a reactive import read.
+///
+/// The node will already be replaced with the `$$_import_X` identifier
+/// (via the `replacement_id` mechanism). This function calls it:
+/// `$$_import_X` -> `$$_import_X()`.
+///
+/// Corresponds to the official compiler's:
+/// ```js
+/// read: (_) => b.call(id)
+/// ```
+fn reactive_import_read(node: JsExpr) -> JsExpr {
+    b::call(node, vec![])
+}
+
+/// Transform a reactive import mutation.
+///
+/// The node will already be replaced with the `$$_import_X` identifier.
+/// Mutations pass the mutation expression as the first argument:
+/// `$$_import_X(mutation)`.
+///
+/// Corresponds to the official compiler's:
+/// ```js
+/// mutate: (_, mutation) => b.call(id, mutation)
+/// ```
+fn reactive_import_mutate(node: JsExpr, mutation: JsExpr) -> JsExpr {
+    b::call(node, vec![mutation])
+}
+
+/// Transform $$props reads to $$sanitized_props in legacy mode.
+///
+/// In legacy mode, $$props is replaced with $$sanitized_props which has
+/// internal properties (children, $$slots, $$events, $$legacy) filtered out.
+///
+/// Corresponds to the official compiler's:
+/// ```js
+/// context.state.transform['$$props'] = {
+///     read: (node) => ({ ...node, name: '$$sanitized_props' })
+/// };
+/// ```
+fn sanitized_props_read(_node: JsExpr) -> JsExpr {
+    JsExpr::Identifier("$$sanitized_props".to_string())
 }
 
 #[cfg(test)]

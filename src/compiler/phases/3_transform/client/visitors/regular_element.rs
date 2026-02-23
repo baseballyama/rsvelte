@@ -109,6 +109,7 @@ fn process_element_let_directives(
                     skip_proxy: false,
                     is_defined: false,
                     is_reactive: true,
+                    replacement_id: None,
                 },
             );
         }

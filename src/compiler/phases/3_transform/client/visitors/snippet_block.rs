@@ -562,6 +562,7 @@ fn create_call_transform()
         is_defined: false,
         // Snippet parameters need reactive tracking when used in templates
         is_reactive: true,
+        replacement_id: None,
     }
 }
 
@@ -578,6 +579,7 @@ fn create_get_value_transform()
         is_defined: false,
         // Derived values need reactive tracking
         is_reactive: true,
+        replacement_id: None,
     }
 }
 

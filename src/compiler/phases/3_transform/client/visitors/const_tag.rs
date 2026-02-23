@@ -96,6 +96,7 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
                 is_defined: false,
                 // @const creates a derived value that needs reactive tracking
                 is_reactive: true,
+                replacement_id: None,
             },
         );
 
@@ -208,6 +209,7 @@ pub fn const_tag(node: &ConstTag, context: &mut ComponentContext) {
                     skip_proxy: false,
                     is_defined: false,
                     is_reactive: true,
+                    replacement_id: None,
                 },
             );
         }
