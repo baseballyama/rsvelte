@@ -1743,6 +1743,7 @@ fn transform_instance_script_for_visitors(
                 non_reactive_state_vars,
                 proxy_vars,
                 prop_assignment_transform_vars,
+                store_sub_vars,
                 analysis,
             );
             // Also apply state assignment transformations to the reactive statement body
@@ -1879,6 +1880,15 @@ fn transform_instance_script_for_visitors(
             transformed
         };
 
+        // Transform prop update expressions like `x++` to `$.update_prop(x)` FIRST,
+        // before transform_prop_assignments runs (which would incorrectly turn `x++` into `x(x() + 1)`)
+        // and before wrap_prop_source_reads (which would turn `count` → `count()`, causing `count()++`)
+        let transformed = if !prop_assignment_transform_vars.is_empty() {
+            transform_prop_update_expressions(&transformed, prop_assignment_transform_vars)
+        } else {
+            transformed
+        };
+
         // Transform prop assignments to prop(prop() + value) syntax
         // This handles props declared with `export let` in legacy mode
         // Note: We use prop_assignment_transform_vars which excludes RestProp bindings
@@ -1927,6 +1937,19 @@ fn transform_instance_script_for_visitors(
         // e.g., `const answer = $foo` -> `const answer = $foo()`
         let transformed = transform_store_reads_client(&transformed, &effective_store_sub_vars);
 
+        // Transform legacy state declarations to $.mutable_source() BEFORE wrapping reads.
+        // This must come before wrap_state_vars_in_expr because multi-variable declarations
+        // like `let a, b;` have secondary declarators (b) that are NOT preceded by `let `,
+        // causing wrap_state_vars_in_expr to incorrectly wrap them as `$.get(b)`.
+        // By transforming declarations first, `let a, b;` becomes:
+        //   `let a = $.mutable_source();\nlet b = $.mutable_source();`
+        // and then wrap_state_vars_in_expr correctly skips them since each starts with `let `.
+        let transformed = if !analysis.runes && !legacy_state_vars.is_empty() {
+            transform_legacy_state_declarations(&transformed, legacy_state_vars, analysis.immutable)
+        } else {
+            transformed
+        };
+
         // Wrap state variable reads in $.get() for ALL statements including declarations.
         // This handles cases like:
         // - console.log('init ' + double) - where `double` is a $derived variable
@@ -1950,13 +1973,6 @@ fn transform_instance_script_for_visitors(
         // Transform read-only props to $$props.propName (only in runes mode)
         let transformed = if analysis.runes && !read_only_props.is_empty() {
             transform_read_only_props(&transformed, read_only_props)
-        } else {
-            transformed
-        };
-
-        // Transform legacy state declarations to $.mutable_source() (only in non-runes mode)
-        let transformed = if !analysis.runes && !legacy_state_vars.is_empty() {
-            transform_legacy_state_declarations(&transformed, legacy_state_vars, analysis.immutable)
         } else {
             transformed
         };
@@ -3632,6 +3648,7 @@ fn transform_reactive_statement(
     non_reactive_state_vars: &[String],
     proxy_vars: &[String],
     prop_assignment_transform_vars: &[String],
+    store_sub_vars: &[String],
     _analysis: &ComponentAnalysis,
 ) -> String {
     let trimmed = statement.trim();
@@ -3699,6 +3716,28 @@ fn transform_reactive_statement(
             && body_references_identifier(body, state_var)
         {
             state_dependencies.push(state_var.clone());
+        }
+    }
+
+    // Store subscription vars are also dependencies
+    // e.g., `$: bar = $foo` - `$foo` is a store subscription and should be tracked as a dep.
+    // Store subs appear as `$foo()` calls in the dependency thunk.
+    let mut store_sub_dependencies: Vec<String> = Vec::new();
+    for store_sub in store_sub_vars {
+        // Check if the store subscription is referenced on the RHS of the assignment
+        // (not as the LHS itself, since `$: $foo = ...` would be a store assignment, not a dep)
+        if body_references_identifier(body, store_sub) {
+            // Only add as dependency if it appears on the RHS (not as the target of assignment)
+            // Check if the body is an assignment and `store_sub` is NOT the LHS
+            let is_assignment_target = if let Some(eq_pos) = find_assignment_position(body) {
+                let lhs = body[..eq_pos].trim();
+                lhs == store_sub.as_str()
+            } else {
+                false
+            };
+            if !is_assignment_target {
+                store_sub_dependencies.push(store_sub.clone());
+            }
         }
     }
 
@@ -3817,6 +3856,15 @@ fn transform_reactive_statement(
             wrap_state_vars_in_expr(&temp, state_vars, non_reactive_state_vars, proxy_vars);
     }
 
+    // Apply store subscription reads transformation to body.
+    // This converts `$foo` to `$foo()` in the reactive statement body,
+    // so `$.set(bar, $foo)` becomes `$.set(bar, $foo())`.
+    let transformed_body = if !store_sub_vars.is_empty() {
+        transform_store_reads_client(&transformed_body, store_sub_vars)
+    } else {
+        transformed_body
+    };
+
     // Build the dependency thunk
     // Props become $.deep_read_state(prop()) - deep read because props could be fine-grained
     // $state from a runes-component, where mutations don't trigger an update on the prop as a whole.
@@ -3825,15 +3873,39 @@ fn transform_reactive_statement(
     //
     // Dependencies are sorted by their first occurrence in the body (left-to-right order),
     // matching the official Svelte compiler's Phase 2 dependency ordering.
-    let has_deps = !prop_dependencies.is_empty() || !state_dependencies.is_empty();
+    let has_deps = !prop_dependencies.is_empty()
+        || !state_dependencies.is_empty()
+        || !store_sub_dependencies.is_empty();
     let deps_expr = if !has_deps {
         "".to_string()
     } else {
         // Find the first occurrence position of an identifier in the body text.
         let find_pos = |name: &str| -> usize {
-            let pattern = format!(r"\b{}\b", regex::escape(name));
+            let escaped = regex::escape(name);
+            let pattern = if name.starts_with('$') {
+                // `$` is not a word char; use alternation to simulate word boundary
+                format!(r"(^|[^a-zA-Z0-9_$]){}([^a-zA-Z0-9_$]|$)", escaped)
+            } else {
+                format!(r"\b{}\b", escaped)
+            };
             if let Ok(re) = regex::Regex::new(&pattern) {
-                re.find(body).map(|m| m.start()).unwrap_or(usize::MAX)
+                if let Some(m) = re.find(body) {
+                    // If name starts with `$`, the match may include one leading non-ident char;
+                    // return the position where the identifier actually starts.
+                    let start = m.start();
+                    if name.starts_with('$') && start < body.len() {
+                        let first_char = body[start..].chars().next().unwrap_or('$');
+                        if first_char != '$' {
+                            start + first_char.len_utf8()
+                        } else {
+                            start
+                        }
+                    } else {
+                        start
+                    }
+                } else {
+                    usize::MAX
+                }
             } else {
                 usize::MAX
             }
@@ -3847,6 +3919,11 @@ fn transform_reactive_statement(
         for dep in &state_dependencies {
             let pos = find_pos(dep);
             unified_deps.push((pos, format!("$.get({})", dep)));
+        }
+        // Store subscription vars: `$foo()` - call the getter to track dependency
+        for dep in &store_sub_dependencies {
+            let pos = find_pos(dep);
+            unified_deps.push((pos, format!("{}()", dep)));
         }
         // Sort by first occurrence in body so deps match official compiler output order
         unified_deps.sort_by_key(|&(pos, _)| pos);
@@ -4116,20 +4193,25 @@ fn transform_state_set_in_reactive(
             // Find the extent of the RHS expression
             let rhs_start = pos + assignment_pattern.len();
             let remaining = &result[rhs_start..];
-            // Find the end of the RHS - look for `;` or `}` at depth 0
+            // Find the end of the RHS - look for `;`, `}`, or `:` (ternary separator) at depth 0
+            // Use char_indices() to get BYTE positions, not char positions, to handle UTF-8 correctly.
             let mut depth = 0;
             let mut rhs_end = result.len();
-            let chars: Vec<char> = remaining.chars().collect();
             let mut in_string: Option<char> = None;
-            for (ci, &ch) in chars.iter().enumerate() {
+            let mut prev_ch = '\0';
+            let remaining_chars: Vec<(usize, char)> = remaining.char_indices().collect();
+            let len = remaining_chars.len();
+            for (idx, (byte_off, ch)) in remaining_chars.iter().enumerate() {
+                let ci = *byte_off; // byte offset into `remaining`
                 if in_string.is_some() {
-                    if Some(ch) == in_string && (ci == 0 || chars[ci - 1] != '\\') {
+                    if Some(*ch) == in_string && prev_ch != '\\' {
                         in_string = None;
                     }
+                    prev_ch = *ch;
                     continue;
                 }
                 match ch {
-                    '\'' | '"' | '`' => in_string = Some(ch),
+                    '\'' | '"' | '`' => in_string = Some(*ch),
                     '(' | '[' | '{' => depth += 1,
                     ')' | ']' | '}' => {
                         if depth == 0 {
@@ -4142,8 +4224,27 @@ fn transform_state_set_in_reactive(
                         rhs_end = rhs_start + ci;
                         break;
                     }
+                    // Newline at depth 0 acts as implicit semicolon (JavaScript ASI)
+                    // e.g., `array = []\narray[0] = ...` - the `[]` ends at `\n`
+                    '\n' if depth == 0 => {
+                        rhs_end = rhs_start + ci;
+                        break;
+                    }
+                    // `:` at depth 0 that is NOT `::` is a ternary separator - stop the RHS here
+                    ':' if depth == 0 => {
+                        let next = if idx + 1 < len {
+                            remaining_chars[idx + 1].1
+                        } else {
+                            '\0'
+                        };
+                        if next != ':' {
+                            rhs_end = rhs_start + ci;
+                            break;
+                        }
+                    }
                     _ => {}
                 }
+                prev_ch = *ch;
             }
 
             let rhs = result[rhs_start..rhs_end].trim();
@@ -4470,7 +4571,20 @@ fn transform_state_member_mutations(
 /// For block bodies like `{ c = a + b; count = count + 1; }`, we check each statement
 /// within the block.
 fn body_references_identifier(body: &str, identifier: &str) -> bool {
-    let pattern = format!(r"\b{}\b", regex::escape(identifier));
+    // The Rust regex crate does NOT support lookbehind assertions.
+    // We use alternation-based boundary matching instead:
+    //   (^|[^a-zA-Z0-9_$])identifier([^a-zA-Z0-9_$]|$)
+    //
+    // This handles two important cases:
+    // 1. `$foo` (store subscriptions) - `\b` doesn't work because `$` is not a word char.
+    //    e.g., "bar = $foo" must match `$foo` but NOT "bar = $foobar"
+    // 2. For plain identifiers like `count`, we must NOT match `count` inside `$count`.
+    //    e.g., `$count * 2` - `count` should NOT be considered a dependency here
+    //    because `$count` already tracks the store subscription.
+    let escaped = regex::escape(identifier);
+    // Use alternation boundary for ALL identifiers (both `$foo` and `count`)
+    // to correctly handle the `$`-prefixed store subscription case.
+    let pattern = format!(r"(^|[^a-zA-Z0-9_$]){}([^a-zA-Z0-9_$]|$)", escaped);
     let re = match regex::Regex::new(&pattern) {
         Ok(re) => re,
         Err(_) => return false,
@@ -5121,6 +5235,13 @@ fn wrap_prop_source_reads(expr: &str, prop_vars: &[String]) -> String {
                         // Check if shadowed
                         let is_shadowed = is_shadowed_by_function_param(&chars, i, var);
 
+                        // Check if this identifier is the argument to $.update_prop() or
+                        // $.update_pre_prop(). After transform_prop_update_expressions runs,
+                        // `count++` becomes `$.update_prop(count)` and we must NOT convert
+                        // the `count` argument to `count()` here.
+                        let is_inside_update_call = new_result.ends_with("$.update_prop(")
+                            || new_result.ends_with("$.update_pre_prop(");
+
                         if !preceded_by_dot
                             && !is_already_call
                             && !in_param_position
@@ -5128,6 +5249,7 @@ fn wrap_prop_source_reads(expr: &str, prop_vars: &[String]) -> String {
                             && !is_getter_setter_name
                             && !is_property_key
                             && !is_shadowed
+                            && !is_inside_update_call
                         {
                             if is_shorthand_property {
                                 // Expand shorthand property: { answer } -> { answer: answer() }
@@ -7496,8 +7618,28 @@ fn transform_store_reads_client(line: &str, store_sub_vars: &[String]) -> String
                     trimmed_prefix.ends_with("$.untrack(") || trimmed_prefix.ends_with("$.derived(")
                 };
 
+                // Check if this is an object property key (e.g., `{ $userName4: 'user4' }`)
+                // In that case, `$userName4:` - the `:` following is a property separator, not a getter
+                let is_property_key = {
+                    let after_idx2 = i + store_sub.len();
+                    let mut k = after_idx2;
+                    // Skip whitespace
+                    while k < chars.len() && chars[k].is_whitespace() {
+                        k += 1;
+                    }
+                    // Check for `:` (property key separator) but not `::`
+                    k < chars.len()
+                        && chars[k] == ':'
+                        && (k + 1 >= chars.len() || chars[k + 1] != ':')
+                };
+
                 if before_ok && after_ok {
-                    if is_inside_getter_context {
+                    if is_property_key {
+                        // Don't transform property keys like `{ $userName4: value }`
+                        new_result.push_str(store_sub);
+                        i += store_sub.len();
+                        continue;
+                    } else if is_inside_getter_context {
                         // Inside $.untrack() or $.derived(), keep as $store (don't add parentheses)
                         new_result.push_str(store_sub);
                         i += store_sub.len();
@@ -7855,23 +7997,29 @@ fn find_expression_end(s: &str) -> usize {
 /// Find the end of a statement value for client-side transformations.
 fn find_statement_end_client(s: &str) -> usize {
     let mut depth = 0;
-    let chars: Vec<char> = s.chars().collect();
     let mut in_string = false;
     let mut string_char = ' ';
+    let mut prev_char = '\0';
 
-    for (i, &c) in chars.iter().enumerate() {
+    // Use char_indices() to get BYTE positions (not char positions),
+    // so the returned index can be used directly for byte-level string slicing.
+    // Using char-position indices with multibyte UTF-8 strings causes off-by-one bugs
+    // for strings containing characters like 'é', '中', etc.
+    for (byte_pos, c) in s.char_indices() {
         // Handle string literals
-        if (c == '"' || c == '\'' || c == '`') && (i == 0 || chars[i - 1] != '\\') {
+        if (c == '"' || c == '\'' || c == '`') && prev_char != '\\' {
             if !in_string {
                 in_string = true;
                 string_char = c;
             } else if c == string_char {
                 in_string = false;
             }
+            prev_char = c;
             continue;
         }
 
         if in_string {
+            prev_char = c;
             continue;
         }
 
@@ -7883,14 +8031,15 @@ fn find_statement_end_client(s: &str) -> usize {
                 } else {
                     // At depth 0, a closing brace/bracket/paren ends the statement
                     // (it belongs to the enclosing function/block, not our expression)
-                    return i;
+                    return byte_pos;
                 }
             }
-            ';' if depth == 0 => return i,
+            ';' if depth == 0 => return byte_pos,
             // Newline at depth 0 ends the statement (JavaScript ASI)
-            '\n' if depth == 0 => return i,
+            '\n' if depth == 0 => return byte_pos,
             _ => {}
         }
+        prev_char = c;
     }
 
     s.len()
@@ -8287,6 +8436,61 @@ fn is_in_function_param_position(chars: &[char], var_start_idx: usize, var_end_i
                 }
             }
             m += 1;
+        }
+    }
+
+    // Handle `}` - the variable might be the last element in a destructuring parameter.
+    // For example, `function foo(node, {tag, opt})` - when checking `opt`,
+    // the next char after `opt` is `}` (closing the destructuring pattern).
+    // We need to skip through `}`, then possibly `]`, then `)` and check if `) {` or `) =>` follows.
+    if next_char == '}' || next_char == ']' {
+        let mut m = k;
+        // Skip closing braces/brackets to find the closing paren of the parameter list
+        while m < chars.len() && (chars[m] == '}' || chars[m] == ']') {
+            m += 1;
+        }
+        // Skip whitespace
+        while m < chars.len() && chars[m].is_whitespace() {
+            m += 1;
+        }
+        if m < chars.len() && chars[m] == ')' {
+            // Found the closing paren, skip it and whitespace
+            m += 1;
+            while m < chars.len() && chars[m].is_whitespace() {
+                m += 1;
+            }
+            if m < chars.len() && chars[m] == '{' {
+                return true;
+            }
+            if m + 1 < chars.len() && chars[m] == '=' && chars[m + 1] == '>' {
+                return true;
+            }
+        }
+        // Also could be followed by `,` in a multi-param destructuring
+        if m < chars.len() && chars[m] == ',' {
+            // Same logic as the ',' case above
+            let mut depth = 1;
+            m += 1;
+            while m < chars.len() && depth > 0 {
+                if chars[m] == '(' {
+                    depth += 1;
+                } else if chars[m] == ')' {
+                    depth -= 1;
+                    if depth == 0 {
+                        m += 1;
+                        while m < chars.len() && chars[m].is_whitespace() {
+                            m += 1;
+                        }
+                        if m < chars.len() && chars[m] == '{' {
+                            return true;
+                        }
+                        if m + 1 < chars.len() && chars[m] == '=' && chars[m + 1] == '>' {
+                            return true;
+                        }
+                    }
+                }
+                m += 1;
+            }
         }
     }
 

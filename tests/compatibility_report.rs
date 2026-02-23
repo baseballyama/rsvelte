@@ -874,6 +874,20 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
         // Enable experimental.async for runtime-runes tests (fixtures were generated with it enabled)
         let is_runtime_runes = category == "runtime-runes";
 
+        // Enable accessors for runtime-legacy tests (matches official test runner behavior)
+        // See svelte/packages/svelte/tests/runtime-legacy/shared.ts line 224:
+        //   accessors: 'accessors' in config ? config.accessors : true
+        let is_legacy = category == "runtime-legacy";
+        let use_accessors = if is_legacy {
+            if let Ok(config) = fs::read_to_string(&config_path) {
+                !config.contains("accessors: false") && !config.contains("accessors:false")
+            } else {
+                true
+            }
+        } else {
+            false
+        };
+
         // Test client
         if let Some(expected) = &expected_client {
             let options = CompileOptions {
@@ -883,6 +897,7 @@ fn run_runtime_category_tests(category: &str) -> CategoryResult {
                 experimental: ExperimentalOptions {
                     r#async: is_runtime_runes,
                 },
+                accessors: use_accessors,
                 ..Default::default()
             };
 
