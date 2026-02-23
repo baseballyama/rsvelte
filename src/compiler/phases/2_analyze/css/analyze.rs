@@ -205,46 +205,100 @@ fn validate_complex_selector(
         None => return Ok(()),
     };
 
-    // Find if there's a :global in this complex selector
-    let global_idx = children.iter().position(|relative_selector| {
+    // Find if there's a :global(...) or :global in this complex selector.
+    // Match the official Svelte's is_global() which checks if the FIRST selector
+    // in a RelativeSelector is :global.
+    let global_idx = children.iter().position(is_global_relative);
+
+    if let Some(idx) = global_idx {
+        let global_relative = &children[idx];
+
+        // Check :global block invalid placement (nested context with :global without args)
+        if let Some(selectors) = global_relative.get("selectors").and_then(|s| s.as_array())
+            && let Some(first_sel) = selectors.first()
+        {
+            let is_pseudo_class_nested =
+                is_nested && first_sel.get("args").and_then(|a| a.as_null()).is_some();
+            let _ = is_pseudo_class_nested; // Used for css_global_block_invalid_placement (TODO)
+        }
+
+        // Check if :global(...) with args is in the middle of the selector
+        if let Some(selectors) = global_relative.get("selectors").and_then(|s| s.as_array())
+            && let Some(first_sel) = selectors.first()
+            && first_sel.get("args").is_some()
+        {
+            // Determine if :global is effectively at the start or end of the selector.
+            // Skip empty RelativeSelectors (parser artifacts) when checking position.
+            let is_at_start = children[..idx].iter().all(|child| {
+                child
+                    .get("selectors")
+                    .and_then(|s| s.as_array())
+                    .is_none_or(|s| s.is_empty())
+            });
+            let is_at_end = idx == children.len() - 1;
+
+            if !is_at_start && !is_at_end {
+                // :global(...) is in the middle - check if all following are also :global
+                // (multiple :global(...) in sequence are OK)
+                for child in children.iter().skip(idx + 1) {
+                    if !is_global_relative(child) {
+                        return Err(errors::css_global_invalid_placement());
+                    }
+                }
+            }
+        }
+    }
+
+    // Validate :global(...) selector contents and positioning within each RelativeSelector
+    for relative_selector in children.iter() {
         if let Some(selectors) = relative_selector
             .get("selectors")
             .and_then(|s| s.as_array())
         {
-            selectors.iter().any(|sel| {
-                sel.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                    && sel.get("name").and_then(|n| n.as_str()) == Some("global")
-            })
-        } else {
-            false
-        }
-    });
-
-    if let Some(idx) = global_idx {
-        // Check if :global() is in the middle of the selector sequence
-        let global_relative = &children[idx];
-        if let Some(selectors) = global_relative.get("selectors").and_then(|s| s.as_array()) {
-            for selector in selectors {
+            for (i, selector) in selectors.iter().enumerate() {
                 if let Some(sel_type) = selector.get("type").and_then(|t| t.as_str())
                     && sel_type == "PseudoClassSelector"
                     && let Some(name) = selector.get("name").and_then(|n| n.as_str())
                     && name == "global"
                 {
-                    // Check if :global has args (i.e., :global(...) not just :global)
-                    let has_args = selector.get("args").is_some();
-
-                    if has_args && idx != 0 && idx != children.len() - 1 {
-                        // :global(...) is in the middle - check if all following are also :global
-                        for child in children.iter().skip(idx + 1) {
-                            if !is_global_relative(child) {
-                                return Err(errors::css_global_invalid_placement());
-                            }
-                        }
-                    }
-
                     // Validate :global(...) selector contents
                     if let Some(args) = selector.get("args") {
                         validate_global_args(args, children.len(), selectors.len())?;
+                    }
+
+                    // Ensure :global(element) is at first position in compound selector
+                    if let Some(args) = selector.get("args")
+                        && let Some(args_children) = args.get("children").and_then(|c| c.as_array())
+                        && let Some(first_complex) = args_children.first()
+                        && let Some(complex_children) =
+                            first_complex.get("children").and_then(|c| c.as_array())
+                        && let Some(first_rel) = complex_children.first()
+                        && let Some(rel_sels) =
+                            first_rel.get("selectors").and_then(|s| s.as_array())
+                        && let Some(first_inner) = rel_sels.first()
+                        && first_inner.get("type").and_then(|t| t.as_str()) == Some("TypeSelector")
+                        && i != 0
+                    {
+                        return Err(errors::css_global_invalid_selector_list());
+                    }
+
+                    // Ensure :global(.class) is not followed by a type selector
+                    if let Some(next_sel) = selectors.get(i + 1)
+                        && next_sel.get("type").and_then(|t| t.as_str()) == Some("TypeSelector")
+                    {
+                        return Err(errors::css_type_selector_invalid_placement());
+                    }
+
+                    // Ensure :global(...) contains a single selector
+                    // (standalone :global() with multiple selectors is OK)
+                    if selector.get("args").is_some()
+                        && let Some(args) = selector.get("args")
+                        && args.as_null().is_none()
+                        && let Some(args_children) = args.get("children").and_then(|c| c.as_array())
+                        && args_children.len() > 1
+                        && (children.len() > 1 || selectors.len() > 1)
+                    {
+                        return Err(errors::css_global_invalid_selector());
                     }
 
                     // Check for type selector position
@@ -283,16 +337,19 @@ fn validate_complex_selector(
     Ok(())
 }
 
-/// Check if a RelativeSelector is :global.
+/// Check if a RelativeSelector is :global (or :global(...)).
+/// Matches the official Svelte's is_global() which checks the FIRST selector.
 fn is_global_relative(relative_selector: &serde_json::Value) -> bool {
     if let Some(selectors) = relative_selector
         .get("selectors")
         .and_then(|s| s.as_array())
     {
-        selectors.iter().any(|sel| {
-            sel.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
-                && sel.get("name").and_then(|n| n.as_str()) == Some("global")
-        })
+        if let Some(first) = selectors.first() {
+            first.get("type").and_then(|t| t.as_str()) == Some("PseudoClassSelector")
+                && first.get("name").and_then(|n| n.as_str()) == Some("global")
+        } else {
+            false
+        }
     } else {
         false
     }

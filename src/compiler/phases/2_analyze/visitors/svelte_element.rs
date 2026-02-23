@@ -32,6 +32,48 @@ pub fn visit(
     // Mark that we have dynamic elements (can't safely prune type selectors)
     context.analysis.css.has_dynamic_elements = true;
 
+    // Extract class names from svelte:element attributes for CSS unused selector detection.
+    // Since svelte:element can resolve to any element, we still need to know which classes
+    // are used so the CSS pruner can keep the right selectors.
+    for attr in &element.attributes {
+        match attr {
+            Attribute::Attribute(attr_node) if attr_node.name == "class" => {
+                match &attr_node.value {
+                    AttributeValue::Sequence(parts) => {
+                        for part in parts {
+                            match part {
+                                AttributeValuePart::Text(text) => {
+                                    for class_name in text.data.split_whitespace() {
+                                        context
+                                            .analysis
+                                            .css
+                                            .used_classes
+                                            .insert(class_name.to_string());
+                                    }
+                                }
+                                AttributeValuePart::ExpressionTag(_) => {
+                                    context.analysis.css.has_dynamic_classes = true;
+                                }
+                            }
+                        }
+                    }
+                    AttributeValue::Expression(_) => {
+                        context.analysis.css.has_dynamic_classes = true;
+                    }
+                    _ => {}
+                }
+            }
+            Attribute::ClassDirective(cd) => {
+                context
+                    .analysis
+                    .css
+                    .used_classes
+                    .insert(cd.name.to_string());
+            }
+            _ => {}
+        }
+    }
+
     // Check that svelte:element has a 'this' attribute with a value
     // The 'tag' field is populated from the 'this' attribute during parsing
     // If it's null/undefined or empty, the 'this' attribute is missing or has no value

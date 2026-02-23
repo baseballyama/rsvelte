@@ -1861,17 +1861,6 @@ impl<'a> SelectorParser<'a> {
         let name = self.read_identifier();
         let end = self.offset + self.index;
 
-        // Debug output for Unicode escape sequences
-        if name.contains('\\') {
-            eprintln!(
-                "[DEBUG parse_id_selector] start={}, end={}, name={:?}, name.len()={}",
-                start,
-                end,
-                name,
-                name.len()
-            );
-        }
-
         let mut obj = Map::new();
         obj.insert("type".to_string(), Value::String("IdSelector".to_string()));
         obj.insert("name".to_string(), Value::String(name));
@@ -2034,10 +2023,6 @@ impl<'a> SelectorParser<'a> {
                 let next = self.current_char();
 
                 if next.is_ascii_hexdigit() {
-                    eprintln!(
-                        "[DEBUG read_identifier] entering hex block at index={}",
-                        self.index
-                    );
                     // Read 1-6 hex digits
                     let mut hex_count = 0;
                     while !self.is_eof() && hex_count < 6 {
@@ -2048,31 +2033,12 @@ impl<'a> SelectorParser<'a> {
                         self.advance();
                         hex_count += 1;
                     }
-                    eprintln!(
-                        "[DEBUG read_identifier] after hex loop: index={}, hex_count={}",
-                        self.index, hex_count
-                    );
-                    eprintln!(
-                        "[DEBUG read_identifier] is_eof={}, source.len={}",
-                        self.is_eof(),
-                        self.source.len()
-                    );
                     // After hex digits, optionally consume one whitespace character
                     // but this whitespace is part of the escape and should be preserved
                     if !self.is_eof() {
                         let after = self.current_char();
-                        let will_advance =
-                            after == ' ' || after == '\t' || after == '\n' || after == '\r';
-                        eprintln!(
-                            "[DEBUG read_identifier hex] index={}, after={:?}, will_advance={}",
-                            self.index, after, will_advance
-                        );
-                        if will_advance {
+                        if after == ' ' || after == '\t' || after == '\n' || after == '\r' {
                             self.advance();
-                            eprintln!(
-                                "[DEBUG read_identifier hex] advanced to index={}",
-                                self.index
-                            );
                         }
                     }
                 } else {
