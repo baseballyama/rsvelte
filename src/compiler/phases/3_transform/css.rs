@@ -2689,9 +2689,12 @@ fn transform_complex_selector(
                         });
 
                         if !first_is_global_like {
-                            let modifier = get_modifier(selector, &local_specificity_bumped);
+                            // After :global(), use direct class (not :where())
+                            let should_use_where = local_specificity_bumped && !seen_global;
+                            let modifier = get_modifier(selector, &should_use_where);
                             selector_parts.push_str(&modifier);
                             local_specificity_bumped = true;
+                            seen_global = false;
                         }
                     }
 
@@ -3011,6 +3014,10 @@ fn transform_is_not_complex_selector(
             true
         };
 
+        // For inner complex selectors, the first part uses direct class
+        // and subsequent parts use :where(). This matches normal scoping behavior.
+        let mut inner_use_direct_class = use_direct_class;
+
         for relative_selector in children {
             // Get combinator
             if let Some(combinator) = relative_selector.get("combinator")
@@ -3076,7 +3083,7 @@ fn transform_is_not_complex_selector(
                         if is_universal && Some(idx) == last_non_pseudo_idx && !selector.is_empty()
                         {
                             // Replace * with just :where(selector)
-                            if use_direct_class {
+                            if inner_use_direct_class {
                                 selector_parts.push_str(selector);
                             } else {
                                 selector_parts.push_str(&format!(":where({})", selector));
@@ -3091,13 +3098,13 @@ fn transform_is_not_complex_selector(
                             None,
                             1,
                             ctx,
-                            use_direct_class,
+                            inner_use_direct_class,
                         ));
 
                         // Add scoping after the last non-pseudo selector
-                        // Use :where() to preserve specificity, unless use_direct_class is true
+                        // Use :where() to preserve specificity, unless inner_use_direct_class is true
                         if Some(idx) == last_non_pseudo_idx && !selector.is_empty() {
-                            if use_direct_class {
+                            if inner_use_direct_class {
                                 selector_parts.push_str(selector);
                             } else {
                                 selector_parts.push_str(&format!(":where({})", selector));
@@ -3112,6 +3119,10 @@ fn transform_is_not_complex_selector(
                         result.push_str(&format_simple_selector(sel));
                     }
                 }
+            }
+            // After the first scoped relative selector, switch to :where() for subsequent ones
+            if should_scope {
+                inner_use_direct_class = false;
             }
         }
     }
