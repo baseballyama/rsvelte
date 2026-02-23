@@ -207,6 +207,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     if expr_end > expr_start && expr_end <= self.source.len() {
                         let expr = self.source[expr_start..expr_end].trim().to_string();
                         let expr = self.transform_store_refs(&expr);
+                        // Transform $$props -> $$sanitized_props in spread expressions
+                        let expr = self.transform_special_vars(&expr);
                         props_and_spreads.push(ComponentPropItem::Spread(expr));
                     }
                 }

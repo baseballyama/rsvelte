@@ -26,6 +26,7 @@ pub mod html_tag;
 pub mod if_block;
 pub mod render_tag;
 pub mod select_element;
+pub mod slot_element;
 pub mod snippet_block;
 pub mod svelte_boundary;
 pub mod svelte_component;
@@ -65,6 +66,7 @@ impl<'a> ServerCodeGenerator<'a> {
             TemplateNode::SvelteComponent(elem) => self.generate_svelte_component(elem),
             TemplateNode::SvelteSelf(elem) => self.generate_svelte_self(elem),
             TemplateNode::DebugTag(tag) => self.generate_debug_tag(tag),
+            TemplateNode::SlotElement(slot) => self.generate_slot_element(slot),
             TemplateNode::SvelteFragment(frag) => {
                 // Generate children of <svelte:fragment>
                 for child in &frag.fragment.nodes {

@@ -2131,6 +2131,9 @@ impl Parser<'_> {
                         }
                     } else if c.is_whitespace() || c == '>' {
                         break;
+                    } else if c == '/' && self.match_str("/>") {
+                        // Self-closing tag marker - stop text here (don't consume the '/')
+                        break;
                     }
                     self.advance();
                 }

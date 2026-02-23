@@ -129,6 +129,15 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
+        // For <style> and <script> elements, emit a Flush marker before the element.
+        // In the official Svelte compiler, these elements generate standalone $$renderer.push()
+        // calls (via build_template), which forces a flush of any preceding template content.
+        // This ensures {@html} followed by <style> produces separate push calls.
+        let is_style_or_script = name == "style" || name == "script";
+        if is_style_or_script {
+            self.output_parts.push(OutputPart::Flush);
+        }
+
         // Start tag
         let mut tag = format!("<{}", name);
 
@@ -416,6 +425,12 @@ impl<'a> ServerCodeGenerator<'a> {
             // End tag
             self.output_parts
                 .push(OutputPart::Html(format!("</{}>", name)));
+
+            // For <style> and <script>, emit a Flush marker after the closing tag too.
+            // This ensures subsequent content starts a new push call.
+            if is_style_or_script {
+                self.output_parts.push(OutputPart::Flush);
+            }
         }
 
         Ok(())

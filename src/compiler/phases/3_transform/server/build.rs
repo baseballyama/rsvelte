@@ -565,6 +565,16 @@ export default function {component_name}($$renderer{props_param}) {{
                 OutputPart::HtmlExpression(expr) => {
                     current_html.push_str(&format!("${{$.html({})}}", expr));
                 }
+                OutputPart::Flush => {
+                    // Flush the current accumulated HTML buffer as a separate push call.
+                    // Used before/after elements like <style> and <script> that need their
+                    // own $$renderer.push() call (matching official Svelte compiler behavior).
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+                }
                 OutputPart::ComponentWithBindings {
                     name,
                     props_and_spreads,
@@ -1066,6 +1076,14 @@ export default function {component_name}($$renderer{props_param}) {{
                                     body_code.push_str(&format!("{}\t{},\n", indent, prop));
                                 }
 
+                                // Check if 'children' is already in all_props (explicit attribute)
+                                // If so, slot content should go in $$slots.default, not as children prop
+                                let children_already_in_props = all_props.iter().any(|p| {
+                                    p == "children"
+                                        || p.starts_with("children:")
+                                        || p.starts_with("children ")
+                                });
+
                                 if has_let_dirs {
                                     // Has let directives on the component:
                                     // children: $.invalid_default_snippet,
@@ -1117,6 +1135,49 @@ export default function {component_name}($$renderer{props_param}) {{
                                         body_code.push_str(&format!("{}\t\t}},\n", indent));
                                     }
 
+                                    body_code.push_str(&format!("{}\t}}\n", indent));
+                                } else if children_already_in_props {
+                                    // 'children' is already an explicit prop (e.g., children="foo").
+                                    // The slot content must go in $$slots.default (not as another 'children' prop).
+                                    body_code.push_str(&format!("{}\t$$slots: {{\n", indent));
+
+                                    let children_code = Self::build_parts_with_store_subs(
+                                        children_parts,
+                                        indent_level + 3,
+                                        each_counter,
+                                        store_subs,
+                                    );
+                                    body_code.push_str(&format!(
+                                        "{}\t\tdefault: ($$renderer) => {{\n{}",
+                                        indent, children_code
+                                    ));
+                                    body_code.push_str(&format!("{}\t\t}}", indent));
+
+                                    // Named slot children
+                                    for (slot_name, params, body_parts, _) in &slot_children {
+                                        body_code.push_str(",\n");
+                                        let quoted_name = quote_prop_name(slot_name);
+                                        let fn_body = Self::build_parts_with_store_subs(
+                                            body_parts,
+                                            indent_level + 3,
+                                            each_counter,
+                                            store_subs,
+                                        );
+                                        if params.is_empty() {
+                                            body_code.push_str(&format!(
+                                                "{}\t\t{}: ($$renderer) => {{\n{}",
+                                                indent, quoted_name, fn_body
+                                            ));
+                                        } else {
+                                            let params_str = format!("{{ {} }}", params.join(", "));
+                                            body_code.push_str(&format!(
+                                                "{}\t\t{}: ($$renderer, {}) => {{\n{}",
+                                                indent, quoted_name, params_str, fn_body
+                                            ));
+                                        }
+                                        body_code.push_str(&format!("{}\t\t}}", indent));
+                                    }
+                                    body_code.push('\n');
                                     body_code.push_str(&format!("{}\t}}\n", indent));
                                 } else {
                                     // No let directives - standard children callback
@@ -1983,6 +2044,45 @@ export default function {component_name}($$renderer{props_param}) {{
                 OutputPart::HydrationAnchor => {
                     // Add <!> marker to current HTML (hydration anchor for Components/RenderTags/HtmlTags in select/optgroup)
                     current_html.push_str("<!>");
+                }
+                OutputPart::Slot {
+                    name,
+                    props_expr,
+                    fallback,
+                } => {
+                    // Flush current HTML before slot (+ add <!--[--> marker)
+                    current_html.push_str("<!--[-->");
+                    if !current_html.is_empty() {
+                        body_code
+                            .push_str(&format!("{}$$renderer.push(`{}`);\n", indent, current_html));
+                        current_html.clear();
+                    }
+
+                    // Generate $.slot() call
+                    let fallback_arg = if let Some(fallback_parts) = fallback {
+                        if fallback_parts.is_empty() {
+                            "null".to_string()
+                        } else {
+                            // Build fallback as a thunk: () => { ... }
+                            let fallback_code = Self::build_parts_with_store_subs(
+                                fallback_parts,
+                                indent_level + 1,
+                                each_counter,
+                                store_subs,
+                            );
+                            format!("() => {{\n{}{indent}}}", fallback_code, indent = indent)
+                        }
+                    } else {
+                        "null".to_string()
+                    };
+
+                    body_code.push_str(&format!(
+                        "{}$.slot($$renderer, $$props, '{}', {}, {});\n",
+                        indent, name, props_expr, fallback_arg
+                    ));
+
+                    // Add closing marker
+                    current_html.push_str("<!--]-->");
                 }
                 OutputPart::RawStatement(stmt) => {
                     // Flush current HTML before raw statement

@@ -188,6 +188,10 @@ pub(crate) enum OutputPart {
     RawExpression(String),
     /// Raw HTML expression - {@html expr}
     HtmlExpression(String),
+    /// Flush marker: causes the current accumulated HTML buffer to be emitted as a
+    /// separate $$renderer.push() call before the next Html item.
+    /// Used for elements like <style> and <script> that need separate push calls.
+    Flush,
     Component {
         name: String,
         /// Interleaved props and spreads, preserving source order.
@@ -338,6 +342,15 @@ pub(crate) enum OutputPart {
     },
     /// Hydration anchor marker - outputs "<!>" after Components/RenderTags/HtmlTags in select/optgroup
     HydrationAnchor,
+    /// Slot element - produces $.slot() call wrapped in <!--[-->...<!--]-->
+    Slot {
+        /// Slot name (e.g., 'default', 'header')
+        name: String,
+        /// Props expression (e.g., "{}" or "$.spread_props([{...}, ...])")
+        props_expr: String,
+        /// Fallback body (None means null fallback)
+        fallback: Option<Vec<OutputPart>>,
+    },
     /// Raw JavaScript statement(s) to emit directly
     RawStatement(String),
     /// Local snippet function declaration (e.g., `function failed($$renderer, e) { ... }`)
