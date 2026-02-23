@@ -1477,9 +1477,51 @@ fn add_leading_zeros(code: String) -> String {
     let chars: Vec<char> = code.chars().collect();
     let len = chars.len();
     let mut i = 0;
+    // Track if we're inside a string literal to avoid modifying string contents.
+    // String literals contain raw user data (e.g. SVG path data with ".5" values).
+    let mut in_string: Option<char> = None; // Some(quote_char) if inside a string
 
     while i < len {
         let c = chars[i];
+
+        // Track string literal boundaries (skip escaped chars)
+        match in_string {
+            Some(_) if c == '\\' => {
+                // Escaped char - push both backslash and next char without modification
+                result.push(c);
+                i += 1;
+                if i < len {
+                    result.push(chars[i]);
+                    i += 1;
+                }
+                continue;
+            }
+            Some(q) if c == q => {
+                // End of string literal
+                in_string = None;
+                result.push(c);
+                i += 1;
+                continue;
+            }
+            Some(_) => {
+                // Inside a string literal - push as-is without modification
+                result.push(c);
+                i += 1;
+                continue;
+            }
+            None => {
+                // Not inside a string - check if starting a new one
+                if c == '\'' || c == '"' {
+                    in_string = Some(c);
+                    result.push(c);
+                    i += 1;
+                    continue;
+                }
+                // Template literals are more complex (nested ${...}), skip tracking them
+                // for leading zero purposes since template literals in Svelte generated
+                // code rarely contain SVG path data.
+            }
+        }
 
         if c == '.' && i + 1 < len && chars[i + 1].is_ascii_digit() {
             let prev_char = if i > 0 { chars[i - 1] } else { ' ' };

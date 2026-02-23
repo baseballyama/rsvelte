@@ -1176,10 +1176,13 @@ fn normalize_consecutive_declarations(code: &str) -> String {
     // After semicolons are removed and var/const normalized to let:
     //   "let div1 let div2" -> "let div1, div2"
     //   "$.prop($$props, 'a', 3, true) let b = $.prop(...)" -> "$.prop($$props, 'a', 3, true), b = $.prop(...)"
+    //   "let x = 'x' let y = 'y'" -> "let x = 'x', y = 'y'"
     //
-    // We use a regex to find " let " preceded by an identifier char or )
+    // We use a regex to find " let " preceded by an identifier char, ), or quote char
     // and replace it with ", " to combine declarations.
-    let re = regex::Regex::new(r"([a-zA-Z0-9_\$\)])\s+let\s+").unwrap();
+    // The character class includes ', ", and ` to handle string/template literal values before let.
+    // Character class: alphanumeric, _, $, ), and closing quote chars (', ", `)
+    let re = regex::Regex::new("([a-zA-Z0-9_\\$\\)'\"` ])\\s+let\\s+").unwrap();
     re.replace_all(code, "$1, ").to_string()
 }
 

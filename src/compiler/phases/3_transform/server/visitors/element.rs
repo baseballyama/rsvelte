@@ -112,7 +112,9 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
                 }
                 Attribute::Attribute(node) if node.name.as_str() == "style" => {
-                    base_style = self.extract_attribute_text_value(node);
+                    // Use extract_style_attribute_base which handles dynamic expressions
+                    // (e.g., style="background-color: {settings.bg}") as template literals.
+                    base_style = self.extract_style_attribute_base(node);
                     // Also extract dynamic expression for style={expr} with style directives
                     if base_style.is_none()
                         && let AttributeValue::Expression(expr_tag) = &node.value
@@ -1700,6 +1702,65 @@ impl<'a> ServerCodeGenerator<'a> {
                     }
                 }
                 Some(value)
+            }
+            AttributeValue::True(_) => None,
+            AttributeValue::Expression(_) => None,
+        }
+    }
+
+    /// Extract the full value of a style attribute, handling dynamic expressions.
+    /// For a purely static style attribute like `style="color: red"`, returns `Some("'color: red'")`.
+    /// For a dynamic style like `style="background-color: {settings.bg}"`, returns a template
+    /// literal like `Some("` + "`background-color: ${$.stringify(settings.bg)}`" + `")`.
+    /// For `style={expr}`, returns `Some("__EXPR__:{expr}")`.
+    /// Returns `None` if there is no value.
+    fn extract_style_attribute_base(&self, node: &AttributeNode) -> Option<String> {
+        match &node.value {
+            AttributeValue::Sequence(parts) => {
+                // Check if any part is a dynamic expression
+                let has_expr = parts
+                    .iter()
+                    .any(|p| matches!(p, AttributeValuePart::ExpressionTag(_)));
+
+                if has_expr {
+                    // Generate a template literal with $.stringify() for dynamic parts
+                    let mut template = String::from("`");
+                    for part in parts {
+                        match part {
+                            AttributeValuePart::Text(text) => {
+                                template.push_str(
+                                    &text
+                                        .data
+                                        .replace('\\', "\\\\")
+                                        .replace('`', "\\`")
+                                        .replace("${", "\\${"),
+                                );
+                            }
+                            AttributeValuePart::ExpressionTag(expr_tag) => {
+                                let expr_start = expr_tag.expression.start().unwrap_or(0) as usize;
+                                let expr_end = expr_tag.expression.end().unwrap_or(0) as usize;
+                                if expr_end > expr_start && expr_end <= self.source.len() {
+                                    let expr_src = self.source[expr_start..expr_end].trim();
+                                    let transformed = self.transform_store_refs(expr_src);
+                                    template
+                                        .push_str(&format!("${{$.stringify({})}}", transformed));
+                                }
+                            }
+                        }
+                    }
+                    template.push('`');
+                    // Use __TEMPL__: prefix so generate_attr_style_call knows it's a raw expression
+                    Some(format!("__EXPR__:{}", template))
+                } else {
+                    // All static text
+                    let mut value = String::new();
+                    for part in parts {
+                        if let AttributeValuePart::Text(text) = part {
+                            value.push_str(&text.data);
+                        }
+                    }
+                    Some(value)
+                }
             }
             AttributeValue::True(_) => None,
             AttributeValue::Expression(_) => None,

@@ -242,6 +242,73 @@ impl<'a> ServerCodeGenerator<'a> {
             let is_first = i == 0;
             let is_last = i == num_nodes - 1;
 
+            // For <svelte:fragment> nodes, process their children directly (with trimming)
+            // instead of emitting the fragment wrapper, so that leading/trailing whitespace
+            // inside the fragment is properly trimmed.
+            // Note: Unlike regular slot content, <svelte:fragment> children do NOT get a
+            // <!---> anchor even if they start with text (per official Svelte compiler behavior:
+            // `is_text_first` is false for SvelteFragment parent type in clean_nodes).
+            if let TemplateNode::SvelteFragment(frag) = node {
+                let frag_children: Vec<_> = frag.fragment.nodes.iter().collect();
+                let frag_len = frag_children.len();
+
+                // Trim leading/trailing whitespace-only text nodes
+                let mut frag_start = 0;
+                let mut frag_end = frag_len;
+                while frag_start < frag_len {
+                    match frag_children[frag_start] {
+                        TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data) => {
+                            frag_start += 1;
+                        }
+                        TemplateNode::Comment(_) => {
+                            frag_start += 1;
+                        }
+                        _ => break,
+                    }
+                }
+                while frag_end > frag_start {
+                    match frag_children[frag_end - 1] {
+                        TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data) => {
+                            frag_end -= 1;
+                        }
+                        TemplateNode::Comment(_) => {
+                            frag_end -= 1;
+                        }
+                        _ => break,
+                    }
+                }
+
+                let frag_to_process = &frag_children[frag_start..frag_end];
+                let frag_count = frag_to_process.len();
+
+                for (fi, fnode) in frag_to_process.iter().enumerate() {
+                    let is_f_first = fi == 0;
+                    let is_f_last = fi == frag_count - 1;
+
+                    if let TemplateNode::Text(text) = fnode {
+                        let raw = text.data.to_string();
+                        let raw = if is_f_first {
+                            svelte_trim_start(&raw).to_string()
+                        } else {
+                            raw
+                        };
+                        let raw = if is_f_last {
+                            svelte_trim_end(&raw).to_string()
+                        } else {
+                            raw
+                        };
+                        if !raw.is_empty() {
+                            body_generator
+                                .output_parts
+                                .push(OutputPart::Html(escape_html(&raw)));
+                        }
+                    } else {
+                        body_generator.generate_node(fnode, false)?;
+                    }
+                }
+                continue;
+            }
+
             // For text nodes, normalize whitespace
             // Use svelte_trim_start/svelte_trim_end which do NOT trim non-breaking space (\u{00A0})
             if let TemplateNode::Text(text) = node {
