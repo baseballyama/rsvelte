@@ -50,7 +50,8 @@ fn has_top_level_semicolon(s: &str) -> bool {
 /// Check if an export let declaration value appears to be syntactically complete.
 /// Returns true if the expression doesn't need a continuation line.
 fn export_let_declaration_seems_complete(decl: &str) -> bool {
-    // Check for unbalanced braces/parens - if unbalanced, definitely incomplete
+    // The `decl` is the entire declarator text after `export let `, e.g. `x = 42` or `x = [1, 2`.
+    // First, check if brackets/parens/braces are balanced - if unbalanced, definitely incomplete.
     let chars: Vec<char> = decl.chars().collect();
     let mut i = 0;
     let mut paren_depth: i32 = 0;
@@ -91,7 +92,6 @@ fn export_let_declaration_seems_complete(decl: &str) -> bool {
         return false;
     }
 
-    // If there's an assignment, the right side should be complete
     // Check for trailing operators that would require continuation
     let trimmed = decl.trim();
     if trimmed.ends_with('+')
@@ -112,7 +112,9 @@ fn export_let_declaration_seems_complete(decl: &str) -> bool {
         return false;
     }
 
-    // If balanced and doesn't end with an operator, it seems complete
+    // If balanced and doesn't end with an operator, it seems complete.
+    // This is true for any declarator like `x = 42`, `x = 'hello'`, `x = [1,2,3]`, etc.
+    // The bracket balance check above already covers the main case where we'd need to continue.
     true
 }
 
@@ -608,8 +610,9 @@ fn split_conditional_expression(s: &str) -> Option<(&str, &str, &str)> {
 }
 
 /// Extract variable names from legacy reactive `$:` statements.
+/// Returns a `let` declaration with variables in topological dependency order
+/// (dependencies before dependents), matching the official Svelte compiler output.
 pub(crate) fn extract_legacy_reactive_var_declaration(script: &str) -> String {
-    let mut reactive_vars: Vec<String> = Vec::new();
     let mut declared_vars: std::collections::HashSet<String> = std::collections::HashSet::new();
 
     for line in script.lines() {
@@ -620,23 +623,108 @@ pub(crate) fn extract_legacy_reactive_var_declaration(script: &str) -> String {
         collect_declared_vars(trimmed, &mut declared_vars);
     }
 
+    // Collect reactive statements (each as a single string for now; multi-line not supported here)
+    let mut reactive_stmts: Vec<String> = Vec::new();
+
     for line in script.lines() {
         let trimmed = line.trim();
         if !trimmed.starts_with("$:") {
             continue;
         }
-        let after_label = trimmed[2..].trim();
+        reactive_stmts.push(trimmed.to_string());
+    }
 
+    if reactive_stmts.is_empty() {
+        return String::new();
+    }
+
+    // Determine which vars each reactive stmt declares and which it uses.
+    // Build a dependency graph and topologically sort the stmts.
+    let n = reactive_stmts.len();
+    let mut stmt_declared: Vec<Vec<String>> = Vec::new();
+    let mut stmt_used: Vec<Vec<String>> = Vec::new();
+
+    for stmt in &reactive_stmts {
+        let mut vars = Vec::new();
+        let after_label = stmt[2..].trim();
         let after_label = after_label.trim_end_matches(';').trim();
         let unwrapped = if after_label.starts_with('(') && after_label.ends_with(')') {
             after_label[1..after_label.len() - 1].trim()
         } else {
             after_label
         };
-
         if let Some(eq_pos) = find_assignment_eq(unwrapped) {
             let lhs = unwrapped[..eq_pos].trim();
-            extract_identifiers_from_pattern(lhs, &mut reactive_vars, &declared_vars);
+            extract_identifiers_from_pattern(lhs, &mut vars, &declared_vars);
+        }
+        stmt_declared.push(vars);
+
+        // Collect identifiers used on the RHS
+        stmt_used.push(extract_reactive_rhs_identifiers(stmt));
+    }
+
+    // Build var -> stmt index map
+    let mut var_to_stmt: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
+    for (i, decls) in stmt_declared.iter().enumerate() {
+        for decl in decls {
+            var_to_stmt.insert(decl.clone(), i);
+        }
+    }
+
+    // Build deps: stmt i depends on stmt j if i uses a var declared by j
+    let mut deps: Vec<Vec<usize>> = vec![Vec::new(); n];
+    for (i, uses) in stmt_used.iter().enumerate() {
+        for var in uses {
+            if let Some(&j) = var_to_stmt.get(var)
+                && j != i
+            {
+                deps[i].push(j);
+            }
+        }
+    }
+
+    // Topological sort (DFS post-order = dependencies first)
+    fn topo_visit_decl(
+        idx: usize,
+        deps: &[Vec<usize>],
+        visited: &mut Vec<bool>,
+        in_progress: &mut Vec<bool>,
+        sorted: &mut Vec<usize>,
+    ) {
+        if visited[idx] || in_progress[idx] {
+            return;
+        }
+        in_progress[idx] = true;
+        for &dep in &deps[idx] {
+            topo_visit_decl(dep, deps, visited, in_progress, sorted);
+        }
+        in_progress[idx] = false;
+        visited[idx] = true;
+        sorted.push(idx);
+    }
+
+    let mut sorted_indices: Vec<usize> = Vec::new();
+    let mut visited = vec![false; n];
+    let mut in_progress = vec![false; n];
+    for i in 0..n {
+        topo_visit_decl(
+            i,
+            &deps,
+            &mut visited,
+            &mut in_progress,
+            &mut sorted_indices,
+        );
+    }
+
+    // Collect declared vars in topological order (deduplicating)
+    let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut reactive_vars: Vec<String> = Vec::new();
+    for &idx in &sorted_indices {
+        for var in &stmt_declared[idx] {
+            if seen.insert(var.clone()) {
+                reactive_vars.push(var.clone());
+            }
         }
     }
 
@@ -644,15 +732,9 @@ pub(crate) fn extract_legacy_reactive_var_declaration(script: &str) -> String {
         return String::new();
     }
 
-    let mut seen = std::collections::HashSet::new();
-    let unique_vars: Vec<&String> = reactive_vars
-        .iter()
-        .filter(|v| seen.insert(v.as_str().to_string()))
-        .collect();
-
     format!(
         "\tlet {};",
-        unique_vars
+        reactive_vars
             .iter()
             .map(|s| s.as_str())
             .collect::<Vec<_>>()
@@ -934,7 +1016,10 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
     };
 
     if !needs_reorder {
-        return script.to_string();
+        // Even when no reordering of reactive vs non-reactive is needed,
+        // we still need to topologically sort the reactive statements among themselves.
+        // Do an in-place sort of reactive statements only.
+        return sort_reactive_in_place(script);
     }
 
     // Separate lines into: non-reactive (including functions) and reactive
@@ -986,6 +1071,11 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
         }
     }
 
+    // Topologically sort reactive statements based on their dependencies.
+    // A reactive statement `$: a = expr_using_b` depends on `$: b = ...`
+    // so `b` must come before `a`.
+    let reactive_lines = sort_reactive_statements_topologically(reactive_lines);
+
     // Build result: all non-reactive lines first, then reactive statements at the end
     let mut result = String::new();
 
@@ -1009,4 +1099,417 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
     }
 
     result
+}
+
+/// Sort reactive statements in place (without moving them after non-reactive code).
+/// This topologically sorts reactive statements relative to each other while keeping
+/// non-reactive statements in their original positions.
+fn sort_reactive_in_place(script: &str) -> String {
+    let lines: Vec<&str> = script.lines().collect();
+    let n = lines.len();
+
+    // Collect groups: each group is either a set of reactive stmt lines or non-reactive lines
+    // between/before/after reactive stmts
+    #[derive(Debug)]
+    enum Group<'a> {
+        NonReactive(Vec<&'a str>),
+        Reactive(Vec<&'a str>),
+    }
+
+    let mut groups: Vec<Group> = Vec::new();
+    let mut i = 0;
+
+    while i < n {
+        let trimmed = lines[i].trim();
+        if trimmed.starts_with("$:") {
+            // Collect this reactive statement (possibly multi-line)
+            let mut stmt_lines = vec![lines[i]];
+            let mut depth: i32 = 0;
+            for c in trimmed.chars() {
+                match c {
+                    '{' | '(' | '[' => depth += 1,
+                    '}' | ')' | ']' => depth -= 1,
+                    _ => {}
+                }
+            }
+            i += 1;
+            while i < n && depth > 0 {
+                let next = lines[i];
+                stmt_lines.push(next);
+                for c in next.chars() {
+                    match c {
+                        '{' | '(' | '[' => depth += 1,
+                        '}' | ')' | ']' => depth -= 1,
+                        _ => {}
+                    }
+                }
+                i += 1;
+            }
+            groups.push(Group::Reactive(stmt_lines));
+        } else {
+            // Non-reactive line - merge into or start a NonReactive group
+            match groups.last_mut() {
+                Some(Group::NonReactive(v)) => {
+                    v.push(lines[i]);
+                }
+                _ => {
+                    groups.push(Group::NonReactive(vec![lines[i]]));
+                }
+            }
+            i += 1;
+        }
+    }
+
+    // Collect all reactive groups and their positions
+    let reactive_groups: Vec<Vec<&str>> = groups
+        .iter()
+        .filter_map(|g| {
+            if let Group::Reactive(lines) = g {
+                Some(lines.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    if reactive_groups.len() <= 1 {
+        // Nothing to sort
+        return script.to_string();
+    }
+
+    // Sort reactive statements topologically
+    let sorted_reactives = sort_reactive_statements_topologically(reactive_groups);
+
+    // Now rebuild the script, replacing reactive groups with sorted ones
+    let mut result = String::new();
+    let mut reactive_iter = sorted_reactives.into_iter();
+
+    for group in &groups {
+        match group {
+            Group::NonReactive(lines) => {
+                for line in lines {
+                    result.push_str(line);
+                    result.push('\n');
+                }
+            }
+            Group::Reactive(_) => {
+                if let Some(sorted_stmt) = reactive_iter.next() {
+                    for line in &sorted_stmt {
+                        result.push_str(line);
+                        result.push('\n');
+                    }
+                }
+            }
+        }
+    }
+
+    // Remove trailing newline
+    if result.ends_with('\n') {
+        result.pop();
+    }
+
+    result
+}
+
+/// Extract the LHS assigned variable(s) from a reactive statement (joined text).
+/// Returns set of variable names that this statement assigns to.
+fn extract_reactive_lhs_vars(stmt: &str) -> Vec<String> {
+    // Find `$:` prefix and then look for assignment: `$: varname = ...` or `$: { varname = ...; }`
+    let content = stmt.trim_start();
+    let after_dollar = if let Some(rest) = content.strip_prefix("$:") {
+        rest.trim()
+    } else {
+        return Vec::new();
+    };
+
+    // Check for `$: varname = expr` (expression statement with assignment)
+    // Or `$: { ... }` (block statement - harder to analyze)
+    if after_dollar.starts_with('{') {
+        // Block statement - try to find assignments inside
+        // Simple heuristic: find all `var = ` patterns
+        extract_simple_assignments(after_dollar)
+    } else {
+        // Expression or declaration: `varname = expr` or `varname += expr` etc.
+        // Find the first identifier before `=`
+        extract_simple_assignments(after_dollar)
+    }
+}
+
+/// Extract identifiers assigned to on the LHS of simple assignment statements.
+fn extract_simple_assignments(code: &str) -> Vec<String> {
+    let mut vars = Vec::new();
+    // Find patterns like `identifier =` (not `==`)
+    let chars: Vec<char> = code.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+    let mut depth = 0i32;
+
+    while i < len {
+        let c = chars[i];
+        match c {
+            '{' | '[' | '(' => {
+                depth += 1;
+                i += 1;
+            }
+            '}' | ']' | ')' => {
+                depth -= 1;
+                i += 1;
+            }
+            _ if (c.is_alphabetic() || c == '_' || c == '$') && depth == 0 => {
+                // Read identifier
+                let start = i;
+                while i < len && (chars[i].is_alphanumeric() || chars[i] == '_' || chars[i] == '$')
+                {
+                    i += 1;
+                }
+                let ident: String = chars[start..i].iter().collect();
+
+                // Skip whitespace
+                let mut j = i;
+                while j < len && chars[j] == ' ' {
+                    j += 1;
+                }
+
+                // Check for `=` (not `==` or `=>`)
+                if j < len && chars[j] == '=' {
+                    let next = chars.get(j + 1).copied().unwrap_or('\0');
+                    if next != '=' && next != '>' {
+                        let prev = if j > 0 { chars[j - 1] } else { '\0' };
+                        if prev != '!'
+                            && prev != '<'
+                            && prev != '>'
+                            && prev != '+'
+                            && prev != '-'
+                            && prev != '*'
+                            && prev != '/'
+                            && prev != '?'
+                            && prev != '&'
+                            && prev != '|'
+                            && prev != '^'
+                        {
+                            // This is an assignment to `ident`
+                            if !is_reactive_keyword(&ident) {
+                                vars.push(ident);
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {
+                i += 1;
+            }
+        }
+    }
+    vars
+}
+
+/// Check if a string is a JS keyword that can't be a variable name.
+fn is_reactive_keyword(s: &str) -> bool {
+    matches!(
+        s,
+        "true"
+            | "false"
+            | "null"
+            | "undefined"
+            | "this"
+            | "new"
+            | "typeof"
+            | "instanceof"
+            | "void"
+            | "delete"
+            | "in"
+            | "of"
+            | "let"
+            | "const"
+            | "var"
+            | "function"
+            | "class"
+            | "return"
+            | "if"
+            | "else"
+            | "for"
+            | "while"
+            | "do"
+            | "switch"
+            | "case"
+            | "break"
+            | "continue"
+            | "throw"
+            | "try"
+            | "catch"
+            | "finally"
+            | "import"
+            | "export"
+            | "default"
+            | "async"
+            | "await"
+            | "yield"
+    )
+}
+
+/// Extract all identifiers referenced in an expression (to find dependencies).
+fn extract_reactive_rhs_identifiers(stmt: &str) -> Vec<String> {
+    // Skip the `$:` prefix and the LHS assignment part
+    let content = stmt.trim_start();
+    let after_dollar = if let Some(rest) = content.strip_prefix("$:") {
+        rest.trim()
+    } else {
+        return Vec::new();
+    };
+
+    // Extract all identifiers from the content, skipping object property keys.
+    // An identifier is an object property key if it is immediately followed by `:` (after
+    // optional whitespace), as in `{ details: null }`. We must NOT treat it as a dependency.
+    // Exception: `? x : y` (ternary colon) should still be treated as a reference.
+    let mut idents = Vec::new();
+    let chars: Vec<char> = after_dollar.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+    // Track brace depth to know when we are inside an object literal `{...}`.
+    // Property keys only appear at the top level of `{...}` blocks.
+    let mut brace_depth: i32 = 0;
+
+    while i < len {
+        let c = chars[i];
+        if c == '\'' || c == '"' || c == '`' {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char && (i == 0 || chars[i - 1] != '\\') {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+        if in_string {
+            i += 1;
+            continue;
+        }
+
+        match c {
+            '{' => {
+                brace_depth += 1;
+                i += 1;
+            }
+            '}' => {
+                brace_depth -= 1;
+                i += 1;
+            }
+            _ if c.is_alphabetic() || c == '_' || c == '$' => {
+                let start = i;
+                while i < len && (chars[i].is_alphanumeric() || chars[i] == '_' || chars[i] == '$')
+                {
+                    i += 1;
+                }
+                let ident: String = chars[start..i].iter().collect();
+
+                if !is_reactive_keyword(&ident) {
+                    // Check if this identifier is an object property key.
+                    // A property key is an identifier directly followed (after optional whitespace)
+                    // by `:` that is NOT part of `::` (optional chaining is `?.`) and NOT a
+                    // ternary colon (those appear after `?`). The simplest heuristic:
+                    // if we are inside a `{...}` block (brace_depth > 0), and the next
+                    // non-whitespace character after the identifier is `:` (not `:`+`:`),
+                    // then it is a property key.
+                    let mut j = i;
+                    while j < len && (chars[j] == ' ' || chars[j] == '\t') {
+                        j += 1;
+                    }
+                    let is_prop_key = brace_depth > 0
+                        && j < len
+                        && chars[j] == ':'
+                        && chars.get(j + 1).copied().unwrap_or('\0') != ':';
+
+                    if !is_prop_key {
+                        idents.push(ident);
+                    }
+                }
+            }
+            _ => {
+                i += 1;
+            }
+        }
+    }
+    idents
+}
+
+/// Topologically sort reactive statements based on their variable dependencies.
+fn sort_reactive_statements_topologically(stmts: Vec<Vec<&str>>) -> Vec<Vec<&str>> {
+    let n = stmts.len();
+    if n <= 1 {
+        return stmts;
+    }
+
+    // Extract declared variables and dependencies for each statement
+    let mut declared: Vec<Vec<String>> = Vec::new();
+    let mut used: Vec<Vec<String>> = Vec::new();
+
+    for stmt in &stmts {
+        let joined = stmt.join("\n");
+        declared.push(extract_reactive_lhs_vars(&joined));
+        used.push(extract_reactive_rhs_identifiers(&joined));
+    }
+
+    // Build a map from variable name to statement index
+    let mut var_to_stmt: std::collections::HashMap<String, usize> =
+        std::collections::HashMap::new();
+    for (i, decls) in declared.iter().enumerate() {
+        for decl in decls {
+            var_to_stmt.insert(decl.clone(), i);
+        }
+    }
+
+    // Build dependency edges: stmt i depends on stmt j if i uses a variable declared by j
+    let mut deps: Vec<Vec<usize>> = vec![Vec::new(); n];
+    for (i, uses) in used.iter().enumerate() {
+        for var in uses {
+            if let Some(&j) = var_to_stmt.get(var)
+                && j != i
+            {
+                deps[i].push(j);
+            }
+        }
+    }
+
+    // Topological sort using DFS
+    let mut sorted_indices: Vec<usize> = Vec::new();
+    let mut visited = vec![false; n];
+    let mut in_progress = vec![false; n];
+
+    fn topo_visit(
+        idx: usize,
+        deps: &[Vec<usize>],
+        visited: &mut Vec<bool>,
+        in_progress: &mut Vec<bool>,
+        sorted: &mut Vec<usize>,
+    ) {
+        if visited[idx] || in_progress[idx] {
+            return;
+        }
+        in_progress[idx] = true;
+        for &dep in &deps[idx] {
+            topo_visit(dep, deps, visited, in_progress, sorted);
+        }
+        in_progress[idx] = false;
+        visited[idx] = true;
+        sorted.push(idx);
+    }
+
+    for i in 0..n {
+        topo_visit(
+            i,
+            &deps,
+            &mut visited,
+            &mut in_progress,
+            &mut sorted_indices,
+        );
+    }
+
+    // Return statements in sorted order
+    sorted_indices
+        .into_iter()
+        .map(|i| stmts[i].clone())
+        .collect()
 }
