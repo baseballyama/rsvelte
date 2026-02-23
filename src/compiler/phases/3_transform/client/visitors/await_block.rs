@@ -276,7 +276,7 @@ fn create_derived_block_argument(
 
     let block_body = vec![
         b::var_decl_pattern(
-            JsVariableKind::Let,
+            JsVariableKind::Var,
             pattern_js.clone(),
             Some(get_source_call),
         ),
@@ -287,7 +287,7 @@ fn create_derived_block_argument(
     let derived_block = JsBlockStatement::with_body(block_body);
     let derived_call = create_derived_from_block(context, derived_block);
 
-    let mut declarations = vec![b::let_decl("$$value", Some(derived_call))];
+    let mut declarations = vec![b::var_decl("$$value", Some(derived_call))];
 
     // Create derived values for each identifier
     for id in &identifiers {
@@ -307,12 +307,12 @@ fn create_derived_block_argument(
             },
         );
 
-        // Build: let id = $.derived(() => $.get($$value).id)
+        // Build: var id = $.derived(() => $.get($$value).id)
         let get_value_call = b::call(b::member_path("$.get"), vec![value_id.clone()]);
         let member_access = b::member(get_value_call, id);
         let id_derived = create_derived_from_expr(context, member_access);
 
-        declarations.push(b::let_decl(id, Some(id_derived)));
+        declarations.push(b::var_decl(id, Some(id_derived)));
     }
 
     // The argument pattern is $$source
@@ -358,7 +358,16 @@ fn get_identifier_name(expr: &Expression) -> Option<String> {
     if let serde_json::Value::Object(obj) = val
         && obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
     {
-        obj.get("name").and_then(|v| v.as_str()).map(String::from)
+        let name = obj.get("name").and_then(|v| v.as_str())?;
+        // The parser may store destructuring patterns as Identifier nodes
+        // with the full pattern text in the name field (e.g., "{ result, error }" or "[a, b]").
+        // Detect these cases and return None so they go through the destructuring path.
+        let trimmed = name.trim();
+        if trimmed.starts_with('{') || trimmed.starts_with('[') {
+            None
+        } else {
+            Some(name.to_string())
+        }
     } else {
         None
     }
@@ -377,7 +386,13 @@ fn extract_identifiers_recursive(expr: &Expression, identifiers: &mut Vec<String
         match obj.get("type").and_then(|v| v.as_str()) {
             Some("Identifier") => {
                 if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
-                    identifiers.push(name.to_string());
+                    let trimmed = name.trim();
+                    // Check if this "identifier" is actually a destructuring pattern string
+                    if trimmed.starts_with('{') || trimmed.starts_with('[') {
+                        extract_identifiers_from_pattern_string(trimmed, identifiers);
+                    } else {
+                        identifiers.push(name.to_string());
+                    }
                 }
             }
             Some("ObjectPattern") => {
@@ -440,6 +455,134 @@ fn extract_identifiers_recursive(expr: &Expression, identifiers: &mut Vec<String
     }
 }
 
+/// Extract leaf identifier names from a destructuring pattern string like
+/// `{ result, error }`, `[a, b]`, `{ error: { message, code } }`, etc.
+fn extract_identifiers_from_pattern_string(pattern: &str, identifiers: &mut Vec<String>) {
+    let trimmed = pattern.trim();
+
+    if trimmed.starts_with('{') && trimmed.ends_with('}') {
+        // Object pattern: { a, b } or { a: b } or { a: { b, c } } or { ...rest }
+        let inner = &trimmed[1..trimmed.len() - 1];
+        for part in split_top_level(inner, ',') {
+            let part = part.trim();
+            if part.is_empty() {
+                continue;
+            }
+            if let Some(stripped) = part.strip_prefix("...") {
+                // Rest element: ...rest or ...{ nested } or ...[nested]
+                let rest_part = stripped.trim();
+                if rest_part.starts_with('{') || rest_part.starts_with('[') {
+                    extract_identifiers_from_pattern_string(rest_part, identifiers);
+                } else if is_valid_identifier(rest_part) {
+                    identifiers.push(rest_part.to_string());
+                }
+            } else if let Some(colon_pos) = find_top_level_colon(part) {
+                // Property with value: key: value or key: { nested }
+                let value_part = part[colon_pos + 1..].trim();
+                if value_part.starts_with('{') || value_part.starts_with('[') {
+                    // Nested destructuring
+                    extract_identifiers_from_pattern_string(value_part, identifiers);
+                } else {
+                    // Check for default value: key: value = default
+                    let value_name = value_part.split('=').next().unwrap_or("").trim();
+                    if is_valid_identifier(value_name) {
+                        identifiers.push(value_name.to_string());
+                    }
+                }
+            } else {
+                // Shorthand: just an identifier, possibly with default value
+                let name = part.split('=').next().unwrap_or("").trim();
+                if is_valid_identifier(name) {
+                    identifiers.push(name.to_string());
+                }
+            }
+        }
+    } else if trimmed.starts_with('[') && trimmed.ends_with(']') {
+        // Array pattern: [a, b] or [a, [b, c]] or [a, ...rest]
+        let inner = &trimmed[1..trimmed.len() - 1];
+        for part in split_top_level(inner, ',') {
+            let part = part.trim();
+            if part.is_empty() {
+                continue;
+            }
+            if let Some(stripped) = part.strip_prefix("...") {
+                // Rest element: ...rest or ...[nested] or ...{ nested }
+                let rest_part = stripped.trim();
+                if rest_part.starts_with('{') || rest_part.starts_with('[') {
+                    extract_identifiers_from_pattern_string(rest_part, identifiers);
+                } else if is_valid_identifier(rest_part) {
+                    identifiers.push(rest_part.to_string());
+                }
+            } else if part.starts_with('{') || part.starts_with('[') {
+                extract_identifiers_from_pattern_string(part, identifiers);
+            } else {
+                // Simple identifier, possibly with default value
+                let name = part.split('=').next().unwrap_or("").trim();
+                if is_valid_identifier(name) {
+                    identifiers.push(name.to_string());
+                }
+            }
+        }
+    }
+}
+
+/// Split a string by a delimiter, but only at the top level
+/// (not inside nested brackets/braces).
+fn split_top_level(s: &str, delimiter: char) -> Vec<String> {
+    let mut parts = Vec::new();
+    let mut current = String::new();
+    let mut depth = 0;
+
+    for ch in s.chars() {
+        match ch {
+            '{' | '[' | '(' => {
+                depth += 1;
+                current.push(ch);
+            }
+            '}' | ']' | ')' => {
+                depth -= 1;
+                current.push(ch);
+            }
+            c if c == delimiter && depth == 0 => {
+                parts.push(current.clone());
+                current.clear();
+            }
+            _ => {
+                current.push(ch);
+            }
+        }
+    }
+    if !current.is_empty() {
+        parts.push(current);
+    }
+    parts
+}
+
+/// Find the position of the first top-level colon in a string.
+/// This skips colons inside nested brackets/braces.
+fn find_top_level_colon(s: &str) -> Option<usize> {
+    let mut depth = 0;
+    for (i, ch) in s.char_indices() {
+        match ch {
+            '{' | '[' | '(' => depth += 1,
+            '}' | ']' | ')' => depth -= 1,
+            ':' if depth == 0 => return Some(i),
+            _ => {}
+        }
+    }
+    None
+}
+
+/// Check if a string is a valid JavaScript identifier.
+fn is_valid_identifier(s: &str) -> bool {
+    !s.is_empty()
+        && s.chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_alphabetic() || c == '_' || c == '$')
+        && s.chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
+}
+
 /// Convert an Expression to a JsPattern.
 fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
     let Expression::Value(val) = expr;
@@ -447,6 +590,11 @@ fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
         match obj.get("type").and_then(|v| v.as_str()) {
             Some("Identifier") => {
                 if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+                    let trimmed = name.trim();
+                    // Check if this "identifier" is actually a destructuring pattern string
+                    if trimmed.starts_with('{') || trimmed.starts_with('[') {
+                        return parse_pattern_string(trimmed);
+                    }
                     return JsPattern::Identifier(name.to_string());
                 }
             }
@@ -541,6 +689,171 @@ fn convert_expression_to_pattern(expr: &Expression) -> JsPattern {
         }
     }
     JsPattern::Identifier("$$unknown".to_string())
+}
+
+/// Parse a destructuring pattern string into a JsPattern.
+///
+/// Handles patterns like:
+/// - `{ a, b }` -> ObjectPattern with shorthand properties
+/// - `{ a: b }` -> ObjectPattern with key-value properties
+/// - `{ a: { b, c } }` -> Nested object pattern
+/// - `[a, b]` -> ArrayPattern
+/// - `[a, [b, c]]` -> Nested array pattern
+/// - `{ ...rest }` -> ObjectPattern with rest element
+/// - `[a, ...rest]` -> ArrayPattern with rest element
+/// - `{ a = 5 }` -> ObjectPattern with default values
+fn parse_pattern_string(pattern: &str) -> JsPattern {
+    let trimmed = pattern.trim();
+
+    if trimmed.starts_with('{') && trimmed.ends_with('}') {
+        // Object pattern
+        let inner = &trimmed[1..trimmed.len() - 1];
+        let mut properties = Vec::new();
+
+        for part in split_top_level(inner, ',') {
+            let part = part.trim();
+            if part.is_empty() {
+                continue;
+            }
+
+            if let Some(stripped) = part.strip_prefix("...") {
+                // Rest element: ...rest or ...{ nested } or ...[nested]
+                let rest_part = stripped.trim();
+                let inner_pattern = if rest_part.starts_with('{') || rest_part.starts_with('[') {
+                    parse_pattern_string(rest_part)
+                } else {
+                    JsPattern::Identifier(rest_part.to_string())
+                };
+                properties.push(JsObjectPatternProperty::Rest(Box::new(inner_pattern)));
+            } else if let Some(colon_pos) = find_top_level_colon(part) {
+                // Property with key: value
+                let key_str = part[..colon_pos].trim();
+                let value_str = part[colon_pos + 1..].trim();
+
+                let value_pattern = if value_str.starts_with('{') || value_str.starts_with('[') {
+                    parse_pattern_string(value_str)
+                } else {
+                    // May have a default value: `key: value = default`
+                    let value_name = value_str.split('=').next().unwrap_or("").trim();
+                    if let Some((_, default_part)) = value_str.split_once('=') {
+                        let default_str = default_part.trim();
+                        JsPattern::Assignment(JsAssignmentPattern {
+                            left: Box::new(JsPattern::Identifier(value_name.to_string())),
+                            right: Box::new(parse_default_value_expr(default_str)),
+                        })
+                    } else {
+                        JsPattern::Identifier(value_name.to_string())
+                    }
+                };
+
+                // Determine if key is a number, string literal, or regular identifier
+                let property_key = if key_str.starts_with('"') || key_str.starts_with('\'') {
+                    // String literal key
+                    let unquoted = &key_str[1..key_str.len() - 1];
+                    JsPropertyKey::Literal(JsLiteral::String(unquoted.to_string()))
+                } else if key_str.parse::<f64>().is_ok() {
+                    // Numeric literal key
+                    JsPropertyKey::Literal(JsLiteral::Number(key_str.parse().unwrap_or(0.0)))
+                } else {
+                    JsPropertyKey::Identifier(key_str.to_string())
+                };
+
+                let computed = key_str.starts_with('[') && key_str.ends_with(']');
+
+                properties.push(JsObjectPatternProperty::Property {
+                    key: property_key,
+                    value: value_pattern,
+                    computed,
+                    shorthand: false,
+                });
+            } else {
+                // Shorthand property (possibly with default value)
+                if let Some((name_part, default_part)) = part.split_once('=') {
+                    let name = name_part.trim();
+                    let default_str = default_part.trim();
+                    properties.push(JsObjectPatternProperty::Property {
+                        key: JsPropertyKey::Identifier(name.to_string()),
+                        value: JsPattern::Assignment(JsAssignmentPattern {
+                            left: Box::new(JsPattern::Identifier(name.to_string())),
+                            right: Box::new(parse_default_value_expr(default_str)),
+                        }),
+                        computed: false,
+                        shorthand: false,
+                    });
+                } else {
+                    properties.push(JsObjectPatternProperty::Property {
+                        key: JsPropertyKey::Identifier(part.to_string()),
+                        value: JsPattern::Identifier(part.to_string()),
+                        computed: false,
+                        shorthand: true,
+                    });
+                }
+            }
+        }
+
+        JsPattern::Object(JsObjectPattern { properties })
+    } else if trimmed.starts_with('[') && trimmed.ends_with(']') {
+        // Array pattern
+        let inner = &trimmed[1..trimmed.len() - 1];
+        let mut elements = Vec::new();
+
+        for part in split_top_level(inner, ',') {
+            let part = part.trim();
+            if part.is_empty() {
+                elements.push(None); // Elision
+                continue;
+            }
+
+            if let Some(stripped) = part.strip_prefix("...") {
+                // Rest element: ...rest or ...[nested] or ...{ nested }
+                let rest_part = stripped.trim();
+                let inner_pattern = if rest_part.starts_with('{') || rest_part.starts_with('[') {
+                    parse_pattern_string(rest_part)
+                } else {
+                    JsPattern::Identifier(rest_part.to_string())
+                };
+                elements.push(Some(JsPattern::Rest(Box::new(inner_pattern))));
+            } else if part.starts_with('{') || part.starts_with('[') {
+                elements.push(Some(parse_pattern_string(part)));
+            } else if let Some((name_part, default_part)) = part.split_once('=') {
+                let name = name_part.trim();
+                let default_str = default_part.trim();
+                elements.push(Some(JsPattern::Assignment(JsAssignmentPattern {
+                    left: Box::new(JsPattern::Identifier(name.to_string())),
+                    right: Box::new(parse_default_value_expr(default_str)),
+                })));
+            } else {
+                elements.push(Some(JsPattern::Identifier(part.to_string())));
+            }
+        }
+
+        JsPattern::Array(JsArrayPattern { elements })
+    } else {
+        JsPattern::Identifier(trimmed.to_string())
+    }
+}
+
+/// Parse a simple default value expression string into a JsExpr.
+fn parse_default_value_expr(s: &str) -> JsExpr {
+    let trimmed = s.trim();
+    if trimmed == "undefined" {
+        JsExpr::Identifier("undefined".to_string())
+    } else if trimmed == "null" {
+        JsExpr::Literal(JsLiteral::Null)
+    } else if trimmed == "true" {
+        JsExpr::Literal(JsLiteral::Boolean(true))
+    } else if trimmed == "false" {
+        JsExpr::Literal(JsLiteral::Boolean(false))
+    } else if let Ok(n) = trimmed.parse::<f64>() {
+        JsExpr::Literal(JsLiteral::Number(n))
+    } else if (trimmed.starts_with('"') && trimmed.ends_with('"'))
+        || (trimmed.starts_with('\'') && trimmed.ends_with('\''))
+    {
+        JsExpr::Literal(JsLiteral::String(trimmed[1..trimmed.len() - 1].to_string()))
+    } else {
+        // Fallback: raw expression
+        JsExpr::Raw(trimmed.to_string())
+    }
 }
 
 /// Visit a fragment and return its statements.

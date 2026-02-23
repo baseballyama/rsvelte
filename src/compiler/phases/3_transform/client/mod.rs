@@ -11985,9 +11985,9 @@ fn unthunk_string(expr: &str) -> String {
 
 /// Transform member expression assignments to `$.mutate()` calls in legacy mode.
 ///
-/// Detects statement-level patterns like:
-/// - `var.prop = expr` → `$.mutate(var, var.prop = expr)`
-/// - `var[idx] = expr` → `$.mutate(var, var[idx] = expr)`
+/// Detects patterns at any nesting level (including inside function bodies) like:
+/// - `var.prop = expr` -> `$.mutate(var, var.prop = expr)`
+/// - `var[idx] = expr` -> `$.mutate(var, var[idx] = expr)`
 ///
 /// Only applies when the base of the member expression is a state variable in
 /// non-runes (legacy) mode.
@@ -12001,71 +12001,274 @@ fn transform_member_mutations(
     non_reactive_state_vars: &[String],
     raw_state_vars: &[String],
 ) -> String {
-    let trimmed = line.trim();
+    // Use the character-scanning approach from transform_state_member_mutations
+    // to find member mutations at any nesting level (including inside function bodies).
+    let mut result = line.to_string();
 
-    // Skip if already wrapped in $.mutate or $.set or other transforms
-    if trimmed.starts_with("$.mutate(")
-        || trimmed.starts_with("$.set(")
-        || trimmed.starts_with("$.store_set(")
-    {
-        return line.to_string();
-    }
-
-    // Skip declarations (let/const/var/function/class)
-    if trimmed.starts_with("let ")
-        || trimmed.starts_with("const ")
-        || trimmed.starts_with("var ")
-        || trimmed.starts_with("function ")
-        || trimmed.starts_with("class ")
-    {
-        return line.to_string();
-    }
-
-    // Try to find a member mutation pattern for each state variable
     for var in state_vars {
         // Skip non-reactive and raw state vars
         if non_reactive_state_vars.contains(var) || raw_state_vars.contains(var) {
             continue;
         }
 
-        // Check for `var.` or `var[` patterns at the start of the trimmed line
-        let dot_pattern = format!("{}.", var);
-        let bracket_pattern = format!("{}[", var);
+        let var_chars: Vec<char> = var.chars().collect();
+        let var_len = var_chars.len();
 
-        let starts_with_dot = trimmed.starts_with(&dot_pattern);
-        let starts_with_bracket = trimmed.starts_with(&bracket_pattern);
+        let mut new_result = String::new();
+        let chars: Vec<char> = result.chars().collect();
+        let mut i = 0;
+        let mut in_string: Option<char> = None;
+        let mut in_line_comment = false;
+        let mut in_block_comment = false;
 
-        if !starts_with_dot && !starts_with_bracket {
-            continue;
-        }
+        while i < chars.len() {
+            let c = chars[i];
 
-        // Found a potential mutation. Now find the assignment position.
-        if let Some(eq_pos) = find_assignment_position(trimmed) {
-            let lhs = trimmed[..eq_pos].trim();
-            let rhs_with_semi = trimmed[eq_pos + 1..].trim();
-            let rhs = rhs_with_semi.trim_end_matches(';').trim();
+            // Handle line comments
+            if in_line_comment {
+                new_result.push(c);
+                if c == '\n' {
+                    in_line_comment = false;
+                }
+                i += 1;
+                continue;
+            }
+            // Handle block comments
+            if in_block_comment {
+                new_result.push(c);
+                if c == '*' && i + 1 < chars.len() && chars[i + 1] == '/' {
+                    new_result.push('/');
+                    i += 2;
+                    in_block_comment = false;
+                } else {
+                    i += 1;
+                }
+                continue;
+            }
+            // Detect comment start
+            if in_string.is_none() && c == '/' && i + 1 < chars.len() {
+                if chars[i + 1] == '/' {
+                    in_line_comment = true;
+                    new_result.push(c);
+                    i += 1;
+                    continue;
+                } else if chars[i + 1] == '*' {
+                    in_block_comment = true;
+                    new_result.push(c);
+                    i += 1;
+                    continue;
+                }
+            }
 
-            // Double-check: lhs should start with var and have a member separator
-            let member_part = &lhs[var.len()..]; // ".foo" or "[idx]"
-            if !member_part.starts_with('.') && !member_part.starts_with('[') {
+            // Handle string boundaries
+            if in_string.is_none() {
+                if c == '\'' || c == '"' || c == '`' {
+                    in_string = Some(c);
+                    new_result.push(c);
+                    i += 1;
+                    continue;
+                }
+            } else if Some(c) == in_string {
+                // Check for escape
+                let escaped = i > 0 && {
+                    let mut backslash_count = 0;
+                    let mut j = i - 1;
+                    while chars[j] == '\\' {
+                        backslash_count += 1;
+                        if j == 0 {
+                            break;
+                        }
+                        j -= 1;
+                    }
+                    backslash_count % 2 == 1
+                };
+                if !escaped {
+                    in_string = None;
+                }
+                new_result.push(c);
+                i += 1;
+                continue;
+            }
+            if in_string.is_some() {
+                new_result.push(c);
+                i += 1;
                 continue;
             }
 
-            // Generate $.mutate(var, var.member = rhs)
-            // The subsequent wrap_state_vars_in_expr will handle $.get() wrapping
-            // inside the mutation expression.
-            let leading_whitespace = &line[..line.len() - line.trim_start().len()];
-            let has_semicolon = trimmed.ends_with(';');
-            let semicolon = if has_semicolon { ";" } else { "" };
+            // Try to match the state var at position i
+            if i + var_len <= chars.len() {
+                let potential: String = chars[i..i + var_len].iter().collect();
+                if potential == *var {
+                    let before_ok = i == 0 || !is_identifier_char(chars[i - 1]);
+                    let after_ok = i + var_len < chars.len()
+                        && (chars[i + var_len] == '[' || chars[i + var_len] == '.');
+                    // Check it's not already after `$.get(` or `$.mutate(` or $.set(
+                    let already_wrapped = {
+                        let prefix_len = "$.get(".len();
+                        i >= prefix_len && {
+                            let prefix: String = chars[i - prefix_len..i].iter().collect();
+                            prefix == "$.get("
+                        }
+                    } || {
+                        let prefix_len = "$.mutate(".len();
+                        i >= prefix_len && {
+                            let prefix: String = chars[i - prefix_len..i].iter().collect();
+                            prefix == "$.mutate("
+                        }
+                    } || {
+                        // Check if preceded by dot (member access of something else)
+                        i > 0 && chars[i - 1] == '.'
+                    };
 
-            return format!(
-                "{}$.mutate({}, {} = {}){}",
-                leading_whitespace, var, lhs, rhs, semicolon
-            );
+                    if before_ok && after_ok && !already_wrapped {
+                        // Scan forward to find the full member expression LHS and the `=` sign
+                        let member_start = i + var_len;
+                        let mut j = member_start;
+                        let mut depth = 0i32;
+                        let mut eq_pos = None;
+                        let mut scan_in_string: Option<char> = None;
+
+                        while j < chars.len() {
+                            let ch = chars[j];
+
+                            // Handle strings inside the member expression
+                            if let Some(s) = scan_in_string {
+                                if ch == s {
+                                    scan_in_string = None;
+                                }
+                                j += 1;
+                                continue;
+                            }
+                            if ch == '\'' || ch == '"' || ch == '`' {
+                                scan_in_string = Some(ch);
+                                j += 1;
+                                continue;
+                            }
+
+                            match ch {
+                                '[' | '(' => {
+                                    depth += 1;
+                                    j += 1;
+                                }
+                                ']' | ')' => {
+                                    if depth == 0 {
+                                        break;
+                                    }
+                                    depth -= 1;
+                                    j += 1;
+                                }
+                                '{' => {
+                                    if depth == 0 {
+                                        break;
+                                    }
+                                    depth += 1;
+                                    j += 1;
+                                }
+                                '}' => {
+                                    if depth == 0 {
+                                        break;
+                                    }
+                                    depth -= 1;
+                                    j += 1;
+                                }
+                                '=' if depth == 0 => {
+                                    let is_double_eq = j + 1 < chars.len() && chars[j + 1] == '=';
+                                    let is_compound = j > 0
+                                        && matches!(
+                                            chars[j - 1],
+                                            '!' | '<'
+                                                | '>'
+                                                | '='
+                                                | '+'
+                                                | '-'
+                                                | '*'
+                                                | '/'
+                                                | '%'
+                                                | '|'
+                                                | '&'
+                                                | '?'
+                                                | '^'
+                                        );
+                                    if !is_double_eq && !is_compound {
+                                        eq_pos = Some(j);
+                                    }
+                                    break;
+                                }
+                                _ => {
+                                    j += 1;
+                                }
+                            }
+                        }
+
+                        if let Some(eq_idx) = eq_pos {
+                            let member_part: String = chars[member_start..eq_idx].iter().collect();
+                            let member_part = member_part.trim_end();
+
+                            // Find end of RHS
+                            let rhs_start = eq_idx + 1;
+                            let mut rhs_end = chars.len();
+                            let mut rhs_j = rhs_start;
+                            let mut rhs_depth = 0i32;
+                            let mut rhs_in_string: Option<char> = None;
+                            while rhs_j < chars.len() {
+                                let rc = chars[rhs_j];
+                                if let Some(s) = rhs_in_string {
+                                    if rc == s {
+                                        rhs_in_string = None;
+                                    }
+                                    rhs_j += 1;
+                                    continue;
+                                }
+                                match rc {
+                                    '\'' | '"' | '`' => {
+                                        rhs_in_string = Some(rc);
+                                        rhs_j += 1;
+                                    }
+                                    '(' | '[' | '{' => {
+                                        rhs_depth += 1;
+                                        rhs_j += 1;
+                                    }
+                                    ')' | ']' | '}' => {
+                                        if rhs_depth == 0 {
+                                            rhs_end = rhs_j;
+                                            break;
+                                        }
+                                        rhs_depth -= 1;
+                                        rhs_j += 1;
+                                    }
+                                    ';' if rhs_depth == 0 => {
+                                        rhs_end = rhs_j;
+                                        break;
+                                    }
+                                    _ => {
+                                        rhs_j += 1;
+                                    }
+                                }
+                            }
+
+                            let rhs: String = chars[rhs_start..rhs_end].iter().collect();
+                            let rhs = rhs.trim();
+
+                            if !rhs.is_empty() {
+                                let mutate_expr =
+                                    format!("$.mutate({}, {}{} = {})", var, var, member_part, rhs);
+                                new_result.push_str(&mutate_expr);
+                                i = rhs_end;
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+
+            new_result.push(c);
+            i += 1;
         }
+
+        result = new_result;
     }
 
-    line.to_string()
+    result
 }
 
 #[cfg(test)]
