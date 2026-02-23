@@ -7,19 +7,28 @@
 /// Check if the declaration string contains a semicolon at depth 0 (not inside braces/parens/brackets).
 /// This is used to determine if an export let declaration is complete.
 fn has_top_level_semicolon(s: &str) -> bool {
+    let chars: Vec<char> = s.chars().collect();
+    let mut i = 0;
     let mut paren_depth: i32 = 0;
     let mut bracket_depth: i32 = 0;
     let mut brace_depth: i32 = 0;
     let mut in_string = false;
     let mut string_char = ' ';
 
-    for c in s.chars() {
-        if (c == '"' || c == '\'' || c == '`') && !in_string {
+    while i < chars.len() {
+        let c = chars[i];
+        if in_string {
+            if c == '\\' {
+                // Skip the escaped character
+                i += 2;
+                continue;
+            } else if c == string_char {
+                in_string = false;
+            }
+        } else if c == '"' || c == '\'' || c == '`' {
             in_string = true;
             string_char = c;
-        } else if in_string && c == string_char {
-            in_string = false;
-        } else if !in_string {
+        } else {
             match c {
                 '(' => paren_depth += 1,
                 ')' => paren_depth -= 1,
@@ -33,6 +42,7 @@ fn has_top_level_semicolon(s: &str) -> bool {
                 _ => {}
             }
         }
+        i += 1;
     }
     false
 }
@@ -41,19 +51,28 @@ fn has_top_level_semicolon(s: &str) -> bool {
 /// Returns true if the expression doesn't need a continuation line.
 fn export_let_declaration_seems_complete(decl: &str) -> bool {
     // Check for unbalanced braces/parens - if unbalanced, definitely incomplete
+    let chars: Vec<char> = decl.chars().collect();
+    let mut i = 0;
     let mut paren_depth: i32 = 0;
     let mut bracket_depth: i32 = 0;
     let mut brace_depth: i32 = 0;
     let mut in_string = false;
     let mut string_char = ' ';
 
-    for c in decl.chars() {
-        if (c == '"' || c == '\'' || c == '`') && !in_string {
+    while i < chars.len() {
+        let c = chars[i];
+        if in_string {
+            if c == '\\' {
+                // Skip the escaped character
+                i += 2;
+                continue;
+            } else if c == string_char {
+                in_string = false;
+            }
+        } else if c == '"' || c == '\'' || c == '`' {
             in_string = true;
             string_char = c;
-        } else if in_string && c == string_char {
-            in_string = false;
-        } else if !in_string {
+        } else {
             match c {
                 '(' => paren_depth += 1,
                 ')' => paren_depth -= 1,
@@ -64,6 +83,7 @@ fn export_let_declaration_seems_complete(decl: &str) -> bool {
                 _ => {}
             }
         }
+        i += 1;
     }
 
     // If any depth is non-zero, definitely incomplete
@@ -928,19 +948,31 @@ pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> Strin
 
         if trimmed.starts_with("$:") {
             // Collect the full reactive statement (possibly multi-line block)
-            let after = trimmed.strip_prefix("$:").unwrap_or("").trim();
             let mut stmt_lines = vec![line];
 
-            if after.starts_with('{') && !after.ends_with('}') {
-                // Multi-line block - collect until matching '}'
+            // Count brace depth in the reactive statement line to detect multi-line blocks
+            let mut depth: i32 = 0;
+            for c in trimmed.chars() {
+                match c {
+                    '{' | '(' | '[' => depth += 1,
+                    '}' | ')' | ']' => depth -= 1,
+                    _ => {}
+                }
+            }
+
+            if depth > 0 {
+                // Multi-line reactive statement - collect until depth returns to 0
                 i += 1;
-                let mut depth = after.chars().filter(|&c| c == '{').count() as i32
-                    - after.chars().filter(|&c| c == '}').count() as i32;
                 while i < lines.len() && depth > 0 {
                     let next = lines[i];
                     stmt_lines.push(next);
-                    depth += next.chars().filter(|&c| c == '{').count() as i32
-                        - next.chars().filter(|&c| c == '}').count() as i32;
+                    for c in next.chars() {
+                        match c {
+                            '{' | '(' | '[' => depth += 1,
+                            '}' | ')' | ']' => depth -= 1,
+                            _ => {}
+                        }
+                    }
                     i += 1;
                 }
             } else {

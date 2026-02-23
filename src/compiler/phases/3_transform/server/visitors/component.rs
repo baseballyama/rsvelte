@@ -457,8 +457,33 @@ impl<'a> ServerCodeGenerator<'a> {
         // Use slot_order to maintain source order (slot_children is a HashMap with non-deterministic order)
         for slot_name in slot_order {
             if let Some((nodes, let_dirs)) = slot_children.remove(&slot_name) {
+                // Temporarily remove let directive params from constant_vars
+                // so that slot parameters shadow outer constant variables.
+                // For example, if <p slot="foo" let:count> and outer `count = 42` is a constant,
+                // the `count` inside this slot should use the slot-provided value, not 42.
+                let mut saved_constants: Vec<(String, String)> = Vec::new();
+                for param in &let_dirs {
+                    // For aliased params like "thing: x", the local variable is "x"
+                    // For non-aliased params like "thing", the local variable is "thing"
+                    let local_name = if let Some(colon_pos) = param.find(':') {
+                        param[colon_pos + 1..].trim().to_string()
+                    } else {
+                        param.clone()
+                    };
+                    if let Some(value) = self.constant_vars.remove(&local_name) {
+                        saved_constants.push((local_name.clone(), value));
+                    }
+                }
+
                 // Generate children content for this named slot
-                if let Some(slot_parts) = self.generate_children_from_nodes(&nodes)? {
+                let result = self.generate_children_from_nodes(&nodes)?;
+
+                // Restore removed constants
+                for (name, value) in saved_constants {
+                    self.constant_vars.insert(name, value);
+                }
+
+                if let Some(slot_parts) = result {
                     // Add as a snippet with the slot name and let directive names as params
                     slot_names.push(slot_name.clone());
                     snippets.push((slot_name, let_dirs, slot_parts, false)); // false = not a true snippet

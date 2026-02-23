@@ -1215,3 +1215,48 @@ fn convert_template_literal_simple(obj: &serde_json::Map<String, serde_json::Val
         expressions,
     })
 }
+
+/// Check if an expression has a comma at the top level (i.e., it's a sequence/comma expression).
+/// Returns false if all commas are inside parentheses, brackets, braces, or strings.
+///
+/// This is used to determine if an expression needs to be wrapped in parentheses
+/// before being passed as a single argument to a function like `$.escape()` or `$.html()`.
+pub fn has_top_level_comma(expr: &str) -> bool {
+    let chars: Vec<char> = expr.chars().collect();
+    let mut i = 0;
+    let mut paren_depth: i32 = 0;
+    let mut bracket_depth: i32 = 0;
+    let mut brace_depth: i32 = 0;
+    let mut in_string = false;
+    let mut string_char = ' ';
+
+    while i < chars.len() {
+        let c = chars[i];
+        if in_string {
+            if c == '\\' {
+                i += 2;
+                continue;
+            } else if c == string_char {
+                in_string = false;
+            }
+        } else if c == '"' || c == '\'' || c == '`' {
+            in_string = true;
+            string_char = c;
+        } else {
+            match c {
+                '(' => paren_depth += 1,
+                ')' => paren_depth -= 1,
+                '[' => bracket_depth += 1,
+                ']' => bracket_depth -= 1,
+                '{' => brace_depth += 1,
+                '}' => brace_depth -= 1,
+                ',' if paren_depth == 0 && bracket_depth == 0 && brace_depth == 0 => {
+                    return true;
+                }
+                _ => {}
+            }
+        }
+        i += 1;
+    }
+    false
+}

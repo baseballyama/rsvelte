@@ -19,8 +19,10 @@ impl<'a> ServerCodeGenerator<'a> {
             .map(|(a, b)| (a.as_str(), b.as_str()))
             .collect();
         let mut each_counter: usize = 0;
+        // Hoist <svelte:head> parts to the beginning (official Svelte compiler behavior)
+        let hoisted_parts = Self::hoist_svelte_head(&self.output_parts);
         let body_code = Self::build_parts_with_store_subs(
-            &self.output_parts,
+            &hoisted_parts,
             1,
             &mut each_counter,
             &store_subs_ref,
@@ -265,8 +267,10 @@ impl<'a> ServerCodeGenerator<'a> {
                 // Wrap in $$renderer.component() with proper destructuring
                 let inner_script = transform_props_spread(&script_code);
                 let mut each_counter: usize = 0;
+                // Hoist <svelte:head> parts to the beginning (official Svelte compiler behavior)
+                let hoisted_parts_wrapper = Self::hoist_svelte_head(&self.output_parts);
                 let inner_body = Self::build_parts_with_store_subs(
-                    &self.output_parts,
+                    &hoisted_parts_wrapper,
                     2,
                     &mut each_counter,
                     &store_subs_ref,
@@ -465,6 +469,22 @@ export default function {component_name}($$renderer{props_param}) {{
         }
         consts.extend(rest);
         consts
+    }
+
+    /// Hoist SvelteHead parts to the front of a parts slice.
+    /// The official Svelte compiler always renders <svelte:head> content before body content.
+    fn hoist_svelte_head(parts: &[OutputPart]) -> Vec<OutputPart> {
+        let mut heads: Vec<OutputPart> = Vec::new();
+        let mut rest: Vec<OutputPart> = Vec::new();
+        for part in parts {
+            if matches!(part, OutputPart::SvelteHead { .. }) {
+                heads.push(part.clone());
+            } else {
+                rest.push(part.clone());
+            }
+        }
+        heads.extend(rest);
+        heads
     }
 
     pub(crate) fn build_parts_with_store_subs(

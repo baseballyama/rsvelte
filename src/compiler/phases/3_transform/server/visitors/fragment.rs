@@ -5,7 +5,9 @@ use super::super::types::OutputPart;
 use crate::ast::template::{Fragment, TemplateNode};
 use crate::compiler::phases::phase3_transform::TransformError;
 use crate::compiler::phases::phase3_transform::shared::escape_html;
-use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
+use crate::compiler::phases::phase3_transform::utils::{
+    is_svelte_whitespace_only, svelte_trim_end, svelte_trim_start,
+};
 
 impl<'a> ServerCodeGenerator<'a> {
     /// Generate body parts from a fragment.
@@ -132,9 +134,10 @@ impl<'a> ServerCodeGenerator<'a> {
             just_had_title = matches!(node, TemplateNode::TitleElement(_));
             prev_was_const_tag = matches!(node, TemplateNode::ConstTag(_));
             // For the last text node in a fragment, trim trailing whitespace
+            // Use svelte_trim_end which does NOT trim non-breaking space (\u{00A0})
             if is_last && let TemplateNode::Text(text) = node {
                 let mut modified_text = text.clone();
-                modified_text.data = modified_text.data.trim_end().to_string().into();
+                modified_text.data = svelte_trim_end(&modified_text.data).to_string().into();
                 body_generator.generate_node(&TemplateNode::Text(modified_text), false)?;
                 continue;
             }
@@ -240,23 +243,28 @@ impl<'a> ServerCodeGenerator<'a> {
             let is_last = i == num_nodes - 1;
 
             // For text nodes, normalize whitespace
+            // Use svelte_trim_start/svelte_trim_end which do NOT trim non-breaking space (\u{00A0})
             if let TemplateNode::Text(text) = node {
-                let mut normalized = text.data.to_string();
+                let raw = text.data.to_string();
 
                 // Trim leading whitespace from first node
-                if is_first {
-                    normalized = normalized.trim_start().to_string();
-                }
+                let raw = if is_first {
+                    svelte_trim_start(&raw).to_string()
+                } else {
+                    raw
+                };
 
                 // Trim trailing whitespace from last node
-                if is_last {
-                    normalized = normalized.trim_end().to_string();
-                }
+                let raw = if is_last {
+                    svelte_trim_end(&raw).to_string()
+                } else {
+                    raw
+                };
 
-                if !normalized.is_empty() {
+                if !raw.is_empty() {
                     body_generator
                         .output_parts
-                        .push(OutputPart::Html(escape_html(&normalized)));
+                        .push(OutputPart::Html(escape_html(&raw)));
                 }
                 continue;
             }

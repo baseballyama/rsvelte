@@ -3,6 +3,7 @@
 use super::super::ServerCodeGenerator;
 use super::super::helpers::try_constant_fold_full;
 use super::super::types::{ConstantFoldResult, OutputPart};
+use super::shared::utils::has_top_level_comma;
 use crate::ast::template::ExpressionTag;
 use crate::compiler::phases::phase3_transform::TransformError;
 use crate::compiler::phases::phase3_transform::shared::escape_html;
@@ -39,6 +40,13 @@ impl<'a> ServerCodeGenerator<'a> {
                     let transformed = self.transform_store_refs(&expr_source);
                     // Transform rune calls that need server-side handling
                     let transformed = Self::transform_rune_in_template_expr(&transformed);
+                    // If this is a sequence (comma) expression at the top level, wrap in parens
+                    // so that $.escape(x, '') doesn't misinterpret as two arguments.
+                    let transformed = if has_top_level_comma(&transformed) {
+                        format!("({})", transformed)
+                    } else {
+                        transformed
+                    };
                     self.output_parts.push(OutputPart::Expression(transformed));
                 }
             }

@@ -469,6 +469,96 @@ impl<'a> ServerCodeGenerator<'a> {
                     if bind_name == "this" {
                         continue;
                     }
+                    // Handle bind:group specially: convert to checked: groupValue === inputValue
+                    if bind_name == "group" {
+                        let expr_start = bind.expression.start().unwrap_or(0) as usize;
+                        let expr_end = bind.expression.end().unwrap_or(0) as usize;
+                        if expr_end > expr_start && expr_end <= self.source.len() {
+                            let group_expr = self.source[expr_start..expr_end].trim().to_string();
+                            // Find the value attribute for this element
+                            let value_expr = element.attributes.iter().find_map(|a| {
+                                if let Attribute::Attribute(node) = a
+                                    && node.name.as_str() == "value"
+                                {
+                                    match &node.value {
+                                        AttributeValue::Sequence(parts) => {
+                                            let expr_parts: Vec<&AttributeValuePart> = parts
+                                                .iter()
+                                                .filter(|p| {
+                                                    !matches!(p, AttributeValuePart::Text(t) if t.data.is_empty())
+                                                })
+                                                .collect();
+                                            if expr_parts.len() == 1 {
+                                                match expr_parts[0] {
+                                                    AttributeValuePart::ExpressionTag(expr_tag) => {
+                                                        let s = expr_tag.expression.start().unwrap_or(0) as usize;
+                                                        let e = expr_tag.expression.end().unwrap_or(0) as usize;
+                                                        if e > s && e <= self.source.len() {
+                                                            Some(self.source[s..e].trim().to_string())
+                                                        } else {
+                                                            None
+                                                        }
+                                                    }
+                                                    AttributeValuePart::Text(text) => {
+                                                        Some(format!("'{}'", text.data))
+                                                    }
+                                                }
+                                            } else {
+                                                let mut text_val = String::new();
+                                                for p in parts {
+                                                    if let AttributeValuePart::Text(t) = p {
+                                                        text_val.push_str(&t.data);
+                                                    }
+                                                }
+                                                Some(format!("'{}'", text_val))
+                                            }
+                                        }
+                                        AttributeValue::Expression(expr_tag) => {
+                                            let s = expr_tag.expression.start().unwrap_or(0) as usize;
+                                            let e = expr_tag.expression.end().unwrap_or(0) as usize;
+                                            if e > s && e <= self.source.len() {
+                                                Some(self.source[s..e].trim().to_string())
+                                            } else {
+                                                None
+                                            }
+                                        }
+                                        AttributeValue::True(_) => Some("true".to_string()),
+                                    }
+                                } else {
+                                    None
+                                }
+                            });
+                            // Determine if checkbox
+                            let is_checkbox = element.attributes.iter().any(|a| {
+                                if let Attribute::Attribute(node) = a
+                                    && node.name.as_str() == "type"
+                                {
+                                    if let AttributeValue::Sequence(parts) = &node.value {
+                                        parts.iter().any(|p| {
+                                            matches!(p, AttributeValuePart::Text(t) if t.data == "checkbox")
+                                        })
+                                    } else {
+                                        false
+                                    }
+                                } else {
+                                    false
+                                }
+                            });
+                            if let Some(value) = value_expr {
+                                let checked_expr = if is_checkbox {
+                                    format!("{}.includes({})", group_expr, value)
+                                } else {
+                                    format!("{} === {}", group_expr, value)
+                                };
+                                object_parts.push(format!("checked: {}", checked_expr));
+                            }
+                        }
+                        continue;
+                    }
+                    // Skip other omitted SSR bindings
+                    if Self::should_omit_binding_in_ssr(bind_name) {
+                        continue;
+                    }
                     let expr_start = bind.expression.start().unwrap_or(0) as usize;
                     let expr_end = bind.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {

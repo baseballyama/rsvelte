@@ -59,6 +59,18 @@ impl<'a> ServerCodeGenerator<'a> {
         let callee_str = self.strip_ts_from_expr(&callee_str);
         let callee_str = self.transform_store_refs(&callee_str);
 
+        // If the callee is a SequenceExpression (e.g., `e = 0, snip`), wrap it in parens
+        // so that `(e = 0, snip)($$renderer)` works correctly
+        let callee_type = callee
+            .get("type")
+            .and_then(|t: &Value| t.as_str())
+            .unwrap_or("");
+        let callee_str = if callee_type == "SequenceExpression" {
+            format!("({})", callee_str)
+        } else {
+            callee_str
+        };
+
         // Get arguments
         let mut arg_strs = Vec::new();
         if let Some(args) = call_json
