@@ -692,6 +692,11 @@ pub fn normalize_js(js: &str) -> String {
     // This handles cases like ";;" becoming "  " after semicolon removal
     let result = MULTI_SPACE.replace_all(&result, " ").to_string();
 
+    // Normalize consecutive commas in array patterns: `,,` -> `, ,`
+    // OXC normalizes `[,, c]` to `[, , c]` (adds space after comma in elision patterns),
+    // while the official compiler may output `[,, c]`. Normalize to unified form.
+    let result = result.replace(",,", ", ,");
+
     // Final pass: remove ALL blank/empty lines.
     // This is a safety net after all other normalizations. Even though MULTI_SPACE
     // collapses newlines, some transformations above might re-introduce line breaks.
