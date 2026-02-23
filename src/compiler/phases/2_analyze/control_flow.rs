@@ -50,9 +50,119 @@ pub fn build_sibling_relationships(dom_structure: &mut DomStructure, root_fragme
             dom_structure.elements[*dom_idx].possible_next_general = next_gen;
         }
     }
+
+    // Post-process: Add cross-iteration sibling relationships for each blocks.
+    // In `{#each items}<b/><c/>{/each}`, across iterations:
+    // - The last element of one iteration can be adjacent to the first element of the next
+    // - Any element is a general sibling of any other element (including itself)
+    for body_elements in context.each_body_elements.values() {
+        if body_elements.is_empty() {
+            continue;
+        }
+
+        // For general siblings (~): every element in the body is a general sibling of
+        // every other element (including itself) across iterations
+        for &elem_idx in body_elements {
+            if elem_idx >= dom_structure.elements.len() {
+                continue;
+            }
+            for &other_idx in body_elements {
+                if other_idx >= dom_structure.elements.len() {
+                    continue;
+                }
+                // Add to general siblings if not already present
+                let already_has = dom_structure.elements[elem_idx]
+                    .possible_next_general
+                    .iter()
+                    .any(|(idx, _)| *idx == other_idx);
+                if !already_has {
+                    dom_structure.elements[elem_idx]
+                        .possible_next_general
+                        .push((other_idx, SiblingCertainty::Probable));
+                }
+                let already_has_prev = dom_structure.elements[elem_idx]
+                    .possible_prev_general
+                    .iter()
+                    .any(|(idx, _)| *idx == other_idx);
+                if !already_has_prev {
+                    dom_structure.elements[elem_idx]
+                        .possible_prev_general
+                        .push((other_idx, SiblingCertainty::Probable));
+                }
+            }
+        }
+
+        // For adjacent siblings (+): the last element of one iteration can be
+        // adjacent to the first element of the next iteration.
+        // Find the "first" and "last" elements in the body by their position info.
+        let mut sorted_elements: Vec<usize> = body_elements.clone();
+        sorted_elements.sort_by(|a, b| {
+            let a_info = context.element_info.get(a);
+            let b_info = context.element_info.get(b);
+            match (a_info, b_info) {
+                (Some(ai), Some(bi)) => ai
+                    .position_in_fragment
+                    .cmp(&bi.position_in_fragment)
+                    .then(ai.sub_position.cmp(&bi.sub_position)),
+                _ => std::cmp::Ordering::Equal,
+            }
+        });
+
+        // Last elements of one iteration can be adjacent to first elements of next
+        // For simplicity, consider all elements at the "last" position and all at the "first" position
+        if let (Some(&first_idx), Some(&last_idx)) =
+            (sorted_elements.first(), sorted_elements.last())
+            && first_idx < dom_structure.elements.len()
+            && last_idx < dom_structure.elements.len()
+        {
+            // Last -> First (next adjacent for last, prev adjacent for first)
+            let already_has = dom_structure.elements[last_idx]
+                .possible_next_adjacent
+                .iter()
+                .any(|(idx, _)| *idx == first_idx);
+            if !already_has {
+                dom_structure.elements[last_idx]
+                    .possible_next_adjacent
+                    .push((first_idx, SiblingCertainty::Probable));
+            }
+            let already_has_prev = dom_structure.elements[first_idx]
+                .possible_prev_adjacent
+                .iter()
+                .any(|(idx, _)| *idx == last_idx);
+            if !already_has_prev {
+                dom_structure.elements[first_idx]
+                    .possible_prev_adjacent
+                    .push((last_idx, SiblingCertainty::Probable));
+            }
+
+            // Self-adjacency for single-element bodies
+            if sorted_elements.len() == 1 {
+                let idx = first_idx;
+                let already_has = dom_structure.elements[idx]
+                    .possible_next_adjacent
+                    .iter()
+                    .any(|(i, _)| *i == idx);
+                if !already_has {
+                    dom_structure.elements[idx]
+                        .possible_next_adjacent
+                        .push((idx, SiblingCertainty::Probable));
+                }
+                let already_has_prev = dom_structure.elements[idx]
+                    .possible_prev_adjacent
+                    .iter()
+                    .any(|(i, _)| *i == idx);
+                if !already_has_prev {
+                    dom_structure.elements[idx]
+                        .possible_prev_adjacent
+                        .push((idx, SiblingCertainty::Probable));
+                }
+            }
+        }
+    }
 }
 
 /// Information about an element's position in the template.
+
 #[derive(Debug, Clone)]
 struct ElementInfo {
     /// Index in dom_structure.elements
@@ -65,6 +175,9 @@ struct ElementInfo {
     /// Sub-position for elements at the same position (e.g., elements inside
     /// non-exhaustive blocks vs elements after the block)
     sub_position: usize,
+    /// Internal order within a block body. Elements in the same block at the
+    /// same position get incrementing internal orders to preserve their sequence.
+    internal_order: usize,
     /// Set of branch identifiers this element belongs to
     branches: FxHashSet<BranchId>,
 }
@@ -108,6 +221,12 @@ struct TraversalContext {
         FxHashMap<(Vec<FragmentSegment>, usize), Vec<(usize, FxHashSet<BranchId>)>>,
     /// Track the position within each fragment level
     fragment_positions: Vec<usize>,
+    /// Counter for internal ordering within fixed-position regions
+    internal_order_counter: usize,
+    /// Track elements directly inside each block bodies, keyed by each block
+    /// identifier (path + position). Elements in the same each body can be
+    /// siblings of each other across iterations.
+    each_body_elements: FxHashMap<(Vec<FragmentSegment>, usize), Vec<usize>>,
 }
 
 impl TraversalContext {
@@ -117,6 +236,8 @@ impl TraversalContext {
             current_dom_idx: 0,
             position_to_elements: FxHashMap::default(),
             fragment_positions: vec![0],
+            internal_order_counter: 0,
+            each_body_elements: FxHashMap::default(),
         }
     }
 
@@ -150,7 +271,7 @@ fn collect_elements(
     path: Vec<FragmentSegment>,
     current_branches: Option<&FxHashSet<BranchId>>,
 ) {
-    collect_elements_impl(fragment, ctx, path, current_branches, None, None);
+    collect_elements_impl(fragment, ctx, path, current_branches, None, None, None);
 }
 
 /// Collect elements from a control flow branch, using a fixed position for all elements.
@@ -161,6 +282,7 @@ fn collect_elements_with_position(
     current_branches: Option<&FxHashSet<BranchId>>,
     fixed_position: usize,
     fixed_sub_position: Option<usize>,
+    each_block_id: Option<(Vec<FragmentSegment>, usize)>,
 ) {
     collect_elements_impl(
         fragment,
@@ -169,6 +291,7 @@ fn collect_elements_with_position(
         current_branches,
         Some(fixed_position),
         fixed_sub_position,
+        each_block_id,
     );
 }
 
@@ -180,6 +303,7 @@ fn collect_elements_impl(
     current_branches: Option<&FxHashSet<BranchId>>,
     fixed_position: Option<usize>,
     fixed_sub_position: Option<usize>,
+    each_block_id: Option<(Vec<FragmentSegment>, usize)>,
 ) {
     let branches = current_branches.cloned().unwrap_or_default();
 
@@ -195,15 +319,27 @@ fn collect_elements_impl(
                 // (elements not in a block come "after" any potential block elements)
                 let sub_pos = fixed_sub_position.unwrap_or(SUB_POS_AFTER_BLOCK);
 
+                let internal_order = ctx.internal_order_counter;
+                ctx.internal_order_counter += 1;
+
                 let info = ElementInfo {
                     dom_idx,
                     fragment_path: path.clone(),
                     position_in_fragment: position,
                     sub_position: sub_pos,
+                    internal_order,
                     branches: branches.clone(),
                 };
 
                 ctx.element_info.insert(dom_idx, info);
+
+                // Track each block body membership for cross-iteration siblings
+                if let Some(ref each_id) = each_block_id {
+                    ctx.each_body_elements
+                        .entry(each_id.clone())
+                        .or_default()
+                        .push(dom_idx);
+                }
 
                 // Track position mapping
                 let key = (path.clone(), position);
@@ -258,6 +394,7 @@ fn collect_elements_impl(
                     Some(&consequent_branches),
                     block_position,
                     sub_pos,
+                    each_block_id.clone(),
                 );
 
                 // Alternate branch (if any)
@@ -274,6 +411,7 @@ fn collect_elements_impl(
                         Some(&alternate_branches),
                         block_position,
                         sub_pos,
+                        each_block_id.clone(),
                     );
                 }
 
@@ -290,6 +428,19 @@ fn collect_elements_impl(
                 let mut block_path = path.clone();
                 block_path.push(FragmentSegment::EachBlock(block_position));
 
+                // Each block body ID for cross-iteration sibling tracking
+                let each_id = (path.clone(), block_position);
+
+                // Each blocks without a fallback are non-exhaustive (body might
+                // render 0 times). Elements inside get SUB_POS_INSIDE_BLOCK so
+                // they are not treated as definite barriers.
+                let has_fallback = block.fallback.is_some();
+                let body_sub_pos = if has_fallback {
+                    None // Exhaustive - use default
+                } else {
+                    Some(SUB_POS_INSIDE_BLOCK) // Non-exhaustive - might not render
+                };
+
                 // Body - elements inherit the block's position
                 let mut body_branches = branches.clone();
                 body_branches.insert(BranchId {
@@ -302,7 +453,8 @@ fn collect_elements_impl(
                     path.clone(),
                     Some(&body_branches),
                     block_position,
-                    None,
+                    body_sub_pos,
+                    Some(each_id),
                 );
 
                 // Fallback (if any)
@@ -319,9 +471,14 @@ fn collect_elements_impl(
                         Some(&fallback_branches),
                         block_position,
                         None,
+                        None, // Fallback doesn't have cross-iteration siblings
                     );
                 }
 
+                // Always increment position for each blocks (they take up a position)
+                // For non-exhaustive each (no fallback), elements before/after can
+                // still be adjacent since the block might render nothing.
+                // But we still need to increment to separate the block from surrounding elements.
                 ctx.increment_position();
             }
 
@@ -344,6 +501,7 @@ fn collect_elements_impl(
                         Some(&pending_branches),
                         block_position,
                         None,
+                        None,
                     );
                 }
 
@@ -361,6 +519,7 @@ fn collect_elements_impl(
                         Some(&then_branches),
                         block_position,
                         None,
+                        None,
                     );
                 }
 
@@ -377,6 +536,7 @@ fn collect_elements_impl(
                         path.clone(),
                         Some(&catch_branches),
                         block_position,
+                        None,
                         None,
                     );
                 }
@@ -429,13 +589,20 @@ fn collect_elements_impl(
     }
 }
 
-/// Compare two elements by their position (position_in_fragment, sub_position).
+/// Compare two elements by their position (position_in_fragment, sub_position, internal_order).
 /// Returns true if a comes before b.
 fn comes_before(a: &ElementInfo, b: &ElementInfo) -> bool {
     if a.position_in_fragment != b.position_in_fragment {
         a.position_in_fragment < b.position_in_fragment
-    } else {
+    } else if a.sub_position != b.sub_position {
         a.sub_position < b.sub_position
+    } else if a.branches == b.branches {
+        // Only use internal_order to distinguish elements in the same branch.
+        // Elements in different branches at the same position are alternatives,
+        // not sequential - they should not be ordered by internal_order.
+        a.internal_order < b.internal_order
+    } else {
+        false // Elements in different branches at same position are not ordered
     }
 }
 
@@ -544,33 +711,29 @@ fn determine_certainty(
 
 /// Check if an element is a definite barrier (will always be present when both
 /// source and target are present).
-fn is_definite_barrier(between: &ElementInfo, source: &ElementInfo, target: &ElementInfo) -> bool {
+fn is_definite_barrier(between: &ElementInfo, _source: &ElementInfo, target: &ElementInfo) -> bool {
     // Elements inside non-exhaustive blocks (sub_position == SUB_POS_INSIDE_BLOCK)
-    // are NOT definite barriers because the block might not render at all
+    // might not be present. But they ARE a barrier if the target is in the same
+    // non-exhaustive block branch (because when the target exists, the barrier
+    // also exists).
     if between.sub_position == SUB_POS_INSIDE_BLOCK {
-        // This element is in a non-exhaustive block, so it might not be present
-        // when source and target are both present
+        // Check if the target is in the same branch as the barrier.
+        // If so, when the target exists, the barrier also exists.
+        let target_in_same_branch = between.branches.iter().all(|b| target.branches.contains(b))
+            && !between.branches.is_empty();
+
+        if target_in_same_branch {
+            // Target is in the same branch, so when target exists, barrier exists too.
+            // This handles: .a + .c in {#each}<b/><c/>{/each} where .b is a barrier for .a+.c
+            return true;
+        }
+
+        // Otherwise, the barrier might not be present when source and target are both present
         return false;
     }
 
     // For elements in exhaustive blocks or outside any block:
-    // They are definite barriers if they share the same branches as source and target
-    // (or have no additional branches)
-    for branch in &between.branches {
-        if !source.branches.contains(branch) && !target.branches.contains(branch) {
-            // This element is in a branch that neither source nor target share
-            // But since it's in an exhaustive block, SOME element at this position
-            // will definitely be present. However, THIS specific element might not be.
-            // For exhaustive blocks, we still want to consider it a barrier because
-            // at least one of the elements at this position will be present.
-            // This check is for elements that are in entirely different branches.
-
-            // Actually, for exhaustive blocks, we should still consider them barriers
-            // because the position itself is occupied. Only non-exhaustive blocks
-            // (checked above) should be skipped.
-        }
-    }
-
+    // They are definite barriers.
     true
 }
 

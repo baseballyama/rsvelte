@@ -78,10 +78,9 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
     // Mark that we have control flow affecting sibling relationships
     context.analysis.css.has_control_flow = true;
 
-    // Each blocks create opaque sibling boundaries because elements can repeat
-    // across iterations, nest, and wrap around, creating complex sibling
-    // relationships that Phase 2 analysis doesn't fully model.
-    context.analysis.css.has_opaque_elements = true;
+    // Note: Each blocks are NOT opaque - they are handled by Phase 2 control flow
+    // analysis in control_flow.rs, which correctly models sibling relationships
+    // across each body and fallback branches.
 
     // Increment block depth for child analysis
     context.block_depth += 1;
