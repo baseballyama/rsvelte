@@ -589,19 +589,42 @@ pub fn visit_regular_element(
                         context.state.init.push(b::stmt(call));
                     }
                 } else {
-                    // Dynamic attribute - needs runtime handling
-                    let result =
-                        build_attribute_value(&attr.value, context, |expr, _metadata| expr);
+                    // Dynamic attribute - needs runtime handling.
+                    // Corresponds to RegularElement.js lines 266-274:
+                    //   const { value, has_state } = build_attribute_value(
+                    //       attribute.value, context,
+                    //       (value, metadata) => context.state.memoizer.add(value, metadata)
+                    //   );
+                    //   (has_state ? context.state.update : context.state.init).push(b.stmt(update));
+                    let mut captured_metadata = ExpressionMetadata::default();
+                    let result = build_attribute_value(&attr.value, context, |expr, metadata| {
+                        captured_metadata = metadata.clone();
+                        expr
+                    });
+                    let meta_has_call = captured_metadata.has_call();
+                    let meta_has_await = captured_metadata.has_await();
+                    // Memoize the value when needed (has_call or has_await),
+                    // following the JS Memoizer.add() logic.
+                    let memoized_value = context.state.memoizer.add(
+                        result.value,
+                        meta_has_call,
+                        meta_has_await,
+                        false,
+                        result.has_state,
+                    );
 
                     let update = build_element_attribute_update(
                         node,
                         &extract_node_id(&context.state.node),
                         &name,
-                        result.value,
+                        memoized_value,
                         &attributes,
                     );
 
-                    if result.has_state {
+                    // Route to update (template_effect) when the expression has state
+                    // or was memoized (has_call/has_await means value is a $N parameter
+                    // that only exists inside template_effect).
+                    if result.has_state || meta_has_call || meta_has_await {
                         context.state.update.push(b::stmt(update));
                     } else {
                         context.state.init.push(b::stmt(update));

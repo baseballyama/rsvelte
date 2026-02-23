@@ -181,8 +181,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     let expr_start = bind.expression.start().unwrap_or(0) as usize;
                     let expr_end = bind.expression.end().unwrap_or(0) as usize;
                     if expr_end > expr_start && expr_end <= self.source.len() {
-                        bind_value_expr =
-                            Some(self.source[expr_start..expr_end].trim().to_string());
+                        let raw_expr = self.source[expr_start..expr_end].trim().to_string();
+                        bind_value_expr = Some(self.transform_store_refs(&raw_expr));
                     }
                 }
                 _ => {}

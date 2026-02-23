@@ -894,13 +894,26 @@ fn process_bind_directive(
                 context,
             )
         {
-            // get_expr is a Raw `() => body` arrow. Extract the body by stripping `() => ` prefix.
+            // get_expr is a thunk arrow `() => body`. Extract the body by stripping `() => ` prefix.
             // This gives us just the expression to use in `return <expr>`.
             let get_body_str = if let JsExpr::Raw(s) = &get_expr {
                 if let Some(stripped) = s.strip_prefix("() => ") {
                     stripped.to_string()
                 } else {
                     s.clone()
+                }
+            } else if let JsExpr::Arrow(arrow) = &get_expr
+                && arrow.params.is_empty()
+            {
+                // For structured Arrow expressions (thunks), extract the body
+                use crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr;
+                match &arrow.body {
+                    crate::compiler::phases::phase3_transform::js_ast::nodes::JsArrowBody::Expression(body) => {
+                        generate_expr(body)
+                    }
+                    crate::compiler::phases::phase3_transform::js_ast::nodes::JsArrowBody::Block(_) => {
+                        generate_expr(&get_expr)
+                    }
                 }
             } else {
                 // For non-raw exprs, just use them directly

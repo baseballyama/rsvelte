@@ -171,7 +171,19 @@ fn transform_single_export_let(declaration: &str) -> String {
             let name = declarator[..eq_pos].trim();
             let default_value = declarator[eq_pos + 1..].trim();
 
-            let transformed_default = if is_simple_default_value(default_value) {
+            // Check if the default value is a store accessor (starts with $ and is a simple identifier)
+            // Store accessors need lazy evaluation since they call $.store_get() which is side-effectful
+            let is_store_accessor = default_value.starts_with('$')
+                && is_simple_identifier(default_value)
+                && default_value.len() > 1; // Not just "$"
+
+            let transformed_default = if is_store_accessor {
+                // Store accessor: wrap as lazy thunk, will be converted to $.store_get(...) by transform_store_refs_in_script
+                format!(
+                    "let {} = $.fallback($$props['{}'], () => {}, true);",
+                    name, name, default_value
+                )
+            } else if is_simple_default_value(default_value) {
                 format!(
                     "let {} = $.fallback($$props['{}'], {});",
                     name, name, default_value
@@ -833,11 +845,75 @@ fn process_destructured_element(
 pub(crate) fn reorder_reactive_statements_after_functions(script: &str) -> String {
     let lines: Vec<&str> = script.lines().collect();
 
-    // Check if there are any $: statements and any function declarations
+    // Check if there are any $: statements
     let has_reactive = lines.iter().any(|l| l.trim().starts_with("$:"));
-    let has_functions = lines.iter().any(|l| l.trim().starts_with("function "));
 
-    if !has_reactive || !has_functions {
+    if !has_reactive {
+        return script.to_string();
+    }
+
+    // Check if reordering is actually needed:
+    // Reordering is needed if there are any non-reactive statements or declarations
+    // that come AFTER a $: reactive statement in the source.
+    // In SSR, all reactive statements should be placed at the end so non-reactive
+    // code (like `foo = 1`) runs before reactive computations.
+    let needs_reorder = {
+        let mut saw_reactive = false;
+        let mut needs = false;
+        let mut in_reactive_multiline = false;
+        let mut reactive_depth: i32 = 0;
+        let mut i = 0;
+        while i < lines.len() {
+            let trimmed = lines[i].trim();
+            if in_reactive_multiline {
+                // Count braces to find the end of the reactive statement
+                for c in trimmed.chars() {
+                    match c {
+                        '{' | '(' | '[' => reactive_depth += 1,
+                        '}' | ')' | ']' => reactive_depth -= 1,
+                        _ => {}
+                    }
+                }
+                if reactive_depth <= 0 {
+                    in_reactive_multiline = false;
+                }
+                i += 1;
+                continue;
+            }
+            if trimmed.starts_with("$:") {
+                saw_reactive = true;
+                // Count braces in the reactive statement line to detect multiline
+                let mut depth: i32 = 0;
+                for c in trimmed.chars() {
+                    match c {
+                        '{' | '(' | '[' => depth += 1,
+                        '}' | ')' | ']' => depth -= 1,
+                        _ => {}
+                    }
+                }
+                if depth > 0 {
+                    // This is a multi-line reactive statement; skip until balanced
+                    in_reactive_multiline = true;
+                    reactive_depth = depth;
+                }
+                // Single-line reactive statement (depth <= 0), stays as saw_reactive
+            } else if saw_reactive && !trimmed.is_empty() {
+                // There is some non-reactive content after a reactive statement
+                needs = true;
+                break;
+            }
+            i += 1;
+        }
+        // Also need to reorder if there are function declarations that should come after reactive
+        if !needs {
+            // Check if any reactive line comes before a function declaration
+            needs = lines.iter().any(|l| l.trim().starts_with("function "))
+                && lines.iter().any(|l| l.trim().starts_with("$:"))
+        }
+        needs
+    };
+
+    if !needs_reorder {
         return script.to_string();
     }
 

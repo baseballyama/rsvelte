@@ -254,7 +254,71 @@ pub(crate) fn replace_store_identifier_in_script(
                         }
                     };
 
-                    if !is_in_store_call && !is_shadowed && !is_param_decl {
+                    // Check if `$store` appears inside an arrow function parameter list like `($store) =>`.
+                    // This happens when preceding char is `(` or `,` (inside param list)
+                    // and following char after the store ref (and any `,`/whitespace) is `)`,
+                    // and that `)` is followed by `=>`.
+                    let is_in_paren_arrow_param = if !is_param_decl {
+                        // Check if the char immediately before $store (skipping whitespace back) is `(` or `,`
+                        let prev_char = result.chars().rev().find(|c| !c.is_whitespace());
+                        let preceded_by_paren_or_comma = matches!(prev_char, Some('(') | Some(','));
+                        if preceded_by_paren_or_comma {
+                            // Look for `)` after $store, then `=>`
+                            let mut k = j; // j is already at first non-whitespace after store_ref
+                            // Skip past `)`, `,`, or whitespace to find the closing paren of param list
+                            let mut paren_balance: i32 = 0;
+                            // We are inside parens right now (after `(`), look for matching `)`
+                            // that closes the current paren group
+                            // First, scan forward from j to find the close of the parameter list
+                            let mut found_close = false;
+                            while k < chars.len() {
+                                match chars[k] {
+                                    '(' => {
+                                        paren_balance += 1;
+                                        k += 1;
+                                    }
+                                    ')' => {
+                                        if paren_balance == 0 {
+                                            // This is the closing paren of the param list
+                                            // Check if followed by `=>`
+                                            let mut m = k + 1;
+                                            while m < chars.len() && chars[m].is_whitespace() {
+                                                m += 1;
+                                            }
+                                            if m + 1 < chars.len()
+                                                && chars[m] == '='
+                                                && chars[m + 1] == '>'
+                                            {
+                                                found_close = true;
+                                                // Register shadow: $store is a parameter,
+                                                // it shadows in the arrow function body
+                                                shadowed_params
+                                                    .push((brace_depth, paren_depth - 1));
+                                            }
+                                            break;
+                                        } else {
+                                            paren_balance -= 1;
+                                            k += 1;
+                                        }
+                                    }
+                                    _ => {
+                                        k += 1;
+                                    }
+                                }
+                            }
+                            found_close
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    };
+
+                    if !is_in_store_call
+                        && !is_shadowed
+                        && !is_param_decl
+                        && !is_in_paren_arrow_param
+                    {
                         result.push_str(&format!(
                             "$.store_get($$store_subs ??= {{}}, '{}', {})",
                             store_ref, store_name

@@ -898,7 +898,12 @@ pub fn is_pure(node: &Value, context: &VisitorContext) -> bool {
     // Check if base is an Identifier
     if left.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
         if let Some(name) = left.get("name").and_then(|n| n.as_str()) {
-            let binding = context.analysis.root.scope.declarations.get(name);
+            // Use find_binding_any_scope to look up bindings in ALL scopes (root + instance + others).
+            // This is needed because template expressions may reference variables declared in the
+            // instance scope, which is a child of the root scope.
+            // The official Svelte compiler uses context.state.scope.get(name) which traverses
+            // the full scope chain - we replicate that here by searching all scopes.
+            let binding = context.analysis.root.find_binding_any_scope(name);
             if binding.is_none() {
                 return true; // Globals are assumed to be safe
             }
@@ -1507,8 +1512,12 @@ pub fn walk_js_expression(
                     }
                 }
 
-                // Look up binding
-                if let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name) {
+                // Look up binding - search ALL scopes (root + instance + nested).
+                // Template expressions can reference variables from the instance scope,
+                // which is a child of the root scope. The official Svelte compiler uses
+                // context.state.scope.get(name) which traverses the full scope chain.
+                // We replicate this by using find_binding_any_scope.
+                if let Some(binding_idx) = context.analysis.root.find_binding_any_scope(name) {
                     // Register the template reference on the binding
                     // This is critical for legacy state promotion (promote_legacy_state_bindings)
                     // which checks if bindings have template references to decide whether to

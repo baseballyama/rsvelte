@@ -2015,13 +2015,28 @@ fn build_invalidation_expr(
         return None;
     }
 
-    if each_ctx.invalidation_exprs.is_empty() {
+    if each_ctx.invalidation_exprs.is_empty() && each_ctx.store_to_invalidate.is_none() {
         return None;
     }
 
+    let mut parts: Vec<String> = Vec::new();
+
     // Build: $.invalidate_inner_signals(() => (expr1, expr2, ...))
-    let inner = each_ctx.invalidation_exprs.join(", ");
-    Some(format!("$.invalidate_inner_signals(() => ({}))", inner))
+    if !each_ctx.invalidation_exprs.is_empty() {
+        let inner = each_ctx.invalidation_exprs.join(", ");
+        parts.push(format!("$.invalidate_inner_signals(() => ({}))", inner));
+    }
+
+    // Add $.invalidate_store($$stores, '$storeName') if the collection is a store
+    if let Some(ref store_name) = each_ctx.store_to_invalidate {
+        parts.push(format!("$.invalidate_store($$stores, '{}')", store_name));
+    }
+
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts.join(", "))
+    }
 }
 
 #[cfg(test)]

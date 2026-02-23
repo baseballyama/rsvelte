@@ -1062,13 +1062,6 @@ pub(crate) fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMa
 
         let is_reassigned = full_source.lines().any(|line| {
             let trimmed = line.trim();
-            if trimmed.starts_with("let ")
-                || trimmed.starts_with("const ")
-                || trimmed.starts_with("export let ")
-                || trimmed.starts_with("export const ")
-            {
-                return false;
-            }
             let mut search_start = 0;
             while let Some(pos) = trimmed[search_start..].find(var_name.as_str()) {
                 let abs_pos = search_start + pos;
@@ -1086,16 +1079,34 @@ pub(crate) fn extract_constant_vars(script: &str, full_source: &str) -> FxHashMa
 
                 if before_ok && after_char_ok && after_pos < trimmed.len() {
                     let rest = trimmed[after_pos..].trim_start();
-                    if (rest.starts_with('=') && !rest.starts_with("==") && !rest.starts_with("=>"))
-                        || rest.starts_with("+=")
-                        || rest.starts_with("-=")
-                        || rest.starts_with("*=")
-                        || rest.starts_with("/=")
-                    {
-                        return true;
-                    }
-                    if rest.starts_with("++") || rest.starts_with("--") {
-                        return true;
+
+                    // Check if this is a reassignment (not a declaration)
+                    // A declaration would be preceded by `let ` or `var ` or `const `
+                    let is_decl = abs_pos > 0 && {
+                        let before = &trimmed[..abs_pos];
+                        let before_trimmed = before.trim();
+                        before_trimmed == "let"
+                            || before_trimmed == "var"
+                            || before_trimmed == "const"
+                            || before_trimmed.ends_with(" let")
+                            || before_trimmed.ends_with(" var")
+                            || before_trimmed.ends_with(" const")
+                    };
+
+                    if !is_decl {
+                        if (rest.starts_with('=')
+                            && !rest.starts_with("==")
+                            && !rest.starts_with("=>"))
+                            || rest.starts_with("+=")
+                            || rest.starts_with("-=")
+                            || rest.starts_with("*=")
+                            || rest.starts_with("/=")
+                        {
+                            return true;
+                        }
+                        if rest.starts_with("++") || rest.starts_with("--") {
+                            return true;
+                        }
                     }
                 }
 

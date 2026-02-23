@@ -1794,21 +1794,43 @@ export default function {component_name}($$renderer{props_param}) {{
                         current_html.clear();
                     }
 
+                    // For complex expressions (e.g. store access), use a variable to avoid
+                    // double evaluation. For simple identifiers, use the expression directly.
+                    let is_simple_expr = value_expr
+                        .chars()
+                        .all(|c| c.is_alphanumeric() || c == '_' || c == '$' || c == '.');
+                    let (condition_expr, push_expr) = if is_simple_expr {
+                        (value_expr.clone(), value_expr.clone())
+                    } else {
+                        // Use $$body_N variable
+                        let var_name = if textarea_body_count == 0 {
+                            "$$body".to_string()
+                        } else {
+                            format!("$$body_{}", textarea_body_count)
+                        };
+                        textarea_body_count += 1;
+                        body_code.push_str(&format!(
+                            "{}const {} = {};\n\n",
+                            indent, var_name, value_expr
+                        ));
+                        (var_name.clone(), var_name)
+                    };
+
                     // Generate:
-                    // if (value) {
-                    //     $$renderer.push(`${value}`);
+                    // if (value_or_var) {
+                    //     $$renderer.push(`${value_or_var}`);
                     // } else {
                     //     /* children */
                     // }
                     body_code.push_str(&format!(
                         "{}if ({}) {{
 ",
-                        indent, value_expr
+                        indent, condition_expr
                     ));
                     body_code.push_str(&format!(
                         "{}	$$renderer.push(`${{{}}}`);
 ",
-                        indent, value_expr
+                        indent, push_expr
                     ));
                     // Generate children in the else branch
                     let children_code = Self::build_parts_with_store_subs(
