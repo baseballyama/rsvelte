@@ -436,6 +436,298 @@ pub(crate) fn resolve_binding_exprs<'a>(
     }
 }
 
+/// Transform `$store.prop = value` and `$store.prop op= value` into `$.store_mutate(...)` calls.
+///
+/// This handles member expression mutations on store subscriptions.
+/// Examples:
+/// - `$a.foo = 3` -> `$.store_mutate($$store_subs ??= {}, '$a', a, $.store_get($$store_subs ??= {}, '$a', a).foo = 3)`
+/// - `$a.foo += 1` -> `$.store_mutate($$store_subs ??= {}, '$a', a, $.store_get($$store_subs ??= {}, '$a', a).foo += 1)`
+fn transform_store_property_mutations(script: &str) -> String {
+    let chars: Vec<char> = script.chars().collect();
+    let len = chars.len();
+    let mut result = String::with_capacity(len * 2);
+    let mut i = 0;
+
+    let mut in_string = false;
+    let mut string_char = ' ';
+    let mut in_single_line_comment = false;
+    let mut in_multi_line_comment = false;
+
+    while i < len {
+        let c = chars[i];
+
+        // Handle comments
+        if in_single_line_comment {
+            result.push(c);
+            if c == '\n' {
+                in_single_line_comment = false;
+            }
+            i += 1;
+            continue;
+        }
+        if in_multi_line_comment {
+            result.push(c);
+            if c == '*' && i + 1 < len && chars[i + 1] == '/' {
+                result.push('/');
+                i += 2;
+                in_multi_line_comment = false;
+            } else {
+                i += 1;
+            }
+            continue;
+        }
+        if !in_string && c == '/' && i + 1 < len {
+            if chars[i + 1] == '/' {
+                in_single_line_comment = true;
+                result.push(c);
+                i += 1;
+                continue;
+            } else if chars[i + 1] == '*' {
+                in_multi_line_comment = true;
+                result.push(c);
+                i += 1;
+                continue;
+            }
+        }
+
+        // Handle strings
+        if c == '\'' || c == '"' || c == '`' {
+            if !in_string {
+                in_string = true;
+                string_char = c;
+            } else if c == string_char && (i == 0 || chars[i - 1] != '\\') {
+                in_string = false;
+            }
+            result.push(c);
+            i += 1;
+            continue;
+        }
+        if in_string {
+            result.push(c);
+            i += 1;
+            continue;
+        }
+
+        // Look for `$store_name` followed by `.` or `[`
+        if c == '$' {
+            // Check it's not preceded by identifier char
+            let prev_is_ident = if i > 0 {
+                is_js_identifier_char(chars[i - 1])
+            } else {
+                false
+            };
+
+            if !prev_is_ident {
+                // Read store name: must start with letter or underscore
+                let start = i + 1; // skip '$'
+                if start < len && (chars[start].is_alphabetic() || chars[start] == '_') {
+                    let mut name_end = start;
+                    while name_end < len && is_js_identifier_char(chars[name_end]) {
+                        name_end += 1;
+                    }
+                    let store_name: String = chars[start..name_end].iter().collect();
+                    let store_ref = format!("${}", store_name);
+
+                    // After store name, look for member access chain (.prop or [expr])
+                    // but NOT if followed immediately by `=` (that's handled by existing code)
+                    // and NOT if followed by ident char (which would extend the store name)
+                    if name_end < len && !is_js_identifier_char(chars[name_end]) {
+                        // Check if what follows is a member chain (.prop, [expr])
+                        let j = name_end;
+                        let has_member_chain = chars[j] == '.' || chars[j] == '[';
+
+                        if has_member_chain {
+                            // Read the full member chain until we hit an assignment operator
+                            // We need to track bracket depth for `[expr]` access
+                            let mut depth = 0i32;
+                            let mut chain_end = j;
+                            let mut found_assign = false;
+                            let mut assign_op_start = 0usize;
+                            let mut assign_op_end = 0usize;
+                            let mut inner_in_string = false;
+                            let mut inner_string_char = ' ';
+
+                            while chain_end < len {
+                                let ch = chars[chain_end];
+
+                                // String tracking inside chain
+                                if ch == '\'' || ch == '"' || ch == '`' {
+                                    if !inner_in_string {
+                                        inner_in_string = true;
+                                        inner_string_char = ch;
+                                    } else if ch == inner_string_char
+                                        && (chain_end == 0 || chars[chain_end - 1] != '\\')
+                                    {
+                                        inner_in_string = false;
+                                    }
+                                    chain_end += 1;
+                                    continue;
+                                }
+                                if inner_in_string {
+                                    chain_end += 1;
+                                    continue;
+                                }
+
+                                if ch == '[' || ch == '(' {
+                                    depth += 1;
+                                    chain_end += 1;
+                                } else if ch == ']' || ch == ')' {
+                                    depth -= 1;
+                                    chain_end += 1;
+                                } else if depth == 0 {
+                                    // Check for assignment operator at depth 0
+                                    // Operators: =, +=, -=, *=, /=, %=, &=, |=, ^=, <<=, >>=, >>>=
+                                    // But NOT ==, ===, !=, !==, <=, >=, =>
+                                    if ch == '=' {
+                                        // Check for ==, ===, or =>
+                                        let next = if chain_end + 1 < len {
+                                            chars[chain_end + 1]
+                                        } else {
+                                            '\0'
+                                        };
+                                        if next != '=' && next != '>' {
+                                            // Check previous char is not !, =, <, >
+                                            let prev = if chain_end > 0 {
+                                                chars[chain_end - 1]
+                                            } else {
+                                                '\0'
+                                            };
+                                            if prev != '!'
+                                                && prev != '='
+                                                && prev != '<'
+                                                && prev != '>'
+                                            {
+                                                // This is an assignment
+                                                assign_op_start = chain_end;
+                                                assign_op_end = chain_end + 1;
+                                                found_assign = true;
+                                                break;
+                                            }
+                                        }
+                                        chain_end += 1;
+                                    } else if (ch == '+'
+                                        || ch == '-'
+                                        || ch == '*'
+                                        || ch == '/'
+                                        || ch == '%'
+                                        || ch == '&'
+                                        || ch == '|'
+                                        || ch == '^'
+                                        || ch == '?'
+                                        || ch == '!')
+                                        && chain_end + 1 < len
+                                        && chars[chain_end + 1] == '='
+                                    {
+                                        // Check for compound assignment like +=, -=, etc.
+                                        // But NOT != (inequality), !==
+                                        if ch == '!' {
+                                            chain_end += 1;
+                                            continue;
+                                        }
+                                        // Also exclude `!=` and `!==`
+                                        // Check for `<<= >>= >>>=`
+                                        if (ch == '<' || ch == '>')
+                                            && chain_end + 1 < len
+                                            && chars[chain_end + 1] == ch
+                                        {
+                                            // could be <<= or >>=
+                                            if chain_end + 2 < len && chars[chain_end + 2] == '=' {
+                                                assign_op_start = chain_end;
+                                                assign_op_end = chain_end + 3;
+                                                found_assign = true;
+                                                break;
+                                            }
+                                        }
+                                        // &&=, ||=, ??= need special handling
+                                        if (ch == '&' || ch == '|' || ch == '?')
+                                            && chain_end + 1 < len
+                                            && chars[chain_end + 1] == ch
+                                            && chain_end + 2 < len
+                                            && chars[chain_end + 2] == '='
+                                        {
+                                            assign_op_start = chain_end;
+                                            assign_op_end = chain_end + 3;
+                                            found_assign = true;
+                                            break;
+                                        }
+                                        assign_op_start = chain_end;
+                                        assign_op_end = chain_end + 2;
+                                        found_assign = true;
+                                        break;
+                                    } else if ch == '.'
+                                        || is_js_identifier_char(ch)
+                                        || ch == ' '
+                                        || ch == '\t'
+                                    {
+                                        // Continue reading member chain (whitespace is ok between chain and =)
+                                        chain_end += 1;
+                                    } else {
+                                        // Non-member, non-assignment char at depth 0 -> stop
+                                        break;
+                                    }
+                                } else {
+                                    chain_end += 1;
+                                }
+                            }
+
+                            if found_assign {
+                                // Extract member chain (between name_end and assign_op_start), trimmed
+                                let member_chain: String = chars[name_end..assign_op_start]
+                                    .iter()
+                                    .collect::<String>()
+                                    .trim()
+                                    .to_string();
+
+                                // Only generate store_mutate if there IS a member chain
+                                // (otherwise this is a direct assignment handled by existing code)
+                                if member_chain.is_empty() {
+                                    // No member chain - this is $a = value, fall through to existing handler
+                                    result.push(c);
+                                    i += 1;
+                                    continue;
+                                }
+                                let assign_op: String =
+                                    chars[assign_op_start..assign_op_end].iter().collect();
+
+                                // Skip whitespace after operator
+                                let mut val_start = assign_op_end;
+                                while val_start < len && chars[val_start] == ' ' {
+                                    val_start += 1;
+                                }
+
+                                // Find value end (to end of statement)
+                                let rest: String = chars[val_start..].iter().collect();
+                                let val_len = find_statement_end(&rest);
+                                let value = rest[..val_len].trim();
+
+                                // Generate $.store_mutate(...)
+                                let transformed = format!(
+                                    "$.store_mutate($$store_subs ??= {{}}, '{}', {}, $.store_get($$store_subs ??= {{}}, '{}', {}){} {} {})",
+                                    store_ref,
+                                    store_name,
+                                    store_ref,
+                                    store_name,
+                                    member_chain,
+                                    assign_op,
+                                    value
+                                );
+                                result.push_str(&transformed);
+                                i = val_start + val_len;
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        result.push(c);
+        i += 1;
+    }
+
+    result
+}
+
 /// Transform store assignments in script content for server-side rendering.
 pub(crate) fn transform_store_assignments(script: &str) -> String {
     use regex::Regex;
@@ -449,6 +741,9 @@ pub(crate) fn transform_store_assignments(script: &str) -> String {
         LazyLock::new(|| Regex::new(r"(\+\+|--)\$([a-zA-Z_][a-zA-Z0-9_]*)").unwrap());
 
     let mut result = script.to_string();
+
+    // First, transform $store.prop = value -> $.store_mutate(...)
+    result = transform_store_property_mutations(&result);
 
     result = PREFIX_OP_RE
         .replace_all(&result, |caps: &regex::Captures| {

@@ -168,6 +168,9 @@ impl<'a> ServerCodeGenerator<'a> {
             }
         }
 
+        // Sort ConstTag nodes topologically (matching official compiler's sort_const_tags)
+        trimmed_nodes = self.sort_const_tags_owned(trimmed_nodes);
+
         // Check if this fragment is standalone (only contains a single RenderTag/Component)
         let is_standalone = Self::is_standalone_fragment(&trimmed_nodes);
 

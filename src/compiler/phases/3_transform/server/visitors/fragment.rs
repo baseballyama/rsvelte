@@ -105,7 +105,10 @@ impl<'a> ServerCodeGenerator<'a> {
         // Track when the previous node was a ConstTag - whitespace-only text after ConstTag
         // should be skipped since ConstTag doesn't produce HTML output
         let mut prev_was_const_tag = false;
-        let meaningful_nodes = &nodes[start_idx..end_idx];
+        let meaningful_nodes_raw = &nodes[start_idx..end_idx];
+        // Sort ConstTag nodes topologically (matching official compiler's sort_const_tags)
+        let sorted_meaningful_nodes = body_generator.sort_const_tags_in_nodes(meaningful_nodes_raw);
+        let meaningful_nodes = sorted_meaningful_nodes.as_slice();
         for (i, node) in meaningful_nodes.iter().enumerate() {
             let is_last = i == meaningful_nodes.len() - 1;
 
