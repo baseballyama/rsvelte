@@ -212,7 +212,13 @@ impl Template {
             .map(stringify)
             .collect::<Vec<_>>()
             .join("");
-        b::template(vec![b::quasi(html, true)], vec![])
+        // Escape backticks and `${` in the HTML content so they don't break
+        // the surrounding JavaScript template literal (backtick string).
+        let escaped = html
+            .replace('\\', "\\\\")
+            .replace('`', "\\`")
+            .replace("${", "\\${");
+        b::template(vec![b::quasi(escaped, true)], vec![])
     }
 
     /// Convert template to tree array expression.
@@ -240,118 +246,16 @@ impl Default for Template {
     }
 }
 
-/// Normalize whitespace in text content for template strings.
-/// Collapses sequences of whitespace (including newlines and tabs) into single spaces.
-fn normalize_template_whitespace(text: &str) -> String {
-    // Replace newlines and tabs with spaces, then collapse multiple spaces
-    let mut result = String::with_capacity(text.len());
-    let mut last_was_whitespace = false;
-
-    for c in text.chars() {
-        if c == '\n' || c == '\r' || c == '\t' || c == ' ' {
-            if !last_was_whitespace {
-                result.push(' ');
-                last_was_whitespace = true;
-            }
-            // Skip additional whitespace characters
-        } else {
-            result.push(c);
-            last_was_whitespace = false;
-        }
-    }
-
-    result
-}
-
-/// Check if a string contains only Svelte's whitespace characters.
-/// Matches Svelte's `regex_not_whitespace = /[^ \t\r\n]/` behavior:
-/// Only space (0x20), tab (0x09), CR (0x0D), and LF (0x0A) are considered whitespace.
-/// This intentionally does NOT treat \xA0 (non-breaking space) as whitespace.
-fn is_svelte_whitespace_only(s: &str) -> bool {
-    // Check if every character is one of: space, tab, carriage return, newline
-    s.chars()
-        .all(|c| c == ' ' || c == '\t' || c == '\r' || c == '\n')
-}
-
-/// Stringify element children with proper whitespace handling.
-/// - Trims leading whitespace from the first child (if text)
-/// - Trims trailing whitespace from the last child (if text)
-/// - Normalizes internal whitespace
-/// - Preserves single-space placeholders for dynamic text nodes
-///
-/// Mirrors Svelte's `clean_nodes` behavior: whitespace is analyzed using the DECODED
-/// text (`data` field), but the RAW text is output in the template. When the decoded
-/// text is whitespace-only, the text node is dropped entirely (matching clean_nodes
-/// which shifts out whitespace-only text nodes before trimming).
-fn stringify_children(children: &[Node]) -> String {
-    let mut result = String::new();
-
-    for (i, child) in children.iter().enumerate() {
-        let is_first = i == 0;
-        let is_last = i == children.len() - 1;
-
-        match child {
-            Node::Text(text) => {
-                let raw_text: String = text.nodes.iter().map(|node| node.raw.as_str()).collect();
-                let normalized_raw = normalize_template_whitespace(&raw_text);
-
-                // Special case: preserve single-space placeholder for dynamic text nodes
-                // This is used when there's an expression tag that will be replaced at runtime
-                // Important: Preserve the space regardless of position - it's a placeholder that
-                // should not be trimmed (unlike regular whitespace)
-                if normalized_raw == " " {
-                    result.push(' ');
-                    continue;
-                }
-
-                // Use decoded `data` for whitespace analysis.
-                // Mirrors Svelte's clean_nodes: whitespace-only text nodes (per decoded data)
-                // are removed entirely (shifted out) before other whitespace processing.
-                let decoded_text: String =
-                    text.nodes.iter().map(|node| node.data.as_str()).collect();
-                let normalized_decoded = normalize_template_whitespace(&decoded_text);
-
-                // If the decoded text is all whitespace, drop this text node entirely.
-                // This mirrors Svelte's clean_nodes which uses:
-                //   regex_not_whitespace = /[^ \t\r\n]/   (only space, tab, CR, LF are whitespace)
-                // NOTE: Non-breaking space (\xA0) is NOT treated as whitespace by Svelte.
-                if is_svelte_whitespace_only(&normalized_decoded) {
-                    continue;
-                }
-
-                // Trim leading whitespace if this is the first child
-                // Use Svelte-compatible whitespace: only space, tab, CR, LF
-                let svelte_ws = [' ', '\t', '\r', '\n'];
-                let trimmed = if is_first {
-                    normalized_raw.trim_start_matches(svelte_ws.as_slice())
-                } else {
-                    &normalized_raw
-                };
-
-                // Trim trailing whitespace if this is the last child
-                let final_text = if is_last {
-                    trimmed.trim_end_matches(svelte_ws.as_slice())
-                } else {
-                    trimmed
-                };
-
-                result.push_str(final_text);
-            }
-            _ => {
-                result.push_str(&stringify(child));
-            }
-        }
-    }
-
-    result
-}
-
 /// Convert a node to HTML string.
+/// Mirrors the official Svelte `stringify` function in template.js exactly.
+/// No whitespace processing is done here — that's already handled by `clean_nodes`
+/// before nodes are added to the template.
 fn stringify(item: &Node) -> String {
     match item {
         Node::Text(text) => {
-            let raw_text: String = text.nodes.iter().map(|node| &node.raw).cloned().collect();
-            normalize_template_whitespace(&raw_text)
+            // Simply concatenate raw text values — no normalization.
+            // Whitespace has already been processed by clean_nodes.
+            text.nodes.iter().map(|node| node.raw.as_str()).collect()
         }
         Node::Comment(comment) => {
             // Match JavaScript falsy semantics: empty string is treated as no data
@@ -382,8 +286,16 @@ fn stringify(item: &Node) -> String {
                 str.push_str("/>");
             } else {
                 str.push('>');
-                // Use stringify_children to properly handle whitespace at element boundaries
-                str.push_str(&stringify_children(&element.children));
+                // Simply map children through stringify and join — no extra whitespace handling.
+                // Mirrors: str += item.children.map(stringify).join('');
+                str.push_str(
+                    &element
+                        .children
+                        .iter()
+                        .map(stringify)
+                        .collect::<Vec<_>>()
+                        .join(""),
+                );
                 str.push_str(&format!("</{}>", element.name));
             }
 
