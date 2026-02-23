@@ -231,9 +231,12 @@ impl<'a> ServerCodeGenerator<'a> {
         // Remove BindableProp variables from constant_vars.
         // Variables exported via `export { x }` are props and can receive values from parents,
         // so they should NOT be treated as constants even if they have literal initial values.
+        // Also remove any binding that the scope analysis marks as updated (reassigned or mutated),
+        // to handle cases that the text-based reassignment check misses (e.g. destructuring
+        // assignments like `({ x } = { x: 1 })`).
         if let Some(analysis) = analysis {
             for binding in &analysis.root.bindings {
-                if matches!(binding.kind, BindingKind::BindableProp) {
+                if matches!(binding.kind, BindingKind::BindableProp) || binding.is_updated() {
                     constant_vars.remove(&binding.name);
                 }
             }

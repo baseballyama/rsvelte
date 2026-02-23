@@ -164,6 +164,24 @@ impl<'a> ServerCodeGenerator<'a> {
         &mut self,
         nodes: &[&TemplateNode],
     ) -> Result<Option<Vec<OutputPart>>, TransformError> {
+        self.generate_children_from_nodes_inner(nodes, true)
+    }
+
+    /// Same as `generate_children_from_nodes` but without the leading <!---> anchor.
+    /// Used for contexts where text-first content doesn't need an anchor
+    /// (e.g., slot element fallback, svelte:fragment children).
+    pub(crate) fn generate_children_from_nodes_no_anchor(
+        &mut self,
+        nodes: &[&TemplateNode],
+    ) -> Result<Option<Vec<OutputPart>>, TransformError> {
+        self.generate_children_from_nodes_inner(nodes, false)
+    }
+
+    fn generate_children_from_nodes_inner(
+        &mut self,
+        nodes: &[&TemplateNode],
+        add_text_anchor: bool,
+    ) -> Result<Option<Vec<OutputPart>>, TransformError> {
         let len = nodes.len();
         if len == 0 {
             return Ok(None);
@@ -220,12 +238,15 @@ impl<'a> ServerCodeGenerator<'a> {
         body_generator.namespace = self.namespace.clone();
 
         // Check if first meaningful content is text/expression
-        // If so, add <!---> anchor to prevent text fusion during hydration
+        // If so, add <!---> anchor to prevent text fusion during hydration.
+        // Only add if add_text_anchor is true - some contexts (slot fallback, svelte:fragment)
+        // do not need the anchor as the content is isolated in its own function.
         let first_content = nodes.get(start_idx);
-        let needs_anchor = matches!(
-            first_content,
-            Some(TemplateNode::Text(_)) | Some(TemplateNode::ExpressionTag(_))
-        );
+        let needs_anchor = add_text_anchor
+            && matches!(
+                first_content,
+                Some(TemplateNode::Text(_)) | Some(TemplateNode::ExpressionTag(_))
+            );
 
         if needs_anchor {
             body_generator.output_parts.push(OutputPart::Comment);

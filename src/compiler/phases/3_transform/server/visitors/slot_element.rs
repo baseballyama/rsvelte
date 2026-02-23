@@ -82,18 +82,22 @@ impl<'a> ServerCodeGenerator<'a> {
             format!("$.spread_props([{}])", parts.join(", "))
         };
 
-        // Generate fallback body if the slot has children (non-whitespace children)
-        use crate::compiler::phases::phase3_transform::utils::is_svelte_whitespace_only;
-        let has_meaningful_children = node.fragment.nodes.iter().any(|n| {
-            !matches!(n, crate::ast::template::TemplateNode::Text(t) if is_svelte_whitespace_only(&t.data))
-            && !matches!(n, crate::ast::template::TemplateNode::Comment(_))
-        });
-        let fallback = if has_meaningful_children {
+        // Generate fallback body if the slot has children (non-whitespace children).
+        // Note: slot fallback content corresponds to SlotElement parent in the official compiler,
+        // which does NOT set is_text_first=true, so we do NOT add a <!---> anchor before
+        // expression/text content (unlike the root Fragment which does add an anchor).
+        let frag_nodes: Vec<_> = node.fragment.nodes.iter().collect();
+        let fallback = {
+            // generate_children_from_nodes trims whitespace and does NOT add a <!---> anchor
+            // for expression-first content (unlike generate_component which does add one).
             let mut child_gen = self.new_child_generator(false);
-            child_gen.generate_component(&node.fragment)?;
-            Some(child_gen.output_parts)
-        } else {
-            None
+            match child_gen.generate_children_from_nodes_no_anchor(&frag_nodes)? {
+                Some(parts) if !parts.is_empty() => {
+                    child_gen.output_parts = parts;
+                    Some(child_gen.output_parts)
+                }
+                _ => None,
+            }
         };
 
         self.output_parts.push(OutputPart::Slot {

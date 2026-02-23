@@ -1182,7 +1182,8 @@ fn normalize_consecutive_declarations(code: &str) -> String {
     // and replace it with ", " to combine declarations.
     // The character class includes ', ", and ` to handle string/template literal values before let.
     // Character class: alphanumeric, _, $, ), and closing quote chars (', ", `)
-    let re = regex::Regex::new("([a-zA-Z0-9_\\$\\)'\"` ])\\s+let\\s+").unwrap();
+    // Note: no space in the character class to avoid over-matching (e.g. `} let` -> `, `)
+    let re = regex::Regex::new("([a-zA-Z0-9_\\$\\)'\"`])\\s+let\\s+").unwrap();
     re.replace_all(code, "$1, ").to_string()
 }
 
