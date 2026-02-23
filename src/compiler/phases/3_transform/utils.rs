@@ -3,11 +3,13 @@
 //! Corresponds to utilities in:
 //! - `svelte/packages/svelte/src/compiler/phases/3-transform/utils.js`
 
+use crate::ast::js::Expression;
 use crate::ast::template::{Attribute, RegularElement, TemplateNode};
 use crate::compiler::phases::phase2_analyze::scope::Scope;
 use crate::compiler::phases::phase2_analyze::types::ComponentAnalysis;
 use compact_str::CompactString;
 use regex::Regex;
+use std::collections::HashMap;
 use std::sync::LazyLock;
 
 /// Regex for text that is not whitespace (matches Svelte's definition: only space/tab/CR/LF are whitespace,
@@ -71,6 +73,393 @@ pub fn svelte_trim_end(s: &str) -> &str {
     &s[..end]
 }
 
+/// Sort ConstTag nodes in topological order based on their dependencies.
+///
+/// Corresponds to `sort_const_tags` in
+/// `svelte/packages/svelte/src/compiler/phases/3-transform/utils.js`.
+///
+/// This is only needed in legacy (non-runes) mode to match Svelte 4 behavior
+/// where const declarations can reference each other in any order.
+fn sort_const_tags(nodes: Vec<TemplateNode>) -> Vec<TemplateNode> {
+    // Collect const tags with their indices, declared names, and dependencies
+    struct ConstTagInfo {
+        index: usize,
+        declared_names: Vec<String>,
+        deps: Vec<String>,
+    }
+
+    let mut const_infos: Vec<ConstTagInfo> = Vec::new();
+    let mut other_indices: Vec<usize> = Vec::new();
+
+    for (i, node) in nodes.iter().enumerate() {
+        if let TemplateNode::ConstTag(tag) = node {
+            let (declared, referenced) = extract_const_tag_names_and_deps(&tag.declaration);
+            const_infos.push(ConstTagInfo {
+                index: i,
+                declared_names: declared,
+                deps: referenced,
+            });
+        } else {
+            other_indices.push(i);
+        }
+    }
+
+    if const_infos.len() <= 1 {
+        return nodes;
+    }
+
+    // Build a map from declared name to const tag index (within const_infos)
+    let mut name_to_tag: HashMap<&str, usize> = HashMap::new();
+    for (tag_idx, info) in const_infos.iter().enumerate() {
+        for name in &info.declared_names {
+            name_to_tag.insert(name.as_str(), tag_idx);
+        }
+    }
+
+    // Build dependency edges: for each const tag, find which other const tags it depends on
+    let n = const_infos.len();
+    let mut dep_indices: Vec<Vec<usize>> = vec![Vec::new(); n];
+
+    for (tag_idx, info) in const_infos.iter().enumerate() {
+        for dep_name in &info.deps {
+            if let Some(&dep_tag_idx) = name_to_tag.get(dep_name.as_str())
+                && dep_tag_idx != tag_idx
+            {
+                dep_indices[tag_idx].push(dep_tag_idx);
+            }
+        }
+    }
+
+    // Topological sort (DFS-based, matching the official implementation's `add` function)
+    let mut sorted_tag_indices: Vec<usize> = Vec::with_capacity(n);
+    let mut visited = vec![false; n];
+
+    fn visit(
+        idx: usize,
+        dep_indices: &[Vec<usize>],
+        visited: &mut Vec<bool>,
+        sorted: &mut Vec<usize>,
+    ) {
+        if visited[idx] {
+            return;
+        }
+        visited[idx] = true;
+
+        // Visit dependencies first
+        for &dep in &dep_indices[idx] {
+            visit(dep, dep_indices, visited, sorted);
+        }
+
+        sorted.push(idx);
+    }
+
+    for i in 0..n {
+        visit(i, &dep_indices, &mut visited, &mut sorted_tag_indices);
+    }
+
+    // Build result: sorted const tags first, then other nodes in original order
+    // This matches the official implementation: [...sorted, ...other]
+    let mut result: Vec<TemplateNode> = Vec::with_capacity(nodes.len());
+
+    // We need to consume `nodes` to move elements out
+    // Convert to a vec of Option so we can take elements
+    let mut nodes_opt: Vec<Option<TemplateNode>> = nodes.into_iter().map(Some).collect();
+
+    // Add sorted const tags first
+    for &tag_idx in &sorted_tag_indices {
+        let original_index = const_infos[tag_idx].index;
+        if let Some(node) = nodes_opt[original_index].take() {
+            result.push(node);
+        }
+    }
+
+    // Add other nodes in original order
+    for &other_idx in &other_indices {
+        if let Some(node) = nodes_opt[other_idx].take() {
+            result.push(node);
+        }
+    }
+
+    result
+}
+
+/// Extract declared names and referenced identifiers from a ConstTag declaration.
+///
+/// Returns (declared_names, referenced_identifiers).
+fn extract_const_tag_names_and_deps(declaration: &Expression) -> (Vec<String>, Vec<String>) {
+    match declaration {
+        Expression::Value(json_value) => {
+            let obj = match json_value.as_object() {
+                Some(o) => o,
+                None => return (vec![], vec![]),
+            };
+            let expr_type = obj.get("type").and_then(|v| v.as_str()).unwrap_or("");
+
+            match expr_type {
+                "VariableDeclaration" => {
+                    let declarations = match obj.get("declarations").and_then(|v| v.as_array()) {
+                        Some(d) => d,
+                        None => return (vec![], vec![]),
+                    };
+                    if declarations.is_empty() {
+                        return (vec![], vec![]);
+                    }
+                    let first_decl = match declarations[0].as_object() {
+                        Some(d) => d,
+                        None => return (vec![], vec![]),
+                    };
+                    let id = match first_decl.get("id") {
+                        Some(id) => id,
+                        None => return (vec![], vec![]),
+                    };
+                    let init = match first_decl.get("init") {
+                        Some(init) => init,
+                        None => return (vec![], vec![]),
+                    };
+
+                    let mut declared = Vec::new();
+                    collect_identifiers_from_json_pattern(id, &mut declared);
+
+                    let mut referenced = Vec::new();
+                    collect_identifiers_from_json_expr(init, &mut referenced);
+
+                    (declared, referenced)
+                }
+                "AssignmentExpression" => {
+                    let left = match obj.get("left") {
+                        Some(l) => l,
+                        None => return (vec![], vec![]),
+                    };
+                    let right = match obj.get("right") {
+                        Some(r) => r,
+                        None => return (vec![], vec![]),
+                    };
+
+                    let mut declared = Vec::new();
+                    collect_identifiers_from_json_pattern(left, &mut declared);
+
+                    let mut referenced = Vec::new();
+                    collect_identifiers_from_json_expr(right, &mut referenced);
+
+                    (declared, referenced)
+                }
+                _ => (vec![], vec![]),
+            }
+        }
+    }
+}
+
+/// Collect all identifier names from a JSON pattern (destructuring or simple identifier).
+fn collect_identifiers_from_json_pattern(pattern: &serde_json::Value, out: &mut Vec<String>) {
+    let pat_type = pattern.get("type").and_then(|v| v.as_str());
+    match pat_type {
+        Some("Identifier") => {
+            if let Some(name) = pattern.get("name").and_then(|v| v.as_str()) {
+                out.push(name.to_string());
+            }
+        }
+        Some("ObjectPattern") | Some("ObjectExpression") => {
+            if let Some(properties) = pattern.get("properties").and_then(|v| v.as_array()) {
+                for prop in properties {
+                    let prop_type = prop.get("type").and_then(|v| v.as_str());
+                    if prop_type == Some("RestElement") || prop_type == Some("SpreadElement") {
+                        if let Some(arg) = prop.get("argument") {
+                            collect_identifiers_from_json_pattern(arg, out);
+                        }
+                    } else if let Some(value) = prop.get("value") {
+                        collect_identifiers_from_json_pattern(value, out);
+                    }
+                }
+            }
+        }
+        Some("ArrayPattern") | Some("ArrayExpression") => {
+            if let Some(elements) = pattern.get("elements").and_then(|v| v.as_array()) {
+                for elem in elements {
+                    if !elem.is_null() {
+                        collect_identifiers_from_json_pattern(elem, out);
+                    }
+                }
+            }
+        }
+        Some("RestElement") | Some("SpreadElement") => {
+            if let Some(arg) = pattern.get("argument") {
+                collect_identifiers_from_json_pattern(arg, out);
+            }
+        }
+        Some("AssignmentPattern") | Some("AssignmentExpression") => {
+            if let Some(left) = pattern.get("left") {
+                collect_identifiers_from_json_pattern(left, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Collect all identifier names referenced in a JSON expression (for dependency analysis).
+/// This walks the expression AST to find all Identifier nodes that are references.
+fn collect_identifiers_from_json_expr(expr: &serde_json::Value, out: &mut Vec<String>) {
+    let expr_type = match expr.get("type").and_then(|v| v.as_str()) {
+        Some(t) => t,
+        None => {
+            // Handle arrays (e.g., function arguments)
+            if let Some(arr) = expr.as_array() {
+                for item in arr {
+                    collect_identifiers_from_json_expr(item, out);
+                }
+            }
+            return;
+        }
+    };
+
+    match expr_type {
+        "Identifier" => {
+            if let Some(name) = expr.get("name").and_then(|v| v.as_str()) {
+                // Skip JS keywords/literals
+                if !is_js_keyword_or_literal(name) {
+                    out.push(name.to_string());
+                }
+            }
+        }
+        "MemberExpression" => {
+            // Only walk the object part, not the property (when not computed)
+            if let Some(object) = expr.get("object") {
+                collect_identifiers_from_json_expr(object, out);
+            }
+            // For computed properties like a[b], also walk the property
+            if expr
+                .get("computed")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false)
+                && let Some(property) = expr.get("property")
+            {
+                collect_identifiers_from_json_expr(property, out);
+            }
+        }
+        "BinaryExpression" | "LogicalExpression" => {
+            if let Some(left) = expr.get("left") {
+                collect_identifiers_from_json_expr(left, out);
+            }
+            if let Some(right) = expr.get("right") {
+                collect_identifiers_from_json_expr(right, out);
+            }
+        }
+        "UnaryExpression" | "UpdateExpression" => {
+            if let Some(arg) = expr.get("argument") {
+                collect_identifiers_from_json_expr(arg, out);
+            }
+        }
+        "ConditionalExpression" => {
+            if let Some(test) = expr.get("test") {
+                collect_identifiers_from_json_expr(test, out);
+            }
+            if let Some(consequent) = expr.get("consequent") {
+                collect_identifiers_from_json_expr(consequent, out);
+            }
+            if let Some(alternate) = expr.get("alternate") {
+                collect_identifiers_from_json_expr(alternate, out);
+            }
+        }
+        "CallExpression" | "NewExpression" => {
+            if let Some(callee) = expr.get("callee") {
+                collect_identifiers_from_json_expr(callee, out);
+            }
+            if let Some(args) = expr.get("arguments").and_then(|v| v.as_array()) {
+                for arg in args {
+                    collect_identifiers_from_json_expr(arg, out);
+                }
+            }
+        }
+        "ArrayExpression" => {
+            if let Some(elements) = expr.get("elements").and_then(|v| v.as_array()) {
+                for elem in elements {
+                    if !elem.is_null() {
+                        collect_identifiers_from_json_expr(elem, out);
+                    }
+                }
+            }
+        }
+        "ObjectExpression" => {
+            if let Some(properties) = expr.get("properties").and_then(|v| v.as_array()) {
+                for prop in properties {
+                    // For computed keys, walk the key
+                    if prop
+                        .get("computed")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false)
+                        && let Some(key) = prop.get("key")
+                    {
+                        collect_identifiers_from_json_expr(key, out);
+                    }
+                    if let Some(value) = prop.get("value") {
+                        collect_identifiers_from_json_expr(value, out);
+                    }
+                }
+            }
+        }
+        "SpreadElement" => {
+            if let Some(arg) = expr.get("argument") {
+                collect_identifiers_from_json_expr(arg, out);
+            }
+        }
+        "TemplateLiteral" => {
+            if let Some(expressions) = expr.get("expressions").and_then(|v| v.as_array()) {
+                for expression in expressions {
+                    collect_identifiers_from_json_expr(expression, out);
+                }
+            }
+        }
+        "TaggedTemplateExpression" => {
+            if let Some(tag) = expr.get("tag") {
+                collect_identifiers_from_json_expr(tag, out);
+            }
+            if let Some(quasi) = expr.get("quasi") {
+                collect_identifiers_from_json_expr(quasi, out);
+            }
+        }
+        "ArrowFunctionExpression" | "FunctionExpression" => {
+            // Don't walk into function bodies for dependency analysis
+            // The function's own parameters shadow outer bindings
+        }
+        "SequenceExpression" => {
+            if let Some(expressions) = expr.get("expressions").and_then(|v| v.as_array()) {
+                for expression in expressions {
+                    collect_identifiers_from_json_expr(expression, out);
+                }
+            }
+        }
+        "AssignmentExpression" => {
+            if let Some(right) = expr.get("right") {
+                collect_identifiers_from_json_expr(right, out);
+            }
+        }
+        _ => {
+            // For unknown types, try to walk common child fields
+        }
+    }
+}
+
+/// Check if a string is a JavaScript keyword or built-in literal.
+fn is_js_keyword_or_literal(s: &str) -> bool {
+    matches!(
+        s,
+        "true"
+            | "false"
+            | "null"
+            | "undefined"
+            | "this"
+            | "NaN"
+            | "Infinity"
+            | "arguments"
+            | "new"
+            | "typeof"
+            | "instanceof"
+            | "void"
+            | "delete"
+            | "in"
+            | "of"
+    )
+}
+
 /// Result of cleaning nodes.
 #[derive(Debug, Clone)]
 pub struct CleanedNodes {
@@ -118,10 +507,20 @@ pub fn clean_nodes(
     _path: &[&TemplateNode],
     namespace: &str,
     _scope: &Scope,
-    _analysis: &ComponentAnalysis,
+    analysis: &ComponentAnalysis,
     preserve_whitespace: bool,
     preserve_comments: bool,
 ) -> CleanedNodes {
+    // Sort const tags topologically in legacy (non-runes) mode
+    // This matches the official compiler's behavior in clean_nodes (utils.js line 138-139)
+    let sorted_nodes;
+    let nodes = if !analysis.runes {
+        sorted_nodes = sort_const_tags(nodes.to_vec());
+        &sorted_nodes
+    } else {
+        nodes
+    };
+
     // Pre-allocate based on input size
     let mut hoisted = Vec::with_capacity(nodes.len().min(8));
     let mut regular = Vec::with_capacity(nodes.len());

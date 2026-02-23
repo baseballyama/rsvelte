@@ -1787,8 +1787,10 @@ fn transform_instance_script_for_visitors(
     let mut result = String::new();
 
     // Collect reactive statements to append at end (mirroring official compiler behavior
-    // which appends all $: reactive statements AFTER the rest of instance body code)
-    let mut pending_reactive_statements: Vec<String> = Vec::new();
+    // which appends all $: reactive statements AFTER the rest of instance body code).
+    // Each entry is (assigned_vars, dependency_vars, transformed_code).
+    // After collection, these are topologically sorted by dependencies before emission.
+    let mut pending_reactive_statements: Vec<(Vec<String>, Vec<String>, String)> = Vec::new();
 
     // Track if we're inside a multi-line export block
     let mut in_export_block = false;
@@ -1800,7 +1802,7 @@ fn transform_instance_script_for_visitors(
     #[allow(clippy::too_many_arguments)]
     let process_accumulated = |accumulated: &[String],
                                result: &mut String,
-                               pending_reactive: &mut Vec<String>,
+                               pending_reactive: &mut Vec<(Vec<String>, Vec<String>, String)>,
                                state_vars: &[String],
                                non_reactive_state_vars: &[String],
                                proxy_vars: &[String],
@@ -1853,6 +1855,15 @@ fn transform_instance_script_for_visitors(
         // Handle $: reactive statements in legacy (non-runes) mode
         // Transform `$: c = a + b;` to `$.legacy_pre_effect(() => (...deps), () => { c(a() + b()); })`
         if !analysis.runes && first_line_trimmed.starts_with("$:") {
+            // Extract assignment targets and dependencies from the raw statement
+            // for topological sorting (matching official compiler's order_reactive_statements)
+            let (assigned_vars, dep_vars) = extract_reactive_statement_deps(
+                &statement,
+                state_vars,
+                prop_assignment_transform_vars,
+                store_sub_vars,
+            );
+
             let transformed = transform_reactive_statement(
                 &statement,
                 state_vars,
@@ -1878,7 +1889,7 @@ fn transform_instance_script_for_visitors(
             // which appends all reactive statements after the rest of instance body code)
             let mut reactive_code = transformed;
             reactive_code.push('\n');
-            pending_reactive.push(reactive_code);
+            pending_reactive.push((assigned_vars, dep_vars, reactive_code));
             return;
         }
 
@@ -2226,8 +2237,13 @@ fn transform_instance_script_for_visitors(
     // appends all $: reactive statements AFTER the rest of the instance body code.
     // See: svelte/packages/svelte/src/compiler/phases/3-transform/client/transform-client.js
     // which does: `for (const [node] of analysis.reactive_statements) { instance.body.push(...) }`
+    //
+    // The official compiler topologically sorts reactive statements in Phase 2
+    // (order_reactive_statements in 2-analyze/index.js) and then iterates them
+    // in that sorted order. We perform the topological sort here at emission time.
     if !pending_reactive_statements.is_empty() {
-        for reactive_stmt in &pending_reactive_statements {
+        let sorted = sort_reactive_statements(pending_reactive_statements);
+        for (_, _, reactive_stmt) in &sorted {
             result.push_str(reactive_stmt);
         }
     }
@@ -3750,6 +3766,168 @@ fn find_derived_property_colon(prop: &str) -> Option<usize> {
         }
     }
     None
+}
+
+/// Extract assigned variable names and dependency variable names from a raw `$:` reactive statement.
+///
+/// This is used for topological sorting of reactive statements.
+/// Returns (assigned_vars, dependency_vars).
+///
+/// For `$: c = a + b;`, returns (["c"], ["a", "b"])
+/// For `$: console.log(x);`, returns ([], ["console", "x"])
+fn extract_reactive_statement_deps(
+    statement: &str,
+    state_vars: &[String],
+    prop_vars: &[String],
+    store_sub_vars: &[String],
+) -> (Vec<String>, Vec<String>) {
+    let trimmed = statement.trim();
+
+    // Extract the body after `$:`
+    let body = if let Some(stripped) = trimmed.strip_prefix("$:") {
+        stripped.trim()
+    } else {
+        return (vec![], vec![]);
+    };
+
+    let body = body.trim_end_matches(';').trim();
+    if body.is_empty() {
+        return (vec![], vec![]);
+    }
+
+    // All known reactive variable names (state vars + prop vars + store subs)
+    // These are the variables that participate in the reactive dependency graph
+    let all_reactive_vars: Vec<&str> = state_vars
+        .iter()
+        .chain(prop_vars.iter())
+        .chain(store_sub_vars.iter())
+        .map(|s| s.as_str())
+        .collect();
+
+    let mut assigned_vars = Vec::new();
+    let mut dep_vars = Vec::new();
+
+    // Check if this is an assignment statement
+    if let Some(eq_pos) = find_assignment_position(body) {
+        let lhs = body[..eq_pos].trim();
+        let rhs = body[eq_pos + 1..].trim();
+
+        // Extract assigned variable from LHS
+        // Simple identifier: `c = ...`
+        if is_simple_identifier(lhs) {
+            assigned_vars.push(lhs.to_string());
+        } else {
+            // Could be a member expression like `obj.prop = ...`
+            // Extract the base identifier
+            if let Some(base) = extract_member_expression_base(lhs) {
+                assigned_vars.push(base.to_string());
+            }
+        }
+
+        // Extract dependencies from RHS
+        for var_name in &all_reactive_vars {
+            if body_references_identifier(rhs, var_name) {
+                // Only add as dependency if it's not also being assigned
+                if !assigned_vars.contains(&var_name.to_string()) {
+                    dep_vars.push(var_name.to_string());
+                }
+            }
+        }
+    } else {
+        // Not a simple assignment - expression statement like `console.log(x)`
+        // All referenced reactive vars are dependencies
+        for var_name in &all_reactive_vars {
+            if body_references_identifier(body, var_name) {
+                dep_vars.push(var_name.to_string());
+            }
+        }
+    }
+
+    (assigned_vars, dep_vars)
+}
+
+/// Topologically sort reactive statements based on their dependencies.
+///
+/// Corresponds to `order_reactive_statements()` in Svelte's `2-analyze/index.js`.
+///
+/// Each entry is (assigned_vars, dependency_vars, transformed_code).
+/// Returns the same entries in topologically sorted order.
+fn sort_reactive_statements(
+    statements: Vec<(Vec<String>, Vec<String>, String)>,
+) -> Vec<(Vec<String>, Vec<String>, String)> {
+    if statements.len() <= 1 {
+        return statements;
+    }
+
+    let n = statements.len();
+
+    // Build a lookup: variable name -> indices of statements that assign to it
+    let mut assign_lookup: std::collections::HashMap<&str, Vec<usize>> =
+        std::collections::HashMap::new();
+    for (i, (assigned, _, _)) in statements.iter().enumerate() {
+        for var_name in assigned {
+            assign_lookup.entry(var_name.as_str()).or_default().push(i);
+        }
+    }
+
+    // For each statement, find which other statements it depends on
+    let mut dep_indices: Vec<Vec<usize>> = vec![Vec::new(); n];
+    for (i, (assigned, deps, _)) in statements.iter().enumerate() {
+        for dep_name in deps {
+            // Skip self-dependencies (assigned vars that are also deps)
+            if assigned.contains(dep_name) {
+                continue;
+            }
+            if let Some(assigner_indices) = assign_lookup.get(dep_name.as_str()) {
+                for &j in assigner_indices {
+                    if j != i {
+                        dep_indices[i].push(j);
+                    }
+                }
+            }
+        }
+    }
+
+    // Topological sort (DFS-based, matching the official implementation's add_declaration function)
+    let mut sorted_indices: Vec<usize> = Vec::with_capacity(n);
+    let mut visited = vec![false; n];
+
+    fn visit(
+        idx: usize,
+        dep_indices: &[Vec<usize>],
+        visited: &mut Vec<bool>,
+        sorted: &mut Vec<usize>,
+    ) {
+        if visited[idx] {
+            return;
+        }
+        visited[idx] = true;
+
+        // Visit dependencies first
+        for &dep in &dep_indices[idx] {
+            visit(dep, dep_indices, visited, sorted);
+        }
+
+        sorted.push(idx);
+    }
+
+    for i in 0..n {
+        visit(i, &dep_indices, &mut visited, &mut sorted_indices);
+    }
+
+    // Reconstruct the result in sorted order
+    #[allow(clippy::type_complexity)]
+    let mut statements_opt: Vec<Option<(Vec<String>, Vec<String>, String)>> =
+        statements.into_iter().map(Some).collect();
+    let mut result = Vec::with_capacity(n);
+
+    for &idx in &sorted_indices {
+        if let Some(entry) = statements_opt[idx].take() {
+            result.push(entry);
+        }
+    }
+
+    result
 }
 
 /// Transform a `$:` reactive statement to `$.legacy_pre_effect()` call.
