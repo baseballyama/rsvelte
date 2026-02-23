@@ -263,11 +263,26 @@ fn normalize_template_whitespace(text: &str) -> String {
     result
 }
 
+/// Check if a string contains only Svelte's whitespace characters.
+/// Matches Svelte's `regex_not_whitespace = /[^ \t\r\n]/` behavior:
+/// Only space (0x20), tab (0x09), CR (0x0D), and LF (0x0A) are considered whitespace.
+/// This intentionally does NOT treat \xA0 (non-breaking space) as whitespace.
+fn is_svelte_whitespace_only(s: &str) -> bool {
+    // Check if every character is one of: space, tab, carriage return, newline
+    s.chars()
+        .all(|c| c == ' ' || c == '\t' || c == '\r' || c == '\n')
+}
+
 /// Stringify element children with proper whitespace handling.
 /// - Trims leading whitespace from the first child (if text)
 /// - Trims trailing whitespace from the last child (if text)
 /// - Normalizes internal whitespace
 /// - Preserves single-space placeholders for dynamic text nodes
+///
+/// Mirrors Svelte's `clean_nodes` behavior: whitespace is analyzed using the DECODED
+/// text (`data` field), but the RAW text is output in the template. When the decoded
+/// text is whitespace-only, the text node is dropped entirely (matching clean_nodes
+/// which shifts out whitespace-only text nodes before trimming).
 fn stringify_children(children: &[Node]) -> String {
     let mut result = String::new();
 
@@ -277,27 +292,48 @@ fn stringify_children(children: &[Node]) -> String {
 
         match child {
             Node::Text(text) => {
-                let raw_text: String = text.nodes.iter().map(|node| &node.raw).cloned().collect();
-                let normalized = normalize_template_whitespace(&raw_text);
+                let raw_text: String = text.nodes.iter().map(|node| node.raw.as_str()).collect();
+                let normalized_raw = normalize_template_whitespace(&raw_text);
 
                 // Special case: preserve single-space placeholder for dynamic text nodes
                 // This is used when there's an expression tag that will be replaced at runtime
                 // Important: Preserve the space regardless of position - it's a placeholder that
                 // should not be trimmed (unlike regular whitespace)
-                if normalized == " " {
+                if normalized_raw == " " {
                     result.push(' ');
                     continue;
                 }
 
+                // Use decoded `data` for whitespace analysis.
+                // Mirrors Svelte's clean_nodes: whitespace-only text nodes (per decoded data)
+                // are removed entirely (shifted out) before other whitespace processing.
+                let decoded_text: String =
+                    text.nodes.iter().map(|node| node.data.as_str()).collect();
+                let normalized_decoded = normalize_template_whitespace(&decoded_text);
+
+                // If the decoded text is all whitespace, drop this text node entirely.
+                // This mirrors Svelte's clean_nodes which uses:
+                //   regex_not_whitespace = /[^ \t\r\n]/   (only space, tab, CR, LF are whitespace)
+                // NOTE: Non-breaking space (\xA0) is NOT treated as whitespace by Svelte.
+                if is_svelte_whitespace_only(&normalized_decoded) {
+                    continue;
+                }
+
                 // Trim leading whitespace if this is the first child
+                // Use Svelte-compatible whitespace: only space, tab, CR, LF
+                let svelte_ws = [' ', '\t', '\r', '\n'];
                 let trimmed = if is_first {
-                    normalized.trim_start()
+                    normalized_raw.trim_start_matches(svelte_ws.as_slice())
                 } else {
-                    &normalized
+                    &normalized_raw
                 };
 
                 // Trim trailing whitespace if this is the last child
-                let final_text = if is_last { trimmed.trim_end() } else { trimmed };
+                let final_text = if is_last {
+                    trimmed.trim_end_matches(svelte_ws.as_slice())
+                } else {
+                    trimmed
+                };
 
                 result.push_str(final_text);
             }

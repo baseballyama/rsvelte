@@ -20,6 +20,7 @@
 #![allow(dead_code)]
 
 // Re-export from sibling module
+use super::entities_data::decode_legacy_named_entity;
 pub use super::entities_data::decode_named_entity;
 use super::html::validate_code;
 
@@ -89,6 +90,11 @@ pub fn decode_entity(entity: &str) -> Option<String> {
 ///
 /// Corresponds to `decode_character_references` in Svelte's `utils/html.js`.
 ///
+/// The Svelte implementation uses a regex built from all entity names (including both
+/// `copy;` and `copy` for entities that have both forms). For named entities without
+/// semicolons, this means finding the longest prefix match in the entity table.
+/// For numeric entities, the semicolon is optional.
+///
 /// # Arguments
 /// * `s` - The string containing HTML entities
 /// * `is_attribute_value` - If true, applies attribute value decoding rules per HTML spec:
@@ -115,42 +121,76 @@ pub fn decode_html_entities(s: &str, is_attribute_value: bool) -> String {
             // Check for numeric entity
             let is_numeric = i < len && bytes[i] == b'#';
 
-            while i < len {
-                let b = bytes[i];
-                if b == b';' {
-                    found_semicolon = true;
-                    i += 1;
-                    break;
-                }
-                // Valid entity character
-                if is_numeric {
-                    // For numeric: #, digits, x, X
-                    if b.is_ascii_alphanumeric() || b == b'#' {
-                        i += 1;
-                    } else {
-                        break;
+            if is_numeric {
+                // Collect '#' first
+                i += 1;
+                // Check if hex (#x...) or decimal (#d...)
+                let is_hex = i < len && (bytes[i] == b'x' || bytes[i] == b'X');
+                if is_hex {
+                    i += 1; // consume 'x' or 'X'
+                    // Collect hex digits only
+                    while i < len {
+                        let b = bytes[i];
+                        if b == b';' {
+                            found_semicolon = true;
+                            i += 1;
+                            break;
+                        }
+                        if b.is_ascii_hexdigit() {
+                            i += 1;
+                        } else {
+                            break;
+                        }
+                        if i - entity_start > 20 {
+                            break;
+                        }
                     }
                 } else {
-                    // For named: alphanumeric
+                    // Collect decimal digits only
+                    while i < len {
+                        let b = bytes[i];
+                        if b == b';' {
+                            found_semicolon = true;
+                            i += 1;
+                            break;
+                        }
+                        if b.is_ascii_digit() {
+                            i += 1;
+                        } else {
+                            break;
+                        }
+                        if i - entity_start > 15 {
+                            break;
+                        }
+                    }
+                }
+            } else {
+                // Named entity: collect alphanumeric (including semicolons/colons not present)
+                while i < len {
+                    let b = bytes[i];
+                    if b == b';' {
+                        found_semicolon = true;
+                        i += 1;
+                        break;
+                    }
                     if b.is_ascii_alphanumeric() {
                         i += 1;
                     } else {
                         break;
                     }
-                }
-
-                // Limit entity length to prevent DoS
-                if i - entity_start > 32 {
-                    break;
+                    // Limit entity length to prevent DoS
+                    if i - entity_start > 50 {
+                        break;
+                    }
                 }
             }
 
             let entity = &s[entity_start..i];
 
             // Try to decode
-            let decoded = if found_semicolon {
+            if found_semicolon {
                 let entity_without_semi = &entity[..entity.len() - 1];
-                if is_numeric {
+                let decoded = if is_numeric {
                     // Strip the # prefix for numeric entities
                     let num_str = entity_without_semi
                         .strip_prefix('#')
@@ -158,30 +198,59 @@ pub fn decode_html_entities(s: &str, is_attribute_value: bool) -> String {
                     decode_numeric_entity(num_str).map(|c| c.to_string())
                 } else {
                     decode_named_entity(entity_without_semi)
+                };
+                if let Some(decoded) = decoded {
+                    result.push_str(&decoded);
+                } else {
+                    // Unknown entity with semicolon, output as-is
+                    result.push_str(&s[start..i]);
+                }
+            } else if is_numeric {
+                // Numeric entity without semicolon: semicolon is optional for numeric entities.
+                // Matches Svelte's regex: #(?:x[a-fA-F\d]+|\d+)(?:;)?
+                let num_str = entity.strip_prefix('#').unwrap_or(entity);
+                if let Some(c) = decode_numeric_entity(num_str) {
+                    result.push(c);
+                } else {
+                    // Invalid numeric entity, output as-is
+                    result.push_str(&s[start..i]);
                 }
             } else {
-                // For attribute values without semicolon, check if we should skip decoding
-                // Per HTML spec, don't decode if followed by '=' or alphanumeric (word boundary check)
-                if is_attribute_value && i < len {
-                    let next_byte = bytes[i];
-                    if next_byte == b'=' || next_byte.is_ascii_alphanumeric() {
-                        // Don't decode, output as-is
-                        None
+                // Named entity without semicolon.
+                // Per Svelte's entity table, some entities exist without semicolons (e.g., `copy`, `amp`).
+                // We need to find the longest prefix of `entity` that matches an entity in the table.
+                // In attribute mode, don't decode if the match is followed by `=` or alphanumeric
+                // (implements \b(?!=) word boundary behavior from Svelte's regex).
+                let longest_match = find_longest_named_entity_prefix(entity);
+
+                if let Some((matched_len, decoded)) = longest_match {
+                    let next_pos = entity_start + matched_len;
+                    let next_byte_after_match = if next_pos < len {
+                        Some(bytes[next_pos])
                     } else {
-                        // Try legacy decode
-                        decode_legacy_entity(&s[entity_start..i])
+                        None
+                    };
+
+                    // In attribute value mode, don't decode if followed by '=' or alphanumeric
+                    // (word boundary check from HTML spec)
+                    let should_skip = is_attribute_value
+                        && next_byte_after_match
+                            .map(|b| b == b'=' || b.is_ascii_alphanumeric())
+                            .unwrap_or(false);
+
+                    if should_skip {
+                        // Output as-is (including any chars collected but not consumed)
+                        result.push_str(&s[start..i]);
+                    } else {
+                        // Output decoded entity, then rewind i to consume only matched_len chars
+                        result.push_str(&decoded);
+                        // Rewind: we advanced i past all alphanumeric chars, but only consumed matched_len
+                        i = entity_start + matched_len;
                     }
                 } else {
-                    // Legacy: try common entities without semicolon
-                    decode_legacy_entity(&s[entity_start..i])
+                    // No matching entity, output as-is
+                    result.push_str(&s[start..i]);
                 }
-            };
-
-            if let Some(decoded) = decoded {
-                result.push_str(&decoded);
-            } else {
-                // Not a valid entity, output as-is
-                result.push_str(&s[start..i]);
             }
         } else {
             // Regular character - need to handle UTF-8 properly
@@ -192,6 +261,31 @@ pub fn decode_html_entities(s: &str, is_attribute_value: bool) -> String {
     }
 
     result
+}
+
+/// Find the longest prefix of `name` that is a known HTML legacy named entity (without semicolon).
+/// Only matches entities from the LEGACY_ENTITIES table (entities that appear without `;` in
+/// Svelte's entities.js source). This mirrors Svelte's regex approach where only specific
+/// entities can be matched without a trailing semicolon.
+/// Returns `(matched_len, decoded_string)` for the best match, or None if no match.
+fn find_longest_named_entity_prefix(name: &str) -> Option<(usize, String)> {
+    let mut best: Option<(usize, String)> = None;
+
+    // Try all prefix lengths from longest to shortest
+    for end in (1..=name.len()).rev() {
+        // Make sure we're at a character boundary
+        if !name.is_char_boundary(end) {
+            continue;
+        }
+        let prefix = &name[..end];
+        // Only match entities that explicitly appear without semicolons in the entities source
+        if let Some(decoded) = decode_legacy_named_entity(prefix) {
+            best = Some((end, decoded));
+            break; // Take the longest match
+        }
+    }
+
+    best
 }
 
 /// Decode legacy entities (without semicolon).

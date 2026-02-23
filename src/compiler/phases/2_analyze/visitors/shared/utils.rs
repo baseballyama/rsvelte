@@ -1466,6 +1466,18 @@ pub fn walk_js_expression(
     match expr_type {
         Some("Identifier") => {
             if let Some(name) = expression.get("name").and_then(|n| n.as_str()) {
+                // Handle legacy mode special variables ($$props, $$restProps) early,
+                // because these may not have registered bindings in scope.
+                // This mirrors the detection in identifier::visit.
+                if !context.analysis.runes {
+                    if name == "$$props" {
+                        context.analysis.uses_props = true;
+                    }
+                    if name == "$$restProps" {
+                        context.analysis.uses_rest_props = true;
+                    }
+                }
+
                 // Check for store scoped subscription errors
                 // When we see a $xxx identifier inside a function, check if xxx
                 // refers to a locally-scoped variable that shadows an outer store
@@ -1575,6 +1587,28 @@ pub fn walk_js_expression(
             // Corresponds to MemberExpression.js line 23-24
             if !is_safe_identifier(expression, context) {
                 context.analysis.needs_context = true;
+            }
+
+            // In non-runes (legacy) mode, $$props and $$restProps member accesses
+            // always require component context ($$renderer.component() wrapper).
+            // The official Svelte compiler registers $$props/$$restProps as synthetic
+            // 'rest_prop' bindings which makes is_safe_identifier return false.
+            // We replicate this behavior explicitly since we don't add synthetic bindings.
+            if !context.analysis.runes {
+                let mut base = expression;
+                while base.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
+                    if let Some(obj) = base.get("object") {
+                        base = obj;
+                    } else {
+                        break;
+                    }
+                }
+                if base.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
+                    let name = base.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                    if name == "$$props" || name == "$$restProps" {
+                        context.analysis.needs_context = true;
+                    }
+                }
             }
 
             // Recursively visit object and property

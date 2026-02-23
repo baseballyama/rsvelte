@@ -75,6 +75,29 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         context.analysis.needs_context = true;
     }
 
+    // In non-runes (legacy) mode, $$props and $$restProps are synthetic 'rest_prop' bindings
+    // in the official Svelte compiler. Accessing them through member expressions like
+    // `$$props.foo` is always "unsafe" and requires component context.
+    // We handle this explicitly here since we don't add synthetic bindings to scope.
+    // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/index.js L771-772
+    if !context.analysis.runes {
+        // Check if the base object (through member expression chain) is $$props or $$restProps
+        let mut base = node;
+        while base.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
+            if let Some(obj) = base.get("object") {
+                base = obj;
+            } else {
+                break;
+            }
+        }
+        if base.get("type").and_then(|t| t.as_str()) == Some("Identifier") {
+            let name = base.get("name").and_then(|n| n.as_str()).unwrap_or("");
+            if name == "$$props" || name == "$$restProps" {
+                context.analysis.needs_context = true;
+            }
+        }
+    }
+
     // Visit children (object and property)
     // This is equivalent to context.next() in the JavaScript implementation
     if let Some(object) = node.get("object") {

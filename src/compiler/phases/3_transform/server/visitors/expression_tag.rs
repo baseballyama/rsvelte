@@ -38,6 +38,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     // Dynamic expression - needs escaping
                     // Transform store subscriptions ($store -> $.store_get())
                     let transformed = self.transform_store_refs(&expr_source);
+                    // Transform special legacy variables ($$props -> $$sanitized_props)
+                    let transformed = self.transform_special_vars(&transformed);
                     // Transform rune calls that need server-side handling
                     let transformed = Self::transform_rune_in_template_expr(&transformed);
                     // If this is a sequence (comma) expression at the top level, wrap in parens

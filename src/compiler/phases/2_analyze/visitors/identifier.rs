@@ -78,6 +78,17 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         context.analysis.uses_slots = true;
     }
 
+    // Handle legacy mode special variables ($$props, $$restProps) early,
+    // before the binding lookup, because these may not have registered bindings.
+    if !context.analysis.runes {
+        if name == "$$props" {
+            context.analysis.uses_props = true;
+        }
+        if name == "$$restProps" {
+            context.analysis.uses_rest_props = true;
+        }
+    }
+
     // Handle runes in runes mode
     if context.analysis.runes && is_rune(name) {
         // Check if this is actually a rune (not a store subscription)

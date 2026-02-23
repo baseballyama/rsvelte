@@ -353,6 +353,27 @@ impl<'a> ServerCodeGenerator<'a> {
         result
     }
 
+    /// Transform special legacy variables in template expressions.
+    /// In server-side legacy mode, `$$props` should be replaced with `$$sanitized_props`
+    /// (as the official Svelte compiler does in its Identifier.js server visitor).
+    pub(crate) fn transform_special_vars(&self, expr: &str) -> String {
+        let analysis = match self.analysis {
+            Some(a) => a,
+            None => return expr.to_string(),
+        };
+
+        if analysis.runes {
+            return expr.to_string();
+        }
+
+        // Replace $$props with $$sanitized_props if uses_props is set
+        if analysis.uses_props && expr.contains("$$props") {
+            return replace_identifier_in_expr(expr, "$$props", "$$sanitized_props");
+        }
+
+        expr.to_string()
+    }
+
     /// Transform rune calls in template expressions for server-side rendering.
     /// Handles: $state.eager(x) -> x, $state.snapshot(x) -> $.snapshot(x),
     ///          $effect.tracking() -> false, $effect.pending() -> false

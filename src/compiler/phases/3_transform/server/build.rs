@@ -135,6 +135,12 @@ impl<'a> ServerCodeGenerator<'a> {
             // Apply class field transformation for $derived fields
             let rest = transform_class_fields_server(&rest);
 
+            // Transform special legacy variables ($$props -> $$sanitized_props) in user script code.
+            // This must happen BEFORE transform_export_let_declarations which generates $$props['x']
+            // patterns for prop access. By applying this first, we only transform user-written
+            // $$props references, not the generated ones.
+            let rest = self.transform_special_vars(&rest);
+
             // Collect reexported prop names from `export { x }` patterns only
             // (NOT from `export let x` which is handled by transform_export_let_declarations)
             // Collect (local_name, prop_name) pairs for `export { x as y }` patterns.
@@ -262,8 +268,10 @@ impl<'a> ServerCodeGenerator<'a> {
 
         let raw_output = if has_content {
             if needs_component_wrapper {
-                // Build props declarations ($$sanitized_props, $$restProps) - inside wrapper
-                let props_declarations = self.build_props_declarations(2);
+                // Build props declarations ($$sanitized_props, $$restProps) - OUTSIDE wrapper
+                // The official Svelte compiler places $$sanitized_props before the $$renderer.component()
+                // call so it's accessible in the wrapper via closure.
+                let props_declarations = self.build_props_declarations(1);
                 // Wrap in $$renderer.component() with proper destructuring
                 let inner_script = transform_props_spread(&script_code);
                 let mut each_counter: usize = 0;
@@ -319,8 +327,8 @@ impl<'a> ServerCodeGenerator<'a> {
                     r#"{async_import}import * as $ from 'svelte/internal/server';
 {imports_section}{snippets_section}{css_const_section}{module_section}
 export default function {component_name}($$renderer{props_param}) {{
-{css_add_call}	$$renderer.component(($$renderer) => {{
-{props_declarations}{store_subs_decl}{inner_script}
+{css_add_call}{props_declarations}	$$renderer.component(($$renderer) => {{
+{store_subs_decl}{inner_script}
 {instance_snippets}{inner_body}{store_subs_cleanup}{bind_props_code}	}});
 }}"#,
                     async_import = async_import,
@@ -454,6 +462,7 @@ export default function {component_name}($$renderer{props_param}) {{
         }
     }
 
+    #[allow(dead_code)]
     /// Hoist ConstDeclaration parts to the front of a parts slice.
     /// This mirrors the official Svelte compiler's behavior where @const declarations
     /// are pushed to state.init (before template) in the EachBlock visitor.
@@ -467,6 +476,44 @@ export default function {component_name}($$renderer{props_param}) {{
                 rest.push(part.clone());
             }
         }
+        consts.extend(rest);
+        consts
+    }
+
+    /// Hoist ConstDeclaration parts to the front AND strip whitespace-only Html parts
+    /// that appear interspersed among ConstDeclarations. This is needed for if-block bodies
+    /// where the official compiler removes whitespace text nodes between @const declarations.
+    ///
+    /// The approach: scan through parts, collect ConstDeclarations and skip whitespace-only
+    /// Html parts that appear in a "const declaration region" (before any non-whitespace Html).
+    fn hoist_const_declarations_and_strip_ws(parts: &[OutputPart]) -> Vec<OutputPart> {
+        let mut consts: Vec<OutputPart> = Vec::new();
+        let mut rest: Vec<OutputPart> = Vec::new();
+        let mut in_const_region = true; // Start in const region (beginning of block)
+
+        for part in parts {
+            match part {
+                OutputPart::ConstDeclaration(_) => {
+                    // Always hoist const declarations
+                    consts.push(part.clone());
+                    in_const_region = true; // After a const, we're still in const region
+                }
+                OutputPart::Html(html) => {
+                    if in_const_region && html.trim().is_empty() {
+                        // Skip whitespace-only Html between/after ConstDeclarations
+                        // Don't add to rest - it gets discarded
+                    } else {
+                        in_const_region = false; // Real HTML content, leave const region
+                        rest.push(part.clone());
+                    }
+                }
+                _ => {
+                    in_const_region = false;
+                    rest.push(part.clone());
+                }
+            }
+        }
+
         consts.extend(rest);
         consts
     }
@@ -1310,7 +1357,7 @@ export default function {component_name}($$renderer{props_param}) {{
                         }
 
                         // Body - hoist @const declarations to the top of the loop body
-                        let hoisted_body = Self::hoist_const_declarations(body);
+                        let hoisted_body = Self::hoist_const_declarations_and_strip_ws(body);
                         let body_code_inner = Self::build_parts_with_store_subs(
                             &hoisted_body,
                             indent_level + 2,
@@ -1379,7 +1426,7 @@ export default function {component_name}($$renderer{props_param}) {{
                         }
 
                         // Body - hoist @const declarations to the top of the loop body
-                        let hoisted_body = Self::hoist_const_declarations(body);
+                        let hoisted_body = Self::hoist_const_declarations_and_strip_ws(body);
                         let body_code_inner = Self::build_parts_with_store_subs(
                             &hoisted_body,
                             indent_level + 1,
@@ -2013,9 +2060,10 @@ export default function {component_name}($$renderer{props_param}) {{
         // Add opening marker for consequent (BLOCK_OPEN = <!--[-->)
         code.push_str(&format!("{}\t$$renderer.push('<!--[-->');\n", indent));
 
-        // Generate consequent body
+        // Generate consequent body - hoist @const declarations to the top
+        let hoisted_consequent = Self::hoist_const_declarations_and_strip_ws(consequent_body);
         let consequent_code = Self::build_parts_with_store_subs(
-            consequent_body,
+            &hoisted_consequent,
             indent_level + 1,
             each_counter,
             store_subs,
@@ -2055,8 +2103,10 @@ export default function {component_name}($$renderer{props_param}) {{
                         code.push_str(&format!(" else if ({}) {{\n", nested_test));
                         code.push_str(&format!("{}\t$$renderer.push('{}');\n", indent, marker));
 
+                        let hoisted_nested =
+                            Self::hoist_const_declarations_and_strip_ws(nested_consequent);
                         let branch_code = Self::build_parts_with_store_subs(
-                            nested_consequent,
+                            &hoisted_nested,
                             indent_level + 1,
                             each_counter,
                             store_subs,
@@ -2071,8 +2121,9 @@ export default function {component_name}($$renderer{props_param}) {{
                         code.push_str(" else {\n");
                         code.push_str(&format!("{}\t$$renderer.push('<!--[!-->');\n", indent));
 
+                        let hoisted_alt = Self::hoist_const_declarations_and_strip_ws(alt_body);
                         let alternate_code = Self::build_parts_with_store_subs(
-                            alt_body,
+                            &hoisted_alt,
                             indent_level + 1,
                             each_counter,
                             store_subs,

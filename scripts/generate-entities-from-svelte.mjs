@@ -22,6 +22,9 @@ const entities = entitiesModule.default;
 // Convert entities object to sorted array
 // Use a Map to avoid duplicates (prefer semicolon version if both exist)
 const entityMap = new Map();
+// Track entities that appear WITHOUT a semicolon in the source (legacy entities)
+const legacyEntityMap = new Map();
+
 for (const [name, codepoint] of Object.entries(entities)) {
     // Remove & prefix if present
     const cleanName = name.startsWith('&') ? name.slice(1) : name;
@@ -35,6 +38,12 @@ for (const [name, codepoint] of Object.entries(entities)) {
     if (!entityMap.has(finalName) || cleanName.endsWith(';')) {
         entityMap.set(finalName, codepoints);
     }
+
+    // Track entities that explicitly appear without a semicolon in the source
+    // These are the "legacy" entities that can be decoded without a trailing semicolon
+    if (!cleanName.endsWith(';')) {
+        legacyEntityMap.set(finalName, codepoints);
+    }
 }
 
 // Convert map to array
@@ -42,6 +51,14 @@ const processed = Array.from(entityMap.entries()).map(([name, codepoints]) => ({
 
 // Sort for binary search - use byte-wise comparison (same as Rust's Ord for &str)
 processed.sort((a, b) => {
+    if (a.name < b.name) return -1;
+    if (a.name > b.name) return 1;
+    return 0;
+});
+
+// Convert legacy (no-semicolon) entities to sorted array
+const processedLegacy = Array.from(legacyEntityMap.entries()).map(([name, codepoints]) => ({ name, codepoints }));
+processedLegacy.sort((a, b) => {
     if (a.name < b.name) return -1;
     if (a.name > b.name) return 1;
     return 0;
@@ -70,6 +87,20 @@ ${processed.map(({ name, codepoints }) => {
 }).join('\n')}
 ];
 
+/// Legacy entities that can be decoded without a trailing semicolon.
+/// These are the entities that appear without a semicolon in Svelte's entities.js source.
+/// This is used for matching named entities when no semicolon is present in the HTML text.
+/// Names are sorted alphabetically for binary search.
+pub const LEGACY_ENTITY_COUNT: usize = ${processedLegacy.length};
+
+pub static LEGACY_ENTITIES: &[(&str, &[u32])] = &[
+${processedLegacy.map(({ name, codepoints }) => {
+    const escapedName = name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const codepointStr = codepoints.join(', ');
+    return `    ("${escapedName}", &[${codepointStr}]),`;
+}).join('\n')}
+];
+
 /// Decode a named HTML entity (without & prefix and ; suffix)
 /// Returns the decoded character(s) as a String, or None if not found
 pub fn decode_named_entity(name: &str) -> Option<String> {
@@ -77,6 +108,26 @@ pub fn decode_named_entity(name: &str) -> Option<String> {
     match ENTITIES.binary_search_by(|(n, _)| (*n).cmp(name)) {
         Ok(idx) => {
             let (_, codepoints) = &ENTITIES[idx];
+            let mut result = String::with_capacity(codepoints.len() * 4);
+            for &cp in *codepoints {
+                if let Some(c) = char::from_u32(cp) {
+                    result.push(c);
+                }
+            }
+            Some(result)
+        }
+        Err(_) => None,
+    }
+}
+
+/// Decode a legacy named HTML entity (can match without a trailing semicolon)
+/// Only matches entities that explicitly appear without semicolons in Svelte's entities.js.
+/// Returns the decoded character(s) as a String, or None if not found
+pub fn decode_legacy_named_entity(name: &str) -> Option<String> {
+    // Binary search in the legacy entities table
+    match LEGACY_ENTITIES.binary_search_by(|(n, _)| (*n).cmp(name)) {
+        Ok(idx) => {
+            let (_, codepoints) = &LEGACY_ENTITIES[idx];
             let mut result = String::with_capacity(codepoints.len() * 4);
             for &cp in *codepoints {
                 if let Some(c) = char::from_u32(cp) {
@@ -112,13 +163,13 @@ mod tests {
     }
 
     #[test]
-    fn test_multi_codepoint_entities() {
-        // Some entities decode to multiple characters
-        // e.g., &nGt; -> ≫⃒ (U+226B, U+20D2)
-        let result = decode_named_entity("nGt");
-        assert!(result.is_some());
-        let s = result.unwrap();
-        assert!(s.chars().count() >= 2);
+    fn test_common_named_entities() {
+        // Test some well-known named entities
+        assert_eq!(decode_named_entity("euro"), Some("\\u{20AC}".to_string())); // €
+        assert_eq!(decode_named_entity("trade"), Some("\\u{2122}".to_string())); // ™
+        assert_eq!(decode_named_entity("hearts"), Some("\\u{2665}".to_string())); // ♥
+        // nGt; is a single codepoint (≫, U+226B)
+        assert_eq!(decode_named_entity("nGt"), Some("\\u{226B}".to_string()));
     }
 
     #[test]
@@ -143,3 +194,4 @@ writeFileSync(outputPath, rustCode);
 
 console.log(`✅ Generated ${outputPath}`);
 console.log(`   Total entities: ${processed.length}`);
+console.log(`   Legacy entities (no semicolon): ${processedLegacy.length}`);

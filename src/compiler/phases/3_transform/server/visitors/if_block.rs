@@ -19,6 +19,8 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // Transform store subscriptions ($store -> $.store_get())
         let test_expr = self.transform_store_refs(&test_expr);
+        // Transform special legacy variables ($$props -> $$sanitized_props)
+        let test_expr = self.transform_special_vars(&test_expr);
 
         // Generate consequent body parts
         let consequent_body = self.generate_if_branch_body(&block.consequent)?;
@@ -77,6 +79,8 @@ impl<'a> ServerCodeGenerator<'a> {
                 } else {
                     "false".to_string()
                 };
+            let nested_test_expr = self.transform_store_refs(&nested_test_expr);
+            let nested_test_expr = self.transform_special_vars(&nested_test_expr);
 
             let nested_consequent = self.generate_if_branch_body(&nested_if.consequent)?;
             let nested_alternate = if let Some(ref alt) = nested_if.alternate {

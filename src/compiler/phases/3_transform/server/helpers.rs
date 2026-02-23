@@ -38,6 +38,51 @@ pub(crate) fn is_valid_js_identifier(name: &str) -> bool {
     true
 }
 
+/// Replace an identifier in an expression with a replacement, being careful
+/// to only replace whole-word occurrences (not substrings of other identifiers).
+pub(crate) fn replace_identifier_in_expr(expr: &str, from: &str, to: &str) -> String {
+    if !expr.contains(from) {
+        return expr.to_string();
+    }
+
+    let chars: Vec<char> = expr.chars().collect();
+    let from_chars: Vec<char> = from.chars().collect();
+    let from_len = from_chars.len();
+    let mut result = String::with_capacity(expr.len() + to.len());
+    let mut i = 0;
+
+    while i < chars.len() {
+        // Check if we have a match at position i
+        if i + from_len <= chars.len() && chars[i..i + from_len] == from_chars[..] {
+            // Check that the character before is not an identifier char
+            let before_ok = if i == 0 {
+                true
+            } else {
+                let c = chars[i - 1];
+                !c.is_alphanumeric() && c != '_' && c != '$'
+            };
+
+            // Check that the character after is not an identifier char
+            let after_ok = if i + from_len >= chars.len() {
+                true
+            } else {
+                let c = chars[i + from_len];
+                !c.is_alphanumeric() && c != '_' && c != '$'
+            };
+
+            if before_ok && after_ok {
+                result.push_str(to);
+                i += from_len;
+                continue;
+            }
+        }
+        result.push(chars[i]);
+        i += 1;
+    }
+
+    result
+}
+
 /// Strip TypeScript type annotations from snippet parameters.
 ///
 /// Handles cases like:

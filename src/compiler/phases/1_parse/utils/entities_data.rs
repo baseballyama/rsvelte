@@ -2139,6 +2139,121 @@ pub static ENTITIES: &[(&str, &[u32])] = &[
     ("zwnj", &[8204]),
 ];
 
+/// Legacy entities that can be decoded without a trailing semicolon.
+/// These are the entities that appear without a semicolon in Svelte's entities.js source.
+/// This is used for matching named entities when no semicolon is present in the HTML text.
+/// Names are sorted alphabetically for binary search.
+pub const LEGACY_ENTITY_COUNT: usize = 106;
+
+pub static LEGACY_ENTITIES: &[(&str, &[u32])] = &[
+    ("AElig", &[198]),
+    ("AMP", &[38]),
+    ("Aacute", &[193]),
+    ("Acirc", &[194]),
+    ("Agrave", &[192]),
+    ("Aring", &[197]),
+    ("Atilde", &[195]),
+    ("Auml", &[196]),
+    ("COPY", &[169]),
+    ("Ccedil", &[199]),
+    ("ETH", &[208]),
+    ("Eacute", &[201]),
+    ("Ecirc", &[202]),
+    ("Egrave", &[200]),
+    ("Euml", &[203]),
+    ("GT", &[62]),
+    ("Iacute", &[205]),
+    ("Icirc", &[206]),
+    ("Igrave", &[204]),
+    ("Iuml", &[207]),
+    ("LT", &[60]),
+    ("Ntilde", &[209]),
+    ("Oacute", &[211]),
+    ("Ocirc", &[212]),
+    ("Ograve", &[210]),
+    ("Oslash", &[216]),
+    ("Otilde", &[213]),
+    ("Ouml", &[214]),
+    ("QUOT", &[34]),
+    ("REG", &[174]),
+    ("THORN", &[222]),
+    ("Uacute", &[218]),
+    ("Ucirc", &[219]),
+    ("Ugrave", &[217]),
+    ("Uuml", &[220]),
+    ("Yacute", &[221]),
+    ("aacute", &[225]),
+    ("acirc", &[226]),
+    ("acute", &[180]),
+    ("aelig", &[230]),
+    ("agrave", &[224]),
+    ("amp", &[38]),
+    ("aring", &[229]),
+    ("atilde", &[227]),
+    ("auml", &[228]),
+    ("brvbar", &[166]),
+    ("ccedil", &[231]),
+    ("cedil", &[184]),
+    ("cent", &[162]),
+    ("copy", &[169]),
+    ("curren", &[164]),
+    ("deg", &[176]),
+    ("divide", &[247]),
+    ("eacute", &[233]),
+    ("ecirc", &[234]),
+    ("egrave", &[232]),
+    ("eth", &[240]),
+    ("euml", &[235]),
+    ("frac12", &[189]),
+    ("frac14", &[188]),
+    ("frac34", &[190]),
+    ("gt", &[62]),
+    ("iacute", &[237]),
+    ("icirc", &[238]),
+    ("iexcl", &[161]),
+    ("igrave", &[236]),
+    ("iquest", &[191]),
+    ("iuml", &[239]),
+    ("laquo", &[171]),
+    ("lt", &[60]),
+    ("macr", &[175]),
+    ("micro", &[181]),
+    ("middot", &[183]),
+    ("nbsp", &[160]),
+    ("not", &[172]),
+    ("ntilde", &[241]),
+    ("oacute", &[243]),
+    ("ocirc", &[244]),
+    ("ograve", &[242]),
+    ("ordf", &[170]),
+    ("ordm", &[186]),
+    ("oslash", &[248]),
+    ("otilde", &[245]),
+    ("ouml", &[246]),
+    ("para", &[182]),
+    ("plusmn", &[177]),
+    ("pound", &[163]),
+    ("quot", &[34]),
+    ("raquo", &[187]),
+    ("reg", &[174]),
+    ("sect", &[167]),
+    ("shy", &[173]),
+    ("sup1", &[185]),
+    ("sup2", &[178]),
+    ("sup3", &[179]),
+    ("szlig", &[223]),
+    ("thorn", &[254]),
+    ("times", &[215]),
+    ("uacute", &[250]),
+    ("ucirc", &[251]),
+    ("ugrave", &[249]),
+    ("uml", &[168]),
+    ("uuml", &[252]),
+    ("yacute", &[253]),
+    ("yen", &[165]),
+    ("yuml", &[255]),
+];
+
 /// Decode a named HTML entity (without & prefix and ; suffix)
 /// Returns the decoded character(s) as a String, or None if not found
 pub fn decode_named_entity(name: &str) -> Option<String> {
@@ -2146,6 +2261,26 @@ pub fn decode_named_entity(name: &str) -> Option<String> {
     match ENTITIES.binary_search_by(|(n, _)| (*n).cmp(name)) {
         Ok(idx) => {
             let (_, codepoints) = &ENTITIES[idx];
+            let mut result = String::with_capacity(codepoints.len() * 4);
+            for &cp in *codepoints {
+                if let Some(c) = char::from_u32(cp) {
+                    result.push(c);
+                }
+            }
+            Some(result)
+        }
+        Err(_) => None,
+    }
+}
+
+/// Decode a legacy named HTML entity (can match without a trailing semicolon)
+/// Only matches entities that explicitly appear without semicolons in Svelte's entities.js.
+/// Returns the decoded character(s) as a String, or None if not found
+pub fn decode_legacy_named_entity(name: &str) -> Option<String> {
+    // Binary search in the legacy entities table
+    match LEGACY_ENTITIES.binary_search_by(|(n, _)| (*n).cmp(name)) {
+        Ok(idx) => {
+            let (_, codepoints) = &LEGACY_ENTITIES[idx];
             let mut result = String::with_capacity(codepoints.len() * 4);
             for &cp in *codepoints {
                 if let Some(c) = char::from_u32(cp) {
@@ -2181,14 +2316,13 @@ mod tests {
     }
 
     #[test]
-    fn test_single_codepoint_entities() {
-        // Test that entities decode to their correct characters
-        // nGt -> ≫ (U+226B)
-        let result = decode_named_entity("nGt");
-        assert!(result.is_some());
-        let s = result.unwrap();
-        assert_eq!(s, "≫");
-        assert_eq!(s.chars().count(), 1);
+    fn test_common_named_entities() {
+        // Test some well-known named entities
+        assert_eq!(decode_named_entity("euro"), Some("\u{20AC}".to_string())); // €
+        assert_eq!(decode_named_entity("trade"), Some("\u{2122}".to_string())); // ™
+        assert_eq!(decode_named_entity("hearts"), Some("\u{2665}".to_string())); // ♥
+        // nGt; is a single codepoint (≫, U+226B)
+        assert_eq!(decode_named_entity("nGt"), Some("\u{226B}".to_string()));
     }
 
     #[test]
