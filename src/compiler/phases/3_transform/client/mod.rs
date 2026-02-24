@@ -1956,6 +1956,27 @@ fn transform_instance_script_for_visitors(
             } else {
                 transformed
             };
+            // Apply state variable assignment transforms ($.set) to the full export let statement.
+            // This handles cases where state variables are assigned inside nested callbacks
+            // within the default value expression, e.g.:
+            //   export let promise = new Promise((resolve) => { setTimeout(() => { answer = 42; }, 0); })
+            // The `answer = 42` inside the callback needs to become `$.set(answer, 42)`.
+            let transformed = transform_state_assignments(
+                &transformed,
+                state_vars,
+                non_reactive_state_vars,
+                proxy_vars,
+                raw_state_vars,
+                analysis.runes,
+                &non_proxy_vars,
+            );
+            // Also wrap state variable reads in $.get() within the export let statement.
+            let transformed = wrap_state_vars_in_expr(
+                &transformed,
+                state_vars,
+                non_reactive_state_vars,
+                proxy_vars,
+            );
             result.push_str(&transformed);
             result.push('\n');
             return;

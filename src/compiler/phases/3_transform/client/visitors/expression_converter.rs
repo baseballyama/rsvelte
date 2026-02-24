@@ -2082,11 +2082,15 @@ fn try_destructure_assignment(
             }));
         }
 
-        // Note: The official compiler adds `return $$value` when the assignment is NOT standalone
-        // (i.e., used as part of a larger expression). We add it unconditionally when
-        // the expression is part of a sequence or similar context.
-        // For now, we don't add the return - most destructure assignments are standalone.
-        // If needed, the caller can detect non-standalone context.
+        // The official compiler adds `return $$value` when the assignment is NOT standalone
+        // (i.e., used as part of a larger expression, not an ExpressionStatement).
+        // In the visitor-based path (template expressions), destructure assignments are
+        // always in expression context (event handlers, bind directives, etc.), so they
+        // are never standalone. We always add `return $$value;` here.
+        // Standalone cases (instance script) go through the text-based pipeline instead.
+        statements.push(JsStatement::Return(JsReturnStatement {
+            argument: Some(Box::new(b::id("$$value"))),
+        }));
 
         let arrow = b::arrow_block(
             vec![JsPattern::Identifier("$$value".to_string())],
