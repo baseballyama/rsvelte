@@ -236,6 +236,11 @@ pub struct Binding {
     /// Used by `collect_transitive_dependencies` to follow dependency chains.
     /// Corresponds to `legacy_dependencies` in Svelte's Binding class (scope.js).
     pub legacy_dependencies: Vec<usize>,
+    /// Bindings that need to be invalidated when this binding is mutated.
+    /// Populated for `<select bind:value={x}>` in legacy mode - all other scope references
+    /// are added so that changes to `x` also trigger updates for those references.
+    /// Corresponds to `legacy_indirect_bindings` in Svelte's Binding class (scope.js).
+    pub legacy_indirect_bindings: Vec<String>,
 }
 
 /// A blocker expression representing `$$promises[n]`.
@@ -281,6 +286,7 @@ impl Binding {
             prop_alias: None,
             blocker: None,
             legacy_dependencies: Vec::new(),
+            legacy_indirect_bindings: Vec::new(),
         }
     }
 
@@ -307,6 +313,7 @@ impl Binding {
             prop_alias: None,
             blocker: None,
             legacy_dependencies: Vec::new(),
+            legacy_indirect_bindings: Vec::new(),
         }
     }
 

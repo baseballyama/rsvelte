@@ -895,6 +895,77 @@ pub fn visit(
     // Analyze children
     analyze(&mut element.fragment, context)?;
 
+    // Special case: `<select bind:value={foo}><option>{bar}</option>`
+    // means we need to invalidate `bar` whenever `foo` is mutated.
+    // Corresponds to Svelte's RegularElement.js lines 69-95.
+    //
+    // This must run AFTER children are analyzed so that template references
+    // from within the select's subtree have been collected on bindings.
+    // The official compiler runs this check when scope.references already
+    // contains all references (built by create_scopes before analysis walk),
+    // but since our references are collected during the walk, we need to
+    // check after children to ensure references from {#each} collections etc.
+    // are available.
+    if element.name == "select" && !context.analysis.runes {
+        for attr in &element.attributes {
+            if let Attribute::BindDirective(bind) = attr
+                && bind.name == "value"
+            {
+                // Extract root identifier from the bind expression
+                let root_id = extract_binding_root_identifier(&bind.expression);
+                if let Some(ref root_name) = root_id {
+                    // Get the binding for this identifier using the instance scope
+                    let scope_idx = context.analysis.root.instance_scope_index;
+                    let binding_idx = context.analysis.root.get_binding(root_name, scope_idx);
+
+                    if let Some(binding_idx) = binding_idx {
+                        // Collect scope references that have template references.
+                        // The official compiler uses context.state.scope.references.keys()
+                        // which are identifiers referenced at the current scope level.
+                        // We approximate this by finding all bindings that have template
+                        // references (used in the template), excluding the binding itself.
+                        // This correctly excludes bindings only referenced inside nested
+                        // function bodies (which have is_template_reference = false).
+                        let mut indirect_names: Vec<String> = Vec::new();
+                        let scope_declarations =
+                            if context.analysis.root.all_scopes.len() > scope_idx {
+                                context.analysis.root.all_scopes[scope_idx]
+                                    .declarations
+                                    .clone()
+                            } else {
+                                context.analysis.root.scope.declarations.clone()
+                            };
+
+                        for (name, &other_idx) in &scope_declarations {
+                            if name == root_name {
+                                continue;
+                            }
+                            if let Some(other_binding) =
+                                context.analysis.root.bindings.get(other_idx)
+                            {
+                                let has_template_ref = other_binding
+                                    .references
+                                    .iter()
+                                    .any(|r| r.is_template_reference);
+                                if has_template_ref {
+                                    indirect_names.push(name.clone());
+                                }
+                            }
+                        }
+
+                        let binding = &mut context.analysis.root.bindings[binding_idx];
+                        for name in &indirect_names {
+                            if !binding.legacy_indirect_bindings.contains(name) {
+                                binding.legacy_indirect_bindings.push(name.clone());
+                            }
+                        }
+                    }
+                }
+                break;
+            }
+        }
+    }
+
     // Pop fragment owner type
     context.fragment_owner_stack.pop();
 
@@ -948,4 +1019,30 @@ pub fn visit_regular_element(
     context: &mut VisitorContext,
 ) -> Result<(), AnalysisError> {
     visit(element, context)
+}
+
+/// Extract the root identifier name from a binding expression.
+/// For `selected` -> "selected", for `selected.done` -> "selected",
+/// for `items[0]` -> "items".
+/// Corresponds to the `object()` function call in the official compiler.
+fn extract_binding_root_identifier(expr: &crate::ast::js::Expression) -> Option<String> {
+    let crate::ast::js::Expression::Value(val) = expr;
+    let obj = val.as_object()?;
+    let expr_type = obj.get("type").and_then(|v| v.as_str())?;
+
+    match expr_type {
+        "Identifier" => obj
+            .get("name")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
+        "MemberExpression" => {
+            // Recurse into object
+            if let Some(object) = obj.get("object") {
+                extract_binding_root_identifier(&crate::ast::js::Expression::Value(object.clone()))
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
 }

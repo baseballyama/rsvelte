@@ -1500,6 +1500,56 @@ fn build_getter_setter(
         let assignment_expr = b::assign(expr.clone(), b::id("$$value"));
         let transformed_set = apply_transforms_to_expression(&assignment_expr, context);
 
+        // Check if the root identifier has legacy_indirect_bindings.
+        // If so, wrap the setter in a sequence with $.invalidate_inner_signals().
+        // This corresponds to AssignmentExpression.js lines 159-173 in the official compiler.
+        let transformed_set = if !context.state.analysis.runes {
+            // Extract root identifier from the original expression
+            let root_name = get_expression_root_identifier(expr);
+            if let Some(ref root_name) = root_name {
+                // Look up the binding
+                let binding = context.state.get_binding(root_name);
+                if let Some(binding) = binding {
+                    if !binding.legacy_indirect_bindings.is_empty() {
+                        // Build getter calls for each indirect binding
+                        let mut getter_stmts = Vec::new();
+                        for indirect_name in &binding.legacy_indirect_bindings {
+                            // Build the getter by looking up the transform
+                            let getter = if let Some(transform) =
+                                context.state.transform.get(indirect_name)
+                            {
+                                if let Some(read_fn) = transform.read {
+                                    read_fn(JsExpr::Identifier(indirect_name.clone()))
+                                } else {
+                                    JsExpr::Identifier(indirect_name.clone())
+                                }
+                            } else {
+                                JsExpr::Identifier(indirect_name.clone())
+                            };
+                            getter_stmts.push(b::stmt(getter));
+                        }
+
+                        // Build: $.invalidate_inner_signals(() => { getter1(); getter2(); ... })
+                        let invalidate_call = b::call(
+                            b::member_path("$.invalidate_inner_signals"),
+                            vec![b::arrow_block(vec![], getter_stmts)],
+                        );
+
+                        // Wrap: (mutation, $.invalidate_inner_signals(...))
+                        b::sequence(vec![transformed_set, invalidate_call])
+                    } else {
+                        transformed_set
+                    }
+                } else {
+                    transformed_set
+                }
+            } else {
+                transformed_set
+            }
+        } else {
+            transformed_set
+        };
+
         if dev {
             let get = b::function_expr(
                 Some("get".to_string()),
@@ -2036,6 +2086,19 @@ fn build_invalidation_expr(
         None
     } else {
         Some(parts.join(", "))
+    }
+}
+
+/// Extract the root identifier name from a JsExpr.
+///
+/// For `selected` -> Some("selected"), for `selected.done` -> Some("selected"),
+/// for `items[0]` -> Some("items").
+/// Corresponds to the `object()` function call in the official compiler.
+fn get_expression_root_identifier(expr: &JsExpr) -> Option<String> {
+    match expr {
+        JsExpr::Identifier(name) => Some(name.clone()),
+        JsExpr::Member(member) => get_expression_root_identifier(&member.object),
+        _ => None,
     }
 }
 
