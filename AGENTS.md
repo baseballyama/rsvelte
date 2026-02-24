@@ -100,26 +100,26 @@ Pre-commit hooks run `cargo fmt` and `cargo clippy` automatically.
 - Remove outdated information
 - Keep it concise
 
-## Test Status (2026-02-18)
+## Test Status (2026-02-24)
 
 | Suite | Pass/Total | Status |
 |-------|------------|--------|
 | Parser Modern | 22/22 | ✅ 100% |
-| SSR | 79/82 | ✅ 96% |
-| Parser Legacy | 79/83 | ✅ 96% |
-| Compiler Errors | 112/118 | 🟢 95% |
-| Compiler Snapshot | 17/18 | 🟢 94% |
-| Runtime Runes | 728/838 | 🟢 87% |
-| Hydration | 67/77 | 🟢 87% |
-| Validator | 256/314 | 🟢 82% |
-| CSS | 143/179 | 🟢 80% |
-| Runtime Legacy | 778/1202 | 🟡 65% |
-| Runtime Browser | 18/31 | ⚠️ 58% |
+| Parser Legacy | 82/82 | ✅ 100% |
+| Compiler Errors | 118/118 | ✅ 100% |
+| SSR | 82/82 | ✅ 100% |
+| Compiler Snapshot | 18/18 | ✅ 100% |
+| CSS | 162/179 | 🟢 91% |
+| Runtime Legacy | 1083/1202 | 🟢 90% |
+| Runtime Runes | 750/838 | 🟢 90% |
+| Hydration | 68/77 | 🟢 88% |
+| Validator | 264/313 | 🟢 84% |
+| Runtime Browser | 24/31 | 🟢 77% |
 | Preprocess | 0/19 | ⏸️ N/A |
 | Print | 0/40 | ⏸️ N/A |
 | Migrate | 0/76 | ⏸️ N/A |
 
-**Overall: 2299/2963 (77.6%)**
+**Overall: 2673/2962 (90.2%)**
 
 ## Current Focus
 
