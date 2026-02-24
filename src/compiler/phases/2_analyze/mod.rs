@@ -318,16 +318,13 @@ pub fn analyze_component(
                     if name.is_empty() {
                         continue;
                     }
-                    // Check if binding is in the module scope (scope_index == 0).
-                    // If the binding exists but is NOT in the module scope, it might be
-                    // a snippet or instance-scoped binding that can't be exported.
-                    let module_scope_binding = analysis
-                        .root
-                        .scope
-                        .declarations
-                        .get(name)
-                        .and_then(|&idx| analysis.root.bindings.get(idx))
-                        .filter(|b| b.scope_index == 0);
+                    // Check if binding is in the module scope declarations.
+                    // This matches the official compiler's check:
+                    //   const binding = analysis.module.scope.get(name);
+                    //   if (!binding) { ... }
+                    // Hoistable snippets are added to module scope declarations during
+                    // SnippetBlock analysis, so they will be found here and pass validation.
+                    let module_scope_binding = analysis.root.scope.declarations.get(name);
 
                     if module_scope_binding.is_none() {
                         // Not in module scope - check if it's a snippet

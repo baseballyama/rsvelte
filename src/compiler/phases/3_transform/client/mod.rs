@@ -4998,6 +4998,12 @@ fn body_references_identifier(body: &str, identifier: &str) -> bool {
     // e.g., `(function (a) { return a; })(x)` - `a` is a parameter, not an outer var.
     let stripped_body = strip_function_scopes_that_shadow(body, identifier);
 
+    // Strip string and template literal TEXT content to avoid false positives.
+    // Template literals like `<circle cx="${width}">` contain text that might match
+    // identifier names (e.g., `circle` in the HTML tag name). We keep the `${...}`
+    // expression parts but blank out the literal text.
+    let stripped_body = strip_string_literal_text(&stripped_body);
+
     // Check if identifier appears in the stripped body at all
     if !re.is_match(&stripped_body) {
         return false;
@@ -5005,6 +5011,130 @@ fn body_references_identifier(body: &str, identifier: &str) -> bool {
 
     // Use the recursive check that handles if/else, blocks, and compound statements
     body_references_identifier_recursive(stripped_body.trim(), identifier, &re)
+}
+
+/// Strip text content from string literals and template literals, keeping expression parts.
+///
+/// Replaces:
+/// - Single-quoted strings: `'text'` -> `'    '`
+/// - Double-quoted strings: `"text"` -> `"    "`
+/// - Template literal text: `` `text ${expr} text` `` -> `` `     ${expr}     ` ``
+///
+/// This prevents false identifier matches inside literal text, e.g., `<circle>` in
+/// a template literal won't match the variable name `circle`.
+fn strip_string_literal_text(code: &str) -> String {
+    let chars: Vec<char> = code.chars().collect();
+    let mut result = chars.clone();
+    let len = chars.len();
+    let mut i = 0;
+
+    while i < len {
+        match chars[i] {
+            // Handle single/double-quoted strings
+            '\'' | '"' => {
+                let quote = chars[i];
+                i += 1; // skip opening quote
+                while i < len && chars[i] != quote {
+                    if chars[i] == '\\' && i + 1 < len {
+                        result[i] = ' ';
+                        result[i + 1] = ' ';
+                        i += 2;
+                    } else {
+                        result[i] = ' ';
+                        i += 1;
+                    }
+                }
+                if i < len {
+                    i += 1; // skip closing quote
+                }
+            }
+            // Handle template literals
+            '`' => {
+                i += 1; // skip opening backtick
+                while i < len && chars[i] != '`' {
+                    if chars[i] == '\\' && i + 1 < len {
+                        result[i] = ' ';
+                        result[i + 1] = ' ';
+                        i += 2;
+                    } else if chars[i] == '$' && i + 1 < len && chars[i + 1] == '{' {
+                        // Keep `${` and skip to the expression inside
+                        i += 2; // skip `${`
+                        // Find matching `}` - track depth
+                        let mut depth = 1;
+                        while i < len && depth > 0 {
+                            match chars[i] {
+                                '{' => depth += 1,
+                                '}' => {
+                                    depth -= 1;
+                                    if depth == 0 {
+                                        i += 1; // skip closing `}`
+                                        break;
+                                    }
+                                }
+                                // Handle nested template literals
+                                '`' => {
+                                    i += 1;
+                                    // Skip nested template literal
+                                    let mut nested_depth = 0;
+                                    while i < len && (chars[i] != '`' || nested_depth > 0) {
+                                        if chars[i] == '$' && i + 1 < len && chars[i + 1] == '{' {
+                                            nested_depth += 1;
+                                            i += 2;
+                                        } else if chars[i] == '}' && nested_depth > 0 {
+                                            nested_depth -= 1;
+                                            i += 1;
+                                        } else if chars[i] == '\\' && i + 1 < len {
+                                            i += 2;
+                                        } else {
+                                            i += 1;
+                                        }
+                                    }
+                                    if i < len {
+                                        i += 1; // skip closing backtick
+                                    }
+                                    continue;
+                                }
+                                '\'' | '"' => {
+                                    // Skip string inside expression
+                                    let quote = chars[i];
+                                    i += 1;
+                                    while i < len && chars[i] != quote {
+                                        if chars[i] == '\\' && i + 1 < len {
+                                            i += 2;
+                                        } else {
+                                            i += 1;
+                                        }
+                                    }
+                                    if i < len {
+                                        i += 1;
+                                    }
+                                    continue;
+                                }
+                                _ => {}
+                            }
+                            i += 1;
+                        }
+                    } else {
+                        // Regular text in template literal - blank it out
+                        result[i] = ' ';
+                        i += 1;
+                    }
+                }
+                if i < len {
+                    i += 1; // skip closing backtick
+                }
+            }
+            // Skip escaped characters outside strings
+            '\\' if i + 1 < len => {
+                i += 2;
+            }
+            _ => {
+                i += 1;
+            }
+        }
+    }
+
+    result.into_iter().collect()
 }
 
 /// Strip out function/arrow expression bodies where the identifier is declared as a parameter.

@@ -74,6 +74,24 @@ pub fn visit(block: &mut SnippetBlock, context: &mut VisitorContext) -> Result<(
 
     block.metadata.can_hoist = can_hoist;
 
+    // When a snippet can be hoisted, add its binding to the module scope declarations.
+    // This allows exported snippets to pass the snippet_invalid_export validation,
+    // which checks if the snippet binding exists in analysis.root.scope (module scope).
+    // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/SnippetBlock.js L36-37
+    //   const binding = context.state.scope.get(name);
+    //   context.state.analysis.module.scope.declarations.set(name, binding);
+    if can_hoist
+        && let Some(name) = super::shared::snippets::get_snippet_name(block)
+        && let Some(binding_idx) = context.analysis.root.find_binding_any_scope(&name)
+    {
+        context
+            .analysis
+            .root
+            .scope
+            .declarations
+            .insert(name, binding_idx);
+    }
+
     Ok(())
 }
 
