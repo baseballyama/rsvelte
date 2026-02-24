@@ -4825,23 +4825,10 @@ fn transform_state_member_mutations(
                                 '=' if depth == 0 => {
                                     // Check it's not `==`, `!=`, `<=`, `>=`
                                     let is_double_eq = j + 1 < chars.len() && chars[j + 1] == '=';
-                                    let is_compound = j > 0
-                                        && matches!(
-                                            chars[j - 1],
-                                            '!' | '<'
-                                                | '>'
-                                                | '='
-                                                | '+'
-                                                | '-'
-                                                | '*'
-                                                | '/'
-                                                | '%'
-                                                | '|'
-                                                | '&'
-                                                | '?'
-                                                | '^'
-                                        );
-                                    if !is_double_eq && !is_compound {
+                                    let is_comparison =
+                                        j > 0 && matches!(chars[j - 1], '!' | '<' | '>' | '=');
+                                    if !is_double_eq && !is_comparison {
+                                        // Accept both simple = and compound +=, -=, etc.
                                         eq_pos = Some(j);
                                     }
                                     break;
@@ -4853,8 +4840,53 @@ fn transform_state_member_mutations(
                         }
 
                         if let Some(eq_idx) = eq_pos {
-                            // Extract member part (between var and `=`)
-                            let member_part: String = chars[member_start..eq_idx].iter().collect();
+                            // Determine the full assignment operator
+                            // eq_idx points to '=' in chars; check chars before it for compound
+                            let prev_char = if eq_idx > member_start {
+                                Some(chars[eq_idx - 1])
+                            } else {
+                                None
+                            };
+                            let (assign_op, op_start) = match prev_char {
+                                Some('+') => ("+=", eq_idx - 1),
+                                Some('-') => ("-=", eq_idx - 1),
+                                Some('*') => {
+                                    if eq_idx >= member_start + 2 && chars[eq_idx - 2] == '*' {
+                                        ("**=", eq_idx - 2)
+                                    } else {
+                                        ("*=", eq_idx - 1)
+                                    }
+                                }
+                                Some('/') => ("/=", eq_idx - 1),
+                                Some('%') => ("%=", eq_idx - 1),
+                                Some('&') => {
+                                    if eq_idx >= member_start + 2 && chars[eq_idx - 2] == '&' {
+                                        ("&&=", eq_idx - 2)
+                                    } else {
+                                        ("&=", eq_idx - 1)
+                                    }
+                                }
+                                Some('|') => {
+                                    if eq_idx >= member_start + 2 && chars[eq_idx - 2] == '|' {
+                                        ("||=", eq_idx - 2)
+                                    } else {
+                                        ("|=", eq_idx - 1)
+                                    }
+                                }
+                                Some('^') => ("^=", eq_idx - 1),
+                                Some('?') => {
+                                    if eq_idx >= member_start + 2 && chars[eq_idx - 2] == '?' {
+                                        ("??=", eq_idx - 2)
+                                    } else {
+                                        ("=", eq_idx)
+                                    }
+                                }
+                                _ => ("=", eq_idx),
+                            };
+
+                            // Extract member part (between var and the operator start)
+                            let member_part: String =
+                                chars[member_start..op_start].iter().collect();
                             let member_part = member_part.trim_end();
 
                             // Skip whitespace after `=`
@@ -4904,10 +4936,10 @@ fn transform_state_member_mutations(
                             let rhs = rhs.trim();
 
                             if !rhs.is_empty() {
-                                // Generate: $.mutate(var, $.get(var)<member_part> = rhs)
+                                // Generate: $.mutate(var, $.get(var)<member_part> OP rhs)
                                 let mutate_expr = format!(
-                                    "$.mutate({}, $.get({}){} = {})",
-                                    var, var, member_part, rhs
+                                    "$.mutate({}, $.get({}){} {} {})",
+                                    var, var, member_part, assign_op, rhs
                                 );
                                 new_result.push_str(&mutate_expr);
                                 i = rhs_end;
@@ -7637,7 +7669,6 @@ fn transform_prop_assignments(line: &str, prop_vars: &[String]) -> String {
             // Find the property name and equals sign
             // Example: "parentElement = node.parentElement"
             // We need to find where the property ends and where = is
-            let mut prop_end = 0;
             let mut eq_pos = None;
             let after_member_chars: Vec<char> = after_member.chars().collect();
             let mut scan_depth = 0i32;
@@ -7660,8 +7691,6 @@ fn transform_prop_assignments(line: &str, prop_vars: &[String]) -> String {
                 }
                 // Only look for assignment at depth 0
                 if c == '=' && scan_depth == 0 {
-                    // Check it's not ==, ===, =>, !=, !==, <=, >=,
-                    // or compound: +=, -=, *=, /=, %=, **=, &=, |=, ^=, &&=, ||=, ??=
                     let char_idx = after_member[..i].chars().count();
                     let prev = if char_idx > 0 {
                         after_member_chars.get(char_idx - 1).copied()
@@ -7681,30 +7710,14 @@ fn transform_prop_assignments(line: &str, prop_vars: &[String]) -> String {
                     if matches!(prev, Some('!') | Some('<') | Some('>')) {
                         continue;
                     }
-                    // Skip compound assignments: +=, -=, *=, /=, %=, &=, |=, ^=, ?=
-                    if matches!(
-                        prev,
-                        Some('+')
-                            | Some('-')
-                            | Some('*')
-                            | Some('/')
-                            | Some('%')
-                            | Some('&')
-                            | Some('|')
-                            | Some('^')
-                            | Some('?')
-                    ) {
-                        continue;
-                    }
+                    // For compound assignments (+=, -=, etc.), we still want to
+                    // capture the position so we can generate the wrapped mutation.
                     eq_pos = Some(i);
-                    // Find where the property name ends (scan backwards from =)
-                    let before_eq = after_member[..i].trim_end();
-                    prop_end = before_eq.len();
                     break;
                 }
             }
 
-            // If we found an assignment
+            // If we found an assignment (including compound operators)
             if let Some(eq_idx) = eq_pos {
                 // Check if this is already wrapped
                 if before.ends_with(&format!("{}({}().", var, var)) {
@@ -7712,7 +7725,65 @@ fn transform_prop_assignments(line: &str, prop_vars: &[String]) -> String {
                     continue;
                 }
 
-                let prop_name = after_member[..prop_end].trim();
+                // Detect the full assignment operator (=, +=, -=, *=, etc.)
+                // eq_idx points to '=' in after_member, but we need to check the
+                // character before '=' for compound operators
+                let char_before_eq = if eq_idx > 0 {
+                    after_member.as_bytes().get(eq_idx - 1).map(|&b| b as char)
+                } else {
+                    None
+                };
+                let (assign_op, op_start_offset) = match char_before_eq {
+                    Some('+') => ("+=", 1),
+                    Some('-') => ("-=", 1),
+                    Some('*') => {
+                        // Check for **=
+                        if eq_idx >= 2
+                            && after_member.as_bytes().get(eq_idx - 2).map(|&b| b as char)
+                                == Some('*')
+                        {
+                            ("**=", 2)
+                        } else {
+                            ("*=", 1)
+                        }
+                    }
+                    Some('/') => ("/=", 1),
+                    Some('%') => ("%=", 1),
+                    Some('&') => {
+                        if eq_idx >= 2
+                            && after_member.as_bytes().get(eq_idx - 2).map(|&b| b as char)
+                                == Some('&')
+                        {
+                            ("&&=", 2)
+                        } else {
+                            ("&=", 1)
+                        }
+                    }
+                    Some('|') => {
+                        if eq_idx >= 2
+                            && after_member.as_bytes().get(eq_idx - 2).map(|&b| b as char)
+                                == Some('|')
+                        {
+                            ("||=", 2)
+                        } else {
+                            ("|=", 1)
+                        }
+                    }
+                    Some('^') => ("^=", 1),
+                    Some('?') => {
+                        if eq_idx >= 2
+                            && after_member.as_bytes().get(eq_idx - 2).map(|&b| b as char)
+                                == Some('?')
+                        {
+                            ("??=", 2)
+                        } else {
+                            ("=", 0) // single ? before = is unexpected, treat as =
+                        }
+                    }
+                    _ => ("=", 0),
+                };
+
+                let prop_name = after_member[..eq_idx - op_start_offset].trim_end();
                 let after_eq_raw = &after_member[eq_idx + 1..];
                 let leading_whitespace = after_eq_raw.len() - after_eq_raw.trim_start().len();
                 let after_eq = after_eq_raw.trim_start();
@@ -7721,8 +7792,11 @@ fn transform_prop_assignments(line: &str, prop_vars: &[String]) -> String {
                 let value_end = find_statement_end_client(after_eq);
                 let value = after_eq[..value_end].trim();
 
-                // Wrap with prop(prop().prop = value, true)
-                let replacement = format!("{}({}().{} = {}, true)", var, var, prop_name, value);
+                // Wrap with prop(prop().prop OP value, true)
+                let replacement = format!(
+                    "{}({}().{} {} {}, true)",
+                    var, var, prop_name, assign_op, value
+                );
 
                 // Calculate the original content length:
                 // member_pattern.len() + eq_idx + 1 (for '=') + leading_whitespace + value_end
@@ -7792,12 +7866,13 @@ fn transform_prop_assignments(line: &str, prop_vars: &[String]) -> String {
             let trimmed_after = after_close.trim_start();
             let whitespace_len = after_close.len() - trimmed_after.len();
 
-            // Check for simple assignment `= value` (not ==, ===, =>, etc.)
-            if trimmed_after.starts_with('=')
-                && !trimmed_after.starts_with("==")
-                && !trimmed_after.starts_with("=>")
-            {
-                let after_eq = &trimmed_after[1..];
+            // Check for assignment operator (simple `=` or compound `+=`, `-=`, `*=`, etc.)
+            // but not ==, ===, =>, etc.
+            let (assign_op, assign_op_len) = detect_assignment_operator(trimmed_after);
+
+            if let Some(op) = assign_op {
+                let op_len = assign_op_len;
+                let after_eq = &trimmed_after[op_len..];
                 let after_eq_trimmed = after_eq.trim_start();
                 let eq_whitespace = after_eq.len() - after_eq_trimmed.len();
 
@@ -7807,16 +7882,18 @@ fn transform_prop_assignments(line: &str, prop_vars: &[String]) -> String {
 
                 let bracket_content = &after_bracket[..close_pos];
 
-                // Build: varname(varname()[bracket_content] = value, true)
-                let replacement =
-                    format!("{}({}()[{}] = {}, true)", var, var, bracket_content, value);
+                // Build: varname(varname()[bracket_content] OP value, true)
+                let replacement = format!(
+                    "{}({}()[{}] {} {}, true)",
+                    var, var, bracket_content, op, value
+                );
 
                 // Calculate original length from the start of varname to end of value
                 let original_len = bracket_pattern.len()
                     + close_pos
                     + 1
                     + whitespace_len
-                    + 1
+                    + op_len
                     + eq_whitespace
                     + value_end;
 
@@ -7835,6 +7912,76 @@ fn transform_prop_assignments(line: &str, prop_vars: &[String]) -> String {
     }
 
     result
+}
+
+/// Detect an assignment operator at the start of a string.
+///
+/// Returns `(Some(operator_str), operator_byte_len)` if an assignment operator is found,
+/// or `(None, 0)` if no assignment operator is at the start.
+///
+/// Handles: `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `**=`, `&=`, `|=`, `^=`, `&&=`, `||=`, `??=`,
+/// `<<=`, `>>=`, `>>>=`.
+/// Excludes: `==`, `===`, `=>`.
+fn detect_assignment_operator(s: &str) -> (Option<&'static str>, usize) {
+    let bytes = s.as_bytes();
+    if bytes.is_empty() {
+        return (None, 0);
+    }
+
+    // Check for 4-char operators first
+    if bytes.len() >= 4 {
+        let four = &s[..4];
+        if four == ">>>=" {
+            return (Some(">>>="), 4);
+        }
+    }
+
+    // Check for 3-char operators
+    if bytes.len() >= 3 {
+        let three = &s[..3];
+        match three {
+            "**=" => return (Some("**="), 3),
+            "&&=" => return (Some("&&="), 3),
+            "||=" => return (Some("||="), 3),
+            "??=" => return (Some("??="), 3),
+            "<<=" => return (Some("<<="), 3),
+            ">>=" => {
+                // Make sure it's not >>>=
+                if bytes.len() < 4 || bytes[3] != b'=' {
+                    return (Some(">>="), 3);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // Check for 2-char operators
+    if bytes.len() >= 2 {
+        let two = &s[..2];
+        match two {
+            "+=" => return (Some("+="), 2),
+            "-=" => return (Some("-="), 2),
+            "*=" => return (Some("*="), 2),
+            "/=" => return (Some("/="), 2),
+            "%=" => return (Some("%="), 2),
+            "&=" => return (Some("&="), 2),
+            "|=" => return (Some("|="), 2),
+            "^=" => return (Some("^="), 2),
+            // Exclude ==, =>
+            "==" | "=>" => return (None, 0),
+            _ => {}
+        }
+    }
+
+    // Check for simple = (but not ==, =>)
+    if bytes[0] == b'=' {
+        if bytes.len() >= 2 && (bytes[1] == b'=' || bytes[1] == b'>') {
+            return (None, 0);
+        }
+        return (Some("="), 1);
+    }
+
+    (None, 0)
 }
 
 /// Split a multi-declarator variable statement into individual declarations.
@@ -13759,23 +13906,9 @@ fn transform_member_mutations(
                                 }
                                 '=' if depth == 0 => {
                                     let is_double_eq = j + 1 < chars.len() && chars[j + 1] == '=';
-                                    let is_compound = j > 0
-                                        && matches!(
-                                            chars[j - 1],
-                                            '!' | '<'
-                                                | '>'
-                                                | '='
-                                                | '+'
-                                                | '-'
-                                                | '*'
-                                                | '/'
-                                                | '%'
-                                                | '|'
-                                                | '&'
-                                                | '?'
-                                                | '^'
-                                        );
-                                    if !is_double_eq && !is_compound {
+                                    let is_comparison =
+                                        j > 0 && matches!(chars[j - 1], '!' | '<' | '>' | '=');
+                                    if !is_double_eq && !is_comparison {
                                         eq_pos = Some(j);
                                     }
                                     break;
@@ -13787,7 +13920,51 @@ fn transform_member_mutations(
                         }
 
                         if let Some(eq_idx) = eq_pos {
-                            let member_part: String = chars[member_start..eq_idx].iter().collect();
+                            // Determine the full assignment operator
+                            let prev_char = if eq_idx > member_start {
+                                Some(chars[eq_idx - 1])
+                            } else {
+                                None
+                            };
+                            let (assign_op, op_start) = match prev_char {
+                                Some('+') => ("+=", eq_idx - 1),
+                                Some('-') => ("-=", eq_idx - 1),
+                                Some('*') => {
+                                    if eq_idx >= member_start + 2 && chars[eq_idx - 2] == '*' {
+                                        ("**=", eq_idx - 2)
+                                    } else {
+                                        ("*=", eq_idx - 1)
+                                    }
+                                }
+                                Some('/') => ("/=", eq_idx - 1),
+                                Some('%') => ("%=", eq_idx - 1),
+                                Some('&') => {
+                                    if eq_idx >= member_start + 2 && chars[eq_idx - 2] == '&' {
+                                        ("&&=", eq_idx - 2)
+                                    } else {
+                                        ("&=", eq_idx - 1)
+                                    }
+                                }
+                                Some('|') => {
+                                    if eq_idx >= member_start + 2 && chars[eq_idx - 2] == '|' {
+                                        ("||=", eq_idx - 2)
+                                    } else {
+                                        ("|=", eq_idx - 1)
+                                    }
+                                }
+                                Some('^') => ("^=", eq_idx - 1),
+                                Some('?') => {
+                                    if eq_idx >= member_start + 2 && chars[eq_idx - 2] == '?' {
+                                        ("??=", eq_idx - 2)
+                                    } else {
+                                        ("=", eq_idx)
+                                    }
+                                }
+                                _ => ("=", eq_idx),
+                            };
+
+                            let member_part: String =
+                                chars[member_start..op_start].iter().collect();
                             let member_part = member_part.trim_end();
 
                             // Find end of RHS
@@ -13836,8 +14013,10 @@ fn transform_member_mutations(
                             let rhs = rhs.trim();
 
                             if !rhs.is_empty() {
-                                let mutate_expr =
-                                    format!("$.mutate({}, {}{} = {})", var, var, member_part, rhs);
+                                let mutate_expr = format!(
+                                    "$.mutate({}, {}{} {} {})",
+                                    var, var, member_part, assign_op, rhs
+                                );
                                 new_result.push_str(&mutate_expr);
                                 i = rhs_end;
                                 continue;
