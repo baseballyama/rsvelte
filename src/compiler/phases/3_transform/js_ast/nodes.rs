@@ -399,6 +399,9 @@ pub struct JsProperty {
     pub kind: JsPropertyKind,
     pub computed: bool,
     pub shorthand: bool,
+    /// When true and value is a function expression, emit as method shorthand:
+    /// `name(params) { body }` instead of `name: function(params) { body }`.
+    pub method: bool,
 }
 
 /// Property key.

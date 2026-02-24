@@ -1130,12 +1130,18 @@ fn convert_object_expression(
                                 _ => JsPropertyKind::Init,
                             };
 
+                            let method = prop_obj
+                                .get("method")
+                                .and_then(|v| v.as_bool())
+                                .unwrap_or(false);
+
                             Some(JsObjectMember::Property(JsProperty {
                                 key,
                                 value,
                                 kind,
                                 computed,
                                 shorthand,
+                                method,
                             }))
                         }
                         "SpreadElement" => {

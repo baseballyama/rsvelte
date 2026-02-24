@@ -553,6 +553,7 @@ where
                     kind: JsPropertyKind::Init,
                     computed: false,
                     shorthand: false,
+                    method: false,
                 }));
             }
             AttributeOrSpread::Spread(spread) => {
@@ -589,6 +590,7 @@ where
                     kind: JsPropertyKind::Init,
                     computed: false,
                     shorthand: false,
+                    method: false,
                 })
             })
             .collect();
@@ -615,6 +617,7 @@ where
                     kind: JsPropertyKind::Init,
                     computed: false,
                     shorthand: false,
+                    method: false,
                 })
             })
             .collect();
@@ -652,6 +655,7 @@ where
                     kind: JsPropertyKind::Init,
                     computed: false,
                     shorthand: false,
+                    method: false,
                 })
             })
             .collect();
@@ -711,6 +715,7 @@ where
                 kind: JsPropertyKind::Init,
                 computed: false,
                 shorthand: false,
+                method: false,
             });
 
             if dir.modifiers.iter().any(|m| m.as_str() == "important") {

@@ -137,6 +137,7 @@ pub fn build_inline_component<F>(
                         kind: JsPropertyKind::Init,
                         computed: false,
                         shorthand: false,
+                        method: false,
                     }));
                     continue;
                 }
@@ -164,6 +165,7 @@ pub fn build_inline_component<F>(
                     kind: JsPropertyKind::Init,
                     computed: false,
                     shorthand: false,
+                    method: false,
                 }));
             }
             Attribute::BindDirective(bind) => {
@@ -202,6 +204,7 @@ pub fn build_inline_component<F>(
                     kind: JsPropertyKind::Init,
                     computed: false,
                     shorthand: false,
+                    method: false,
                 }));
             }
             _ => {
@@ -287,6 +290,7 @@ pub fn build_inline_component<F>(
                     kind: JsPropertyKind::Init,
                     computed: false,
                     shorthand: false,
+                    method: false,
                 }));
 
                 serialized_slots.push(JsObjectMember::Property(JsProperty {
@@ -295,6 +299,7 @@ pub fn build_inline_component<F>(
                     kind: JsPropertyKind::Init,
                     computed: false,
                     shorthand: false,
+                    method: false,
                 }));
             } else {
                 // Has let directives - use $$slots.default and children: $.invalid_default_snippet
@@ -323,6 +328,7 @@ pub fn build_inline_component<F>(
                     kind: JsPropertyKind::Init,
                     computed: false,
                     shorthand: false,
+                    method: false,
                 }));
 
                 serialized_slots.push(JsObjectMember::Property(JsProperty {
@@ -331,6 +337,7 @@ pub fn build_inline_component<F>(
                     kind: JsPropertyKind::Init,
                     computed: false,
                     shorthand: false,
+                    method: false,
                 }));
             }
         } else {
@@ -340,6 +347,7 @@ pub fn build_inline_component<F>(
                 kind: JsPropertyKind::Init,
                 computed: false,
                 shorthand: false,
+                method: false,
             }));
         }
     }
@@ -366,6 +374,7 @@ pub fn build_inline_component<F>(
             kind: JsPropertyKind::Init,
             computed: false,
             shorthand: false,
+            method: false,
         }));
     }
 

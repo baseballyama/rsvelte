@@ -852,6 +852,7 @@ fn transform_client_with_visitors(
                     value: Box::new(hash),
                     kind: super::js_ast::nodes::JsPropertyKind::Init,
                     shorthand: false,
+                    method: false,
                     computed: false,
                 }),
                 super::js_ast::nodes::JsObjectMember::Property(super::js_ast::nodes::JsProperty {
@@ -859,6 +860,7 @@ fn transform_client_with_visitors(
                     value: Box::new(code),
                     kind: super::js_ast::nodes::JsPropertyKind::Init,
                     shorthand: false,
+                    method: false,
                     computed: false,
                 }),
             ]),

@@ -269,6 +269,7 @@ fn create_derived_block_argument(
                     value: Box::new(b::id(id)),
                     kind: JsPropertyKind::Init,
                     shorthand: true,
+                    method: false,
                     computed: false,
                 })
             })
@@ -1009,7 +1010,8 @@ fn apply_save_to_nested_awaits(expr: &JsExpr, is_last: bool) -> JsExpr {
                                 value: Box::new(value),
                                 kind: p.kind,
                                 computed: p.computed,
-                                shorthand: false, // No longer shorthand after transformation
+                                shorthand: false,
+                                method: false, // No longer shorthand after transformation
                             })
                         }
                         JsObjectMember::SpreadElement(spread) => JsObjectMember::SpreadElement(

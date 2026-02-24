@@ -29,12 +29,22 @@ pub fn visit(
 
     // Analyze attributes (mirrors visit_component logic from shared/component.rs)
     for attr in &component.attributes {
-        if let Attribute::BindDirective(bind) = attr {
-            // Track component bindings (skip bind:this)
-            if bind.name != "this" {
-                context.analysis.uses_component_bindings = true;
+        match attr {
+            Attribute::BindDirective(bind) => {
+                // Track component bindings (skip bind:this)
+                if bind.name != "this" {
+                    context.analysis.uses_component_bindings = true;
+                }
+                validate_assignment(bind.expression.as_json(), context, true)?;
             }
-            validate_assignment(bind.expression.as_json(), context, true)?;
+            Attribute::OnDirective(on) => {
+                // If there's no expression, this is an event forwarding/bubbling directive.
+                // The component needs $$props to forward events to the parent.
+                if on.expression.is_none() {
+                    context.analysis.needs_props = true;
+                }
+            }
+            _ => {}
         }
     }
 

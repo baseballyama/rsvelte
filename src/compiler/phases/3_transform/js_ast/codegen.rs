@@ -2531,18 +2531,32 @@ impl JsCodegen {
                     self.output.push(']');
                 }
 
-                match prop.kind {
-                    JsPropertyKind::Get | JsPropertyKind::Set => {
-                        if let JsExpr::Function(func) = prop.value.as_ref() {
-                            self.output.push('(');
-                            self.emit_params(&func.params);
-                            self.output.push_str(") ");
-                            self.emit_block_inline(&func.body);
-                        }
-                    }
-                    JsPropertyKind::Init => {
+                // Method shorthand: name(params) { body }
+                if prop.method {
+                    if let JsExpr::Function(func) = prop.value.as_ref() {
+                        self.output.push('(');
+                        self.emit_params(&func.params);
+                        self.output.push_str(") ");
+                        self.emit_block_inline(&func.body);
+                    } else {
+                        // Fallback: emit as normal property
                         self.output.push_str(": ");
                         self.emit_expression(&prop.value);
+                    }
+                } else {
+                    match prop.kind {
+                        JsPropertyKind::Get | JsPropertyKind::Set => {
+                            if let JsExpr::Function(func) = prop.value.as_ref() {
+                                self.output.push('(');
+                                self.emit_params(&func.params);
+                                self.output.push_str(") ");
+                                self.emit_block_inline(&func.body);
+                            }
+                        }
+                        JsPropertyKind::Init => {
+                            self.output.push_str(": ");
+                            self.emit_expression(&prop.value);
+                        }
                     }
                 }
             }
@@ -3095,6 +3109,7 @@ mod tests {
             kind: JsPropertyKind::Get,
             computed: false,
             shorthand: false,
+            method: false,
         });
 
         let setter = JsObjectMember::Property(JsProperty {
@@ -3117,6 +3132,7 @@ mod tests {
             kind: JsPropertyKind::Set,
             computed: false,
             shorthand: false,
+            method: false,
         });
 
         let obj = JsExpr::Object(JsObjectExpression {

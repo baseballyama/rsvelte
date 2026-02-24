@@ -115,6 +115,7 @@ pub fn svelte_boundary(node: &SvelteElement, context: &mut ComponentContext) {
                         kind: JsPropertyKind::Init,
                         computed: false,
                         shorthand: true,
+                        method: false,
                     }));
                 } else {
                     // Regular snippet, include in content

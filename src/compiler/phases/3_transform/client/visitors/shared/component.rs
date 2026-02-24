@@ -217,7 +217,13 @@ pub fn build_component(
                     } else {
                         handlers.into_iter().next().unwrap()
                     };
-                    b::prop(name, value)
+                    // Use method shorthand for function expression handlers
+                    // e.g., `foo($$arg) { ... }` instead of `foo: function($$arg) { ... }`
+                    if let JsExpr::Function(ref func) = value {
+                        b::prop_method(name, func.params.clone(), func.body.body.clone())
+                    } else {
+                        b::prop(name, value)
+                    }
                 })
                 .collect(),
         );
@@ -1437,6 +1443,7 @@ fn process_attach_tag(
             kind: JsPropertyKind::Init,
             computed: true,
             shorthand: false,
+            method: false,
         }),
     );
 }

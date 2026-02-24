@@ -593,6 +593,7 @@ pub fn apply_transforms_to_expression_with_shadowed(
                             kind: p.kind,
                             computed: p.computed,
                             shorthand: is_shorthand,
+                            method: p.method,
                         })
                     }
                     JsObjectMember::SpreadElement(spread_expr) => {

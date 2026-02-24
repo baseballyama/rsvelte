@@ -172,6 +172,7 @@ pub fn prop(key: impl Into<String>, value: JsExpr) -> JsObjectMember {
         kind: JsPropertyKind::Init,
         computed: false,
         shorthand: false,
+        method: false,
     })
 }
 
@@ -184,6 +185,7 @@ pub fn prop_shorthand(name: impl Into<String>) -> JsObjectMember {
         kind: JsPropertyKind::Init,
         computed: false,
         shorthand: true,
+        method: false,
     })
 }
 
@@ -195,6 +197,35 @@ pub fn prop_computed(key: JsExpr, value: JsExpr) -> JsObjectMember {
         kind: JsPropertyKind::Init,
         computed: true,
         shorthand: false,
+        method: false,
+    })
+}
+
+/// Create a method shorthand property: `name(params) { body }`.
+pub fn prop_method(
+    name: impl Into<String>,
+    params: Vec<JsPattern>,
+    body: Vec<JsStatement>,
+) -> JsObjectMember {
+    let name_str = name.into();
+    let key = if is_valid_js_identifier(&name_str) {
+        JsPropertyKey::Identifier(name_str)
+    } else {
+        JsPropertyKey::Literal(JsLiteral::String(name_str))
+    };
+    JsObjectMember::Property(JsProperty {
+        key,
+        value: Box::new(JsExpr::Function(JsFunctionExpression {
+            id: None,
+            params,
+            body: JsBlockStatement::with_body(body),
+            is_async: false,
+            is_generator: false,
+        })),
+        kind: JsPropertyKind::Init,
+        computed: false,
+        shorthand: false,
+        method: true,
     })
 }
 
@@ -219,6 +250,7 @@ pub fn getter(name: impl Into<String>, body: Vec<JsStatement>) -> JsObjectMember
         kind: JsPropertyKind::Get,
         computed,
         shorthand: false,
+        method: false,
     })
 }
 
@@ -247,6 +279,7 @@ pub fn setter(
         kind: JsPropertyKind::Set,
         computed,
         shorthand: false,
+        method: false,
     })
 }
 
