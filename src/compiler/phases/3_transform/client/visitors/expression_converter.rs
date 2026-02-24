@@ -2300,16 +2300,17 @@ fn extract_destructure_paths(
 
         "AssignmentPattern" => {
             // Default value: { x = defaultValue } or [x = defaultValue]
-            // Generate: expression === undefined ? defaultValue : expression
+            // Generate: $.fallback(expression, defaultValue)
+            // This matches the official compiler's use of $.fallback() which checks
+            // if the value is undefined and returns the default if so.
             let left = obj.get("left");
             let right = obj.get("right");
 
             if let (Some(left_val), Some(right_val)) = (left, right) {
                 let default_val = convert_json_value(right_val, context);
-                let fallback_expr = b::conditional(
-                    b::binary_str("===", expression.clone(), b::id("undefined")),
-                    default_val,
-                    expression.clone(),
+                let fallback_expr = b::call(
+                    b::member_path("$.fallback"),
+                    vec![expression.clone(), default_val],
                 );
                 extract_destructure_paths(paths, inserts, left_val, &fallback_expr, context);
             }

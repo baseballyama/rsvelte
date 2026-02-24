@@ -14007,8 +14007,8 @@ fn generate_destructure_iife(
 
                 if let Some(default_val) = default_val {
                     body_lines.push(format!(
-                        "\t{} = {}[{}] !== undefined ? {}[{}] : {};",
-                        target, array_name, idx, array_name, idx, default_val
+                        "\t{} = $.fallback({}[{}], {});",
+                        target, array_name, idx, default_val
                     ));
                 } else {
                     body_lines.push(format!("\t{} = {}[{}];", target, array_name, idx));
@@ -14071,8 +14071,8 @@ fn generate_destructure_iife(
                     let actual_target = target[..eq_pos].trim();
                     let default_val = target[eq_pos + 1..].trim();
                     body_lines.push(format!(
-                        "\t{} = $$value.{} !== undefined ? $$value.{} : {};",
-                        actual_target, key, key, default_val
+                        "\t{} = $.fallback($$value.{}, {});",
+                        actual_target, key, default_val
                     ));
                 } else {
                     body_lines.push(format!("\t{} = $$value.{};", target, key));
@@ -14083,8 +14083,8 @@ fn generate_destructure_iife(
                     let actual_name = part[..eq_pos].trim();
                     let default_val = part[eq_pos + 1..].trim();
                     body_lines.push(format!(
-                        "\t{} = $$value.{} !== undefined ? $$value.{} : {};",
-                        actual_name, actual_name, actual_name, default_val
+                        "\t{} = $.fallback($$value.{}, {});",
+                        actual_name, actual_name, default_val
                     ));
                     continue;
                 } else {
