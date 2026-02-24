@@ -4853,6 +4853,13 @@ fn transform_state_member_mutations(
                                     }
                                     break;
                                 }
+                                // Semicolons at depth 0 are statement boundaries
+                                // - stop scanning for `=` signs.
+                                // Without this, `items.slice();\nclone[0].value += "x"`
+                                // would incorrectly match `+=` from a different statement.
+                                ';' if depth == 0 => {
+                                    break;
+                                }
                                 _ => {
                                     j += 1;
                                 }
@@ -14201,6 +14208,11 @@ fn transform_member_mutations(
                                     }
                                     depth -= 1;
                                     j += 1;
+                                }
+                                // Semicolons at depth 0 are statement boundaries
+                                // - stop scanning for `=` signs.
+                                ';' if depth == 0 => {
+                                    break;
                                 }
                                 '=' if depth == 0 => {
                                     let is_double_eq = j + 1 < chars.len() && chars[j + 1] == '=';
