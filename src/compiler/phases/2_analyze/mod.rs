@@ -269,6 +269,15 @@ pub fn analyze_component(
         check_reactive_declaration_cycles(ast, &analysis)?;
     }
 
+    // Populate legacy_dependencies for LegacyReactive bindings.
+    // This must happen BEFORE analyze_template because the EachBlock visitor needs
+    // legacy_dependencies to correctly follow transitive dependency chains.
+    // Corresponds to Svelte's LabeledStatement.js lines 81-87 where
+    // `binding.legacy_dependencies = Array.from(reactive_statement.dependencies)` is set.
+    if !analysis.runes {
+        populate_legacy_dependencies(ast, &mut analysis);
+    }
+
     // Analyze the template using visitors
     visitors::analyze_template(ast, &mut analysis)?;
 
@@ -366,6 +375,12 @@ pub fn analyze_component(
     // Corresponds to Svelte's 2-analyze/index.js L618-636
     if !analysis.runes {
         promote_legacy_state_bindings(&mut analysis);
+        // Additionally promote store underlying variables to 'state' if they are
+        // reassigned in legacy mode. This corresponds to Svelte's 2-analyze/index.js L427-437:
+        //   if (declaration.kind === 'normal' && declaration.declaration_kind === 'let' && declaration.reassigned) {
+        //       declaration.kind = 'state';
+        //   }
+        promote_reassigned_store_variables(&mut analysis);
     }
 
     // More legacy nonsense: if an `each` binding is reassigned/mutated,
@@ -902,6 +917,44 @@ fn extract_identifiers_from_pattern(pattern: Option<&serde_json::Value>) -> Vec<
     identifiers
 }
 
+/// Promote store underlying variables to 'state' if reassigned in legacy mode.
+///
+/// When a store subscription `$foo` exists and the underlying variable `foo`
+/// is `let` declared, `normal` kind, and reassigned, it should be promoted to `state`.
+/// This ensures the store variable gets wrapped in `$.mutable_source()` so that
+/// reassignments are reactive.
+///
+/// Corresponds to Svelte's 2-analyze/index.js L427-437.
+fn promote_reassigned_store_variables(analysis: &mut ComponentAnalysis) {
+    // Collect store sub names first
+    let store_sub_names: Vec<String> = analysis
+        .root
+        .bindings
+        .iter()
+        .filter(|b| matches!(b.kind, BindingKind::StoreSub))
+        .map(|b| b.name.clone())
+        .collect();
+
+    // For each store sub, check if the underlying variable should be promoted
+    for store_sub_name in &store_sub_names {
+        let store_name = &store_sub_name[1..]; // Remove leading $
+        if let Some(binding_idx) = analysis
+            .root
+            .bindings
+            .iter()
+            .position(|b| b.name == store_name)
+        {
+            let binding = &analysis.root.bindings[binding_idx];
+            if binding.kind == BindingKind::Normal
+                && binding.declaration_kind == DeclarationKind::Let
+                && binding.reassigned
+            {
+                analysis.root.bindings[binding_idx].kind = BindingKind::State;
+            }
+        }
+    }
+}
+
 /// Promote bindings to 'state' kind in legacy (non-runes) mode.
 ///
 /// In legacy mode, if a binding:
@@ -1054,28 +1107,53 @@ fn collect_each_block_promotions(
                     let mut names = Vec::new();
                     extract_each_pattern_identifiers(context_json, &mut names);
                     names.iter().any(|name| {
-                        if let Some(binding_idx) = analysis.root.find_binding_any_scope(name) {
-                            let binding = &analysis.root.bindings[binding_idx];
-                            binding.reassigned || binding.mutated
-                        } else {
-                            false
-                        }
+                        // Check ALL bindings with this name, not just the first one.
+                        // The each block's item binding (EachItem kind) may be shadowed by
+                        // callback parameters with the same name in earlier scopes.
+                        // We need to find the EachItem binding specifically.
+                        analysis.root.bindings.iter().any(|binding| {
+                            binding.name == *name && (binding.reassigned || binding.mutated)
+                        })
                     })
                 } else {
                     false
                 };
 
                 if has_updated_binding {
-                    for &dep_idx in &each.metadata.expression.dependencies {
+                    // Use transitive_deps which follows LegacyReactive dependency chains.
+                    // This matches the official compiler's EachBlock.js lines 64-75:
+                    //   for (const binding of node.metadata.transitive_deps) {
+                    //     if (binding.kind === 'normal' && ...) binding.kind = 'state';
+                    //   }
+                    for &dep_idx in &each.metadata.transitive_deps {
                         if dep_idx < analysis.root.bindings.len() {
                             let binding = &analysis.root.bindings[dep_idx];
                             if binding.kind == BindingKind::Normal
-                                && !matches!(
+                                && matches!(
                                     binding.declaration_kind,
-                                    DeclarationKind::Import | DeclarationKind::Function
+                                    DeclarationKind::Const
+                                        | DeclarationKind::Let
+                                        | DeclarationKind::Var
                                 )
                             {
                                 promotions.push(dep_idx);
+                            }
+                        }
+                    }
+                    // Also check expression.dependencies for direct Normal bindings
+                    // (fallback for cases where transitive_deps might be empty)
+                    if each.metadata.transitive_deps.is_empty() {
+                        for &dep_idx in &each.metadata.expression.dependencies {
+                            if dep_idx < analysis.root.bindings.len() {
+                                let binding = &analysis.root.bindings[dep_idx];
+                                if binding.kind == BindingKind::Normal
+                                    && !matches!(
+                                        binding.declaration_kind,
+                                        DeclarationKind::Import | DeclarationKind::Function
+                                    )
+                                {
+                                    promotions.push(dep_idx);
+                                }
                             }
                         }
                     }
@@ -1131,6 +1209,198 @@ fn collect_each_block_promotions(
                 collect_each_block_promotions(&slot.fragment, analysis, promotions);
             }
             _ => {}
+        }
+    }
+}
+
+/// Populate `legacy_dependencies` for `LegacyReactive` bindings.
+///
+/// In legacy mode, `$:` reactive declarations create `LegacyReactive` bindings.
+/// Each such binding needs to track which other bindings it depends on (the
+/// bindings referenced on the RHS of `$: x = <rhs>`).
+///
+/// This is needed by `collect_transitive_dependencies` in the EachBlock visitor
+/// to correctly follow dependency chains and promote collection bindings to `State`.
+///
+/// Corresponds to Svelte's LabeledStatement.js lines 81-87 where
+/// `binding.legacy_dependencies = Array.from(reactive_statement.dependencies)` is set.
+fn populate_legacy_dependencies(ast: &Root, analysis: &mut ComponentAnalysis) {
+    let instance = match ast.instance {
+        Some(ref inst) => inst,
+        None => return,
+    };
+
+    let crate::ast::js::Expression::Value(ref program) = instance.content;
+
+    // Walk the program body to find labeled statements with label "$"
+    let body = match program.get("body").and_then(|b| b.as_array()) {
+        Some(body) => body,
+        None => return,
+    };
+
+    for stmt in body {
+        let stmt_type = stmt.get("type").and_then(|t| t.as_str());
+        if stmt_type != Some("LabeledStatement") {
+            continue;
+        }
+
+        let label_name = stmt
+            .get("label")
+            .and_then(|l| l.get("name"))
+            .and_then(|n| n.as_str());
+        if label_name != Some("$") {
+            continue;
+        }
+
+        // Check if the body is an ExpressionStatement with an AssignmentExpression
+        let body = match stmt.get("body") {
+            Some(body) => body,
+            None => continue,
+        };
+
+        if body.get("type").and_then(|t| t.as_str()) != Some("ExpressionStatement") {
+            continue;
+        }
+
+        let expr = match body.get("expression") {
+            Some(expr) => expr,
+            None => continue,
+        };
+
+        if expr.get("type").and_then(|t| t.as_str()) != Some("AssignmentExpression") {
+            continue;
+        }
+
+        // Extract the assigned identifier(s) from the LHS
+        let left = match expr.get("left") {
+            Some(left) => left,
+            None => continue,
+        };
+
+        let mut assigned_names = Vec::new();
+        if left.get("type").and_then(|t| t.as_str()) == Some("MemberExpression") {
+            // For member expressions like `a.b = ...`, use the root object
+            if let Some(name) = extract_object_root(left) {
+                assigned_names.push(name);
+            }
+        } else {
+            extract_each_pattern_identifiers(left, &mut assigned_names);
+        }
+
+        // Find which of these are LegacyReactive bindings
+        let legacy_reactive_indices: Vec<usize> = assigned_names
+            .iter()
+            .filter_map(|name| {
+                analysis
+                    .root
+                    .bindings
+                    .iter()
+                    .position(|b| b.name == *name && b.kind == BindingKind::LegacyReactive)
+            })
+            .collect();
+
+        if legacy_reactive_indices.is_empty() {
+            continue;
+        }
+
+        // Walk the RHS to find all referenced identifiers
+        let right = match expr.get("right") {
+            Some(right) => right,
+            None => continue,
+        };
+
+        let mut dep_names = Vec::new();
+        collect_identifiers_from_expr(right, &mut dep_names);
+
+        // Also collect identifiers from the LHS that are NOT the assigned variables
+        // (e.g., in `$: x = y + z`, y and z are deps but x is not)
+        // The official compiler collects ALL scope references except LHS of assignments.
+        // For simplicity, we collect from the entire RHS.
+
+        // Remove assigned names from deps (they shouldn't depend on themselves)
+        let assigned_set: rustc_hash::FxHashSet<&str> =
+            assigned_names.iter().map(|n| n.as_str()).collect();
+        dep_names.retain(|n| !assigned_set.contains(n.as_str()));
+
+        // Look up binding indices for the dependency names
+        let dep_indices: Vec<usize> = dep_names
+            .iter()
+            .filter_map(|name| {
+                // Look up in instance scope (binding index)
+                analysis.root.bindings.iter().position(|b| b.name == *name)
+            })
+            .collect();
+
+        // Set legacy_dependencies on the LegacyReactive bindings
+        for &binding_idx in &legacy_reactive_indices {
+            analysis.root.bindings[binding_idx].legacy_dependencies = dep_indices.clone();
+        }
+    }
+}
+
+/// Extract the root object identifier from a MemberExpression chain.
+/// E.g., `a.b.c` returns "a".
+fn extract_object_root(node: &serde_json::Value) -> Option<String> {
+    match node.get("type").and_then(|t| t.as_str()) {
+        Some("MemberExpression") => node.get("object").and_then(extract_object_root),
+        Some("Identifier") => node
+            .get("name")
+            .and_then(|n| n.as_str())
+            .map(|s| s.to_string()),
+        _ => None,
+    }
+}
+
+/// Collect all identifier names from a JavaScript expression (recursively).
+/// This is used to find dependencies in the RHS of reactive declarations.
+fn collect_identifiers_from_expr(node: &serde_json::Value, names: &mut Vec<String>) {
+    let node_type = match node.get("type").and_then(|t| t.as_str()) {
+        Some(t) => t,
+        None => return,
+    };
+
+    match node_type {
+        "Identifier" => {
+            if let Some(name) = node.get("name").and_then(|n| n.as_str())
+                && !names.contains(&name.to_string())
+            {
+                names.push(name.to_string());
+            }
+        }
+        "MemberExpression" => {
+            // Only walk the object, not the property (unless computed)
+            if let Some(obj) = node.get("object") {
+                collect_identifiers_from_expr(obj, names);
+            }
+            if node
+                .get("computed")
+                .and_then(|c| c.as_bool())
+                .unwrap_or(false)
+                && let Some(prop) = node.get("property")
+            {
+                collect_identifiers_from_expr(prop, names);
+            }
+        }
+        _ => {
+            // Recursively walk all value fields
+            if let Some(obj) = node.as_object() {
+                for (key, val) in obj {
+                    if key == "type" || key == "start" || key == "end" || key == "loc" {
+                        continue;
+                    }
+                    if val.is_object() {
+                        collect_identifiers_from_expr(val, names);
+                    } else if val.is_array()
+                        && let Some(arr) = val.as_array()
+                    {
+                        for item in arr {
+                            if item.is_object() {
+                                collect_identifiers_from_expr(item, names);
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

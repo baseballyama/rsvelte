@@ -231,6 +231,11 @@ pub struct Binding {
     /// It is a member expression of the form `$$promises[n]`.
     /// Corresponds to `blocker` field in Svelte's Binding class (scope.js).
     pub blocker: Option<BlockerExpression>,
+    /// For `legacy_reactive` bindings: the binding indices of their reactive dependencies.
+    /// These are the bindings referenced on the RHS of `$: x = <rhs>`.
+    /// Used by `collect_transitive_dependencies` to follow dependency chains.
+    /// Corresponds to `legacy_dependencies` in Svelte's Binding class (scope.js).
+    pub legacy_dependencies: Vec<usize>,
 }
 
 /// A blocker expression representing `$$promises[n]`.
@@ -275,6 +280,7 @@ impl Binding {
             mutations: SmallVec::new(),
             prop_alias: None,
             blocker: None,
+            legacy_dependencies: Vec::new(),
         }
     }
 
@@ -300,6 +306,7 @@ impl Binding {
             mutations: SmallVec::new(),
             prop_alias: None,
             blocker: None,
+            legacy_dependencies: Vec::new(),
         }
     }
 

@@ -760,11 +760,93 @@ pub fn apply_transforms_to_expression_with_shadowed(
             // In the official Svelte compiler, the assign transform callback on the each item
             // sets `uses_index = true`. Since Rust uses fn pointers (not closures), we track
             // this via a shared flag on the state.
+            //
+            // For legacy mode (non-runes), also transform the assignment to use
+            // collection[$$index] and append $.invalidate_inner_signals().
+            // This mirrors the official compiler's `assign` transform registered in EachBlock.js:
+            //   assign: (_, value) => {
+            //     uses_index = true;
+            //     const left = b.member(collection, index, true);
+            //     return b.sequence([b.assignment('=', left, value), ...sequence]);
+            //   }
             if let JsExpr::Identifier(name) = assign.left.as_ref()
                 && !local_scope.contains(name)
                 && context.state.each_item_names.contains(name)
             {
                 context.state.each_item_assign_or_mutate.set(true);
+
+                // In legacy mode, transform the assignment to use collection[$$index]
+                // and append the invalidation sequence.
+                if !context.state.analysis.runes
+                    && let Some(each_ctx) = context
+                        .state
+                        .each_binding_context
+                        .iter()
+                        .rev()
+                        .find(|ctx| ctx.item_name == *name)
+                        .cloned()
+                {
+                    let collection_access = build_reassigned_item_read(&each_ctx);
+
+                    // Build the assignment value. For compound operators (o *= 2),
+                    // we need to expand to: collection[$$index] = collection[$$index] * 2
+                    // For simple assignment (o = 5), just use the right side.
+                    let transformed_right = recurse!(&assign.right);
+                    let assign_value = if matches!(assign.operator, JsAssignmentOp::Assign) {
+                        transformed_right
+                    } else {
+                        // Expand compound assignment: collection[$$index] OP right
+                        // e.g., *= becomes collection[$$index] * right
+                        let binary_op = match assign.operator {
+                            JsAssignmentOp::AddAssign => "+",
+                            JsAssignmentOp::SubAssign => "-",
+                            JsAssignmentOp::MulAssign => "*",
+                            JsAssignmentOp::DivAssign => "/",
+                            JsAssignmentOp::ModAssign => "%",
+                            JsAssignmentOp::PowAssign => "**",
+                            JsAssignmentOp::BitAndAssign => "&",
+                            JsAssignmentOp::BitOrAssign => "|",
+                            JsAssignmentOp::BitXorAssign => "^",
+                            JsAssignmentOp::ShlAssign => "<<",
+                            JsAssignmentOp::ShrAssign => ">>",
+                            JsAssignmentOp::UShrAssign => ">>>",
+                            JsAssignmentOp::OrAssign => "||",
+                            JsAssignmentOp::AndAssign => "&&",
+                            JsAssignmentOp::NullishAssign => "??",
+                            _ => "=",
+                        };
+                        // Generate: collection[$$index] OP right
+                        let collection_read = build_reassigned_item_read(&each_ctx);
+                        let collection_str = crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(&collection_read);
+                        let right_str = crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(&transformed_right);
+                        JsExpr::Raw(format!("{} {} {}", collection_str, binary_op, right_str))
+                    };
+
+                    // Build: collection[$$index] = value
+                    let assignment = JsExpr::Assignment(JsAssignmentExpression {
+                        operator: JsAssignmentOp::Assign,
+                        left: Box::new(collection_access),
+                        right: Box::new(assign_value),
+                    });
+
+                    // Build the invalidation sequence
+                    let invalidation_exprs = each_ctx.invalidation_exprs.clone();
+                    let mut seq_exprs = vec![assignment];
+                    if !invalidation_exprs.is_empty() {
+                        let invalidate_inner = build_invalidate_inner_signals(&invalidation_exprs);
+                        seq_exprs.push(invalidate_inner);
+                    }
+
+                    // Add store invalidation if needed
+                    if let Some(ref store_name) = each_ctx.store_to_invalidate {
+                        seq_exprs.push(b::call(
+                            b::member_path("$.invalidate_store"),
+                            vec![b::id("$$stores"), b::string(store_name)],
+                        ));
+                    }
+
+                    return b::sequence(seq_exprs);
+                }
             }
 
             // Check for mutation case: when assigning to a member expression where
@@ -775,11 +857,52 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 let base_object = get_base_object(assign.left.as_ref());
 
                 // Track each item mutation for uses_index detection.
+                // Also handle legacy mode each item mutation: append $.invalidate_inner_signals()
                 if let JsExpr::Identifier(name) = &base_object
                     && !local_scope.contains(name)
                     && context.state.each_item_names.contains(name)
                 {
                     context.state.each_item_assign_or_mutate.set(true);
+
+                    // In legacy mode, wrap the mutation with $.invalidate_inner_signals()
+                    // This mirrors the official compiler's `mutate` transform on each items:
+                    //   mutate: (_, mutation) => {
+                    //     uses_index = true;
+                    //     return b.sequence([mutation, ...sequence]);
+                    //   }
+                    if !context.state.analysis.runes
+                        && let Some(each_ctx) = context
+                            .state
+                            .each_binding_context
+                            .iter()
+                            .rev()
+                            .find(|ctx| ctx.item_name == *name)
+                            .cloned()
+                        && !each_ctx.invalidation_exprs.is_empty()
+                    {
+                        // Transform the full assignment (apply read transforms to both sides)
+                        let transformed_left = recurse!(&assign.left);
+                        let transformed_right = recurse!(&assign.right);
+                        let mutation = JsExpr::Assignment(JsAssignmentExpression {
+                            operator: assign.operator,
+                            left: Box::new(transformed_left),
+                            right: Box::new(transformed_right),
+                        });
+
+                        let invalidation_exprs = each_ctx.invalidation_exprs.clone();
+                        let mut seq_exprs = vec![mutation];
+                        let invalidate_inner = build_invalidate_inner_signals(&invalidation_exprs);
+                        seq_exprs.push(invalidate_inner);
+
+                        if let Some(ref store_name) = each_ctx.store_to_invalidate {
+                            seq_exprs.push(b::call(
+                                b::member_path("$.invalidate_store"),
+                                vec![b::id("$$stores"), b::string(store_name)],
+                            ));
+                        }
+
+                        return b::sequence(seq_exprs);
+                    }
                 }
 
                 if let JsExpr::Identifier(name) = base_object
@@ -987,11 +1110,46 @@ pub fn apply_transforms_to_expression_with_shadowed(
                 let base_object = get_base_object(update.argument.as_ref());
 
                 // Track each item member update for uses_index detection.
+                // Also handle legacy mode each item mutation: append $.invalidate_inner_signals()
                 if let JsExpr::Identifier(name) = &base_object
                     && !local_scope.contains(name)
                     && context.state.each_item_names.contains(name)
                 {
                     context.state.each_item_assign_or_mutate.set(true);
+
+                    // In legacy mode, wrap the update with $.invalidate_inner_signals()
+                    if !context.state.analysis.runes
+                        && let Some(each_ctx) = context
+                            .state
+                            .each_binding_context
+                            .iter()
+                            .rev()
+                            .find(|ctx| ctx.item_name == *name)
+                            .cloned()
+                        && !each_ctx.invalidation_exprs.is_empty()
+                    {
+                        // Transform the update expression (apply read transforms)
+                        let transformed_arg = recurse!(&update.argument);
+                        let mutation = JsExpr::Update(JsUpdateExpression {
+                            operator: update.operator,
+                            argument: Box::new(transformed_arg),
+                            prefix: update.prefix,
+                        });
+
+                        let invalidation_exprs = each_ctx.invalidation_exprs.clone();
+                        let mut seq_exprs = vec![mutation];
+                        let invalidate_inner = build_invalidate_inner_signals(&invalidation_exprs);
+                        seq_exprs.push(invalidate_inner);
+
+                        if let Some(ref store_name) = each_ctx.store_to_invalidate {
+                            seq_exprs.push(b::call(
+                                b::member_path("$.invalidate_store"),
+                                vec![b::id("$$stores"), b::string(store_name)],
+                            ));
+                        }
+
+                        return b::sequence(seq_exprs);
+                    }
                 }
 
                 if let JsExpr::Identifier(name) = base_object
@@ -1733,6 +1891,17 @@ fn collect_reactive_references_inner(
         JsExpr::Arrow(arrow) => {
             // For arrow functions, we need to process the body to find reactive references
             // This is important for expressions like: tags.find(t => t.name === tag.name)
+            // However, arrow parameter names shadow outer reactive references and must be
+            // excluded. For example, in `switches.filter(s => !!s.on)`, the `s` parameter
+            // shadows the each-block `s` and should NOT be collected as a dependency.
+            let mut param_names = HashSet::new();
+            for param in &arrow.params {
+                extract_pattern_names(param, &mut param_names);
+            }
+            // Add parameter names to seen set to prevent them from being collected
+            for name in &param_names {
+                seen.insert(name.clone());
+            }
             match &arrow.body {
                 JsArrowBody::Expression(body_expr) => {
                     collect_reactive_references_inner(body_expr, context, getters, seen);
@@ -1743,12 +1912,26 @@ fn collect_reactive_references_inner(
                     }
                 }
             }
+            // Remove parameter names from seen set so they don't affect sibling expressions
+            for name in &param_names {
+                seen.remove(name);
+            }
         }
 
         JsExpr::Function(func) => {
-            // Also process function bodies
+            // Also process function bodies, excluding function parameter names
+            let mut param_names = HashSet::new();
+            for param in &func.params {
+                extract_pattern_names(param, &mut param_names);
+            }
+            for name in &param_names {
+                seen.insert(name.clone());
+            }
             for stmt in &func.body.body {
                 collect_reactive_references_from_statement(stmt, context, getters, seen);
+            }
+            for name in &param_names {
+                seen.remove(name);
             }
         }
 

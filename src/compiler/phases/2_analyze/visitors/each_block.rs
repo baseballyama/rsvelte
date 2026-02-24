@@ -245,7 +245,13 @@ fn collect_transitive_dependencies_impl(
     deps.insert(binding_idx);
 
     if binding_idx < bindings.len() && bindings[binding_idx].kind == BindingKind::LegacyReactive {
-        // TODO: Follow legacy_dependencies chain when available
+        // Follow legacy_dependencies chain to collect transitive dependencies.
+        // This matches the official compiler's collect_transitive_dependencies
+        // in EachBlock.js which recursively follows binding.legacy_dependencies.
+        let legacy_deps = bindings[binding_idx].legacy_dependencies.clone();
+        for dep_idx in legacy_deps {
+            collect_transitive_dependencies_impl(dep_idx, bindings, deps);
+        }
     }
 }
 
