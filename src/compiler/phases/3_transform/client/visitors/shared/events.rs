@@ -196,8 +196,11 @@ pub fn build_event_handler(
     context: &mut ComponentContext,
 ) -> JsExpr {
     // Null handler = bubble event to parent component
+    // MUST use a regular function (not arrow) so that `this` is correctly bound
+    // for $.bubble_event.call(this, $$props, $$arg)
     if expression.is_none() {
-        return b::arrow_block(
+        return b::function_expr(
+            None,
             vec![b::id_pattern("$$arg")],
             vec![b::stmt(b::call(
                 b::member_path("$.bubble_event.call"),
