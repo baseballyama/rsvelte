@@ -1254,24 +1254,25 @@ fn is_sibling_combinator_unused(rel_selectors: &[Value], ctx: &CssContext) -> bo
         }
 
         // Use the sibling relationship data from Phase 2 control flow analysis.
-        // This correctly handles if/each/await blocks because Phase 2 pre-computes
-        // possible sibling relationships accounting for control flow branches.
+        // Check BACKWARD from 'after' elements, matching the official compiler's approach.
+        // The official compiler's prune() checks each element with direction=BACKWARD,
+        // so we check: does any element matching 'after' have 'before' as a prev sibling?
 
-        // Find all elements that match 'before' selector
+        // Find all elements that match 'after' selector
         for el in ctx.dom_structure.elements.iter() {
-            if selector_matches_element(&before_info, el) {
-                // Check possible siblings based on combinator type
+            if selector_matches_element(&after_info, el) {
+                // Check possible previous siblings based on combinator type
                 let possible_siblings = if combinator == "+" {
-                    &el.possible_next_adjacent
+                    &el.possible_prev_adjacent
                 } else {
                     // ~ combinator
-                    &el.possible_next_general
+                    &el.possible_prev_general
                 };
 
-                // Check if any possible sibling matches 'after' selector
+                // Check if any possible previous sibling matches 'before' selector
                 for (sibling_idx, _certainty) in possible_siblings {
                     if let Some(sibling) = ctx.dom_structure.elements.get(*sibling_idx)
-                        && selector_matches_element(&after_info, sibling)
+                        && selector_matches_element(&before_info, sibling)
                     {
                         return false; // Found a match, not unused
                     }

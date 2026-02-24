@@ -3,827 +3,593 @@
 //! This module analyzes template fragments to determine possible sibling relationships
 //! between elements, taking into account control flow (if/each/await blocks).
 //!
-//! The algorithm is based on Svelte's `get_possible_element_siblings()` in css-prune.js.
+//! The algorithm is a faithful port of Svelte's `get_possible_element_siblings()` in css-prune.js.
 
 use super::types::{DomStructure, SiblingCertainty};
-use crate::ast::template::{Fragment, IfBlock, TemplateNode};
-use rustc_hash::{FxHashMap, FxHashSet};
+use crate::ast::template::{Attribute, Fragment, IfBlock, TemplateNode};
+use rustc_hash::FxHashMap;
+
+/// Node existence values, mirroring Svelte's NODE_DEFINITELY_EXISTS / NODE_PROBABLY_EXISTS.
+const NODE_DEFINITELY_EXISTS: u8 = 1;
+const NODE_PROBABLY_EXISTS: u8 = 2;
+
+/// Direction for sibling search.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Direction {
+    Forward,
+    Backward,
+}
+
+/// A unique identifier for a TemplateNode, based on its memory address.
+type NodePtr = usize;
+
+fn node_ptr(node: &TemplateNode) -> NodePtr {
+    node as *const TemplateNode as usize
+}
+
+/// Build sibling relationships for all elements in the DOM structure.
+///
+/// This function implements the same algorithm as the official Svelte compiler's
+/// `get_possible_element_siblings()` and `apply_combinator()` in css-prune.js.
+pub fn build_sibling_relationships(dom_structure: &mut DomStructure, root_fragment: &Fragment) {
+    // First pass: build a mapping from TemplateNode pointer to dom_idx.
+    // Also collect the path (chain of fragments/indices) for each element.
+    let mut node_to_dom_idx: FxHashMap<NodePtr, usize> = FxHashMap::default();
+    let mut element_paths: FxHashMap<usize, Vec<PathEntry>> = FxHashMap::default();
+    let mut dom_idx_counter: usize = 0;
+
+    collect_elements_and_paths(
+        root_fragment,
+        &mut node_to_dom_idx,
+        &mut element_paths,
+        &mut dom_idx_counter,
+        vec![],
+    );
+
+    // Second pass: for each element, compute possible siblings using AST walk.
+    let num_elements = dom_structure.elements.len();
+    for dom_idx in 0..num_elements {
+        if let Some(path) = element_paths.get(&dom_idx) {
+            // Find previous siblings (backward direction)
+            let prev_adj =
+                get_possible_element_siblings(path, Direction::Backward, true, &node_to_dom_idx);
+            let prev_gen =
+                get_possible_element_siblings(path, Direction::Backward, false, &node_to_dom_idx);
+
+            // Find next siblings (forward direction)
+            let next_adj =
+                get_possible_element_siblings(path, Direction::Forward, true, &node_to_dom_idx);
+            let next_gen =
+                get_possible_element_siblings(path, Direction::Forward, false, &node_to_dom_idx);
+
+            // Convert results to the DomStructure format
+            dom_structure.elements[dom_idx].possible_prev_adjacent = convert_results(&prev_adj);
+            dom_structure.elements[dom_idx].possible_prev_general = convert_results(&prev_gen);
+            dom_structure.elements[dom_idx].possible_next_adjacent = convert_results(&next_adj);
+            dom_structure.elements[dom_idx].possible_next_general = convert_results(&next_gen);
+        }
+    }
+}
+
+/// Convert results map to Vec of (dom_idx, certainty) pairs.
+fn convert_results(results: &FxHashMap<usize, u8>) -> Vec<(usize, SiblingCertainty)> {
+    results
+        .iter()
+        .map(|(&dom_idx, &existence)| {
+            let certainty = if existence == NODE_DEFINITELY_EXISTS {
+                SiblingCertainty::Definite
+            } else {
+                SiblingCertainty::Probable
+            };
+            (dom_idx, certainty)
+        })
+        .collect()
+}
+
+/// An entry in the element's path from root to the element.
+/// Each entry records the fragment and the index of the node within that fragment.
+#[derive(Clone)]
+struct PathEntry<'a> {
+    /// The fragment containing the node
+    fragment: &'a Fragment,
+    /// The index of the node within the fragment
+    index: usize,
+}
+
+/// Collect elements and their paths from the template AST.
+fn collect_elements_and_paths<'a>(
+    fragment: &'a Fragment,
+    node_to_dom_idx: &mut FxHashMap<NodePtr, usize>,
+    element_paths: &mut FxHashMap<usize, Vec<PathEntry<'a>>>,
+    dom_idx_counter: &mut usize,
+    current_path: Vec<PathEntry<'a>>,
+) {
+    for (i, node) in fragment.nodes.iter().enumerate() {
+        let mut node_path = current_path.clone();
+        node_path.push(PathEntry { fragment, index: i });
+
+        match node {
+            TemplateNode::RegularElement(element) => {
+                let dom_idx = *dom_idx_counter;
+                *dom_idx_counter += 1;
+                node_to_dom_idx.insert(node_ptr(node), dom_idx);
+                element_paths.insert(dom_idx, node_path.clone());
+
+                // Recurse into children
+                collect_elements_and_paths(
+                    &element.fragment,
+                    node_to_dom_idx,
+                    element_paths,
+                    dom_idx_counter,
+                    node_path,
+                );
+            }
+            TemplateNode::SvelteElement(element) => {
+                let dom_idx = *dom_idx_counter;
+                *dom_idx_counter += 1;
+                node_to_dom_idx.insert(node_ptr(node), dom_idx);
+                element_paths.insert(dom_idx, node_path.clone());
+
+                // Recurse into children
+                collect_elements_and_paths(
+                    &element.fragment,
+                    node_to_dom_idx,
+                    element_paths,
+                    dom_idx_counter,
+                    node_path,
+                );
+            }
+            TemplateNode::IfBlock(block) => {
+                collect_elements_and_paths(
+                    &block.consequent,
+                    node_to_dom_idx,
+                    element_paths,
+                    dom_idx_counter,
+                    node_path.clone(),
+                );
+                if let Some(ref alt) = block.alternate {
+                    collect_elements_and_paths(
+                        alt,
+                        node_to_dom_idx,
+                        element_paths,
+                        dom_idx_counter,
+                        node_path,
+                    );
+                }
+            }
+            TemplateNode::EachBlock(block) => {
+                collect_elements_and_paths(
+                    &block.body,
+                    node_to_dom_idx,
+                    element_paths,
+                    dom_idx_counter,
+                    node_path.clone(),
+                );
+                if let Some(ref fallback) = block.fallback {
+                    collect_elements_and_paths(
+                        fallback,
+                        node_to_dom_idx,
+                        element_paths,
+                        dom_idx_counter,
+                        node_path,
+                    );
+                }
+            }
+            TemplateNode::AwaitBlock(block) => {
+                if let Some(ref pending) = block.pending {
+                    collect_elements_and_paths(
+                        pending,
+                        node_to_dom_idx,
+                        element_paths,
+                        dom_idx_counter,
+                        node_path.clone(),
+                    );
+                }
+                if let Some(ref then) = block.then {
+                    collect_elements_and_paths(
+                        then,
+                        node_to_dom_idx,
+                        element_paths,
+                        dom_idx_counter,
+                        node_path.clone(),
+                    );
+                }
+                if let Some(ref catch) = block.catch {
+                    collect_elements_and_paths(
+                        catch,
+                        node_to_dom_idx,
+                        element_paths,
+                        dom_idx_counter,
+                        node_path,
+                    );
+                }
+            }
+            TemplateNode::KeyBlock(block) => {
+                collect_elements_and_paths(
+                    &block.fragment,
+                    node_to_dom_idx,
+                    element_paths,
+                    dom_idx_counter,
+                    node_path,
+                );
+            }
+            TemplateNode::SlotElement(slot) => {
+                collect_elements_and_paths(
+                    &slot.fragment,
+                    node_to_dom_idx,
+                    element_paths,
+                    dom_idx_counter,
+                    node_path,
+                );
+            }
+            TemplateNode::SnippetBlock(snippet) => {
+                collect_elements_and_paths(
+                    &snippet.body,
+                    node_to_dom_idx,
+                    element_paths,
+                    dom_idx_counter,
+                    node_path,
+                );
+            }
+            TemplateNode::Component(comp) => {
+                collect_elements_and_paths(
+                    &comp.fragment,
+                    node_to_dom_idx,
+                    element_paths,
+                    dom_idx_counter,
+                    node_path,
+                );
+            }
+            _ => {
+                // Text, comments, expression tags
+            }
+        }
+    }
+}
+
+/// Port of Svelte's `get_possible_element_siblings()`.
+///
+/// Walks up from an element through its parent fragments to find possible sibling elements.
+fn get_possible_element_siblings(
+    path: &[PathEntry],
+    direction: Direction,
+    adjacent_only: bool,
+    node_to_dom_idx: &FxHashMap<NodePtr, usize>,
+) -> FxHashMap<usize, u8> {
+    let mut result: FxHashMap<usize, u8> = FxHashMap::default();
+
+    // The path is: [root_fragment_entry, ..., parent_fragment_entry, element_entry]
+    // We walk backwards from the element entry, looking at siblings in each fragment.
+    //
+    // In the official compiler, the path is interleaved: [parent_node, fragment, parent_node, fragment, ...]
+    // where path[i] is a fragment and path[i-1] is the parent node of that fragment.
+    //
+    // In our path, each entry has (fragment, index). The node at fragment.nodes[index] is either
+    // the element itself or a block that contains the element's sub-path.
+    //
+    // Walking up: path[last] is the element in its immediate fragment.
+    // path[last-1] is the block node in its parent fragment that contains the immediate fragment.
+    // path[last-2] is the block node (or root) in its grandparent fragment, etc.
+
+    let mut i = path.len();
+
+    while i > 0 {
+        i -= 1;
+        let entry = &path[i];
+        let fragment = entry.fragment;
+        let node_index = entry.index;
+
+        // Look at siblings in this fragment
+        let range: Box<dyn Iterator<Item = usize>> = if direction == Direction::Forward {
+            Box::new((node_index + 1)..fragment.nodes.len())
+        } else {
+            Box::new((0..node_index).rev())
+        };
+
+        for j in range {
+            let sibling = &fragment.nodes[j];
+
+            match sibling {
+                TemplateNode::RegularElement(el) => {
+                    // Skip elements with slot attribute
+                    let has_slot_attr = el.attributes.iter().any(|attr| {
+                        if let Attribute::Attribute(a) = attr {
+                            a.name.eq_ignore_ascii_case("slot")
+                        } else {
+                            false
+                        }
+                    });
+
+                    if !has_slot_attr
+                        && let Some(&dom_idx) = node_to_dom_idx.get(&node_ptr(sibling))
+                    {
+                        add_to_map_entry(&mut result, dom_idx, NODE_DEFINITELY_EXISTS);
+                        if adjacent_only {
+                            return result;
+                        }
+                    }
+                    // If has slot attr, skip and continue
+                }
+
+                TemplateNode::SvelteElement(_) => {
+                    if let Some(&dom_idx) = node_to_dom_idx.get(&node_ptr(sibling)) {
+                        add_to_map_entry(&mut result, dom_idx, NODE_PROBABLY_EXISTS);
+                    }
+                    // svelte:element might not render, so don't return for adjacent_only
+                }
+
+                _ if is_block(sibling) || matches!(sibling, TemplateNode::Component(_)) => {
+                    // For SlotElement and Component, they produce opaque content
+                    if matches!(
+                        sibling,
+                        TemplateNode::SlotElement(_) | TemplateNode::Component(_)
+                    ) {
+                        // The official compiler adds the node itself to the result map
+                        // as NODE_PROBABLY_EXISTS. We can't do that directly since we
+                        // only track element dom_idx. Instead, we just collect nested children.
+                    }
+
+                    let nested = get_possible_nested_siblings(
+                        sibling,
+                        direction,
+                        adjacent_only,
+                        node_to_dom_idx,
+                    );
+                    add_to_map(&nested, &mut result);
+
+                    if adjacent_only
+                        && !matches!(sibling, TemplateNode::Component(_))
+                        && has_definite_elements(&nested)
+                    {
+                        return result;
+                    }
+                }
+
+                TemplateNode::RenderTag(_) => {
+                    // Render tags produce opaque content. In the official compiler,
+                    // this would add the RenderTag node as NODE_PROBABLY_EXISTS and
+                    // also look at snippet bodies. We handle this via has_opaque_sibling_boundaries.
+                }
+
+                _ => {
+                    // Text, comments, expression tags - skip
+                }
+            }
+        }
+
+        // Move up to the parent.
+        // We need to look at the previous path entry to determine the parent node.
+        if i == 0 {
+            break;
+        }
+
+        let parent_entry = &path[i - 1];
+        let parent_node = &parent_entry.fragment.nodes[parent_entry.index];
+
+        // Skip Component/SvelteComponent/SvelteSelf parents (continue looking up)
+        if matches!(
+            parent_node,
+            TemplateNode::Component(_)
+                | TemplateNode::SvelteComponent(_)
+                | TemplateNode::SvelteSelf(_)
+        ) {
+            // The `i -= 1` at the top of the next iteration will move past this
+            continue;
+        }
+
+        // If parent is a SnippetBlock, we'd need to look at its call sites.
+        // For now, just stop.
+        if matches!(parent_node, TemplateNode::SnippetBlock(_)) {
+            break;
+        }
+
+        // If parent is not a block, stop walking up.
+        if !is_block(parent_node) {
+            break;
+        }
+
+        // Special case: if the parent is an EachBlock and we're in its body,
+        // add wrap-around siblings (from get_possible_nested_siblings)
+        if let TemplateNode::EachBlock(each) = parent_node {
+            let in_body = std::ptr::eq(entry.fragment, &each.body);
+            if in_body {
+                let wrap_siblings = get_possible_nested_siblings(
+                    parent_node,
+                    direction,
+                    adjacent_only,
+                    node_to_dom_idx,
+                );
+                add_to_map(&wrap_siblings, &mut result);
+            }
+        }
+
+        // Continue walking up (i will be decremented at the top of the loop)
+    }
+
+    result
+}
+
+/// Port of Svelte's `get_possible_nested_siblings()`.
+///
+/// Gets elements at the edge (first or last) of a block node's fragments.
+fn get_possible_nested_siblings(
+    node: &TemplateNode,
+    direction: Direction,
+    adjacent_only: bool,
+    node_to_dom_idx: &FxHashMap<NodePtr, usize>,
+) -> FxHashMap<usize, u8> {
+    let mut fragments: Vec<Option<&Fragment>> = Vec::new();
+
+    match node {
+        TemplateNode::EachBlock(block) => {
+            fragments.push(Some(&block.body));
+            fragments.push(block.fallback.as_ref());
+        }
+        TemplateNode::IfBlock(block) => {
+            fragments.push(Some(&block.consequent));
+            fragments.push(block.alternate.as_ref());
+        }
+        TemplateNode::AwaitBlock(block) => {
+            fragments.push(block.pending.as_ref());
+            fragments.push(block.then.as_ref());
+            fragments.push(block.catch.as_ref());
+        }
+        TemplateNode::KeyBlock(block) => {
+            fragments.push(Some(&block.fragment));
+        }
+        TemplateNode::SlotElement(slot) => {
+            fragments.push(Some(&slot.fragment));
+        }
+        TemplateNode::SnippetBlock(snippet) => {
+            fragments.push(Some(&snippet.body));
+        }
+        TemplateNode::Component(comp) => {
+            fragments.push(Some(&comp.fragment));
+            // Also include snippet bodies defined inside the component
+            for child in &comp.fragment.nodes {
+                if let TemplateNode::SnippetBlock(snippet) = child {
+                    fragments.push(Some(&snippet.body));
+                }
+            }
+        }
+        _ => {}
+    }
+
+    let mut result: FxHashMap<usize, u8> = FxHashMap::default();
+    let mut exhaustive = !matches!(
+        node,
+        TemplateNode::SlotElement(_) | TemplateNode::SnippetBlock(_)
+    );
+
+    for fragment_opt in &fragments {
+        match fragment_opt {
+            None => {
+                exhaustive = false;
+            }
+            Some(fragment) => {
+                let map = loop_child(&fragment.nodes, direction, adjacent_only, node_to_dom_idx);
+                exhaustive = exhaustive && has_definite_elements(&map);
+                add_to_map(&map, &mut result);
+            }
+        }
+    }
+
+    if !exhaustive {
+        // Demote all entries to PROBABLY_EXISTS
+        for value in result.values_mut() {
+            *value = NODE_PROBABLY_EXISTS;
+        }
+    }
+
+    result
+}
+
+/// Port of Svelte's `loop_child()`.
+///
+/// Iterates through fragment children to find edge elements.
+fn loop_child(
+    children: &[TemplateNode],
+    direction: Direction,
+    adjacent_only: bool,
+    node_to_dom_idx: &FxHashMap<NodePtr, usize>,
+) -> FxHashMap<usize, u8> {
+    let mut result: FxHashMap<usize, u8> = FxHashMap::default();
+
+    let iter: Box<dyn Iterator<Item = usize>> = if direction == Direction::Forward {
+        Box::new(0..children.len())
+    } else {
+        Box::new((0..children.len()).rev())
+    };
+
+    for i in iter {
+        let child = &children[i];
+
+        match child {
+            TemplateNode::RegularElement(_) => {
+                if let Some(&dom_idx) = node_to_dom_idx.get(&node_ptr(child)) {
+                    add_to_map_entry(&mut result, dom_idx, NODE_DEFINITELY_EXISTS);
+                    if adjacent_only {
+                        break;
+                    }
+                }
+            }
+            TemplateNode::SvelteElement(_) => {
+                if let Some(&dom_idx) = node_to_dom_idx.get(&node_ptr(child)) {
+                    add_to_map_entry(&mut result, dom_idx, NODE_PROBABLY_EXISTS);
+                }
+                // Don't break - svelte:element might not render
+            }
+            TemplateNode::RenderTag(_) => {
+                // Render tags produce opaque content
+                // In the official compiler, this would look at snippet bodies
+            }
+            _ if is_block(child) => {
+                let child_result =
+                    get_possible_nested_siblings(child, direction, adjacent_only, node_to_dom_idx);
+                add_to_map(&child_result, &mut result);
+                if adjacent_only && has_definite_elements(&child_result) {
+                    break;
+                }
+            }
+            _ => {
+                // Text, comments, expression tags - skip
+            }
+        }
+    }
+
+    result
+}
+
+/// Check if a node is a "block" node (IfBlock, EachBlock, AwaitBlock, KeyBlock, SlotElement).
+fn is_block(node: &TemplateNode) -> bool {
+    matches!(
+        node,
+        TemplateNode::IfBlock(_)
+            | TemplateNode::EachBlock(_)
+            | TemplateNode::AwaitBlock(_)
+            | TemplateNode::KeyBlock(_)
+            | TemplateNode::SlotElement(_)
+    )
+}
 
 /// Check if an if block is "exhaustive" (always renders something).
-/// An if block is exhaustive if it has a final else branch that is not another if.
+#[allow(dead_code)]
 fn is_if_block_exhaustive(block: &IfBlock) -> bool {
     match &block.alternate {
-        None => false, // No else branch - not exhaustive
+        None => false,
         Some(alt_fragment) => {
-            // Check if the alternate is just another if block (else-if)
-            // or if it's a real else branch
             if alt_fragment.nodes.len() == 1
                 && let Some(TemplateNode::IfBlock(inner_if)) = alt_fragment.nodes.first()
             {
-                // It's an else-if, recursively check if THAT is exhaustive
                 return is_if_block_exhaustive(inner_if);
             }
-            // Has content that's not just another if - it's a real else
             !alt_fragment.nodes.is_empty()
         }
     }
 }
 
-/// Build sibling relationships for all elements in the DOM structure.
-///
-/// This function analyzes the template and computes possible sibling relationships
-/// for each element, taking control flow into account.
-pub fn build_sibling_relationships(dom_structure: &mut DomStructure, root_fragment: &Fragment) {
-    // First, collect element positions and their context
-    let mut context = TraversalContext::new();
-    collect_elements(root_fragment, &mut context, vec![], None);
+/// Check if any entry in the map has NODE_DEFINITELY_EXISTS.
+fn has_definite_elements(map: &FxHashMap<usize, u8>) -> bool {
+    map.values().any(|&v| v == NODE_DEFINITELY_EXISTS)
+}
 
-    // For each element, compute its possible siblings
-    for (dom_idx, info) in &context.element_info {
-        let (prev_adj, prev_gen) = find_previous_siblings(*dom_idx, info, &context);
-        let (next_adj, next_gen) = find_next_siblings(*dom_idx, info, &context);
-
-        if *dom_idx < dom_structure.elements.len() {
-            dom_structure.elements[*dom_idx].possible_prev_adjacent = prev_adj;
-            dom_structure.elements[*dom_idx].possible_prev_general = prev_gen;
-            dom_structure.elements[*dom_idx].possible_next_adjacent = next_adj;
-            dom_structure.elements[*dom_idx].possible_next_general = next_gen;
-        }
-    }
-
-    // Post-process: Add cross-iteration sibling relationships for each blocks.
-    // In `{#each items}<b/><c/>{/each}`, across iterations:
-    // - The last element of one iteration can be adjacent to the first element of the next
-    // - Any element is a general sibling of any other element (including itself)
-    for body_elements in context.each_body_elements.values() {
-        if body_elements.is_empty() {
-            continue;
-        }
-
-        // For general siblings (~): every element in the body is a general sibling of
-        // every other element (including itself) across iterations
-        for &elem_idx in body_elements {
-            if elem_idx >= dom_structure.elements.len() {
-                continue;
-            }
-            for &other_idx in body_elements {
-                if other_idx >= dom_structure.elements.len() {
-                    continue;
-                }
-                // Add to general siblings if not already present
-                let already_has = dom_structure.elements[elem_idx]
-                    .possible_next_general
-                    .iter()
-                    .any(|(idx, _)| *idx == other_idx);
-                if !already_has {
-                    dom_structure.elements[elem_idx]
-                        .possible_next_general
-                        .push((other_idx, SiblingCertainty::Probable));
-                }
-                let already_has_prev = dom_structure.elements[elem_idx]
-                    .possible_prev_general
-                    .iter()
-                    .any(|(idx, _)| *idx == other_idx);
-                if !already_has_prev {
-                    dom_structure.elements[elem_idx]
-                        .possible_prev_general
-                        .push((other_idx, SiblingCertainty::Probable));
-                }
-            }
-        }
-
-        // For adjacent siblings (+): the last element of one iteration can be
-        // adjacent to the first element of the next iteration.
-        // Find the "first" and "last" elements in the body by their position info.
-        let mut sorted_elements: Vec<usize> = body_elements.clone();
-        sorted_elements.sort_by(|a, b| {
-            let a_info = context.element_info.get(a);
-            let b_info = context.element_info.get(b);
-            match (a_info, b_info) {
-                (Some(ai), Some(bi)) => ai
-                    .position_in_fragment
-                    .cmp(&bi.position_in_fragment)
-                    .then(ai.sub_position.cmp(&bi.sub_position)),
-                _ => std::cmp::Ordering::Equal,
-            }
-        });
-
-        // Last elements of one iteration can be adjacent to first elements of next
-        // For simplicity, consider all elements at the "last" position and all at the "first" position
-        if let (Some(&first_idx), Some(&last_idx)) =
-            (sorted_elements.first(), sorted_elements.last())
-            && first_idx < dom_structure.elements.len()
-            && last_idx < dom_structure.elements.len()
-        {
-            // Last -> First (next adjacent for last, prev adjacent for first)
-            let already_has = dom_structure.elements[last_idx]
-                .possible_next_adjacent
-                .iter()
-                .any(|(idx, _)| *idx == first_idx);
-            if !already_has {
-                dom_structure.elements[last_idx]
-                    .possible_next_adjacent
-                    .push((first_idx, SiblingCertainty::Probable));
-            }
-            let already_has_prev = dom_structure.elements[first_idx]
-                .possible_prev_adjacent
-                .iter()
-                .any(|(idx, _)| *idx == last_idx);
-            if !already_has_prev {
-                dom_structure.elements[first_idx]
-                    .possible_prev_adjacent
-                    .push((last_idx, SiblingCertainty::Probable));
-            }
-
-            // Self-adjacency for single-element bodies
-            if sorted_elements.len() == 1 {
-                let idx = first_idx;
-                let already_has = dom_structure.elements[idx]
-                    .possible_next_adjacent
-                    .iter()
-                    .any(|(i, _)| *i == idx);
-                if !already_has {
-                    dom_structure.elements[idx]
-                        .possible_next_adjacent
-                        .push((idx, SiblingCertainty::Probable));
-                }
-                let already_has_prev = dom_structure.elements[idx]
-                    .possible_prev_adjacent
-                    .iter()
-                    .any(|(i, _)| *i == idx);
-                if !already_has_prev {
-                    dom_structure.elements[idx]
-                        .possible_prev_adjacent
-                        .push((idx, SiblingCertainty::Probable));
-                }
-            }
-        }
+/// Add entries from `from` to `to`, using higher_existence for conflicts.
+fn add_to_map(from: &FxHashMap<usize, u8>, to: &mut FxHashMap<usize, u8>) {
+    for (&key, &value) in from {
+        add_to_map_entry(to, key, value);
     }
 }
 
-/// Information about an element's position in the template.
-
-#[derive(Debug, Clone)]
-struct ElementInfo {
-    /// Index in dom_structure.elements
-    #[allow(dead_code)]
-    dom_idx: usize,
-    /// Path from root to this element's parent fragment
-    fragment_path: Vec<FragmentSegment>,
-    /// Position within immediate fragment (excludes nested block contents)
-    position_in_fragment: usize,
-    /// Sub-position for elements at the same position (e.g., elements inside
-    /// non-exhaustive blocks vs elements after the block)
-    sub_position: usize,
-    /// Internal order within a block body. Elements in the same block at the
-    /// same position get incrementing internal orders to preserve their sequence.
-    internal_order: usize,
-    /// Set of branch identifiers this element belongs to
-    branches: FxHashSet<BranchId>,
+/// Add a single entry to the map, using higher_existence for conflicts.
+fn add_to_map_entry(map: &mut FxHashMap<usize, u8>, key: usize, value: u8) {
+    let entry = map.entry(key).or_insert(0);
+    *entry = higher_existence(value, *entry);
 }
 
-/// Identifies a specific branch in a control flow block.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-struct BranchId {
-    /// Path to the block
-    path: Vec<FragmentSegment>,
-    /// Branch index within the block
-    branch: usize,
-}
-
-/// Segment in the fragment path.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-#[allow(dead_code)]
-enum FragmentSegment {
-    Root,
-    Element(usize), // DOM element index
-    IfBlock(usize), // Block's position in parent fragment
-    EachBlock(usize),
-    AwaitBlock(usize),
-    KeyBlock(usize),
-    SnippetBlock,
-    SlotElement,
-}
-
-/// Type for sibling pair results
-type SiblingPair = (
-    Vec<(usize, SiblingCertainty)>,
-    Vec<(usize, SiblingCertainty)>,
-);
-
-/// Context for template traversal.
-struct TraversalContext {
-    element_info: FxHashMap<usize, ElementInfo>,
-    current_dom_idx: usize,
-    /// Map from (fragment_path, position) to elements in each branch
-    #[allow(clippy::type_complexity)]
-    position_to_elements:
-        FxHashMap<(Vec<FragmentSegment>, usize), Vec<(usize, FxHashSet<BranchId>)>>,
-    /// Track the position within each fragment level
-    fragment_positions: Vec<usize>,
-    /// Counter for internal ordering within fixed-position regions
-    internal_order_counter: usize,
-    /// Track elements directly inside each block bodies, keyed by each block
-    /// identifier (path + position). Elements in the same each body can be
-    /// siblings of each other across iterations.
-    each_body_elements: FxHashMap<(Vec<FragmentSegment>, usize), Vec<usize>>,
-}
-
-impl TraversalContext {
-    fn new() -> Self {
-        Self {
-            element_info: FxHashMap::default(),
-            current_dom_idx: 0,
-            position_to_elements: FxHashMap::default(),
-            fragment_positions: vec![0],
-            internal_order_counter: 0,
-            each_body_elements: FxHashMap::default(),
-        }
+/// Returns the higher existence value (DEFINITELY > PROBABLY > 0).
+fn higher_existence(a: u8, b: u8) -> u8 {
+    if b == 0 {
+        return a;
     }
-
-    fn current_position(&self) -> usize {
-        *self.fragment_positions.last().unwrap_or(&0)
-    }
-
-    fn increment_position(&mut self) {
-        if let Some(pos) = self.fragment_positions.last_mut() {
-            *pos += 1;
-        }
-    }
-
-    fn push_position(&mut self) {
-        self.fragment_positions.push(0);
-    }
-
-    fn pop_position(&mut self) {
-        self.fragment_positions.pop();
-    }
-}
-
-/// Sub-position constants for ordering elements at the same position.
-const SUB_POS_INSIDE_BLOCK: usize = 0; // Elements inside a non-exhaustive block
-const SUB_POS_AFTER_BLOCK: usize = 1; // Elements after a non-exhaustive block
-
-/// Collect elements and their positions from a fragment.
-fn collect_elements(
-    fragment: &Fragment,
-    ctx: &mut TraversalContext,
-    path: Vec<FragmentSegment>,
-    current_branches: Option<&FxHashSet<BranchId>>,
-) {
-    collect_elements_impl(fragment, ctx, path, current_branches, None, None, vec![]);
-}
-
-/// Collect elements from a control flow branch, using a fixed position for all elements.
-fn collect_elements_with_position(
-    fragment: &Fragment,
-    ctx: &mut TraversalContext,
-    path: Vec<FragmentSegment>,
-    current_branches: Option<&FxHashSet<BranchId>>,
-    fixed_position: usize,
-    fixed_sub_position: Option<usize>,
-    each_block_ids: Vec<(Vec<FragmentSegment>, usize)>,
-) {
-    collect_elements_impl(
-        fragment,
-        ctx,
-        path,
-        current_branches,
-        Some(fixed_position),
-        fixed_sub_position,
-        each_block_ids,
-    );
-}
-
-/// Implementation of element collection with optional fixed position.
-fn collect_elements_impl(
-    fragment: &Fragment,
-    ctx: &mut TraversalContext,
-    path: Vec<FragmentSegment>,
-    current_branches: Option<&FxHashSet<BranchId>>,
-    fixed_position: Option<usize>,
-    fixed_sub_position: Option<usize>,
-    each_block_ids: Vec<(Vec<FragmentSegment>, usize)>,
-) {
-    let branches = current_branches.cloned().unwrap_or_default();
-
-    for node in &fragment.nodes {
-        match node {
-            TemplateNode::RegularElement(element) => {
-                let dom_idx = ctx.current_dom_idx;
-                ctx.current_dom_idx += 1;
-
-                // Use fixed position if provided, otherwise use current position
-                let position = fixed_position.unwrap_or_else(|| ctx.current_position());
-                // Use fixed sub_position if provided, otherwise use SUB_POS_AFTER_BLOCK
-                // (elements not in a block come "after" any potential block elements)
-                let sub_pos = fixed_sub_position.unwrap_or(SUB_POS_AFTER_BLOCK);
-
-                let internal_order = ctx.internal_order_counter;
-                ctx.internal_order_counter += 1;
-
-                let info = ElementInfo {
-                    dom_idx,
-                    fragment_path: path.clone(),
-                    position_in_fragment: position,
-                    sub_position: sub_pos,
-                    internal_order,
-                    branches: branches.clone(),
-                };
-
-                ctx.element_info.insert(dom_idx, info);
-
-                // Track each block body membership for cross-iteration siblings.
-                // Register in ALL ancestor each blocks, not just the innermost one.
-                for each_id in &each_block_ids {
-                    ctx.each_body_elements
-                        .entry(each_id.clone())
-                        .or_default()
-                        .push(dom_idx);
-                }
-
-                // Track position mapping
-                let key = (path.clone(), position);
-                ctx.position_to_elements
-                    .entry(key)
-                    .or_default()
-                    .push((dom_idx, branches.clone()));
-
-                // Only increment if not using fixed position
-                if fixed_position.is_none() {
-                    ctx.increment_position();
-                }
-
-                // Process children
-                let mut child_path = path.clone();
-                child_path.push(FragmentSegment::Element(dom_idx));
-                ctx.push_position();
-                collect_elements(&element.fragment, ctx, child_path, Some(&branches));
-                ctx.pop_position();
-            }
-
-            TemplateNode::IfBlock(block) => {
-                let block_position = ctx.current_position();
-                let mut block_path = path.clone();
-                block_path.push(FragmentSegment::IfBlock(block_position));
-
-                // Check if this if block is exhaustive (always renders something)
-                let is_exhaustive = is_if_block_exhaustive(block);
-
-                // For non-exhaustive blocks, elements inside get SUB_POS_INSIDE_BLOCK
-                // so they come "before" elements after the block at the same position
-                let sub_pos = if is_exhaustive {
-                    None // Use default
-                } else {
-                    Some(SUB_POS_INSIDE_BLOCK)
-                };
-
-                // Consequent branch - elements inherit the block's position
-                let mut consequent_branches = branches.clone();
-                consequent_branches.insert(BranchId {
-                    path: block_path.clone(),
-                    branch: 0,
-                });
-
-                // Both exhaustive and non-exhaustive: elements inside share the block's position
-                // and stay on the same path. This allows sibling detection between
-                // elements inside and outside the block.
-                collect_elements_with_position(
-                    &block.consequent,
-                    ctx,
-                    path.clone(),
-                    Some(&consequent_branches),
-                    block_position,
-                    sub_pos,
-                    each_block_ids.clone(),
-                );
-
-                // Alternate branch (if any)
-                if let Some(ref alternate) = block.alternate {
-                    let mut alternate_branches = branches.clone();
-                    alternate_branches.insert(BranchId {
-                        path: block_path.clone(),
-                        branch: 1,
-                    });
-                    collect_elements_with_position(
-                        alternate,
-                        ctx,
-                        path.clone(),
-                        Some(&alternate_branches),
-                        block_position,
-                        sub_pos,
-                        each_block_ids.clone(),
-                    );
-                }
-
-                // Only increment position if exhaustive (block takes up a position)
-                // Non-exhaustive blocks don't increment, allowing elements before/after
-                // to be adjacent (e.g., .a + .d when {#if} might not render anything)
-                if is_exhaustive {
-                    ctx.increment_position();
-                }
-            }
-
-            TemplateNode::EachBlock(block) => {
-                let block_position = ctx.current_position();
-                let mut block_path = path.clone();
-                block_path.push(FragmentSegment::EachBlock(block_position));
-
-                // Each block body ID for cross-iteration sibling tracking
-                let each_id = (path.clone(), block_position);
-
-                // Build the stack of each block IDs: current ancestors + this block
-                let mut body_each_ids = each_block_ids.clone();
-                body_each_ids.push(each_id);
-
-                // Each blocks without a fallback are non-exhaustive (body might
-                // render 0 times). Elements inside get SUB_POS_INSIDE_BLOCK so
-                // they are not treated as definite barriers.
-                let has_fallback = block.fallback.is_some();
-                let body_sub_pos = if has_fallback {
-                    None // Exhaustive - use default
-                } else {
-                    Some(SUB_POS_INSIDE_BLOCK) // Non-exhaustive - might not render
-                };
-
-                // Body - elements inherit the block's position
-                let mut body_branches = branches.clone();
-                body_branches.insert(BranchId {
-                    path: block_path.clone(),
-                    branch: 0,
-                });
-                collect_elements_with_position(
-                    &block.body,
-                    ctx,
-                    path.clone(),
-                    Some(&body_branches),
-                    block_position,
-                    body_sub_pos,
-                    body_each_ids,
-                );
-
-                // Fallback (if any)
-                if let Some(ref fallback) = block.fallback {
-                    let mut fallback_branches = branches.clone();
-                    fallback_branches.insert(BranchId {
-                        path: block_path.clone(),
-                        branch: 1,
-                    });
-                    collect_elements_with_position(
-                        fallback,
-                        ctx,
-                        path.clone(),
-                        Some(&fallback_branches),
-                        block_position,
-                        None,
-                        vec![], // Fallback doesn't have cross-iteration siblings
-                    );
-                }
-
-                // Always increment position for each blocks (they take up a position)
-                // For non-exhaustive each (no fallback), elements before/after can
-                // still be adjacent since the block might render nothing.
-                // But we still need to increment to separate the block from surrounding elements.
-                ctx.increment_position();
-            }
-
-            TemplateNode::AwaitBlock(block) => {
-                let block_position = ctx.current_position();
-                let mut block_path = path.clone();
-                block_path.push(FragmentSegment::AwaitBlock(block_position));
-
-                // Pending - elements inherit the block's position
-                if let Some(ref pending) = block.pending {
-                    let mut pending_branches = branches.clone();
-                    pending_branches.insert(BranchId {
-                        path: block_path.clone(),
-                        branch: 0,
-                    });
-                    collect_elements_with_position(
-                        pending,
-                        ctx,
-                        path.clone(),
-                        Some(&pending_branches),
-                        block_position,
-                        None,
-                        each_block_ids.clone(),
-                    );
-                }
-
-                // Then
-                if let Some(ref then) = block.then {
-                    let mut then_branches = branches.clone();
-                    then_branches.insert(BranchId {
-                        path: block_path.clone(),
-                        branch: 1,
-                    });
-                    collect_elements_with_position(
-                        then,
-                        ctx,
-                        path.clone(),
-                        Some(&then_branches),
-                        block_position,
-                        None,
-                        each_block_ids.clone(),
-                    );
-                }
-
-                // Catch
-                if let Some(ref catch) = block.catch {
-                    let mut catch_branches = branches.clone();
-                    catch_branches.insert(BranchId {
-                        path: block_path.clone(),
-                        branch: 2,
-                    });
-                    collect_elements_with_position(
-                        catch,
-                        ctx,
-                        path.clone(),
-                        Some(&catch_branches),
-                        block_position,
-                        None,
-                        each_block_ids.clone(),
-                    );
-                }
-
-                ctx.increment_position();
-            }
-
-            TemplateNode::KeyBlock(block) => {
-                collect_elements(&block.fragment, ctx, path.clone(), Some(&branches));
-            }
-
-            TemplateNode::SnippetBlock(block) => {
-                let snippet_branches = branches.clone();
-                let mut block_path = path.clone();
-                block_path.push(FragmentSegment::SnippetBlock);
-                ctx.push_position();
-                collect_elements(&block.body, ctx, block_path, Some(&snippet_branches));
-                ctx.pop_position();
-                ctx.increment_position();
-            }
-
-            TemplateNode::SlotElement(slot) => {
-                let slot_branches = branches.clone();
-                let mut block_path = path.clone();
-                block_path.push(FragmentSegment::SlotElement);
-                ctx.push_position();
-                collect_elements(&slot.fragment, ctx, block_path, Some(&slot_branches));
-                ctx.pop_position();
-                ctx.increment_position();
-            }
-
-            TemplateNode::Component(comp) => {
-                // Components can contain children
-                ctx.push_position();
-                collect_elements(&comp.fragment, ctx, path.clone(), Some(&branches));
-                ctx.pop_position();
-                ctx.increment_position();
-            }
-
-            TemplateNode::SvelteElement(element) => {
-                // svelte:element is treated like a regular element for sibling detection,
-                // but uses SUB_POS_INSIDE_BLOCK because the dynamic tag might not render
-                // (e.g., this={null}), so it should not be a definite barrier for adjacency
-                let dom_idx = ctx.current_dom_idx;
-                ctx.current_dom_idx += 1;
-
-                let position = fixed_position.unwrap_or_else(|| ctx.current_position());
-                let sub_pos = fixed_sub_position.unwrap_or(SUB_POS_INSIDE_BLOCK);
-
-                let internal_order = ctx.internal_order_counter;
-                ctx.internal_order_counter += 1;
-
-                let info = ElementInfo {
-                    dom_idx,
-                    fragment_path: path.clone(),
-                    position_in_fragment: position,
-                    sub_position: sub_pos,
-                    internal_order,
-                    branches: branches.clone(),
-                };
-
-                ctx.element_info.insert(dom_idx, info);
-
-                // Track each block body membership
-                for each_id in &each_block_ids {
-                    ctx.each_body_elements
-                        .entry(each_id.clone())
-                        .or_default()
-                        .push(dom_idx);
-                }
-
-                // Track position mapping
-                let key = (path.clone(), position);
-                ctx.position_to_elements
-                    .entry(key)
-                    .or_default()
-                    .push((dom_idx, branches.clone()));
-
-                if fixed_position.is_none() {
-                    ctx.increment_position();
-                }
-
-                // Process children
-                let mut child_path = path.clone();
-                child_path.push(FragmentSegment::Element(dom_idx));
-                ctx.push_position();
-                collect_elements(&element.fragment, ctx, child_path, Some(&branches));
-                ctx.pop_position();
-            }
-
-            _ => {
-                // Text, comments, expression tags - don't contribute to position
-            }
-        }
-    }
-}
-
-/// Compare two elements by their position (position_in_fragment, sub_position, internal_order).
-/// Returns true if a comes before b.
-fn comes_before(a: &ElementInfo, b: &ElementInfo) -> bool {
-    if a.position_in_fragment != b.position_in_fragment {
-        a.position_in_fragment < b.position_in_fragment
-    } else if a.sub_position != b.sub_position {
-        a.sub_position < b.sub_position
-    } else if a.branches == b.branches {
-        // Only use internal_order to distinguish elements in the same branch.
-        // Elements in different branches at the same position are alternatives,
-        // not sequential - they should not be ordered by internal_order.
-        a.internal_order < b.internal_order
-    } else {
-        false // Elements in different branches at same position are not ordered
-    }
-}
-
-/// Find previous siblings for an element.
-fn find_previous_siblings(
-    dom_idx: usize,
-    info: &ElementInfo,
-    ctx: &TraversalContext,
-) -> SiblingPair {
-    let mut adjacent = Vec::new();
-    let mut general = Vec::new();
-
-    // Find elements that come before this one at the same fragment level
-    for (other_idx, other_info) in &ctx.element_info {
-        if *other_idx == dom_idx {
-            continue;
-        }
-
-        // Same fragment path means same level, and check if other element comes before this one
-        if other_info.fragment_path == info.fragment_path && comes_before(other_info, info) {
-            let certainty = determine_certainty(&other_info.branches, &info.branches);
-
-            // Only add if they can actually be siblings (not mutually exclusive branches)
-            if certainty != SiblingCertainty::Probable
-                || can_be_siblings(&other_info.branches, &info.branches)
-            {
-                general.push((*other_idx, certainty));
-
-                // Check if immediately adjacent (no elements between)
-                let is_adjacent =
-                    is_immediately_before(other_info, info, &ctx.element_info, &info.branches);
-                if is_adjacent {
-                    adjacent.push((*other_idx, certainty));
-                }
-            }
-        }
-    }
-
-    (adjacent, general)
-}
-
-/// Find next siblings for an element.
-fn find_next_siblings(dom_idx: usize, info: &ElementInfo, ctx: &TraversalContext) -> SiblingPair {
-    let mut adjacent = Vec::new();
-    let mut general = Vec::new();
-
-    for (other_idx, other_info) in &ctx.element_info {
-        if *other_idx == dom_idx {
-            continue;
-        }
-
-        if other_info.fragment_path == info.fragment_path && comes_before(info, other_info) {
-            let certainty = determine_certainty(&info.branches, &other_info.branches);
-
-            if certainty != SiblingCertainty::Probable
-                || can_be_siblings(&info.branches, &other_info.branches)
-            {
-                general.push((*other_idx, certainty));
-
-                let is_adjacent =
-                    is_immediately_after(info, other_info, &ctx.element_info, &info.branches);
-                if is_adjacent {
-                    adjacent.push((*other_idx, certainty));
-                }
-            }
-        }
-    }
-
-    (adjacent, general)
-}
-
-/// Determine if two elements can be siblings (not in mutually exclusive branches).
-fn can_be_siblings(branches1: &FxHashSet<BranchId>, branches2: &FxHashSet<BranchId>) -> bool {
-    // If elements share a branch ID with different branch numbers for the same path,
-    // they are mutually exclusive and cannot be siblings.
-
-    for b1 in branches1 {
-        for b2 in branches2 {
-            if b1.path == b2.path && b1.branch != b2.branch {
-                // Same block, different branches - mutually exclusive
-                return false;
-            }
-        }
-    }
-
-    true
-}
-
-/// Determine the certainty of sibling relationship.
-fn determine_certainty(
-    branches1: &FxHashSet<BranchId>,
-    branches2: &FxHashSet<BranchId>,
-) -> SiblingCertainty {
-    // If either element is in a control flow branch, relationship is probable
-    if !branches1.is_empty() || !branches2.is_empty() {
-        // If they share the exact same branches, it's definite
-        if branches1 == branches2 {
-            SiblingCertainty::Definite
-        } else {
-            SiblingCertainty::Probable
-        }
-    } else {
-        SiblingCertainty::Definite
-    }
-}
-
-/// Check if an element is a definite barrier (will always be present when both
-/// source and target are present).
-fn is_definite_barrier(between: &ElementInfo, _source: &ElementInfo, target: &ElementInfo) -> bool {
-    // Elements inside non-exhaustive blocks (sub_position == SUB_POS_INSIDE_BLOCK)
-    // might not be present. But they ARE a barrier if the target is in the same
-    // non-exhaustive block branch (because when the target exists, the barrier
-    // also exists).
-    if between.sub_position == SUB_POS_INSIDE_BLOCK {
-        // Check if the target is in the same branch as the barrier.
-        // If so, when the target exists, the barrier also exists.
-        let target_in_same_branch = between.branches.iter().all(|b| target.branches.contains(b))
-            && !between.branches.is_empty();
-
-        if target_in_same_branch {
-            // Target is in the same branch, so when target exists, barrier exists too.
-            // This handles: .a + .c in {#each}<b/><c/>{/each} where .b is a barrier for .a+.c
-            return true;
-        }
-
-        // Otherwise, the barrier might not be present when source and target are both present
-        return false;
-    }
-
-    // For elements in exhaustive blocks or outside any block:
-    // They are definite barriers.
-    true
-}
-
-/// Check if other_info immediately precedes target_info (no elements between).
-fn is_immediately_before(
-    other_info: &ElementInfo,
-    target_info: &ElementInfo,
-    all_elements: &FxHashMap<usize, ElementInfo>,
-    _target_branches: &FxHashSet<BranchId>,
-) -> bool {
-    // Check if any element exists between other and target that would ALWAYS be present
-    for between_info in all_elements.values() {
-        if between_info.fragment_path == other_info.fragment_path
-            && comes_before(other_info, between_info)
-            && comes_before(between_info, target_info)
-            && can_be_siblings(&between_info.branches, &target_info.branches)
-            && is_definite_barrier(between_info, other_info, target_info)
-        {
-            return false;
-        }
-    }
-    true
-}
-
-/// Check if other_info immediately follows source_info (no elements between).
-fn is_immediately_after(
-    source_info: &ElementInfo,
-    other_info: &ElementInfo,
-    all_elements: &FxHashMap<usize, ElementInfo>,
-    _source_branches: &FxHashSet<BranchId>,
-) -> bool {
-    for between_info in all_elements.values() {
-        if between_info.fragment_path == source_info.fragment_path
-            && comes_before(source_info, between_info)
-            && comes_before(between_info, other_info)
-            && can_be_siblings(&source_info.branches, &between_info.branches)
-            && is_definite_barrier(between_info, source_info, other_info)
-        {
-            return false;
-        }
-    }
-    true
+    if a > b { a } else { b }
 }
