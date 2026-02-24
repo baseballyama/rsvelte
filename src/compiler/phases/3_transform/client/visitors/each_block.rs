@@ -1620,6 +1620,7 @@ fn build_fallback_expression(
     if let Some(default_val) = default_value {
         if is_simple_default(default_val) {
             let default_expr = convert_expression(&Expression::Value(default_val.clone()), context);
+            let default_expr = apply_transforms_to_expression(&default_expr, context);
             let default_str =
                 crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
                     &default_expr,
@@ -1638,6 +1639,7 @@ fn build_fallback_expression(
                 &Expression::Value(serde_json::Value::Object(callee.clone())),
                 context,
             );
+            let callee_expr = apply_transforms_to_expression(&callee_expr, context);
             let callee_str =
                 crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
                     &callee_expr,
@@ -1645,6 +1647,7 @@ fn build_fallback_expression(
             format!("$.fallback({}, {}, true)", expression, callee_str)
         } else {
             let default_expr = convert_expression(&Expression::Value(default_val.clone()), context);
+            let default_expr = apply_transforms_to_expression(&default_expr, context);
             let default_str =
                 crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(
                     &default_expr,

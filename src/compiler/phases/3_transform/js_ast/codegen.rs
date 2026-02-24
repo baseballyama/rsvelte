@@ -2536,9 +2536,19 @@ impl JsCodegen {
     }
 
     fn emit_member_expression(&mut self, member: &JsMemberExpression) {
+        // Add parentheses around the object when it has lower precedence than member access.
+        // Member access (.) has very high precedence (18), so most expression types
+        // with lower precedence need parentheses when used as the object.
         let needs_parens = matches!(
             member.object.as_ref(),
-            JsExpr::Literal(JsLiteral::Number(_)) | JsExpr::Literal(JsLiteral::String(_))
+            JsExpr::Literal(JsLiteral::Number(_))
+                | JsExpr::Literal(JsLiteral::String(_))
+                | JsExpr::Binary(_)
+                | JsExpr::Unary(_)
+                | JsExpr::Conditional(_)
+                | JsExpr::Assignment(_)
+                | JsExpr::Sequence(_)
+                | JsExpr::Logical(_)
         );
         if needs_parens {
             self.output.push('(');
