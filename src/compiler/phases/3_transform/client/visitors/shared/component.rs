@@ -1622,10 +1622,19 @@ fn visit_slot_children(
             // Transform template using the state's template
             // This creates the hoisted template expression like: var root_1 = $.from_html(`<input slot="slot1"/>`);
             let template_name = context.state.memoizer.generate_id("root");
-            let namespace = match context.state.metadata.namespace.as_str() {
-                "svg" => Namespace::Svg,
-                "mathml" => Namespace::Mathml,
-                _ => Namespace::Html,
+            // Determine namespace from the element itself, not the parent context.
+            // For example, a <line> element inside a component slot is SVG even if
+            // the parent context is HTML.
+            let namespace = if element.metadata.svg {
+                Namespace::Svg
+            } else if element.metadata.mathml {
+                Namespace::Mathml
+            } else {
+                match context.state.metadata.namespace.as_str() {
+                    "svg" => Namespace::Svg,
+                    "mathml" => Namespace::Mathml,
+                    _ => Namespace::Html,
+                }
             };
 
             // Build the template expression manually from the template state
@@ -1819,7 +1828,15 @@ fn visit_slot_children(
                 // Standard template case
                 let template_name = context.state.memoizer.generate_id("root");
 
-                let namespace = match context.state.metadata.namespace.as_str() {
+                // Infer namespace from the slot children themselves.
+                // For example, if all children are SVG elements, use "svg".
+                let inferred_ns = crate::compiler::phases::phase3_transform::utils::infer_namespace(
+                    &context.state.metadata.namespace,
+                    None,
+                    &cleaned.trimmed,
+                    context.state.analysis,
+                );
+                let namespace = match inferred_ns.as_str() {
                     "svg" => Namespace::Svg,
                     "mathml" => Namespace::Mathml,
                     _ => Namespace::Html,

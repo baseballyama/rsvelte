@@ -156,7 +156,14 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     // during body traversal, matching the official compiler's closure-based approach.
     let mut uses_index = each_node_meta.contains_group_binding;
 
-    let key_uses_index = false; // Will be set properly when visiting key
+    // Determine if the key expression references the index variable.
+    // In the official compiler, this is detected via a side-effect in key_state.transform[node.index].read.
+    // We detect it by checking if the key expression's JSON contains an Identifier with the index name.
+    let key_uses_index = if let (Some(key_expr), Some(index_name)) = (&node.key, &node.index) {
+        expression_references_identifier(key_expr, index_name)
+    } else {
+        false
+    };
 
     // Save the current transform map - each block creates a child scope for transforms
     // This prevents transforms registered for this block's item/index from leaking to
@@ -1705,6 +1712,44 @@ fn build_key_function(
     b::member_path("$.index")
 }
 
+/// Check if an expression references an identifier with the given name.
+/// This recursively inspects the JSON AST of the expression.
+fn expression_references_identifier(expr: &Expression, name: &str) -> bool {
+    let Expression::Value(val) = expr;
+    json_value_references_identifier(val, name)
+}
+
+/// Check if a JSON value (AST node) references an identifier with the given name.
+fn json_value_references_identifier(val: &serde_json::Value, name: &str) -> bool {
+    match val {
+        serde_json::Value::Object(obj) => {
+            // Check if this node is an Identifier with the matching name
+            if let Some(serde_json::Value::String(node_type)) = obj.get("type")
+                && node_type == "Identifier"
+                && let Some(serde_json::Value::String(id_name)) = obj.get("name")
+                && id_name == name
+            {
+                return true;
+            }
+            // Recursively check all values in the object
+            for (key, child) in obj {
+                // Skip position/location fields
+                if key == "start" || key == "end" || key == "loc" || key == "type" {
+                    continue;
+                }
+                if json_value_references_identifier(child, name) {
+                    return true;
+                }
+            }
+            false
+        }
+        serde_json::Value::Array(arr) => arr
+            .iter()
+            .any(|v| json_value_references_identifier(v, name)),
+        _ => false,
+    }
+}
+
 /// Build the render arguments ($$anchor, item, [index], [collection_id]).
 fn build_render_args(
     index: &JsExpr,
@@ -1932,6 +1977,28 @@ mod tests {
             JsExpr::Identifier(name) => assert_eq!(name, "$$item"),
             _ => panic!("Expected identifier"),
         }
+    }
+
+    #[test]
+    fn test_expression_references_identifier() {
+        use crate::ast::js::Expression;
+
+        // Simple identifier
+        let expr = Expression::Value(serde_json::json!({
+            "type": "Identifier",
+            "name": "i"
+        }));
+        assert!(expression_references_identifier(&expr, "i"));
+        assert!(!expression_references_identifier(&expr, "j"));
+
+        // Template literal with identifier
+        let expr = Expression::Value(serde_json::json!({
+            "type": "TemplateLiteral",
+            "expressions": [{"type": "Identifier", "name": "i"}],
+            "quasis": [{"type": "TemplateElement", "value": {"raw": "", "cooked": ""}}, {"type": "TemplateElement", "value": {"raw": "", "cooked": ""}}]
+        }));
+        assert!(expression_references_identifier(&expr, "i"));
+        assert!(!expression_references_identifier(&expr, "j"));
     }
 
     #[test]

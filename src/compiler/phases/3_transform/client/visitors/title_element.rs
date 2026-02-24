@@ -8,7 +8,9 @@
 use crate::ast::template::{TemplateNode, TitleElement};
 use crate::compiler::phases::phase3_transform::client::types::*;
 use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
-use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::expression_has_reactive_state;
+use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
+    apply_transforms_to_expression, expression_has_reactive_state,
+};
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::JsBinaryOp;
 
@@ -91,7 +93,8 @@ fn build_title_content(
                     has_state = true;
                 }
 
-                let value = convert_expression(&expr.expression, context);
+                let raw_value = convert_expression(&expr.expression, context);
+                let value = apply_transforms_to_expression(&raw_value, context);
 
                 // For single-expression titles, add ?? '' for potentially undefined values
                 // (matching official compiler's is_defined check)
