@@ -1215,7 +1215,24 @@ fn _extract_destructured_paths(
                                         if let Some(val) = key.get("value") {
                                             let val_str = match val {
                                                 serde_json::Value::String(s) => s.clone(),
-                                                serde_json::Value::Number(n) => n.to_string(),
+                                                serde_json::Value::Number(n) => {
+                                                    // Match JS String(value) behavior:
+                                                    // integers like 16 become "16", not "16.0"
+                                                    if let Some(i) = n.as_i64() {
+                                                        i.to_string()
+                                                    } else if let Some(f) = n.as_f64() {
+                                                        // Check if the float is actually an integer
+                                                        if f.fract() == 0.0
+                                                            && f.abs() < i64::MAX as f64
+                                                        {
+                                                            (f as i64).to_string()
+                                                        } else {
+                                                            n.to_string()
+                                                        }
+                                                    } else {
+                                                        n.to_string()
+                                                    }
+                                                }
                                                 serde_json::Value::Bool(b) => b.to_string(),
                                                 _ => format!("{}", val),
                                             };
