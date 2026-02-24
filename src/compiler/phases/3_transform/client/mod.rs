@@ -4115,7 +4115,10 @@ fn transform_reactive_statement(
         let rhs = body[eq_pos + 1..].trim();
         // If the LHS contains `?` it means the `=` was found inside a ternary branch;
         // fall through to the non-assignment (else) path instead.
-        if lhs.contains('?') {
+        // Also check if the LHS starts with a control-flow keyword like `if`, `for`,
+        // `while`, etc. -- these indicate the `=` is inside a nested statement, not
+        // a top-level assignment.
+        if lhs.contains('?') || lhs_starts_with_keyword(lhs) {
             // Treat as non-assignment expression
             let temp = transform_prop_assignments(body, prop_assignment_transform_vars);
             let temp = transform_prop_update_expressions(&temp, prop_assignment_transform_vars);
@@ -4385,16 +4388,56 @@ fn unwrap_block_statement_owned(body: &str) -> (String, bool) {
     let mut depth = 0;
     let mut in_string = false;
     let mut string_char = ' ';
-    let mut chars = trimmed.char_indices().peekable();
+    let mut in_line_comment = false;
+    let mut in_block_comment = false;
+    let chars_vec: Vec<(usize, char)> = trimmed.char_indices().collect();
+    let len = chars_vec.len();
+    let mut idx = 0;
 
-    while let Some((i, c)) = chars.next() {
+    while idx < len {
+        let (i, c) = chars_vec[idx];
+
+        // Handle line comments: skip until newline
+        if in_line_comment {
+            if c == '\n' {
+                in_line_comment = false;
+            }
+            idx += 1;
+            continue;
+        }
+
+        // Handle block comments: skip until */
+        if in_block_comment {
+            if c == '*' && idx + 1 < len && chars_vec[idx + 1].1 == '/' {
+                in_block_comment = false;
+                idx += 2;
+            } else {
+                idx += 1;
+            }
+            continue;
+        }
+
         if in_string {
             if c == '\\' {
-                chars.next(); // Skip escaped char
+                idx += 2; // Skip escaped char
+                continue;
             } else if c == string_char {
                 in_string = false;
             }
         } else {
+            // Detect comment start (before checking string/brace chars)
+            if c == '/' && idx + 1 < len {
+                if chars_vec[idx + 1].1 == '/' {
+                    in_line_comment = true;
+                    idx += 2;
+                    continue;
+                } else if chars_vec[idx + 1].1 == '*' {
+                    in_block_comment = true;
+                    idx += 2;
+                    continue;
+                }
+            }
+
             match c {
                 '"' | '\'' | '`' => {
                     in_string = true;
@@ -4426,6 +4469,7 @@ fn unwrap_block_statement_owned(body: &str) -> (String, bool) {
                 _ => {}
             }
         }
+        idx += 1;
     }
 
     (body.to_string(), false)
@@ -5603,6 +5647,25 @@ fn check_identifier_in_statement(stmt: &str, identifier: &str, re: &regex::Regex
     // No simple assignment found - the identifier is used in some other context
     // (function call, condition, etc.) - treat as a read
     true
+}
+
+/// Check if a string starts with a JavaScript control-flow keyword.
+///
+/// When `find_assignment_position` returns a position, the text to the left is
+/// the "LHS". If that LHS begins with a keyword such as `if`, `for`, `while`,
+/// `do`, `switch`, or `try`, then the `=` is actually inside a nested
+/// statement and not a top-level assignment.
+fn lhs_starts_with_keyword(lhs: &str) -> bool {
+    let lhs = lhs.trim();
+    for keyword in &[
+        "if ", "if(", "for ", "for(", "while ", "while(", "do ", "do{", "switch ", "switch(",
+        "try ", "try{",
+    ] {
+        if lhs.starts_with(keyword) {
+            return true;
+        }
+    }
+    false
 }
 
 /// Find the position of the assignment operator (=) that's not part of ==, ===, !=, !==
