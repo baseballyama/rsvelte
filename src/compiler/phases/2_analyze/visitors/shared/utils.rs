@@ -1399,6 +1399,51 @@ fn extract_identifier_name(param: &Value) -> Option<String> {
     }
 }
 
+/// Collect all identifier names from a pattern (identifier, object, array, rest, assignment).
+/// Used to register local variable declarations that shadow outer scope bindings.
+fn collect_all_identifier_names_from_pattern(pattern: &Value, names: &mut Vec<String>) {
+    match pattern.get("type").and_then(|t| t.as_str()) {
+        Some("Identifier") => {
+            if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
+                names.push(name.to_string());
+            }
+        }
+        Some("ObjectPattern") => {
+            if let Some(properties) = pattern.get("properties").and_then(|p| p.as_array()) {
+                for prop in properties {
+                    if prop.get("type").and_then(|t| t.as_str()) == Some("RestElement") {
+                        if let Some(argument) = prop.get("argument") {
+                            collect_all_identifier_names_from_pattern(argument, names);
+                        }
+                    } else if let Some(value) = prop.get("value") {
+                        collect_all_identifier_names_from_pattern(value, names);
+                    }
+                }
+            }
+        }
+        Some("ArrayPattern") => {
+            if let Some(elements) = pattern.get("elements").and_then(|e| e.as_array()) {
+                for elem in elements {
+                    if !elem.is_null() {
+                        collect_all_identifier_names_from_pattern(elem, names);
+                    }
+                }
+            }
+        }
+        Some("AssignmentPattern") => {
+            if let Some(left) = pattern.get("left") {
+                collect_all_identifier_names_from_pattern(left, names);
+            }
+        }
+        Some("RestElement") => {
+            if let Some(argument) = pattern.get("argument") {
+                collect_all_identifier_names_from_pattern(argument, names);
+            }
+        }
+        _ => {}
+    }
+}
+
 /// Get the rune name from a callee expression, if it's a rune call.
 ///
 /// Returns Some(rune_name) for runes like "$state", "$derived", "$state.raw", etc.
@@ -1798,16 +1843,25 @@ pub fn walk_js_expression(
             // This is important for detecting scoped store subscriptions
             context.function_depth += 1;
 
+            // Save a snapshot of the declarations map before entering the function scope.
+            // This ensures that both parameter shadowing AND local variable declarations
+            // inside the function body are properly scoped and restored when we exit.
+            // Without this, `const bar = baz` inside a callback would permanently
+            // shadow the outer `bar` binding in the declarations map.
+            let saved_declarations = context.analysis.root.scope.declarations.clone();
+
             // Extract parameters and register them as temporary scoped bindings
             // This allows us to detect when $store refers to a local parameter
-            let mut temp_param_bindings: Vec<(String, usize)> = Vec::new();
-
             if let Some(params) = expression.get("params").and_then(|p| p.as_array()) {
                 for param in params {
                     if let Some(param_name) = extract_identifier_name(param) {
                         // Check if this parameter shadows an existing binding
-                        if let Some(&existing_idx) =
-                            context.analysis.root.scope.declarations.get(&param_name)
+                        if context
+                            .analysis
+                            .root
+                            .scope
+                            .declarations
+                            .contains_key(&param_name)
                         {
                             // Create a temporary binding for the parameter at non-root scope
                             // We use function_depth + 1 as scope_index so that even the first
@@ -1831,9 +1885,6 @@ pub fn walk_js_expression(
                                 .scope
                                 .declarations
                                 .insert(param_name.clone(), temp_binding_idx);
-
-                            // Track for cleanup
-                            temp_param_bindings.push((param_name, existing_idx));
                         }
                     }
                 }
@@ -1844,15 +1895,10 @@ pub fn walk_js_expression(
                 walk_js_expression(body, context, metadata)?;
             }
 
-            // Restore original bindings
-            for (param_name, original_idx) in temp_param_bindings {
-                context
-                    .analysis
-                    .root
-                    .scope
-                    .declarations
-                    .insert(param_name, original_idx);
-            }
+            // Restore the declarations map to the state before entering this function scope.
+            // This undoes both parameter shadows and any local variable declarations
+            // that were registered inside the function body.
+            context.analysis.root.scope.declarations = saved_declarations;
 
             // Restore function depth
             context.function_depth -= 1;
@@ -1964,8 +2010,47 @@ pub fn walk_js_statement(
         Some("VariableDeclaration") => {
             if let Some(declarations) = statement.get("declarations").and_then(|d| d.as_array()) {
                 for decl in declarations {
+                    // First, walk the init expression (before registering the binding,
+                    // since the init can reference the outer binding)
                     if let Some(init) = decl.get("init") {
                         walk_js_expression(init, context, metadata)?;
+                    }
+
+                    // Register the declared variable as a temporary binding to shadow
+                    // any outer scope binding for subsequent references in the same block.
+                    // This prevents e.g. `const bar = baz` inside a function body from
+                    // causing the outer `bar` binding to appear in metadata.references
+                    // when `bar` is referenced later in the same function.
+                    // The parent function/arrow scope cleanup will restore the original
+                    // bindings when the function scope ends.
+                    if let Some(id) = decl.get("id") {
+                        let mut names = Vec::new();
+                        collect_all_identifier_names_from_pattern(id, &mut names);
+                        for name in names {
+                            if let Some(&existing_idx) =
+                                context.analysis.root.scope.declarations.get(&name)
+                            {
+                                let temp_binding_idx = context.analysis.root.bindings.len();
+                                let temp_binding = crate::compiler::phases::phase2_analyze::Binding::with_declaration_kind(
+                                    name.clone(),
+                                    crate::compiler::phases::phase2_analyze::BindingKind::Normal,
+                                    crate::compiler::phases::phase2_analyze::DeclarationKind::Let,
+                                    context.function_depth + 1,
+                                );
+                                context.analysis.root.bindings.push(temp_binding);
+                                context
+                                    .analysis
+                                    .root
+                                    .scope
+                                    .declarations
+                                    .insert(name, temp_binding_idx);
+                                // Note: we don't need to restore these because the parent
+                                // function/arrow scope already restores its parameter bindings
+                                // when it exits. For local vars inside function bodies, the
+                                // shadowing is only relevant within that function's walk.
+                                let _ = existing_idx;
+                            }
+                        }
                     }
                 }
             }

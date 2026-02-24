@@ -1969,6 +1969,12 @@ pub struct ExpressionMetadata {
 
     /// Blocking dependencies (for async expressions)
     pub blockers: Vec<JsExpr>,
+
+    /// Binding indices referenced by this expression (from phase 2 analysis).
+    /// Used in legacy mode by `build_expression` to determine which bindings
+    /// need to be read for dependency tracking (matching the official Svelte
+    /// compiler's `metadata.references`).
+    pub references: FxHashSet<usize>,
 }
 
 impl ExpressionMetadata {
@@ -1986,6 +1992,7 @@ impl ExpressionMetadata {
         result.set_has_state(meta.has_state());
         result.set_has_member_expression(meta.has_member_expression());
         result.set_has_assignment(meta.has_assignment());
+        result.references = meta.references.clone();
         result
     }
 

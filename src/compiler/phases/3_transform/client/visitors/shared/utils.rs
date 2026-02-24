@@ -1521,10 +1521,17 @@ pub fn build_expression(
     // establishing additional dependencies.
     let mut sequence_exprs = Vec::new();
 
-    // Collect state dependencies from the original (pre-transform) expression.
-    // For each identifier with a registered transform, we build a getter.
-    // For props/templates/imports, we wrap in $.deep_read_state().
-    collect_reactive_references(expression, context, &mut sequence_exprs);
+    // Collect state dependencies using metadata.references from phase 2 analysis.
+    // This mirrors the official Svelte compiler's build_expression which iterates
+    // over metadata.references (a Set<Binding>) rather than walking the expression tree.
+    //
+    // If references are available from phase 2 analysis, use them (preferred/correct).
+    // Otherwise, fall back to the expression tree walking approach.
+    if !metadata.references.is_empty() {
+        collect_reactive_references_from_metadata(metadata, context, &mut sequence_exprs);
+    } else {
+        collect_reactive_references(expression, context, &mut sequence_exprs);
+    }
 
     // Wrap the value in $.untrack(() => value)
     // b::thunk applies the unthunk optimization: () => func() -> func
@@ -1644,6 +1651,103 @@ fn collect_state_getters(expr: &JsExpr, getters: &mut Vec<JsExpr>) {
     }
 }
 
+/// Collect reactive references from metadata.references for legacy mode reactivity.
+///
+/// This uses the binding indices from phase 2 analysis (metadata.references) to determine
+/// which bindings need dependency tracking, exactly matching the official Svelte compiler's
+/// `build_expression` which iterates over `metadata.references` (a Set<Binding>).
+///
+/// For each referenced binding:
+/// - Skip normal bindings that are not imports
+/// - Build a getter by looking up the transform for the binding's name
+/// - Wrap in `$.deep_read_state()` if the binding is a prop, template, import, or $$props/$$restProps
+///
+/// This is more accurate than the expression tree walking approach because
+/// metadata.references correctly identifies which scope-level bindings are
+/// referenced in the expression (handling shadowed variables, function parameters, etc.).
+fn collect_reactive_references_from_metadata(
+    metadata: &ExpressionMetadata,
+    context: &ComponentContext,
+    getters: &mut Vec<JsExpr>,
+) {
+    use crate::compiler::phases::phase2_analyze::scope::{BindingKind, DeclarationKind};
+
+    for &binding_index in &metadata.references {
+        let binding = match context.state.scope_root.bindings.get(binding_index) {
+            Some(b) => b,
+            None => continue,
+        };
+
+        // Skip normal bindings unless they are imports
+        // (matches: binding.kind === 'normal' && binding.declaration_kind !== 'import' -> continue)
+        if binding.kind == BindingKind::Normal
+            && binding.declaration_kind != DeclarationKind::Import
+        {
+            continue;
+        }
+
+        let name = &binding.name;
+
+        // For reassigned each-block items in legacy mode, the dependency getter
+        // should use collection[$$index] instead of $.get(item).
+        if !context.state.analysis.runes
+            && let Some(each_ctx) = context
+                .state
+                .each_binding_context
+                .iter()
+                .find(|ctx| ctx.item_name == *name && ctx.item_reassigned)
+        {
+            let reassigned_read = build_reassigned_item_read(each_ctx);
+            getters.push(reassigned_read);
+            continue;
+        }
+
+        // Build the getter by applying the read transform if one exists
+        // (mirrors build_getter in the official compiler)
+        let getter = if let Some(transform) = context.state.transform.get(name.as_str()) {
+            if let Some(read_fn) = transform.read {
+                let input_id = if let Some(ref replacement) = transform.replacement_id {
+                    JsExpr::Identifier(replacement.clone())
+                } else {
+                    JsExpr::Identifier(name.clone())
+                };
+                read_fn(input_id)
+            } else {
+                JsExpr::Identifier(name.clone())
+            }
+        } else {
+            // No transform registered (e.g., imports) - use the identifier directly
+            JsExpr::Identifier(name.clone())
+        };
+
+        // Check if we need to wrap in $.deep_read_state()
+        // Matches the official compiler's check:
+        //   binding.kind === 'bindable_prop' || binding.kind === 'template' ||
+        //   binding.declaration_kind === 'import' ||
+        //   binding.node.name === '$$props' || binding.node.name === '$$restProps'
+        let needs_deep_read = if name == "$$props" || name == "$$restProps" {
+            true
+        } else {
+            matches!(
+                binding.kind,
+                BindingKind::BindableProp
+                    | BindingKind::Template
+                    | BindingKind::AwaitThen
+                    | BindingKind::AwaitCatch
+                    | BindingKind::Let
+            ) || binding.declaration_kind == DeclarationKind::Import
+        };
+
+        let final_getter = if needs_deep_read {
+            b::svelte_call("deep_read_state", vec![getter])
+        } else {
+            getter
+        };
+
+        getters.push(final_getter);
+    }
+}
+
 /// Collect reactive references from an expression for legacy mode reactivity.
 ///
 /// This walks the original (pre-transform) expression and collects identifiers
@@ -1651,20 +1755,9 @@ fn collect_state_getters(expr: &JsExpr, getters: &mut Vec<JsExpr>) {
 /// - For props/templates/imports: `$.deep_read_state(getter)`
 /// - For other reactive bindings: just the getter (e.g., `$.get(x)`)
 ///
-/// This corresponds to the logic in `build_expression` in the official Svelte compiler:
-/// ```javascript
-/// for (const binding of metadata.references) {
-///     if (binding.kind === 'normal' && binding.declaration_kind !== 'import') {
-///         continue;
-///     }
-///     var getter = build_getter({ ...binding.node }, state);
-///     if (binding.kind === 'bindable_prop' || binding.kind === 'template' ||
-///         binding.declaration_kind === 'import' || ...) {
-///         getter = b.call('$.deep_read_state', getter);
-///     }
-///     sequence.expressions.push(getter);
-/// }
-/// ```
+/// NOTE: This is the fallback approach used when metadata.references is not available.
+/// The preferred approach is `collect_reactive_references_from_metadata` which uses
+/// the binding indices from phase 2 analysis.
 fn collect_reactive_references(
     expr: &JsExpr,
     context: &ComponentContext,

@@ -1782,13 +1782,15 @@ impl<'a> ScopeBuilder<'a> {
     }
 
     /// Process a binding pattern from a JSON value.
+    /// Const-tag bindings get `BindingKind::Template` to match the official Svelte compiler
+    /// (scope.js line 1057: `scope.declare(id, 'template', 'const')`).
     fn process_binding_pattern_from_json(&mut self, pattern: &serde_json::Value) {
         match pattern.get("type").and_then(|t| t.as_str()) {
             Some("Identifier") => {
                 if let Some(name) = pattern.get("name").and_then(|n| n.as_str()) {
                     self.declare_binding(
                         name.to_string(),
-                        BindingKind::Normal,
+                        BindingKind::Template,
                         DeclarationKind::Const,
                     );
                 }
