@@ -6014,9 +6014,45 @@ fn transform_let_with_reexported_props(line: &str, analysis: &ComponentAnalysis)
             let prop_name = prop_alias.unwrap_or(name);
 
             if let Some(val) = value {
-                let is_simple = is_simple_expression_str(val);
+                // Check if the value is simple.
+                // An identifier is NOT simple if it refers to another prop/state variable
+                // because after transforms it would become a function call (e.g., v2 -> v2()).
+                // The official compiler checks is_simple_expression on the VISITED (transformed)
+                // expression, where prop identifiers become CallExpressions.
+                let mut is_simple = is_simple_expression_str(val);
+                // Track if the identifier refers to a prop (it will be a no-arg call after transform,
+                // and the official compiler unwraps no-arg calls to just the callee)
+                let mut is_prop_ref = false;
+                if is_simple
+                    && is_identifier_str(val)
+                    && analysis
+                        .root
+                        .find_binding_any_scope(val)
+                        .and_then(|idx| analysis.root.bindings.get(idx))
+                        .is_some_and(|b| {
+                            matches!(
+                                b.kind,
+                                BindingKind::BindableProp
+                                    | BindingKind::Prop
+                                    | BindingKind::State
+                                    | BindingKind::RawState
+                                    | BindingKind::Derived
+                            )
+                        })
+                {
+                    is_simple = false;
+                    is_prop_ref = true;
+                }
                 let flags = calculate_prop_flags(name, analysis, !is_simple);
                 if is_simple {
+                    results.push(format!(
+                        "let {} = $.prop($$props, '{}', {}, {});",
+                        name, prop_name, flags, val
+                    ));
+                } else if is_prop_ref {
+                    // Prop/state identifier: after transform it becomes val() (no-arg call).
+                    // The official compiler unwraps no-arg calls to just the callee,
+                    // so we pass the identifier directly.
                     results.push(format!(
                         "let {} = $.prop($$props, '{}', {}, {});",
                         name, prop_name, flags, val
@@ -6258,12 +6294,41 @@ fn transform_export_let(line: &str, analysis: &ComponentAnalysis) -> String {
             } else {
                 // Check if the value is a "simple expression" that can be passed directly
                 // Non-simple expressions need to be wrapped in a thunk and use PROPS_IS_LAZY_INITIAL
-                let is_simple = is_simple_expression_str(value);
+                let mut is_simple = is_simple_expression_str(value);
+                // An identifier is NOT simple if it refers to another prop/state variable
+                // because after transforms it would become a function call (e.g., v2 -> v2()).
+                let mut is_prop_ref = false;
+                if is_simple
+                    && is_identifier_str(value)
+                    && analysis
+                        .root
+                        .find_binding_any_scope(value)
+                        .and_then(|idx| analysis.root.bindings.get(idx))
+                        .is_some_and(|b| {
+                            matches!(
+                                b.kind,
+                                BindingKind::BindableProp
+                                    | BindingKind::Prop
+                                    | BindingKind::State
+                                    | BindingKind::RawState
+                                    | BindingKind::Derived
+                            )
+                        })
+                {
+                    is_simple = false;
+                    is_prop_ref = true;
+                }
 
                 // Calculate flags: PROPS_IS_BINDABLE + PROPS_IS_UPDATED + PROPS_IS_LAZY_INITIAL
                 let flags = calculate_prop_flags(name, analysis, !is_simple);
 
                 if is_simple {
+                    results.push(format!(
+                        "let {} = $.prop($$props, '{}', {}, {});",
+                        name, name, flags, value
+                    ));
+                } else if is_prop_ref {
+                    // Prop/state identifier: pass directly (official compiler unwraps no-arg calls)
                     results.push(format!(
                         "let {} = $.prop($$props, '{}', {}, {});",
                         name, name, flags, value
@@ -6359,6 +6424,18 @@ fn calculate_prop_flags(name: &str, analysis: &ComponentAnalysis, is_lazy_initia
     }
 
     flags
+}
+
+/// Check if a string is a valid JavaScript identifier.
+fn is_identifier_str(s: &str) -> bool {
+    let trimmed = s.trim();
+    let mut chars = trimmed.chars();
+    match chars.next() {
+        Some(first) if first.is_ascii_alphabetic() || first == '_' || first == '$' => {
+            chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
+        }
+        _ => false,
+    }
 }
 
 /// Check if a value string represents a "simple expression" that can be passed directly.
