@@ -36,6 +36,10 @@ pub fn visit(
                     context.analysis.uses_component_bindings = true;
                 }
                 validate_assignment(bind.expression.as_json(), context, true)?;
+                // Walk the bind expression to add template references.
+                // This is important for legacy mode state promotion - bindings need
+                // template references to be promoted from 'normal' to 'state' kind.
+                super::script::walk_js_node(bind.expression.as_json(), context)?;
             }
             Attribute::OnDirective(on) => {
                 // If there's no expression, this is an event forwarding/bubbling directive.
@@ -43,6 +47,18 @@ pub fn visit(
                 if on.expression.is_none() {
                     context.analysis.needs_props = true;
                 }
+                // Walk event handler expression if present
+                if let Some(ref expr) = on.expression {
+                    super::script::walk_js_node(expr.as_json(), context)?;
+                }
+            }
+            Attribute::SpreadAttribute(spread) => {
+                // Walk the spread expression
+                super::script::walk_js_node(spread.expression.as_json(), context)?;
+            }
+            Attribute::Attribute(a) => {
+                // Walk attribute value expressions
+                super::attribute::visit_attribute_value_expressions(&a.value, context)?;
             }
             _ => {}
         }
