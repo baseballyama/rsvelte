@@ -5490,6 +5490,55 @@ fn check_identifier_in_statement(stmt: &str, identifier: &str, re: &regex::Regex
         let lhs = &stmt[..eq_pos];
         let rhs = &stmt[eq_pos + 1..];
 
+        // If the LHS contains `?`, this is likely a ternary expression where the
+        // first `=` was found inside a ternary branch (e.g., `cond ? x = a : x = b`).
+        // In this case, don't treat it as a simple assignment. Instead, analyze the
+        // ternary condition and branches separately.
+        if lhs.contains('?') {
+            // Find the `?` position to extract the condition
+            if let Some(q_pos) = lhs.find('?') {
+                let condition = lhs[..q_pos].trim();
+                // Check if identifier is read in the condition
+                if re.is_match(condition) {
+                    return true;
+                }
+                // The rest is the true-branch assignment and the false-branch (in rhs after `:`)
+                let true_branch_lhs = lhs[q_pos + 1..].trim();
+                // `rhs` is something like `Sub : component = banana`
+                // Check if identifier is the assignment target in both branches
+                // True branch: `true_branch_lhs = <rhs_before_colon>`
+                // False branch: `<rhs_after_colon_lhs> = <rhs_after_colon_rhs>`
+                if let Some(colon_pos) = find_colon_at_depth0(rhs) {
+                    let true_rhs = rhs[..colon_pos].trim();
+                    let false_branch = rhs[colon_pos + 1..].trim();
+
+                    // Check if identifier appears in true branch RHS (a read)
+                    if re.is_match(true_rhs) {
+                        return true;
+                    }
+
+                    // Parse false branch as an assignment
+                    if let Some(false_eq_pos) = find_assignment_position(false_branch) {
+                        let false_lhs = false_branch[..false_eq_pos].trim();
+                        let false_rhs = false_branch[false_eq_pos + 1..].trim();
+
+                        // Check if identifier appears in false branch RHS (a read)
+                        if re.is_match(false_rhs) {
+                            return true;
+                        }
+
+                        // If identifier is the assignment target in both branches, it's not a read
+                        if true_branch_lhs == identifier && false_lhs == identifier {
+                            return false;
+                        }
+                    }
+                }
+
+                // Fall through to default: treat as read
+                return true;
+            }
+        }
+
         // If identifier appears on the RHS, it's definitely a read/dependency
         if re.is_match(rhs) {
             return true;
@@ -5564,6 +5613,51 @@ fn find_assignment_position(expr: &str) -> Option<usize> {
                     && next != Some('>')
                 {
                     return Some(i);
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Find the position of a `:` at depth 0 in an expression.
+/// This is used to split ternary expressions like `true_rhs : false_branch`.
+fn find_colon_at_depth0(expr: &str) -> Option<usize> {
+    let chars: Vec<char> = expr.chars().collect();
+    let mut depth = 0;
+    let mut i = 0;
+
+    while i < chars.len() {
+        match chars[i] {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            ':' if depth == 0 => return Some(i),
+            '\'' | '"' => {
+                // Skip string literals
+                let quote = chars[i];
+                i += 1;
+                while i < chars.len() && chars[i] != quote {
+                    if chars[i] == '\\' && i + 1 < chars.len() {
+                        i += 1;
+                    }
+                    i += 1;
+                }
+            }
+            '`' => {
+                // Skip template literals
+                i += 1;
+                while i < chars.len() && chars[i] != '`' {
+                    if chars[i] == '$' && i + 1 < chars.len() && chars[i + 1] == '{' {
+                        depth += 1;
+                        i += 1;
+                    } else if chars[i] == '}' && depth > 0 {
+                        depth -= 1;
+                    } else if chars[i] == '\\' && i + 1 < chars.len() {
+                        i += 1;
+                    }
+                    i += 1;
                 }
             }
             _ => {}
