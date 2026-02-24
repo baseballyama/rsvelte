@@ -29,6 +29,12 @@ pub struct ScopeRoot {
     /// Each entry: (parent_scope_idx, each_scope_idx, collection_identifier_names).
     /// Processed in Phase 2 analyze after runes detection (only in legacy mode).
     pub each_block_collection_infos: Vec<(usize, usize, Vec<String>)>,
+    /// Maps template node start positions to scope indices.
+    /// Used by the Phase 2 visitor to properly track `context.scope` when entering
+    /// scope-creating template nodes (EachBlock, AwaitBlock, SnippetBlock, etc.).
+    /// Key: start position of the template node
+    /// Value: scope index in all_scopes
+    pub template_scope_map: FxHashMap<u32, usize>,
 }
 
 impl ScopeRoot {
@@ -41,6 +47,7 @@ impl ScopeRoot {
             instance_scope_index: 0,
             function_scope_map: FxHashMap::default(),
             each_block_collection_infos: Vec::new(),
+            template_scope_map: FxHashMap::default(),
         }
     }
 

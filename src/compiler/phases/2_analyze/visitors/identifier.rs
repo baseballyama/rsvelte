@@ -93,8 +93,8 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     if context.analysis.runes && is_rune(name) {
         // Check if this is actually a rune (not a store subscription)
         let is_store_sub =
-            if let Some(binding_idx) = context.analysis.root.scope.declarations.get(name) {
-                let binding = &context.analysis.root.bindings[*binding_idx];
+            if let Some(binding_idx) = context.analysis.root.get_binding(name, context.scope) {
+                let binding = &context.analysis.root.bindings[binding_idx];
                 binding.kind == BindingKind::StoreSub
             } else {
                 false
@@ -105,14 +105,17 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
             context
                 .analysis
                 .root
-                .scope
-                .declarations
-                .contains_key(store_name)
+                .get_binding(store_name, context.scope)
+                .is_some()
         } else {
             false
         };
 
-        if !context.analysis.root.scope.declarations.contains_key(name)
+        if context
+            .analysis
+            .root
+            .get_binding(name, context.scope)
+            .is_none()
             && !is_store_sub
             && !has_store_binding
         {
@@ -121,9 +124,12 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         }
     }
 
-    // Look up the binding
-    let binding_idx = match context.analysis.root.scope.declarations.get(name) {
-        Some(idx) => *idx,
+    // Look up the binding using scope chain traversal
+    // This is critical: we need to find bindings in the current scope and parent scopes,
+    // not just the root scope. For example, each-block items are declared in the each block's
+    // scope and must be found via scope chain lookup.
+    let binding_idx = match context.analysis.root.get_binding(name, context.scope) {
+        Some(idx) => idx,
         None => return Ok(()), // No binding, might be a global
     };
 

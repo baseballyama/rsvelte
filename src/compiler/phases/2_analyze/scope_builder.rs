@@ -70,6 +70,10 @@ pub struct ScopeBuilder<'a> {
     /// Collected during template visit and processed after all updates are applied.
     /// Each entry: (parent_scope_idx, each_scope_idx, collection_identifier_names)
     each_block_collection_infos: Vec<(usize, usize, Vec<String>)>,
+    /// Maps template node start positions to scope indices.
+    /// Used by Phase 2 visitors to properly track context.scope when entering
+    /// scope-creating template nodes (EachBlock, AwaitBlock, SnippetBlock, etc.).
+    template_scope_map: FxHashMap<u32, usize>,
 }
 
 impl<'a> ScopeBuilder<'a> {
@@ -96,6 +100,7 @@ impl<'a> ScopeBuilder<'a> {
             function_scope_map: FxHashMap::default(),
             current_script_offset: 0,
             each_block_collection_infos: Vec::new(),
+            template_scope_map: FxHashMap::default(),
         }
     }
 
@@ -234,6 +239,7 @@ impl<'a> ScopeBuilder<'a> {
                 instance_scope_index: self.instance_scope_index,
                 function_scope_map: self.function_scope_map,
                 each_block_collection_infos,
+                template_scope_map: self.template_scope_map,
             },
             self.validation_errors,
         )
@@ -1559,6 +1565,11 @@ impl<'a> ScopeBuilder<'a> {
         // Each blocks create a new scope for the item and index
         let old_scope = self.push_scope();
 
+        // Map the each block's start position to its scope index
+        // This allows Phase 2 visitors to set context.scope when entering the each block body
+        self.template_scope_map
+            .insert(block.start, self.current_scope);
+
         // Declare the item binding(s) - handle destructuring patterns
         if let Some(context) = block.context.as_ref() {
             let context_json = context.as_json();
@@ -1692,6 +1703,11 @@ impl<'a> ScopeBuilder<'a> {
         if let Some(ref then) = block.then {
             let old_scope = self.push_scope();
 
+            // Map the await block's start to the then scope for Phase 2 scope lookup
+            // We use the then fragment's node positions if available
+            self.template_scope_map
+                .insert(block.start + 1, self.current_scope); // +1 to differentiate from pending
+
             // Declare the then value binding(s) - handle destructuring patterns
             if let Some(ref value) = block.value {
                 self.declare_bindings_from_pattern(value.as_json(), BindingKind::AwaitThen);
@@ -1704,6 +1720,10 @@ impl<'a> ScopeBuilder<'a> {
         // Catch creates a scope for the error
         if let Some(ref catch) = block.catch {
             let old_scope = self.push_scope();
+
+            // Map the await block's start to the catch scope
+            self.template_scope_map
+                .insert(block.start + 2, self.current_scope); // +2 to differentiate from then
 
             // Declare the error binding(s) - handle destructuring patterns
             if let Some(ref error) = block.error {
@@ -1741,6 +1761,10 @@ impl<'a> ScopeBuilder<'a> {
         }
 
         let old_scope = self.push_scope();
+
+        // Map the snippet block's start position to its scope index
+        self.template_scope_map
+            .insert(block.start, self.current_scope);
 
         // Declare snippet parameters - handle destructuring patterns
         for param in &block.parameters {

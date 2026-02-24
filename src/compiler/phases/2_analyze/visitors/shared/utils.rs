@@ -1590,12 +1590,17 @@ pub fn walk_js_expression(
                     }
                 }
 
-                // Look up binding - search ALL scopes (root + instance + nested).
+                // Look up binding using proper scope chain traversal.
                 // Template expressions can reference variables from the instance scope,
-                // which is a child of the root scope. The official Svelte compiler uses
+                // each block scopes, or any parent scope. The official Svelte compiler uses
                 // context.state.scope.get(name) which traverses the full scope chain.
-                // We replicate this by using find_binding_any_scope.
-                if let Some(binding_idx) = context.analysis.root.find_binding_any_scope(name) {
+                // We replicate this by using get_binding with the current scope index.
+                if let Some(binding_idx) = context
+                    .analysis
+                    .root
+                    .get_binding(name, context.scope)
+                    .or_else(|| context.analysis.root.find_binding_any_scope(name))
+                {
                     // Register the template reference on the binding
                     // This is critical for legacy state promotion (promote_legacy_state_bindings)
                     // which checks if bindings have template references to decide whether to
@@ -1890,10 +1895,41 @@ pub fn walk_js_expression(
                 }
             }
 
-            // Visit function body
+            // CRITICAL: When entering a function scope, clear the expression context.
+            // The official Svelte compiler (2-analyze/visitors/shared/function.js) sets
+            // expression: null when entering a function. This means has_call, has_assignment,
+            // has_member_expression etc. from inside the function body do NOT propagate to
+            // the parent expression metadata.
+            // Instead, only references to outer-scope bindings are collected.
+            // Reference: svelte/src/compiler/phases/2-analyze/visitors/shared/function.js L19-23
+            let saved_expression = context.expression;
+            context.expression = None;
+
+            // Visit function body with expression context cleared
             if let Some(body) = expression.get("body") {
-                walk_js_expression(body, context, metadata)?;
+                // Use a temporary metadata to capture references from the function body.
+                // Only references (not has_call/has_assignment/etc.) are propagated to parent.
+                let mut inner_metadata = crate::ast::template::ExpressionMetadata::default();
+                walk_js_expression(body, context, &mut inner_metadata)?;
+
+                // Propagate references and dependencies from the inner function to the
+                // parent metadata. These represent captured variables from outer scopes.
+                // This mirrors the official compiler's function.js which adds references
+                // for bindings from outer function depths.
+                for ref_idx in &inner_metadata.references {
+                    metadata.references.insert(*ref_idx);
+                }
+                for dep_idx in &inner_metadata.dependencies {
+                    metadata.dependencies.insert(*dep_idx);
+                }
+                // Propagate has_state if the inner function captures state variables
+                if inner_metadata.has_state() {
+                    metadata.set_has_state(true);
+                }
             }
+
+            // Restore expression context
+            context.expression = saved_expression;
 
             // Restore the declarations map to the state before entering this function scope.
             // This undoes both parameter shadows and any local variable declarations

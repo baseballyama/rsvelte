@@ -334,16 +334,31 @@ fn extract_metadata_from_tag(expr_tag: &ExpressionTag) -> ExpressionMetadata {
 ///
 /// This is used to detect AST node types like "CallExpression", "MemberExpression", etc.
 /// without converting the entire AST to a string.
+///
+/// IMPORTANT: This function does NOT recurse into function bodies (ArrowFunctionExpression,
+/// FunctionExpression, FunctionDeclaration). The official Svelte compiler clears the
+/// expression context when entering a function scope (2-analyze/visitors/shared/function.js
+/// sets `expression: null`), so has_call/has_assignment/has_member_expression from inside
+/// nested functions do NOT propagate to the parent expression metadata.
 fn ast_contains_node_type(val: &serde_json::Value, node_type: &str) -> bool {
     match val {
         serde_json::Value::Object(obj) => {
             // Check this node's type
-            if obj
-                .get("type")
-                .and_then(|t| t.as_str())
-                .is_some_and(|t| t == node_type)
-            {
+            let this_type = obj.get("type").and_then(|t| t.as_str());
+            if this_type.is_some_and(|t| t == node_type) {
                 return true;
+            }
+            // Do NOT recurse into function bodies - the official Svelte compiler
+            // clears expression context when entering functions, so these flags
+            // (has_call, has_assignment, has_member_expression) should not propagate
+            // from inside nested functions.
+            if matches!(
+                this_type,
+                Some("ArrowFunctionExpression")
+                    | Some("FunctionExpression")
+                    | Some("FunctionDeclaration")
+            ) {
+                return false;
             }
             // Recurse into all fields (children)
             obj.values().any(|v| ast_contains_node_type(v, node_type))

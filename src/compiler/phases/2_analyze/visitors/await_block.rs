@@ -125,14 +125,34 @@ pub fn visit(block: &mut AwaitBlock, context: &mut VisitorContext) -> Result<(),
 
     // Analyze the then block (shown on success, creates scope for value)
     if let Some(ref mut then) = block.then {
-        // TODO: Create a scope for the value binding if it exists
+        // Update scope for the then block (value bindings like AwaitThen)
+        let old_scope = context.scope;
+        if let Some(&then_scope) = context
+            .analysis
+            .root
+            .template_scope_map
+            .get(&(block.start + 1))
+        {
+            context.scope = then_scope;
+        }
         fragment::analyze(then, context)?;
+        context.scope = old_scope;
     }
 
     // Analyze the catch block (shown on error, creates scope for error)
     if let Some(ref mut catch) = block.catch {
-        // TODO: Create a scope for the error binding if it exists
+        // Update scope for the catch block (error bindings like AwaitCatch)
+        let old_scope = context.scope;
+        if let Some(&catch_scope) = context
+            .analysis
+            .root
+            .template_scope_map
+            .get(&(block.start + 2))
+        {
+            context.scope = catch_scope;
+        }
         fragment::analyze(catch, context)?;
+        context.scope = old_scope;
     }
 
     // Pop fragment owner type

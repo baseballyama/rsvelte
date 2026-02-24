@@ -114,15 +114,27 @@ pub fn visit(block: &mut EachBlock, context: &mut VisitorContext) -> Result<(), 
         .fragment_owner_stack
         .push(super::FragmentOwnerType::EachBlock);
 
+    // Update context.scope to the each block's scope for proper scope chain lookup
+    // This is critical: identifiers inside the each block body need to resolve
+    // EachItem bindings (like `item`) from the each block's scope, not the parent scope.
+    let old_scope = context.scope;
+    if let Some(&each_scope) = context.analysis.root.template_scope_map.get(&block.start) {
+        context.scope = each_scope;
+    }
+
     // Visit the body and fallback
     fragment::analyze(&mut block.body, context)?;
 
     // Pop EachBlock context
     context.each_block_stack.pop();
 
+    // Fallback is still in the each block's scope (same scope as body)
     if let Some(ref mut fallback) = block.fallback {
         fragment::analyze(fallback, context)?;
     }
+
+    // Restore scope
+    context.scope = old_scope;
 
     // Pop fragment owner type
     context.fragment_owner_stack.pop();
