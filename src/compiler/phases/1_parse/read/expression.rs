@@ -3892,6 +3892,15 @@ fn unary_operator_to_string(op: &oxc_ast::ast::UnaryOperator) -> String {
     .to_string()
 }
 
+fn update_operator_to_string(op: &oxc_ast::ast::UpdateOperator) -> String {
+    use oxc_ast::ast::UpdateOperator::*;
+    match op {
+        Increment => "++",
+        Decrement => "--",
+    }
+    .to_string()
+}
+
 fn create_loc(start: usize, end: usize, line_offsets: &[usize]) -> Value {
     let start_loc = get_line_column(start, line_offsets);
     let end_loc = get_line_column(end, line_offsets);
@@ -8064,12 +8073,254 @@ fn convert_expression_with_adjustment(
             prefix_len,
             line_offsets,
         ),
+        OxcExpression::BinaryExpression(bin) => {
+            let start = doc_offset + bin.span.start as usize - prefix_len;
+            let end = doc_offset + bin.span.end as usize - prefix_len;
+            let left =
+                convert_expression_with_adjustment(&bin.left, doc_offset, prefix_len, line_offsets);
+            let right = convert_expression_with_adjustment(
+                &bin.right,
+                doc_offset,
+                prefix_len,
+                line_offsets,
+            );
+            let operator = binary_operator_to_string(&bin.operator);
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("BinaryExpression".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert(
+                "loc".to_string(),
+                create_loc_for_binding(start, end, line_offsets),
+            );
+            obj.insert("left".to_string(), left);
+            obj.insert("operator".to_string(), Value::String(operator));
+            obj.insert("right".to_string(), right);
+            Value::Object(obj)
+        }
+        OxcExpression::UnaryExpression(unary) => {
+            let start = doc_offset + unary.span.start as usize - prefix_len;
+            let end = doc_offset + unary.span.end as usize - prefix_len;
+            let argument = convert_expression_with_adjustment(
+                &unary.argument,
+                doc_offset,
+                prefix_len,
+                line_offsets,
+            );
+            let operator = unary_operator_to_string(&unary.operator);
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("UnaryExpression".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert(
+                "loc".to_string(),
+                create_loc_for_binding(start, end, line_offsets),
+            );
+            obj.insert("operator".to_string(), Value::String(operator));
+            obj.insert("prefix".to_string(), Value::Bool(true));
+            obj.insert("argument".to_string(), argument);
+            Value::Object(obj)
+        }
+        OxcExpression::LogicalExpression(log) => {
+            let start = doc_offset + log.span.start as usize - prefix_len;
+            let end = doc_offset + log.span.end as usize - prefix_len;
+            let left =
+                convert_expression_with_adjustment(&log.left, doc_offset, prefix_len, line_offsets);
+            let right = convert_expression_with_adjustment(
+                &log.right,
+                doc_offset,
+                prefix_len,
+                line_offsets,
+            );
+            let operator = logical_operator_to_string(&log.operator);
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("LogicalExpression".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert(
+                "loc".to_string(),
+                create_loc_for_binding(start, end, line_offsets),
+            );
+            obj.insert("left".to_string(), left);
+            obj.insert("operator".to_string(), Value::String(operator));
+            obj.insert("right".to_string(), right);
+            Value::Object(obj)
+        }
+        OxcExpression::ConditionalExpression(cond) => {
+            let start = doc_offset + cond.span.start as usize - prefix_len;
+            let end = doc_offset + cond.span.end as usize - prefix_len;
+            let test = convert_expression_with_adjustment(
+                &cond.test,
+                doc_offset,
+                prefix_len,
+                line_offsets,
+            );
+            let consequent = convert_expression_with_adjustment(
+                &cond.consequent,
+                doc_offset,
+                prefix_len,
+                line_offsets,
+            );
+            let alternate = convert_expression_with_adjustment(
+                &cond.alternate,
+                doc_offset,
+                prefix_len,
+                line_offsets,
+            );
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("ConditionalExpression".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert(
+                "loc".to_string(),
+                create_loc_for_binding(start, end, line_offsets),
+            );
+            obj.insert("test".to_string(), test);
+            obj.insert("consequent".to_string(), consequent);
+            obj.insert("alternate".to_string(), alternate);
+            Value::Object(obj)
+        }
+        OxcExpression::StaticMemberExpression(member) => {
+            let start = doc_offset + member.span.start as usize - prefix_len;
+            let end = doc_offset + member.span.end as usize - prefix_len;
+            let object = convert_expression_with_adjustment(
+                &member.object,
+                doc_offset,
+                prefix_len,
+                line_offsets,
+            );
+            let prop_start = doc_offset + member.property.span.start as usize - prefix_len;
+            let prop_end = doc_offset + member.property.span.end as usize - prefix_len;
+            let property = create_identifier_for_binding(
+                &member.property.name,
+                prop_start,
+                prop_end,
+                line_offsets,
+            );
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("MemberExpression".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert(
+                "loc".to_string(),
+                create_loc_for_binding(start, end, line_offsets),
+            );
+            obj.insert("object".to_string(), object);
+            obj.insert("property".to_string(), property);
+            obj.insert("computed".to_string(), Value::Bool(false));
+            obj.insert("optional".to_string(), Value::Bool(member.optional));
+            Value::Object(obj)
+        }
+        OxcExpression::ComputedMemberExpression(member) => {
+            let start = doc_offset + member.span.start as usize - prefix_len;
+            let end = doc_offset + member.span.end as usize - prefix_len;
+            let object = convert_expression_with_adjustment(
+                &member.object,
+                doc_offset,
+                prefix_len,
+                line_offsets,
+            );
+            let property = convert_expression_with_adjustment(
+                &member.expression,
+                doc_offset,
+                prefix_len,
+                line_offsets,
+            );
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("MemberExpression".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert(
+                "loc".to_string(),
+                create_loc_for_binding(start, end, line_offsets),
+            );
+            obj.insert("object".to_string(), object);
+            obj.insert("property".to_string(), property);
+            obj.insert("computed".to_string(), Value::Bool(true));
+            obj.insert("optional".to_string(), Value::Bool(member.optional));
+            Value::Object(obj)
+        }
+        OxcExpression::ObjectExpression(_obj_expr) => {
+            // Use the full convert_expression for complex objects
+            let adjusted_offset = doc_offset.wrapping_sub(prefix_len).wrapping_add(1);
+            let Expression::Value(val) = convert_expression(expr, adjusted_offset, line_offsets);
+            val
+        }
+        OxcExpression::ArrayExpression(_arr_expr) => {
+            // Use the full convert_expression for arrays
+            let adjusted_offset = doc_offset.wrapping_sub(prefix_len).wrapping_add(1);
+            let Expression::Value(val) = convert_expression(expr, adjusted_offset, line_offsets);
+            val
+        }
+        OxcExpression::UpdateExpression(update) => {
+            let start = doc_offset + update.span.start as usize - prefix_len;
+            let end = doc_offset + update.span.end as usize - prefix_len;
+            // Convert SimpleAssignmentTarget to expression representation
+            let argument = match &update.argument {
+                oxc_ast::ast::SimpleAssignmentTarget::AssignmentTargetIdentifier(id) => {
+                    let id_start = doc_offset + id.span.start as usize - prefix_len;
+                    let id_end = doc_offset + id.span.end as usize - prefix_len;
+                    create_identifier_for_binding(&id.name, id_start, id_end, line_offsets)
+                }
+                _ => {
+                    let arg_span = update.argument.span();
+                    let arg_start = doc_offset + arg_span.start as usize - prefix_len;
+                    let arg_end = doc_offset + arg_span.end as usize - prefix_len;
+                    create_identifier_for_binding("unknown", arg_start, arg_end, line_offsets)
+                }
+            };
+            let operator = update_operator_to_string(&update.operator);
+            let mut obj = Map::new();
+            obj.insert(
+                "type".to_string(),
+                Value::String("UpdateExpression".to_string()),
+            );
+            obj.insert("start".to_string(), Value::Number((start as i64).into()));
+            obj.insert("end".to_string(), Value::Number((end as i64).into()));
+            obj.insert(
+                "loc".to_string(),
+                create_loc_for_binding(start, end, line_offsets),
+            );
+            obj.insert("operator".to_string(), Value::String(operator));
+            obj.insert("prefix".to_string(), Value::Bool(update.prefix));
+            obj.insert("argument".to_string(), argument);
+            Value::Object(obj)
+        }
+        OxcExpression::NullLiteral(lit) => {
+            let start = doc_offset + lit.span.start as usize - prefix_len;
+            let end = doc_offset + lit.span.end as usize - prefix_len;
+            create_literal_for_binding(Value::Null, "null", start, end, line_offsets)
+        }
+        OxcExpression::NewExpression(_) | OxcExpression::FunctionExpression(_) => {
+            // Delegate to full convert_expression
+            let adjusted_offset = doc_offset.wrapping_sub(prefix_len).wrapping_add(1);
+            let Expression::Value(val) = convert_expression(expr, adjusted_offset, line_offsets);
+            val
+        }
         _ => {
-            // Fallback for other expressions
-            let span = expr.span();
-            let start = doc_offset + span.start as usize - prefix_len;
-            let end = doc_offset + span.end as usize - prefix_len;
-            create_identifier_for_binding("unknown", start, end, line_offsets)
+            // Fallback for other expressions - delegate to the full convert_expression
+            // with proper offset adjustment
+            let adjusted_offset = doc_offset.wrapping_sub(prefix_len).wrapping_add(1);
+            let Expression::Value(val) = convert_expression(expr, adjusted_offset, line_offsets);
+            val
         }
     }
 }

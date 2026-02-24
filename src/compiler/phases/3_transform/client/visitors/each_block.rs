@@ -50,7 +50,7 @@ use crate::compiler::phases::phase3_transform::client::types::ExpressionMetadata
 #[allow(unused_imports)]
 use crate::compiler::phases::phase3_transform::client::visitors::shared::declarations::get_value;
 use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::{
-    add_svelte_meta, build_expression,
+    add_svelte_meta, apply_transforms_to_expression, build_expression,
 };
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
@@ -1021,7 +1021,22 @@ fn build_declarations(
                 }
 
                 // For each path, create a getter declaration
-                for path in paths {
+                for mut path in paths {
+                    // If this path has a deferred computed key, convert it now
+                    // using the proper expression pipeline (which applies transforms
+                    // for previously-registered destructured variables like length -> length())
+                    if let (Some(base_expr), Some(key_json)) =
+                        (path.computed_key_base.take(), path.computed_key_json.take())
+                    {
+                        let key_expr = convert_expression(&Expression::Value(key_json), context);
+                        // Apply transforms so identifiers like `length` become `length()`
+                        let transformed_key = apply_transforms_to_expression(&key_expr, context);
+                        let key_str = crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(&transformed_key);
+                        let new_expr = format!("{}[{}]", base_expr, key_str);
+                        path.expression = new_expr.clone();
+                        path.update_expression = new_expr;
+                    }
+
                     // Track the update_expression for bind_directive to use in setters
                     destructured_update_paths
                         .insert(path.name.clone(), path.update_expression.clone());
@@ -1092,6 +1107,11 @@ struct DestructuredPath {
     has_default_value: bool,
     /// The default value expression JSON (if has_default_value is true)
     default_value: Option<serde_json::Value>,
+    /// The base expression before the computed key (for deferred key conversion)
+    /// When set, expression contains a placeholder that needs to be replaced after transforms are registered
+    computed_key_base: Option<String>,
+    /// The raw JSON AST for the computed key expression (for deferred conversion)
+    computed_key_json: Option<serde_json::Value>,
 }
 
 /// Information about an intermediate array declaration (for ArrayPattern destructuring).
@@ -1152,6 +1172,8 @@ fn _extract_destructured_paths(
                 update_expression: _update_expression.to_string(),
                 has_default_value,
                 default_value: None,
+                computed_key_base: None,
+                computed_key_json: None,
             });
         }
         Some("ObjectPattern") => {
@@ -1181,10 +1203,22 @@ fn _extract_destructured_paths(
                                         && let Some(name) = key.get("name").and_then(|n| n.as_str())
                                     {
                                         excluded_keys.push(format!("'{}'", name));
-                                    } else if key_type == Some("Literal")
-                                        && let Some(val) = key.get("value")
-                                    {
-                                        excluded_keys.push(format!("'{}'", val));
+                                    } else if key_type == Some("Literal") {
+                                        // Match official compiler: b.literal(String(p.key.value))
+                                        if let Some(val) = key.get("value") {
+                                            let val_str = match val {
+                                                serde_json::Value::String(s) => s.clone(),
+                                                serde_json::Value::Number(n) => n.to_string(),
+                                                serde_json::Value::Bool(b) => b.to_string(),
+                                                _ => format!("{}", val),
+                                            };
+                                            excluded_keys.push(format!("'{}'", val_str));
+                                        }
+                                    } else if computed {
+                                        // Match official compiler: b.call('String', p.key)
+                                        // For computed keys, wrap in String() call
+                                        let key_str = format_json_expr_for_key(key);
+                                        excluded_keys.push(format!("String({})", key_str));
                                     }
                                 }
                             }
@@ -1209,6 +1243,8 @@ fn _extract_destructured_paths(
                                         update_expression: rest_expression,
                                         has_default_value,
                                         default_value: None,
+                                        computed_key_base: None,
+                                        computed_key_json: None,
                                     });
                                 } else {
                                     _extract_destructured_paths(
@@ -1235,18 +1271,31 @@ fn _extract_destructured_paths(
 
                                 // Build the property access expression
                                 // If computed or key is not Identifier, use bracket notation
-                                let prop_expr = if computed || key_type != Some("Identifier") {
+                                let (prop_expr, deferred_key) = if computed {
+                                    // For computed keys, use format_json_expr_for_key as a
+                                    // best-effort initial value, but also store the raw JSON
+                                    // for later re-conversion with proper transforms
                                     let key_expr_str = format_json_expr_for_key(key_obj);
-                                    format!("{}[{}]", expression, key_expr_str)
+                                    (
+                                        format!("{}[{}]", expression, key_expr_str),
+                                        Some((
+                                            expression.to_string(),
+                                            serde_json::Value::Object(key_obj.clone()),
+                                        )),
+                                    )
+                                } else if key_type != Some("Identifier") {
+                                    let key_expr_str = format_json_expr_for_key(key_obj);
+                                    (format!("{}[{}]", expression, key_expr_str), None)
                                 } else {
                                     let key_name = key_obj
                                         .get("name")
                                         .and_then(|n| n.as_str())
                                         .unwrap_or("unknown");
-                                    format!("{}.{}", expression, key_name)
+                                    (format!("{}.{}", expression, key_name), None)
                                 };
 
                                 if let Some(value_obj) = value.as_object() {
+                                    let paths_before = paths.len();
                                     _extract_destructured_paths(
                                         paths,
                                         inserts,
@@ -1256,6 +1305,13 @@ fn _extract_destructured_paths(
                                         has_default_value,
                                         array_counter,
                                     );
+                                    // Tag any newly-created paths with the deferred computed key info
+                                    if let Some((base, key_json)) = deferred_key {
+                                        for path in &mut paths[paths_before..] {
+                                            path.computed_key_base = Some(base.clone());
+                                            path.computed_key_json = Some(key_json.clone());
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1324,6 +1380,8 @@ fn _extract_destructured_paths(
                                     update_expression: rest_expression,
                                     has_default_value,
                                     default_value: None,
+                                    computed_key_base: None,
+                                    computed_key_json: None,
                                 });
                             } else {
                                 _extract_destructured_paths(
@@ -1371,6 +1429,8 @@ fn _extract_destructured_paths(
                         update_expression: _update_expression.to_string(),
                         has_default_value: true,
                         default_value: default_val,
+                        computed_key_base: None,
+                        computed_key_json: None,
                     });
                 } else {
                     _extract_destructured_paths(
@@ -1461,6 +1521,84 @@ fn format_json_expr_for_key(key_obj: &serde_json::Map<String, serde_json::Value>
             } else {
                 format!("{}.{}", obj_str, prop_str)
             }
+        }
+        Some("BinaryExpression") => {
+            let left = key_obj.get("left").and_then(|l| l.as_object());
+            let right = key_obj.get("right").and_then(|r| r.as_object());
+            let operator = key_obj
+                .get("operator")
+                .and_then(|o| o.as_str())
+                .unwrap_or("+");
+
+            let left_str = left.map_or("unknown".to_string(), format_json_expr_for_key);
+            let right_str = right.map_or("unknown".to_string(), format_json_expr_for_key);
+
+            format!("{} {} {}", left_str, operator, right_str)
+        }
+        Some("UnaryExpression") => {
+            let argument = key_obj.get("argument").and_then(|a| a.as_object());
+            let operator = key_obj
+                .get("operator")
+                .and_then(|o| o.as_str())
+                .unwrap_or("-");
+            let prefix = key_obj
+                .get("prefix")
+                .and_then(|p| p.as_bool())
+                .unwrap_or(true);
+
+            let arg_str = argument.map_or("unknown".to_string(), format_json_expr_for_key);
+
+            if prefix {
+                format!("{}{}", operator, arg_str)
+            } else {
+                format!("{}{}", arg_str, operator)
+            }
+        }
+        Some("ConditionalExpression") => {
+            let test = key_obj.get("test").and_then(|t| t.as_object());
+            let consequent = key_obj.get("consequent").and_then(|c| c.as_object());
+            let alternate = key_obj.get("alternate").and_then(|a| a.as_object());
+
+            let test_str = test.map_or("unknown".to_string(), format_json_expr_for_key);
+            let cons_str = consequent.map_or("unknown".to_string(), format_json_expr_for_key);
+            let alt_str = alternate.map_or("unknown".to_string(), format_json_expr_for_key);
+
+            format!("{} ? {} : {}", test_str, cons_str, alt_str)
+        }
+        Some("TemplateLiteral") => {
+            // Simple template literal support
+            let quasis = key_obj
+                .get("quasis")
+                .and_then(|q| q.as_array())
+                .cloned()
+                .unwrap_or_default();
+            let expressions = key_obj
+                .get("expressions")
+                .and_then(|e| e.as_array())
+                .cloned()
+                .unwrap_or_default();
+
+            let mut result = String::from("`");
+            for (i, quasi) in quasis.iter().enumerate() {
+                if let Some(raw) = quasi
+                    .as_object()
+                    .and_then(|q| q.get("value"))
+                    .and_then(|v| v.as_object())
+                    .and_then(|v| v.get("raw"))
+                    .and_then(|r| r.as_str())
+                {
+                    result.push_str(raw);
+                }
+                if i < expressions.len() {
+                    result.push_str("${");
+                    if let Some(expr_obj) = expressions[i].as_object() {
+                        result.push_str(&format_json_expr_for_key(expr_obj));
+                    }
+                    result.push('}');
+                }
+            }
+            result.push('`');
+            result
         }
         _ => "unknown".to_string(),
     }
