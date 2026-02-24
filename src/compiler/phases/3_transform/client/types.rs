@@ -135,6 +135,8 @@ impl<'a> ComponentContext<'a> {
 
             TemplateNode::SvelteFragment(frag) => self.visit_svelte_fragment(frag),
 
+            TemplateNode::SlotElement(slot) => self.visit_slot_element(slot),
+
             // Other node types - TODO: implement
             _ => TransformResult::None,
         };
@@ -653,6 +655,155 @@ impl<'a> ComponentContext<'a> {
         self.state
             .template
             .push_comment(Some(comment.data.to_string()));
+        TransformResult::None
+    }
+
+    /// Visit a SlotElement node.
+    ///
+    /// Corresponds to `SlotElement.js` in the official Svelte compiler:
+    /// `svelte/packages/svelte/src/compiler/phases/3-transform/client/visitors/SlotElement.js`
+    ///
+    /// Generates: `$.slot($$anchor, $$props, name, props_expression, fallback)`
+    fn visit_slot_element(&mut self, slot: &crate::ast::template::SlotElement) -> TransformResult {
+        use crate::ast::template::Attribute;
+        use crate::compiler::phases::phase3_transform::client::visitors::shared::element::build_attribute_value;
+        use crate::compiler::phases::phase3_transform::js_ast::builders as b;
+
+        // Push a comment marker in the template (same as official: context.state.template.push_comment())
+        self.state.template.push_comment(None);
+
+        let mut props: Vec<JsObjectMember> = Vec::new();
+        let mut spreads: Vec<JsExpr> = Vec::new();
+        let mut lets: Vec<JsStatement> = Vec::new();
+        let mut name = b::string("default".to_string());
+
+        for attribute in &slot.attributes {
+            match attribute {
+                Attribute::SpreadAttribute(spread) => {
+                    let expression = crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression(
+                        &spread.expression, self,
+                    );
+                    let transformed = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(
+                        &expression, self,
+                    );
+                    spreads.push(b::thunk(transformed));
+                }
+                Attribute::Attribute(attr) => {
+                    let result = build_attribute_value(&attr.value, self, |value, _metadata| value);
+
+                    if attr.name.as_str() == "name" {
+                        name = result.value;
+                    } else if attr.name.as_str() != "slot" {
+                        if result.has_state {
+                            props.push(b::getter(
+                                attr.name.as_str(),
+                                vec![b::return_value(result.value)],
+                            ));
+                        } else {
+                            props.push(b::prop(attr.name.as_str(), result.value));
+                        }
+                    }
+                }
+                Attribute::LetDirective(let_dir) => {
+                    // Process let directives - these create bindings that are available
+                    // outside the slot element (in the component's init statements)
+                    let prop_name = &let_dir.name;
+
+                    // Check if expression is an Identifier or null (simple case)
+                    let is_simple = match &let_dir.expression {
+                        None => true,
+                        Some(expr) => {
+                            let crate::ast::js::Expression::Value(val) = expr;
+                            if let serde_json::Value::Object(obj) = val {
+                                obj.get("type").and_then(|t| t.as_str()) == Some("Identifier")
+                            } else {
+                                true
+                            }
+                        }
+                    };
+
+                    if is_simple {
+                        // Simple case: let:x or let:x={y}
+                        let binding_name = match &let_dir.expression {
+                            Some(expr) => {
+                                let crate::ast::js::Expression::Value(val) = expr;
+                                if let serde_json::Value::Object(obj) = val {
+                                    obj.get("name")
+                                        .and_then(|n| n.as_str())
+                                        .unwrap_or(prop_name)
+                                        .to_string()
+                                } else {
+                                    prop_name.to_string()
+                                }
+                            }
+                            None => prop_name.to_string(),
+                        };
+
+                        let derived_fn = if self.state.analysis.runes {
+                            "$.derived"
+                        } else {
+                            "$.derived_safe_equal"
+                        };
+
+                        lets.push(JsStatement::Raw(format!(
+                            "const {} = {}(() => $$slotProps.{});",
+                            binding_name, derived_fn, prop_name,
+                        )));
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // Let bindings first, they can be used on attributes
+        for let_stmt in &lets {
+            self.state.init.push(let_stmt.clone());
+        }
+
+        // Build props expression
+        let props_expression = if spreads.is_empty() {
+            b::object(props)
+        } else {
+            let mut args = vec![b::object(props)];
+            args.extend(spreads);
+            b::call(b::member_path("$.spread_props"), args)
+        };
+
+        // Build fallback function
+        let fallback = if slot.fragment.nodes.is_empty() {
+            b::null()
+        } else {
+            // Visit the fragment to generate the fallback function body
+            // This uses the Fragment visitor, matching the official: context.visit(node.fragment)
+            use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment as visit_fragment_impl;
+
+            let inner_fragment = crate::ast::template::Fragment {
+                nodes: slot.fragment.nodes.clone(),
+                ..Default::default()
+            };
+            let block = visit_fragment_impl(&inner_fragment, self, false);
+
+            if block.body.is_empty() {
+                b::null()
+            } else {
+                b::arrow_block(vec![b::id_pattern("$$anchor")], block.body)
+            }
+        };
+
+        // Generate: $.slot(node, $$props, name, props_expression, fallback)
+        let slot_call = b::call(
+            b::member_path("$.slot"),
+            vec![
+                self.state.node.clone(),
+                b::id("$$props"),
+                name,
+                props_expression,
+                fallback,
+            ],
+        );
+
+        self.state.init.push(b::stmt(slot_call));
+
         TransformResult::None
     }
 

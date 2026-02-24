@@ -27,13 +27,13 @@ pub fn visit(slot: &mut SlotElement, context: &mut VisitorContext) -> Result<(),
         context.emit_warning(warnings::slot_element_deprecated());
     }
 
-    // Mark that we use slots
-    context.analysis.uses_slots = true;
-
     // Mark that we have control flow affecting sibling relationships
     // (slots inject content from parent components)
     context.analysis.css.has_control_flow = true;
     context.analysis.css.has_opaque_elements = true;
+
+    // Determine the slot name from attributes
+    let mut name = "default".to_string();
 
     // Validate attributes
     for attr in &slot.attributes {
@@ -53,6 +53,7 @@ pub fn visit(slot: &mut SlotElement, context: &mut VisitorContext) -> Result<(),
                         if text.data.as_str() == "default" {
                             return Err(errors::slot_element_invalid_name_default());
                         }
+                        name = text.data.to_string();
                     }
                 }
                 // Other attributes are allowed (except for the ones checked below)
@@ -66,6 +67,11 @@ pub fn visit(slot: &mut SlotElement, context: &mut VisitorContext) -> Result<(),
             }
         }
     }
+
+    // Register the slot name - this does NOT set uses_slots
+    // uses_slots is only set when $$slots is referenced in JS code (Identifier visitor)
+    // This matches the official Svelte compiler (SlotElement.js line 39)
+    context.analysis.slot_names.insert(name, String::new());
 
     // Analyze fallback children
     fragment::analyze(&mut slot.fragment, context)?;

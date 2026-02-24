@@ -112,11 +112,30 @@ pub fn build_component(
     let slot_scope_applies_to_itself = determine_slot_from_attributes(attributes);
 
     // Process let directives first if slot scope applies to component itself
+    // This must happen before attribute processing so transforms are available
+    // for attribute expressions like `thing={data}` where `data` comes from `let:thing={data}`
     if slot_scope_applies_to_itself {
         for attribute in attributes {
             if let Attribute::LetDirective(let_dir) = attribute {
                 process_let_directive(let_dir, context, &mut lets, &mut let_names);
             }
+        }
+        // Register transforms immediately so they're available for attribute processing
+        for (name, read_source) in &let_names {
+            context.state.transform.insert(
+                name.clone(),
+                crate::compiler::phases::phase3_transform::client::types::IdentifierTransform {
+                    read: Some(|node| b::call(b::member_path("$.get"), vec![node])),
+                    read_source: read_source.clone(),
+                    assign: None,
+                    mutate: None,
+                    update: None,
+                    skip_proxy: false,
+                    is_defined: false,
+                    is_reactive: true,
+                    replacement_id: None,
+                },
+            );
         }
     }
 
@@ -458,6 +477,13 @@ pub fn build_component(
         }
     }
 
+    // Clean up transforms registered for slot_scope_applies_to_itself
+    if slot_scope_applies_to_itself {
+        for (name, _) in &let_names {
+            context.state.transform.remove(name);
+        }
+    }
+
     // Return single statement or block
     if statements.len() == 1 {
         statements.into_iter().next().unwrap()
@@ -467,11 +493,18 @@ pub fn build_component(
 }
 
 /// Determine slot name from a node's attributes.
+/// Matches the official `determine_slot()` in `svelte/src/compiler/utils/slot.js`.
+/// This checks for `slot="name"` attribute on element-like nodes:
+/// SvelteElement, RegularElement, SvelteFragment, Component, SvelteComponent, SvelteSelf, SlotElement
 fn determine_slot(node: &TemplateNode) -> Option<String> {
     let attributes = match node {
         TemplateNode::RegularElement(elem) => Some(&elem.attributes),
         TemplateNode::Component(comp) => Some(&comp.attributes),
         TemplateNode::SvelteFragment(frag) => Some(&frag.attributes),
+        TemplateNode::SvelteElement(elem) => Some(&elem.attributes),
+        TemplateNode::SvelteComponent(comp) => Some(&comp.attributes),
+        TemplateNode::SvelteSelf(elem) => Some(&elem.attributes),
+        TemplateNode::SlotElement(slot) => Some(&slot.attributes),
         _ => None,
     };
 
@@ -1543,6 +1576,14 @@ fn build_slot_function(
         vec![b::id_pattern("$$anchor"), b::id_pattern("$$slotProps")],
         body,
     ))
+}
+
+/// Public wrapper for visit_slot_children, used by SlotElement visitor.
+pub fn visit_slot_children_pub(
+    children: &[&TemplateNode],
+    context: &mut ComponentContext,
+) -> Vec<JsStatement> {
+    visit_slot_children(children, context)
 }
 
 /// Visit slot children and collect generated statements.
