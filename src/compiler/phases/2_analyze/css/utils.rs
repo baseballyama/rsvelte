@@ -318,6 +318,19 @@ fn gather_possible_values(
             }
         }
 
+        Some("TSAsExpression")
+        | Some("TSSatisfiesExpression")
+        | Some("TSNonNullExpression")
+        | Some("TSTypeAssertion") => {
+            // TypeScript type assertions don't change the runtime value.
+            // Unwrap to the underlying expression.
+            if let Some(expression) = node.get("expression") {
+                gather_possible_values(expression, is_class, values, is_nested);
+            } else {
+                values.push(UNKNOWN_MARKER.to_string());
+            }
+        }
+
         _ => {
             // Unknown expression type - mark as unknown
             values.push(UNKNOWN_MARKER.to_string());

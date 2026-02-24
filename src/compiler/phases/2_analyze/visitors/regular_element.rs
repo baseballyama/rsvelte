@@ -446,13 +446,85 @@ pub fn visit(
                     if all_static {
                         static_attributes.push((attr_node.name.to_string(), Some(value)));
                     } else {
-                        // Has dynamic parts - mark as dynamic attribute
-                        dynamic_attribute_names.insert(attr_node.name.to_string());
+                        // Has dynamic parts - try to determine possible values
+                        // for CSS attribute selector matching
+                        let mut all_resolved = true;
+                        let mut computed_values: Vec<String> = vec![String::new()];
+                        for part in parts {
+                            match part {
+                                AttributeValuePart::Text(text) => {
+                                    for v in &mut computed_values {
+                                        v.push_str(&text.data);
+                                    }
+                                }
+                                AttributeValuePart::ExpressionTag(expr_tag) => {
+                                    if let Ok(expr_json) =
+                                        serde_json::to_value(&expr_tag.expression)
+                                    {
+                                        use super::super::css::get_possible_values;
+                                        if let Some(possible_vals) =
+                                            get_possible_values(&expr_json, false)
+                                        {
+                                            if possible_vals.len() > 20 {
+                                                // Too many combinations, bail out
+                                                all_resolved = false;
+                                                break;
+                                            }
+                                            let prev = computed_values.clone();
+                                            computed_values.clear();
+                                            for pv in &prev {
+                                                for ev in &possible_vals {
+                                                    computed_values.push(format!("{}{}", pv, ev));
+                                                }
+                                            }
+                                            if computed_values.len() > 100 {
+                                                all_resolved = false;
+                                                break;
+                                            }
+                                        } else {
+                                            all_resolved = false;
+                                            break;
+                                        }
+                                    } else {
+                                        all_resolved = false;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if all_resolved && !computed_values.is_empty() {
+                            for value in &computed_values {
+                                static_attributes
+                                    .push((attr_node.name.to_string(), Some(value.clone())));
+                            }
+                        } else {
+                            dynamic_attribute_names.insert(attr_node.name.to_string());
+                        }
                     }
                 }
                 _ => {
                     // Expression or other dynamic value
-                    dynamic_attribute_names.insert(attr_node.name.to_string());
+                    // Try to statically determine the value for CSS attribute selector matching
+                    if let AttributeValue::Expression(expr_tag) = &attr_node.value {
+                        if let Ok(expr_json) = serde_json::to_value(&expr_tag.expression) {
+                            use super::super::css::get_possible_values;
+                            if let Some(possible_values) = get_possible_values(&expr_json, false) {
+                                // We can determine the possible values statically
+                                for value in &possible_values {
+                                    static_attributes.push((
+                                        attr_node.name.to_string(),
+                                        Some(value.to_string()),
+                                    ));
+                                }
+                            } else {
+                                dynamic_attribute_names.insert(attr_node.name.to_string());
+                            }
+                        } else {
+                            dynamic_attribute_names.insert(attr_node.name.to_string());
+                        }
+                    } else {
+                        dynamic_attribute_names.insert(attr_node.name.to_string());
+                    }
                 }
             }
 
