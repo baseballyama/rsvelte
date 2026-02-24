@@ -2971,6 +2971,7 @@ fn transform_complex_selector(
                             0,
                             ctx,
                             false,
+                            false,
                         ));
                     }
                 }
@@ -3007,6 +3008,7 @@ fn transform_complex_selector(
                             0,
                             ctx,
                             false,
+                            false,
                         ));
                     }
                 }
@@ -3028,9 +3030,9 @@ fn transform_complex_selector(
                     result.push_str(&format!(" {} ", name));
                 }
                 // After any combinator, subsequent selectors should use :where() for specificity preservation
-                // UNLESS the previous selector was global-like (like :host), in which case the first
-                // real scoped selector should get the direct class for the specificity bump
-                if !previous_was_global_like {
+                // UNLESS the previous selector was global-like (like :host) or a :global() selector,
+                // in which case the first real scoped selector should get the direct class
+                if !previous_was_global_like && !seen_global {
                     local_specificity_bumped = true;
                 }
                 // Reset the global-like flag since we've now passed the combinator
@@ -3068,6 +3070,7 @@ fn transform_complex_selector(
                             Some(css_start),
                             0,
                             ctx,
+                            false,
                             false,
                         ));
                     }
@@ -3109,6 +3112,7 @@ fn transform_complex_selector(
                                 0,
                                 ctx,
                                 true, // Use direct class, not :where()
+                                local_specificity_bumped,
                             ));
                         }
                     }
@@ -3176,6 +3180,7 @@ fn transform_complex_selector(
                                 0,
                                 ctx,
                                 has_global_anywhere, // Use direct class if any part has :global()
+                                local_specificity_bumped,
                             ));
 
                             // Add scoping after the last non-pseudo selector
@@ -3276,6 +3281,7 @@ fn transform_complex_selector(
                             0,
                             ctx,
                             has_global_anywhere, // Use direct class if any part has :global()
+                            local_specificity_bumped,
                         ));
 
                         // Add scoping after the last non-pseudo selector
@@ -3321,11 +3327,14 @@ fn get_modifier(selector: &str, specificity_bumped: &bool) -> String {
 
 /// Format a simple selector
 fn format_simple_selector(sel: &Value) -> String {
-    format_simple_selector_with_scope(sel, "", "", None, 0, None, false)
+    format_simple_selector_with_scope(sel, "", "", None, 0, None, false, false)
 }
 
 /// Format a simple selector with optional scoping for inner selectors
 /// `use_direct_class` - When true, use direct class (e.g., .svelte-xyz) instead of :where() inside :is()/:not()/:has()
+/// `outer_specificity_bumped` - When true, the outer selector has already been scoped (specificity bumped),
+///   so inner :has()/:is()/:not() selectors should use :where() for scoping
+#[allow(clippy::too_many_arguments)]
 fn format_simple_selector_with_scope(
     sel: &Value,
     selector: &str,
@@ -3334,6 +3343,7 @@ fn format_simple_selector_with_scope(
     _depth: usize,
     ctx: Option<&CssContext>,
     use_direct_class: bool,
+    outer_specificity_bumped: bool,
 ) -> String {
     let sel_type = sel.get("type").and_then(|t| t.as_str()).unwrap_or("");
 
@@ -3401,6 +3411,10 @@ fn format_simple_selector_with_scope(
             if let Some(args) = sel.get("args") {
                 if (name == "is" || name == "not" || name == "has") && !selector.is_empty() {
                     // Transform the inner selector list with appropriate scoping
+                    // Per the official Svelte compiler, inner selectors inherit the
+                    // specificity state from the outer context. When the outer selector
+                    // has already been scoped (specificity bumped), ALL inner selectors
+                    // should use :where() for scoping.
                     let inner = transform_is_not_args(
                         args,
                         selector,
@@ -3408,6 +3422,7 @@ fn format_simple_selector_with_scope(
                         name,
                         ctx,
                         use_direct_class,
+                        outer_specificity_bumped,
                     );
                     format!(":{}({})", name, inner)
                 } else {
@@ -3470,6 +3485,8 @@ fn format_simple_selector_with_scope(
 /// Also handles partial unused marking - individual selectors that don't match
 /// any elements are commented out as /* (unused) selector*/
 /// When `use_direct_class` is true, use direct class (e.g., .svelte-xyz) instead of :where()
+/// When `outer_specificity_bumped` is true, the outer selector already has scoping applied,
+/// so inner selectors should use :where() for scoping (overrides use_direct_class).
 ///
 /// Note: For :not(), we never mark inner selectors as unused because :not(X) means
 /// "everything that is NOT X", which is always potentially matching something.
@@ -3480,6 +3497,7 @@ fn transform_is_not_args(
     pseudo_name: &str,
     ctx: Option<&CssContext>,
     use_direct_class: bool,
+    outer_specificity_bumped: bool,
 ) -> String {
     let mut result = String::new();
 
@@ -3514,6 +3532,7 @@ fn transform_is_not_args(
                     pseudo_name,
                     ctx,
                     use_direct_class,
+                    outer_specificity_bumped,
                 ));
             }
         }
@@ -3548,6 +3567,8 @@ fn transform_is_not_args(
 
 /// Transform a complex selector inside :is()/:not()/:has() with optional :where() scoping
 /// When `use_direct_class` is true, use direct class (e.g., .svelte-xyz) instead of :where()
+/// When `outer_specificity_bumped` is true, the outer selector already has scoping,
+/// so inner selectors should use :where() (overrides use_direct_class).
 fn transform_is_not_complex_selector(
     node: &Value,
     selector: &str,
@@ -3555,6 +3576,7 @@ fn transform_is_not_complex_selector(
     pseudo_name: &str,
     ctx: Option<&CssContext>,
     use_direct_class: bool,
+    outer_specificity_bumped: bool,
 ) -> String {
     let mut result = String::new();
 
@@ -3571,9 +3593,15 @@ fn transform_is_not_complex_selector(
             true
         };
 
-        // For inner complex selectors, the first part uses direct class
-        // and subsequent parts use :where(). This matches normal scoping behavior.
-        let mut inner_use_direct_class = use_direct_class;
+        // Per the official Svelte compiler, inner selectors inherit the specificity state
+        // from the outer context. When the outer selector has already been scoped
+        // (specificity bumped), ALL inner selectors should use :where() for scoping.
+        // When not bumped, the first inner selector gets direct class.
+        let mut inner_use_direct_class = if outer_specificity_bumped {
+            false // outer already bumped, so inner always uses :where()
+        } else {
+            use_direct_class
+        };
 
         for relative_selector in children {
             // Get combinator
@@ -3584,16 +3612,11 @@ fn transform_is_not_complex_selector(
                 if name == " " {
                     result.push(' ');
                 } else if result.is_empty() {
-                    // First combinator at start of :has() argument
+                    // First combinator at start of :has() argument (e.g., :has(> y))
                     // Preserve original source whitespace between combinator and selector
-                    // e.g., :has(> y) keeps space, :has(~y) has no space
-                    if let (Some(_comb_start), Some(comb_end)) = (
-                        combinator.get("start").and_then(|s| s.as_u64()),
-                        combinator.get("end").and_then(|e| e.as_u64()),
-                    ) {
+                    if let Some(comb_end) = combinator.get("end").and_then(|e| e.as_u64()) {
                         let comb_end = comb_end as usize;
-                        // Get the text from combinator start to the first selector start
-                        // This includes any whitespace after the combinator
+                        // Get the gap between combinator end and first selector start
                         if let Some(selectors) = relative_selector
                             .get("selectors")
                             .and_then(|s| s.as_array())
@@ -3603,16 +3626,12 @@ fn transform_is_not_complex_selector(
                                     first_sel.get("start").and_then(|s| s.as_u64())
                                 {
                                     let sel_start = sel_start as usize;
-                                    // The gap between combinator end and first selector start
-                                    // contains the whitespace we need to preserve
+                                    result.push_str(name);
+                                    // Add whitespace matching the original source
                                     if sel_start > comb_end {
-                                        let gap = sel_start - comb_end;
-                                        result.push_str(name);
-                                        for _ in 0..gap {
+                                        for _ in 0..(sel_start - comb_end) {
                                             result.push(' ');
                                         }
-                                    } else {
-                                        result.push_str(name);
                                     }
                                 } else {
                                     result.push_str(name);
@@ -3695,6 +3714,7 @@ fn transform_is_not_complex_selector(
                             1,
                             ctx,
                             inner_use_direct_class,
+                            !inner_use_direct_class, // if inner_use_direct_class=false, specificity is already bumped
                         ));
 
                         // Add scoping after the last non-pseudo selector
