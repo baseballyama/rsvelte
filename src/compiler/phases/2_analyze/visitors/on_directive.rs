@@ -53,11 +53,9 @@ pub fn visit(
     }
 
     // If there's no expression, this is an event forwarding/bubbling directive (on:click).
-    // The component needs $$props to forward events to the parent.
-    // Corresponds to: if (!node.expression) context.state.analysis.needs_props = true;
-    if directive.expression.is_none() {
-        context.analysis.needs_props = true;
-    }
+    // Note: The official compiler sets needs_props in the CLIENT transform phase, not here,
+    // so that only the client output gets $$props injected, not the server output.
+    // See: 3-transform/client/visitors/OnDirective.js line 21
 
     // Mark the subtree as dynamic (event handlers require runtime evaluation)
     mark_subtree_dynamic(&context.path);

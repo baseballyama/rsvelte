@@ -153,11 +153,8 @@ pub fn visit_component(
                     return Err(errors::event_handler_invalid_component_modifier());
                 }
 
-                // If there's no expression, this is an event forwarding/bubbling directive (on:foo).
-                // The component needs $$props to forward events to the parent.
-                if on.expression.is_none() {
-                    context.analysis.needs_props = true;
-                }
+                // Note: Event forwarding (on:foo without handler) sets needs_props
+                // in the CLIENT transform phase, not here. See OnDirective.js line 21.
             }
             Attribute::AttachTag(_) => {
                 // TODO: Validate attach tag

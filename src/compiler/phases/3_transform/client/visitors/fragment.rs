@@ -178,6 +178,7 @@ pub fn fragment(
         each_binding_context: context.state.each_binding_context.clone(),
         local_var_init_types: Vec::new(),
         destructure_array_counter: context.state.destructure_array_counter,
+        needs_props_from_events: context.state.needs_props_from_events.clone(),
     };
 
     // Swap context.state with our local state so that process_children uses it

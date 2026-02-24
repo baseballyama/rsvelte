@@ -1364,6 +1364,14 @@ pub struct ComponentClientTransformState<'a> {
     /// Counter for generating unique `$$array` variable names in destructure assignment IIFEs.
     /// Corresponds to `context.state.scope.generate('$$array')` in the official compiler.
     pub destructure_array_counter: usize,
+
+    /// Flag set during client transform when an `on:` directive without an expression
+    /// (event forwarding/bubbling) is encountered. This mirrors the official compiler's
+    /// behavior where `context.state.analysis.needs_props = true` is set in the client
+    /// transform's OnDirective visitor (NOT in the analyze phase), so that only the client
+    /// output gets $$props injected, not the server output.
+    /// Uses `Rc<Cell<bool>>` so the flag is shared across all child states.
+    pub needs_props_from_events: Rc<Cell<bool>>,
 }
 
 /// Context information for generating bindings inside each blocks.
@@ -1483,6 +1491,7 @@ impl<'a> ComponentClientTransformState<'a> {
             each_binding_context: Vec::new(),
             local_var_init_types: Vec::new(),
             destructure_array_counter: 0,
+            needs_props_from_events: Rc::new(Cell::new(false)),
         }
     }
 

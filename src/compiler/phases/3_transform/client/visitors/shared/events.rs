@@ -199,6 +199,10 @@ pub fn build_event_handler(
     // MUST use a regular function (not arrow) so that `this` is correctly bound
     // for $.bubble_event.call(this, $$props, $$arg)
     if expression.is_none() {
+        // Set needs_props flag so that $$props is injected into the component function signature.
+        // This mirrors the official compiler's OnDirective.js which sets
+        // context.state.analysis.needs_props = true during the CLIENT transform (not analyze phase).
+        context.state.needs_props_from_events.set(true);
         return b::function_expr(
             None,
             vec![b::id_pattern("$$arg")],
@@ -417,12 +421,13 @@ mod tests {
 
         let handler = build_event_handler(None, &on_directive, &mut context);
 
-        // Should generate a bubble event handler
+        // Should generate a bubble event handler (regular function, not arrow,
+        // so that `this` is correctly bound for $.bubble_event.call(this, ...))
         match handler {
-            JsExpr::Arrow(_) => {
-                // Success - generated an arrow function
+            JsExpr::Function(_) => {
+                // Success - generated a regular function
             }
-            _ => panic!("Expected arrow function"),
+            _ => panic!("Expected regular function expression, got {:?}", handler),
         }
     }
 

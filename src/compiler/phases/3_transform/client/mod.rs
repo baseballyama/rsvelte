@@ -350,8 +350,14 @@ fn transform_client_with_visitors(
     // Store subscriptions are independent of the component context
 
     // Determine if we need $$props parameter
+    // Note: needs_props_from_events is set during template transformation (line 169)
+    // when an on: directive without expression (event forwarding) is encountered.
+    // This mirrors the official compiler's OnDirective.js which sets needs_props
+    // in the client transform, not the analyze phase.
+    let needs_props_from_events = context.state.needs_props_from_events.get();
     let should_inject_props = should_inject_context
         || analysis.needs_props
+        || needs_props_from_events
         || analysis.uses_props
         || analysis.uses_rest_props
         || analysis.uses_slots

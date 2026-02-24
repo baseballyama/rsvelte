@@ -49,8 +49,7 @@ const MODIFIERS: &[&str] = &[
 /// ```
 pub fn on_directive(node: &OnDirective, context: &mut ComponentContext) -> JsExpr {
     // If there's no expression, we need props (bubble event to parent)
-    // Note: context.state.analysis.needs_props is set in Phase 2 analysis
-    // (see 2_analyze/visitors/on_directive.rs)
+    // The needs_props_from_events flag is set in build_event_handler when expression is None
 
     // Build the event handler
     let mut handler = build_event_handler(node.expression.as_ref(), node, context);

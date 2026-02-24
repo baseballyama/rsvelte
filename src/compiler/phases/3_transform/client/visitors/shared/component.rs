@@ -682,9 +682,7 @@ fn process_on_directive(
     events: &mut FxHashMap<String, Vec<JsExpr>>,
 ) {
     // If no expression, mark that component needs props for event bubbling
-    if on_directive.expression.is_none() {
-        // context.state.analysis.needs_props = true;
-    }
+    // This is handled via build_event_handler which sets needs_props_from_events
 
     // Build base event handler
     let mut handler = build_event_handler(on_directive.expression.as_ref(), on_directive, context);
