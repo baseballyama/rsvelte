@@ -210,9 +210,10 @@ impl<'a> ComponentContext<'a> {
         elem: &crate::ast::template::SvelteDynamicElement,
     ) -> TransformResult {
         use crate::ast::template::{
-            Attribute, ClassDirective, LetDirective, OnDirective, StyleDirective,
+            AnimateDirective, Attribute, ClassDirective, LetDirective, OnDirective, StyleDirective,
             TransitionDirective, UseDirective,
         };
+        use crate::compiler::phases::phase3_transform::client::visitors::animate_directive::animate_directive;
         use crate::compiler::phases::phase3_transform::client::visitors::attach_tag::attach_tag;
         use crate::compiler::phases::phase3_transform::client::visitors::expression_converter::convert_expression;
         use crate::compiler::phases::phase3_transform::client::visitors::fragment::fragment as visit_fragment_impl;
@@ -232,6 +233,7 @@ impl<'a> ComponentContext<'a> {
         let mut transition_directives: Vec<TransitionDirective> = Vec::new();
         let mut use_directives: Vec<UseDirective> = Vec::new();
         let mut let_directives: Vec<LetDirective> = Vec::new();
+        let mut animate_directives: Vec<AnimateDirective> = Vec::new();
         let mut attach_tags: Vec<crate::ast::template::AttachTag> = Vec::new();
         let mut dynamic_namespace: Option<crate::ast::template::AttributeValue> = None;
 
@@ -269,6 +271,9 @@ impl<'a> ComponentContext<'a> {
                 }
                 Attribute::LetDirective(dir) => {
                     let_directives.push(dir.clone());
+                }
+                Attribute::AnimateDirective(dir) => {
+                    animate_directives.push(dir.clone());
                 }
                 Attribute::AttachTag(tag) => {
                     attach_tags.push(tag.clone());
@@ -345,6 +350,23 @@ impl<'a> ComponentContext<'a> {
             inner_init.push(stmt);
 
             // Restore node
+            self.state.node = saved_node;
+        }
+
+        // Process AnimateDirectives
+        for anim_directive in &animate_directives {
+            let saved_node = self.state.node.clone();
+            let saved_init_len = self.state.init.len();
+            let saved_after_update_len = self.state.after_update.len();
+
+            self.state.node = element_id.clone();
+
+            animate_directive(anim_directive, self);
+
+            // Collect statements added by animate_directive
+            inner_init.extend(self.state.init.drain(saved_init_len..));
+            inner_after_update.extend(self.state.after_update.drain(saved_after_update_len..));
+
             self.state.node = saved_node;
         }
 
