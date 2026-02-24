@@ -67,7 +67,7 @@ wasm-bindgen = { version = "0.2", optional = true }
 console_error_panic_hook = { version = "0.1", optional = true }
 getrandom = { version = "0.2", optional = true }
 lazy_static = "1.5.0"
-indexmap = "2.13.0"
+indexmap = { version = "2.13.0", features = ["serde"] }
 
 # Better multi-threaded memory allocator (optional, Unix/Mac only)
 [target.'cfg(all(not(windows), not(target_arch = "wasm32")))'.dependencies]

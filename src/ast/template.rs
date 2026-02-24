@@ -4,6 +4,7 @@
 //! Field ordering follows the principle of largest-first for optimal memory layout.
 
 use compact_str::CompactString;
+use indexmap::IndexSet;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 
@@ -1048,8 +1049,9 @@ pub struct ExpressionMetadata {
     flags: u8,
     /// Bindings that this expression depends on (indices into analysis bindings)
     pub dependencies: FxHashSet<usize>,
-    /// Bindings that this expression references (indices into analysis bindings)
-    pub references: FxHashSet<usize>,
+    /// Bindings that this expression references (indices into analysis bindings).
+    /// Uses IndexSet to preserve insertion order (matching JavaScript Set behavior).
+    pub references: IndexSet<usize>,
 }
 
 impl ExpressionMetadata {
@@ -1188,7 +1190,7 @@ impl<'de> Deserialize<'de> for ExpressionMetadata {
             #[serde(default)]
             dependencies: FxHashSet<usize>,
             #[serde(default)]
-            references: FxHashSet<usize>,
+            references: IndexSet<usize>,
         }
 
         let helper = ExpressionMetadataHelper::deserialize(deserializer)?;
