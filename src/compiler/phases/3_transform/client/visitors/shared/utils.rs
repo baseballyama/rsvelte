@@ -420,6 +420,9 @@ pub fn apply_transforms_to_expression_with_shadowed(
             // (e.g., $.untrack, $.store_mutate - these have pre-constructed arguments)
             let skip_args_transform = is_svelte_runtime_skip_args_transform(&call.callee);
 
+            // Check if this is $.update_store/$.update_pre_store - transform first arg only
+            let is_store_update = is_svelte_runtime_store_update_call(&call.callee);
+
             // Check if this is a prop/store SETTER call where the callee should NOT be transformed:
             // - Prop setter call: `propName(value)` - callee should stay as `propName`, not `propName()`
             //   because `propName(value)` IS the setter pattern in legacy mode.
@@ -472,7 +475,12 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     // Skip transforming arguments that shouldn't have transforms applied:
                     // 1. ALL arguments of $.untrack(), $.store_mutate(), etc.
                     // 2. First argument of $.set(), $.update(), $.update_pre() (state reference)
-                    if skip_args_transform || (is_svelte_set_call && i == 0) {
+                    // 3. For $.update_store/$.update_pre_store: transform first arg (may need $.get()),
+                    //    skip second+ args ($store() already constructed)
+                    if skip_args_transform
+                        || (is_svelte_set_call && i == 0)
+                        || (is_store_update && i >= 1)
+                    {
                         arg.clone()
                     } else {
                         recurse!(arg)
@@ -1258,18 +1266,27 @@ fn is_svelte_runtime_set_call(callee: &JsExpr) -> bool {
 ///
 /// - `$.untrack()` takes a getter function that should not be invoked
 /// - `$.store_mutate()` has pre-constructed arguments with $.untrack() calls
-/// - `$.update_store()` and `$.update_pre_store()` have a $store() call as second argument
-///   that should not have additional transforms applied
 fn is_svelte_runtime_skip_args_transform(callee: &JsExpr) -> bool {
     if let JsExpr::Member(member) = callee
         && let JsExpr::Identifier(obj_name) = member.object.as_ref()
         && obj_name == "$"
         && let JsMemberProperty::Identifier(prop_name) = &member.property
     {
-        return matches!(
-            prop_name.as_str(),
-            "untrack" | "store_mutate" | "update_store" | "update_pre_store"
-        );
+        return matches!(prop_name.as_str(), "untrack" | "store_mutate");
+    }
+    false
+}
+
+/// Check if a callee expression represents $.update_store or $.update_pre_store.
+/// These calls should transform the first argument (store reference which may need $.get())
+/// but skip the second argument onwards ($store() call that's already constructed).
+fn is_svelte_runtime_store_update_call(callee: &JsExpr) -> bool {
+    if let JsExpr::Member(member) = callee
+        && let JsExpr::Identifier(obj_name) = member.object.as_ref()
+        && obj_name == "$"
+        && let JsMemberProperty::Identifier(prop_name) = &member.property
+    {
+        return matches!(prop_name.as_str(), "update_store" | "update_pre_store");
     }
     false
 }

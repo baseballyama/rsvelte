@@ -505,6 +505,17 @@ fn transform_client_with_visitors(
                 replace_state_with_reactive_import(&transformed_script, name, &import_id);
         }
 
+        // In legacy mode, replace $$props references with $$sanitized_props
+        // This mirrors the official compiler's transform: read: (node) => ({ ...node, name: '$$sanitized_props' })
+        if !analysis.runes && (analysis.uses_props || analysis.uses_rest_props) {
+            // Use word-boundary replacement to avoid replacing partial matches
+            let re = regex::Regex::new(r"\$\$props\b").unwrap();
+            // In regex replacement, $$ is a literal $, so we need $$$$ for two literal $ chars
+            transformed_script = re
+                .replace_all(&transformed_script, "$$$$sanitized_props")
+                .to_string();
+        }
+
         // Only add if there's actual content (not just whitespace)
         let trimmed = transformed_script.trim();
         if !trimmed.is_empty() {

@@ -1036,7 +1036,15 @@ fn strip_inline_comment(line: &str) -> &str {
     let mut in_single_quote = false;
     let mut in_double_quote = false;
     let mut template_depth: i32 = 0;
+    // Track expression depth within template literals (${...})
+    let mut expr_brace_depth: i32 = 0;
     let mut i = 0;
+
+    // Whether we're in a JS expression context (not inside template literal text)
+    // True when: not in any string, or inside ${...} expression within template
+    let is_js_context = |in_sq: bool, in_dq: bool, tmpl_depth: i32, expr_depth: i32| -> bool {
+        !in_sq && !in_dq && (tmpl_depth == 0 || expr_depth > 0)
+    };
 
     while i < bytes.len() {
         let b = bytes[i];
@@ -1050,24 +1058,43 @@ fn strip_inline_comment(line: &str) -> &str {
             continue;
         }
 
-        if b == b'\'' && !in_double_quote && template_depth == 0 {
+        if b == b'\'' && !in_double_quote && (template_depth == 0 || expr_brace_depth > 0) {
             in_single_quote = !in_single_quote;
-        } else if b == b'"' && !in_single_quote && template_depth == 0 {
+        } else if b == b'"' && !in_single_quote && (template_depth == 0 || expr_brace_depth > 0) {
             in_double_quote = !in_double_quote;
         } else if b == b'`' && !in_single_quote && !in_double_quote {
-            if template_depth > 0 {
+            if template_depth > 0 && expr_brace_depth == 0 {
                 template_depth -= 1;
             } else {
                 template_depth += 1;
             }
+        } else if b == b'$'
+            && i + 1 < bytes.len()
+            && bytes[i + 1] == b'{'
+            && template_depth > 0
+            && expr_brace_depth == 0
+            && !in_single_quote
+            && !in_double_quote
+        {
+            // Entering template expression ${
+            expr_brace_depth += 1;
+            i += 2;
+            continue;
+        } else if b == b'{' && !in_single_quote && !in_double_quote && expr_brace_depth > 0 {
+            expr_brace_depth += 1;
+        } else if b == b'}' && !in_single_quote && !in_double_quote && expr_brace_depth > 0 {
+            expr_brace_depth -= 1;
         } else if b == b'/'
             && i + 1 < bytes.len()
             && bytes[i + 1] == b'/'
-            && !in_single_quote
-            && !in_double_quote
-            && template_depth == 0
+            && is_js_context(
+                in_single_quote,
+                in_double_quote,
+                template_depth,
+                expr_brace_depth,
+            )
         {
-            // Found // outside of any string context - strip from here
+            // Found // in JS expression context - strip from here
             return line[..i].trim_end();
         }
 
