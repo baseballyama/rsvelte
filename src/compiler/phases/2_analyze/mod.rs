@@ -708,6 +708,37 @@ fn cycle_collect_js_ids(node: &serde_json::Value, out: &mut Vec<String>) {
         ) {
             return;
         }
+        // For Property nodes, only recurse into value (not key, unless computed)
+        // This avoids treating object literal property names like `{ details: null }`
+        // as identifier references to variables named `details`.
+        if node_type == "Property" {
+            let is_computed = node
+                .get("computed")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            if is_computed && let Some(key) = node.get("key") {
+                cycle_collect_js_ids(key, out);
+            }
+            if let Some(value) = node.get("value") {
+                cycle_collect_js_ids(value, out);
+            }
+            return;
+        }
+        // For MemberExpression, only recurse into object (not property, unless computed)
+        // `obj.prop` should only reference `obj`, not `prop`.
+        if node_type == "MemberExpression" {
+            if let Some(object) = node.get("object") {
+                cycle_collect_js_ids(object, out);
+            }
+            let is_computed = node
+                .get("computed")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+            if is_computed && let Some(property) = node.get("property") {
+                cycle_collect_js_ids(property, out);
+            }
+            return;
+        }
     }
     // Recurse into all object/array children
     if let Some(obj) = node.as_object() {

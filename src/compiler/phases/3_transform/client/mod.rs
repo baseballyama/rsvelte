@@ -2000,6 +2000,11 @@ fn transform_instance_script_for_visitors(
             &non_proxy_vars,
         );
 
+        // Wrap $.set() calls with $.store_unsub() for state variables that have
+        // corresponding store subscriptions. This must run right after
+        // transform_state_assignments so the $.set() calls are already generated.
+        let transformed = wrap_store_unsub_for_state_sets(&transformed, state_vars, store_sub_vars);
+
         // Transform member mutations to $.mutate() calls (only in legacy/non-runes mode).
         // This handles patterns like `obj.self = obj` → `$.mutate(obj, obj.self = obj)`.
         // Must run AFTER transform_state_assignments (which handles direct assignments like `x = v`)
@@ -2057,8 +2062,13 @@ fn transform_instance_script_for_visitors(
         };
 
         // Transform store subscription assignments to $.store_set()
-        let transformed =
-            transform_store_assignments_client(&transformed, &effective_store_sub_vars);
+        let transformed = transform_store_assignments_client(
+            &transformed,
+            &effective_store_sub_vars,
+            prop_assignment_transform_vars,
+            state_vars,
+            non_reactive_state_vars,
+        );
 
         // Pre-transform store sub names that are used as function calls with arguments.
         // This handles cases like `$state(0)` -> `$state()(0)` where $state is a store sub
@@ -4122,6 +4132,36 @@ fn transform_reactive_statement(
                         "$.mutate({}, $.get({}){} = {})",
                         base, base, member_part, transformed_rhs
                     );
+                } else if store_sub_vars.contains(&lhs.to_string()) {
+                    // Store subscription assignment → $.store_set(store_name, rhs)
+                    // e.g., `$: $a = $b` → body becomes `$.store_set(a, $b())`
+                    let store_name = lhs.strip_prefix('$').unwrap_or(lhs);
+
+                    // Check if the underlying store variable needs special access:
+                    // - prop vars: use store_name() (getter function call)
+                    // - state vars: use $.get(store_name)
+                    // - regular: use store_name directly
+                    let store_access =
+                        if prop_assignment_transform_vars.contains(&store_name.to_string()) {
+                            format!("{}()", store_name)
+                        } else if state_vars.contains(&store_name.to_string())
+                            && !non_reactive_state_vars.contains(&store_name.to_string())
+                        {
+                            format!("$.get({})", store_name)
+                        } else {
+                            store_name.to_string()
+                        };
+
+                    let transformed_rhs =
+                        transform_prop_reads_in_expr(rhs, prop_assignment_transform_vars);
+                    let transformed_rhs = wrap_state_vars_in_expr(
+                        &transformed_rhs,
+                        state_vars,
+                        non_reactive_state_vars,
+                        proxy_vars,
+                    );
+                    transformed_body =
+                        format!("$.store_set({}, {})", store_access, transformed_rhs);
                 } else {
                     // Regular assignment - still transform prop reads on RHS
                     let transformed_rhs =
@@ -6933,6 +6973,134 @@ fn transform_state_assignments(
     result
 }
 
+/// Wrap `$.set(var, ...)` calls with `$.store_unsub()` when the state variable has
+/// a corresponding store subscription (`$var`).
+///
+/// This is needed because when a store variable like `foo = writable(42)` is reassigned,
+/// the store subscription needs to be unsubscribed and resubscribed.
+///
+/// Transforms:
+/// - `$.set(foo, writable(42))` → `$.store_unsub($.set(foo, writable(42)), '$foo', $$stores)`
+///
+/// Reference: declarations.js `add_state_transformers` → `assign_value_with_store`
+fn wrap_store_unsub_for_state_sets(
+    line: &str,
+    state_vars: &[String],
+    store_sub_vars: &[String],
+) -> String {
+    if state_vars.is_empty() || store_sub_vars.is_empty() {
+        return line.to_string();
+    }
+
+    let mut result = line.to_string();
+
+    for state_var in state_vars {
+        // Check if this state variable has a corresponding store subscription
+        let store_sub_name = format!("${}", state_var);
+        if !store_sub_vars.contains(&store_sub_name) {
+            continue;
+        }
+
+        // Find `$.set(var, ...)` patterns and wrap with $.store_unsub()
+        // We need to handle patterns like:
+        //   $.set(foo, writable(42))
+        //   $.set(foo, writable(42), true)
+        let set_pattern = format!("$.set({}, ", state_var);
+        let mut search_start = 0;
+
+        while let Some(relative_pos) = result[search_start..].find(&set_pattern) {
+            let pos = search_start + relative_pos;
+
+            // Check we're not already wrapped in $.store_unsub
+            let before = &result[..pos];
+            if before.ends_with("$.store_unsub(") {
+                search_start = pos + set_pattern.len();
+                continue;
+            }
+
+            // Find the matching closing paren for $.set(...)
+            let set_start = pos;
+            let args_start = pos + set_pattern.len();
+            let mut paren_depth = 1i32;
+            let mut i = args_start;
+            let chars: Vec<char> = result.chars().collect();
+            let mut in_string: Option<char> = None;
+            let mut in_template = false;
+            let mut template_depth = 0i32;
+
+            while i < chars.len() && paren_depth > 0 {
+                let c = chars[i];
+
+                // Handle string context
+                if let Some(quote) = in_string {
+                    if c == '\\' {
+                        i += 1; // skip escaped char
+                    } else if c == quote && !in_template {
+                        in_string = None;
+                    }
+                    i += 1;
+                    continue;
+                }
+
+                if in_template {
+                    if c == '`' {
+                        in_template = false;
+                    } else if c == '\\' {
+                        i += 1; // skip escaped char
+                    } else if c == '$' && i + 1 < chars.len() && chars[i + 1] == '{' {
+                        template_depth += 1;
+                        i += 1;
+                    } else if c == '}' && template_depth > 0 {
+                        template_depth -= 1;
+                    }
+                    i += 1;
+                    continue;
+                }
+
+                match c {
+                    '\'' | '"' => {
+                        in_string = Some(c);
+                    }
+                    '`' => {
+                        in_template = true;
+                    }
+                    '(' => paren_depth += 1,
+                    ')' => {
+                        paren_depth -= 1;
+                        if paren_depth == 0 {
+                            // Found the closing paren
+                            let set_end = i + 1;
+                            let set_call: String = chars[set_start..set_end].iter().collect();
+
+                            // Wrap in $.store_unsub(set_call, '$var', $$stores)
+                            let wrapped = format!(
+                                "$.store_unsub({}, '{}', $$stores)",
+                                set_call, store_sub_name
+                            );
+
+                            let before_str: String = chars[..set_start].iter().collect();
+                            let after_str: String = chars[set_end..].iter().collect();
+                            result = format!("{}{}{}", before_str, wrapped, after_str);
+                            // Move past the wrapped content
+                            search_start = before_str.len() + wrapped.len();
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+                i += 1;
+            }
+
+            if paren_depth > 0 {
+                // Didn't find matching paren, move past
+                search_start = pos + set_pattern.len();
+            }
+        }
+    }
+
+    result
+}
+
 /// Transform prop assignments to getter/setter function call syntax.
 ///
 /// Props in legacy mode are declared with $.prop() which returns a getter/setter function.
@@ -7560,7 +7728,16 @@ fn transform_legacy_state_declarations(
 /// - `++$count` → `$.update_pre_store(count, $count())`
 /// - `$count--` → `$.update_store(count, $count(), -1)`
 /// - `--$count` → `$.update_pre_store(count, $count(), -1)`
-fn transform_store_assignments_client(line: &str, store_sub_vars: &[String]) -> String {
+///
+/// When the underlying store variable is a prop, use `store_name()` instead of `store_name`.
+/// When it's a state variable, use `$.get(store_name)` instead of `store_name`.
+fn transform_store_assignments_client(
+    line: &str,
+    store_sub_vars: &[String],
+    prop_vars: &[String],
+    state_vars: &[String],
+    non_reactive_state_vars: &[String],
+) -> String {
     if store_sub_vars.is_empty() {
         return line.to_string();
     }
@@ -7571,31 +7748,42 @@ fn transform_store_assignments_client(line: &str, store_sub_vars: &[String]) -> 
         // store_sub is like "$count", store_name is "count"
         let store_name = &store_sub[1..];
 
+        // Determine the access pattern for the underlying store variable
+        let store_access = if prop_vars.contains(&store_name.to_string()) {
+            format!("{}()", store_name) // prop getter
+        } else if state_vars.contains(&store_name.to_string())
+            && !non_reactive_state_vars.contains(&store_name.to_string())
+        {
+            format!("$.get({})", store_name) // reactive state getter
+        } else {
+            store_name.to_string() // regular variable
+        };
+
         // Transform prefix increment: ++$count -> $.update_pre_store(count, $count())
         let pre_inc_pattern = format!("++{}", store_sub);
         if result.contains(&pre_inc_pattern) {
-            let replacement = format!("$.update_pre_store({}, {}())", store_name, store_sub);
+            let replacement = format!("$.update_pre_store({}, {}())", store_access, store_sub);
             result = result.replace(&pre_inc_pattern, &replacement);
         }
 
         // Transform prefix decrement: --$count -> $.update_pre_store(count, $count(), -1)
         let pre_dec_pattern = format!("--{}", store_sub);
         if result.contains(&pre_dec_pattern) {
-            let replacement = format!("$.update_pre_store({}, {}(), -1)", store_name, store_sub);
+            let replacement = format!("$.update_pre_store({}, {}(), -1)", store_access, store_sub);
             result = result.replace(&pre_dec_pattern, &replacement);
         }
 
         // Transform postfix increment: $count++ -> $.update_store(count, $count())
         let post_inc_pattern = format!("{}++", store_sub);
         if result.contains(&post_inc_pattern) {
-            let replacement = format!("$.update_store({}, {}())", store_name, store_sub);
+            let replacement = format!("$.update_store({}, {}())", store_access, store_sub);
             result = result.replace(&post_inc_pattern, &replacement);
         }
 
         // Transform postfix decrement: $count-- -> $.update_store(count, $count(), -1)
         let post_dec_pattern = format!("{}--", store_sub);
         if result.contains(&post_dec_pattern) {
-            let replacement = format!("$.update_store({}, {}(), -1)", store_name, store_sub);
+            let replacement = format!("$.update_store({}, {}(), -1)", store_access, store_sub);
             result = result.replace(&post_dec_pattern, &replacement);
         }
 
@@ -7610,7 +7798,7 @@ fn transform_store_assignments_client(line: &str, store_sub_vars: &[String]) -> 
                 let expr = after[..expr_end].trim();
                 let replacement = format!(
                     "$.store_set({}, {}() {} {})",
-                    store_name, store_sub, op_char, expr
+                    store_access, store_sub, op_char, expr
                 );
                 result = format!(
                     "{}{}{}",
@@ -7622,30 +7810,57 @@ fn transform_store_assignments_client(line: &str, store_sub_vars: &[String]) -> 
         }
 
         // Transform simple assignment: $count = expr
+        // Must handle ALL occurrences, not just the first one.
+        // Uses a search offset to avoid re-processing already-transformed text.
         let assignment_pattern = format!("{} = ", store_sub);
-        if !result.contains(&format!("$.store_set({}", store_name))
-            && let Some(pos) = result.find(&assignment_pattern)
-        {
-            // Check that it's not part of a comparison (==, ===)
+        let mut search_offset = 0;
+        loop {
+            let search_region = &result[search_offset..];
+            let Some(rel_pos) = search_region.find(&assignment_pattern) else {
+                break;
+            };
+            let pos = search_offset + rel_pos;
+
+            // Check that it's not part of a comparison (==, ===) or a member access (obj.$value)
             let before = &result[..pos];
-            if !before.ends_with('=') && !before.ends_with('!') {
-                let after = &result[pos + assignment_pattern.len()..];
-                // Find the expression (until ; or end of line)
-                let expr_end = find_statement_end_client(after);
-                let expr = after[..expr_end].trim();
-                let replacement = format!("$.store_set({}, {})", store_name, expr);
-                result = format!(
-                    "{}{}{}",
-                    &result[..pos],
-                    replacement,
-                    &result[pos + assignment_pattern.len() + expr_end..]
-                );
+            if before.ends_with('=') || before.ends_with('!') {
+                // This is == or != comparison, not an assignment - advance past it
+                search_offset = pos + assignment_pattern.len();
+                continue;
             }
+            if before.ends_with('.') {
+                // This is a property access like `obj.$value = expr`, not a store assignment
+                search_offset = pos + assignment_pattern.len();
+                continue;
+            }
+            // Check that the char before $store is a valid boundary (not part of an identifier)
+            if let Some(ch) = before.chars().last()
+                && (ch.is_alphanumeric() || ch == '_' || ch == '$')
+            {
+                search_offset = pos + assignment_pattern.len();
+                continue;
+            }
+
+            let after = &result[pos + assignment_pattern.len()..];
+            // Find the expression (until ; or end of line)
+            let expr_end = find_statement_end_client(after);
+            let expr = after[..expr_end].trim();
+            let prefix = format!("$.store_set({}, ", store_access);
+            let replacement = format!("{}{})", prefix, expr);
+            let new_result = format!(
+                "{}{}{}",
+                &result[..pos],
+                replacement,
+                &result[pos + assignment_pattern.len() + expr_end..]
+            );
+            // Only advance past the prefix, so we can find nested assignments in the RHS
+            search_offset = pos + prefix.len();
+            result = new_result;
         }
 
         // Transform member expression mutations: $store.prop.value++ or $store[0].value++
         // These need $.store_mutate(store, $.untrack($store).prop.value++, $.untrack($store))
-        result = transform_store_member_mutations(&result, store_sub, store_name);
+        result = transform_store_member_mutations(&result, store_sub, &store_access);
     }
 
     result
@@ -7892,11 +8107,15 @@ fn transform_store_reads_client(line: &str, store_sub_vars: &[String]) -> String
                 .unwrap_or(i)..];
             if remaining.starts_with(store_sub) {
                 // Check character before (must be non-identifier char or start of string)
+                // Also exclude `.` - a dot before means this is a property access like `obj.$value`
                 let before_ok = if i == 0 {
                     true
                 } else {
                     let prev_char = chars[i - 1];
-                    !prev_char.is_alphanumeric() && prev_char != '_' && prev_char != '$'
+                    !prev_char.is_alphanumeric()
+                        && prev_char != '_'
+                        && prev_char != '$'
+                        && prev_char != '.'
                 };
 
                 // Check character after (must be non-identifier char)
@@ -7937,8 +8156,21 @@ fn transform_store_reads_client(line: &str, store_sub_vars: &[String]) -> String
                         && (k + 1 >= chars.len() || chars[k + 1] != ':')
                 };
 
+                // Check if this is inside a string literal (e.g., '$foo' in $.store_unsub(..., '$foo', ...))
+                let is_inside_string = if i > 0 {
+                    let prev_char = chars[i - 1];
+                    prev_char == '\'' || prev_char == '"'
+                } else {
+                    false
+                };
+
                 if before_ok && after_ok {
-                    if is_property_key {
+                    if is_inside_string {
+                        // Inside a string literal - don't transform
+                        new_result.push_str(store_sub);
+                        i += store_sub.len();
+                        continue;
+                    } else if is_property_key {
                         // Don't transform property keys like `{ $userName4: value }`
                         new_result.push_str(store_sub);
                         i += store_sub.len();
@@ -12432,9 +12664,8 @@ fn find_and_transform_one_destructure(
                         continue;
                     }
 
-                    // Skip if this is inside a $.to_array or already transformed pattern
-                    if before_pattern.ends_with("$.to_array(") || before_pattern.contains("$$array")
-                    {
+                    // Skip if this is inside a $.to_array (already transformed pattern)
+                    if before_pattern.ends_with("$.to_array(") {
                         i = j + 1;
                         continue;
                     }
