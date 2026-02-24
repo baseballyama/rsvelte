@@ -1017,6 +1017,22 @@ fn collect_each_block_ids(
                     });
                     return;
                 }
+                // Also check destructured variable names from the each pattern.
+                // For `{#each data as {id, text}}`, `id` and `text` are each-block
+                // context variables that need to be captured in bind_this.
+                // These are tracked in destructured_update_paths.
+                if each_ctx
+                    .destructured_update_paths
+                    .contains_key(name.as_str())
+                {
+                    seen.insert(name.clone());
+                    // Destructured each vars are always reactive (they have read transforms)
+                    result.push(EachBlockId {
+                        name: name.clone(),
+                        reactive: true,
+                    });
+                    return;
+                }
             }
         }
         JsExpr::Member(member) => {

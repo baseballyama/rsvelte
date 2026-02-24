@@ -119,6 +119,9 @@ pub fn normalize_js(source: &str) -> Result<String, String> {
     // preserves these parens for legacy_pre_effect dependency thunks.
     // Restore them: `legacy_pre_effect(() => expr,` → `legacy_pre_effect(() => (expr),`
     let code = restore_legacy_pre_effect_thunk_parens(&code);
+    // OXC strips parentheses from IIFEs: `(function (...) { ... })()` becomes
+    // `function (...) { ... }()`. Restore them to match Svelte's esrap output.
+    let code = restore_iife_parens(&code);
     // OXC incorrectly formats labeled block statements like `$: { foo = bar;, baz = qux; }`
     // by adding commas between statements (treating them like sequence expressions).
     // Fix this by removing the spurious semicolon-comma sequences: `;,` -> `;`
@@ -159,12 +162,147 @@ fn restore_legacy_pre_effect_thunk_parens(code: &str) -> String {
         // We need to wrap `expr` in parens: `() => expr,` → `() => (expr),`
         if let Some(comma_pos) = find_next_comma_at_depth_zero(&result, abs_pos) {
             let expr = result[abs_pos..comma_pos].trim_end().to_string();
+            // Don't wrap empty block body `{}` - it's an arrow function with an empty body,
+            // not an expression that needs parenthesizing. Wrapping it would produce `({})`
+            // which is an arrow returning an empty object literal, changing the semantics.
+            if expr == "{}" {
+                search_from = comma_pos + 1;
+                continue;
+            }
             let replacement = format!("({})", expr);
             result.replace_range(abs_pos..comma_pos, &replacement);
             search_from = abs_pos + replacement.len() + 1;
         } else {
             break;
         }
+    }
+
+    result
+}
+
+/// Restore parentheses around IIFE function expressions.
+///
+/// OXC strips parentheses from IIFEs in expression context:
+/// `(function (a) { return a; })(x())` becomes `function (a) { return a; }(x())`
+///
+/// This function finds patterns like `function (...) { ... }(` that are NOT at the
+/// start of a statement and wraps the function expression in parentheses.
+fn restore_iife_parens(code: &str) -> String {
+    let needle = "function (";
+    let mut result = code.to_string();
+    let mut search_from = 0;
+
+    while let Some(rel_pos) = result[search_from..].find(needle) {
+        let pos = search_from + rel_pos;
+
+        // Check if this function expression is at statement level (shouldn't be wrapped)
+        // vs inside an expression (should be wrapped for IIFE).
+        // At statement level: preceded by start of line, or `\t`, or `\n`
+        // In expression: preceded by `, `, `= `, `( `, etc.
+        let is_statement_level = if pos == 0 {
+            true
+        } else {
+            let before = result[..pos].trim_end();
+            before.is_empty()
+                || before.ends_with('\n')
+                || before.ends_with('{')
+                || before.ends_with(';')
+                || before.ends_with("export default")
+        };
+
+        if is_statement_level {
+            search_from = pos + needle.len();
+            continue;
+        }
+
+        // Find the matching closing brace of the function body
+        // First, find the opening brace after the params
+        let after_fn = &result[pos + "function ".len()..];
+        // Find the opening paren of params
+        let Some(paren_open_rel) = after_fn.find('(') else {
+            search_from = pos + needle.len();
+            continue;
+        };
+        let paren_open = pos + "function ".len() + paren_open_rel;
+
+        // Find matching closing paren
+        let mut depth = 1i32;
+        let mut i = paren_open + 1;
+        let bytes = result.as_bytes();
+        while i < bytes.len() && depth > 0 {
+            match bytes[i] {
+                b'(' => depth += 1,
+                b')' => depth -= 1,
+                b'\'' | b'"' | b'`' => {
+                    let q = bytes[i];
+                    i += 1;
+                    while i < bytes.len() && bytes[i] != q {
+                        if bytes[i] == b'\\' {
+                            i += 1;
+                        }
+                        i += 1;
+                    }
+                }
+                _ => {}
+            }
+            i += 1;
+        }
+        let paren_close = i - 1;
+
+        // After closing paren, find opening brace (skip whitespace)
+        let after_paren = result[paren_close + 1..].trim_start();
+        if !after_paren.starts_with('{') {
+            search_from = pos + needle.len();
+            continue;
+        }
+        let brace_open = paren_close + 1 + (result[paren_close + 1..].len() - after_paren.len());
+
+        // Find matching closing brace
+        let mut brace_depth = 1i32;
+        let mut j = brace_open + 1;
+        let mut in_string = false;
+        let mut string_char = b' ';
+        while j < bytes.len() && brace_depth > 0 {
+            if in_string {
+                if bytes[j] == b'\\' {
+                    j += 1;
+                } else if bytes[j] == string_char {
+                    in_string = false;
+                }
+            } else {
+                match bytes[j] {
+                    b'\'' | b'"' | b'`' => {
+                        in_string = true;
+                        string_char = bytes[j];
+                    }
+                    b'{' => brace_depth += 1,
+                    b'}' => brace_depth -= 1,
+                    _ => {}
+                }
+            }
+            j += 1;
+        }
+        let brace_close = j - 1;
+
+        // Check if immediately followed by `(` (IIFE call)
+        let after_brace = result[brace_close + 1..].trim_start();
+        if !after_brace.starts_with('(') {
+            search_from = brace_close + 1;
+            continue;
+        }
+
+        // Check if already wrapped in parens: look for `(` immediately before `function`
+        let before_fn = result[..pos].trim_end();
+        if before_fn.ends_with('(') {
+            // Already wrapped or in a different context - need to check if matching `)` after `}`
+            search_from = brace_close + 1;
+            continue;
+        }
+
+        // Wrap the function expression in parens: insert `(` before `function` and `)` after `}`
+        result.insert(brace_close + 1, ')');
+        result.insert(pos, '(');
+        search_from = brace_close + 3; // +2 for inserted chars, +1 to advance
     }
 
     result

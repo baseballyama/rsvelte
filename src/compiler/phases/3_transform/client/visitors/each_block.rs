@@ -278,14 +278,19 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
             use crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr;
             for binding_idx in &each_node_meta.transitive_deps {
                 if let Some(binding) = context.state.scope_root.bindings.get(*binding_idx) {
+                    // Only include bindings that have read transforms (i.e., reactive bindings).
+                    // Non-reactive bindings (e.g., function parameters with BindingKind::Normal)
+                    // should not be included in invalidation expressions.
                     let expr = if let Some(transform) = context.state.transform.get(&binding.name) {
                         if let Some(read_fn) = &transform.read {
                             read_fn(b::id(&binding.name))
                         } else {
+                            // Transform exists but no read fn - use raw identifier
                             b::id(&binding.name)
                         }
                     } else {
-                        b::id(&binding.name)
+                        // No transform at all - this binding is not reactive, skip it
+                        continue;
                     };
                     let expr_str = generate_expr(&expr);
                     if !invalidation_exprs.contains(&expr_str) {

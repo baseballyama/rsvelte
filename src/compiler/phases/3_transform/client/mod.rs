@@ -4947,13 +4947,229 @@ fn body_references_identifier(body: &str, identifier: &str) -> bool {
         Err(_) => return false,
     };
 
-    // Check if identifier appears in the body at all
-    if !re.is_match(body) {
+    // Before checking, strip out function/arrow bodies that shadow the identifier
+    // as a parameter. This prevents false positives where a function parameter
+    // with the same name as an outer variable causes incorrect dependency tracking.
+    // e.g., `(function (a) { return a; })(x)` - `a` is a parameter, not an outer var.
+    let stripped_body = strip_function_scopes_that_shadow(body, identifier);
+
+    // Check if identifier appears in the stripped body at all
+    if !re.is_match(&stripped_body) {
         return false;
     }
 
     // Use the recursive check that handles if/else, blocks, and compound statements
-    body_references_identifier_recursive(body.trim(), identifier, &re)
+    body_references_identifier_recursive(stripped_body.trim(), identifier, &re)
+}
+
+/// Strip out function/arrow expression bodies where the identifier is declared as a parameter.
+/// This replaces the function body (including the function itself) with empty space,
+/// leaving only the parts of the code that don't shadow the identifier.
+///
+/// Handles patterns like:
+/// - `function (a) { ... }` -> `                   `
+/// - `(a) => { ... }` -> `              `
+/// - `(a) => expr` -> `            `
+fn strip_function_scopes_that_shadow(body: &str, identifier: &str) -> String {
+    let mut result = body.to_string();
+
+    // Pattern: `function identifier(params) { body }` or `function (params) { body }`
+    // where params contain our identifier
+    let fn_patterns = [
+        format!("function ({}", identifier),
+        format!("function({}", identifier),
+    ];
+
+    for pat in &fn_patterns {
+        while let Some(pos) = result.find(pat.as_str()) {
+            // Verify the identifier is actually a parameter (followed by `,` or `)`)
+            let after_ident = pos + pat.len();
+            if after_ident < result.len() {
+                let next_char = result.as_bytes()[after_ident] as char;
+                if next_char != ',' && next_char != ')' && next_char != ' ' {
+                    // Not a word boundary - the pattern is a prefix of a longer name
+                    // Replace just this occurrence to prevent infinite loop
+                    result.replace_range(pos..pos + 1, " ");
+                    continue;
+                }
+            }
+
+            // Find the opening brace of the function body
+            let after_pat = &result[after_ident..];
+            let mut found_paren_close = false;
+            let mut brace_start = None;
+            let mut depth = 1; // We're inside the opening (
+            for (i, ch) in after_pat.char_indices() {
+                if !found_paren_close {
+                    match ch {
+                        '(' => depth += 1,
+                        ')' => {
+                            depth -= 1;
+                            if depth == 0 {
+                                found_paren_close = true;
+                            }
+                        }
+                        _ => {}
+                    }
+                } else if ch == '{' {
+                    brace_start = Some(after_ident + i);
+                    break;
+                } else if !ch.is_whitespace() {
+                    break;
+                }
+            }
+
+            if let Some(brace_pos) = brace_start {
+                // Find matching closing brace
+                let mut brace_depth = 1;
+                let mut in_string = false;
+                let mut string_char = ' ';
+                let mut end_pos = brace_pos + 1;
+                for (i, ch) in result[brace_pos + 1..].char_indices() {
+                    if in_string {
+                        if ch == '\\' {
+                            // Skip next char
+                            continue;
+                        }
+                        if ch == string_char {
+                            in_string = false;
+                        }
+                    } else {
+                        match ch {
+                            '"' | '\'' | '`' => {
+                                in_string = true;
+                                string_char = ch;
+                            }
+                            '{' => brace_depth += 1,
+                            '}' => {
+                                brace_depth -= 1;
+                                if brace_depth == 0 {
+                                    end_pos = brace_pos + 1 + i + 1;
+                                    break;
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+
+                // Replace the entire function (from `function` keyword to closing brace) with spaces
+                let spaces = " ".repeat(end_pos - pos);
+                result.replace_range(pos..end_pos, &spaces);
+            } else {
+                // No brace found - just break to prevent infinite loop
+                break;
+            }
+        }
+    }
+
+    // Also handle arrow functions: `(identifier) => { ... }` or `(identifier, ...) => { ... }`
+    // and `identifier => { ... }` or `identifier => expr`
+    // This is more complex, so we handle the common patterns
+    let arrow_param_patterns = [
+        format!("({}", identifier),
+        // Simple single-param arrow: `identifier =>`
+    ];
+
+    for pat in &arrow_param_patterns {
+        let mut search_from = 0;
+        while let Some(p) = result[search_from..].find(pat.as_str()) {
+            let pos = search_from + p;
+
+            // For `(identifier` pattern, verify it's a parameter
+            let after_ident = pos + pat.len();
+            if after_ident >= result.len() {
+                break;
+            }
+            let next_char = result.as_bytes()[after_ident] as char;
+            if next_char != ',' && next_char != ')' && next_char != ' ' {
+                search_from = pos + 1;
+                continue;
+            }
+
+            // Check if preceded by `function` keyword - already handled above
+            let before = result[..pos].trim_end();
+            if before.ends_with("function") {
+                search_from = pos + 1;
+                continue;
+            }
+
+            // Find `) =>`  after the params
+            let after_params = &result[after_ident..];
+            let mut paren_depth = 1;
+            let mut paren_close_idx = None;
+            for (i, ch) in after_params.char_indices() {
+                match ch {
+                    '(' => paren_depth += 1,
+                    ')' => {
+                        paren_depth -= 1;
+                        if paren_depth == 0 {
+                            paren_close_idx = Some(after_ident + i);
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            if let Some(paren_close) = paren_close_idx {
+                // Look for `=>` after `)`
+                let after_paren = result[paren_close + 1..].trim_start();
+                if after_paren.starts_with("=>") {
+                    let arrow_pos = result[paren_close + 1..].find("=>").unwrap() + paren_close + 1;
+                    let body_start = arrow_pos + 2;
+                    let body_text = result[body_start..].trim_start();
+                    let body_offset = body_start + (result[body_start..].len() - body_text.len());
+
+                    if body_text.starts_with('{') {
+                        // Block body arrow - find matching brace
+                        let mut brace_depth = 1;
+                        let mut in_string = false;
+                        let mut string_char = ' ';
+                        let mut end_pos = body_offset + 1;
+                        for (i, ch) in result[body_offset + 1..].char_indices() {
+                            if in_string {
+                                if ch == '\\' {
+                                    continue;
+                                }
+                                if ch == string_char {
+                                    in_string = false;
+                                }
+                            } else {
+                                match ch {
+                                    '"' | '\'' | '`' => {
+                                        in_string = true;
+                                        string_char = ch;
+                                    }
+                                    '{' => brace_depth += 1,
+                                    '}' => {
+                                        brace_depth -= 1;
+                                        if brace_depth == 0 {
+                                            end_pos = body_offset + 1 + i + 1;
+                                            break;
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                        let spaces = " ".repeat(end_pos - pos);
+                        result.replace_range(pos..end_pos, &spaces);
+                    } else {
+                        // Expression body arrow - harder to determine end
+                        // Just skip for now, expression arrows are less common in $: statements
+                        search_from = body_offset;
+                    }
+                } else {
+                    search_from = paren_close + 1;
+                }
+            } else {
+                search_from = pos + 1;
+            }
+        }
+    }
+
+    result
 }
 
 /// Recursively check if an identifier is read (not just assigned to) in a body of code.
@@ -5235,7 +5451,70 @@ fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> String {
         let chars: Vec<char> = result.chars().collect();
         let mut i = 0;
 
+        // Track whether we're inside a string literal to avoid transforming
+        // identifiers that happen to appear inside strings (e.g., 'paths updated')
+        let mut in_string: Option<char> = None; // None or Some('\'') or Some('"') or Some('`')
+        let mut template_brace_depth: Vec<i32> = Vec::new();
+
         while i < chars.len() {
+            let c = chars[i];
+
+            // Track string literal state
+            if let Some(quote) = in_string {
+                new_result.push(c);
+                if c == '\\' && i + 1 < chars.len() {
+                    // Skip escaped character
+                    i += 1;
+                    new_result.push(chars[i]);
+                    i += 1;
+                    continue;
+                }
+                if quote == '`' && c == '$' && i + 1 < chars.len() && chars[i + 1] == '{' {
+                    // Enter template literal interpolation
+                    new_result.push(chars[i + 1]);
+                    template_brace_depth.push(0);
+                    in_string = None;
+                    i += 2;
+                    continue;
+                }
+                if c == quote {
+                    in_string = None;
+                }
+                i += 1;
+                continue;
+            }
+
+            // Track template literal brace depth
+            if !template_brace_depth.is_empty() {
+                if c == '{' {
+                    if let Some(depth) = template_brace_depth.last_mut() {
+                        *depth += 1;
+                    }
+                } else if c == '}' {
+                    let should_pop = template_brace_depth
+                        .last()
+                        .map(|d| *d == 0)
+                        .unwrap_or(false);
+                    if should_pop {
+                        template_brace_depth.pop();
+                        in_string = Some('`');
+                        new_result.push(c);
+                        i += 1;
+                        continue;
+                    } else if let Some(depth) = template_brace_depth.last_mut() {
+                        *depth -= 1;
+                    }
+                }
+            }
+
+            // Check for string literal start
+            if c == '\'' || c == '"' || c == '`' {
+                in_string = Some(c);
+                new_result.push(c);
+                i += 1;
+                continue;
+            }
+
             // Check if we're at the start of the identifier
             let remaining = &result[result
                 .char_indices()
