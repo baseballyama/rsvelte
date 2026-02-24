@@ -127,11 +127,32 @@ async function loadConfig(sampleDir) {
       const config = await import(configPath);
       return config.default || {};
     } catch {
-      // Config files often have test-specific imports that won't work
-      return {};
+      // Config files often have test-specific imports that won't work.
+      // Fall back to text-based parsing of common config values.
+      return parseConfigText(configPath);
     }
   }
   return {};
+}
+
+// Parse common config values from _config.js text when dynamic import fails.
+// Only parses top-level fields that our test runner also supports.
+function parseConfigText(configPath) {
+  try {
+    const text = fs.readFileSync(configPath, 'utf-8');
+    const config = {};
+
+    // Parse top-level accessors: true/false (not inside compileOptions block)
+    // This is the main field that affects fixture generation for runtime-legacy tests
+    const accessorsMatch = text.match(/^\s*accessors\s*:\s*(true|false)\b/m);
+    if (accessorsMatch) {
+      config.accessors = accessorsMatch[1] === 'true';
+    }
+
+    return config;
+  } catch {
+    return {};
+  }
 }
 
 // Clean AST by removing internal metadata

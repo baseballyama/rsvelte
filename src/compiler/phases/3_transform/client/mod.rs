@@ -9557,7 +9557,26 @@ fn is_incomplete_expression(expr: &str) -> bool {
     }
 
     // If any depth is non-zero, or we're still inside a block comment, the expression is incomplete
-    paren_depth != 0 || bracket_depth != 0 || brace_depth != 0 || in_block_comment
+    if paren_depth != 0 || bracket_depth != 0 || brace_depth != 0 || in_block_comment {
+        return true;
+    }
+
+    // Check for trailing comma in variable declarations (multi-declarator continuation)
+    // e.g., `let x = 'x',` should be considered incomplete because more declarators follow
+    let trimmed = expr.trim();
+    if trimmed.ends_with(',') {
+        // Check if this looks like a variable declaration
+        let first_line = trimmed.lines().next().unwrap_or("");
+        let first_trimmed = first_line.trim();
+        if first_trimmed.starts_with("let ")
+            || first_trimmed.starts_with("const ")
+            || first_trimmed.starts_with("var ")
+        {
+            return true;
+        }
+    }
+
+    false
 }
 
 /// Wrap state variable references with $.get() in an expression.
