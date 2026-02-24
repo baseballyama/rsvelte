@@ -414,7 +414,12 @@ pub fn analyze_component(
 
     // Check for mixing slot and render tag syntax
     // Corresponds to Svelte's 2-analyze/index.js check for slot_snippet_conflict
-    if analysis.uses_render_tags && analysis.uses_slots {
+    // The official compiler checks: uses_slots || (!custom_element && slot_names.size > 0)
+    // uses_slots is set when $$slots is referenced in JS; slot_names tracks <slot> elements
+    if analysis.uses_render_tags
+        && (analysis.uses_slots
+            || (analysis.custom_element.is_none() && !analysis.slot_names.is_empty()))
+    {
         return Err(errors::slot_snippet_conflict());
     }
 
