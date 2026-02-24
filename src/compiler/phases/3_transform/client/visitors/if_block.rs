@@ -151,7 +151,10 @@ pub fn if_block(node: &IfBlock, context: &mut ComponentContext) {
                 let derived_id = b::id(&derived_id_name);
                 statements.push(b::var_decl(
                     &derived_id_name,
-                    Some(b::call(b::member_path("$.derived"), vec![b::thunk(expr)])),
+                    Some(b::call(
+                        b::member_path("$.derived"),
+                        vec![b::arrow(vec![], expr)],
+                    )),
                 ));
                 b::call(b::member_path("$.get"), vec![derived_id])
             } else {
