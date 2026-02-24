@@ -210,8 +210,8 @@ impl<'a> ComponentContext<'a> {
         elem: &crate::ast::template::SvelteDynamicElement,
     ) -> TransformResult {
         use crate::ast::template::{
-            AnimateDirective, Attribute, ClassDirective, LetDirective, OnDirective, StyleDirective,
-            TransitionDirective, UseDirective,
+            AnimateDirective, Attribute, BindDirective, ClassDirective, LetDirective, OnDirective,
+            StyleDirective, TransitionDirective, UseDirective,
         };
         use crate::compiler::phases::phase3_transform::client::visitors::animate_directive::animate_directive;
         use crate::compiler::phases::phase3_transform::client::visitors::attach_tag::attach_tag;
@@ -233,6 +233,7 @@ impl<'a> ComponentContext<'a> {
         let mut transition_directives: Vec<TransitionDirective> = Vec::new();
         let mut use_directives: Vec<UseDirective> = Vec::new();
         let mut let_directives: Vec<LetDirective> = Vec::new();
+        let mut bind_directives: Vec<BindDirective> = Vec::new();
         let mut animate_directives: Vec<AnimateDirective> = Vec::new();
         let mut attach_tags: Vec<crate::ast::template::AttachTag> = Vec::new();
         let mut dynamic_namespace: Option<crate::ast::template::AttributeValue> = None;
@@ -272,13 +273,15 @@ impl<'a> ComponentContext<'a> {
                 Attribute::LetDirective(dir) => {
                     let_directives.push(dir.clone());
                 }
+                Attribute::BindDirective(dir) => {
+                    bind_directives.push(dir.clone());
+                }
                 Attribute::AnimateDirective(dir) => {
                     animate_directives.push(dir.clone());
                 }
                 Attribute::AttachTag(tag) => {
                     attach_tags.push(tag.clone());
                 }
-                _ => {}
             }
         }
 
@@ -364,6 +367,28 @@ impl<'a> ComponentContext<'a> {
             animate_directive(anim_directive, self);
 
             // Collect statements added by animate_directive
+            inner_init.extend(self.state.init.drain(saved_init_len..));
+            inner_after_update.extend(self.state.after_update.drain(saved_after_update_len..));
+
+            self.state.node = saved_node;
+        }
+
+        // Process BindDirectives
+        // In the official compiler, these go through the else branch: context.visit(attribute, inner_context.state)
+        for bind_dir in &bind_directives {
+            use crate::compiler::phases::phase3_transform::client::visitors::bind_directive::bind_directive;
+
+            let saved_node = self.state.node.clone();
+            let saved_init_len = self.state.init.len();
+            let saved_after_update_len = self.state.after_update.len();
+
+            self.state.node = element_id.clone();
+
+            // For svelte:element, the parent is the element itself
+            let parent_node = TemplateNode::SvelteElement(elem.clone());
+            bind_directive(bind_dir, self, Some(&parent_node));
+
+            // Collect statements added by bind_directive
             inner_init.extend(self.state.init.drain(saved_init_len..));
             inner_after_update.extend(self.state.after_update.drain(saved_after_update_len..));
 
