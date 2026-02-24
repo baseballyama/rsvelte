@@ -530,52 +530,128 @@ pub fn visit(
 
             match attr_node.name.as_str() {
                 "class" => {
-                    // Extract class names from attribute value
+                    // Extract class names from attribute value using combinatorial expansion
+                    // to correctly handle string concatenation like class="foo{expr}bar"
                     match &attr_node.value {
                         AttributeValue::Sequence(parts) => {
+                            // Combinatorial expansion matching the official Svelte compiler.
+                            // We maintain partial strings and combine them with each chunk's
+                            // possible values, tracking whitespace boundaries.
+                            let mut possible_values: FxHashSet<String> = FxHashSet::default();
+                            let mut prev_values: Vec<String> = Vec::new();
+                            let mut bail_out = false;
+
                             for part in parts {
-                                match part {
+                                let current_possible: Option<Vec<String>> = match part {
                                     AttributeValuePart::Text(text) => {
-                                        // Static text classes
-                                        for class_name in text.data.split_whitespace() {
+                                        Some(vec![text.data.to_string()])
+                                    }
+                                    AttributeValuePart::ExpressionTag(expr_tag) => {
+                                        if let Ok(expr_json) =
+                                            serde_json::to_value(&expr_tag.expression)
+                                        {
+                                            use super::super::css::get_possible_values;
+                                            get_possible_values(&expr_json, true)
+                                        } else {
+                                            None
+                                        }
+                                    }
+                                };
+
+                                if current_possible.is_none() {
+                                    bail_out = true;
+                                    break;
+                                }
+                                let current_vals = current_possible.unwrap();
+
+                                if prev_values.is_empty() {
+                                    // First chunk
+                                    for cv in &current_vals {
+                                        if cv.ends_with(char::is_whitespace) {
+                                            possible_values.insert(cv.clone());
+                                        } else {
+                                            prev_values.push(cv.clone());
+                                        }
+                                    }
+                                    if prev_values.len() < current_vals.len() {
+                                        prev_values.push(" ".to_string());
+                                    }
+                                } else {
+                                    // Categorize new values by whitespace boundaries
+                                    let mut starts_with_space = Vec::new();
+                                    let mut remaining = Vec::new();
+                                    for cv in &current_vals {
+                                        if cv.starts_with(char::is_whitespace) {
+                                            starts_with_space.push(cv.clone());
+                                        } else {
+                                            remaining.push(cv.clone());
+                                        }
+                                    }
+
+                                    if !remaining.is_empty() {
+                                        if !starts_with_space.is_empty() {
+                                            // Some values start with space - previous values are complete
+                                            for pv in &prev_values {
+                                                possible_values.insert(pv.clone());
+                                            }
+                                        }
+                                        // Combine prev_values with remaining (no-space) values
+                                        let mut combined = Vec::new();
+                                        for pv in &prev_values {
+                                            for rv in &remaining {
+                                                combined.push(format!("{}{}", pv, rv));
+                                            }
+                                        }
+                                        prev_values = combined;
+                                        for sv in &starts_with_space {
+                                            if sv.ends_with(char::is_whitespace) {
+                                                possible_values.insert(sv.clone());
+                                            } else {
+                                                prev_values.push(sv.clone());
+                                            }
+                                        }
+                                    } else {
+                                        // All values start with space
+                                        for pv in &prev_values {
+                                            possible_values.insert(pv.clone());
+                                        }
+                                        prev_values.clear();
+                                        for sv in &starts_with_space {
+                                            if sv.ends_with(char::is_whitespace) {
+                                                possible_values.insert(sv.clone());
+                                            } else {
+                                                prev_values.push(sv.clone());
+                                            }
+                                        }
+                                    }
+                                    if prev_values.len() < current_vals.len() {
+                                        prev_values.push(" ".to_string());
+                                    }
+                                    if prev_values.len() > 20 {
+                                        // Exponential growth, bail out
+                                        bail_out = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if bail_out {
+                                context.analysis.css.has_dynamic_classes = true;
+                            } else {
+                                // Add remaining prev_values
+                                for pv in &prev_values {
+                                    possible_values.insert(pv.clone());
+                                }
+                                // Extract class names from all possible values
+                                for value in &possible_values {
+                                    for class_name in value.split_whitespace() {
+                                        if !class_name.is_empty() {
                                             context
                                                 .analysis
                                                 .css
                                                 .used_classes
                                                 .insert(class_name.to_string());
-                                            // Also add to element's classes for DOM structure
                                             element_classes.insert(class_name.to_string());
-                                        }
-                                    }
-                                    AttributeValuePart::ExpressionTag(expr_tag) => {
-                                        // Dynamic expression classes
-                                        // Serialize the expression to JSON to analyze it
-                                        if let Ok(expr_json) =
-                                            serde_json::to_value(&expr_tag.expression)
-                                        {
-                                            use super::super::css::get_possible_values;
-                                            if let Some(possible_values) =
-                                                get_possible_values(&expr_json, true)
-                                            {
-                                                // We can statically determine the classes
-                                                for value in &possible_values {
-                                                    for class_name in value.split_whitespace() {
-                                                        context
-                                                            .analysis
-                                                            .css
-                                                            .used_classes
-                                                            .insert(class_name.to_string());
-                                                        element_classes
-                                                            .insert(class_name.to_string());
-                                                    }
-                                                }
-                                            } else {
-                                                // Unknown expression - mark as dynamic
-                                                context.analysis.css.has_dynamic_classes = true;
-                                            }
-                                        } else {
-                                            // Failed to serialize - mark as dynamic
-                                            context.analysis.css.has_dynamic_classes = true;
                                         }
                                     }
                                 }
