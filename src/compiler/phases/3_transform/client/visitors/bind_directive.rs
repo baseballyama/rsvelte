@@ -127,6 +127,45 @@ pub fn unified_build_bind_this(
 
     let mut set = apply_transforms_to_expression_with_shadowed(&setter_raw, context, &local_scope);
 
+    // In legacy mode, when bind:this is inside an each block AND the expression's root
+    // object is an each item variable (e.g., bind:this={item.ref}), the setter needs to
+    // include $.invalidate_inner_signals() to properly propagate changes.
+    //
+    // This does NOT apply when the root object is a different variable (e.g.,
+    // bind:this={items1[item.id]} where items1 is a state variable - item is only used
+    // in the computed property access, not as the mutation target).
+    //
+    // The official compiler achieves this through the `mutate` transform on the each item
+    // variable, but our `local_scope` shadows the each item transforms. So we add the
+    // invalidation wrapping directly here.
+    //
+    // Expected output: ($$value, item) => (item.ref = $$value, $.invalidate_inner_signals(() => (items())))
+    if !context.state.analysis.runes && !each_ids.is_empty() {
+        // Check if the bind:this expression's root object is an each item variable
+        let expr_root = get_expression_root_identifier(&raw_expr);
+        if let Some(ref root_name) = expr_root
+            && let Some(each_ctx) = context
+                .state
+                .each_binding_context
+                .iter()
+                .rev()
+                .find(|ctx| ctx.item_name == *root_name)
+            && !each_ctx.invalidation_exprs.is_empty()
+        {
+            let invalidation_exprs = each_ctx.invalidation_exprs.clone();
+            let invalidation_inner_exprs: Vec<JsExpr> = invalidation_exprs
+                .iter()
+                .map(|s| JsExpr::Raw(s.clone()))
+                .collect();
+            let inner = b::sequence(invalidation_inner_exprs);
+            let invalidate_call = b::call(
+                b::member_path("$.invalidate_inner_signals"),
+                vec![b::thunk(inner)],
+            );
+            set = b::sequence(vec![set, invalidate_call]);
+        }
+    }
+
     // Restore the original skip_proxy value
     if let Some(ref name) = binding_name_for_skip
         && let Some(old) = old_skip_proxy

@@ -24,8 +24,9 @@ use super::js_ast::{
     builders::{self as b},
     generate,
     nodes::{
-        JsBlockStatement, JsExportDefault, JsExportDefaultDeclaration, JsFunctionDeclaration,
-        JsImportDeclaration, JsImportSpecifier, JsPattern, JsProgram, JsStatement,
+        JsBlockStatement, JsExportDefault, JsExportDefaultDeclaration, JsExpr,
+        JsFunctionDeclaration, JsImportDeclaration, JsImportSpecifier, JsPattern, JsProgram,
+        JsStatement,
     },
 };
 use crate::ast::template::Root;
@@ -656,12 +657,24 @@ fn transform_client_with_visitors(
 
     // Bind static exports to props so that people can access them with bind:x
     // Reference: transform-client.js lines 406-416
+    // The official compiler uses build_getter() to apply transforms (e.g., $.get() for state vars)
     if !analysis.runes {
         for export in &analysis.exports {
             let alias = export.alias.as_deref().unwrap_or(&export.name);
+            // Apply the read transform if one exists (e.g., $.get() for state variables)
+            let getter_expr = if let Some(transform) = context.state.transform.get(&export.name) {
+                if let Some(read_fn) = transform.read {
+                    let expr = read_fn(JsExpr::Identifier(export.name.clone()));
+                    crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr(&expr)
+                } else {
+                    export.name.clone()
+                }
+            } else {
+                export.name.clone()
+            };
             component_body.push(JsStatement::Raw(format!(
                 "$.bind_prop($$props, '{}', {});",
-                alias, export.name
+                alias, getter_expr
             )));
         }
     }
