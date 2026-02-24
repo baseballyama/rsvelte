@@ -509,7 +509,7 @@ fn push_static_element_to_template(
             for attr in &elem.attributes {
                 if let Attribute::Attribute(a) = attr {
                     let mut value = match &a.value {
-                        crate::ast::template::AttributeValue::True(_) => None,
+                        crate::ast::template::AttributeValue::True(_) => Some(String::new()),
                         crate::ast::template::AttributeValue::Sequence(parts) => {
                             let mut val = String::new();
                             for part in parts {

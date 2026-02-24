@@ -9,9 +9,8 @@
 #![allow(dead_code)]
 
 use crate::ast::template::{
-    AnimateDirective, AttachTag, Attribute, AttributeNode, AttributeValue, BindDirective, Fragment,
-    LetDirective, OnDirective, RegularElement as RegularElementNode, TemplateNode,
-    TransitionDirective, UseDirective,
+    Attribute, AttributeNode, AttributeValue, BindDirective, Fragment, LetDirective,
+    RegularElement as RegularElementNode, TemplateNode,
 };
 use crate::compiler::phases::phase3_transform::client::transform_template::Template;
 use crate::compiler::phases::phase3_transform::client::types::*;
@@ -170,11 +169,6 @@ pub fn visit_regular_element(
     let mut class_directives = Vec::with_capacity(4);
     let mut style_directives = Vec::with_capacity(4);
     let mut element_let_directives: Vec<LetDirective> = Vec::new();
-    let mut on_directives: Vec<OnDirective> = Vec::with_capacity(4);
-    let mut transition_directives: Vec<TransitionDirective> = Vec::with_capacity(2);
-    let mut animate_directives: Vec<AnimateDirective> = Vec::with_capacity(2);
-    let mut use_directives: Vec<UseDirective> = Vec::with_capacity(2);
-    let mut attach_tags: Vec<AttachTag> = Vec::with_capacity(2);
     let mut bindings: FxHashMap<String, BindDirective> = FxHashMap::default();
     let has_spread = node
         .attributes
@@ -215,30 +209,18 @@ pub fn visit_regular_element(
             Attribute::StyleDirective(dir) => {
                 style_directives.push(dir.clone());
             }
-            Attribute::OnDirective(dir) => {
-                on_directives.push(dir.clone());
-            }
-            Attribute::TransitionDirective(dir) => {
-                transition_directives.push(dir.clone());
-            }
-            Attribute::AnimateDirective(dir) => {
-                animate_directives.push(dir.clone());
-            }
             Attribute::BindDirective(dir) => {
                 bindings.insert(dir.name.to_string(), dir.clone());
             }
             Attribute::SpreadAttribute(_) => {
                 attributes.push(attribute.clone());
             }
-            Attribute::UseDirective(dir) => {
-                use_directives.push(dir.clone());
-            }
-            Attribute::AttachTag(tag) => {
-                attach_tags.push(tag.clone());
-            }
             Attribute::LetDirective(dir) => {
                 element_let_directives.push(dir.clone());
             }
+            // OnDirective, TransitionDirective, AnimateDirective, UseDirective, AttachTag
+            // are processed in source order in the directive loop below
+            _ => {}
         }
     }
 
@@ -257,71 +239,86 @@ pub fn visit_regular_element(
     let mut element_state_init: Vec<JsStatement> = Vec::with_capacity(8);
     let mut element_state_after_update: Vec<JsStatement> = Vec::with_capacity(4);
 
-    // Process other_directives (OnDirective, TransitionDirective) into element_state
-    // This matches JS: for (const attribute of other_directives) { ... element_state.init/after_update }
-    for on_directive in &on_directives {
-        if let TransformResult::Expression(event_call) = context.visit_on_directive(on_directive) {
-            if has_use {
-                // If there's a use: directive, wrap in $.effect
-                element_state_init.push(b::stmt(b::call(
-                    b::member_path("$.effect"),
-                    vec![b::thunk(event_call)],
-                )));
-            } else {
-                element_state_after_update.push(b::stmt(event_call));
+    // Process other_directives in SOURCE ORDER to match the official compiler.
+    // The official code collects all non-attribute directives into `other_directives`
+    // and processes them in source order. We iterate the original attribute list
+    // and process each directive type as we encounter it.
+    let parent_node = TemplateNode::RegularElement(node.clone());
+    for attribute in &node.attributes {
+        match attribute {
+            Attribute::OnDirective(on_directive) => {
+                if let TransformResult::Expression(event_call) =
+                    context.visit_on_directive(on_directive)
+                {
+                    if has_use {
+                        element_state_init.push(b::stmt(b::call(
+                            b::member_path("$.effect"),
+                            vec![b::thunk(event_call)],
+                        )));
+                    } else {
+                        element_state_after_update.push(b::stmt(event_call));
+                    }
+                }
             }
+            Attribute::TransitionDirective(trans_directive) => {
+                let init_before = context.state.init.len();
+                let after_update_before = context.state.after_update.len();
+
+                transition_directive(trans_directive, context);
+
+                element_state_init.extend(context.state.init.drain(init_before..));
+                element_state_after_update
+                    .extend(context.state.after_update.drain(after_update_before..));
+            }
+            Attribute::AnimateDirective(anim_directive) => {
+                let init_before = context.state.init.len();
+                let after_update_before = context.state.after_update.len();
+
+                animate_directive(anim_directive, context);
+
+                element_state_init.extend(context.state.init.drain(init_before..));
+                element_state_after_update
+                    .extend(context.state.after_update.drain(after_update_before..));
+            }
+            Attribute::BindDirective(bind_dir) => {
+                let init_before = context.state.init.len();
+                let after_update_before = context.state.after_update.len();
+
+                bind_directive(bind_dir, context, Some(&parent_node));
+
+                element_state_init.extend(context.state.init.drain(init_before..));
+                element_state_after_update
+                    .extend(context.state.after_update.drain(after_update_before..));
+            }
+            Attribute::UseDirective(use_dir) => {
+                let stmt = use_directive(use_dir, context);
+                element_state_init.push(stmt);
+            }
+            Attribute::AttachTag(attach) => {
+                let init_before = context.state.init.len();
+
+                attach_tag(attach, context);
+
+                element_state_init.extend(context.state.init.drain(init_before..));
+            }
+            _ => {} // Attribute, ClassDirective, StyleDirective, LetDirective handled elsewhere
         }
     }
 
-    // Process transition directives into element_state
-    for trans_directive in &transition_directives {
-        // Store current init length to capture any statements added by transition_directive
-        let init_before = context.state.init.len();
-        let after_update_before = context.state.after_update.len();
-
-        transition_directive(trans_directive, context);
-
-        // Move any statements added to context.state to element_state instead
-        element_state_init.extend(context.state.init.drain(init_before..));
-        element_state_after_update.extend(context.state.after_update.drain(after_update_before..));
-    }
-
-    // Process animate directives into element_state
-    for anim_directive in &animate_directives {
-        let init_before = context.state.init.len();
-        let after_update_before = context.state.after_update.len();
-
-        animate_directive(anim_directive, context);
-
-        element_state_init.extend(context.state.init.drain(init_before..));
-        element_state_after_update.extend(context.state.after_update.drain(after_update_before..));
-    }
-
-    // Process bind directives into element_state
-    let parent_node = TemplateNode::RegularElement(node.clone());
-    for bind_dir in bindings.values() {
-        let init_before = context.state.init.len();
-        let after_update_before = context.state.after_update.len();
-
-        bind_directive(bind_dir, context, Some(&parent_node));
-
-        element_state_init.extend(context.state.init.drain(init_before..));
-        element_state_after_update.extend(context.state.after_update.drain(after_update_before..));
-    }
-
-    // Process use directives into element_state
-    for use_dir in &use_directives {
-        let stmt = use_directive(use_dir, context);
-        element_state_init.push(stmt);
-    }
-
-    // Process attach tags into element_state
-    for attach in &attach_tags {
-        let init_before = context.state.init.len();
-
-        attach_tag(attach, context);
-
-        element_state_init.extend(context.state.init.drain(init_before..));
+    // Add $.replay_events() for load/error elements with spreads, use directives, or event handlers
+    // Reference: RegularElement.js lines 279-284
+    if is_load_error_element(&node.name)
+        && (has_spread
+            || has_use
+            || attributes.iter().any(|attr| {
+                matches!(attr, Attribute::Attribute(a) if a.name == "onload" || a.name == "onerror")
+            }))
+    {
+        let node_id = extract_node_id(&context.state.node);
+        element_state_after_update.push(b::stmt(b::call(
+            b::member_path("$.replay_events"),
+            vec![b::id(&node_id)],
+        )));
     }
 
     // For input elements, add $.remove_input_defaults() call when needed
@@ -527,11 +524,7 @@ pub fn visit_regular_element(
                     }
 
                     if name != "class" || !value.is_empty() {
-                        let prop_value = if is_boolean_attribute(&name) && is_true_value {
-                            // Boolean attributes with true value use no value: selected, multiple, etc.
-                            // This matches the official Svelte compiler output (passes undefined)
-                            None
-                        } else if is_true_value {
+                        let prop_value = if is_true_value {
                             Some(String::new())
                         } else {
                             Some(value)
@@ -1089,6 +1082,23 @@ pub fn visit_regular_element(
         }
     }
 
+    // Handle dir attribute re-assignment for Chromium compatibility
+    // Reference: RegularElement.js lines 463-468
+    // When an element has a dir attribute, we need to re-assign it to fix a
+    // Chromium issue where updates to text content don't update the direction.
+    let has_dir_attribute = node
+        .attributes
+        .iter()
+        .any(|attr| matches!(attr, Attribute::Attribute(a) if a.name == "dir"));
+    if has_dir_attribute {
+        let node_id = extract_node_id(&context.state.node);
+        let dir_member = b::member(b::id(&node_id), "dir");
+        context
+            .state
+            .update
+            .push(b::stmt(b::assign(dir_member.clone(), dir_member)));
+    }
+
     // Decrement nesting level (we incremented it before processing hoisted nodes)
     context.state.template_nesting_level -= 1;
 
@@ -1180,6 +1190,15 @@ fn cannot_be_set_statically(name: &str) -> bool {
     matches!(
         name,
         "autofocus" | "muted" | "defaultValue" | "defaultChecked" | "inert"
+    )
+}
+
+/// Check if an element emits `load` and `error` events.
+/// Reference: svelte/src/utils.js - LOAD_ERROR_ELEMENTS
+fn is_load_error_element(name: &str) -> bool {
+    matches!(
+        name,
+        "body" | "embed" | "iframe" | "img" | "link" | "object" | "script" | "style" | "track"
     )
 }
 

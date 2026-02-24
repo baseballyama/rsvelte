@@ -18,6 +18,15 @@ use crate::compiler::phases::phase3_transform::utils::{
     is_svelte_whitespace_only, svelte_trim, svelte_trim_end, svelte_trim_start,
 };
 
+/// Check if an element emits `load` and `error` events.
+/// Reference: svelte/src/utils.js - LOAD_ERROR_ELEMENTS
+fn is_load_error_element(name: &str) -> bool {
+    matches!(
+        name,
+        "body" | "embed" | "iframe" | "img" | "link" | "object" | "script" | "style" | "track"
+    )
+}
+
 impl<'a> ServerCodeGenerator<'a> {
     pub(crate) fn generate_element(
         &mut self,
@@ -738,6 +747,14 @@ impl<'a> ServerCodeGenerator<'a> {
         };
         self.output_parts
             .push(OutputPart::RawExpression(attributes_call));
+
+        // Add event capture attributes for load/error elements with spreads
+        // Reference: element.js lines 272-276
+        if is_load_error_element(name) {
+            self.output_parts.push(OutputPart::Html(
+                " onload=\"this.__e=event\" onerror=\"this.__e=event\"".to_string(),
+            ));
+        }
 
         if is_void_element(name) {
             self.output_parts.push(OutputPart::Html("/>".to_string()));
