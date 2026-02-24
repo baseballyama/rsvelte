@@ -10,6 +10,7 @@ use super::VisitorContext;
 use super::shared::fragment;
 use crate::ast::js::Expression;
 use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, SvelteDynamicElement};
+use rustc_hash::FxHashSet;
 
 const NAMESPACE_SVG: &str = "http://www.w3.org/2000/svg";
 const NAMESPACE_MATHML: &str = "http://www.w3.org/1998/Math/MathML";
@@ -94,6 +95,11 @@ pub fn visit(
         tag_name: String::new(), // Dynamic tag, will use is_dynamic_tag
         classes: element_classes,
         id: element_id,
+        static_attributes: Vec::new(), // Dynamic element, no static attributes
+        dynamic_attribute_names: FxHashSet::default(),
+        has_spread: false,
+        has_class_directive: false,
+        has_style_directive: false,
         parent_idx,
         children_idx: Vec::new(),
         is_root_child,

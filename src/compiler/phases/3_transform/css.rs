@@ -2136,13 +2136,240 @@ fn is_simple_selector_unused(sel: &Value, ctx: &CssContext) -> bool {
             // Other pseudo-classes need more complex analysis, consider them potentially used
             return false;
         }
-        Some("PseudoElementSelector") | Some("AttributeSelector") => {
-            // These need more complex analysis, consider them potentially used
+        Some("PseudoElementSelector") => {
+            // Pseudo elements need more complex analysis, consider them potentially used
+            return false;
+        }
+        Some("AttributeSelector") => {
+            if let Some(raw) = sel.get("name").and_then(|n| n.as_str()) {
+                return is_attribute_selector_unused(raw, ctx);
+            }
             return false;
         }
         _ => {}
     }
     false
+}
+
+/// Whitelisted attribute selectors that should never be pruned for certain elements.
+/// These are attributes that can be toggled by the browser/runtime.
+/// Corresponds to `whitelist_attribute_selector` in css-prune.js.
+fn is_whitelisted_attribute(element_tag: &str, attr_name: &str) -> bool {
+    match element_tag.to_lowercase().as_str() {
+        "details" => attr_name.eq_ignore_ascii_case("open"),
+        "dialog" => attr_name.eq_ignore_ascii_case("open"),
+        _ => false,
+    }
+}
+
+/// HTML attributes whose enumerated values are case-insensitive per the HTML spec.
+/// Corresponds to `case_insensitive_attributes` in css-prune.js.
+fn is_html_case_insensitive_attribute(attr_name: &str) -> bool {
+    matches!(
+        attr_name.to_lowercase().as_str(),
+        "accept-charset"
+            | "autocapitalize"
+            | "autocomplete"
+            | "behavior"
+            | "charset"
+            | "crossorigin"
+            | "decoding"
+            | "dir"
+            | "direction"
+            | "draggable"
+            | "enctype"
+            | "enterkeyhint"
+            | "fetchpriority"
+            | "formenctype"
+            | "formmethod"
+            | "formtarget"
+            | "hidden"
+            | "http-equiv"
+            | "inputmode"
+            | "kind"
+            | "loading"
+            | "method"
+            | "preload"
+            | "referrerpolicy"
+            | "rel"
+            | "rev"
+            | "role"
+            | "rules"
+            | "scope"
+            | "shape"
+            | "spellcheck"
+            | "target"
+            | "translate"
+            | "type"
+            | "valign"
+            | "wrap"
+    )
+}
+
+/// Check if a CSS attribute selector is unused by checking elements' static attributes.
+/// The `raw` parameter is the content between `[` and `]` (e.g., `alt=""`, `data-active='true'`).
+/// Returns true only when we can definitively determine no element matches.
+fn is_attribute_selector_unused(raw: &str, ctx: &CssContext) -> bool {
+    // Parse the raw attribute selector into name, operator, and value
+    let (attr_name, operator, expected_value, has_explicit_case_flag) =
+        parse_attribute_selector(raw);
+
+    if attr_name.is_empty() {
+        return false; // Can't parse, assume used
+    }
+
+    // If there are dynamic elements, any attribute could match
+    if ctx.has_dynamic_elements {
+        return false;
+    }
+
+    // If there's no operator, it's just `[attr]` - check if any element has the attribute
+    // If there IS an operator, check if any element's attribute value matches
+    for element in &ctx.dom_structure.elements {
+        // If element has spread attributes, it could have any attribute
+        if element.has_spread {
+            return false;
+        }
+
+        // If element has dynamic tag, it could be any element with any attributes
+        if element.is_dynamic_tag {
+            return false;
+        }
+
+        // Check whitelisted attributes (like details[open], dialog[open])
+        // These can be toggled by the browser, so should always be considered used
+        if is_whitelisted_attribute(&element.tag_name, &attr_name) {
+            return false;
+        }
+
+        // Check if this attribute has a dynamic value (expression, bind directive, etc.)
+        if element
+            .dynamic_attribute_names
+            .iter()
+            .any(|n| n.eq_ignore_ascii_case(&attr_name))
+        {
+            return false; // Dynamic value - could be anything
+        }
+
+        // Check class directives for [class] selector
+        if attr_name.eq_ignore_ascii_case("class") && element.has_class_directive {
+            return false;
+        }
+
+        // Check style directives for [style] selector
+        if attr_name.eq_ignore_ascii_case("style") && element.has_style_directive {
+            return false;
+        }
+
+        // Check static attributes
+        for (name, value) in &element.static_attributes {
+            if name.eq_ignore_ascii_case(&attr_name) {
+                if operator.is_empty() {
+                    // Just `[attr]` - attribute exists, so it matches
+                    return false;
+                }
+
+                // Determine case sensitivity:
+                // - If the selector has explicit `i` or `s` flag, use that
+                // - Otherwise, check if this is an HTML case-insensitive attribute
+                let case_insensitive = if has_explicit_case_flag != 0 {
+                    has_explicit_case_flag == 1 // 1 = case-insensitive, -1 = case-sensitive
+                } else {
+                    is_html_case_insensitive_attribute(&attr_name)
+                };
+
+                // Attribute exists, check value
+                if let Some(attr_value) = value {
+                    if let Some(ref expected) = expected_value {
+                        if test_attribute_value(&operator, expected, attr_value, case_insensitive) {
+                            return false; // Found a match
+                        }
+                    } else {
+                        // No expected value but has operator - shouldn't happen, be safe
+                        return false;
+                    }
+                } else if let Some(ref expected) = expected_value {
+                    // Boolean attribute (no value) - with operator, treat value as ""
+                    if test_attribute_value(&operator, expected, "", case_insensitive) {
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+
+    // No element matched - the attribute selector is unused
+    // But only if we actually have DOM structure data
+    !ctx.dom_structure.elements.is_empty()
+}
+
+/// Parse a CSS attribute selector raw content like `alt=""` or `data-active='true'` or `alt i`.
+/// Returns (name, operator, value, explicit_case_flag).
+/// explicit_case_flag: 1 = explicit case-insensitive (i flag), -1 = explicit case-sensitive (s flag), 0 = no flag
+fn parse_attribute_selector(raw: &str) -> (String, String, Option<String>, i8) {
+    let raw = raw.trim();
+
+    // Check for case-insensitive flag at end (e.g., `attr="value" i`)
+    let (raw, explicit_case_flag) = if raw.ends_with(" i") || raw.ends_with(" I") {
+        (&raw[..raw.len() - 2], 1i8)
+    } else if raw.ends_with(" s") || raw.ends_with(" S") {
+        (&raw[..raw.len() - 2], -1i8)
+    } else {
+        (raw, 0i8)
+    };
+
+    // Find operator position
+    let operators = ["~=", "|=", "^=", "$=", "*=", "="];
+    for op in &operators {
+        if let Some(pos) = raw.find(op) {
+            let attr_name = raw[..pos].trim().to_string();
+            let value_str = raw[pos + op.len()..].trim();
+            let value = unquote_css_value(value_str);
+            return (attr_name, op.to_string(), Some(value), explicit_case_flag);
+        }
+    }
+
+    // No operator - just `[attr]`
+    (
+        raw.trim().to_string(),
+        String::new(),
+        None,
+        explicit_case_flag,
+    )
+}
+
+/// Remove quotes from a CSS attribute value.
+fn unquote_css_value(s: &str) -> String {
+    let s = s.trim();
+    if (s.starts_with('"') && s.ends_with('"')) || (s.starts_with('\'') && s.ends_with('\'')) {
+        s[1..s.len() - 1].to_string()
+    } else {
+        s.to_string()
+    }
+}
+
+/// Test if an attribute value matches the expected value with the given operator.
+fn test_attribute_value(
+    operator: &str,
+    expected: &str,
+    actual: &str,
+    case_insensitive: bool,
+) -> bool {
+    let (expected, actual) = if case_insensitive {
+        (expected.to_lowercase(), actual.to_lowercase())
+    } else {
+        (expected.to_string(), actual.to_string())
+    };
+
+    match operator {
+        "=" => actual == expected,
+        "~=" => actual.split_whitespace().any(|w| w == expected),
+        "|=" => actual == expected || actual.starts_with(&format!("{}-", expected)),
+        "^=" => actual.starts_with(&expected),
+        "$=" => actual.ends_with(&expected),
+        "*=" => actual.contains(&expected),
+        _ => true, // Unknown operator, assume match
+    }
 }
 
 /// Check if a selector inside :is()/:not()/:has() is definitely unused.

@@ -1495,6 +1495,19 @@ pub struct CssDomElement {
     pub classes: FxHashSet<String>,
     /// ID (if any)
     pub id: Option<String>,
+    /// Attributes for CSS selector matching.
+    /// Each entry is (name, value) where value is Some(String) for static attribute values,
+    /// or None for boolean attributes (e.g., `<details open>`).
+    pub static_attributes: Vec<(String, Option<String>)>,
+    /// Attribute names that have dynamic values (expressions, bind directives, etc.)
+    /// CSS selectors matching these attributes should not be pruned.
+    pub dynamic_attribute_names: FxHashSet<String>,
+    /// Whether this element has any spread attributes (which could set any attribute)
+    pub has_spread: bool,
+    /// Whether this element has a class directive (class:name)
+    pub has_class_directive: bool,
+    /// Whether this element has a style directive (style:name)
+    pub has_style_directive: bool,
     /// Parent element index (in elements array), None for root
     pub parent_idx: Option<usize>,
     /// Child element indices

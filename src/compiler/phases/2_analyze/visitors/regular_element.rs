@@ -416,10 +416,46 @@ pub fn visit(
     // Extract classes and ID from attributes
     let mut element_classes = FxHashSet::default();
     let mut element_id: Option<String> = None;
+    let mut static_attributes: Vec<(String, Option<String>)> = Vec::new();
+    let mut dynamic_attribute_names: FxHashSet<String> = FxHashSet::default();
+    let mut has_spread = false;
+    let mut has_class_directive = false;
+    let mut has_style_directive = false;
 
     // Track class names and IDs from attributes
     for attr in &element.attributes {
         if let Attribute::Attribute(attr_node) = attr {
+            // Track static attribute name/value for CSS attribute selector matching
+            match &attr_node.value {
+                AttributeValue::True(_) => {
+                    // Boolean attribute like `<details open>`
+                    static_attributes.push((attr_node.name.to_string(), None));
+                }
+                AttributeValue::Sequence(parts) => {
+                    // Check if all parts are static text
+                    let mut all_static = true;
+                    let mut value = String::new();
+                    for part in parts {
+                        if let AttributeValuePart::Text(text) = part {
+                            value.push_str(&text.data);
+                        } else {
+                            all_static = false;
+                            break;
+                        }
+                    }
+                    if all_static {
+                        static_attributes.push((attr_node.name.to_string(), Some(value)));
+                    } else {
+                        // Has dynamic parts - mark as dynamic attribute
+                        dynamic_attribute_names.insert(attr_node.name.to_string());
+                    }
+                }
+                _ => {
+                    // Expression or other dynamic value
+                    dynamic_attribute_names.insert(attr_node.name.to_string());
+                }
+            }
+
             match attr_node.name.as_str() {
                 "class" => {
                     // Extract class names from attribute value
@@ -521,7 +557,15 @@ pub fn visit(
             }
         } else if let Attribute::SpreadAttribute(spread) = attr {
             // Visit spread attribute to set has_dynamic_classes
+            has_spread = true;
             spread_attribute::visit(spread, context)?;
+        } else if let Attribute::BindDirective(bind) = attr {
+            // bind:name is a dynamic attribute
+            dynamic_attribute_names.insert(bind.name.to_string());
+        } else if let Attribute::ClassDirective(_) = attr {
+            has_class_directive = true;
+        } else if let Attribute::StyleDirective(_) = attr {
+            has_style_directive = true;
         }
     }
 
@@ -741,6 +785,11 @@ pub fn visit(
         tag_name: element.name.to_string(),
         classes: element_classes,
         id: element_id,
+        static_attributes,
+        dynamic_attribute_names,
+        has_spread,
+        has_class_directive,
+        has_style_directive,
         parent_idx,
         children_idx: Vec::new(),
         is_root_child,
