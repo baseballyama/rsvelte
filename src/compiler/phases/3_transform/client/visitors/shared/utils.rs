@@ -420,10 +420,13 @@ pub fn apply_transforms_to_expression_with_shadowed(
             // (e.g., $.untrack, $.store_mutate - these have pre-constructed arguments)
             let skip_args_transform = is_svelte_runtime_skip_args_transform(&call.callee);
 
-            // Check if this is a prop/store call where the callee should NOT be transformed:
-            // 1. Prop setter call: `propName(value)` - callee should stay as `propName`, not `propName()`
-            // 2. Prop getter call: `propName()` - callee should stay as `propName`, not `propName()()`
-            // 3. Store subscription: `$store()` - callee should stay as `$store`, not `$store()()`
+            // Check if this is a prop/store SETTER call where the callee should NOT be transformed:
+            // - Prop setter call: `propName(value)` - callee should stay as `propName`, not `propName()`
+            //   because `propName(value)` IS the setter pattern in legacy mode.
+            //
+            // For prop/store GETTER reads (zero-arg calls from source), we DO want to transform
+            // the callee so that `propName()` (source function invocation) becomes `propName()()`
+            // where the first () is the prop getter and the second () is the function invocation.
             //
             // IMPORTANT: This does NOT apply to state variables ($state, $derived, etc.)!
             // For state variables, `read` wraps `x` -> `$.get(x)`, which is different from props/stores
@@ -445,10 +448,10 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     })
                     .unwrap_or(false);
 
-                // Skip callee transform only for props/stores, not for state
-                is_prop_or_store
-                    && (transform.read.is_some()
-                        || (transform.assign.is_some() && !call.arguments.is_empty()))
+                // Only skip callee transform for setter calls (calls with arguments).
+                // For zero-arg calls, the callee should be transformed so that
+                // source `name()` becomes `name()()` (getter + invocation).
+                is_prop_or_store && transform.assign.is_some() && !call.arguments.is_empty()
             } else {
                 false
             };
@@ -2234,17 +2237,13 @@ pub fn parse_directive_name(name: &str) -> JsExpr {
         return b::id("unknown");
     }
 
-    // Check if the first part is a store reference (starts with $)
-    // If so, we need to call it as a function: $store -> $store()
-    // This is because store subscriptions are generated as getter functions:
-    //   const $store = () => $.store_get(store, '$store', $$stores);
+    // Return just an identifier for the first part, including store references.
+    // The caller is responsible for calling apply_transforms_to_expression()
+    // which will apply the store read transform ($store -> $store()) automatically.
+    // We must NOT pre-call store references here, or the later transform would
+    // double-call them ($store()()).
     let first_part = parts[0];
-    let mut expression = if first_part.starts_with('$') && first_part.len() > 1 {
-        // It's a store reference - call it as a function to get the value
-        b::call(b::id(first_part), vec![])
-    } else {
-        b::id(first_part)
-    };
+    let mut expression = b::id(first_part);
 
     for part in &parts[1..] {
         // Check if the part is a valid identifier
@@ -3003,10 +3002,24 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                 // BUT only if the transform has is_reactive=true.
                 // This check comes FIRST because @const creates both a binding (Normal) and a transform,
                 // but the transform indicates it's a derived value needing reactive tracking.
+                //
+                // EXCEPTION: Derived bindings always have transforms (for $.get() wrapping),
+                // but their reactivity depends on whether their dependencies are known constants.
+                // For Derived bindings, skip this early return and fall through to the
+                // detailed binding kind check below.
                 if let Some(transform) = context.state.transform.get(name) {
-                    // Use the is_reactive flag from the transform
-                    // Non-reactive transforms (like unkeyed each block index) should not be treated as reactive
-                    return transform.is_reactive;
+                    // Check if this is a Derived binding - if so, skip the early return
+                    let is_derived = context.state.get_binding(name).is_some_and(|b| {
+                        matches!(
+                            b.kind,
+                            crate::compiler::phases::phase2_analyze::scope::BindingKind::Derived
+                        )
+                    });
+                    if !is_derived {
+                        // Use the is_reactive flag from the transform
+                        // Non-reactive transforms (like unkeyed each block index) should not be treated as reactive
+                        return transform.is_reactive;
+                    }
                 }
                 if let Some(binding) = context.state.get_binding(name) {
                     use crate::compiler::phases::phase2_analyze::scope::BindingKind;
@@ -3024,8 +3037,6 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                     // Bindings that are always reactive (props, stores, each items, etc.)
                     // These don't go through the is_known check because their values
                     // are inherently dynamic/external.
-                    // Derived bindings are always reactive because their value depends
-                    // on other reactive sources that may change.
                     if matches!(
                         binding.kind,
                         BindingKind::Prop
@@ -3035,8 +3046,30 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
                             | BindingKind::StoreSub
                             | BindingKind::EachItem
                             | BindingKind::SnippetParam
-                            | BindingKind::Derived
                     ) {
+                        return true;
+                    }
+
+                    // For Derived bindings, check if the derived value is "known"
+                    // (i.e., its dependencies are all non-reactive constants).
+                    // This matches the official Svelte compiler's scope.evaluate() behavior
+                    // where $derived(expr) is known if `expr` only depends on known values.
+                    if matches!(binding.kind, BindingKind::Derived) {
+                        if binding.reassigned || binding.mutated {
+                            return true;
+                        }
+                        // If the binding has a stored initial expression (the $derived argument),
+                        // parse it as JSON and check if it can be evaluated at compile time.
+                        // This approximates scope.evaluate().is_known from the official compiler.
+                        if let Some(ref initial_str) = binding.initial
+                            && let Ok(initial_json) =
+                                serde_json::from_str::<serde_json::Value>(initial_str)
+                        {
+                            // Check if the expression is "known" (compile-time evaluable)
+                            // If known, the derived value is effectively constant → not reactive
+                            return !is_expression_known_json(&initial_json, context);
+                        }
+                        // If no initial or couldn't parse, conservatively treat as reactive
                         return true;
                     }
 
@@ -3861,6 +3894,144 @@ fn is_initial_value_literal_or_known(initial: &Option<String>) -> bool {
     }
 
     false
+}
+
+/// Check if a JSON expression is "known" (can be evaluated at compile time).
+///
+/// This approximates the official Svelte compiler's `scope.evaluate().is_known` check.
+/// An expression is "known" if it evaluates to exactly one concrete value at compile time.
+///
+/// Key differences from `has_reactive_state_json`:
+/// - `has_reactive_state_json` checks if identifiers reference reactive bindings
+/// - `is_expression_known_json` checks if the expression can be compile-time evaluated
+///   (e.g., function calls to local functions are UNKNOWN even if the callee is non-reactive)
+fn is_expression_known_json(json_value: &serde_json::Value, context: &ComponentContext) -> bool {
+    let Some(obj) = json_value.as_object() else {
+        return false;
+    };
+    let Some(expr_type) = obj.get("type").and_then(|v| v.as_str()) else {
+        return false;
+    };
+
+    match expr_type {
+        "Literal" => true,
+
+        "Identifier" => {
+            if let Some(name) = obj.get("name").and_then(|v| v.as_str()) {
+                if name == "undefined" {
+                    return true;
+                }
+                if let Some(binding) = context.state.get_binding(name) {
+                    use crate::compiler::phases::phase2_analyze::scope::BindingKind;
+
+                    // Props are never known (external values)
+                    if matches!(
+                        binding.kind,
+                        BindingKind::Prop
+                            | BindingKind::BindableProp
+                            | BindingKind::RestProp
+                            | BindingKind::Store
+                            | BindingKind::StoreSub
+                            | BindingKind::EachItem
+                            | BindingKind::SnippetParam
+                    ) {
+                        return false;
+                    }
+
+                    // Updated bindings are not known
+                    if binding.reassigned || binding.mutated {
+                        return false;
+                    }
+
+                    // For State bindings, check if state source
+                    if matches!(binding.kind, BindingKind::State | BindingKind::RawState) {
+                        use crate::compiler::phases::phase3_transform::client::utils::is_state_source;
+                        if is_state_source(binding, context.state.analysis) {
+                            return false;
+                        }
+                        // Non-state-source with known initial → known
+                        return is_initial_value_literal_or_known(&binding.initial);
+                    }
+
+                    // For Derived bindings, recursively check the initial
+                    if matches!(binding.kind, BindingKind::Derived) {
+                        if let Some(ref initial_str) = binding.initial
+                            && let Ok(initial_json) =
+                                serde_json::from_str::<serde_json::Value>(initial_str)
+                        {
+                            return is_expression_known_json(&initial_json, context);
+                        }
+                        return false;
+                    }
+
+                    // For Normal bindings: known if never updated with known initial
+                    // Functions are always "known" (they're defined)
+                    if binding.is_function() {
+                        return true;
+                    }
+                    return is_initial_value_literal_or_known(&binding.initial);
+                }
+                // Unknown identifier - not known (could be a global)
+                false
+            } else {
+                false
+            }
+        }
+
+        "BinaryExpression" => {
+            // Both operands must be known
+            if let (Some(left), Some(right)) = (obj.get("left"), obj.get("right")) {
+                is_expression_known_json(left, context) && is_expression_known_json(right, context)
+            } else {
+                false
+            }
+        }
+
+        "UnaryExpression" => {
+            if let Some(arg) = obj.get("argument") {
+                is_expression_known_json(arg, context)
+            } else {
+                false
+            }
+        }
+
+        "ConditionalExpression" => {
+            // All three parts must be known
+            if let (Some(test), Some(consequent), Some(alternate)) =
+                (obj.get("test"), obj.get("consequent"), obj.get("alternate"))
+            {
+                is_expression_known_json(test, context)
+                    && is_expression_known_json(consequent, context)
+                    && is_expression_known_json(alternate, context)
+            } else {
+                false
+            }
+        }
+
+        "TemplateLiteral" => {
+            // Known only if all expressions are known
+            if let Some(expressions) = obj.get("expressions").and_then(|e| e.as_array()) {
+                expressions
+                    .iter()
+                    .all(|e| is_expression_known_json(e, context))
+            } else {
+                true // No expressions = just a string
+            }
+        }
+
+        // Function calls are generally NOT known (can't evaluate at compile time)
+        // except for some pure global functions
+        "CallExpression" => false,
+
+        // Arrow/function expressions are "known" (they evaluate to a function)
+        "ArrowFunctionExpression" | "FunctionExpression" => true,
+
+        // Member expressions are generally not known
+        "MemberExpression" => false,
+
+        // Default: not known
+        _ => false,
+    }
 }
 
 /// Sanitize a template string by escaping special characters.

@@ -107,7 +107,16 @@ fn visit_runes_mode(node: &Value, context: &mut VisitorContext) -> Result<(), An
                         && let Some(bi) = context.analysis.root.find_binding_any_scope(name)
                     {
                         let b = &mut context.analysis.root.bindings[bi];
-                        b.initial = extract_literal_string(arg);
+                        // For $derived, always store the argument expression (even non-literals)
+                        // so that Phase 3 can analyze dependencies to determine if the value is "known".
+                        // For $state/$state.raw, only store literals (non-literal state is reactive by proxy).
+                        b.initial = extract_literal_string(arg).or_else(|| {
+                            if matches!(rune_name.as_str(), "$derived") {
+                                Some(arg.to_string())
+                            } else {
+                                None
+                            }
+                        });
                         b.initial_is_defined = is_expression_defined(arg);
                         // Store the AST node type of the initial value for should_proxy()
                         b.initial_node_type =

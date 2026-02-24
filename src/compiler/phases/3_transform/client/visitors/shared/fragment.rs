@@ -374,10 +374,12 @@ pub fn process_children<F>(
 
                 if is_static_element(node, &context.state) {
                     // Push the static element to the template
+                    let css_hash = &context.state.analysis.css.hash;
                     push_static_element_to_template(
                         node,
                         &mut context.state.template,
                         &context.state.metadata.namespace,
+                        css_hash,
                     );
                     skipped += 1;
                 } else if let TemplateNode::EachBlock(each) = node {
@@ -470,7 +472,12 @@ pub enum TextOrExpr {
 }
 
 /// Push a static element and its children to the template.
-fn push_static_element_to_template(node: &TemplateNode, template: &mut Template, namespace: &str) {
+fn push_static_element_to_template(
+    node: &TemplateNode,
+    template: &mut Template,
+    namespace: &str,
+    css_hash: &str,
+) {
     match node {
         TemplateNode::RegularElement(elem) => {
             // Determine if this is an HTML element (not SVG/MathML)
@@ -494,10 +501,14 @@ fn push_static_element_to_template(node: &TemplateNode, template: &mut Template,
             // Determine child namespace for recursion
             let child_namespace = determine_namespace_for_children(elem, namespace);
 
+            // Track if a class attribute was found (for CSS hash handling)
+            let is_scoped = elem.metadata.scoped;
+            let mut has_class_attr = false;
+
             // Add attributes
             for attr in &elem.attributes {
                 if let Attribute::Attribute(a) = attr {
-                    let value = match &a.value {
+                    let mut value = match &a.value {
                         crate::ast::template::AttributeValue::True(_) => None,
                         crate::ast::template::AttributeValue::Sequence(parts) => {
                             let mut val = String::new();
@@ -510,6 +521,27 @@ fn push_static_element_to_template(node: &TemplateNode, template: &mut Template,
                         }
                         _ => None,
                     };
+
+                    // Track class attribute for CSS hash handling
+                    if a.name == "class" {
+                        has_class_attr = true;
+
+                        // Append CSS hash to class attribute if element is scoped
+                        if is_scoped && !css_hash.is_empty() {
+                            if let Some(ref mut v) = value {
+                                if v.is_empty() {
+                                    *v = css_hash.to_string();
+                                } else {
+                                    v.push(' ');
+                                    v.push_str(css_hash);
+                                }
+                            } else {
+                                // class=true (boolean) - replace with hash
+                                value = Some(css_hash.to_string());
+                            }
+                        }
+                    }
+
                     // Skip empty class attributes (matches official compiler behavior)
                     if a.name == "class" && value.as_deref() == Some("") {
                         continue;
@@ -524,9 +556,14 @@ fn push_static_element_to_template(node: &TemplateNode, template: &mut Template,
                 }
             }
 
+            // If element is scoped but has no class attribute, add class with just the hash
+            if is_scoped && !has_class_attr && !css_hash.is_empty() {
+                template.set_prop("class".to_string(), Some(css_hash.to_string()));
+            }
+
             // Recursively add children
             for child in &elem.fragment.nodes {
-                push_static_element_to_template(child, template, &child_namespace);
+                push_static_element_to_template(child, template, &child_namespace, css_hash);
             }
 
             // Special case: if the only meaningful child is a lone <script> element,

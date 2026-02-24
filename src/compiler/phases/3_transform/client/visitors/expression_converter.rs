@@ -1893,7 +1893,6 @@ fn try_transform_assignment(
     context: &mut ComponentContext,
 ) -> Option<JsExpr> {
     use crate::compiler::phases::phase3_transform::client::visitors::shared::assignment_helpers::build_assignment_value;
-    use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression;
     use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 
     // Extract the root identifier from the left-hand side.
@@ -1913,13 +1912,14 @@ fn try_transform_assignment(
         && name == &root_name
         && let Some(assign_fn) = transform.assign
     {
-        // Apply transforms to the right-hand side before building the assignment value.
-        // This ensures that state variables used in the RHS (e.g., `pending` in `pending.filter(...)`)
-        // are wrapped with `$.get()`.
-        let transformed_right = apply_transforms_to_expression(right, context);
-
+        // Do NOT apply transforms to the right side here. The caller's
+        // apply_transforms_to_expression will recurse into the arguments of the
+        // generated setter call (e.g., `display(value)`) and transform identifiers
+        // there. Pre-transforming here would cause double transformation when the
+        // caller also transforms (e.g., `display` -> `display()` -> `display()()`).
+        //
         // Build the assignment value (expand compound operators)
-        let value = build_assignment_value(operator, left, &transformed_right);
+        let value = build_assignment_value(operator, left, right);
 
         // Determine if proxy is needed
         // Check skip_proxy flag on the transform (for $state.raw)

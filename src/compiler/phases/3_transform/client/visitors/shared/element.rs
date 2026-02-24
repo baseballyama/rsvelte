@@ -1035,10 +1035,9 @@ pub fn build_attribute_effect(
                     )
                 });
 
-                // Check if this is an event attribute
-                // Apply state transforms to expression (converts state variable refs to $.get())
-                let transformed_value =
-                    super::utils::apply_transforms_to_expression(&result.value, context);
+                // Note: build_attribute_value already applies transforms via build_expression(),
+                // so we do NOT call apply_transforms_to_expression again here.
+                let transformed_value = result.value;
 
                 if is_event_attribute_node(attr) {
                     // Check if the value is an arrow function or function expression
