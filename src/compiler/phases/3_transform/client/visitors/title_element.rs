@@ -12,14 +12,14 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::utils::
     apply_transforms_to_expression, expression_has_reactive_state,
 };
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
-use crate::compiler::phases::phase3_transform::js_ast::nodes::JsBinaryOp;
+use crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr;
 
 /// Visit a TitleElement node and generate client-side code.
 ///
 /// Generates code like:
 /// ```js
 /// $.deferred_template_effect(() => {
-///     $.document.title = value ?? '';
+///     $.document.title = `a ${adjective() ?? ''} title`;
 /// });
 /// ```
 ///
@@ -58,14 +58,10 @@ pub fn title_element(node: &TitleElement, context: &mut ComponentContext) {
 /// Build the title content from fragment nodes.
 ///
 /// Handles text nodes and expression tags to build a single value expression.
+/// Uses template literals for mixed text+expression content (matching the
+/// official compiler's build_template_chunk behavior).
 /// Returns (value_expression, has_state).
-fn build_title_content(
-    nodes: &[TemplateNode],
-    context: &mut ComponentContext,
-) -> (
-    crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr,
-    bool,
-) {
+fn build_title_content(nodes: &[TemplateNode], context: &mut ComponentContext) -> (JsExpr, bool) {
     if nodes.is_empty() {
         return (b::string(""), false);
     }
@@ -77,77 +73,83 @@ fn build_title_content(
         return (b::string(text.data.to_string()), false);
     }
 
-    // Build concatenated expression for multiple nodes
-    let mut parts: Vec<crate::compiler::phases::phase3_transform::js_ast::nodes::JsExpr> =
-        Vec::new();
+    // If single expression tag, return the expression with optional ?? ''
+    if is_single_expression_tag(nodes) {
+        let mut has_state = false;
+        for node in nodes {
+            if let TemplateNode::ExpressionTag(expr) = node {
+                if expression_has_reactive_state(&expr.expression, context) {
+                    has_state = true;
+                }
+                let raw_value = convert_expression(&expr.expression, context);
+                let value = apply_transforms_to_expression(&raw_value, context);
+                if !is_known_defined_expr(&expr.expression) {
+                    return (b::nullish(value, b::string("")), has_state);
+                } else {
+                    return (value, has_state);
+                }
+            }
+        }
+    }
+
+    // Multiple nodes: build a template literal
+    // E.g., `a ${adjective() ?? ''} title`
+    let mut quasis: Vec<String> = Vec::new();
+    let mut expressions: Vec<JsExpr> = Vec::new();
     let mut has_state = false;
+    let mut current_text = String::new();
 
     for node in nodes {
         match node {
             TemplateNode::Text(text) => {
-                parts.push(b::string(text.data.to_string()));
+                current_text.push_str(&text.data);
             }
             TemplateNode::ExpressionTag(expr) => {
-                // Check if this expression has reactive state
                 if expression_has_reactive_state(&expr.expression, context) {
                     has_state = true;
                 }
 
+                // Flush accumulated text as a quasi
+                quasis.push(std::mem::take(&mut current_text));
+
                 let raw_value = convert_expression(&expr.expression, context);
                 let value = apply_transforms_to_expression(&raw_value, context);
 
-                // For single-expression titles, add ?? '' for potentially undefined values
-                // (matching official compiler's is_defined check)
-                if nodes.len() == 1 || is_single_expression_tag(nodes) {
-                    // Single expression: pass directly, add ?? '' if not a literal
-                    if !is_known_defined_expr(&expr.expression) {
-                        parts.push(b::nullish(value, b::string("")));
-                    } else {
-                        parts.push(value);
-                    }
+                // Add ?? '' for potentially undefined expressions
+                if !is_known_defined_expr(&expr.expression) {
+                    expressions.push(b::nullish(value, b::string("")));
                 } else {
-                    // Multiple nodes in template: add ?? '' for non-defined expressions
-                    if !is_known_defined_expr(&expr.expression) {
-                        parts.push(b::nullish(value, b::string("")));
-                    } else {
-                        parts.push(value);
-                    }
+                    expressions.push(value);
                 }
             }
             _ => {}
         }
     }
 
-    // Concatenate with + operator or use template literal
-    let value = if parts.len() == 1 {
-        parts.into_iter().next().unwrap()
-    } else {
-        // Join with binary + operations
-        parts
-            .into_iter()
-            .reduce(|acc, part| b::binary(JsBinaryOp::Add, acc, part))
-            .unwrap_or_else(|| b::string(""))
-    };
+    // Add trailing text
+    quasis.push(current_text);
 
+    // Build the template literal quasis as JsTemplateElement
+    let template_quasis: Vec<_> = quasis
+        .iter()
+        .enumerate()
+        .map(|(i, text)| b::quasi(text.as_str(), i == quasis.len() - 1))
+        .collect();
+    let value = b::template(template_quasis, expressions);
     (value, has_state)
 }
 
 /// Check if nodes contain a single expression tag (possibly with whitespace text nodes)
 fn is_single_expression_tag(nodes: &[TemplateNode]) -> bool {
-    let mut found_expr = false;
-    for node in nodes {
-        match node {
-            TemplateNode::ExpressionTag(_) => {
-                if found_expr {
-                    return false;
-                }
-                found_expr = true;
-            }
-            TemplateNode::Text(_) => {}
-            _ => return false,
-        }
-    }
-    found_expr
+    let expr_count = nodes
+        .iter()
+        .filter(|n| matches!(n, TemplateNode::ExpressionTag(_)))
+        .count();
+    let non_text_non_expr = nodes
+        .iter()
+        .any(|n| !matches!(n, TemplateNode::Text(_) | TemplateNode::ExpressionTag(_)));
+
+    expr_count == 1 && !non_text_non_expr && nodes.len() == 1
 }
 
 /// Check if an expression is known to be defined (not null/undefined).
