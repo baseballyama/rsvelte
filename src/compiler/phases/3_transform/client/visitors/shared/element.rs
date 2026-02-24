@@ -81,8 +81,15 @@ where
             let mut metadata = extract_metadata_from_tag(expr_tag);
 
             // Check for reactive state using the comprehensive check that considers transforms
-            let has_state =
+            let has_reactive_state =
                 super::utils::expression_has_reactive_state(&expr_tag.expression, context);
+
+            // In the official Svelte compiler, the CallExpression analyze visitor sets
+            // has_state = true when there are non-pure function calls (not just reactive state).
+            // This ensures expressions with calls go into template_effect (update) rather than init.
+            // See: svelte/src/compiler/phases/2-analyze/visitors/CallExpression.js
+            let has_call = super::utils::expression_has_call(&expr_tag.expression, context);
+            let has_state = has_reactive_state || has_call;
 
             // Update metadata with correct has_state value
             metadata.set_has_state(has_state);
@@ -112,8 +119,12 @@ where
                     let mut metadata = extract_metadata_from_tag(expr_tag);
 
                     // Check for reactive state using the comprehensive check that considers transforms
-                    let has_state =
+                    let has_reactive_state =
                         super::utils::expression_has_reactive_state(&expr_tag.expression, context);
+
+                    // Include non-pure function calls in has_state (matches official compiler behavior)
+                    let has_call = super::utils::expression_has_call(&expr_tag.expression, context);
+                    let has_state = has_reactive_state || has_call;
 
                     // Update metadata with correct has_state value
                     metadata.set_has_state(has_state);
@@ -407,18 +418,17 @@ pub fn build_class_directives_object(
         // Check if this directive has reactive state
         let directive_has_state =
             super::utils::expression_has_reactive_state(&directive.expression, context);
-        if directive_has_state {
+
+        // Check if directive has calls (non-pure function calls)
+        // In the official compiler, the CallExpression analyze visitor sets has_state = true
+        // when there are non-pure calls, so we include has_call in has_state.
+        let directive_has_call = super::utils::expression_has_call(&directive.expression, context);
+
+        if directive_has_state || directive_has_call {
             has_state = true;
         }
 
-        // Check if directive has calls (non-pure function calls)
-        let directive_has_call = super::utils::expression_has_call(&directive.expression, context);
-
-        // Note: we only track has_call (not has_state) for memoization purposes.
-        // In the official compiler, `memoize_if_state = false` for class directives,
-        // so only has_call and has_await trigger memoization.
         has_call_or_state = has_call_or_state || directive_has_call;
-        // Note: has_await handling could be added here if needed
 
         // Convert the expression using the expression converter
         let expression = convert_expression(&directive.expression, context);
@@ -462,8 +472,18 @@ pub fn build_style_directives_object(
 ) -> JsExpr {
     let mut normal_properties = Vec::with_capacity(style_directives.len());
     let mut important_properties = Vec::with_capacity(2);
+    let mut has_call = false;
+    let mut has_state = false;
+    let has_await = false;
 
     for directive in style_directives {
+        // Track metadata for memoization decision
+        let expr = &get_directive_expression(directive);
+        has_call = has_call || super::utils::expression_has_call(expr, context);
+        has_state = has_state
+            || super::utils::expression_has_reactive_state(expr, context)
+            || super::utils::expression_has_call(expr, context);
+
         // Build the expression for this directive
         let expression = if matches!(&directive.value, AttributeValue::True(true)) {
             // style:color shorthand - apply transforms to get proper prop() calls
@@ -490,12 +510,20 @@ pub fn build_style_directives_object(
 
     let normal_obj = b::object(normal_properties);
 
-    if important_properties.is_empty() {
+    let directives = if important_properties.is_empty() {
         normal_obj
     } else {
         // Return [normal, important] array
         b::array(vec![normal_obj, b::object(important_properties)])
-    }
+    };
+
+    // Memoize through the memoizer, matching the official compiler's behavior:
+    // return memoizer.add(directives, metadata)
+    // This ensures style directive objects with function calls get $N parameter references
+    context
+        .state
+        .memoizer
+        .add_memoized(directives, has_call, has_await, false, has_state)
 }
 
 /// Check if an AttributeValue contains an await expression.
@@ -580,7 +608,10 @@ pub fn build_set_class(
             false,     // memoize_if_state
             result.has_state,
         );
-        (value, result.has_state || has_await)
+        // Include has_call in has_state check: in the official compiler, the CallExpression
+        // analyze visitor sets has_state = true for non-pure calls, ensuring memoized expressions
+        // (which reference $N template_effect parameters) go to update, not init.
+        (value, result.has_state || has_await || has_call)
     } else {
         // No class attribute - use empty string
         (b::string(""), false)
@@ -800,12 +831,13 @@ pub fn build_set_style(
         // Build style directives object
         next = Some(build_style_directives_object(style_directives, context));
 
-        // Check if any style directive has state
+        // Check if any style directive has state or non-pure function calls
+        // In the official compiler, has_call implies has_state for template_effect routing
         for directive in style_directives {
-            if super::utils::expression_has_reactive_state(
-                &get_directive_expression(directive),
-                context,
-            ) {
+            let expr = &get_directive_expression(directive);
+            if super::utils::expression_has_reactive_state(expr, context)
+                || super::utils::expression_has_call(expr, context)
+            {
                 has_state = true;
                 break;
             }
