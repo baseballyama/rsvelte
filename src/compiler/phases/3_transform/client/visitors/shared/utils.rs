@@ -1169,18 +1169,24 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     && let Some(transform) = context.state.transform.get(&name)
                     && let Some(mutate_fn) = transform.mutate
                 {
-                    // Keep the original update expression, the mutate function
-                    // will handle replacing the base identifier as needed:
-                    // - store_sub_mutate: replaces with $.untrack($store)
-                    // - mutate_value_legacy: wraps in $.mutate(name, ...)
-                    // - mutate_value_runes: replaces name with $.get(name)
+                    // Transform the argument so that reactive reads inside the
+                    // update expression get wrapped properly, e.g. `global.value.count++`
+                    // becomes `$$_import_global().value.count++` for reactive imports.
+                    let transformed_arg = recurse!(&update.argument);
                     let full_update = JsExpr::Update(JsUpdateExpression {
                         operator: update.operator,
-                        argument: update.argument.clone(),
+                        argument: Box::new(transformed_arg),
                         prefix: update.prefix,
                     });
 
-                    return mutate_fn(JsExpr::Identifier(name.clone()), full_update);
+                    // Use replacement_id if set (e.g., reactive imports: global -> $$_import_global)
+                    let mutate_target = if let Some(ref replacement) = transform.replacement_id {
+                        JsExpr::Identifier(replacement.clone())
+                    } else {
+                        JsExpr::Identifier(name.clone())
+                    };
+
+                    return mutate_fn(mutate_target, full_update);
                 }
             }
 

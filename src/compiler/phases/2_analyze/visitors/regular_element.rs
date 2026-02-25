@@ -1195,12 +1195,13 @@ pub fn visit(
 
     // Special case: <a> tags are valid in both SVG and HTML namespace.
     // If there's no parent, look downwards to see if it's the parent of a SVG or HTML element.
+    // Reference: svelte/packages/svelte/src/compiler/phases/2-analyze/visitors/RegularElement.js L230-238
     if is_root_a_tag {
         for child in &element.fragment.nodes {
             if let TemplateNode::RegularElement(child_el) = child {
                 // Check if child is SVG (not the svg element itself)
-                if is_svg(&child_el.name) && child_el.name != "svg" {
-                    // In JS: node.metadata.svg = true;
+                if (child_el.metadata.svg || is_svg(&child_el.name)) && child_el.name != "svg" {
+                    element.metadata.svg = true;
                     break;
                 }
             }

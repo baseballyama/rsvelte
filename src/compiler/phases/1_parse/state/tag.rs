@@ -1401,7 +1401,21 @@ impl Parser<'_> {
                     let pattern_clean = strip_type_annotation(pattern_str);
 
                     // Parse the pattern (LHS)
-                    let pattern_expr = self.parse_js_expression(&pattern_clean, expr_start);
+                    // For destructuring patterns ({...} or [...]), use the dedicated
+                    // pattern parser which wraps in `let ... = null` to handle
+                    // default values (e.g., {x = 1, y}) that are not valid as
+                    // standalone expressions.
+                    let pattern_expr =
+                        if pattern_clean.starts_with('{') || pattern_clean.starts_with('[') {
+                            super::super::read::expression::parse_destructuring_pattern(
+                                &pattern_clean,
+                                expr_start,
+                                &self.line_offsets,
+                            )
+                            .unwrap_or_else(|| self.parse_js_expression(&pattern_clean, expr_start))
+                        } else {
+                            self.parse_js_expression(&pattern_clean, expr_start)
+                        };
 
                     // Calculate the offset for the init expression in the
                     // original source.  `trimmed` starts at `expr_start` in

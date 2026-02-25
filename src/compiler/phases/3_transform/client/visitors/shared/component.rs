@@ -1274,7 +1274,23 @@ fn process_bind_directive(
         };
 
         if let Some((root_name, is_state, is_prop)) = member_root_info {
-            if is_prop {
+            // Check for reactive import first - these take priority over state/prop
+            // because import bindings can be promoted to State by legacy analysis,
+            // but they still need the reactive_import mutation pattern.
+            let transform = context.state.transform.get(&root_name);
+            let is_reactive_import = transform.is_some_and(|t| t.replacement_id.is_some());
+
+            if is_reactive_import {
+                let assignment = b::assign(transformed_expression.clone(), b::id("$$value"));
+                if let Some(t) = transform
+                    && let Some(mutate_fn) = t.mutate
+                    && let Some(ref replacement) = t.replacement_id
+                {
+                    vec![b::stmt(mutate_fn(b::id(replacement), assignment))]
+                } else {
+                    vec![b::stmt(assignment)]
+                }
+            } else if is_prop {
                 // For prop member bindings in legacy mode (e.g., bind:value={values[field]}),
                 // we need to call the prop function with the mutation expression and true flag:
                 // values(values()[field] = $$value, true)
@@ -1302,11 +1318,7 @@ fn process_bind_directive(
                 }
             } else {
                 // Root is not state or prop - check if it has a transform
-                let has_transform = context
-                    .state
-                    .transform
-                    .get(&root_name)
-                    .is_some_and(|t| t.read.is_some());
+                let has_transform = transform.is_some_and(|t| t.read.is_some());
                 if has_transform {
                     let assignment = b::assign(transformed_expression.clone(), b::id("$$value"));
                     vec![b::stmt(assignment)]

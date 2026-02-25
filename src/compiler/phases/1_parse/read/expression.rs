@@ -216,6 +216,65 @@ pub fn parse_expression(
     ))
 }
 
+/// Parse a destructuring pattern (for `{@const}` tags).
+///
+/// Destructuring patterns like `{x = 1, y}` or `[a, b, ...rest]` cannot be parsed
+/// as standalone expressions because `{x = 1}` is not valid in expression context.
+/// Instead, we wrap them as `let <pattern> = null` and extract the binding pattern
+/// from the resulting variable declaration.
+///
+/// This correctly handles:
+/// - Default values: `{x = 1, y}`
+/// - Computed keys: `{[\`key${expr}\`]: val}`
+/// - Nested patterns: `{a: {b, c}}`
+/// - Array patterns: `[a, b, ...rest]`
+/// - Rest elements: `{a, ...rest}`
+pub fn parse_destructuring_pattern(
+    content: &str,
+    offset: usize,
+    line_offsets: &[usize],
+) -> Option<Expression> {
+    let allocator = Allocator::default();
+
+    // Try TypeScript first, then JavaScript
+    for use_typescript in [true, false] {
+        let source_type = if use_typescript {
+            SourceType::ts()
+        } else {
+            SourceType::mjs()
+        };
+
+        // Wrap the pattern in a `let <pattern> = null` statement
+        // The "let " prefix is 4 characters long
+        let wrapped = format!("let {} = null", content);
+        let parser = OxcParser::new(&allocator, &wrapped, source_type);
+        let result = parser.parse();
+
+        if !result.errors.is_empty() {
+            continue;
+        }
+
+        if let Some(oxc_ast::ast::Statement::VariableDeclaration(var_decl)) =
+            result.program.body.first()
+            && let Some(declarator) = var_decl.declarations.first()
+        {
+            // The offset adjustment: OXC positions start at 0 for the wrapped string.
+            // The "let " prefix is 4 chars, so pattern positions from OXC need
+            // offset - 4 adjustment. But convert_binding_pattern_for_param expects
+            // adjusted_offset to be added to OXC positions.
+            // OXC positions are relative to wrapped string, pattern starts at position 4.
+            // We want final positions to be: offset + (oxc_pos - 4)
+            // So adjusted_offset = offset - 4 (since the function does adjusted_offset + oxc_pos)
+            let adjusted_offset = offset.wrapping_sub(4);
+            let pattern_json =
+                convert_binding_pattern_for_param(&declarator.id, adjusted_offset, line_offsets);
+            return Some(Expression::Value(pattern_json));
+        }
+    }
+
+    None
+}
+
 /// Parse a JavaScript expression with a known end position.
 ///
 /// This is used when the expression's end position is already known (e.g., in await blocks
@@ -1090,14 +1149,21 @@ fn convert_property_key_for_param(
             Value::Object(obj)
         }
         _ => {
-            // For computed keys or other cases, create a placeholder
-            let mut obj = Map::new();
-            obj.insert("type".to_string(), Value::String("Identifier".to_string()));
-            obj.insert(
-                "name".to_string(),
-                Value::String("__computed__".to_string()),
-            );
-            Value::Object(obj)
+            // For computed keys, convert the expression properly
+            if let Some(expr) = key.as_expression() {
+                let Expression::Value(val) =
+                    convert_expression(expr, adjusted_offset, line_offsets);
+                val
+            } else {
+                // Fallback placeholder for truly unhandled cases
+                let mut obj = Map::new();
+                obj.insert("type".to_string(), Value::String("Identifier".to_string()));
+                obj.insert(
+                    "name".to_string(),
+                    Value::String("__computed__".to_string()),
+                );
+                Value::Object(obj)
+            }
         }
     }
 }
@@ -1174,17 +1240,10 @@ fn convert_binding_pattern_for_param(
                 convert_binding_pattern_for_param(&assign_pat.left, adjusted_offset, line_offsets);
             obj.insert("left".to_string(), left);
 
-            // Convert right (the default value) - simplified for now
-            let right_start = adjusted_offset + assign_pat.right.span().start as usize;
-            let right_end = adjusted_offset + assign_pat.right.span().end as usize;
-            let mut right_obj = Map::new();
-            right_obj.insert("type".to_string(), Value::String("Expression".to_string()));
-            right_obj.insert(
-                "start".to_string(),
-                Value::Number((right_start as i64).into()),
-            );
-            right_obj.insert("end".to_string(), Value::Number((right_end as i64).into()));
-            obj.insert("right".to_string(), Value::Object(right_obj));
+            // Convert right (the default value) using the full expression converter
+            let Expression::Value(right_val) =
+                convert_expression(&assign_pat.right, adjusted_offset, line_offsets);
+            obj.insert("right".to_string(), right_val);
 
             Value::Object(obj)
         }

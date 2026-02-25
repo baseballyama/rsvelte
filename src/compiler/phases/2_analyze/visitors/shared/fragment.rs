@@ -264,6 +264,33 @@ fn collect_expression_identifiers(
                 // Parameters themselves are declarations and shouldn't be collected.
                 // We skip the entire function to avoid false cycle detection.
             }
+            // Handle Property nodes: only collect from value (and computed key),
+            // not from non-computed key identifiers (which are just property names,
+            // not variable references).
+            "Property" => {
+                // For computed keys like `[expr]`, collect from the key expression
+                if expression
+                    .get("computed")
+                    .and_then(|c| c.as_bool())
+                    .unwrap_or(false)
+                    && let Some(key) = expression.get("key")
+                {
+                    collect_expression_identifiers(key, identifiers);
+                }
+                // Always collect from value
+                if let Some(value) = expression.get("value") {
+                    collect_expression_identifiers(value, identifiers);
+                }
+            }
+            // Handle AssignmentPattern: collect from both left (pattern) and right (default value)
+            "AssignmentPattern" => {
+                if let Some(left) = expression.get("left") {
+                    collect_expression_identifiers(left, identifiers);
+                }
+                if let Some(right) = expression.get("right") {
+                    collect_expression_identifiers(right, identifiers);
+                }
+            }
             _ => {
                 // Recursively walk all object properties and array elements
                 if let Some(obj) = expression.as_object() {

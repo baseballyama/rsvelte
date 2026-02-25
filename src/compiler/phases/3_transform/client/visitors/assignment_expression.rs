@@ -180,7 +180,14 @@ fn build_assignment(
         let visited_right = apply_transforms_to_expression(right, context);
         let mutation_expr = b::assign_op(operator, visited_left, visited_right);
 
-        return Some(mutate_fn(object.clone(), mutation_expr));
+        // Use replacement_id if set (e.g., reactive imports: global -> $$_import_global)
+        let mutate_target = if let Some(ref replacement) = t.replacement_id {
+            JsExpr::Identifier(replacement.clone())
+        } else {
+            object.clone()
+        };
+
+        return Some(mutate_fn(mutate_target, mutation_expr));
     }
 
     // Case 5: Proxified assignments in dev mode
