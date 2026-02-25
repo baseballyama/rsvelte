@@ -1483,6 +1483,13 @@ pub struct EachBindingContext {
     /// This is a cached version of the EachItem binding's `reassigned` flag,
     /// used to avoid scope lookup confusion when a same-named outer variable exists.
     pub item_reassigned: bool,
+
+    /// Whether the each block's context pattern is a simple Identifier (e.g., `item`)
+    /// rather than a destructured pattern (e.g., `{ value }` or `[a, b]`).
+    /// In the official compiler, `assign`/`mutate` transforms for destructured patterns
+    /// do NOT set `uses_index = true`, while Identifier patterns do.
+    /// This field controls whether `binding_used` should propagate to `uses_index`.
+    pub context_is_identifier: bool,
 }
 
 impl<'a> ComponentClientTransformState<'a> {

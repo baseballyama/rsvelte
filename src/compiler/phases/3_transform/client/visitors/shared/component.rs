@@ -16,7 +16,6 @@ use crate::compiler::phases::phase3_transform::client::visitors::shared::events:
 use crate::compiler::phases::phase3_transform::js_ast::builders as b;
 use crate::compiler::phases::phase3_transform::js_ast::nodes::*;
 use indexmap::IndexMap;
-use rustc_hash::FxHashMap;
 
 /// Component node types.
 #[derive(Debug, Clone)]
@@ -71,7 +70,7 @@ pub fn build_component(
     // Each entry is (name, read_source) where read_source is Some(derived_name) for
     // destructured bindings like let:thing={{num}} -> ("num", Some("thing"))
     let mut let_names: Vec<(String, Option<String>)> = Vec::new();
-    let mut events: FxHashMap<String, Vec<JsExpr>> = FxHashMap::default();
+    let mut events: IndexMap<String, Vec<JsExpr>> = IndexMap::new();
     let mut custom_css_props: Vec<JsObjectMember> = Vec::new();
     let mut bind_this: Option<Expression> = None;
     let mut binding_initializers: Vec<JsStatement> = Vec::new();
@@ -679,7 +678,7 @@ fn process_let_directive(
 fn process_on_directive(
     on_directive: &OnDirective,
     context: &mut ComponentContext,
-    events: &mut FxHashMap<String, Vec<JsExpr>>,
+    events: &mut IndexMap<String, Vec<JsExpr>>,
 ) {
     // If no expression, mark that component needs props for event bubbling
     // This is handled via build_event_handler which sets needs_props_from_events

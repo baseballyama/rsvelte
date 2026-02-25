@@ -352,6 +352,18 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
         false
     };
 
+    // Determine if the context pattern is a simple Identifier (not destructured)
+    let context_is_identifier = if let Some(context_expr) = &node.context {
+        let Expression::Value(val) = context_expr;
+        if let serde_json::Value::Object(obj) = val {
+            obj.get("type").and_then(|v| v.as_str()) == Some("Identifier")
+        } else {
+            false
+        }
+    } else {
+        false
+    };
+
     let binding_used = Rc::new(Cell::new(false));
     context.state.each_binding_context.push(EachBindingContext {
         item_name: item_name.clone(),
@@ -368,6 +380,7 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
         binding_group_name: each_node_meta.binding_group_name.clone(),
         store_to_invalidate: store_to_invalidate.clone(),
         item_reassigned,
+        context_is_identifier,
     });
 
     // Visit the each block body to get the body block
@@ -378,8 +391,11 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     context.state.each_binding_context.pop();
 
     // Check if bindings set the binding_used flag (meaning bind_directive generated
-    // an each-block-aware setter that needs $$index)
-    if binding_used.get() {
+    // an each-block-aware setter that needs $$index).
+    // IMPORTANT: In the official compiler, the assign/mutate transforms for destructured
+    // patterns do NOT set uses_index = true. Only Identifier context patterns do.
+    // So we only propagate binding_used to uses_index when context_is_identifier is true.
+    if binding_used.get() && context_is_identifier {
         uses_index = true;
     }
 
@@ -391,7 +407,8 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
     // After visiting the body, check if the each item was assigned or mutated.
     // This mirrors the official Svelte compiler's dynamic approach where assign/mutate
     // transform callbacks set uses_index = true.
-    if context.state.each_item_assign_or_mutate.get() {
+    // Only applies to Identifier contexts - destructured patterns don't set uses_index.
+    if context.state.each_item_assign_or_mutate.get() && context_is_identifier {
         uses_index = true;
     }
 
@@ -1720,6 +1737,8 @@ fn build_key_function(
         && let Some(key) = &node.key
     {
         let key_expr = convert_expression(key, context);
+        // Apply state transforms so that prop references like `id` become `id()`
+        let key_expr = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&key_expr, context);
 
         if let Some(context_expr) = &node.context {
             let pattern = convert_expression_to_pattern(context_expr);
