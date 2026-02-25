@@ -440,8 +440,9 @@ pub(crate) fn try_constant_fold_full(expr: &str) -> ConstantFoldResult {
         }
     }
 
-    if (trimmed.starts_with('\'') && trimmed.ends_with('\''))
-        || (trimmed.starts_with('"') && trimmed.ends_with('"'))
+    if trimmed.len() >= 2
+        && ((trimmed.starts_with('\'') && trimmed.ends_with('\''))
+            || (trimmed.starts_with('"') && trimmed.ends_with('"')))
     {
         let content = &trimmed[1..trimmed.len() - 1];
         return ConstantFoldResult::Constant(content.to_string());
@@ -512,6 +513,94 @@ pub(crate) fn try_constant_fold_full(expr: &str) -> ConstantFoldResult {
         && let Some(result) = eval_math_expr(trimmed)
     {
         return ConstantFoldResult::Constant(result);
+    }
+
+    // Handle comparison operators: ===, !==, ==, !=, <, >, <=, >=
+    // and arithmetic operators: +, -, *, /, %
+    for &op in &[
+        "===", "!==", "==", "!=", "<=", ">=", "<", ">", "+", "-", "*", "/", "%",
+    ] {
+        if let Some(idx) = trimmed.find(op) {
+            // Avoid false matches (e.g., '===' in '!==')
+            let left = trimmed[..idx].trim();
+            let right = trimmed[idx + op.len()..].trim();
+
+            let left_result = try_constant_fold_full(left);
+            let right_result = try_constant_fold_full(right);
+
+            if let (ConstantFoldResult::Constant(l), ConstantFoldResult::Constant(r)) =
+                (&left_result, &right_result)
+            {
+                let l_num = l.parse::<f64>().ok();
+                let r_num = r.parse::<f64>().ok();
+
+                if let (Some(ln), Some(rn)) = (l_num, r_num) {
+                    let result = match op {
+                        "===" | "==" => Some(format!("{}", (ln - rn).abs() < f64::EPSILON)),
+                        "!==" | "!=" => Some(format!("{}", (ln - rn).abs() >= f64::EPSILON)),
+                        "<" => Some(format!("{}", ln < rn)),
+                        ">" => Some(format!("{}", ln > rn)),
+                        "<=" => Some(format!("{}", ln <= rn)),
+                        ">=" => Some(format!("{}", ln >= rn)),
+                        "+" => {
+                            let res = ln + rn;
+                            if res.fract() == 0.0 {
+                                Some(format!("{}", res as i64))
+                            } else {
+                                Some(res.to_string())
+                            }
+                        }
+                        "-" => {
+                            let res = ln - rn;
+                            if res.fract() == 0.0 {
+                                Some(format!("{}", res as i64))
+                            } else {
+                                Some(res.to_string())
+                            }
+                        }
+                        "*" => {
+                            let res = ln * rn;
+                            if res.fract() == 0.0 {
+                                Some(format!("{}", res as i64))
+                            } else {
+                                Some(res.to_string())
+                            }
+                        }
+                        "/" if rn != 0.0 => {
+                            let res = ln / rn;
+                            if res.fract() == 0.0 {
+                                Some(format!("{}", res as i64))
+                            } else {
+                                Some(res.to_string())
+                            }
+                        }
+                        "%" if rn != 0.0 => {
+                            let res = ln % rn;
+                            if res.fract() == 0.0 {
+                                Some(format!("{}", res as i64))
+                            } else {
+                                Some(res.to_string())
+                            }
+                        }
+                        _ => None,
+                    };
+                    if let Some(r) = result {
+                        return ConstantFoldResult::Constant(r);
+                    }
+                }
+
+                // String comparison for === and !==
+                match op {
+                    "===" => {
+                        return ConstantFoldResult::Constant(format!("{}", l == r));
+                    }
+                    "!==" => {
+                        return ConstantFoldResult::Constant(format!("{}", l != r));
+                    }
+                    _ => {}
+                }
+            }
+        }
     }
 
     ConstantFoldResult::Dynamic

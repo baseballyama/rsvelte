@@ -2947,6 +2947,143 @@ pub(crate) fn get_literal_value(
                     }
                     None
                 }
+                "BinaryExpression" => {
+                    let operator = obj.get("operator").and_then(|v| v.as_str())?;
+                    let left = obj.get("left")?;
+                    let right = obj.get("right")?;
+                    let left_expr = serde_json::from_value::<Expression>(left.clone()).ok()?;
+                    let right_expr = serde_json::from_value::<Expression>(right.clone()).ok()?;
+
+                    let left_val = get_literal_value(&left_expr, context)?;
+                    let right_val = get_literal_value(&right_expr, context)?;
+
+                    // Try numeric comparison first
+                    let left_num = left_val.as_ref().and_then(|s| s.parse::<f64>().ok());
+                    let right_num = right_val.as_ref().and_then(|s| s.parse::<f64>().ok());
+
+                    if let (Some(l), Some(r)) = (left_num, right_num) {
+                        let result: Option<String> = match operator {
+                            "===" | "==" => Some(format!("{}", l == r)),
+                            "!==" | "!=" => Some(format!("{}", l != r)),
+                            "<" => Some(format!("{}", l < r)),
+                            ">" => Some(format!("{}", l > r)),
+                            "<=" => Some(format!("{}", l <= r)),
+                            ">=" => Some(format!("{}", l >= r)),
+                            "+" => {
+                                let res = l + r;
+                                if res.fract() == 0.0 {
+                                    Some(format!("{}", res as i64))
+                                } else {
+                                    Some(res.to_string())
+                                }
+                            }
+                            "-" => {
+                                let res = l - r;
+                                if res.fract() == 0.0 {
+                                    Some(format!("{}", res as i64))
+                                } else {
+                                    Some(res.to_string())
+                                }
+                            }
+                            "*" => {
+                                let res = l * r;
+                                if res.fract() == 0.0 {
+                                    Some(format!("{}", res as i64))
+                                } else {
+                                    Some(res.to_string())
+                                }
+                            }
+                            "/" if r != 0.0 => {
+                                let res = l / r;
+                                if res.fract() == 0.0 {
+                                    Some(format!("{}", res as i64))
+                                } else {
+                                    Some(res.to_string())
+                                }
+                            }
+                            "%" if r != 0.0 => {
+                                let res = l % r;
+                                if res.fract() == 0.0 {
+                                    Some(format!("{}", res as i64))
+                                } else {
+                                    Some(res.to_string())
+                                }
+                            }
+                            _ => None,
+                        };
+                        return result.map(Some);
+                    }
+
+                    // String comparison for === and !==
+                    if let (Some(l), Some(r)) = (&left_val, &right_val) {
+                        match operator {
+                            "===" => return Some(Some(format!("{}", l == r))),
+                            "!==" => return Some(Some(format!("{}", l != r))),
+                            "+" => return Some(Some(format!("{}{}", l, r))),
+                            _ => {}
+                        }
+                    }
+
+                    None
+                }
+                "UnaryExpression" => {
+                    let operator = obj.get("operator").and_then(|v| v.as_str())?;
+                    let argument = obj.get("argument")?;
+                    let arg_expr = serde_json::from_value::<Expression>(argument.clone()).ok()?;
+                    let arg_val = get_literal_value(&arg_expr, context)?;
+
+                    match operator {
+                        "!" => {
+                            // Logical NOT
+                            match arg_val.as_deref() {
+                                Some("true") => Some(Some("false".to_string())),
+                                Some("false") | Some("0") | Some("") | None => {
+                                    Some(Some("true".to_string()))
+                                }
+                                Some(s) => {
+                                    // Any non-empty, non-zero string is truthy
+                                    if s.parse::<f64>().ok() != Some(0.0) {
+                                        Some(Some("false".to_string()))
+                                    } else {
+                                        Some(Some("true".to_string()))
+                                    }
+                                }
+                            }
+                        }
+                        "-" => {
+                            let val = arg_val?;
+                            let n = val.parse::<f64>().ok()?;
+                            let res = -n;
+                            if res.fract() == 0.0 {
+                                Some(Some(format!("{}", res as i64)))
+                            } else {
+                                Some(Some(res.to_string()))
+                            }
+                        }
+                        "+" => {
+                            let val = arg_val?;
+                            let n = val.parse::<f64>().ok()?;
+                            if n.fract() == 0.0 {
+                                Some(Some(format!("{}", n as i64)))
+                            } else {
+                                Some(Some(n.to_string()))
+                            }
+                        }
+                        "typeof" => match arg_val.as_deref() {
+                            None => Some(Some("undefined".to_string())),
+                            Some(s) => {
+                                if s == "true" || s == "false" {
+                                    Some(Some("boolean".to_string()))
+                                } else if s.parse::<f64>().is_ok() {
+                                    Some(Some("number".to_string()))
+                                } else {
+                                    Some(Some("string".to_string()))
+                                }
+                            }
+                        },
+                        _ => None,
+                    }
+                }
                 _ => None,
             }
         }
