@@ -11,6 +11,7 @@ use super::errors;
 use super::scope::{Binding, BindingKind, DeclarationKind};
 use super::types::ComponentAnalysis;
 use super::visitors::shared::function::is_rune;
+use super::warnings;
 use crate::ast::template::{
     Attribute, AttributeValue, AttributeValuePart, AwaitBlock, EachBlock, Fragment, IfBlock,
     KeyBlock, RegularElement, Root, Script, SnippetBlock, TemplateNode,
@@ -209,6 +210,19 @@ pub fn detect_store_subscriptions(
 
                 // The binding exists in instance scope and is NOT a rune init -
                 // fall through to create store sub.
+                // Emit store_rune_conflict warning if options.runes is not explicitly false
+                // and the reference is used as a CallExpression (i.e., $state() looks like a rune call)
+                // Corresponds to Svelte's 2-analyze/index.js L398-407
+                if options_runes != Some(false) {
+                    // Check if the $rune reference is used as a call expression by scanning source
+                    // We approximate by checking if "$name(" appears in the source
+                    let call_pattern = format!("{}(", ref_name);
+                    if analysis.source.contains(&call_pattern) {
+                        analysis
+                            .warnings
+                            .push(warnings::store_rune_conflict(store_name));
+                    }
+                }
             } else {
                 // No binding in instance scope - skip rune names (it's a real rune)
                 continue;

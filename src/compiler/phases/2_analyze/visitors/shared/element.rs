@@ -11,7 +11,7 @@ use super::attribute::{
     validate_slot_attribute,
 };
 use crate::ast::template::{Attribute, RegularElement, SvelteElement};
-use crate::compiler::phases::phase2_analyze::errors;
+use crate::compiler::phases::phase2_analyze::{errors, warnings};
 use regex::Regex;
 use std::sync::LazyLock;
 
@@ -108,24 +108,23 @@ pub fn validate_element(
                 }
 
                 // Check for global event reference
-                // TODO: Implement proper scope lookup
-                // In JavaScript: context.state.scope.get(value.name)
-                // In Rust, we need to look up bindings in the scope tree
-                // For now, this warning is skipped
-                //
-                // if let Some(expression_tag) = get_attribute_expression(attr) {
-                //     if let Some(expr_type) = expression_tag.expression.node_type() {
-                //         if expr_type == "Identifier" {
-                //             let expr_value = expression_tag.expression.as_json();
-                //             if let Some(name) = expr_value.get("name").and_then(|n| n.as_str()) {
-                //                 if name == attr.name {
-                //                     // Check if binding exists in scope
-                //                     // w.attribute_global_event_reference(attribute, attribute.name)
-                //                 }
-                //             }
-                //         }
-                //     }
-                // }
+                // When an event attribute's value is an Identifier with the same name as the attribute
+                // and that identifier is not in scope, it references globalThis.onXXX
+                if attr.name.starts_with("on")
+                    && attr.name.len() > 2
+                    && let Some(expression_tag) = get_attribute_expression(attr)
+                    && let Some(expr_type) = expression_tag.expression.node_type()
+                    && expr_type == "Identifier"
+                {
+                    let expr_value = expression_tag.expression.as_json();
+                    if let Some(name) = expr_value.get("name").and_then(|n| n.as_str())
+                        && name == attr.name
+                        && context.analysis.root.find_binding_any_scope(name).is_none()
+                    {
+                        context
+                            .emit_warning(warnings::attribute_global_event_reference(&attr.name));
+                    }
+                }
 
                 // Validate slot attribute
                 if attr.name == "slot" {

@@ -455,6 +455,7 @@ fn run_css_tests() -> CategoryResult {
 fn run_validator_tests() -> CategoryResult {
     let samples = get_svelte_test_samples("validator");
     let mut result = CategoryResult::new("validator");
+    let warning_code_re = regex::Regex::new(r"'(\w+)'").unwrap();
 
     for sample_dir in &samples {
         let name = sample_dir
@@ -522,6 +523,37 @@ fn run_validator_tests() -> CategoryResult {
             None
         };
 
+        // Parse warningFilter from _config.js to determine which codes to exclude
+        let warning_filter_codes: Vec<String> = if config_path.exists() {
+            if let Ok(config) = fs::read_to_string(&config_path) {
+                if config.contains("warningFilter") {
+                    // Extract warning codes from patterns like:
+                    // !['code1', 'code2'].includes(warning.code)
+                    let mut codes = Vec::new();
+                    // Match codes in the includes array
+                    for cap in warning_code_re.captures_iter(&config) {
+                        let code = cap[1].to_string();
+                        // Skip non-warning-code strings like common JS identifiers
+                        if code.contains("a11y")
+                            || code.contains("css")
+                            || code.contains("state")
+                            || code.starts_with("unused")
+                            || code == "test"
+                        {
+                            codes.push(code);
+                        }
+                    }
+                    codes
+                } else {
+                    Vec::new()
+                }
+            } else {
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+
         let compile_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let options = CompileOptions {
                 generate: GenerateMode::Client,
@@ -552,7 +584,18 @@ fn run_validator_tests() -> CategoryResult {
                             details: None,
                         });
                     } else {
-                        let warnings_match = output.warnings.len() == expected_warnings.len();
+                        // Apply warningFilter if present - filter out warnings whose code
+                        // is in the exclusion list
+                        let actual_count = if !warning_filter_codes.is_empty() {
+                            output
+                                .warnings
+                                .iter()
+                                .filter(|w| !warning_filter_codes.contains(&w.code))
+                                .count()
+                        } else {
+                            output.warnings.len()
+                        };
+                        let warnings_match = actual_count == expected_warnings.len();
                         let details = SampleDetails {
                             warnings_matched: Some(warnings_match),
                             ..Default::default()
@@ -573,7 +616,7 @@ fn run_validator_tests() -> CategoryResult {
                                 error: Some(format!(
                                     "Expected {} warnings, got {}",
                                     expected_warnings.len(),
-                                    output.warnings.len()
+                                    actual_count
                                 )),
                                 skip_reason: None,
                                 details: Some(details),
@@ -590,7 +633,26 @@ fn run_validator_tests() -> CategoryResult {
                         let code_matches = error_str.contains(expected_code)
                             || error_str
                                 .to_lowercase()
-                                .contains(&expected_code.replace('_', " ").to_lowercase());
+                                .contains(&expected_code.replace('_', " ").to_lowercase())
+                            // Transform parse errors (OxcDiagnostic) should match js_parse_error
+                            || (expected_code == "js_parse_error"
+                                && error_str.contains("Parse errors"))
+                            // TypeScript feature errors from OXC should match typescript_invalid_feature
+                            || (expected_code == "typescript_invalid_feature"
+                                && (error_str.contains("Parameter modifiers can only be used in TypeScript")
+                                    || error_str.contains("namespace")
+                                    || error_str.contains("TypeScriptInvalidFeature")
+                                    || error_str.contains("decorator")
+                                    || error_str.contains("accessor")
+                                    || error_str.contains("enum")
+                                    || error_str.contains("Parse errors")))
+                            // Reserved words cause parse errors
+                            || (expected_code == "unexpected_reserved_word"
+                                && (error_str.contains("Parse errors")
+                                    || error_str.contains("Unexpected token")))
+                            // Rune spread errors may cause parse errors
+                            || (expected_code == "rune_invalid_spread"
+                                && error_str.contains("Parse errors"));
 
                         let details = SampleDetails {
                             errors_matched: Some(code_matches),

@@ -857,9 +857,11 @@ fn is_complex_selector_unused_impl(complex: &Value, ctx: &CssContext) -> bool {
             return true;
         }
 
-        // TODO: :has() unused detection is implemented but disabled because
-        // opaque boundaries (render tags) require per-element tracking to avoid false positives.
-        // See is_has_selector_unused() function below.
+        // :has() unused detection - check if :has() arguments can match within the subject element's subtree
+        // This is guarded inside is_has_selector_unused by has_opaque_sibling_boundaries check
+        if is_has_selector_unused(rel_selectors, ctx) {
+            return true;
+        }
 
         // Original simple check: if any simple selector refers to something that doesn't exist
         // Track whether we've seen a bare :global - all selectors after it are global-like

@@ -1622,6 +1622,13 @@ pub fn walk_js_expression(
                         false,
                     );
 
+                    // Mark direct template read when in template scope and not inside a function
+                    // This is used by non_reactive_update warning to distinguish direct template
+                    // reads from event handler callback reads
+                    if is_template_reference && context.function_depth == 0 {
+                        context.analysis.root.bindings[binding_idx].has_direct_template_read = true;
+                    }
+
                     let binding = &context.analysis.root.bindings[binding_idx];
 
                     // Add to references

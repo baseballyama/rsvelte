@@ -334,8 +334,10 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         }
     }
 
-    // TODO: Handle $derived expression tracking for async deriveds
-    // TODO: Handle $inspect expression tracking
+    // For $derived and $inspect, increment function_depth when visiting arguments
+    // to suppress `state_referenced_locally` warnings inside these rune calls.
+    // Corresponds to CallExpression.js L244-259
+    let increment_depth = matches!(rune.as_deref(), Some("$derived") | Some("$inspect"));
 
     // Visit children (callee and arguments)
     // This is equivalent to context.next() in the JavaScript implementation
@@ -343,10 +345,18 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         super::script::walk_js_node(callee, context)?;
     }
 
+    if increment_depth {
+        context.function_depth += 1;
+    }
+
     if let Some(arguments) = node.get("arguments").and_then(|a| a.as_array()) {
         for arg in arguments {
             super::script::walk_js_node(arg, context)?;
         }
+    }
+
+    if increment_depth {
+        context.function_depth -= 1;
     }
 
     Ok(())

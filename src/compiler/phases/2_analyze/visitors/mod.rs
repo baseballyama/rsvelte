@@ -142,6 +142,9 @@ pub struct VisitorContext<'a> {
     pub ast_type: AstType,
     /// Current reactive statement being analyzed (for legacy mode)
     pub reactive_statement: Option<*mut super::types::ReactiveStatement>,
+    /// Whether we're currently inside a `$:` reactive declaration.
+    /// Used for reactive_declaration_module_script_dependency warning.
+    pub in_reactive_declaration: bool,
     /// State fields in the current class (for class body analysis)
     pub state_fields: std::collections::HashMap<String, super::types::StateField>,
     /// Stack of DOM element indices for tracking parent-child relationships.
@@ -283,6 +286,7 @@ impl<'a> VisitorContext<'a> {
             component_slots: std::collections::HashSet::new(),
             ast_type: AstType::Template,
             reactive_statement: None,
+            in_reactive_declaration: false,
             state_fields: std::collections::HashMap::new(),
             dom_element_stack: Vec::new(),
             element_depth: 0,

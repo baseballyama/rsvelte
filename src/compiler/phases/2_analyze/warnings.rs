@@ -42,23 +42,53 @@ pub fn legacy_component_creation() -> AnalysisWarning {
 
 /// State referenced locally - may not be reactive
 pub fn state_referenced_locally(name: &str, context_type: &str) -> AnalysisWarning {
-    let message = if context_type == "derived" {
-        "State referenced in its own scope will never update. Did you mean to reference it inside a closure?".to_string()
-    } else {
+    warning(
+        "state_referenced_locally",
         format!(
-            "State `{}` referenced in its own scope will never update. Did you mean to reference it inside a closure?",
-            name
-        )
-    };
-
-    warning("state_referenced_locally", message)
+            "This reference only captures the initial value of `{}`. Did you mean to reference it inside a {} instead?\nhttps://svelte.dev/e/state_referenced_locally",
+            name, context_type
+        ),
+    )
 }
 
 /// Reactive declaration references module script dependency
 pub fn reactive_declaration_module_script_dependency() -> AnalysisWarning {
     warning(
         "reactive_declaration_module_script_dependency",
-        "Reactive declarations in instance script should not reference variables from module script that are reassigned. This can lead to unexpected behavior.",
+        "Reassignments of module-level declarations will not cause reactive statements to update\nhttps://svelte.dev/e/reactive_declaration_module_script_dependency",
+    )
+}
+
+/// Non-reactive update warning - variable is updated but not declared with $state
+pub fn non_reactive_update(name: &str) -> AnalysisWarning {
+    warning(
+        "non_reactive_update",
+        format!(
+            "`{}` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update",
+            name
+        ),
+    )
+}
+
+/// Store/rune naming conflict warning
+pub fn store_rune_conflict(store_name: &str) -> AnalysisWarning {
+    warning(
+        "store_rune_conflict",
+        format!(
+            "It looks like you're using the `${}` rune, but there is a local binding called `{}`. Referencing a local variable with a `$` prefix will create a store subscription. Please rename `{}` to avoid the ambiguity\nhttps://svelte.dev/e/store_rune_conflict",
+            store_name, store_name, store_name
+        ),
+    )
+}
+
+/// Global event reference warning
+pub fn attribute_global_event_reference(name: &str) -> AnalysisWarning {
+    warning(
+        "attribute_global_event_reference",
+        format!(
+            "You are referencing `globalThis.{}`. Did you forget to declare a variable with that name?\nhttps://svelte.dev/e/attribute_global_event_reference",
+            name
+        ),
     )
 }
 

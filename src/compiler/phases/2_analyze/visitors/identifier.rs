@@ -8,7 +8,7 @@ use super::VisitorContext;
 use super::shared::fragment::mark_subtree_dynamic;
 use super::shared::function::is_rune;
 use super::shared::utils::is_reference;
-use crate::compiler::phases::phase2_analyze::{AnalysisError, BindingKind, errors};
+use crate::compiler::phases::phase2_analyze::{AnalysisError, BindingKind, errors, warnings};
 use serde_json::Value;
 
 /// Visit an identifier.
@@ -201,9 +201,147 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         }
     }
 
-    // TODO: Implement state reference validation
-    // TODO: Implement reactive declaration warnings
-    // TODO: Implement template declaration validation
+    // Implement state_referenced_locally warning
+    // Corresponds to Svelte's Identifier.js L104-152
+    if context.analysis.runes {
+        let binding = &context.analysis.root.bindings[binding_idx];
+        let instance_scope = context.analysis.root.instance_scope_index;
+
+        // Determine the function_depth of the binding's scope
+        // Module scope (0) = function_depth 0, instance scope = function_depth 1
+        let binding_function_depth = if binding.scope_index == 0 {
+            0
+        } else if binding.scope_index == instance_scope {
+            1
+        } else {
+            // For other scopes, we can't easily determine the function depth.
+            // Skip the warning for non-top-level bindings.
+            usize::MAX
+        };
+
+        // Check if the current function_depth matches the binding's scope function_depth
+        if context.function_depth == binding_function_depth {
+            // Check binding kind eligibility
+            let is_eligible_kind = match binding.kind {
+                // State: warn if reassigned, or if the initial value is a primitive
+                // (in the official compiler this checks should_proxy on the initial argument)
+                // We simplify: warn for all $state bindings that are reassigned
+                BindingKind::State => {
+                    binding.reassigned || {
+                        // Also warn if the initial $state() call has an argument that won't be proxied
+                        // We approximate: check if initial_node_type is a primitive type
+                        binding.initial_node_type.as_deref().is_some_and(|t| {
+                            matches!(
+                                t,
+                                "Literal"
+                                    | "TemplateLiteral"
+                                    | "BinaryExpression"
+                                    | "UnaryExpression"
+                                    | "ConditionalExpression"
+                                    | "LogicalExpression"
+                            )
+                        })
+                    }
+                }
+                BindingKind::RawState | BindingKind::Derived => true,
+                BindingKind::Prop | BindingKind::RestProp => true,
+                _ => false,
+            };
+
+            if is_eligible_kind {
+                // Check this is a read, not a write
+                // parent.type !== 'AssignmentExpression' || parent.left !== node
+                // parent.type !== 'UpdateExpression'
+                let is_write = if let Some(parent) = parent {
+                    let parent_type = parent.get("type").and_then(|t| t.as_str());
+                    match parent_type {
+                        Some("AssignmentExpression") => {
+                            // Check if node is the left side
+                            parent
+                                .get("left")
+                                .and_then(|l| l.get("start"))
+                                .and_then(|s| s.as_u64())
+                                == node.get("start").and_then(|s| s.as_u64())
+                        }
+                        Some("UpdateExpression") => true,
+                        _ => false,
+                    }
+                } else {
+                    false
+                };
+
+                if !is_write {
+                    // Determine the warning type: "closure" or "derived"
+                    // Walk up the js_path to find if we're inside a $state() or $state.raw() call
+                    let mut warning_type = "closure";
+
+                    let path_len = context.js_path.len();
+                    if path_len >= 2 {
+                        let mut i = path_len - 1; // Start from the parent of the current node
+                        loop {
+                            if i == 0 {
+                                break;
+                            }
+                            i -= 1;
+                            let ancestor = &context.js_path[i];
+                            let ancestor_type = ancestor.get("type").and_then(|t| t.as_str());
+
+                            // Stop at function boundaries
+                            if matches!(
+                                ancestor_type,
+                                Some("ArrowFunctionExpression")
+                                    | Some("FunctionDeclaration")
+                                    | Some("FunctionExpression")
+                            ) {
+                                break;
+                            }
+
+                            // Check if this is a CallExpression and the next path element
+                            // is in its arguments
+                            if ancestor_type == Some("CallExpression") {
+                                // Check if the callee is $state or $state.raw
+                                if let Some(callee) = ancestor.get("callee") {
+                                    let is_state_rune = callee.get("name").and_then(|n| n.as_str())
+                                        == Some("$state")
+                                        || (callee.get("type").and_then(|t| t.as_str())
+                                            == Some("MemberExpression")
+                                            && callee.get("object").and_then(|o| {
+                                                o.get("name").and_then(|n| n.as_str())
+                                            }) == Some("$state")
+                                            && callee.get("property").and_then(|p| {
+                                                p.get("name").and_then(|n| n.as_str())
+                                            }) == Some("raw"));
+
+                                    if is_state_rune {
+                                        warning_type = "derived";
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    context
+                        .analysis
+                        .warnings
+                        .push(warnings::state_referenced_locally(name, warning_type));
+                }
+            }
+        }
+    }
+
+    // Implement reactive_declaration_module_script_dependency warning
+    // Corresponds to Svelte's Identifier.js L154-159
+    if context.in_reactive_declaration {
+        let binding = &context.analysis.root.bindings[binding_idx];
+        // Check if binding is in module scope (scope_index == 0) and is reassigned
+        if binding.scope_index == 0 && binding.reassigned {
+            context
+                .analysis
+                .warnings
+                .push(warnings::reactive_declaration_module_script_dependency());
+        }
+    }
 
     Ok(())
 }

@@ -248,6 +248,10 @@ pub struct Binding {
     /// are added so that changes to `x` also trigger updates for those references.
     /// Corresponds to `legacy_indirect_bindings` in Svelte's Binding class (scope.js).
     pub legacy_indirect_bindings: Vec<String>,
+    /// Whether this binding is referenced directly in the template (not inside a function/event handler).
+    /// This is used for `non_reactive_update` warning, which should only fire when a non-state
+    /// binding is read directly in the template, not when it's only used inside event handler callbacks.
+    pub has_direct_template_read: bool,
 }
 
 /// A blocker expression representing `$$promises[n]`.
@@ -294,6 +298,7 @@ impl Binding {
             blocker: None,
             legacy_dependencies: Vec::new(),
             legacy_indirect_bindings: Vec::new(),
+            has_direct_template_read: false,
         }
     }
 
@@ -321,6 +326,7 @@ impl Binding {
             blocker: None,
             legacy_dependencies: Vec::new(),
             legacy_indirect_bindings: Vec::new(),
+            has_direct_template_read: false,
         }
     }
 

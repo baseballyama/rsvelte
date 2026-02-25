@@ -63,6 +63,10 @@ impl<'a> ServerCodeGenerator<'a> {
 
         // First check if it's a simple variable that we know is constant
         if let Some(value) = self.constant_vars.get(trimmed) {
+            // If the constant value is null or undefined, return Null so it renders as empty
+            if value == "null" || value == "undefined" {
+                return ConstantFoldResult::Null;
+            }
             return ConstantFoldResult::Constant(value.clone());
         }
 

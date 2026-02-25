@@ -50,7 +50,14 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     // Visit the body of the labeled statement
     // This is important for analyzing expressions inside reactive statements
     if let Some(body) = node.get("body") {
+        // Set in_reactive_declaration flag when entering a $: block
+        // This is needed for the reactive_declaration_module_script_dependency warning
+        let prev_in_reactive = context.in_reactive_declaration;
+        if label_name == Some("$") && !context.analysis.runes {
+            context.in_reactive_declaration = true;
+        }
         super::script::walk_js_node(body, context)?;
+        context.in_reactive_declaration = prev_in_reactive;
     }
 
     Ok(())

@@ -423,6 +423,35 @@ pub fn analyze_component(
     // This must happen after template analysis builds the DOM structure
     control_flow::build_sibling_relationships(&mut analysis.css.dom_structure, &ast.fragment);
 
+    // In runes mode, warn on any nonstate declarations that are:
+    // a) reassigned and b) referenced in the template
+    // Corresponds to Svelte's 2-analyze/index.js L728-768
+    if analysis.runes {
+        let instance_scope = analysis.root.instance_scope_index;
+        let binding_count = analysis.root.bindings.len();
+        for i in 0..binding_count {
+            let binding = &analysis.root.bindings[i];
+            // Only check module scope (0) and instance scope bindings
+            if binding.scope_index != 0 && binding.scope_index != instance_scope {
+                continue;
+            }
+            // Only check 'normal' bindings (not state, derived, prop, etc.)
+            if !matches!(binding.kind, BindingKind::Normal) {
+                continue;
+            }
+            // Must be reassigned
+            if !binding.reassigned {
+                continue;
+            }
+            // Must be referenced directly in the template (not just inside event handlers)
+            // Corresponds to official check: walks reference paths and skips those inside functions
+            if binding.has_direct_template_read {
+                let name = binding.name.clone();
+                analysis.warnings.push(warnings::non_reactive_update(&name));
+            }
+        }
+    }
+
     // Check for mixing slot and render tag syntax
     // Corresponds to Svelte's 2-analyze/index.js check for slot_snippet_conflict
     // The official compiler checks: uses_slots || (!custom_element && slot_names.size > 0)
