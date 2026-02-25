@@ -377,12 +377,16 @@ impl<'a> CssParser<'a> {
         let selectors: Vec<Value> = self
             .split_by_comma_respecting_parens(text, offset)
             .into_iter()
-            .filter(|(s, _)| !s.trim().is_empty())
+            .filter(|(s, _)| !Self::is_only_whitespace_and_comments(s))
             .map(|(selector, selector_offset)| {
-                // Adjust offset for leading whitespace when trimming
-                let leading_ws = selector.len() - selector.trim_start().len();
-                let adjusted_offset = selector_offset + leading_ws;
-                self.parse_complex_selector(selector.trim(), adjusted_offset)
+                // Strip leading whitespace AND CSS comments to find the actual selector start
+                let leading_skip = Self::leading_ws_and_comments_len(selector);
+                let adjusted_offset = selector_offset + leading_skip;
+                let stripped = &selector[leading_skip..];
+                // Also strip trailing whitespace and comments
+                let trailing_skip = Self::trailing_ws_and_comments_len(stripped);
+                let trimmed = &stripped[..stripped.len() - trailing_skip];
+                self.parse_complex_selector(trimmed, adjusted_offset)
             })
             .collect();
 
@@ -451,29 +455,70 @@ impl<'a> CssParser<'a> {
 
     /// Check if text contains only whitespace and CSS comments (no actual selector content)
     fn is_only_whitespace_and_comments(text: &str) -> bool {
-        let chars: Vec<char> = text.chars().collect();
+        Self::leading_ws_and_comments_len(text) == text.len()
+    }
+
+    /// Returns the number of leading bytes that are whitespace or CSS comments
+    fn leading_ws_and_comments_len(text: &str) -> usize {
+        let bytes = text.as_bytes();
         let mut i = 0;
-        while i < chars.len() {
-            let c = chars[i];
-            if c.is_whitespace() {
+        while i < bytes.len() {
+            if bytes[i].is_ascii_whitespace() {
                 i += 1;
                 continue;
             }
-            // Check for CSS comment
-            if c == '/' && i + 1 < chars.len() && chars[i + 1] == '*' {
-                i += 2; // skip /*
-                while i + 1 < chars.len() && !(chars[i] == '*' && chars[i + 1] == '/') {
+            if !bytes[i].is_ascii()
+                && let Some(ch) = text[i..].chars().next()
+                && ch.is_whitespace()
+            {
+                i += ch.len_utf8();
+                continue;
+            }
+            if i + 1 < bytes.len() && bytes[i] == b'/' && bytes[i + 1] == b'*' {
+                i += 2;
+                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
                     i += 1;
                 }
-                if i + 1 < chars.len() {
-                    i += 2; // skip */
+                if i + 1 < bytes.len() {
+                    i += 2;
                 }
                 continue;
             }
-            // Found non-whitespace, non-comment character
-            return false;
+            break;
         }
-        true
+        i
+    }
+
+    /// Returns the number of trailing bytes that are whitespace or CSS comments
+    fn trailing_ws_and_comments_len(text: &str) -> usize {
+        let bytes = text.as_bytes();
+        let mut end = bytes.len();
+        loop {
+            while end > 0 && bytes[end - 1].is_ascii_whitespace() {
+                end -= 1;
+            }
+            if end >= 4 && bytes[end - 2] == b'*' && bytes[end - 1] == b'/' {
+                let comment_close = end;
+                let mut found = false;
+                let mut j = end - 3;
+                loop {
+                    if bytes[j] == b'/' && j + 1 < comment_close && bytes[j + 1] == b'*' {
+                        end = j;
+                        found = true;
+                        break;
+                    }
+                    if j == 0 {
+                        break;
+                    }
+                    j -= 1;
+                }
+                if found {
+                    continue;
+                }
+            }
+            break;
+        }
+        bytes.len() - end
     }
 
     fn parse_relative_selectors_with_combinators(

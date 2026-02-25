@@ -171,7 +171,7 @@ pub fn detect_store_subscriptions(
                     // Also check module scope (scope 0), but only for non-module references.
                     // Module-level rune references (e.g., `const data = $state({...})`) should
                     // NOT trigger a store subscription lookup via the module scope.
-                    if instance_scope != 0 && !store_ref.in_module {
+                    if instance_scope != 0 {
                         analysis
                             .root
                             .bindings
@@ -334,7 +334,23 @@ pub fn detect_store_subscriptions(
             // Store subscriptions are not allowed in module scripts
             // Corresponds to Svelte's L410-420 in 2-analyze/index.js
             if store_ref.in_module {
-                return Err(errors::store_invalid_subscription());
+                let pos = store_ref.position + ref_name.len();
+                let source_bytes = analysis.source.as_bytes();
+                let mut check_pos = pos;
+                while check_pos < source_bytes.len()
+                    && (source_bytes[check_pos] == b' '
+                        || source_bytes[check_pos] == b'\t'
+                        || source_bytes[check_pos] == b'\n'
+                        || source_bytes[check_pos] == b'\r')
+                {
+                    check_pos += 1;
+                }
+                let is_rune_call = check_pos < source_bytes.len()
+                    && source_bytes[check_pos] == b'('
+                    && is_rune(ref_name);
+                if !is_rune_call {
+                    return Err(errors::store_invalid_subscription());
+                }
             }
 
             // Check if we already have a binding for $xxx in the top-level scopes.
@@ -364,6 +380,13 @@ pub fn detect_store_subscriptions(
                 .scope
                 .declarations
                 .insert(ref_name.clone(), new_binding_idx);
+            // Also add to all_scopes[0] so get_binding() can find it via scope chain traversal.
+            // self.scope is a clone of all_scopes[0], so we need to keep both in sync.
+            if let Some(root_scope) = analysis.root.all_scopes.first_mut() {
+                root_scope
+                    .declarations
+                    .insert(ref_name.clone(), new_binding_idx);
+            }
         } else if options_runes != Some(false) {
             // When options.runes is not explicitly false (i.e., undefined/auto or true),
             // if no binding exists for a lowercase $xxx name, it's an invalid global reference.

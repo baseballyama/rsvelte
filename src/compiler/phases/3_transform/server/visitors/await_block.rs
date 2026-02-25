@@ -139,13 +139,36 @@ impl<'a> ServerCodeGenerator<'a> {
         );
         body_generator.constant_vars = self.constant_vars.clone();
 
-        for node in &block.fragment.nodes {
-            // Skip whitespace-only text nodes in key block
-            if let TemplateNode::Text(text) = node
+        // Determine range of nodes, trimming leading/trailing whitespace-only text nodes
+        // but preserving interior whitespace (e.g., between expression tags and elements)
+        let nodes = &block.fragment.nodes;
+        let len = nodes.len();
+        let mut start_idx = 0;
+        let mut end_idx = len;
+
+        // Skip leading whitespace-only text nodes
+        while start_idx < len {
+            if let TemplateNode::Text(text) = &nodes[start_idx]
                 && is_svelte_whitespace_only(&text.data)
             {
+                start_idx += 1;
                 continue;
             }
+            break;
+        }
+
+        // Skip trailing whitespace-only text nodes
+        while end_idx > start_idx {
+            if let TemplateNode::Text(text) = &nodes[end_idx - 1]
+                && is_svelte_whitespace_only(&text.data)
+            {
+                end_idx -= 1;
+                continue;
+            }
+            break;
+        }
+
+        for node in &nodes[start_idx..end_idx] {
             body_generator.generate_node(node, false)?;
         }
 

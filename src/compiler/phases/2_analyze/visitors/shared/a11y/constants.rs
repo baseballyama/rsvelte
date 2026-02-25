@@ -260,6 +260,18 @@ pub static A11Y_NON_INTERACTIVE_ELEMENT_TO_INTERACTIVE_ROLE_EXCEPTIONS: LazyLock
         ] as &[&str],
     );
     m.insert(
+        "menu",
+        &[
+            "listbox",
+            "menu",
+            "menubar",
+            "radiogroup",
+            "tablist",
+            "tree",
+            "treegrid",
+        ] as &[&str],
+    );
+    m.insert(
         "li",
         &["menuitem", "option", "row", "tab", "treeitem"] as &[&str],
     );
