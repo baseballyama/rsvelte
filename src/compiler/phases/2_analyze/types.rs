@@ -1555,4 +1555,6 @@ pub struct CustomElementConfig {
     pub tag: Option<String>,
     /// Shadow DOM mode
     pub shadow: Option<String>,
+    /// Custom element property configuration
+    pub props: Option<serde_json::Value>,
 }

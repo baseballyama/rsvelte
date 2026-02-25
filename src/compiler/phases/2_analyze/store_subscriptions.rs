@@ -145,14 +145,42 @@ pub fn detect_store_subscriptions(
         //
         // But `let state = $state(0)` creates a State binding, so `$state` is a rune.
         if is_rune(ref_name) {
-            // Look for a binding in the instance scope.
-            // Use instance_scope_index which may be > 1 if module script has nested scopes.
+            // Look for a binding in the instance scope AND module scope (scope 0).
+            // The official Svelte compiler uses `instance.scope.get(store_name)` which
+            // traverses the scope chain: instance -> module -> root.
+            // So if `state` is declared in the module scope but `$state` is used in instance,
+            // the lookup should find it.
+            //
+            // IMPORTANT: We must only check the instance scope and module scope (scope 0),
+            // NOT nested scopes. A function parameter named `state` inside a nested function
+            // should NOT cause `$state` to be treated as a store subscription.
+            //
+            // We only search the module scope when the reference is NOT from the module
+            // script itself. When a rune-named reference like `$state` appears in the
+            // module script, it's most likely being used as a rune call (e.g., `$state({...})`),
+            // not as a store subscription. The official compiler handles this via
+            // `get_rune(path.at(-1), module.scope)` check, but we approximate by
+            // not searching the module scope for module-level references.
             let instance_scope = analysis.root.instance_scope_index;
             let instance_binding = analysis
                 .root
                 .bindings
                 .iter()
-                .find(|b| b.name == store_name && b.scope_index == instance_scope);
+                .find(|b| b.name == store_name && b.scope_index == instance_scope)
+                .or_else(|| {
+                    // Also check module scope (scope 0), but only for non-module references.
+                    // Module-level rune references (e.g., `const data = $state({...})`) should
+                    // NOT trigger a store subscription lookup via the module scope.
+                    if instance_scope != 0 && !store_ref.in_module {
+                        analysis
+                            .root
+                            .bindings
+                            .iter()
+                            .find(|b| b.name == store_name && b.scope_index == 0)
+                    } else {
+                        None
+                    }
+                });
 
             if let Some(binding) = instance_binding {
                 // Check if the binding's initialization is itself a rune call.

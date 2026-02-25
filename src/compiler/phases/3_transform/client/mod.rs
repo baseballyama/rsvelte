@@ -10416,9 +10416,14 @@ fn is_shadowed_by_function_param(chars: &[char], var_start: usize, var_name: &st
         if c == '}' {
             brace_depth += 1;
         } else if c == '{' {
-            // Skip template literal interpolation `${` - not a scope boundary
+            // Skip template literal interpolation `${` - not a scope boundary.
+            // When scanning backwards, the `}` that closes this interpolation was already
+            // encountered and incremented brace_depth. We need to undo that by decrementing
+            // brace_depth here, and then skip this `{` entirely.
             if i > 0 && chars[i - 1] == '$' {
-                // This is `${...}` in a template literal, not a scope boundary
+                if brace_depth > 0 {
+                    brace_depth -= 1;
+                }
                 continue;
             }
             if brace_depth > 0 {
