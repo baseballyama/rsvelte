@@ -308,9 +308,36 @@ pub fn remove_typescript_nodes(node: &mut JsonValue, path: &[&str]) -> Result<()
             {
                 let has_non_type_nodes = body.iter().any(|entry| {
                     let t = get_type(entry).unwrap_or("");
-                    t != "EmptyStatement"
-                        && t != "TSInterfaceDeclaration"
-                        && t != "TSTypeAliasDeclaration"
+                    // Type-only nodes that are always safe to strip
+                    if t == "EmptyStatement"
+                        || t == "TSInterfaceDeclaration"
+                        || t == "TSTypeAliasDeclaration"
+                        || t == "TSEnumDeclaration"
+                    {
+                        return false;
+                    }
+                    // ExportNamedDeclaration wrapping a type-only declaration is also safe
+                    if t == "ExportNamedDeclaration" {
+                        // Check if it's `export type ...` (exportKind == "type")
+                        if entry
+                            .get("exportKind")
+                            .and_then(|k| k.as_str())
+                            .is_some_and(|k| k == "type")
+                        {
+                            return false;
+                        }
+                        // Check if the declaration is type-only
+                        if let Some(decl) = entry.get("declaration") {
+                            let decl_type = get_type(decl).unwrap_or("");
+                            if decl_type == "TSInterfaceDeclaration"
+                                || decl_type == "TSTypeAliasDeclaration"
+                                || decl_type == "TSEnumDeclaration"
+                            {
+                                return false;
+                            }
+                        }
+                    }
+                    true
                 });
 
                 if has_non_type_nodes {
