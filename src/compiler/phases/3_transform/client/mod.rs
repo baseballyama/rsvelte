@@ -4157,7 +4157,7 @@ fn extract_reactive_statement_deps(
             }
         }
     } else {
-        // Not a simple assignment - expression statement like `console.log(x)`
+        // Not a simple assignment - expression statement like `console.log(x)` or `if (...) { x++ }`
         // All referenced reactive vars are dependencies
         for var_name in &all_reactive_vars {
             if body_references_identifier(body, var_name) {
@@ -4166,7 +4166,85 @@ fn extract_reactive_statement_deps(
         }
     }
 
+    // Also scan the entire body for assignments to reactive vars inside nested blocks.
+    // This catches patterns like `$: if (cond) { count++ }` where `count` is assigned
+    // inside an if block but the top-level is not an assignment expression.
+    // We look for `var =`, `var++`, `var--`, `++var`, `--var` patterns.
+    for var_name in &all_reactive_vars {
+        if assigned_vars.contains(&var_name.to_string()) {
+            continue; // Already detected as assigned
+        }
+        if is_assigned_anywhere_in_body(body, var_name)
+            && !assigned_vars.contains(&var_name.to_string())
+        {
+            assigned_vars.push(var_name.to_string());
+        }
+    }
+
     (assigned_vars, dep_vars)
+}
+
+/// Check if a variable is assigned anywhere in a code body (including nested blocks).
+/// Detects `var = ...`, `var += ...`, `var++`, `var--`, `++var`, `--var` patterns.
+fn is_assigned_anywhere_in_body(body: &str, var_name: &str) -> bool {
+    // Check for update expressions: `var++`, `var--`, `++var`, `--var`
+    let pp = format!("{}++", var_name);
+    let mm = format!("{}--", var_name);
+    let pp2 = format!("++{}", var_name);
+    let mm2 = format!("--{}", var_name);
+
+    for pattern in &[&pp, &mm, &pp2, &mm2] {
+        if let Some(pos) = body.find(pattern.as_str()) {
+            // Verify it's at a word boundary
+            let before = if pos > 0 {
+                body.as_bytes()[pos - 1]
+            } else {
+                b' '
+            };
+            let after_pos = pos + pattern.len();
+            let after = if after_pos < body.len() {
+                body.as_bytes()[after_pos]
+            } else {
+                b' '
+            };
+            let before_ok = !before.is_ascii_alphanumeric() && before != b'_' && before != b'$';
+            let after_ok = !after.is_ascii_alphanumeric() && after != b'_' && after != b'$';
+            if before_ok && after_ok {
+                return true;
+            }
+        }
+    }
+
+    // Check for assignment operators: `var = ...`, `var += ...`, `var -= ...`, etc.
+    let assign_patterns = [
+        " = ", " += ", " -= ", " *= ", " /= ", " %= ", " **= ", " &= ", " |= ", " ^= ", " <<= ",
+        " >>= ", " >>>= ", " ??= ", " &&= ", " ||= ",
+    ];
+    for assign_op in &assign_patterns {
+        let pattern = format!("{}{}", var_name, assign_op);
+        if let Some(pos) = body.find(&pattern) {
+            // Verify the variable name is at a word boundary (not part of a longer name)
+            let before = if pos > 0 {
+                body.as_bytes()[pos - 1]
+            } else {
+                b' '
+            };
+            let before_ok = !before.is_ascii_alphanumeric() && before != b'_' && before != b'$';
+            if before_ok {
+                // Also make sure it's not `==` or `=>`
+                let after_eq = pos + var_name.len() + assign_op.len();
+                if assign_op == &" = " && after_eq < body.len() {
+                    let next = body.as_bytes()[after_eq - 1]; // the char after '='
+                    if next == b'=' || next == b'>' {
+                        continue;
+                    }
+                }
+                return true;
+            }
+        }
+    }
+
+    false
 }
 
 /// Topologically sort reactive statements based on their dependencies.
@@ -10338,6 +10416,11 @@ fn is_shadowed_by_function_param(chars: &[char], var_start: usize, var_name: &st
         if c == '}' {
             brace_depth += 1;
         } else if c == '{' {
+            // Skip template literal interpolation `${` - not a scope boundary
+            if i > 0 && chars[i - 1] == '$' {
+                // This is `${...}` in a template literal, not a scope boundary
+                continue;
+            }
             if brace_depth > 0 {
                 brace_depth -= 1;
             } else {
@@ -10349,6 +10432,22 @@ fn is_shadowed_by_function_param(chars: &[char], var_start: usize, var_name: &st
                 let mut j = i;
                 while j > 0 && chars[j - 1].is_whitespace() {
                     j -= 1;
+                }
+
+                // Handle arrow functions with parenthesized body: (params) => ({...})
+                // In this case, the { is preceded by ( which is preceded by =>
+                if j > 0 && chars[j - 1] == '(' {
+                    let mut k = j - 1;
+                    while k > 0 && chars[k - 1].is_whitespace() {
+                        k -= 1;
+                    }
+                    if k >= 2 && chars[k - 2] == '=' && chars[k - 1] == '>' {
+                        // This is `=> ({` pattern - treat as arrow function body
+                        j = k - 2;
+                        while j > 0 && chars[j - 1].is_whitespace() {
+                            j -= 1;
+                        }
+                    }
                 }
 
                 // Also skip => for arrow functions: (params) => {
@@ -14428,6 +14527,7 @@ fn generate_destructure_iife(
     } else {
         // Object destructure
         let mut body_lines = Vec::new();
+        let mut prepend_lines: Vec<String> = Vec::new();
 
         for part in &parts {
             let part = part.trim();
@@ -14476,6 +14576,58 @@ fn generate_destructure_iife(
                         "\t{} = $.fallback($$value.{}, {});",
                         actual_target, key, default_val
                     ));
+                } else if target.starts_with('[') && target.ends_with(']') {
+                    // Nested array pattern: key: [a, b, c]
+                    // Inline the array destructuring instead of creating a nested IIFE
+                    let inner_parts = split_on_commas(&target[1..target.len() - 1]);
+                    let array_name = DESTRUCTURE_ARRAY_COUNTER.with(|c| {
+                        let count = c.get();
+                        let name = if count == 0 {
+                            "$$array".to_string()
+                        } else {
+                            format!("$$array_{}", count)
+                        };
+                        c.set(count + 1);
+                        name
+                    });
+                    // Insert the to_array call at the beginning of body_lines
+                    // We use a marker to insert it at the right place later
+                    let has_rest = inner_parts
+                        .last()
+                        .map(|p| p.trim().starts_with("..."))
+                        .unwrap_or(false);
+                    let to_array_args = if has_rest {
+                        format!("$.to_array($$value.{})", key)
+                    } else {
+                        format!("$.to_array($$value.{}, {})", key, inner_parts.len())
+                    };
+                    // We need to insert the var declaration before the assignments
+                    // Store it as a "prepend" item
+                    prepend_lines.push(format!("\tvar {} = {};", array_name, to_array_args));
+
+                    for (idx, inner_part) in inner_parts.iter().enumerate() {
+                        let inner_part = inner_part.trim();
+                        if inner_part.is_empty() {
+                            continue;
+                        }
+                        if let Some(rest_target) = inner_part.strip_prefix("...") {
+                            body_lines.push(format!(
+                                "\t{} = {}.slice({});",
+                                rest_target.trim(),
+                                array_name,
+                                idx
+                            ));
+                        } else if let Some(eq_pos) = find_top_level_equals(inner_part) {
+                            let actual_target = inner_part[..eq_pos].trim();
+                            let default_val = inner_part[eq_pos + 1..].trim();
+                            body_lines.push(format!(
+                                "\t{} = $.fallback({}[{}], {});",
+                                actual_target, array_name, idx, default_val
+                            ));
+                        } else {
+                            body_lines.push(format!("\t{} = {}[{}];", inner_part, array_name, idx));
+                        }
+                    }
                 } else {
                     body_lines.push(format!("\t{} = $$value.{};", target, key));
                 }
@@ -14495,6 +14647,14 @@ fn generate_destructure_iife(
 
                 body_lines.push(format!("\t{} = $$value.{};", name, name));
             }
+        }
+
+        // Prepend array destructure declarations before assignments
+        if !prepend_lines.is_empty() {
+            prepend_lines.push(String::new()); // blank line after declarations
+            let mut all_lines = prepend_lines;
+            all_lines.extend(body_lines);
+            body_lines = all_lines;
         }
 
         if !is_standalone {

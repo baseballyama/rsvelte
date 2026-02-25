@@ -1191,6 +1191,73 @@ fn convert_property_key(
     JsPropertyKey::Identifier("unknown".to_string())
 }
 
+/// Extract all parameter names from the raw JSON params array.
+/// This is used to temporarily remove transforms for shadowed parameters
+/// when entering arrow/function expression bodies.
+fn extract_param_names_from_json(obj: &serde_json::Map<String, Value>) -> Vec<String> {
+    let mut names = Vec::new();
+    if let Some(params) = obj.get("params").and_then(|p| p.as_array()) {
+        for param in params {
+            collect_param_names(param, &mut names);
+        }
+    }
+    names
+}
+
+/// Recursively collect identifier names from a parameter pattern.
+fn collect_param_names(value: &Value, names: &mut Vec<String>) {
+    if let Some(obj) = value.as_object() {
+        match obj.get("type").and_then(|t| t.as_str()).unwrap_or("") {
+            "Identifier" => {
+                if let Some(name) = obj.get("name").and_then(|n| n.as_str()) {
+                    names.push(name.to_string());
+                }
+            }
+            "AssignmentPattern" => {
+                if let Some(left) = obj.get("left") {
+                    collect_param_names(left, names);
+                }
+            }
+            "ObjectPattern" => {
+                if let Some(props) = obj.get("properties").and_then(|p| p.as_array()) {
+                    for prop in props {
+                        if let Some(prop_obj) = prop.as_object() {
+                            match prop_obj.get("type").and_then(|t| t.as_str()).unwrap_or("") {
+                                "Property" => {
+                                    if let Some(val) = prop_obj.get("value") {
+                                        collect_param_names(val, names);
+                                    }
+                                }
+                                "RestElement" => {
+                                    if let Some(arg) = prop_obj.get("argument") {
+                                        collect_param_names(arg, names);
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+            }
+            "ArrayPattern" => {
+                if let Some(elements) = obj.get("elements").and_then(|e| e.as_array()) {
+                    for el in elements {
+                        if !el.is_null() {
+                            collect_param_names(el, names);
+                        }
+                    }
+                }
+            }
+            "RestElement" => {
+                if let Some(arg) = obj.get("argument") {
+                    collect_param_names(arg, names);
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
 /// Convert an ArrowFunctionExpression node.
 fn convert_arrow_function(
     obj: &serde_json::Map<String, Value>,
@@ -1199,6 +1266,15 @@ fn convert_arrow_function(
     let params = convert_params(obj, context);
 
     let is_async = obj.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
+
+    // Save transforms and remove any for parameter names that shadow outer variables.
+    // For example, in `createRawSnippet((count) => { ... })`, the `count` parameter
+    // shadows the outer `$state` variable `count`, so `$.get()` should NOT be applied.
+    let saved_transform = context.state.transform.clone();
+    let param_names = extract_param_names_from_json(obj);
+    for name in &param_names {
+        context.state.transform.remove(name);
+    }
 
     // Push a new local scope frame for the arrow function body.
     // This allows should_proxy_value to look up local variable init types
@@ -1221,6 +1297,9 @@ fn convert_arrow_function(
     // Pop the local scope frame
     context.state.pop_local_scope();
 
+    // Restore transforms
+    context.state.transform = saved_transform;
+
     JsExpr::Arrow(JsArrowFunction {
         params,
         body,
@@ -1242,6 +1321,13 @@ fn convert_function_expression(
 
     let params = convert_params(obj, context);
 
+    // Save transforms and remove any for parameter names that shadow outer variables.
+    let saved_transform = context.state.transform.clone();
+    let param_names = extract_param_names_from_json(obj);
+    for name in &param_names {
+        context.state.transform.remove(name);
+    }
+
     // Push a new local scope frame for the function body
     context.state.push_local_scope();
 
@@ -1253,6 +1339,9 @@ fn convert_function_expression(
 
     // Pop the local scope frame
     context.state.pop_local_scope();
+
+    // Restore transforms
+    context.state.transform = saved_transform;
 
     let is_async = obj.get("async").and_then(|a| a.as_bool()).unwrap_or(false);
 
@@ -1301,7 +1390,11 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
                 .and_then(|l| convert_param_pattern(l, context))?;
             let right = obj
                 .get("right")
-                .map(|r| Box::new(convert_json_value(r, context)))
+                .map(|r| {
+                    let expr = convert_json_value(r, context);
+                    // Apply transforms so reactive identifiers in default values get their getter calls
+                    Box::new(crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&expr, context))
+                })
                 .unwrap_or_else(|| Box::new(JsExpr::Literal(JsLiteral::Undefined)));
             Some(JsPattern::Assignment(JsAssignmentPattern {
                 left: Box::new(left),
@@ -1373,6 +1466,9 @@ pub fn convert_param_pattern(value: &Value, context: &mut ComponentContext) -> O
                                         &Value::Object(key_val.clone()),
                                         context,
                                     );
+                                    // Apply transforms so reactive identifiers get their getter calls
+                                    // e.g., `dimension` -> `dimension()` in `[`two${dimension()}`]`
+                                    let key_expr = crate::compiler::phases::phase3_transform::client::visitors::shared::utils::apply_transforms_to_expression(&key_expr, context);
                                     (JsPropertyKey::Computed(Box::new(key_expr)), None)
                                 };
 
@@ -1963,18 +2059,15 @@ fn try_transform_assignment(
     }
 
     // Case: Mutation (root identifier !== left, i.e., member expression assignment)
-    if let Some(mutate_fn) = transform.mutate {
-        // left and right are already converted (with read transforms applied by convert_json_value),
-        // so we use them directly for the mutation expression.
+    // Skip for reactive imports (where replacement_id is set) because
+    // apply_transforms_to_expression will handle the mutation wrapping with
+    // properly read-transformed arguments.
+    if let Some(mutate_fn) = transform.mutate
+        && transform.replacement_id.is_none()
+    {
         let mutation_expr = b::assign_op(operator, left.clone(), right.clone());
 
-        // Use replacement_id if set (e.g., reactive imports: numbers -> $$_import_numbers)
-        let node_id = if let Some(ref replacement) = transform.replacement_id {
-            b::id(replacement)
-        } else {
-            b::id(&root_name)
-        };
-        return Some(mutate_fn(node_id, mutation_expr));
+        return Some(mutate_fn(b::id(&root_name), mutation_expr));
     }
 
     None
@@ -2692,8 +2785,13 @@ fn try_transform_update(
     }
 
     // Case 2: Member expression update (like `$store.prop++` or `$store[0].value++`)
-    // Use the `mutate` transform
-    if let Some(mutate_fn) = transform.mutate {
+    // Use the `mutate` transform.
+    // Skip for reactive imports (where replacement_id is set) because
+    // apply_transforms_to_expression will handle the mutation wrapping with
+    // properly read-transformed arguments.
+    if let Some(mutate_fn) = transform.mutate
+        && transform.replacement_id.is_none()
+    {
         // Build the update expression as the mutation
         let update_expr = JsExpr::Update(JsUpdateExpression {
             operator,
@@ -2701,13 +2799,7 @@ fn try_transform_update(
             prefix,
         });
 
-        // Use replacement_id if set (e.g., reactive imports: numbers -> $$_import_numbers)
-        let node_id = if let Some(ref replacement) = transform.replacement_id {
-            b::id(replacement)
-        } else {
-            b::id(&root_name)
-        };
-        return Some(mutate_fn(node_id, update_expr));
+        return Some(mutate_fn(b::id(&root_name), update_expr));
     }
 
     None

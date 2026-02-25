@@ -257,6 +257,17 @@ pub struct Binding {
     /// to skip warnings for the declaration node itself (e.g., `let count = $state(0)`,
     /// the `count` identifier is the declaration node, not a reference).
     pub declaration_start: Option<u32>,
+    /// Warning codes to ignore for this binding (from preceding svelte-ignore comments).
+    /// Used to suppress warnings like `non_reactive_update` when the declaration has a
+    /// `// svelte-ignore non_reactive_update` comment.
+    pub ignore_codes: Vec<String>,
+    /// Whether this binding is inside a rest element in an each block destructuring.
+    /// Used for the `bind_invalid_each_rest` warning.
+    pub inside_rest: bool,
+    /// The import source path (e.g., "./Foo.svelte"), if this binding comes from an import.
+    pub import_source: Option<String>,
+    /// Whether this binding is a default import (as opposed to named import).
+    pub is_default_import: bool,
 }
 
 /// A blocker expression representing `$$promises[n]`.
@@ -305,6 +316,10 @@ impl Binding {
             legacy_indirect_bindings: Vec::new(),
             has_direct_template_read: false,
             declaration_start: None,
+            ignore_codes: Vec::new(),
+            inside_rest: false,
+            import_source: None,
+            is_default_import: false,
         }
     }
 
@@ -334,6 +349,10 @@ impl Binding {
             legacy_indirect_bindings: Vec::new(),
             has_direct_template_read: false,
             declaration_start: None,
+            ignore_codes: Vec::new(),
+            inside_rest: false,
+            import_source: None,
+            is_default_import: false,
         }
     }
 

@@ -9,7 +9,7 @@ use super::super::warnings;
 use super::VisitorContext;
 use super::shared::fragment;
 use super::shared::special_element::validate_special_element_placement;
-use crate::ast::template::SvelteElement;
+use crate::ast::template::{Attribute, AttributeValue, AttributeValuePart, SvelteElement};
 
 /// Visit a svelte:self.
 pub fn visit(self_: &mut SvelteElement, context: &mut VisitorContext) -> Result<(), AnalysisError> {
@@ -30,6 +30,17 @@ pub fn visit(self_: &mut SvelteElement, context: &mut VisitorContext) -> Result<
     let basename = format!("{}.svelte", component_name);
 
     context.emit_warning(warnings::svelte_self_deprecated(component_name, &basename));
+
+    // Check attribute_quoted for svelte:self
+    for attr in &self_.attributes {
+        if let Attribute::Attribute(a) = attr
+            && let AttributeValue::Sequence(parts) = &a.value
+            && parts.len() == 1
+            && matches!(&parts[0], AttributeValuePart::ExpressionTag(_))
+        {
+            context.emit_warning(warnings::attribute_quoted());
+        }
+    }
 
     // Analyze children
     fragment::analyze(&mut self_.fragment, context)?;

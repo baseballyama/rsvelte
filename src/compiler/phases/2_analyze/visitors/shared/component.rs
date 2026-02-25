@@ -12,7 +12,9 @@ use super::super::VisitorContext;
 use super::super::attribute::visit_attribute_value_expressions;
 use super::fragment;
 use super::utils::{validate_assignment, validate_attribute_name as validate_attribute_name_colon};
-use crate::ast::template::{Attribute, Component};
+use crate::ast::template::{
+    Attribute, AttributeNode, AttributeValue, AttributeValuePart, Component,
+};
 
 /// Visit a component and perform full analysis.
 ///
@@ -131,6 +133,10 @@ pub fn visit_component(
                     {
                         return Err(errors::attribute_invalid_sequence_expression());
                     }
+                }
+                // Check for attribute_quoted: quoted single-expression attribute on component
+                if is_quoted_single_expression(attr) {
+                    context.emit_warning(super::super::super::warnings::attribute_quoted());
                 }
                 // Check for illegal colon in attribute name
                 if let Err(warning) = validate_attribute_name_colon(&attr.name) {
@@ -411,6 +417,17 @@ pub fn validate_component(
     }
 
     Ok(())
+}
+
+/// Check if an attribute has a quoted single-expression value like `class="{foo}"`.
+/// This corresponds to the check in shared/attribute.js:
+/// `Array.isArray(value) && value.length === 1 && value[0].type === 'ExpressionTag'`
+fn is_quoted_single_expression(attr: &AttributeNode) -> bool {
+    if let AttributeValue::Sequence(parts) = &attr.value {
+        parts.len() == 1 && matches!(&parts[0], AttributeValuePart::ExpressionTag(_))
+    } else {
+        false
+    }
 }
 
 /// Check if a component uses two-way binding.

@@ -69,6 +69,8 @@ struct ValidatorFixture {
     expected_error: Option<ExpectedError>,
     /// Compile option: runes mode (None = auto-detect, Some(true) = forced on, Some(false) = forced off)
     runes: Option<bool>,
+    /// Compile option: custom element mode
+    custom_element: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -81,6 +83,7 @@ enum InputType {
 struct TestConfig {
     skip: bool,
     runes: Option<bool>,
+    custom_element: bool,
 }
 
 fn parse_test_config(sample_dir: &Path) -> TestConfig {
@@ -88,6 +91,7 @@ fn parse_test_config(sample_dir: &Path) -> TestConfig {
     let mut config = TestConfig {
         skip: false,
         runes: None,
+        custom_element: false,
     };
 
     if config_path.exists()
@@ -110,6 +114,11 @@ fn parse_test_config(sample_dir: &Path) -> TestConfig {
             config.runes = Some(false);
         } else if content.contains("runes: true") || content.contains("runes:true") {
             config.runes = Some(true);
+        }
+
+        // Extract customElement option from compileOptions
+        if content.contains("customElement: true") || content.contains("customElement:true") {
+            config.custom_element = true;
         }
     }
 
@@ -164,6 +173,7 @@ fn load_validator_fixture(sample_dir: &Path) -> Option<ValidatorFixture> {
         expected_warnings,
         expected_error,
         runes: config.runes,
+        custom_element: config.custom_element,
     })
 }
 
@@ -196,6 +206,7 @@ fn run_validator_test(fixture: &ValidatorFixture) -> TestResult {
     let name = fixture.name.clone();
     let input = fixture.input.clone();
     let runes = fixture.runes;
+    let custom_element = fixture.custom_element;
 
     // Use panic::catch_unwind to handle panics gracefully
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -203,6 +214,7 @@ fn run_validator_test(fixture: &ValidatorFixture) -> TestResult {
             generate: GenerateMode::Client,
             filename: Some(format!("{}/input.svelte", name)),
             runes,
+            custom_element,
             ..Default::default()
         };
         compile(&input, options)

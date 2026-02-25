@@ -1219,6 +1219,34 @@ fn convert_binding_pattern_for_param(
                     elements.push(Value::Null);
                 }
             }
+
+            // Handle rest element if present (e.g., [a, ...[b, ...[c]]])
+            if let Some(rest) = &arr_pat.rest {
+                let rest_start = adjusted_offset + rest.span.start as usize;
+                let rest_end = adjusted_offset + rest.span.end as usize;
+
+                let mut rest_obj = Map::new();
+                rest_obj.insert("type".to_string(), Value::String("RestElement".to_string()));
+                rest_obj.insert(
+                    "start".to_string(),
+                    Value::Number((rest_start as i64).into()),
+                );
+                rest_obj.insert("end".to_string(), Value::Number((rest_end as i64).into()));
+                rest_obj.insert(
+                    "loc".to_string(),
+                    create_loc(rest_start, rest_end, line_offsets),
+                );
+
+                let argument = convert_binding_pattern_for_param(
+                    &rest.argument,
+                    adjusted_offset,
+                    line_offsets,
+                );
+                rest_obj.insert("argument".to_string(), argument);
+
+                elements.push(Value::Object(rest_obj));
+            }
+
             obj.insert("elements".to_string(), Value::Array(elements));
 
             Value::Object(obj)
@@ -4232,12 +4260,79 @@ pub fn parse_program(
         create_loc_for_script(script_tag_start, script_tag_end, line_offsets),
     );
 
-    // Convert body statements
-    let body: Vec<Value> = program
-        .body
-        .iter()
-        .filter_map(|stmt| convert_statement_for_program(stmt, offset, line_offsets))
-        .collect();
+    // Convert body statements and attach leading comments to each statement.
+    // The official Svelte compiler (via acorn) attaches leadingComments to AST nodes.
+    // OXC stores all comments at the program level, so we distribute them here.
+    let all_comments: Vec<_> = result.program.comments.iter().collect();
+    let mut comment_idx = 0;
+
+    let mut body: Vec<Value> = Vec::new();
+    for stmt in program.body.iter() {
+        if let Some(mut stmt_value) = convert_statement_for_program(stmt, offset, line_offsets) {
+            let stmt_start = stmt.span().start;
+
+            // Collect comments that appear before this statement
+            let mut leading = Vec::new();
+            while comment_idx < all_comments.len()
+                && all_comments[comment_idx].span.end <= stmt_start
+            {
+                let comment = all_comments[comment_idx];
+                let comment_start = offset + comment.span.start as usize;
+                let comment_end = offset + comment.span.end as usize;
+                let comment_type = match comment.kind {
+                    oxc_ast::ast::CommentKind::Line => "Line",
+                    oxc_ast::ast::CommentKind::SingleLineBlock
+                    | oxc_ast::ast::CommentKind::MultiLineBlock => "Block",
+                };
+                let comment_text = if comment_end <= offset + content.len() {
+                    let raw = &content[comment.span.start as usize..comment.span.end as usize];
+                    match comment.kind {
+                        oxc_ast::ast::CommentKind::Line => {
+                            raw.strip_prefix("//").unwrap_or(raw).to_string()
+                        }
+                        oxc_ast::ast::CommentKind::SingleLineBlock
+                        | oxc_ast::ast::CommentKind::MultiLineBlock => raw
+                            .strip_prefix("/*")
+                            .and_then(|s| s.strip_suffix("*/"))
+                            .unwrap_or(raw)
+                            .to_string(),
+                    }
+                } else {
+                    String::new()
+                };
+
+                let mut comment_obj = Map::new();
+                comment_obj.insert("type".to_string(), Value::String(comment_type.to_string()));
+                comment_obj.insert("value".to_string(), Value::String(comment_text));
+                comment_obj.insert(
+                    "start".to_string(),
+                    Value::Number((comment_start as i64).into()),
+                );
+                comment_obj.insert(
+                    "end".to_string(),
+                    Value::Number((comment_end as i64).into()),
+                );
+                leading.push(Value::Object(comment_obj));
+                comment_idx += 1;
+            }
+
+            // Skip comments that are inside the statement
+            while comment_idx < all_comments.len()
+                && all_comments[comment_idx].span.start < stmt.span().end
+            {
+                comment_idx += 1;
+            }
+
+            // Attach leading comments to the statement
+            if !leading.is_empty()
+                && let Value::Object(ref mut obj) = stmt_value
+            {
+                obj.insert("leadingComments".to_string(), Value::Array(leading));
+            }
+
+            body.push(stmt_value);
+        }
+    }
     obj.insert("body".to_string(), Value::Array(body));
 
     obj.insert(
@@ -4245,7 +4340,7 @@ pub fn parse_program(
         Value::String("module".to_string()),
     );
 
-    // Handle comments if present
+    // Store all comments on the Program as trailingComments (for backward compat)
     if !result.program.comments.is_empty() {
         let comments: Vec<Value> = result
             .program
@@ -4260,7 +4355,6 @@ pub fn parse_program(
                 };
                 comment_obj.insert("type".to_string(), Value::String(comment_type.to_string()));
 
-                // Extract comment value (the text without // or /* */)
                 let comment_start = offset + comment.span.start as usize;
                 let comment_end = offset + comment.span.end as usize;
                 let comment_text = if comment_end <= offset + content.len() {

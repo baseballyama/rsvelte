@@ -137,9 +137,13 @@ pub fn validate_element(
                 }
 
                 // Check for React-style attributes
-                if let Some(_correct_name) = get_react_attribute_correction(&attr.name) {
-                    // Would generate warning here:
-                    // w.attribute_invalid_property_name(attribute, attribute.name, correct_name)
+                if let Some(correct_name) = get_react_attribute_correction(&attr.name) {
+                    context.emit_warning(
+                        super::super::super::warnings::attribute_invalid_property_name(
+                            &attr.name,
+                            correct_name,
+                        ),
+                    );
                 }
 
                 validate_attribute_name(attr)?;

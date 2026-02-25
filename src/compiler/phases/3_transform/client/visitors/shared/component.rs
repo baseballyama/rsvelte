@@ -1508,15 +1508,19 @@ fn process_snippet_block(
     // 2. Add it to our snippet_declarations instead
     // 3. Add the snippet as a prop to the component
 
-    // Pop the declaration from the appropriate collection
+    // Pop the declaration from the appropriate collection.
+    // When snippets are inside a component (template_nesting_level > 0),
+    // they go to `snippets` rather than module/instance level collections.
     let declaration = if snippet.metadata.can_hoist {
         context.state.module_level_snippets.pop()
     } else {
-        // Try instance_level_snippets first, then init
+        // Try snippets first (for non-root snippets inside components),
+        // then instance_level_snippets, then init
         context
             .state
-            .instance_level_snippets
+            .snippets
             .pop()
+            .or_else(|| context.state.instance_level_snippets.pop())
             .or_else(|| context.state.init.pop())
     };
 
@@ -1661,8 +1665,8 @@ fn visit_slot_children(
         context.state.options.preserve_comments,
     );
 
-    // If no trimmed nodes, return empty
-    if cleaned.trimmed.is_empty() {
+    // If no trimmed nodes and no hoisted nodes, return empty
+    if cleaned.trimmed.is_empty() && cleaned.hoisted.is_empty() {
         return Vec::new();
     }
 
@@ -1689,6 +1693,12 @@ fn visit_slot_children(
     // Set the node to $$anchor - this is the anchor passed to the slot function
     // The slot function signature is ($$anchor, $$slotProps) => { ... }
     context.state.node = b::id("$$anchor");
+
+    // Process hoisted nodes (ConstTag, DebugTag, etc.)
+    // This mirrors Fragment.js which visits hoisted nodes before processing trimmed nodes.
+    for hoisted_node in &cleaned.hoisted {
+        context.visit_node(hoisted_node, None);
+    }
 
     // Track close statement ($.append) - this should come AFTER after_update
     // per Fragment.js order: init -> update -> after_update -> close

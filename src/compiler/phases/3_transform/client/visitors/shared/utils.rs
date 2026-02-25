@@ -952,9 +952,13 @@ pub fn apply_transforms_to_expression_with_shadowed(
                             .unwrap_or(false)
                     };
 
-                    let mutation_left = if is_prop_binding {
-                        // Prop bindings: recurse full left side so prop call appears
+                    let is_reactive_import = transform.replacement_id.is_some();
+
+                    let mutation_left = if is_prop_binding || is_reactive_import {
+                        // Prop bindings and reactive imports: recurse full left side so
+                        // the base read transform is applied.
                         // e.g., `selected[0] = $$value` -> `selected(selected()[0] = $$value, true)`
+                        // e.g., `handler.value = log_b` -> `$$_import_handler($$_import_handler().value = log_b)`
                         Box::new(recurse!(&assign.left))
                     } else if is_store_sub {
                         // Store subscriptions: keep original left side for store_sub_mutate to handle
@@ -982,7 +986,14 @@ pub fn apply_transforms_to_expression_with_shadowed(
                     // Apply the mutate transform
                     // e.g., $store.prop = value -> $.store_mutate(store, $.untrack($store).prop = value, $.untrack($store))
                     // e.g., selected[0] = value -> selected(selected()[0] = value, true)
-                    return mutate_fn(JsExpr::Identifier(name.clone()), full_assignment);
+                    // Use replacement_id if set (e.g., reactive imports: handler -> $$_import_handler)
+                    let mutate_target = if let Some(ref replacement) = transform.replacement_id {
+                        JsExpr::Identifier(replacement.clone())
+                    } else {
+                        JsExpr::Identifier(name.clone())
+                    };
+
+                    return mutate_fn(mutate_target, full_assignment);
                 }
             }
 

@@ -18,6 +18,17 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     // Ensure no conflict with module imports
     utils::ensure_no_module_import_conflict(node, context)?;
 
+    // Collect svelte-ignore codes from the parent VariableDeclaration's leading comments.
+    // This is needed to suppress warnings like `non_reactive_update` when the declaration
+    // has a `// svelte-ignore non_reactive_update` comment.
+    let ignore_codes = collect_ignore_codes_from_parent(context);
+    if !ignore_codes.is_empty() {
+        // Store ignore codes on all bindings declared in this declarator
+        if let Some(id) = node.get("id") {
+            store_ignore_codes_on_bindings(id, &ignore_codes, context);
+        }
+    }
+
     if context.analysis.runes {
         // Runes mode path
         visit_runes_mode(node, context)?;
@@ -159,9 +170,12 @@ fn update_binding_kinds(
     for path in paths {
         if let Some(name) = path.get("name").and_then(|n| n.as_str()) {
             // Find the correct binding for this declaration. When inside a nested function
-            // (function_depth > 0), the merged declarations map might return an outer binding
-            // that shadows the inner one. In that case, search inner scopes for the correct binding.
-            let binding_idx = if context.function_depth > 0 {
+            // (function_depth > 1, since instance script starts at depth 1), the merged
+            // declarations map might return an outer binding that shadows the inner one.
+            // In that case, search inner scopes for the correct binding.
+            // Note: We use > 1 (not > 0) because the instance script starts at function_depth=1.
+            // Instance-level declarations should use the root scope declarations directly.
+            let binding_idx = if context.function_depth > 1 {
                 // Search inner scopes (from deepest to shallowest) for a binding that
                 // was declared INSIDE a nested function (scope_index > 1 for instance code).
                 let mut found = None;
@@ -266,10 +280,13 @@ fn process_props_declaration(
         }
 
         // Warn about custom element configuration
-        if context.analysis.custom_element.is_some() {
-            // TODO: Check context.options.customElementOptions?.props
-            // For now, we'll check if it's an Identifier or has RestElement
-
+        // Only warn if custom element is set AND customElement.props is not specified
+        let custom_elem_has_no_props = context
+            .analysis
+            .custom_element
+            .as_ref()
+            .is_some_and(|ce| ce.props.is_none());
+        if custom_elem_has_no_props {
             let warn_on = if id_type == Some("Identifier") {
                 true
             } else if id_type == Some("ObjectPattern") {
@@ -287,9 +304,7 @@ fn process_props_declaration(
             };
 
             if warn_on {
-                // TODO: Emit warning
-                // w.custom_element_props_identifier(node);
-                let _ = warnings::custom_element_props_identifier();
+                context.emit_warning(warnings::custom_element_props_identifier_rest());
             }
         }
 
@@ -788,5 +803,81 @@ fn extract_literal_string(node: &Value) -> Option<String> {
             None
         }
         _ => None,
+    }
+}
+
+/// Collect svelte-ignore codes from the parent VariableDeclaration's leading comments.
+fn collect_ignore_codes_from_parent(context: &VisitorContext) -> Vec<String> {
+    // Look for the parent VariableDeclaration in the js_path
+    for node in context.js_path.iter().rev() {
+        if node.get("type").and_then(|t| t.as_str()) == Some("VariableDeclaration") {
+            // Check for leading comments
+            if let Some(comments) = node.get("leadingComments").and_then(|c| c.as_array()) {
+                let mut codes = Vec::new();
+                for comment in comments {
+                    if let Some(value) = comment.get("value").and_then(|v| v.as_str()) {
+                        let extracted =
+                            crate::compiler::phases::phase2_analyze::utils::extract_svelte_ignore(
+                                value,
+                                context.analysis.runes,
+                            );
+                        codes.extend(extracted);
+                    }
+                }
+                return codes;
+            }
+            break;
+        }
+    }
+    Vec::new()
+}
+
+/// Store ignore codes on all bindings declared by a pattern (Identifier, ObjectPattern, ArrayPattern).
+fn store_ignore_codes_on_bindings(
+    id: &Value,
+    ignore_codes: &[String],
+    context: &mut VisitorContext,
+) {
+    match id.get("type").and_then(|t| t.as_str()) {
+        Some("Identifier") => {
+            if let Some(name) = id.get("name").and_then(|n| n.as_str())
+                && let Some(&binding_idx) = context.analysis.root.scope.declarations.get(name)
+            {
+                context.analysis.root.bindings[binding_idx].ignore_codes = ignore_codes.to_vec();
+            }
+        }
+        Some("ObjectPattern") => {
+            if let Some(props) = id.get("properties").and_then(|p| p.as_array()) {
+                for prop in props {
+                    if let Some(value) = prop.get("value") {
+                        store_ignore_codes_on_bindings(value, ignore_codes, context);
+                    } else if prop.get("type").and_then(|t| t.as_str()) == Some("RestElement")
+                        && let Some(argument) = prop.get("argument")
+                    {
+                        store_ignore_codes_on_bindings(argument, ignore_codes, context);
+                    }
+                }
+            }
+        }
+        Some("ArrayPattern") => {
+            if let Some(elements) = id.get("elements").and_then(|e| e.as_array()) {
+                for element in elements {
+                    if !element.is_null() {
+                        store_ignore_codes_on_bindings(element, ignore_codes, context);
+                    }
+                }
+            }
+        }
+        Some("RestElement") => {
+            if let Some(argument) = id.get("argument") {
+                store_ignore_codes_on_bindings(argument, ignore_codes, context);
+            }
+        }
+        Some("AssignmentPattern") => {
+            if let Some(left) = id.get("left") {
+                store_ignore_codes_on_bindings(left, ignore_codes, context);
+            }
+        }
+        _ => {}
     }
 }

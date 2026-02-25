@@ -89,6 +89,31 @@ pub fn analyze_component(
         }
     }
 
+    // Populate analysis.custom_element from svelte:options
+    if let Some(ref svelte_options) = ast.options
+        && let Some(ref ce_opts) = svelte_options.custom_element
+    {
+        analysis.custom_element = Some(types::CustomElementConfig {
+            tag: ce_opts.tag.as_ref().map(|t| t.to_string()),
+            shadow: ce_opts.shadow.map(|s| match s {
+                crate::ast::template::ShadowMode::Open => "open".to_string(),
+                crate::ast::template::ShadowMode::None => "none".to_string(),
+            }),
+            props: ce_opts.props.clone(),
+        });
+    }
+
+    // Check for options_missing_custom_element warning
+    // If svelte:options has customElement but the compile options don't have customElement: true
+    if let Some(ref svelte_options) = ast.options
+        && svelte_options.custom_element.is_some()
+        && !options.custom_element
+    {
+        analysis
+            .warnings
+            .push(warnings::options_missing_custom_element());
+    }
+
     // Extract script content for Phase 3 (avoids re-parsing)
     analysis.extract_scripts(ast);
 
@@ -446,8 +471,14 @@ pub fn analyze_component(
             // Must be referenced directly in the template (not just inside event handlers)
             // Corresponds to official check: walks reference paths and skips those inside functions
             if binding.has_direct_template_read {
-                let name = binding.name.clone();
-                analysis.warnings.push(warnings::non_reactive_update(&name));
+                // Check if the binding has a svelte-ignore comment for this warning
+                if !binding
+                    .ignore_codes
+                    .contains(&"non_reactive_update".to_string())
+                {
+                    let name = binding.name.clone();
+                    analysis.warnings.push(warnings::non_reactive_update(&name));
+                }
             }
         }
     }

@@ -1236,68 +1236,127 @@ fn extract_reactive_lhs_vars(stmt: &str) -> Vec<String> {
 }
 
 /// Extract identifiers assigned to on the LHS of simple assignment statements.
+/// This scans at ALL depth levels (including inside if blocks, loops, etc.)
+/// to find variable assignments that indicate the reactive statement modifies a variable.
 fn extract_simple_assignments(code: &str) -> Vec<String> {
     let mut vars = Vec::new();
-    // Find patterns like `identifier =` (not `==`)
+    // Find patterns like `identifier =` (not `==`), `identifier++`, `identifier--`,
+    // `++identifier`, `--identifier`
     let chars: Vec<char> = code.chars().collect();
     let len = chars.len();
     let mut i = 0;
-    let mut depth = 0i32;
+    let mut in_string = false;
+    let mut string_char = ' ';
 
     while i < len {
         let c = chars[i];
-        match c {
-            '{' | '[' | '(' => {
-                depth += 1;
-                i += 1;
-            }
-            '}' | ']' | ')' => {
-                depth -= 1;
-                i += 1;
-            }
-            _ if (c.is_alphabetic() || c == '_' || c == '$') && depth == 0 => {
-                // Read identifier
-                let start = i;
-                while i < len && (chars[i].is_alphanumeric() || chars[i] == '_' || chars[i] == '$')
-                {
-                    i += 1;
-                }
-                let ident: String = chars[start..i].iter().collect();
 
-                // Skip whitespace
-                let mut j = i;
-                while j < len && chars[j] == ' ' {
+        // Track string literals to avoid matching inside them
+        if (c == '\'' || c == '"' || c == '`') && !in_string {
+            in_string = true;
+            string_char = c;
+            i += 1;
+            continue;
+        }
+        if in_string {
+            if c == string_char && (i == 0 || chars[i - 1] != '\\') {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+
+        // Check for `++identifier` and `--identifier` prefix operators
+        if i + 2 < len
+            && ((chars[i] == '+' && chars[i + 1] == '+')
+                || (chars[i] == '-' && chars[i + 1] == '-'))
+        {
+            let op_end = i + 2;
+            // Skip whitespace after operator
+            let mut j = op_end;
+            while j < len && chars[j] == ' ' {
+                j += 1;
+            }
+            // Read identifier
+            if j < len && (chars[j].is_alphabetic() || chars[j] == '_' || chars[j] == '$') {
+                let start = j;
+                while j < len && (chars[j].is_alphanumeric() || chars[j] == '_' || chars[j] == '$')
+                {
                     j += 1;
                 }
+                let ident: String = chars[start..j].iter().collect();
+                if !is_reactive_keyword(&ident) && !vars.contains(&ident) {
+                    vars.push(ident);
+                }
+                i = j;
+                continue;
+            }
+        }
 
-                // Check for `=` (not `==` or `=>`)
-                if j < len && chars[j] == '=' {
-                    let next = chars.get(j + 1).copied().unwrap_or('\0');
-                    if next != '=' && next != '>' {
-                        let prev = if j > 0 { chars[j - 1] } else { '\0' };
-                        if prev != '!'
-                            && prev != '<'
-                            && prev != '>'
-                            && prev != '+'
-                            && prev != '-'
-                            && prev != '*'
-                            && prev != '/'
-                            && prev != '?'
-                            && prev != '&'
-                            && prev != '|'
-                            && prev != '^'
-                        {
-                            // This is an assignment to `ident`
-                            if !is_reactive_keyword(&ident) {
-                                vars.push(ident);
-                            }
+        if c.is_alphabetic() || c == '_' || c == '$' {
+            // Read identifier
+            let start = i;
+            while i < len && (chars[i].is_alphanumeric() || chars[i] == '_' || chars[i] == '$') {
+                i += 1;
+            }
+            let ident: String = chars[start..i].iter().collect();
+
+            // Check for postfix `++` or `--`
+            if i + 1 < len
+                && ((chars[i] == '+' && chars[i + 1] == '+')
+                    || (chars[i] == '-' && chars[i + 1] == '-'))
+            {
+                if !is_reactive_keyword(&ident) && !vars.contains(&ident) {
+                    vars.push(ident.clone());
+                }
+                i += 2;
+                continue;
+            }
+
+            // Skip whitespace
+            let mut j = i;
+            while j < len && chars[j] == ' ' {
+                j += 1;
+            }
+
+            // Check for `=` (not `==` or `=>`)
+            if j < len && chars[j] == '=' {
+                let next = chars.get(j + 1).copied().unwrap_or('\0');
+                if next != '=' && next != '>' {
+                    let prev = if j > 0 { chars[j - 1] } else { '\0' };
+                    if prev != '!'
+                        && prev != '<'
+                        && prev != '>'
+                        && prev != '+'
+                        && prev != '-'
+                        && prev != '*'
+                        && prev != '/'
+                        && prev != '?'
+                        && prev != '&'
+                        && prev != '|'
+                        && prev != '^'
+                    {
+                        // This is an assignment to `ident`
+                        if !is_reactive_keyword(&ident) && !vars.contains(&ident) {
+                            vars.push(ident.clone());
                         }
                     }
                 }
             }
-            _ => {
-                i += 1;
+
+            // Check for compound assignment operators: +=, -=, *=, /=, etc.
+            if j + 1 < len && chars[j + 1] == '=' {
+                let op = chars[j];
+                if matches!(op, '+' | '-' | '*' | '/' | '%' | '&' | '|' | '^') {
+                    // Check it's not `==` following
+                    let after_eq = chars.get(j + 2).copied().unwrap_or('\0');
+                    if after_eq != '=' && !is_reactive_keyword(&ident) && !vars.contains(&ident) {
+                        vars.push(ident.clone());
+                    }
+                }
             }
+        } else {
+            i += 1;
         }
     }
     vars

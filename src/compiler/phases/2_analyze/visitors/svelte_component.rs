@@ -9,7 +9,9 @@ use super::VisitorContext;
 use super::shared::fragment;
 use super::shared::utils::validate_assignment;
 use crate::ast::js::Expression;
-use crate::ast::template::{Attribute, SvelteComponentElement};
+use crate::ast::template::{
+    Attribute, AttributeNode, AttributeValue, AttributeValuePart, SvelteComponentElement,
+};
 
 /// Visit a svelte:component.
 pub fn visit(
@@ -54,6 +56,10 @@ pub fn visit(
                 super::script::walk_js_node(spread.expression.as_json(), context)?;
             }
             Attribute::Attribute(a) => {
+                // Check for attribute_quoted on svelte:component
+                if is_quoted_single_expression(a) {
+                    context.emit_warning(warnings::attribute_quoted());
+                }
                 // Walk attribute value expressions
                 super::attribute::visit_attribute_value_expressions(&a.value, context)?;
             }
@@ -83,4 +89,13 @@ pub fn visit(
     context.is_direct_child_of_component = was_direct_child;
 
     Ok(())
+}
+
+/// Check if an attribute has a quoted single-expression value like `class="{foo}"`.
+fn is_quoted_single_expression(attr: &AttributeNode) -> bool {
+    if let AttributeValue::Sequence(parts) = &attr.value {
+        parts.len() == 1 && matches!(&parts[0], AttributeValuePart::ExpressionTag(_))
+    } else {
+        false
+    }
 }

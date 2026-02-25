@@ -700,6 +700,66 @@ pub fn attribute_quoted() -> AnalysisWarning {
 
 // Event directive warnings
 
+/// Attribute invalid property name - React style property used in Svelte
+pub fn attribute_invalid_property_name(name: &str, correct_name: &str) -> AnalysisWarning {
+    warning(
+        "attribute_invalid_property_name",
+        format!(
+            "'{}' is not a valid HTML attribute. Did you mean '{}'?\nhttps://svelte.dev/e/attribute_invalid_property_name",
+            name, correct_name
+        ),
+    )
+}
+
+/// Element was implicitly closed by another element
+pub fn element_implicitly_closed(tag: &str, closing: &str) -> AnalysisWarning {
+    warning(
+        "element_implicitly_closed",
+        format!(
+            "This element is implicitly closed by the following `{}`, which can cause an unexpected DOM structure. Add an explicit `{}` to avoid surprises.\nhttps://svelte.dev/e/element_implicitly_closed",
+            tag, closing
+        ),
+    )
+}
+
+/// Legacy code warning for svelte-ignore using old hyphenated codes in runes mode
+pub fn legacy_code(old_code: &str, new_code: &str) -> AnalysisWarning {
+    warning(
+        "legacy_code",
+        format!(
+            "`{}` is no longer valid — please use `{}` instead\nhttps://svelte.dev/e/legacy_code",
+            old_code, new_code
+        ),
+    )
+}
+
+/// Unknown code in svelte-ignore comment
+pub fn unknown_code(code: &str, suggestion: Option<&str>) -> AnalysisWarning {
+    let message = if let Some(suggestion) = suggestion {
+        format!(
+            "`{}` is not a recognised code (did you mean `{}`?)\nhttps://svelte.dev/e/unknown_code",
+            code, suggestion
+        )
+    } else {
+        format!(
+            "`{}` is not a recognised code\nhttps://svelte.dev/e/unknown_code",
+            code
+        )
+    };
+    warning("unknown_code", message)
+}
+
+/// Exported `let` variable is not used in the template
+pub fn export_let_unused(name: &str) -> AnalysisWarning {
+    warning(
+        "export_let_unused",
+        format!(
+            "Component has unused export property '{}'. If it is for external reference only, please consider using `export const {}`\nhttps://svelte.dev/e/export_let_unused",
+            name, name
+        ),
+    )
+}
+
 /// Using `on:name` to listen to the event is deprecated. Use the event attribute `onname` instead.
 pub fn event_directive_deprecated(name: &str) -> AnalysisWarning {
     warning(
