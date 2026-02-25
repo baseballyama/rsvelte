@@ -278,9 +278,13 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
             use crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr;
             for binding_idx in &each_node_meta.transitive_deps {
                 if let Some(binding) = context.state.scope_root.bindings.get(*binding_idx) {
-                    // Only include bindings that have read transforms (i.e., reactive bindings).
-                    // Non-reactive bindings (e.g., function parameters with BindingKind::Normal)
-                    // should not be included in invalidation expressions.
+                    // Include bindings that are in transitive_deps for invalidation.
+                    // If a binding has a read transform, apply it (e.g., $.get() for state,
+                    // prop() for props). If no transform exists but the binding is in
+                    // transitive_deps (e.g., import bindings), use the raw identifier since
+                    // it still needs to be included in $.invalidate_inner_signals().
+                    // Only skip function parameters with BindingKind::Normal that are NOT
+                    // referenced in the collection expression.
                     let expr = if let Some(transform) = context.state.transform.get(&binding.name) {
                         if let Some(read_fn) = &transform.read {
                             read_fn(b::id(&binding.name))
@@ -289,8 +293,11 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
                             b::id(&binding.name)
                         }
                     } else {
-                        // No transform at all - this binding is not reactive, skip it
-                        continue;
+                        // No transform - use raw identifier for invalidation.
+                        // Bindings listed in transitive_deps are there because
+                        // the analysis determined they need invalidation (e.g., imports
+                        // used as each block collections).
+                        b::id(&binding.name)
                     };
                     let expr_str = generate_expr(&expr);
                     if !invalidation_exprs.contains(&expr_str) {
