@@ -10669,7 +10669,10 @@ fn transform_state_in_expr(
                             && !(i >= 3 && chars[i - 3..i].iter().collect::<String>() == "...");
                         // Check if preceded by `#` (private field access like this.#y)
                         let preceded_by_hash = i > 0 && chars[i - 1] == '#';
-                        let already_wrapped = if i >= 6 {
+                        let already_wrapped = if i >= 11 {
+                            let prefix: String = chars[i - 11..i].iter().collect();
+                            prefix == "$.safe_get(" || prefix.ends_with("$.get(")
+                        } else if i >= 6 {
                             let prefix: String = chars[i - 6..i].iter().collect();
                             prefix == "$.get("
                         } else {
