@@ -341,7 +341,32 @@ pub fn build_component(
         let callee = if is_dynamic {
             b::id(intermediate)
         } else {
-            b::member_path(component_name)
+            // For dotted component names like "LazyWidget.Tooltip", check if the
+            // first part has a read transform registered (e.g., each block items
+            // need $.get() wrapping). If so, apply the transform to the base
+            // and build the member expression from the transformed base.
+            let parts: Vec<&str> = component_name.split('.').collect();
+            if parts.len() > 1 {
+                let base_name = parts[0];
+                if let Some(transform) = ctx.state.transform.get(base_name) {
+                    if let Some(read_fn) = transform.read {
+                        // Apply the read transform to the base identifier
+                        let base_expr = read_fn(b::id(base_name));
+                        // Build member chain: $.get(LazyWidget).Tooltip
+                        let mut expr = base_expr;
+                        for part in &parts[1..] {
+                            expr = b::member(expr, part.to_string());
+                        }
+                        expr
+                    } else {
+                        b::member_path(component_name)
+                    }
+                } else {
+                    b::member_path(component_name)
+                }
+            } else {
+                b::member_path(component_name)
+            }
         };
 
         let call = b::call(callee, vec![anchor_expr, props.clone()]);
