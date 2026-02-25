@@ -1621,26 +1621,27 @@ fn transform_instance_script_for_visitors(
         .iter()
         .map(|b| b.name.as_str())
         .collect();
+    let mut shadowed_local_reactive_vars: Vec<String> = Vec::new();
     for (var, is_const) in &local_reactive_vars {
+        // Check if this is a non-reactive const $state in runes mode
+        let is_non_reactive = if analysis.immutable && *is_const {
+            let state_pattern = format!("const {}", var);
+            script_rest.contains(&format!("{} = $state(", state_pattern))
+                || script_rest.contains(&format!("{} = $state.raw(", state_pattern))
+                || script_rest.contains(&format!("{} = $state.frozen(", state_pattern))
+        } else {
+            false
+        };
+        if is_non_reactive {
+            continue;
+        }
         if !top_level_binding_names.contains(var.as_str()) {
-            // In runes mode (immutable=true), const $state() declarations are non-reactive
-            // since they can never be reassigned. They should NOT get $.state() or $.get()/$.set().
-            // This mirrors is_state_source logic: const means !reassigned, and in runes mode
-            // with immutable=true, that means is_state_source returns false.
-            // Note: $derived() is ALWAYS reactive regardless of const/let.
-            if analysis.immutable && *is_const {
-                // Check if this is a $state (not $derived) - $derived always needs transforms
-                // We check by looking at the script to see if this var is $state or $derived
-                let state_pattern = format!("const {}", var);
-                let is_state_decl = script_rest.contains(&format!("{} = $state(", state_pattern))
-                    || script_rest.contains(&format!("{} = $state.raw(", state_pattern))
-                    || script_rest.contains(&format!("{} = $state.frozen(", state_pattern));
-                if is_state_decl {
-                    // const $state() in runes mode - skip (non-reactive)
-                    continue;
-                }
-            }
             state_vars.push(var.clone());
+        } else {
+            // This local reactive var shadows a top-level binding.
+            // It can't be added to the global state_vars (would incorrectly wrap
+            // top-level references), so we'll handle it via scope-aware post-processing.
+            shadowed_local_reactive_vars.push(var.clone());
         }
     }
 
@@ -2350,7 +2351,227 @@ fn transform_instance_script_for_visitors(
         }
     }
 
+    // Post-processing: transform shadowed local reactive vars within their enclosing function bodies.
+    if !shadowed_local_reactive_vars.is_empty() {
+        result = transform_shadowed_local_state_vars(&result, &shadowed_local_reactive_vars);
+    }
+
     result
+}
+
+/// Transform shadowed local reactive variables within their enclosing function bodies.
+///
+/// When a `$state()` or `$derived()` variable inside a nested function has the same name
+/// as a top-level binding, the global text-based transform cannot handle it. This function
+/// finds each function body containing such a declaration and applies `$.get()`, `$.set()`,
+/// `$.update()` transforms only within that scope.
+fn transform_shadowed_local_state_vars(script: &str, shadowed_vars: &[String]) -> String {
+    let mut result = script.to_string();
+
+    for var in shadowed_vars {
+        // Find `let VAR = $.state(` or `let VAR = $.derived(` patterns
+        // in the already-transformed output
+        let state_patterns = [
+            format!("let {} = $.state(", var),
+            format!("let {} = $.derived(", var),
+            format!("var {} = $.state(", var),
+            format!("var {} = $.derived(", var),
+        ];
+
+        for pattern in &state_patterns {
+            if let Some(decl_pos) = result.find(pattern.as_str()) {
+                // Find the enclosing function body
+                if let Some((func_start, func_end)) =
+                    find_enclosing_function_body(&result, decl_pos)
+                {
+                    let func_body = &result[func_start..func_end];
+                    let is_state = pattern.contains("$.state(");
+                    let transformed_body = apply_local_state_transforms(func_body, var, is_state);
+
+                    if transformed_body != func_body {
+                        result = format!(
+                            "{}{}{}",
+                            &result[..func_start],
+                            transformed_body,
+                            &result[func_end..]
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    result
+}
+
+/// Find the enclosing function body (from `{` to matching `}`) that contains `pos`.
+fn find_enclosing_function_body(script: &str, pos: usize) -> Option<(usize, usize)> {
+    let bytes = script.as_bytes();
+
+    // Scan backwards from pos to find the opening `{` of the enclosing function
+    let mut brace_depth = 0i32;
+    let mut func_open = None;
+    let mut i = pos;
+    while i > 0 {
+        i -= 1;
+        match bytes[i] {
+            b'}' => brace_depth += 1,
+            b'{' => {
+                if brace_depth == 0 {
+                    func_open = Some(i);
+                    break;
+                }
+                brace_depth -= 1;
+            }
+            _ => {}
+        }
+    }
+    let func_start = func_open?;
+
+    // Find the matching closing `}` by scanning forward
+    let mut brace_depth = 0i32;
+    let mut func_end = None;
+    for (j, &byte) in bytes.iter().enumerate().take(script.len()).skip(func_start) {
+        match byte {
+            b'{' => brace_depth += 1,
+            b'}' => {
+                brace_depth -= 1;
+                if brace_depth == 0 {
+                    func_end = Some(j + 1);
+                    break;
+                }
+            }
+            _ => {}
+        }
+    }
+    Some((func_start, func_end?))
+}
+
+/// Apply `$.get()`, `$.set()`, `$.update()` transforms for a variable within a function body.
+fn apply_local_state_transforms(func_body: &str, var_name: &str, is_state: bool) -> String {
+    let mut result = func_body.to_string();
+
+    // Apply $.get() wrapping for reads using the existing transform function
+    result = transform_state_in_expr(&result, &[var_name.to_string()], &[], &[]);
+
+    // Apply $.update() for `var++`, `var--`, `++var`, `--var` patterns
+    // These must be applied BEFORE $.set() transforms since `x++` should become `$.update(x)`
+    // not `$.set(x, $.get(x)++, true)`
+    let update_patterns = [
+        (format!("{}++", var_name), format!("$.update({})", var_name)),
+        (
+            format!("{}--", var_name),
+            format!("$.update({}, -1)", var_name),
+        ),
+        (format!("++{}", var_name), format!("$.update({})", var_name)),
+        (
+            format!("--{}", var_name),
+            format!("$.update({}, -1)", var_name),
+        ),
+    ];
+
+    for (from, to) in &update_patterns {
+        result = replace_standalone_pattern(&result, from, to);
+    }
+
+    // Apply $.set() for direct assignments (only for $state, not $derived)
+    if is_state {
+        result = apply_local_set_transforms(&result, var_name);
+    }
+
+    result
+}
+
+/// Replace a pattern only when it appears as a standalone expression.
+fn replace_standalone_pattern(text: &str, from: &str, to: &str) -> String {
+    let mut result = String::new();
+    let mut search_from = 0;
+
+    while let Some(pos) = text[search_from..].find(from) {
+        let abs_pos = search_from + pos;
+        let before_ok = abs_pos == 0 || {
+            let b = text.as_bytes()[abs_pos - 1];
+            !b.is_ascii_alphanumeric() && b != b'_' && b != b'$' && b != b'.'
+        };
+        let after_pos = abs_pos + from.len();
+        let after_ok = after_pos >= text.len() || {
+            let b = text.as_bytes()[after_pos];
+            !b.is_ascii_alphanumeric() && b != b'_'
+        };
+
+        if before_ok && after_ok {
+            result.push_str(&text[search_from..abs_pos]);
+            result.push_str(to);
+            search_from = after_pos;
+        } else {
+            result.push_str(&text[search_from..abs_pos + 1]);
+            search_from = abs_pos + 1;
+        }
+    }
+    result.push_str(&text[search_from..]);
+    result
+}
+
+/// Apply `$.set(var, expr, true)` transforms for assignment expressions within a function body.
+fn apply_local_set_transforms(func_body: &str, var_name: &str) -> String {
+    let mut lines: Vec<String> = Vec::new();
+
+    for line in func_body.lines() {
+        let trimmed = line.trim();
+
+        // Skip declaration lines
+        if trimmed.contains(&format!("let {} = $.state(", var_name))
+            || trimmed.contains(&format!("var {} = $.state(", var_name))
+            || trimmed.contains(&format!("let {} = $.derived(", var_name))
+            || trimmed.contains(&format!("var {} = $.derived(", var_name))
+        {
+            lines.push(line.to_string());
+            continue;
+        }
+
+        let transformed = transform_local_assignment(line, var_name);
+        lines.push(transformed);
+    }
+
+    lines.join("\n")
+}
+
+/// Transform `varName = expr` to `$.set(varName, expr, true)` in a line.
+fn transform_local_assignment(line: &str, var_name: &str) -> String {
+    let assignment_pattern = format!("{} = ", var_name);
+
+    // Skip if already transformed
+    if line.contains(&format!("$.set({},", var_name))
+        || line.contains(&format!("$.set({} ,", var_name))
+    {
+        return line.to_string();
+    }
+
+    if let Some(pos) = line.find(&assignment_pattern) {
+        let before_ok = pos == 0 || {
+            let b = line.as_bytes()[pos - 1];
+            !b.is_ascii_alphanumeric() && b != b'_' && b != b'$' && b != b'.'
+        };
+        let after_name_pos = pos + var_name.len();
+        let is_direct_assign =
+            after_name_pos < line.len() && line.as_bytes()[after_name_pos] == b' ';
+
+        if before_ok && is_direct_assign {
+            let rhs_start = pos + assignment_pattern.len();
+            let rhs = line[rhs_start..].trim_end_matches([';', ',']);
+            let trailing = &line[rhs_start + rhs.len()..];
+            let prefix = &line[..pos];
+            return format!(
+                "{}$.set({}, {}, true){}",
+                prefix,
+                var_name,
+                rhs.trim(),
+                trailing
+            );
+        }
+    }
+
+    line.to_string()
 }
 
 // ============================================================================
