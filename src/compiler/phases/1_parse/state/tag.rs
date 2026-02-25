@@ -700,12 +700,11 @@ impl Parser<'_> {
                 self.skip_pattern_expression();
                 let value_content = &self.source[value_start..self.index];
                 if !value_content.trim().is_empty() {
-                    value = Some(super::super::expression::create_identifier_with_character(
-                        value_content.trim(),
-                        value_start,
-                        self.index,
-                        &self.line_offsets,
-                    ));
+                    // Use parse_binding_pattern to properly parse destructuring patterns
+                    // (e.g., `{ width, height }` -> ObjectPattern) instead of creating
+                    // a simple identifier. This ensures phase 2 scope analysis correctly
+                    // declares individual bindings for destructured names.
+                    value = Some(self.parse_binding_pattern(value_content.trim(), value_start));
                 }
             }
         }
@@ -722,12 +721,9 @@ impl Parser<'_> {
                 self.skip_pattern_expression();
                 let error_content = &self.source[error_start..self.index];
                 if !error_content.trim().is_empty() {
-                    error = Some(super::super::expression::create_identifier_with_character(
-                        error_content.trim(),
-                        error_start,
-                        self.index,
-                        &self.line_offsets,
-                    ));
+                    // Use parse_binding_pattern to properly parse destructuring patterns
+                    // (same as for then values above).
+                    error = Some(self.parse_binding_pattern(error_content.trim(), error_start));
                 }
             }
         }
@@ -773,12 +769,8 @@ impl Parser<'_> {
                     self.skip_pattern_expression();
                     let value_content = &self.source[value_start..self.index];
                     if !value_content.trim().is_empty() {
-                        value = Some(super::super::expression::create_identifier_with_character(
-                            value_content.trim(),
-                            value_start,
-                            self.index,
-                            &self.line_offsets,
-                        ));
+                        // Use parse_binding_pattern to properly parse destructuring patterns
+                        value = Some(self.parse_binding_pattern(value_content.trim(), value_start));
                     }
                 }
                 self.eat_optional("}");
@@ -794,12 +786,8 @@ impl Parser<'_> {
                     self.skip_pattern_expression();
                     let error_content = &self.source[error_start..self.index];
                     if !error_content.trim().is_empty() {
-                        error = Some(super::super::expression::create_identifier_with_character(
-                            error_content.trim(),
-                            error_start,
-                            self.index,
-                            &self.line_offsets,
-                        ));
+                        // Use parse_binding_pattern to properly parse destructuring patterns
+                        error = Some(self.parse_binding_pattern(error_content.trim(), error_start));
                     }
                 }
                 self.eat_optional("}");

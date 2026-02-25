@@ -576,11 +576,25 @@ fn build_special_binding_call(
                 if let Some(s) = set {
                     args.push(s.clone());
                 }
+                // Add $.invalidate_store for store bindings in each blocks
+                if let Some(store_name) = get_store_to_invalidate_from_context(context) {
+                    args.push(JsExpr::Raw(format!(
+                        "$.invalidate_store($$stores, '{}')",
+                        store_name
+                    )));
+                }
                 b::call(b::member_path("$.bind_select_value"), args)
             } else {
                 let mut args = vec![node_expr.clone(), get.clone()];
                 if let Some(s) = set {
                     args.push(s.clone());
+                }
+                // Add $.invalidate_store for store bindings in each blocks
+                if let Some(store_name) = get_store_to_invalidate_from_context(context) {
+                    args.push(JsExpr::Raw(format!(
+                        "$.invalidate_store($$stores, '{}')",
+                        store_name
+                    )));
                 }
                 b::call(b::member_path("$.bind_value"), args)
             }
@@ -2116,7 +2130,9 @@ fn format_json_expr(val: &serde_json::Value) -> String {
 fn build_invalidation_expr(
     each_ctx: &crate::compiler::phases::phase3_transform::client::types::EachBindingContext,
 ) -> Option<String> {
-    if each_ctx.is_runes {
+    // In runes mode, we still need $.invalidate_store for store bindings,
+    // but not $.invalidate_inner_signals
+    if each_ctx.is_runes && each_ctx.store_to_invalidate.is_none() {
         return None;
     }
 
@@ -2142,6 +2158,26 @@ fn build_invalidation_expr(
     } else {
         Some(parts.join(", "))
     }
+}
+
+/// Get the store name to invalidate from the current each_binding_context.
+/// Returns the store name (e.g., "$array") if the innermost each block iterates over a store.
+///
+/// This is only used in **runes mode**, because in legacy mode the store invalidation
+/// is already baked into the setter expression by `build_invalidation_expr` (called from
+/// `build_each_block_getter_setter`).
+fn get_store_to_invalidate_from_context(context: &ComponentContext) -> Option<String> {
+    // Only add separate store invalidation in runes mode.
+    // In legacy mode, build_invalidation_expr already includes $.invalidate_store
+    // in the setter expression, so adding it here would duplicate it.
+    if !context.state.analysis.runes {
+        return None;
+    }
+    context
+        .state
+        .each_binding_context
+        .last()
+        .and_then(|ctx| ctx.store_to_invalidate.clone())
 }
 
 /// Extract the root identifier name from a JsExpr.
