@@ -6146,12 +6146,16 @@ fn transform_prop_reads_in_expr(expr: &str, prop_vars: &[String]) -> String {
                         || prefix_str.ends_with("$.update_pre_prop(")
                 };
 
+                // Check if this identifier is shadowed by a function parameter
+                let is_shadowed = is_shadowed_by_function_param(&chars, i, prop_name);
+
                 if before_ok
                     && after_ok
                     && !is_already_call
                     && !is_update_target
                     && !is_assignment_target
                     && !is_inside_update_call
+                    && !is_shadowed
                 {
                     // Replace with prop_name()
                     new_result.push_str(prop_name);
@@ -10102,7 +10106,6 @@ fn is_shadowed_by_function_param(chars: &[char], var_start: usize, var_name: &st
     // We need to track brace depth to understand scope nesting.
 
     let var_len = var_name.len();
-
     // Track brace depth as we scan backwards
     let mut brace_depth = 0;
     let mut i = var_start;
@@ -10125,6 +10128,15 @@ fn is_shadowed_by_function_param(chars: &[char], var_start: usize, var_name: &st
                 let mut j = i;
                 while j > 0 && chars[j - 1].is_whitespace() {
                     j -= 1;
+                }
+
+                // Also skip => for arrow functions: (params) => {
+                if j >= 2 && chars[j - 2] == '=' && chars[j - 1] == '>' {
+                    j -= 2;
+                    // Skip whitespace after the )
+                    while j > 0 && chars[j - 1].is_whitespace() {
+                        j -= 1;
+                    }
                 }
 
                 // Check for `)` which would indicate a function parameter list
