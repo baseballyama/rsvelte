@@ -318,15 +318,29 @@ pub fn analyze_component(
                     if name.is_empty() {
                         continue;
                     }
-                    // Check if binding is in the module scope declarations.
+                    // Check if the binding exists in the module scope.
                     // This matches the official compiler's check:
                     //   const binding = analysis.module.scope.get(name);
                     //   if (!binding) { ... }
-                    // Hoistable snippets are added to module scope declarations during
-                    // SnippetBlock analysis, so they will be found here and pass validation.
-                    let module_scope_binding = analysis.root.scope.declarations.get(name);
+                    //
+                    // Note: analysis.root.scope.declarations contains ALL bindings
+                    // from ALL scopes (merged by the scope builder), so we cannot
+                    // simply check if the name exists there. Instead, we check:
+                    // 1. The binding's scope_index is 0 (truly in module scope), OR
+                    // 2. The name is a snippet that was explicitly hoisted to module scope.
+                    let is_in_module_scope =
+                        if let Some(&binding_idx) = analysis.root.scope.declarations.get(name) {
+                            let binding = &analysis.root.bindings[binding_idx];
+                            // scope_index 0 = module scope (truly module-level)
+                            binding.scope_index == 0
+                                // Also allow hoisted snippets (they have non-zero scope_index
+                                // but were explicitly promoted to module scope)
+                                || analysis.template.hoisted_snippets.contains(name)
+                        } else {
+                            false
+                        };
 
-                    if module_scope_binding.is_none() {
+                    if !is_in_module_scope {
                         // Not in module scope - check if it's a snippet
                         if analysis.template.snippets.contains(name) {
                             return Err(errors::snippet_invalid_export());

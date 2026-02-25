@@ -1351,6 +1351,12 @@ pub struct TemplateAnalysis {
 
     /// All snippets declared in the template
     pub snippets: FxHashSet<String>,
+
+    /// Snippets that can be hoisted to module scope.
+    /// These are root-level snippets that only reference module-level bindings,
+    /// globals, or their own parameters. Used by the `snippet_invalid_export`
+    /// validation to distinguish hoisted snippets from instance-level ones.
+    pub hoisted_snippets: FxHashSet<String>,
 }
 
 /// Information about a DOM element.

@@ -89,7 +89,11 @@ pub fn visit(block: &mut SnippetBlock, context: &mut VisitorContext) -> Result<(
             .root
             .scope
             .declarations
-            .insert(name, binding_idx);
+            .insert(name.clone(), binding_idx);
+        // Track that this snippet was hoisted to module scope.
+        // This is used by the snippet_invalid_export validation to distinguish
+        // hoisted snippets (which are OK to export) from instance-level ones.
+        context.analysis.template.hoisted_snippets.insert(name);
     }
 
     Ok(())
