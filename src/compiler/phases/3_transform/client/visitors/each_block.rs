@@ -278,13 +278,23 @@ pub fn each_block(node: &EachBlock, context: &mut ComponentContext) {
             use crate::compiler::phases::phase3_transform::js_ast::codegen::generate_expr;
             for binding_idx in &each_node_meta.transitive_deps {
                 if let Some(binding) = context.state.scope_root.bindings.get(*binding_idx) {
+                    // Skip EachItem/EachIndex bindings that belong to the CURRENT each
+                    // block. These represent this block's own loop variables and should not
+                    // appear in the invalidation expressions. However, EachItem/EachIndex
+                    // bindings from PARENT each blocks are legitimate invalidation targets
+                    // and should be kept.
+                    if matches!(binding.kind, BindingKind::EachItem | BindingKind::EachIndex)
+                        && (context.state.each_item_names.contains(&binding.name)
+                            || Some(binding.name.clone())
+                                == node.index.as_ref().map(|s| s.to_string()))
+                    {
+                        continue;
+                    }
                     // Include bindings that are in transitive_deps for invalidation.
                     // If a binding has a read transform, apply it (e.g., $.get() for state,
                     // prop() for props). If no transform exists but the binding is in
                     // transitive_deps (e.g., import bindings), use the raw identifier since
                     // it still needs to be included in $.invalidate_inner_signals().
-                    // Only skip function parameters with BindingKind::Normal that are NOT
-                    // referenced in the collection expression.
                     let expr = if let Some(transform) = context.state.transform.get(&binding.name) {
                         if let Some(read_fn) = &transform.read {
                             read_fn(b::id(&binding.name))
