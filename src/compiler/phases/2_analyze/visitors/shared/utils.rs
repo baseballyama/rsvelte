@@ -1862,42 +1862,57 @@ pub fn walk_js_expression(
             // shadow the outer `bar` binding in the declarations map.
             let saved_declarations = context.analysis.root.scope.declarations.clone();
 
+            // Create a temporary scope in all_scopes for the function parameters.
+            // This ensures that parameter names properly shadow bindings from outer
+            // scopes (e.g., each-block items, await-then values) during identifier
+            // resolution via get_binding() which traverses all_scopes.
+            let saved_scope = context.scope;
+            let temp_scope_idx = context.analysis.root.all_scopes.len();
+            let temp_scope =
+                crate::compiler::phases::phase2_analyze::scope::Scope::new(Some(context.scope));
+            context.analysis.root.all_scopes.push(temp_scope);
+            context.scope = temp_scope_idx;
+
             // Extract parameters and register them as temporary scoped bindings
             // This allows us to detect when $store refers to a local parameter
+            // AND ensures proper shadowing of outer-scope bindings (each items, etc.)
             if let Some(params) = expression.get("params").and_then(|p| p.as_array()) {
                 for param in params {
-                    if let Some(param_name) = extract_identifier_name(param) {
-                        // Check if this parameter shadows an existing binding
-                        if context
-                            .analysis
-                            .root
-                            .scope
-                            .declarations
-                            .contains_key(&param_name)
-                        {
-                            // Create a temporary binding for the parameter at non-root scope
-                            // We use function_depth + 1 as scope_index so that even the first
-                            // level of function nesting (function_depth = 1) creates a binding
-                            // with scope_index = 2, which is > 1 (nested scope).
-                            // This ensures $store references inside functions that shadow
-                            // the store variable will trigger store_invalid_scoped_subscription.
-                            let temp_binding_idx = context.analysis.root.bindings.len();
-                            let temp_binding = crate::compiler::phases::phase2_analyze::Binding::with_declaration_kind(
+                    // Collect ALL identifier names from the parameter pattern (including
+                    // destructuring patterns like { a, b } or [x, y])
+                    let mut param_names = Vec::new();
+                    collect_all_identifier_names_from_pattern(param, &mut param_names);
+
+                    for param_name in param_names {
+                        // Create a temporary binding for the parameter at non-root scope
+                        // We use function_depth + 1 as scope_index so that even the first
+                        // level of function nesting (function_depth = 1) creates a binding
+                        // with scope_index = 2, which is > 1 (nested scope).
+                        // This ensures $store references inside functions that shadow
+                        // the store variable will trigger store_invalid_scoped_subscription.
+                        let temp_binding_idx = context.analysis.root.bindings.len();
+                        let temp_binding =
+                            crate::compiler::phases::phase2_analyze::Binding::with_declaration_kind(
                                 param_name.clone(),
                                 crate::compiler::phases::phase2_analyze::BindingKind::Normal,
                                 crate::compiler::phases::phase2_analyze::DeclarationKind::Param,
                                 context.function_depth + 1, // +1 ensures first level nesting (depth=1) creates scope_index=2
                             );
-                            context.analysis.root.bindings.push(temp_binding);
+                        context.analysis.root.bindings.push(temp_binding);
 
-                            // Temporarily override the binding in the scope
-                            context
-                                .analysis
-                                .root
-                                .scope
-                                .declarations
-                                .insert(param_name.clone(), temp_binding_idx);
-                        }
+                        // Add to the temporary scope so get_binding() finds it first
+                        context.analysis.root.all_scopes[temp_scope_idx]
+                            .declarations
+                            .insert(param_name.clone(), temp_binding_idx);
+
+                        // Also add to the root scope declarations for backward compatibility
+                        // with $store scoped subscription checks
+                        context
+                            .analysis
+                            .root
+                            .scope
+                            .declarations
+                            .insert(param_name.clone(), temp_binding_idx);
                     }
                 }
             }
@@ -1937,6 +1952,9 @@ pub fn walk_js_expression(
 
             // Restore expression context
             context.expression = saved_expression;
+
+            // Restore scope
+            context.scope = saved_scope;
 
             // Restore the declarations map to the state before entering this function scope.
             // This undoes both parameter shadows and any local variable declarations
@@ -2070,29 +2088,30 @@ pub fn walk_js_statement(
                         let mut names = Vec::new();
                         collect_all_identifier_names_from_pattern(id, &mut names);
                         for name in names {
-                            if let Some(&existing_idx) =
-                                context.analysis.root.scope.declarations.get(&name)
+                            let temp_binding_idx = context.analysis.root.bindings.len();
+                            let temp_binding = crate::compiler::phases::phase2_analyze::Binding::with_declaration_kind(
+                                name.clone(),
+                                crate::compiler::phases::phase2_analyze::BindingKind::Normal,
+                                crate::compiler::phases::phase2_analyze::DeclarationKind::Let,
+                                context.function_depth + 1,
+                            );
+                            context.analysis.root.bindings.push(temp_binding);
+
+                            // Add to the current scope in all_scopes so get_binding()
+                            // finds it during scope chain traversal
+                            if let Some(scope) =
+                                context.analysis.root.all_scopes.get_mut(context.scope)
                             {
-                                let temp_binding_idx = context.analysis.root.bindings.len();
-                                let temp_binding = crate::compiler::phases::phase2_analyze::Binding::with_declaration_kind(
-                                    name.clone(),
-                                    crate::compiler::phases::phase2_analyze::BindingKind::Normal,
-                                    crate::compiler::phases::phase2_analyze::DeclarationKind::Let,
-                                    context.function_depth + 1,
-                                );
-                                context.analysis.root.bindings.push(temp_binding);
-                                context
-                                    .analysis
-                                    .root
-                                    .scope
-                                    .declarations
-                                    .insert(name, temp_binding_idx);
-                                // Note: we don't need to restore these because the parent
-                                // function/arrow scope already restores its parameter bindings
-                                // when it exits. For local vars inside function bodies, the
-                                // shadowing is only relevant within that function's walk.
-                                let _ = existing_idx;
+                                scope.declarations.insert(name.clone(), temp_binding_idx);
                             }
+
+                            // Also add to root scope declarations for backward compatibility
+                            context
+                                .analysis
+                                .root
+                                .scope
+                                .declarations
+                                .insert(name, temp_binding_idx);
                         }
                     }
                 }
