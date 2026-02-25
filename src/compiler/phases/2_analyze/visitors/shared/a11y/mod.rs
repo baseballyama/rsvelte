@@ -150,7 +150,7 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                         // no-redundant-roles
                         if let Some(implicit_role) = get_implicit_role(&node.name, &attribute_map)
                             && current_role == implicit_role
-                            && !["ul", "ol", "li"].contains(&node.name.as_str())
+                            && !["ul", "ol", "li", "menu"].contains(&node.name.as_str())
                             && (node.name != "a" || attribute_map.contains_key("href"))
                         {
                             warnings.push(w::a11y_no_redundant_roles(current_role));
@@ -392,8 +392,8 @@ pub fn check_element(node: &RegularElement, ancestor_names: &[String]) -> Vec<w:
                     let aria_disabled = attribute_map
                         .get("aria-disabled")
                         .and_then(|a| get_static_value(a));
-                    if id_attribute.is_none()
-                        && name_attribute.is_none()
+                    if id_attribute.is_none_or(|v| v.is_empty())
+                        && name_attribute.is_none_or(|v| v.is_empty())
                         && aria_disabled != Some("true")
                     {
                         warn_missing_attribute(&mut warnings, &node.name, &["href"], None);

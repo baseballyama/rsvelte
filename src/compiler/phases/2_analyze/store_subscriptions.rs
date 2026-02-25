@@ -242,24 +242,31 @@ pub fn detect_store_subscriptions(
             }
         }
 
-        // Check if a binding exists for the store name (xxx) and where it's declared
-        // We search all scopes (module + instance) since bindings from reactive
-        // declarations ($: z = ...) are in the instance scope, not root scope
-        if let Some(binding_idx) = analysis.root.find_binding_any_scope(store_name) {
+        // Check if a binding exists for the store name (xxx) in the instance or module scope.
+        // We look up using the instance scope chain (instance -> module -> root) which is
+        // the proper way to find bindings, matching the official Svelte's
+        // `instance.scope.get(store_name)`.
+        let instance_scope = analysis.root.instance_scope_index;
+        let binding_from_instance = if instance_scope > 0 {
+            analysis.root.get_binding(store_name, instance_scope)
+        } else {
+            // No instance scope - check root scope
+            analysis.root.scope.declarations.get(store_name).copied()
+        };
+
+        // Also check module scope (scope 0) if not found in instance
+        let binding_idx = binding_from_instance
+            .or_else(|| analysis.root.scope.declarations.get(store_name).copied());
+
+        if let Some(binding_idx) = binding_idx {
             let binding = &analysis.root.bindings[binding_idx];
 
             // Check if the binding is in a nested scope (not module or instance scope)
             // This catches cases like {#each items as item} ... {$item} ... {/each}
             // where `item` is declared in the each block scope, not at top level
             //
-            // In our scope structure:
-            // - Scope 0 = module scope (always exists)
-            // - Scope 1 = instance script scope (when there's an instance script)
-            // - Scope 2+ = nested scopes (each blocks, snippets, etc.)
-            //
             // Store subscriptions are only valid when the store binding is in
-            // the module scope (0) or instance scope (1).
-            let instance_scope = analysis.root.instance_scope_index;
+            // the module scope (0) or instance scope.
             if binding.scope_index != 0 && binding.scope_index != instance_scope {
                 // This is a scoped subscription - the store is not at top level
                 return Err(errors::store_invalid_scoped_subscription());

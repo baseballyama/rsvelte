@@ -67,6 +67,8 @@ struct ValidatorFixture {
     input_type: InputType,
     expected_warnings: Vec<ExpectedWarning>,
     expected_error: Option<ExpectedError>,
+    /// Compile option: runes mode (None = auto-detect, Some(true) = forced on, Some(false) = forced off)
+    runes: Option<bool>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -75,28 +77,50 @@ enum InputType {
     Module,
 }
 
-/// Check if a test should be skipped based on _config.js.
-fn is_test_skipped(sample_dir: &Path) -> bool {
+/// Extract compile options from _config.js.
+struct TestConfig {
+    skip: bool,
+    runes: Option<bool>,
+}
+
+fn parse_test_config(sample_dir: &Path) -> TestConfig {
     let config_path = sample_dir.join("_config.js");
+    let mut config = TestConfig {
+        skip: false,
+        runes: None,
+    };
+
     if config_path.exists()
         && let Ok(content) = fs::read_to_string(&config_path)
     {
         // Check for skip: true in the config
         if content.contains("skip: true") || content.contains("skip:true") {
-            return true;
+            config.skip = true;
+            return config;
         }
         // Skip tests that require special compile options we don't support yet
         if content.contains("warningFilter") {
-            return true;
+            config.skip = true;
+            return config;
+        }
+
+        // Extract runes option from compileOptions
+        // Patterns: `runes: false`, `runes: true`
+        if content.contains("runes: false") || content.contains("runes:false") {
+            config.runes = Some(false);
+        } else if content.contains("runes: true") || content.contains("runes:true") {
+            config.runes = Some(true);
         }
     }
-    false
+
+    config
 }
 
 /// Load a validator test fixture.
 fn load_validator_fixture(sample_dir: &Path) -> Option<ValidatorFixture> {
-    // Check if this test should be skipped
-    if is_test_skipped(sample_dir) {
+    // Parse config (includes skip check)
+    let config = parse_test_config(sample_dir);
+    if config.skip {
         return None;
     }
 
@@ -139,6 +163,7 @@ fn load_validator_fixture(sample_dir: &Path) -> Option<ValidatorFixture> {
         input_type,
         expected_warnings,
         expected_error,
+        runes: config.runes,
     })
 }
 
@@ -170,12 +195,14 @@ fn run_validator_test(fixture: &ValidatorFixture) -> TestResult {
 
     let name = fixture.name.clone();
     let input = fixture.input.clone();
+    let runes = fixture.runes;
 
     // Use panic::catch_unwind to handle panics gracefully
     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         let options = CompileOptions {
             generate: GenerateMode::Client,
             filename: Some(format!("{}/input.svelte", name)),
+            runes,
             ..Default::default()
         };
         compile(&input, options)
