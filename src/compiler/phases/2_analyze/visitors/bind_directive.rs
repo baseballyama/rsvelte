@@ -231,19 +231,13 @@ fn visit_common(
     // (IfBlock, EachBlock, AwaitBlock, KeyBlock). At the top level, bind:this
     // doesn't need state since the element reference never changes.
     // For other binds: always mark as direct template read.
+    //
+    // We use block_depth > 0 to detect if we're inside a conditional/iterating block.
+    // block_depth is incremented by IfBlock, EachBlock, AwaitBlock, and SnippetBlock visitors.
     if let Some(idx) = binding_idx {
         if directive.name == "this" {
-            // Check if any ancestor in the template path is a conditional block
-            let in_conditional = context.path.iter().any(|node| {
-                matches!(
-                    node,
-                    TemplateNode::IfBlock(_)
-                        | TemplateNode::EachBlock(_)
-                        | TemplateNode::AwaitBlock(_)
-                        | TemplateNode::KeyBlock(_)
-                )
-            });
-            if in_conditional {
+            // bind:this only needs state when inside a conditional/iterating block
+            if context.block_depth > 0 {
                 context.analysis.root.bindings[idx].has_direct_template_read = true;
             }
         } else {
@@ -341,7 +335,15 @@ fn visit_common(
     // This is important for legacy mode state promotion - bindings need template references
     // to be promoted from 'normal' to 'state' kind.
     // Corresponds to: context.next({ ...context.state, expression: node.metadata.expression });
+    //
+    // For bind:this, set in_bind_this flag so that identifier::visit can skip
+    // setting has_direct_template_read (bind:this has special handling).
+    let prev_in_bind_this = context.in_bind_this;
+    if directive.name == "this" {
+        context.in_bind_this = true;
+    }
     super::script::walk_js_node(directive.expression.as_json(), context)?;
+    context.in_bind_this = prev_in_bind_this;
 
     // TODO: Check for await in expression
     // if node.metadata.expression.has_await { return Err(errors::illegal_await_expression()); }
