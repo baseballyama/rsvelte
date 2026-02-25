@@ -50,10 +50,16 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
     // Visit the body of the labeled statement
     // This is important for analyzing expressions inside reactive statements
     if let Some(body) = node.get("body") {
-        // Set in_reactive_declaration flag when entering a $: block
-        // This is needed for the reactive_declaration_module_script_dependency warning
+        // Set in_reactive_declaration flag when entering a $: block in the instance script.
+        // This is needed for the reactive_declaration_module_script_dependency warning.
+        // Only set it for instance script (not module script) $: blocks, matching the official
+        // Svelte compiler where `reactive_statement` is only set for instance-level reactive
+        // declarations. In module scripts, $: is just a regular label.
         let prev_in_reactive = context.in_reactive_declaration;
-        if label_name == Some("$") && !context.analysis.runes {
+        if label_name == Some("$")
+            && !context.analysis.runes
+            && context.ast_type == AstType::Instance
+        {
             context.in_reactive_declaration = true;
         }
         super::script::walk_js_node(body, context)?;

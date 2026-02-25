@@ -210,6 +210,10 @@ pub struct VisitorContext<'a> {
     /// Whether we're currently inside a {@const} tag expression.
     /// Used to detect invalid rune usage (e.g., $derived() inside {@const}).
     pub in_const_tag: bool,
+    /// Whether we're currently inside a bind:this directive expression.
+    /// Used to prevent `identifier::visit` from setting `has_direct_template_read`
+    /// for bind:this references, since bind:this has special non_reactive_update logic.
+    pub in_bind_this: bool,
 }
 
 /// Type of ancestor that can "own" a slot attribute.
@@ -308,6 +312,7 @@ impl<'a> VisitorContext<'a> {
             fragment_owner_stack: vec![FragmentOwnerType::Root],
             current_template_scope: 0,
             in_const_tag: false,
+            in_bind_this: false,
         }
     }
 

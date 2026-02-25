@@ -171,6 +171,20 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
         is_style_directive_reference,
     );
 
+    // Mark direct template read when in template scope and not inside a function.
+    // This is used by non_reactive_update warning to distinguish direct template
+    // reads from event handler callback reads.
+    // Corresponds to the official compiler's check: path[0].type === 'Fragment'
+    // and not inside any FunctionDeclaration/FunctionExpression/ArrowFunctionExpression.
+    //
+    // Skip for bind:this references - bind:this has special handling in bind_directive.rs
+    // where it only sets has_direct_template_read when inside a conditional block
+    // (IfBlock, EachBlock, AwaitBlock, KeyBlock). At the top level, bind:this doesn't
+    // need state since the element reference never changes.
+    if is_template_reference && context.function_depth == 0 && !context.in_bind_this {
+        context.analysis.root.bindings[binding_idx].has_direct_template_read = true;
+    }
+
     // Handle legacy mode special variables
     if !context.analysis.runes {
         if name == "$$props" {
@@ -203,7 +217,32 @@ pub fn visit(node: &Value, context: &mut VisitorContext) -> Result<(), AnalysisE
 
     // Implement state_referenced_locally warning
     // Corresponds to Svelte's Identifier.js L104-152
-    if context.analysis.runes {
+    //
+    // The official compiler has `node !== binding.node` check to skip warnings for the
+    // declaration identifier itself. We approximate this by checking if the identifier
+    // is inside a VariableDeclarator's `id` pattern (which is the declaration site).
+    let is_declaration_node = context.js_path.iter().any(|ancestor| {
+        let ancestor_type = ancestor.get("type").and_then(|t| t.as_str());
+        if ancestor_type == Some("VariableDeclarator") {
+            // Check if the current node's position falls within the `id` pattern range
+            if let (Some(id_start), Some(id_end), Some(node_start)) = (
+                ancestor
+                    .get("id")
+                    .and_then(|id| id.get("start"))
+                    .and_then(|s| s.as_u64()),
+                ancestor
+                    .get("id")
+                    .and_then(|id| id.get("end"))
+                    .and_then(|e| e.as_u64()),
+                node.get("start").and_then(|s| s.as_u64()),
+            ) {
+                return node_start >= id_start && node_start < id_end;
+            }
+        }
+        false
+    });
+
+    if context.analysis.runes && !is_declaration_node {
         let binding = &context.analysis.root.bindings[binding_idx];
         let instance_scope = context.analysis.root.instance_scope_index;
 

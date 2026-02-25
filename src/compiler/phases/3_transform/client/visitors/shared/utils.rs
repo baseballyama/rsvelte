@@ -3382,6 +3382,13 @@ fn has_reactive_state_json(json_value: &serde_json::Value, context: &ComponentCo
 
                     return false;
                 }
+                // $$props and $$restProps are always reactive - they change when props change.
+                // They don't have bindings or transforms because they are generated variables,
+                // but they reference reactive state (component props).
+                if name == "$$props" || name == "$$restProps" {
+                    return true;
+                }
+
                 // Unknown identifier - conservatively assume non-reactive
                 // (could be a global or module-level binding)
                 return false;
@@ -3718,7 +3725,11 @@ fn is_pure_json(json_value: &serde_json::Value, context: &ComponentContext) -> b
 }
 
 /// Internal helper that processes JSON values directly, avoiding serde_json::from_value overhead.
-/// Only returns true for non-pure calls (calls to local functions or with reactive arguments).
+/// Returns true for calls that have reactive dependencies, matching the official Svelte compiler
+/// behavior from CallExpression.js:
+/// `if (!is_pure(node.callee, context) || context.state.expression.dependencies.size > 0)`
+/// This means: a call has_call=true if the callee is non-pure OR if there are any dependencies
+/// in the expression (even for pure calls like JSON.stringify(reactiveVar)).
 #[inline]
 fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> bool {
     let Some(obj) = json_value.as_object() else {
@@ -3730,9 +3741,18 @@ fn has_call_json(json_value: &serde_json::Value, context: &ComponentContext) -> 
 
     match expr_type {
         "CallExpression" | "TaggedTemplateExpression" => {
-            // Check if this call is pure (callee is global, all args are pure/global)
-            // Pure calls like console.log('rendering') should NOT set has_call
-            !is_pure_json(json_value, context)
+            // Match official Svelte compiler: has_call is true when:
+            // 1. The callee is not pure (calls local functions), OR
+            // 2. The expression has any reactive dependencies (even for pure calls like
+            //    JSON.stringify(reactiveVar))
+            // We check both: pure call status and whether the entire containing expression
+            // has reactive state references.
+            if !is_pure_json(json_value, context) {
+                return true;
+            }
+            // For pure calls, check if the expression contains any reactive state references
+            // This matches the official `context.state.expression.dependencies.size > 0` check
+            has_reactive_state_json(json_value, context)
         }
         "MemberExpression" => {
             if let Some(object) = obj.get("object") {

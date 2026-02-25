@@ -213,11 +213,24 @@ pub fn detect_store_subscriptions(
                 // Emit store_rune_conflict warning if options.runes is not explicitly false
                 // and the reference is used as a CallExpression (i.e., $state() looks like a rune call)
                 // Corresponds to Svelte's 2-analyze/index.js L398-407
+                //
+                // The official compiler iterates over references for this name and checks
+                // `path.at(-1)?.type === 'CallExpression'` - we approximate by checking if
+                // this specific reference position is followed by `(` in the source.
                 if options_runes != Some(false) {
-                    // Check if the $rune reference is used as a call expression by scanning source
-                    // We approximate by checking if "$name(" appears in the source
-                    let call_pattern = format!("{}(", ref_name);
-                    if analysis.source.contains(&call_pattern) {
+                    let pos = store_ref.position + ref_name.len();
+                    let source_bytes = analysis.source.as_bytes();
+                    // Skip whitespace after the identifier
+                    let mut check_pos = pos;
+                    while check_pos < source_bytes.len()
+                        && (source_bytes[check_pos] == b' '
+                            || source_bytes[check_pos] == b'\t'
+                            || source_bytes[check_pos] == b'\n'
+                            || source_bytes[check_pos] == b'\r')
+                    {
+                        check_pos += 1;
+                    }
+                    if check_pos < source_bytes.len() && source_bytes[check_pos] == b'(' {
                         analysis
                             .warnings
                             .push(warnings::store_rune_conflict(store_name));

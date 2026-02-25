@@ -252,6 +252,11 @@ pub struct Binding {
     /// This is used for `non_reactive_update` warning, which should only fire when a non-state
     /// binding is read directly in the template, not when it's only used inside event handler callbacks.
     pub has_direct_template_read: bool,
+    /// The start position of the declaration identifier in the source.
+    /// Used to implement `node !== binding.node` check from the official Svelte compiler
+    /// to skip warnings for the declaration node itself (e.g., `let count = $state(0)`,
+    /// the `count` identifier is the declaration node, not a reference).
+    pub declaration_start: Option<u32>,
 }
 
 /// A blocker expression representing `$$promises[n]`.
@@ -299,6 +304,7 @@ impl Binding {
             legacy_dependencies: Vec::new(),
             legacy_indirect_bindings: Vec::new(),
             has_direct_template_read: false,
+            declaration_start: None,
         }
     }
 
@@ -327,6 +333,7 @@ impl Binding {
             legacy_dependencies: Vec::new(),
             legacy_indirect_bindings: Vec::new(),
             has_direct_template_read: false,
+            declaration_start: None,
         }
     }
 
