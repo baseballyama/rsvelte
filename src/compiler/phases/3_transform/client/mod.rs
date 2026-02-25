@@ -1733,6 +1733,27 @@ fn transform_instance_script_for_visitors(
         .map(|b| b.name.clone())
         .collect();
 
+    // Collect ALL import binding names in the instance scope.
+    // These are needed for legacy_pre_effect dependency tracking: the official compiler
+    // includes import bindings as bare identifiers in the dependency list when they
+    // appear in reactive statement bodies.
+    // Reference: LabeledStatement.js line 37 - `if (binding.kind === 'normal' && binding.declaration_kind !== 'import') continue;`
+    let import_names: Vec<String> = if !analysis.runes {
+        let instance_scope_index = analysis.root.instance_scope_index;
+        analysis
+            .root
+            .bindings
+            .iter()
+            .filter(|b| {
+                b.declaration_kind == DeclarationKind::Import
+                    && b.scope_index == instance_scope_index
+            })
+            .map(|b| b.name.clone())
+            .collect()
+    } else {
+        Vec::new()
+    };
+
     // Check for legacy mode (export let or export { x })
     // Also detect `export { x }` patterns which create BindableProp bindings
     let has_legacy_export_let = script_rest.lines().any(|line| {
@@ -1864,6 +1885,7 @@ fn transform_instance_script_for_visitors(
         Option<String>,
         DeclarationKind,
     )],
+                               import_names: &[String],
                                analysis: &ComponentAnalysis,
                                dev: bool,
                                has_legacy_export_let: bool| {
@@ -1917,6 +1939,7 @@ fn transform_instance_script_for_visitors(
                 proxy_vars,
                 prop_assignment_transform_vars,
                 store_sub_vars,
+                import_names,
                 analysis,
             );
             // Also apply state assignment transformations to the reactive statement body
@@ -2277,6 +2300,7 @@ fn transform_instance_script_for_visitors(
                     &rest_prop_vars,
                     &read_only_props,
                     &legacy_state_vars,
+                    &import_names,
                     analysis,
                     dev,
                     has_legacy_export_let,
@@ -2304,6 +2328,7 @@ fn transform_instance_script_for_visitors(
             &rest_prop_vars,
             &read_only_props,
             &legacy_state_vars,
+            &import_names,
             analysis,
             dev,
             has_legacy_export_let,
@@ -4028,6 +4053,7 @@ fn transform_reactive_statement(
     proxy_vars: &[String],
     prop_assignment_transform_vars: &[String],
     store_sub_vars: &[String],
+    import_names: &[String],
     _analysis: &ComponentAnalysis,
 ) -> String {
     let trimmed = statement.trim();
@@ -4089,10 +4115,25 @@ fn transform_reactive_statement(
         }
     }
 
-    // State vars are also dependencies
+    // $$props and $$restProps are also treated as prop dependencies in the official compiler.
+    // They are wrapped in $.deep_read_state() just like regular props, BUT without the ()
+    // function call (they are accessed directly, not via getter functions).
+    // Reference: LabeledStatement.js line 44: `if (name === '$$props' || name === '$$restProps' ...)`
+    // Note: In our code, $$props is later replaced by $$sanitized_props in post-processing.
+    let mut special_prop_dependencies: Vec<String> = Vec::new();
+    for special_prop in &["$$props", "$$restProps"] {
+        if body_references_identifier(body, special_prop) {
+            special_prop_dependencies.push(special_prop.to_string());
+        }
+    }
+
+    // State vars are also dependencies, but only if they are READ in the body
+    // (not just assigned). In the official compiler, reactive_statement.dependencies
+    // only includes bindings that are read, not those that are only assigned.
     for state_var in state_vars {
         if !non_reactive_state_vars.contains(state_var)
             && body_references_identifier(body, state_var)
+            && !is_only_assignment_target(body, state_var)
         {
             state_dependencies.push(state_var.clone());
         }
@@ -4116,6 +4157,24 @@ fn transform_reactive_statement(
             };
             if !is_assignment_target {
                 store_sub_dependencies.push(store_sub.clone());
+            }
+        }
+    }
+
+    // Import identifiers referenced in the body are also dependencies.
+    // In the official compiler, import bindings with `declaration_kind === 'import'`
+    // are included as bare identifiers in the dependency list.
+    // This handles cases like `$: selected() ? component = Sub : component = banana`
+    // where `Sub` is an imported component that should appear in the deps.
+    let mut import_dependencies: Vec<String> = Vec::new();
+    for import_name in import_names {
+        if body_references_identifier(body, import_name) {
+            // Don't add if it's already a state var or prop (would be double-counted)
+            if !state_vars.contains(import_name)
+                && !prop_assignment_transform_vars.contains(import_name)
+                && !store_sub_vars.contains(import_name)
+            {
+                import_dependencies.push(import_name.clone());
             }
         }
     }
@@ -4287,7 +4346,9 @@ fn transform_reactive_statement(
     // matching the official Svelte compiler's Phase 2 dependency ordering.
     let has_deps = !prop_dependencies.is_empty()
         || !state_dependencies.is_empty()
-        || !store_sub_dependencies.is_empty();
+        || !store_sub_dependencies.is_empty()
+        || !import_dependencies.is_empty()
+        || !special_prop_dependencies.is_empty();
     let deps_expr = if !has_deps {
         "".to_string()
     } else {
@@ -4336,6 +4397,20 @@ fn transform_reactive_statement(
         for dep in &store_sub_dependencies {
             let pos = find_pos(dep);
             unified_deps.push((pos, format!("{}()", dep)));
+        }
+        // Import identifiers: appear as bare identifiers in the dependency list.
+        // In the official compiler, import bindings pass through build_getter()
+        // which returns them unchanged (no transform registered).
+        for dep in &import_dependencies {
+            let pos = find_pos(dep);
+            unified_deps.push((pos, dep.clone()));
+        }
+        // $$props and $$restProps: wrapped in $.deep_read_state() without function call.
+        // Unlike regular props which are accessed via getter functions (prop_name()),
+        // $$props/$$restProps are accessed directly.
+        for dep in &special_prop_dependencies {
+            let pos = find_pos(dep);
+            unified_deps.push((pos, format!("$.deep_read_state({})", dep)));
         }
         // Sort by first occurrence in body so deps match official compiler output order
         unified_deps.sort_by_key(|&(pos, _)| pos);
@@ -5052,6 +5127,94 @@ fn transform_state_member_mutations(
     result
 }
 
+/// Check if a variable is ONLY used as an assignment target in the body (never read).
+///
+/// Returns true if every occurrence of the identifier is immediately followed by an
+/// assignment operator (`=`, `+=`, `-=`, etc.) - meaning it's only written to, not read.
+/// Returns false if the identifier is read anywhere in the body.
+///
+/// This is used to exclude state variables that are only assigned (not read) from
+/// the `$.legacy_pre_effect()` dependency list, matching the official compiler's behavior
+/// where `reactive_statement.dependencies` only includes bindings that are read.
+///
+/// Examples:
+/// - `component = Sub` → `component` is only assigned, returns true
+/// - `count = count + 1` → `count` is read on RHS, returns false
+/// - `if (x) component = Sub; else component = Banana` → returns true (only assignments)
+fn is_only_assignment_target(body: &str, identifier: &str) -> bool {
+    let escaped = regex::escape(identifier);
+    let pattern = format!(r"(^|[^a-zA-Z0-9_$\.]){}([^a-zA-Z0-9_$]|$)", escaped);
+    let re = match regex::Regex::new(&pattern) {
+        Ok(re) => re,
+        Err(_) => return false,
+    };
+
+    let stripped_body = strip_string_literal_text(body);
+
+    // Find all occurrences of the identifier
+    let mut search_start = 0;
+    let mut found_any = false;
+    while search_start < stripped_body.len() {
+        let search_slice = &stripped_body[search_start..];
+        if let Some(m) = re.find(search_slice) {
+            found_any = true;
+            // Determine the actual start of the identifier within the match
+            let abs_start = search_start + m.start();
+            let match_str = &stripped_body[abs_start..search_start + m.end()];
+            // The identifier may be preceded by a non-ident char
+            let ident_start = if match_str.starts_with(identifier) {
+                abs_start
+            } else {
+                abs_start + match_str.find(identifier).unwrap_or(0)
+            };
+            let ident_end = ident_start + identifier.len();
+
+            // Check what follows the identifier (skipping whitespace)
+            let after = stripped_body[ident_end..].trim_start();
+            // Check if followed by assignment operator
+            let is_assignment = after.starts_with("= ")
+                || after.starts_with("=\t")
+                || after.starts_with("=\n")
+                || after.starts_with("=;")
+                || after.starts_with(";\n")
+                || after.starts_with("+=")
+                || after.starts_with("-=")
+                || after.starts_with("*=")
+                || after.starts_with("/=")
+                || after.starts_with("%=")
+                || after.starts_with("**=")
+                || after.starts_with("<<=")
+                || after.starts_with(">>=")
+                || after.starts_with(">>>=")
+                || after.starts_with("&=")
+                || after.starts_with("|=")
+                || after.starts_with("^=")
+                || after.starts_with("&&=")
+                || after.starts_with("||=")
+                || after.starts_with("??=");
+            // Also handle end-of-line assignment: `identifier =\n`
+            let is_assignment = is_assignment
+                || (!after.is_empty() && after.starts_with('=') && !after.starts_with("=="));
+
+            if !is_assignment {
+                // This occurrence is a read, not an assignment target
+                return false;
+            }
+
+            // Move past this match to find more occurrences
+            search_start += m.end();
+            // The regex match might end with a boundary char; back up one
+            // so the next match can use it as a preceding boundary
+            search_start = search_start.saturating_sub(1);
+        } else {
+            break;
+        }
+    }
+
+    // If we found the identifier and all occurrences were assignments, return true
+    found_any
+}
+
 /// Check if a body references an identifier as a read (not only as an assignment target).
 ///
 /// This is used to determine dependencies for `$.legacy_pre_effect()` calls.
@@ -5187,13 +5350,16 @@ fn strip_string_literal_text(code: &str) -> String {
                                     continue;
                                 }
                                 '\'' | '"' => {
-                                    // Skip string inside expression
+                                    // Strip string content inside expression
                                     let quote = chars[i];
                                     i += 1;
                                     while i < len && chars[i] != quote {
                                         if chars[i] == '\\' && i + 1 < len {
+                                            result[i] = ' ';
+                                            result[i + 1] = ' ';
                                             i += 2;
                                         } else {
+                                            result[i] = ' ';
                                             i += 1;
                                         }
                                     }
