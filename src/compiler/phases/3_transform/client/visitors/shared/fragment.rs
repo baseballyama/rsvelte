@@ -101,6 +101,12 @@ fn has_dynamic_children(nodes: &[TemplateNode]) -> bool {
                             if elem.name == "option" && a.name == "value" {
                                 return true;
                             }
+                            // Dynamic attribute values (containing expressions) make it non-static
+                            if !matches!(a.value, crate::ast::template::AttributeValue::True(_))
+                                && !is_text_attribute(attr)
+                            {
+                                return true;
+                            }
                         }
                         // All directives require runtime handling
                         Attribute::BindDirective(_)
@@ -375,11 +381,13 @@ pub fn process_children<F>(
                 if is_static_element(node, &context.state) {
                     // Push the static element to the template
                     let css_hash = &context.state.analysis.css.hash;
+                    let preserve_comments = context.state.options.preserve_comments;
                     push_static_element_to_template(
                         node,
                         &mut context.state.template,
                         &context.state.metadata.namespace,
                         css_hash,
+                        preserve_comments,
                     );
                     skipped += 1;
                 } else if let TemplateNode::EachBlock(each) = node {
@@ -477,6 +485,7 @@ fn push_static_element_to_template(
     template: &mut Template,
     namespace: &str,
     css_hash: &str,
+    preserve_comments: bool,
 ) {
     match node {
         TemplateNode::RegularElement(elem) => {
@@ -561,9 +570,52 @@ fn push_static_element_to_template(
                 template.set_prop("class".to_string(), Some(css_hash.to_string()));
             }
 
-            // Recursively add children
-            for child in &elem.fragment.nodes {
-                push_static_element_to_template(child, template, &child_namespace, css_hash);
+            // Recursively add children (skip comments if not preserving,
+            // trim leading/trailing whitespace-only text nodes)
+            let children = &elem.fragment.nodes;
+
+            // Find start index (skip leading whitespace-only text and comments)
+            let start = children
+                .iter()
+                .position(|n| {
+                    if !preserve_comments && matches!(n, TemplateNode::Comment(_)) {
+                        return false;
+                    }
+                    if let TemplateNode::Text(t) = n {
+                        !is_svelte_whitespace_only(&t.data)
+                    } else {
+                        true
+                    }
+                })
+                .unwrap_or(children.len());
+
+            // Find end index (skip trailing whitespace-only text and comments)
+            let end = children
+                .iter()
+                .rposition(|n| {
+                    if !preserve_comments && matches!(n, TemplateNode::Comment(_)) {
+                        return false;
+                    }
+                    if let TemplateNode::Text(t) = n {
+                        !is_svelte_whitespace_only(&t.data)
+                    } else {
+                        true
+                    }
+                })
+                .map(|i| i + 1)
+                .unwrap_or(0);
+
+            for child in &children[start..end.max(start)] {
+                if !preserve_comments && matches!(child, TemplateNode::Comment(_)) {
+                    continue;
+                }
+                push_static_element_to_template(
+                    child,
+                    template,
+                    &child_namespace,
+                    css_hash,
+                    preserve_comments,
+                );
             }
 
             // Special case: if the only meaningful child is a lone <script> element,
@@ -593,7 +645,9 @@ fn push_static_element_to_template(
             template.push_text(vec![text.clone()]);
         }
         TemplateNode::Comment(comment) => {
-            template.push_comment(Some(comment.data.to_string()));
+            if preserve_comments {
+                template.push_comment(Some(comment.data.to_string()));
+            }
         }
         _ => {}
     }

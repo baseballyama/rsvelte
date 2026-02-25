@@ -1655,12 +1655,20 @@ fn visit_slot_children(
     }
 
     // Save the current state
+    // This mirrors Fragment.js which creates a new state with fresh consts, init, update, etc.
     let saved_init = std::mem::take(&mut context.state.init);
     let saved_update = std::mem::take(&mut context.state.update);
     let saved_after_update = std::mem::take(&mut context.state.after_update);
     let saved_template = context.state.template.clone();
     let saved_node = context.state.node.clone();
     let saved_hoisted = std::mem::take(&mut context.state.hoisted);
+    let saved_consts = std::mem::take(&mut context.state.consts);
+    let saved_async_consts = context.state.async_consts.take();
+    let new_memoizer =
+        crate::compiler::phases::phase3_transform::client::types::Memoizer::with_parent_conflicts(
+            &context.state.memoizer,
+        );
+    let saved_memoizer = std::mem::replace(&mut context.state.memoizer, new_memoizer);
 
     // Reset template for slot content
     context.state.template =
@@ -1954,32 +1962,77 @@ fn visit_slot_children(
         }
     }
 
-    // Collect the generated init statements
-    let mut result = std::mem::replace(&mut context.state.init, saved_init);
+    // Collect results following Fragment.js ordering:
+    // body.push(...state.snippets, ...state.let_directives, ...state.consts);
+    // body.push(...state.init);
+    // if (state.update.length > 0) body.push(build_render_statement(state));
+    // body.push(...state.after_update);
+    // body.push(close);
 
-    // If there are update statements, wrap them in an effect
+    let mut result: Vec<JsStatement> = Vec::new();
+
+    // Add consts (from ConstTag declarations) before init
+    // This mirrors Fragment.js line 159: body.push(...state.consts)
+    let slot_consts = std::mem::replace(&mut context.state.consts, saved_consts);
+    result.extend(slot_consts);
+
+    // Handle async_consts
+    let slot_async_consts = std::mem::replace(&mut context.state.async_consts, saved_async_consts);
+    if let Some(async_consts) = slot_async_consts
+        && !async_consts.thunks.is_empty()
+    {
+        result.push(b::var_decl(
+            "__async_consts",
+            Some(b::call(
+                b::member_path("$.run"),
+                vec![b::array(async_consts.thunks)],
+            )),
+        ));
+    }
+
+    // Add init statements
+    let init_stmts = std::mem::replace(&mut context.state.init, saved_init);
+    result.extend(init_stmts);
+
+    // If there are update statements, wrap them in a template_effect
+    // Use memoizer to extract dependencies when available (template_effect hoisting)
     let update_stmts = std::mem::replace(&mut context.state.update, saved_update);
+    let slot_memoizer = std::mem::replace(&mut context.state.memoizer, saved_memoizer);
     if !update_stmts.is_empty() {
-        // Wrap update statements in $.template_effect
-        // Use inline arrow for single expression statements, block arrow otherwise
-        let arrow_fn =
-            if update_stmts.len() == 1 && matches!(update_stmts[0], JsStatement::Expression(_)) {
-                // Single expression statement - use inline arrow
+        if slot_memoizer.has_memoized() {
+            // Use memoized dependency hoisting:
+            // $.template_effect(($0, $1) => { ... }, [() => expr1, () => expr2])
+            let params = slot_memoizer.get_params();
+            let sync_values = slot_memoizer.sync_values();
+            let async_values = slot_memoizer.async_values();
+            result.push(b::stmt(
+                crate::compiler::phases::phase3_transform::client::visitors::shared::utils::build_render_statement_with_memoizer(
+                    update_stmts,
+                    params,
+                    sync_values,
+                    async_values,
+                    None, // blockers
+                ),
+            ));
+        } else {
+            // Simple case: $.template_effect(() => { ... })
+            let arrow_fn = if update_stmts.len() == 1
+                && matches!(update_stmts[0], JsStatement::Expression(_))
+            {
                 if let JsStatement::Expression(expr_stmt) = &update_stmts[0] {
                     b::arrow(vec![], (*expr_stmt.expression).clone())
                 } else {
-                    // Fallback to block (shouldn't happen)
                     b::arrow_block(vec![], update_stmts)
                 }
             } else {
-                // Multiple statements or non-expression - use block arrow
                 b::arrow_block(vec![], update_stmts)
             };
 
-        result.push(b::stmt(b::call(
-            b::member_path("$.template_effect"),
-            vec![arrow_fn],
-        )));
+            result.push(b::stmt(b::call(
+                b::member_path("$.template_effect"),
+                vec![arrow_fn],
+            )));
+        }
     }
 
     // Add after_update statements (transitions, animations, etc.)
@@ -1988,7 +2041,7 @@ fn visit_slot_children(
     result.extend(after_update_stmts);
 
     // Add close statement ($.append) at the very end
-    // This follows Fragment.js order: init -> update -> after_update -> close
+    // This follows Fragment.js order: consts -> init -> update -> after_update -> close
     if let Some(close) = close_statement {
         result.push(close);
     }

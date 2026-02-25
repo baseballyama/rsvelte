@@ -219,14 +219,41 @@ fn visit_common(
         .and_then(|n| n.as_str())
         .unwrap_or_default();
 
-    // Look up the binding in the scope
-    let binding = context
+    // Look up the binding in the scope using proper scope chain traversal
+    let binding_idx = context
         .analysis
         .root
-        .scope
-        .declarations
-        .get(binding_name)
-        .map(|idx| &context.analysis.root.bindings[*idx]);
+        .get_binding(binding_name, context.scope);
+
+    // Mark has_direct_template_read for non_reactive_update warning.
+    // Corresponds to Svelte's 2-analyze/index.js L728-768.
+    // For bind:this: only mark if the bind:this is inside a conditional block
+    // (IfBlock, EachBlock, AwaitBlock, KeyBlock). At the top level, bind:this
+    // doesn't need state since the element reference never changes.
+    // For other binds: always mark as direct template read.
+    if let Some(idx) = binding_idx {
+        if directive.name == "this" {
+            // Check if any ancestor in the template path is a conditional block
+            let in_conditional = context.path.iter().any(|node| {
+                matches!(
+                    node,
+                    TemplateNode::IfBlock(_)
+                        | TemplateNode::EachBlock(_)
+                        | TemplateNode::AwaitBlock(_)
+                        | TemplateNode::KeyBlock(_)
+                )
+            });
+            if in_conditional {
+                context.analysis.root.bindings[idx].has_direct_template_read = true;
+            }
+        } else {
+            // Non-this binds are always direct template reads
+            context.analysis.root.bindings[idx].has_direct_template_read = true;
+        }
+    }
+
+    // Re-borrow binding after mutable operations are done
+    let binding = binding_idx.map(|idx| &context.analysis.root.bindings[idx]);
 
     // TODO: Set node.metadata.binding = binding
 
