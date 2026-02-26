@@ -540,6 +540,14 @@ export default function {component_name}($$renderer{props_param}) {{
         each_counter: &mut usize,
         store_subs: &[(&str, &str)],
     ) -> String {
+        // Hoist @const declarations to the front and strip whitespace-only Html
+        // between them. This mirrors the official Svelte compiler's behavior where
+        // ConstTag nodes are hoisted out of the fragment and placed in state.init
+        // (before template rendering). Without this, whitespace text nodes between
+        // consecutive @const tags would be flushed as $$renderer.push(` `) calls.
+        let hoisted_parts = Self::hoist_const_declarations_and_strip_ws(parts);
+        let parts = &hoisted_parts;
+
         let mut body_code = String::new();
         let mut current_html = String::new();
         let indent = "\t".repeat(indent_level);

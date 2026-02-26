@@ -523,41 +523,51 @@ fn run_validator_tests() -> CategoryResult {
             None
         };
 
-        // Parse warningFilter from _config.js to determine which codes to exclude
-        let warning_filter_codes: Vec<String> = if config_path.exists() {
-            if let Ok(config) = fs::read_to_string(&config_path) {
-                if config.contains("warningFilter") {
-                    // Extract warning codes from patterns like:
-                    // !['code1', 'code2'].includes(warning.code)
-                    let mut codes = Vec::new();
-                    // Match codes in the includes array
-                    for cap in warning_code_re.captures_iter(&config) {
-                        let code = cap[1].to_string();
-                        // Skip non-warning-code strings like common JS identifiers
-                        if code.contains("a11y")
-                            || code.contains("css")
-                            || code.contains("state")
-                            || code.starts_with("unused")
-                            || code == "test"
-                        {
-                            codes.push(code);
-                        }
+        // Parse compileOptions and warningFilter from _config.js
+        let mut warning_filter_codes: Vec<String> = Vec::new();
+        let mut config_runes: Option<bool> = None;
+        let mut config_custom_element = false;
+
+        if config_path.exists()
+            && let Ok(config) = fs::read_to_string(&config_path)
+        {
+            // Extract warningFilter codes
+            if config.contains("warningFilter") {
+                // Extract warning codes from patterns like:
+                // !['code1', 'code2'].includes(warning.code)
+                for cap in warning_code_re.captures_iter(&config) {
+                    let code = cap[1].to_string();
+                    // Skip non-warning-code strings like common JS identifiers
+                    if code.contains("a11y")
+                        || code.contains("css")
+                        || code.contains("state")
+                        || code.starts_with("unused")
+                        || code == "test"
+                    {
+                        warning_filter_codes.push(code);
                     }
-                    codes
-                } else {
-                    Vec::new()
                 }
-            } else {
-                Vec::new()
             }
-        } else {
-            Vec::new()
-        };
+
+            // Extract runes option from compileOptions
+            if config.contains("runes: false") || config.contains("runes:false") {
+                config_runes = Some(false);
+            } else if config.contains("runes: true") || config.contains("runes:true") {
+                config_runes = Some(true);
+            }
+
+            // Extract customElement option from compileOptions
+            if config.contains("customElement: true") || config.contains("customElement:true") {
+                config_custom_element = true;
+            }
+        }
 
         let compile_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let options = CompileOptions {
                 generate: GenerateMode::Client,
                 filename: Some(format!("{}/input.svelte", name)),
+                runes: config_runes,
+                custom_element: config_custom_element,
                 ..Default::default()
             };
             compile(&input, options)
