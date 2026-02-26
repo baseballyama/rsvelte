@@ -94,16 +94,16 @@ Current compatibility with the official Svelte compiler test suite:
 | Test Suite | Passing | Total | Coverage | Notes |
 |------------|---------|-------|----------|-------|
 | Parser Modern | 22 | 22 | 100% |  |
-| Parser Legacy | 79 | 82 | 96% | 1 skipped |
-| Compiler Snapshot | 17 | 18 | 94% | 10 skipped |
-| CSS | 143 | 179 | 80% |  |
-| Validator | 256 | 314 | 82% | 11 skipped |
-| Compiler Errors | 112 | 118 | 95% | 26 skipped |
-| Runtime Runes | 728 | 838 | 87% | 28 skipped |
-| Runtime Legacy | 778 | 1202 | 65% |  |
-| Runtime Browser | 18 | 31 | 58% |  |
-| Hydration | 67 | 77 | 87% | 1 skipped |
-| SSR | 79 | 82 | 96% |  |
+| Parser Legacy | 82 | 82 | 100% | 1 skipped |
+| Compiler Snapshot | 18 | 18 | 100% | 10 skipped |
+| CSS | 178 | 179 | 99% |  |
+| Validator | 291 | 313 | 93% | 12 skipped |
+| Compiler Errors | 118 | 118 | 100% | 26 skipped |
+| Runtime Runes | 774 | 838 | 92% | 28 skipped |
+| Runtime Legacy | 1139 | 1202 | 95% |  |
+| Runtime Browser | 28 | 31 | 90% |  |
+| Hydration | 71 | 77 | 92% | 1 skipped |
+| SSR | 82 | 82 | 100% |  |
 | Sourcemaps | 0 | 0 | 0% |  |
 | Preprocess | 0 | 0 | 0% | Not implemented |
 | Print | 0 | 0 | 0% | Not implemented |

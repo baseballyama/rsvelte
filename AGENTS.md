@@ -100,7 +100,7 @@ Pre-commit hooks run `cargo fmt` and `cargo clippy` automatically.
 - Remove outdated information
 - Keep it concise
 
-## Test Status (2026-02-24)
+## Test Status (2026-02-26)
 
 | Suite | Pass/Total | Status |
 |-------|------------|--------|
@@ -109,31 +109,41 @@ Pre-commit hooks run `cargo fmt` and `cargo clippy` automatically.
 | Compiler Errors | 118/118 | ✅ 100% |
 | SSR | 82/82 | ✅ 100% |
 | Compiler Snapshot | 18/18 | ✅ 100% |
-| CSS | 162/179 | 🟢 91% |
-| Runtime Legacy | 1083/1202 | 🟢 90% |
-| Runtime Runes | 750/838 | 🟢 90% |
-| Hydration | 68/77 | 🟢 88% |
-| Validator | 264/313 | 🟢 84% |
-| Runtime Browser | 24/31 | 🟢 77% |
+| CSS | 178/179 | 🟢 99% |
+| Runtime Legacy | 1139/1202 | 🟢 95% |
+| Runtime Runes | 774/838 | 🟢 92% |
+| Hydration | 71/77 | 🟢 92% |
+| Runtime Browser | 28/31 | 🟢 90% |
+| Validator | 291/313 | 🟢 93% |
 | Preprocess | 0/19 | ⏸️ N/A |
 | Print | 0/40 | ⏸️ N/A |
 | Migrate | 0/76 | ⏸️ N/A |
 
-**Overall: 2673/2962 (90.2%)**
+**Overall: 2803/2962 (94.6%)**
 
 ## Current Focus
 
-### Phase 3 Client-Side Code Generation (Priority)
+### Remaining Failures (159 tests to 100%)
 
-Runtime Runes: 87% passing (728/838). Key remaining issues:
+Runtime Runes (64 failures):
+1. Async infrastructure - $.run, $.save, $.async (~40 tests, separate feature)
+2. Non-async: mutation wrapping, CSS hash, attribute effects (~24 tests)
 
-1. Template effect dependency extraction (~28 tests)
-2. Missing $.set() calls for class fields/module context (~19 tests)
-3. Async infrastructure - $.run, $.save, $.async (~27 tests)
-4. Snippet/slot rendering - derived_safe_equal, fallback (~10 tests)
-5. Store operations - update_store vs store_set (~9 tests)
-6. Static content detection - nodeValue vs template_effect (~8 tests)
-7. CSS hash scoping (~5 tests)
+Runtime Legacy (63 failures):
+1. Mutation return value wrapping `signal(signal().prop = val, true)` (~9 tests)
+2. {@const} tag handling - derived_safe_equal, deep_read_state (~7 tests)
+3. Compilation errors - invalid JS from store/destructure codegen (~8 tests)
+4. Deep read state / untrack dependency wrapping (~6 tests)
+5. Slot/let directive issues (~6 tests)
+6. Server-side reactive statement ordering (~5 tests)
+
+Validator (22 failures):
+1. A11y warnings - role/aria prop mapping tables (~3 tests, 187 warnings)
+2. bind_invalid_each_rest (~4 tests)
+3. element_implicitly_closed (~2 tests)
+4. Various missing single warnings (~13 tests)
+
+Other: Hydration (6), Runtime Browser (3), CSS (1)
 
 ## Implementation Status
 
@@ -176,38 +186,28 @@ Documentation:
 - 5 comprehensive implementation guides created
 - Clear roadmap with priorities (40-60 hours estimated)
 
-**CSS** (62%)
+**CSS** (99% - 178/179)
 
 - Selector scoping with `.svelte-hash`
 - Combinators and pseudo-classes (`:is()`, `:not()`, `:has()`)
-- `:global()` modifier support
+- `:global()` modifier support with `:where()` hash scoping
 - Animation keyframe prefixing
-- Basic unused selector detection
+- Unused selector detection (nesting, siblings, compounds)
+- Remaining: unicode-identifier edge case
 
-### Not Implemented
+**Validator** (93% - 291/313)
 
-**CSS** (69 tests)
+- Warning generation system (most codes implemented)
+- Remaining: A11y role/aria prop validation tables, bind_invalid_each_rest, element_implicitly_closed
 
-- Complex unused selector detection (combinators, nesting, siblings)
-- CSS escape sequences
-- `@layer`, `@page`, `@supports` edge cases
+**Compiler Errors** (100% - 118/118)
 
-**Validator** (244 tests)
+- All error detection patterns implemented
 
-- Warning generation system
-- A11y checks
-- Comprehensive unused CSS detection
+**Runtime** (92-95%)
 
-**Compiler Errors** (118 tests)
-
-- Error detection for invalid patterns
-- Rune validation
-
-**Runtime** (2600+ tests)
-
-- `{#if}` block client-side generation
-- Most client-side reactive code generation
-- `experimental.async`, `hmr`, `fragments` options
+- Full client/server code generation for most patterns
+- Remaining: async infrastructure, mutation wrapping, deep_read_state, slot/let edge cases
 
 ## Quick Reference
 

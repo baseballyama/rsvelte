@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-02-18T04:21:59.226489755+00:00",
+  "generated_at": "2026-02-26T06:25:57.768854597+00:00",
   "commit_sha": "04c0368aa8d8",
   "summary": {
     "total": 3175,
-    "passed": 2299,
-    "failed": 664,
-    "skipped": 212,
-    "percentage": 77.59028012149848
+    "passed": 2803,
+    "failed": 159,
+    "skipped": 213,
+    "percentage": 94.63200540175556
   },
   "categories": [
     {
@@ -112,10 +112,10 @@
       "id": "parser-legacy",
       "name": "Parser Legacy",
       "total": 83,
-      "passed": 79,
-      "failed": 3,
+      "passed": 82,
+      "failed": 0,
       "skipped": 1,
-      "percentage": 96.34146341463415,
+      "percentage": 100,
       "tests": [
         {
           "name": "action-duplicate",
@@ -123,8 +123,7 @@
         },
         {
           "name": "dynamic-import",
-          "status": "fail",
-          "error_message": "AST mismatch"
+          "status": "pass"
         },
         {
           "name": "convert-entities",
@@ -136,8 +135,7 @@
         },
         {
           "name": "script-context-module-unquoted",
-          "status": "fail",
-          "error_message": "AST mismatch"
+          "status": "pass"
         },
         {
           "name": "whitespace-after-script-tag",
@@ -145,8 +143,7 @@
         },
         {
           "name": "each-block-destructured",
-          "status": "fail",
-          "error_message": "AST mismatch"
+          "status": "pass"
         },
         {
           "name": "attribute-escaped",
@@ -459,10 +456,10 @@
       "id": "snapshot",
       "name": "Compiler Snapshot",
       "total": 28,
-      "passed": 17,
-      "failed": 1,
+      "passed": 18,
+      "failed": 0,
       "skipped": 10,
-      "percentage": 94.44444444444444,
+      "percentage": 100,
       "tests": [
         {
           "name": "async-if-chain",
@@ -580,8 +577,7 @@
         },
         {
           "name": "props-identifier",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-index-non-null",
@@ -593,10 +589,10 @@
       "id": "css",
       "name": "CSS",
       "total": 179,
-      "passed": 143,
-      "failed": 35,
+      "passed": 178,
+      "failed": 1,
       "skipped": 0,
-      "percentage": 79.88826815642457,
+      "percentage": 99.4413407821229,
       "tests": [
         {
           "name": "omit-scoping-attribute-class-static",
@@ -612,8 +608,7 @@
         },
         {
           "name": "snippets",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "child-combinator",
@@ -665,8 +660,7 @@
         },
         {
           "name": "siblings-combinator-component-default-snippet",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "media-query",
@@ -743,8 +737,7 @@
         },
         {
           "name": "general-siblings-combinator-slot-global",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "attribute-selector-bind",
@@ -780,13 +773,11 @@
         },
         {
           "name": "siblings-combinator-if-not-exhaustive-with-each",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "siblings-combinator-slot",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "keyframes-autoprefixed",
@@ -830,13 +821,11 @@
         },
         {
           "name": "unused-selector-empty-attribute",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "global-nested-block",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "supports-import",
@@ -852,8 +841,7 @@
         },
         {
           "name": "general-siblings-combinator-each-else",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "is",
@@ -929,13 +917,11 @@
         },
         {
           "name": "general-siblings-combinator-rendertag-global",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "unused-selector-string-concat",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "siblings-combinator-former-element-in-slot",
@@ -983,8 +969,7 @@
         },
         {
           "name": "siblings-combinator-each-2",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "directive-special-character",
@@ -1008,8 +993,7 @@
         },
         {
           "name": "nested-css",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "global-with-child-combinator",
@@ -1069,8 +1053,7 @@
         },
         {
           "name": "unused-ts-as-expression",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "empty-class",
@@ -1090,8 +1073,7 @@
         },
         {
           "name": "root",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "media-query-word",
@@ -1107,13 +1089,11 @@
         },
         {
           "name": "siblings-combinator-component",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "global-block",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "general-siblings-combinator-await",
@@ -1125,18 +1105,15 @@
         },
         {
           "name": "attribute-selector-case-sensitive",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "dynamic-element",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "has",
-          "status": "fail",
-          "error_message": "Compilation error: Analysis(ValidationWithCode { code: \"css_global_invalid_placement\", message: \"`:global(...)` can be at the start or end of a selector sequence, but not in the middle\" })"
+          "status": "pass"
         },
         {
           "name": "global-local",
@@ -1144,8 +1121,7 @@
         },
         {
           "name": "siblings-combinator-each-else-nested",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "omit-scoping-attribute-attribute-selector-pipe-equals",
@@ -1169,8 +1145,7 @@
         },
         {
           "name": "siblings-combinator-each-nested",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "global-local-nested",
@@ -1202,8 +1177,7 @@
         },
         {
           "name": "nesting-selectors",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "omit-scoping-attribute",
@@ -1235,13 +1209,11 @@
         },
         {
           "name": "general-siblings-combinator-svelteelement",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "not-selector-global",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "omit-scoping-attribute-class-dynamic",
@@ -1249,13 +1221,11 @@
         },
         {
           "name": "general-siblings-combinator-if-not-exhaustive-with-each",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "general-siblings-combinator-slot",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "omit-scoping-attribute-attribute-selector-equals",
@@ -1263,8 +1233,7 @@
         },
         {
           "name": "comments-after-last-selector",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "global",
@@ -1276,13 +1245,11 @@
         },
         {
           "name": "global-with-nesting",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "has-with-render-tag",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "descendant-selector-unmatched",
@@ -1306,13 +1273,11 @@
         },
         {
           "name": "unused-selector-leading",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "siblings-combinator-slot-named-between-default",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "attribute-selector-matches-derictive",
@@ -1320,13 +1285,11 @@
         },
         {
           "name": "general-siblings-combinator-each-else-nested",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "unused-nested-at-rule",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "general-siblings-combinator-former-element-in-slot",
@@ -1338,13 +1301,11 @@
         },
         {
           "name": "siblings-combinator-each-else",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "selectedcontent",
-          "status": "fail",
-          "error_message": "CSS mismatch"
+          "status": "pass"
         },
         {
           "name": "global-with-unused-descendant",
@@ -1356,10 +1317,10 @@
       "id": "validator",
       "name": "Validator",
       "total": 325,
-      "passed": 256,
-      "failed": 53,
-      "skipped": 11,
-      "percentage": 81.52866242038218,
+      "passed": 291,
+      "failed": 21,
+      "skipped": 12,
+      "percentage": 92.97124600638978,
       "tests": [
         {
           "name": "css-invalid-global-selector-2",
@@ -1404,8 +1365,7 @@
         },
         {
           "name": "custom-element-props-identifier-rest",
-          "status": "fail",
-          "error_message": "Expected 2 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "html-block-in-attribute",
@@ -1458,8 +1418,7 @@
         },
         {
           "name": "custom-element-props-identifier-props-option",
-          "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "each-block-multiple-children",
@@ -1502,8 +1461,7 @@
         },
         {
           "name": "reactive-declaration-cyclical",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "class-state-constructor-8",
@@ -1560,8 +1518,7 @@
         },
         {
           "name": "store-looking-like-rune",
-          "status": "fail",
-          "error_message": "Unexpected compilation error: Analysis(ValidationWithCode { code: \"legacy_export_invalid\", message: \"Cannot use `export let` in runes mode — use `$props()` instead\\nhttps://svelte.dev/e/legacy_export_invalid\" })"
+          "status": "pass"
         },
         {
           "name": "a11y-aria-proptypes-number",
@@ -1573,8 +1530,7 @@
         },
         {
           "name": "runes-referenced-nonstate-bind-this",
-          "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "document-binding-invalid-dimensions",
@@ -1674,8 +1630,8 @@
         },
         {
           "name": "error-mode-warn",
-          "status": "fail",
-          "error_message": "Unexpected compilation error: Analysis(ValidationWithCode { code: \"constant_binding\", message: \"Cannot bind to constant\" })"
+          "status": "skip",
+          "skip_reason": "Skipped via _config.js"
         },
         {
           "name": "svelte-ignore-non-reactive-update",
@@ -1719,8 +1675,7 @@
         },
         {
           "name": "store-runes-conflict",
-          "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "multiple-var-same-name",
@@ -1817,8 +1772,7 @@
         },
         {
           "name": "use-the-platform",
-          "status": "fail",
-          "error_message": "Expected 2 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "attribute-expected-equals",
@@ -1844,8 +1798,7 @@
         },
         {
           "name": "ignore-warning-compiler-option",
-          "status": "fail",
-          "error_message": "Expected 1 warnings, got 4"
+          "status": "pass"
         },
         {
           "name": "style-directive-valid-reference",
@@ -1861,13 +1814,11 @@
         },
         {
           "name": "runes-referenced-nonstate",
-          "status": "fail",
-          "error_message": "Expected 2 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "state-referenced-locally-props-identifier",
-          "status": "fail",
-          "error_message": "Expected 2 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "namespace-invalid",
@@ -1912,8 +1863,7 @@
         },
         {
           "name": "ts-unsupported-enum",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "slot-attribute-invalid",
@@ -1938,8 +1888,7 @@
         },
         {
           "name": "ts-unsupported-modifier-readonly",
-          "status": "fail",
-          "error_message": "Expected error 'typescript_invalid_feature', got: Transform(CodeGen(\"Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \\\"Parameter modifiers can only be used in TypeScript files.\\\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(199), length: 8 }, primary: false }]), help: Some(\\\"No modifiers are allowed here.\\\"), note: None, severity: Error, code: OxcCode { scope: Some(\\\"TS\\\"), number: Some(\\\"8012\\\") }, url: None } }]\"))"
+          "status": "pass"
         },
         {
           "name": "a11y-heading-has-content",
@@ -1947,8 +1896,7 @@
         },
         {
           "name": "a11y-anchor-is-valid",
-          "status": "fail",
-          "error_message": "Expected 6 warnings, got 4"
+          "status": "pass"
         },
         {
           "name": "a11y-html-has-lang",
@@ -1998,13 +1946,11 @@
         },
         {
           "name": "ts-unsupported-namespace",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "tag-custom-element-options-missing",
-          "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "binding-invalid-on-element-2",
@@ -2021,8 +1967,7 @@
         },
         {
           "name": "each-block-destructured-object-rest-comma-after",
-          "status": "fail",
-          "error_message": "Expected error 'js_parse_error', got: Transform(CodeGen(\"Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \\\"Expected `,` or `)` but found `=>`\\\", labels: Some([LabeledSpan { label: Some(\\\"`,` or `)` expected\\\"), span: SourceSpan { offset: SourceOffset(436), length: 2 }, primary: true }, LabeledSpan { label: Some(\\\"Opened here\\\"), span: SourceSpan { offset: SourceOffset(350), length: 1 }, primary: false }]), help: None, note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]\"))"
+          "status": "pass"
         },
         {
           "name": "a11y-tabindex-no-positive",
@@ -2117,18 +2062,15 @@
         },
         {
           "name": "a11y-no-redundant-roles",
-          "status": "fail",
-          "error_message": "Expected 38 warnings, got 39"
+          "status": "pass"
         },
         {
           "name": "dynamic-element-this",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "invalid-node-placement-8",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "illegal_spread_element-document",
@@ -2173,8 +2115,7 @@
         },
         {
           "name": "attribute-quoted",
-          "status": "fail",
-          "error_message": "Expected 5 warnings, got 1"
+          "status": "pass"
         },
         {
           "name": "class-state-constructor-10",
@@ -2204,8 +2145,7 @@
         },
         {
           "name": "ts-unsupported-modifier",
-          "status": "fail",
-          "error_message": "Expected error 'typescript_invalid_feature', got: Transform(CodeGen(\"Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \\\"Parameter modifiers can only be used in TypeScript files.\\\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(199), length: 7 }, primary: false }]), help: Some(\\\"No modifiers are allowed here.\\\"), note: None, severity: Error, code: OxcCode { scope: Some(\\\"TS\\\"), number: Some(\\\"8012\\\") }, url: None } }]\"))"
+          "status": "pass"
         },
         {
           "name": "slot-warning2",
@@ -2237,8 +2177,7 @@
         },
         {
           "name": "illegal-attribute-character",
-          "status": "fail",
-          "error_message": "Expected 2 warnings, got 1"
+          "status": "pass"
         },
         {
           "name": "debug-invalid-args",
@@ -2302,8 +2241,7 @@
         },
         {
           "name": "import-meta",
-          "status": "fail",
-          "error_message": "Unexpected compilation error: Transform(CodeGen(\"Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \\\"Unexpected token\\\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(365), length: 1 }, primary: false }]), help: None, note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]\"))"
+          "status": "pass"
         },
         {
           "name": "a11y-contenteditable-element-without-child",
@@ -2340,7 +2278,7 @@
         {
           "name": "rest-eachblock-binding-2",
           "status": "fail",
-          "error_message": "Unexpected compilation error: Transform(CodeGen(\"Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \\\"Unexpected token\\\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(839), length: 1 }, primary: false }]), help: None, note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]\"))"
+          "error_message": "Expected 1 warnings, got 0"
         },
         {
           "name": "reactive-statement-non-reactive-self-declaration",
@@ -2393,18 +2331,15 @@
         },
         {
           "name": "each-block-invalid-context",
-          "status": "fail",
-          "error_message": "Expected error 'unexpected_reserved_word', got: Parse(SvelteError { code: \"js_parse_error\", message: \"Unexpected token\", span: (24, 34) })"
+          "status": "pass"
         },
         {
           "name": "store-rune-conflic-from-props",
-          "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "css-mismatched-quotes",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "rest-eachblock-binding-3",
@@ -2430,13 +2365,11 @@
         },
         {
           "name": "a11y-no-noninteractive-element-to-interactive-role",
-          "status": "fail",
-          "error_message": "Expected 49 warnings, got 55"
+          "status": "pass"
         },
         {
           "name": "reactive-module-variable",
-          "status": "fail",
-          "error_message": "Expected 1 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "a11y-label-has-associated-control",
@@ -2444,8 +2377,7 @@
         },
         {
           "name": "illegal-variable-declaration",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "anonymous-declarations",
@@ -2453,8 +2385,7 @@
         },
         {
           "name": "ts-unsupported-decorator",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "css-invalid-type-selector-placement",
@@ -2487,8 +2418,7 @@
         },
         {
           "name": "const-tag-invalid-rune-usage",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "reactive-module-variable-2",
@@ -2500,8 +2430,7 @@
         },
         {
           "name": "ts-unsupported-accessor",
-          "status": "fail",
-          "error_message": "Expected error but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "tag-invalid",
@@ -2526,8 +2455,7 @@
         },
         {
           "name": "static-state-reference",
-          "status": "fail",
-          "error_message": "Expected 6 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "css-invalid-global-selector-list",
@@ -2551,13 +2479,11 @@
         },
         {
           "name": "custom-element-props-identifier",
-          "status": "fail",
-          "error_message": "Expected 2 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "global-event-reference",
-          "status": "fail",
-          "error_message": "Expected 2 warnings, got 0"
+          "status": "pass"
         },
         {
           "name": "a11y-anchor-in-svg-is-valid",
@@ -2736,10 +2662,10 @@
       "id": "compiler-errors",
       "name": "Compiler Errors",
       "total": 144,
-      "passed": 112,
-      "failed": 6,
+      "passed": 118,
+      "failed": 0,
       "skipped": 26,
-      "percentage": 94.91525423728814,
+      "percentage": 100,
       "tests": [
         {
           "name": "dollar-binding-import",
@@ -2844,8 +2770,7 @@
         },
         {
           "name": "runes-props-illegal-name-2",
-          "status": "fail",
-          "error_message": "Expected error 'props_illegal_name' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "css-nesting-selector-root",
@@ -2883,8 +2808,7 @@
         },
         {
           "name": "unbalanced-curly-element",
-          "status": "fail",
-          "error_message": "Expected error 'attribute_unquoted_sequence', got: Analysis(ValidationWithCode { code: \"attribute_invalid_event_handler\", message: \"Event attribute must be a JavaScript expression, not a string\\nhttps://svelte.dev/e/attribute_invalid_event_handler\" })"
+          "status": "pass"
         },
         {
           "name": "const-tag-cyclical",
@@ -3009,8 +2933,7 @@
         },
         {
           "name": "unmatched-closing-tag-autoclose",
-          "status": "fail",
-          "error_message": "Expected error 'element_invalid_closing_tag_autoclosed', got: Parse(SvelteError { code: \"element_invalid_closing_tag\", message: \"`</p>` attempted to close an element that was not open\", span: (24, 24) })"
+          "status": "pass"
         },
         {
           "name": "legacy-no-const-update",
@@ -3058,8 +2981,7 @@
         },
         {
           "name": "export-state-module",
-          "status": "fail",
-          "error_message": "Expected error 'state_invalid_export' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "window-children",
@@ -3111,8 +3033,7 @@
         },
         {
           "name": "snippet-invalid-export",
-          "status": "fail",
-          "error_message": "Expected error 'snippet_invalid_export' but compilation succeeded"
+          "status": "pass"
         },
         {
           "name": "void-closing",
@@ -3141,8 +3062,7 @@
         },
         {
           "name": "unbalanced-curly-component",
-          "status": "fail",
-          "error_message": "Expected error 'attribute_unquoted_sequence', got: Transform(CodeGen(\"Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \\\"Unexpected token\\\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(210), length: 1 }, primary: false }]), help: None, note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]\"))"
+          "status": "pass"
         },
         {
           "name": "const-tag-whitespace",
@@ -3355,10 +3275,10 @@
       "id": "runtime-runes",
       "name": "Runtime Runes",
       "total": 866,
-      "passed": 728,
-      "failed": 110,
+      "passed": 774,
+      "failed": 64,
       "skipped": 28,
-      "percentage": 86.87350835322196,
+      "percentage": 92.36276849642005,
       "tests": [
         {
           "name": "directives",
@@ -3581,8 +3501,7 @@
         },
         {
           "name": "form-default-value",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "snippet-prop-explicit-no-args",
@@ -3869,8 +3788,7 @@
         },
         {
           "name": "event-handler-async-delegated",
-          "status": "fail",
-          "error_message": "Client compilation error: Analysis error: legacy_await_invalid: Top-level await is only allowed in Svelte 5 with runes mode"
+          "status": "pass"
         },
         {
           "name": "bind-getter-setter",
@@ -3878,8 +3796,7 @@
         },
         {
           "name": "bind-this-raw",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "dynamic-component-nested",
@@ -3960,8 +3877,7 @@
         },
         {
           "name": "legacy-runes-ambiguous-export-$$restProps",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "proxy-array-length",
@@ -4039,8 +3955,7 @@
         },
         {
           "name": "async-snippet-coordinated-mount",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "derived-cleanup-old-value",
@@ -4053,7 +3968,7 @@
         {
           "name": "destructure-async-assignments",
           "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"Expected `,` or `}` but found `.`\", labels: Some([LabeledSpan { label: Some(\"`,` or `}` expected\"), span: SourceSpan { offset: SourceOffset(1423), length: 1 }, primary: true }, LabeledSpan { label: Some(\"Opened here\"), span: SourceSpan { offset: SourceOffset(1420), length: 1 }, primary: false }]), help: None, note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"`await` is only allowed within async functions and at the top levels of modules\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(1576), length: 5 }, primary: false }]), help: Some(\"Either remove this `await` or add the `async` keyword to the enclosing function\"), note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }, OxcDiagnostic { inner: OxcDiagnosticInner { message: \"`await` is only allowed within async functions and at the top levels of modules\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(1873), length: 5 }, primary: false }]), help: Some(\"Either remove this `await` or add the `async` keyword to the enclosing function\"), note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }, OxcDiagnostic { inner: OxcDiagnosticInner { message: \"`await` is only allowed within async functions and at the top levels of modules\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(2062), length: 5 }, primary: false }]), help: Some(\"Either remove this `await` or add the `async` keyword to the enclosing function\"), note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }, OxcDiagnostic { inner: OxcDiagnosticInner { message: \"Cannot assign to this expression\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(2400), length: 53 }, primary: false }]), help: None, note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
         },
         {
           "name": "proxy-coercive-assignment-warning",
@@ -4095,8 +4010,7 @@
         },
         {
           "name": "select-falsy-value",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "tick-timing",
@@ -4129,8 +4043,7 @@
         },
         {
           "name": "state-reuse",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "dynamic-component-transition",
@@ -4159,8 +4072,7 @@
         },
         {
           "name": "each-bind-this-member",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "class-state-effect",
@@ -4188,8 +4100,7 @@
         },
         {
           "name": "binding-property-non-reactive-ignored",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "event-propagation-with-error",
@@ -4383,8 +4294,7 @@
         },
         {
           "name": "mutation-local",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "custom-element-svelte-class",
@@ -4400,8 +4310,7 @@
         },
         {
           "name": "slot-svelte-fragment-render-tag",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "async-if-after-await-in-script",
@@ -4410,8 +4319,7 @@
         },
         {
           "name": "nested-destructure-assignment",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "async-each-await-store-update",
@@ -4450,8 +4358,7 @@
         },
         {
           "name": "effect-tracking",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "undefined-event-handler",
@@ -4493,8 +4400,7 @@
         },
         {
           "name": "svelte-meta-parent",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "async-fork-snippet-dev",
@@ -4561,12 +4467,12 @@
         },
         {
           "name": "derived-read-outside-reaction",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client compilation error: Parse error: SvelteError { code: \"expected_token\", message: \"Expected token }\", span: (734, 734) }"
         },
         {
           "name": "multiple-head",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "bound-store-sub",
@@ -4749,8 +4655,7 @@
         },
         {
           "name": "transition-component",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "dynamic-transition",
@@ -4770,8 +4675,7 @@
         },
         {
           "name": "each-bind-store-no-warning",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "event-arguments-2",
@@ -4788,8 +4692,7 @@
         },
         {
           "name": "mutation-both",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "snippet",
@@ -4993,7 +4896,7 @@
         {
           "name": "async-const",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"`await` is only allowed within async functions and at the top levels of modules\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(1939), length: 5 }, primary: false }]), help: Some(\"Either remove this `await` or add the `async` keyword to the enclosing function\"), note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
         },
         {
           "name": "deferred-events-consistency",
@@ -5064,8 +4967,7 @@
         },
         {
           "name": "dynamic-attribute-and-attribute-directive-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "state-delete-property",
@@ -5081,8 +4983,7 @@
         },
         {
           "name": "event-context",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "hydrate-modified-input-group",
@@ -5168,8 +5069,7 @@
         },
         {
           "name": "destructure-derived-event",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "svg-attribute-case",
@@ -5205,8 +5105,7 @@
         },
         {
           "name": "non-local-mutation-global",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "before-update-in-legacy-child",
@@ -5288,8 +5187,7 @@
         },
         {
           "name": "async-attribute-without-state",
-          "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"`await` is only allowed within async functions and at the top levels of modules\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(540), length: 5 }, primary: false }]), help: Some(\"Either remove this `await` or add the `async` keyword to the enclosing function\"), note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "status": "pass"
         },
         {
           "name": "legacy-runes-ambiguous-export-labeled",
@@ -5482,8 +5380,7 @@
         },
         {
           "name": "destructure-derived-object",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-let-directive",
@@ -5524,8 +5421,7 @@
         },
         {
           "name": "nested-script-tag",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "inspect-new-property",
@@ -5577,8 +5473,7 @@
         },
         {
           "name": "async-block-reject-each-during-init",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "state-snapshot",
@@ -5598,8 +5493,7 @@
         },
         {
           "name": "effect-inside-derived",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "async-attach-hydration-mismatch",
@@ -5608,8 +5502,7 @@
         },
         {
           "name": "snippet-namespace-1",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "derived-indirect-arrow-fn",
@@ -5675,8 +5568,7 @@
         },
         {
           "name": "snippet-raw",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "readonly-state-push",
@@ -5724,8 +5616,7 @@
         },
         {
           "name": "bind-this-proxy",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "async-static-derived-after-await",
@@ -5779,7 +5670,8 @@
         },
         {
           "name": "ownership-invalid-mutation-use-transform",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "event-handler-component-invalid-warning",
@@ -5803,8 +5695,7 @@
         },
         {
           "name": "clean-block-inner-effects",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "select-multiple-invalid-value",
@@ -5845,8 +5736,7 @@
         },
         {
           "name": "dynamic-attribute-and-attribute-directive",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-transition-hmr",
@@ -6017,8 +5907,7 @@
         },
         {
           "name": "typescript-non-null-expression",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "rest-props-excludes-properties",
@@ -6055,8 +5944,7 @@
         },
         {
           "name": "rune-name-used-by-rune",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "reactive-to-string",
@@ -6100,8 +5988,7 @@
         },
         {
           "name": "event-attribute-import",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "async-context-throws-after-await",
@@ -6172,8 +6059,7 @@
         },
         {
           "name": "svg-namespace-infer-a-tag",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "toStore-subscribe2",
@@ -6241,8 +6127,7 @@
         },
         {
           "name": "binding-property-non-reactive-ignored-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "error-boundary-6",
@@ -6302,8 +6187,7 @@
         },
         {
           "name": "inspect-derived-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "async-error-recovery",
@@ -6360,8 +6244,7 @@
         },
         {
           "name": "event-store-no-hoisting",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-update-while-focused-2",
@@ -6402,13 +6285,11 @@
         },
         {
           "name": "legacy-runes-ambiguous-export-$$props",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "attribute-boolean-case-insensitivity",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "random",
@@ -6465,8 +6346,7 @@
         },
         {
           "name": "guard-else-effect",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "async-boundary-pending-live",
@@ -6499,8 +6379,7 @@
         },
         {
           "name": "dynamic-component",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "inspect-derived-3",
@@ -6533,8 +6412,7 @@
         },
         {
           "name": "typescript-as-expression",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "error-boundary-7",
@@ -6673,8 +6551,7 @@
         },
         {
           "name": "key-nan",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "read-version-previous-reaction",
@@ -6694,8 +6571,7 @@
         },
         {
           "name": "wrapped-$state",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "async-redirect-initial",
@@ -6712,8 +6588,7 @@
         },
         {
           "name": "svelte-component-props-update",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "class-private-state-init",
@@ -6934,8 +6809,7 @@
         },
         {
           "name": "binding-interop-derived",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "mount-intro-transition",
@@ -6968,10 +6842,10 @@
       "id": "runtime-legacy",
       "name": "Runtime Legacy",
       "total": 1202,
-      "passed": 778,
-      "failed": 424,
+      "passed": 1139,
+      "failed": 63,
       "skipped": 0,
-      "percentage": 64.72545757071548,
+      "percentage": 94.75873544093179,
       "tests": [
         {
           "name": "svg",
@@ -6991,8 +6865,7 @@
         },
         {
           "name": "each-block-scope-shadow-bind-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-slot-if-else-block-before-node",
@@ -7000,8 +6873,7 @@
         },
         {
           "name": "head-if-else-raw-dynamic",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-namespaced",
@@ -7025,8 +6897,7 @@
         },
         {
           "name": "binding-this-component-each-block",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "state-imported-function",
@@ -7046,8 +6917,7 @@
         },
         {
           "name": "each-block-destructured-object-binding",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "dynamic-component-bindings-recreated",
@@ -7067,8 +6937,7 @@
         },
         {
           "name": "store-each-binding-logical",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-binding-private-state",
@@ -7076,8 +6945,7 @@
         },
         {
           "name": "binding-select-initial-value-undefined-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-input-group-each-13",
@@ -7094,8 +6962,7 @@
         },
         {
           "name": "const-tag-await-then-destructuring",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "svg-each-block-namespace",
@@ -7123,8 +6990,7 @@
         },
         {
           "name": "binding-this-each-block-property-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-binding-aliased",
@@ -7132,8 +6998,7 @@
         },
         {
           "name": "component-not-constructor",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "element-invalid-name",
@@ -7153,8 +7018,7 @@
         },
         {
           "name": "event-handler-modifier-stop-immediate-propagation",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-this-multiple",
@@ -7166,8 +7030,7 @@
         },
         {
           "name": "assignment-to-const1",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-js-if-block-in-each-block-bidi",
@@ -7180,7 +7043,7 @@
         {
           "name": "reactive-assignment-in-complex-declaration-with-store-2",
           "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"Cannot assign to this expression\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(900), length: 4 }, primary: false }]), help: None, note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "event-handler-hoisted",
@@ -7204,8 +7067,7 @@
         },
         {
           "name": "each-block-containing-if",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-binding-parent-supercedes-child",
@@ -7214,12 +7076,11 @@
         {
           "name": "component-slot-named-scope",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "binding-input-group-undefined",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "mutation-correct-return-value",
@@ -7260,12 +7121,12 @@
         },
         {
           "name": "component-binding-each",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "reactive-statement-indirect",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "sigil-static-at",
@@ -7281,8 +7142,7 @@
         },
         {
           "name": "reactive-values-second-order",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "class-with-spread-and-bind",
@@ -7294,8 +7154,7 @@
         },
         {
           "name": "store-imports-hoisted",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "before-render-prevents-loop",
@@ -7303,13 +7162,11 @@
         },
         {
           "name": "reactive-values-uninitialised",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "store-auto-subscribe-immediate-multiple-vars",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "reactive-values-implicit",
@@ -7317,13 +7174,11 @@
         },
         {
           "name": "const-tag-shadow-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-input-group-each-15",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "select-options-spread-attributes",
@@ -7331,13 +7186,11 @@
         },
         {
           "name": "dynamic-element-animation-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "reactive-statement-module-vars",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-ref",
@@ -7353,13 +7206,11 @@
         },
         {
           "name": "binding-circular",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-select-initial-value-undefined-3",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "spread-component-dynamic-undefined",
@@ -7380,7 +7231,7 @@
         {
           "name": "let-directive-and-const-tag",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "dynamic-component-in-if",
@@ -7388,23 +7239,19 @@
         },
         {
           "name": "function-hoisting",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "await-then-destruct-string-props",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-input-group-each-12",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "action-custom-event-handler-in-each-destructured",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-slot-named-b",
@@ -7421,7 +7268,7 @@
         {
           "name": "each-block-scope-shadow-bind-4",
           "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"Unexpected token\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(823), length: 1 }, primary: false }]), help: None, note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "dynamic-component-nulled-out-intro",
@@ -7437,8 +7284,7 @@
         },
         {
           "name": "reactive-statement-store",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "inline-style-directive-spread",
@@ -7446,8 +7292,7 @@
         },
         {
           "name": "each-block-scope-shadow-bind-3",
-          "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"Unexpected token\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(748), length: 1 }, primary: false }]), help: None, note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "status": "pass"
         },
         {
           "name": "html-non-entities-inside-elements",
@@ -7467,8 +7312,7 @@
         },
         {
           "name": "prop-without-semicolon-b",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "prop-const",
@@ -7492,8 +7336,7 @@
         },
         {
           "name": "window-binding-scroll-store",
-          "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"Expected `,` or `)` but found `=>`\", labels: Some([LabeledSpan { label: Some(\"`,` or `)` expected\"), span: SourceSpan { offset: SourceOffset(611), length: 2 }, primary: true }, LabeledSpan { label: Some(\"Opened here\"), span: SourceSpan { offset: SourceOffset(602), length: 1 }, primary: false }]), help: None, note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "status": "pass"
         },
         {
           "name": "deconflict-template-3",
@@ -7529,8 +7372,7 @@
         },
         {
           "name": "component-slot-let-destructured",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "event-handler-modifier-once",
@@ -7554,8 +7396,7 @@
         },
         {
           "name": "const-tag-each-destructure-literals",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "destructured-assignment-pattern-with-object-pattern",
@@ -7575,8 +7416,7 @@
         },
         {
           "name": "await-then-destruct-object",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "deconflict-template-4",
@@ -7584,8 +7424,7 @@
         },
         {
           "name": "reactive-value-mutate-const",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "bitmask-overflow",
@@ -7610,13 +7449,11 @@
         },
         {
           "name": "instrumentation-template-destructuring",
-          "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"Unexpected token\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(583), length: 1 }, primary: false }]), help: None, note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "status": "pass"
         },
         {
           "name": "inline-expressions-3",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-this",
@@ -7640,13 +7477,11 @@
         },
         {
           "name": "dynamic-component-evals-props-once",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "names-deconflicted-nested",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-blocks-nested-b",
@@ -7674,8 +7509,7 @@
         },
         {
           "name": "const-tag-each-destructure-computed-props",
-          "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"Unexpected token\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(1043), length: 1 }, primary: false }]), help: None, note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "status": "pass"
         },
         {
           "name": "reactive-values-store-destructured-undefined",
@@ -7684,13 +7518,11 @@
         },
         {
           "name": "store-updated-in-reactive-statement",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-block-scope-shadow-bind",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-block-else",
@@ -7702,13 +7534,11 @@
         },
         {
           "name": "autofocus",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-block-destructured-object-computed-props",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "autofocus-2",
@@ -7716,8 +7546,7 @@
         },
         {
           "name": "each-block-destructured-default",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-js-local",
@@ -7725,8 +7554,7 @@
         },
         {
           "name": "store-each-binding-deep",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "attribute-null-classnames-no-style",
@@ -7734,8 +7562,7 @@
         },
         {
           "name": "deconflict-contextual-bind",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "store-resubscribe",
@@ -7747,38 +7574,31 @@
         },
         {
           "name": "event-handler-shorthand-dynamic-component",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "await-catch-shorthand",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "reactive-value-function-hoist-b",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-input-text-deep-computed-dynamic",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-this-component-each-block-value",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "head-raw-dynamic",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "reactive-values-function-dependency",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "attribute-static-at-symbol",
@@ -7790,8 +7610,7 @@
         },
         {
           "name": "binding-input-group-each-9",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "textarea-value-escape",
@@ -7803,8 +7622,7 @@
         },
         {
           "name": "if-block-elseif-text",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "attribute-null",
@@ -7840,8 +7658,7 @@
         },
         {
           "name": "const-tag-each-destructure-nested-rest",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "whitespace-list",
@@ -7849,8 +7666,7 @@
         },
         {
           "name": "binding-contenteditable-html",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "textarea-bind-value-escape",
@@ -7874,13 +7690,11 @@
         },
         {
           "name": "const-tag-each",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-input-group-each-7",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-block-keyed-changed",
@@ -7928,8 +7742,7 @@
         },
         {
           "name": "const-tag-await-then",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "event-handler-each-modifier",
@@ -7958,8 +7771,7 @@
         },
         {
           "name": "svg-with-style",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "bitmask-overflow-slot",
@@ -7992,8 +7804,7 @@
         },
         {
           "name": "slot-if-block-update-no-anchor",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "inline-style-directive-css-vars",
@@ -8014,7 +7825,7 @@
         {
           "name": "nested-destructure-assignment-2",
           "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"Expected a semicolon or an implicit semicolon after a statement, but found none\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(890), length: 0 }, primary: false }]), help: Some(\"Try inserting a semicolon here\"), note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "dynamic-element-svg-inherit-namespace-2",
@@ -8030,13 +7841,11 @@
         },
         {
           "name": "each-block-ref-import",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-input-group-each-6",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "await-then-catch-non-promise",
@@ -8072,8 +7881,7 @@
         },
         {
           "name": "binding-input-group-each-1",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "array-rest-is-array-or-object",
@@ -8081,8 +7889,7 @@
         },
         {
           "name": "nbsp",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-blocks-nested",
@@ -8090,8 +7897,7 @@
         },
         {
           "name": "binding-select-late",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "module-context-export",
@@ -8119,13 +7925,11 @@
         },
         {
           "name": "component-binding-deep",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-select-null-placeholder-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "destructuring-between-exports",
@@ -8137,8 +7941,7 @@
         },
         {
           "name": "binding-input-group-each-8",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "const-tag-dependencies",
@@ -8146,8 +7949,7 @@
         },
         {
           "name": "globals-shadowed-by-data",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-slot-let-inline-function",
@@ -8164,8 +7966,7 @@
         },
         {
           "name": "block-expression-fn-call",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-js-aborted-outro",
@@ -8185,8 +7986,7 @@
         },
         {
           "name": "class-helper",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "isolated-text",
@@ -8194,8 +7994,7 @@
         },
         {
           "name": "binding-input-text-contextual",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "dynamic-element-void-with-content-3",
@@ -8203,8 +8002,7 @@
         },
         {
           "name": "if-block-outro-nested-else",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "spread-component-immutable",
@@ -8216,8 +8014,7 @@
         },
         {
           "name": "renamed-instance-exports",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "inline-style-directive-dynamic",
@@ -8237,8 +8034,7 @@
         },
         {
           "name": "dynamic-element-binding-this",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "action-custom-event-handler-node-context",
@@ -8254,23 +8050,19 @@
         },
         {
           "name": "globals-not-overwritten-by-bindings",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "const-tag-each-duplicated-variable3",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "reactive-update-expression",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "event-handler-dynamic-hash",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "dynamic-element-textarea",
@@ -8282,8 +8074,7 @@
         },
         {
           "name": "reactive-value-dependency-not-referenced",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "empty-style-block",
@@ -8295,8 +8086,7 @@
         },
         {
           "name": "if-block-else-update",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "store-invalidation-while-update-2",
@@ -8320,8 +8110,7 @@
         },
         {
           "name": "await-then-destruct-array",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "await-then-shorthand",
@@ -8341,8 +8130,7 @@
         },
         {
           "name": "attribute-false",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-svelte-fragment-let-destructured-2",
@@ -8351,8 +8139,7 @@
         },
         {
           "name": "event-handler-shorthand-sanitized",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "await-then-catch-order",
@@ -8364,13 +8151,11 @@
         },
         {
           "name": "binding-this-component-computed-key",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "await-then-destruct-rest",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "context-in-await",
@@ -8390,8 +8175,7 @@
         },
         {
           "name": "inline-style-directive-string-variable",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "escape-template-literals",
@@ -8412,8 +8196,7 @@
         },
         {
           "name": "attribute-casing",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "lifecycle-next-tick",
@@ -8430,8 +8213,7 @@
         },
         {
           "name": "const-tag-each-destructure-computed-in-computed",
-          "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"Unexpected token\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(1065), length: 1 }, primary: false }]), help: None, note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "status": "pass"
         },
         {
           "name": "action-custom-event-handler-with-context",
@@ -8439,8 +8221,7 @@
         },
         {
           "name": "nbsp-div",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "destructured-props-4",
@@ -8448,8 +8229,7 @@
         },
         {
           "name": "if-block-static-with-dynamic-contents",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "spread-each-element",
@@ -8457,28 +8237,23 @@
         },
         {
           "name": "invalidation-in-if-condition",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "block-expression-member-access",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-indirect-spread",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "destructured-props-3",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "onmount-external",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "imported-renamed-components",
@@ -8503,8 +8278,7 @@
         },
         {
           "name": "binding-contenteditable-html-initial",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "dynamic-element-invalid-this",
@@ -8512,8 +8286,7 @@
         },
         {
           "name": "component-slot-let-aliased",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "html-entities-alongside-expressions",
@@ -8521,8 +8294,7 @@
         },
         {
           "name": "if-block-component-store-function-conditionals",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "spread-component-dynamic-non-object-multiple-dependencies",
@@ -8552,7 +8324,7 @@
         {
           "name": "nested-destructure-assignment",
           "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"Expected function body\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(1150), length: 2 }, primary: false }]), help: Some(\"Add a function body (`{}`).\"), note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "await-function-promise",
@@ -8564,8 +8336,7 @@
         },
         {
           "name": "attribute-dynamic-multiple",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "spread-element-multiple",
@@ -8647,8 +8418,7 @@
         },
         {
           "name": "const-tag-await-then-destructuring-literals",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-js-nested-intro",
@@ -8660,13 +8430,11 @@
         },
         {
           "name": "binding-contenteditable-text-initial",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "destructured-props-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "reactive-compound-operator",
@@ -8678,8 +8446,7 @@
         },
         {
           "name": "each-block-keyed-recursive",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-binding-conditional",
@@ -8704,23 +8471,19 @@
         },
         {
           "name": "await-set-simultaneous-reactive",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "select-bind-in-array",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "if-block-compound-outro-no-dependencies",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "destructured-props-5",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "window-bind-scroll-update",
@@ -8732,8 +8495,7 @@
         },
         {
           "name": "component-svelte-fragment-let-f",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-no-unnecessary-invalidation",
@@ -8749,13 +8511,11 @@
         },
         {
           "name": "spread-element-input-bind-group-with-value-attr",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "instrumentation-script-multiple-assignments",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-props-mutated",
@@ -8772,7 +8532,8 @@
         },
         {
           "name": "assignment-to-computed-property",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "lifecycle-render-afterUpdate",
@@ -8796,8 +8557,7 @@
         },
         {
           "name": "each-block-keyed-shift",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "spread-element-input",
@@ -8805,8 +8565,7 @@
         },
         {
           "name": "const-tag-func-function",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "spread-component-multiple-dependencies",
@@ -8814,8 +8573,7 @@
         },
         {
           "name": "props-reactive-only-with-change",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "event-handler",
@@ -8827,8 +8585,7 @@
         },
         {
           "name": "dynamic-element-store",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "head-if-block",
@@ -8840,18 +8597,15 @@
         },
         {
           "name": "binding-select-from-let-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-input-radio-group",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "if-block-elseif-no-else",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "dynamic-element-spread-attributes",
@@ -8859,8 +8613,7 @@
         },
         {
           "name": "rest-props",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "key-block-3",
@@ -8868,18 +8621,15 @@
         },
         {
           "name": "inline-style-directive-spread-and-attr",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "head-title-dynamic-simple",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "lifecycle-render-beforeUpdate",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-slot-empty",
@@ -8887,8 +8637,7 @@
         },
         {
           "name": "binding-indirect",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "if-block-else-in-each",
@@ -8896,13 +8645,11 @@
         },
         {
           "name": "bindings-global-dependency",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "await-catch-no-expression",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-slot-context-props-each",
@@ -8910,8 +8657,7 @@
         },
         {
           "name": "component-svelte-fragment-let-in-binding",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "globals-shadowed-by-each-binding",
@@ -8955,8 +8701,7 @@
         },
         {
           "name": "component-yield",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "template",
@@ -8969,13 +8714,12 @@
         },
         {
           "name": "component-slot-let-scope-3",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "store-assignment-updates-destructure",
           "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"Expected function body\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(1283), length: 2 }, primary: false }]), help: Some(\"Add a function body (`{}`).\"), note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "component-yield-placement",
@@ -8983,8 +8727,7 @@
         },
         {
           "name": "select-in-each",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-binding-non-leaky",
@@ -8992,8 +8735,7 @@
         },
         {
           "name": "each-block-scope-shadow-self",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-this-store",
@@ -9001,8 +8743,7 @@
         },
         {
           "name": "component-slot-let-scope-4",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "hash-in-attribute",
@@ -9010,8 +8751,7 @@
         },
         {
           "name": "reactive-assignment-prevent-loop",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-slot-spread-props",
@@ -9047,8 +8787,7 @@
         },
         {
           "name": "select-bind-array",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "reactive-values-implicit-destructured",
@@ -9057,8 +8796,7 @@
         },
         {
           "name": "binding-input-text-deep-contextual-computed-dynamic",
-          "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"Unexpected token\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(792), length: 1 }, primary: false }]), help: None, note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "status": "pass"
         },
         {
           "name": "input-list",
@@ -9082,13 +8820,11 @@
         },
         {
           "name": "await-then-destruct-object-if",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "select-one-way-bind-object-multiple",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "empty-dom",
@@ -9113,17 +8849,15 @@
         {
           "name": "reactive-value-assign-properties",
           "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"Expected `,` or `)` but found `Identifier`\", labels: Some([LabeledSpan { label: Some(\"`,` or `)` expected\"), span: SourceSpan { offset: SourceOffset(410), length: 1 }, primary: true }, LabeledSpan { label: Some(\"Opened here\"), span: SourceSpan { offset: SourceOffset(397), length: 1 }, primary: false }]), help: None, note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "svg-html-tag3",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "const-tag-if-else",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "event-handler-modifier-prevent-default",
@@ -9131,13 +8865,11 @@
         },
         {
           "name": "svg-html-tag4",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-input-text-deep-computed",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "event-handler-event-methods",
@@ -9149,8 +8881,7 @@
         },
         {
           "name": "component-slot-let-destructured-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "spread-element-scope",
@@ -9158,13 +8889,11 @@
         },
         {
           "name": "binding-input-checkbox-deep-contextual",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "attribute-null-func-classname-with-style",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-input-number-2",
@@ -9180,43 +8909,35 @@
         },
         {
           "name": "component-yield-nested-if",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-input-member-expression-update",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "event-handler-deconflicted",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "html-entities-inside-component-slot",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "const-tag-await-then-destructuring-nested-rest",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "immutable-option",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "svg-html-tag",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-binding-computed",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-js-if-block-bidi",
@@ -9228,8 +8949,7 @@
         },
         {
           "name": "const-tag-if-else-outro",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "lifecycle-render-order-for-children",
@@ -9249,8 +8969,7 @@
         },
         {
           "name": "if-block-conservative-update",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "contextual-callback",
@@ -9258,8 +8977,7 @@
         },
         {
           "name": "attribute-prefer-expression",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-input-group-if-gh-8372-1",
@@ -9303,13 +9021,11 @@
         },
         {
           "name": "const-tag-invalidate",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-input-text-contextual-deconflicted",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "svg-child-component-declared-namespace-shorthand",
@@ -9329,8 +9045,7 @@
         },
         {
           "name": "component-slot-let-scope-5",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-block-component-no-props",
@@ -9338,13 +9053,11 @@
         },
         {
           "name": "store-each-binding",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "select-change-handler",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-block-keyed-non-prop",
@@ -9356,8 +9069,7 @@
         },
         {
           "name": "component-slot-let-scope-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-js-if-outro-unrelated-component-store-update",
@@ -9377,8 +9089,7 @@
         },
         {
           "name": "event-handler-each-context-invalidation",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "reactive-values-text-node",
@@ -9386,8 +9097,7 @@
         },
         {
           "name": "component-props-added",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "store-auto-subscribe-implicit",
@@ -9411,8 +9121,7 @@
         },
         {
           "name": "reactive-value-function-hoist",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-blocks-expression",
@@ -9444,13 +9153,11 @@
         },
         {
           "name": "const-tag-if-else-if",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "attribute-null-func-classnames-with-style",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "attribute-static-quotemarks",
@@ -9462,13 +9169,11 @@
         },
         {
           "name": "const-tag-await-then-destructuring-computed-props",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-svelte-fragment-let-aliased",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "class-in-each",
@@ -9488,8 +9193,7 @@
         },
         {
           "name": "rest-props-no-alias",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-block-destructured-array-sparse",
@@ -9497,8 +9201,7 @@
         },
         {
           "name": "key-block-expression-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-input-text",
@@ -9527,8 +9230,7 @@
         },
         {
           "name": "store-assignment-updates",
-          "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"Expected `,` or `)` but found `=>`\", labels: Some([LabeledSpan { label: Some(\"`,` or `)` expected\"), span: SourceSpan { offset: SourceOffset(572), length: 2 }, primary: true }, LabeledSpan { label: Some(\"Opened here\"), span: SourceSpan { offset: SourceOffset(553), length: 1 }, primary: false }]), help: None, note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "status": "pass"
         },
         {
           "name": "transition-js-nested-each-delete",
@@ -9540,8 +9242,7 @@
         },
         {
           "name": "svg-html-tag2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "css-vars-escape",
@@ -9549,8 +9250,7 @@
         },
         {
           "name": "spread-from-import",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "function-expression-inline",
@@ -9558,8 +9258,7 @@
         },
         {
           "name": "binding-input-text-deconflicted",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "prop-accessors",
@@ -9575,8 +9274,7 @@
         },
         {
           "name": "component-svelte-fragment-let-destructured",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "spread-element-readonly",
@@ -9597,8 +9295,7 @@
         },
         {
           "name": "component-svelte-fragment-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-js-if-block-intro-outro",
@@ -9606,8 +9303,7 @@
         },
         {
           "name": "inline-style-directive-spread-and-attr-empty",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-abort",
@@ -9619,13 +9315,11 @@
         },
         {
           "name": "props-reactive-b",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "assignment-to-const2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "prop-subscribable",
@@ -9633,18 +9327,15 @@
         },
         {
           "name": "ignore-unchanged-attribute",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "const-tag-each-else",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "attribute-null-func-classnames-no-style",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "deconflict-template-1",
@@ -9656,8 +9347,7 @@
         },
         {
           "name": "component-svelte-fragment-nested",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "custom-method",
@@ -9685,8 +9375,7 @@
         },
         {
           "name": "key-block-post-hydrate",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "store-auto-subscribe-nullish",
@@ -9699,23 +9388,19 @@
         },
         {
           "name": "binding-contenteditable-text",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "prop-exports",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "svg-multiple",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "store-each-binding-destructuring",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "attribute-dynamic-quotemarks",
@@ -9723,8 +9408,7 @@
         },
         {
           "name": "dynamic-component-inside-element",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "event-handler-modifier-bubble",
@@ -9788,8 +9472,7 @@
         },
         {
           "name": "binding-backflow",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "preserve-comments",
@@ -9825,8 +9508,7 @@
         },
         {
           "name": "each-block-keyed-nested",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "dynamic-component-in-if-initial-falsy",
@@ -9838,13 +9520,11 @@
         },
         {
           "name": "inline-style-directive-and-style-attr",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-input-group-each-10",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "dynamic-element-transition",
@@ -9869,8 +9549,7 @@
         },
         {
           "name": "reactive-values-non-cyclical",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-block-keyed-object-identity",
@@ -9878,8 +9557,7 @@
         },
         {
           "name": "reactive-import-statement-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "dynamic-element-variable",
@@ -9912,13 +9590,11 @@
         },
         {
           "name": "component-events-this",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-input-checkbox-with-event-in-each",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-js-if-else-block-not-dynamic-outro",
@@ -9934,13 +9610,11 @@
         },
         {
           "name": "await-with-update",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-select-null-placeholder",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "head-title-static-dynamic-element",
@@ -9952,8 +9626,7 @@
         },
         {
           "name": "rest-props-without-props",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-input-range",
@@ -9970,7 +9643,7 @@
         {
           "name": "store-auto-resubscribe-immediate",
           "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"Cannot assign to this expression\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(1155), length: 8 }, primary: false }]), help: None, note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"Expected `,` or `)` but found `}`\", labels: Some([LabeledSpan { label: Some(\"`,` or `)` expected\"), span: SourceSpan { offset: SourceOffset(1551), length: 1 }, primary: true }, LabeledSpan { label: Some(\"Opened here\"), span: SourceSpan { offset: SourceOffset(1285), length: 1 }, primary: false }]), help: None, note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
         },
         {
           "name": "module-context",
@@ -9978,8 +9651,7 @@
         },
         {
           "name": "binding-select-initial-value",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "animation-flip",
@@ -10003,13 +9675,11 @@
         },
         {
           "name": "inline-style-important",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "if-block-outro-computed-function",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "set-in-onstate-dedupes-renders",
@@ -10025,18 +9695,15 @@
         },
         {
           "name": "component-slot-names-sanitized",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "reactive-value-coerce-precedence",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "attribute-null-func-classname-no-style",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "class-boolean",
@@ -10044,23 +9711,19 @@
         },
         {
           "name": "binding-store-each",
-          "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"Expected `,` or `)` but found `=>`\", labels: Some([LabeledSpan { label: Some(\"`,` or `)` expected\"), span: SourceSpan { offset: SourceOffset(643), length: 2 }, primary: true }, LabeledSpan { label: Some(\"Opened here\"), span: SourceSpan { offset: SourceOffset(622), length: 1 }, primary: false }]), help: None, note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "status": "pass"
         },
         {
           "name": "dynamic-component-this",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "const-tag-hoisting",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-this-each-block-property",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-indirect-value",
@@ -10080,8 +9743,7 @@
         },
         {
           "name": "binding-input-group-each-11",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-js-deferred-b",
@@ -10089,8 +9751,7 @@
         },
         {
           "name": "svg-slot-namespace",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "target-shadow-dom",
@@ -10102,8 +9763,7 @@
         },
         {
           "name": "binding-contenteditable-innertext",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-binding-each-remount-unkeyed",
@@ -10115,8 +9775,7 @@
         },
         {
           "name": "binding-input-group-each-16",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-indirect-fn",
@@ -10125,8 +9784,7 @@
         },
         {
           "name": "transition-js-events-in-out",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "head-title-empty",
@@ -10134,8 +9792,7 @@
         },
         {
           "name": "component-not-constructor2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "deconflict-anchor",
@@ -10160,18 +9817,15 @@
         },
         {
           "name": "reactive-values-self-dependency",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "event-handler-dynamic-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "mixed-let-export",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-js-intro-skipped-by-default-nested",
@@ -10179,8 +9833,7 @@
         },
         {
           "name": "bitmask-overflow-if-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "attribute-partial-number",
@@ -10192,18 +9845,15 @@
         },
         {
           "name": "const-tag-ordering",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "dynamic-element-attribute-boolean",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "deconflict-non-helpers",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "escaped-attr-2",
@@ -10215,18 +9865,15 @@
         },
         {
           "name": "if-block-static-with-elseif-else-and-outros",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-select-unmatched-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "const-tag-each-duplicated-variable1",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "reactive-values-subscript-assignment",
@@ -10239,8 +9886,7 @@
         },
         {
           "name": "binding-select",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "store-auto-subscribe-event-callback",
@@ -10260,18 +9906,16 @@
         },
         {
           "name": "each-block-recursive-with-function-condition",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "html-entities",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "store-assignment-updates-reactive",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "dynamic-element-attribute",
@@ -10279,8 +9923,7 @@
         },
         {
           "name": "binding-input-with-event",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "sigil-expression-function-body",
@@ -10292,8 +9935,7 @@
         },
         {
           "name": "binding-store-deep",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "inline-style",
@@ -10314,13 +9956,11 @@
         },
         {
           "name": "component-props",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "spread-width-height-attributes",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "dynamic-element-void-with-content-1",
@@ -10337,18 +9977,15 @@
         },
         {
           "name": "empty-component-destroy",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-binding-each-nested",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "bitmask-overflow-if",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-static-at-symbol",
@@ -10368,12 +10005,12 @@
         },
         {
           "name": "transition-js-slot-fallback",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "action-receives-element-mounted",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "component-yield-multiple-in-each",
@@ -10385,23 +10022,19 @@
         },
         {
           "name": "dynamic-element-action-update",
-          "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"Expected `,` or `}` but found `(`\", labels: Some([LabeledSpan { label: Some(\"`,` or `}` expected\"), span: SourceSpan { offset: SourceOffset(376), length: 1 }, primary: true }, LabeledSpan { label: Some(\"Opened here\"), span: SourceSpan { offset: SourceOffset(362), length: 1 }, primary: false }]), help: None, note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "status": "pass"
         },
         {
           "name": "select-one-way-bind-object",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-js-events",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "reactive-block-break",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "class-shortcut-with-class",
@@ -10434,8 +10067,7 @@
         },
         {
           "name": "default-data-function",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-select-late-3",
@@ -10443,8 +10075,7 @@
         },
         {
           "name": "binding-input-group-each-4",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-block",
@@ -10460,8 +10091,7 @@
         },
         {
           "name": "bitmask-overflow-slot-4",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-js-destroyed-before-end",
@@ -10481,8 +10111,7 @@
         },
         {
           "name": "binding-indirect-computed",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "sigil-component-prop",
@@ -10490,18 +10119,15 @@
         },
         {
           "name": "binding-input-group-each-3",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-select-late-4",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "store-resubscribe-b",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "dynamic-element-svg",
@@ -10518,8 +10144,7 @@
         },
         {
           "name": "component-binding-reactive-property-no-extra-call",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "spread-element-class",
@@ -10539,8 +10164,7 @@
         },
         {
           "name": "bitmask-overflow-slot-3",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "spread-element-input-value",
@@ -10548,8 +10172,7 @@
         },
         {
           "name": "reactive-values-non-cyclical-declaration-order-independent",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-this-no-innerhtml",
@@ -10557,8 +10180,7 @@
         },
         {
           "name": "dynamic-component-spread-props",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-js-each-block-outro",
@@ -10566,8 +10188,7 @@
         },
         {
           "name": "binding-store",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "reactive-assignment-in-complex-declaration",
@@ -10587,13 +10208,11 @@
         },
         {
           "name": "binding-input-text-deep",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-data-dynamic",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "set-prevents-loop",
@@ -10626,8 +10245,7 @@
         },
         {
           "name": "each-block-keyed-unshift",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "store-invalidation-while-update-1",
@@ -10635,8 +10253,7 @@
         },
         {
           "name": "each-block-destructured-object-literal-rest",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-slot-slot",
@@ -10644,13 +10261,11 @@
         },
         {
           "name": "store-auto-subscribe-in-reactive-declaration",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "deconflict-globals",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "escaped-attr-3",
@@ -10670,8 +10285,7 @@
         },
         {
           "name": "binding-select-unmatched-3",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-this-component-reactive",
@@ -10679,8 +10293,7 @@
         },
         {
           "name": "store-resubscribe-c",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "await-with-components",
@@ -10692,13 +10305,11 @@
         },
         {
           "name": "binding-input-group-each-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-binding-store",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "bitmask-overflow-slot-2",
@@ -10707,13 +10318,11 @@
         },
         {
           "name": "self-reference-tree",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "reactive-import-statement",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "whitespace-each-block",
@@ -10721,18 +10330,15 @@
         },
         {
           "name": "await-block-func-function",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-input-group-each-5",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "block-expression-assign",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "dynamic-element-change-tag",
@@ -10744,13 +10350,11 @@
         },
         {
           "name": "binding-select-late-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "keyed-each-bind-read-index",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-events-nullish",
@@ -10766,23 +10370,19 @@
         },
         {
           "name": "await-then-destruct-array-nested-rest",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "bitmask-overflow-slot-5",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-prop-object",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "inline-style-optimisation-bailout",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "globals-shadowed-by-helpers",
@@ -10814,13 +10414,11 @@
         },
         {
           "name": "each-block-keyed-index",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-select-implicit-option-value",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-js-each-outro-cancelled",
@@ -10832,8 +10430,7 @@
         },
         {
           "name": "component-slot-nested-if",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-block-in-if-block",
@@ -10862,13 +10459,11 @@
         },
         {
           "name": "each-blocks-assignment-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-select-optgroup",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "dynamic-element-svg-inherit-namespace",
@@ -10877,8 +10472,7 @@
         },
         {
           "name": "reactive-value-mutate",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-css-deferred-removal",
@@ -10923,8 +10517,7 @@
         },
         {
           "name": "slot-children-prop",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-yield-parent",
@@ -10932,8 +10525,7 @@
         },
         {
           "name": "dynamic-element-class-directive",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "raw-svg",
@@ -10941,8 +10533,7 @@
         },
         {
           "name": "component-slot-let-scope",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-js-local-nested-each",
@@ -10950,8 +10541,7 @@
         },
         {
           "name": "contextual-callback-b",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-js-if-else-block-intro",
@@ -10967,8 +10557,7 @@
         },
         {
           "name": "inline-style-directive-and-style-attr-merged",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "props-reactive-destroy",
@@ -11021,8 +10610,7 @@
         },
         {
           "name": "component-svelte-fragment-let-d",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-css-in-out-in",
@@ -11030,13 +10618,11 @@
         },
         {
           "name": "event-handler-dynamic-multiple",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "reactive-values-implicit-self-dependency",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-slot-each-block",
@@ -11048,8 +10634,7 @@
         },
         {
           "name": "component-slot-let-d",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "document-binding-active",
@@ -11065,8 +10650,7 @@
         },
         {
           "name": "const-tag-each-const",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "immutable-nested",
@@ -11078,13 +10662,11 @@
         },
         {
           "name": "attribute-static-boolean",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-svelte-fragment-let-c",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-input-text-undefined",
@@ -11092,8 +10674,7 @@
         },
         {
           "name": "dynamic-component-bindings-recreated-b",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-js-nested-each",
@@ -11105,13 +10686,11 @@
         },
         {
           "name": "binding-input-checkbox-group",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "inline-style-directive-string-variable-kebab-case",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-slot-let-c",
@@ -11127,8 +10706,7 @@
         },
         {
           "name": "event-handler-shorthand-component",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "raw-mustaches-td-tr",
@@ -11148,13 +10726,11 @@
         },
         {
           "name": "component-binding-blowback",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-select-in-yield",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-block-destructured-object-literal-props",
@@ -11162,13 +10738,11 @@
         },
         {
           "name": "event-handler-undefined",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "select",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "context-api-d",
@@ -11181,7 +10755,7 @@
         {
           "name": "instrumentation-script-destructuring",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "deconflict-component-refs",
@@ -11189,8 +10763,7 @@
         },
         {
           "name": "binding-input-checkbox-group-outside-each",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "if-block-widget",
@@ -11198,8 +10771,7 @@
         },
         {
           "name": "slot",
-          "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"Expected a semicolon or an implicit semicolon after a statement, but found none\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(598), length: 0 }, primary: false }]), help: Some(\"Try inserting a semicolon here\"), note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "status": "pass"
         },
         {
           "name": "await-then-blowback-reactive",
@@ -11243,8 +10815,7 @@
         },
         {
           "name": "each-block-deconflict-name-context",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "reactive-function",
@@ -11264,8 +10835,7 @@
         },
         {
           "name": "binding-this-each-object-props",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-js-deferred",
@@ -11273,8 +10843,7 @@
         },
         {
           "name": "component-binding-reactive-statement",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "action-update-before-destroy",
@@ -11282,8 +10851,7 @@
         },
         {
           "name": "instrumentation-template-multiple-assignments",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-name-deconflicted",
@@ -11295,23 +10863,19 @@
         },
         {
           "name": "component-binding-each-reassigned",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-this-with-context",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-slot-spread",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-slot-let-in-binding",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "event-handler-removal",
@@ -11319,8 +10883,7 @@
         },
         {
           "name": "reactive-import-statement-module",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "reactive-assignment-in-declaration",
@@ -11328,8 +10891,7 @@
         },
         {
           "name": "each-blocks-update",
-          "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"Cannot assign to this expression\", labels: Some([LabeledSpan { label: None, span: SourceSpan { offset: SourceOffset(605), length: 8 }, primary: false }]), help: None, note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "status": "pass"
         },
         {
           "name": "static-svelte-element",
@@ -11337,13 +10899,11 @@
         },
         {
           "name": "raw-mustache-inside-head",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-js-slot-7-spread-cancelled-overflow",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-binding-each-remount-keyed",
@@ -11351,8 +10911,7 @@
         },
         {
           "name": "module-context-bind",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "reactive-assignment-in-complex-declaration-with-store",
@@ -11365,8 +10924,7 @@
         },
         {
           "name": "ondestroy-prop-access",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "dynamic-component",
@@ -11395,13 +10953,11 @@
         },
         {
           "name": "reactive-function-called-reassigned",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-select-multiple",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-block-keyed-html",
@@ -11409,23 +10965,19 @@
         },
         {
           "name": "each-blocks-assignment",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-svelte-fragment-let-b",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "instrumentation-auto-subscription-self-assignment",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "destructuring-assignment-array",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-binding-self-destroying",
@@ -11433,8 +10985,7 @@
         },
         {
           "name": "binding-select-initial-value-undefined",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "store-auto-subscribe-removed-store",
@@ -11462,8 +11013,7 @@
         },
         {
           "name": "store-auto-subscribe-immediate",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "export-function-hoisting",
@@ -11479,8 +11029,7 @@
         },
         {
           "name": "component-svelte-fragment-let-e",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "raw-mustache-before-element",
@@ -11488,8 +11037,7 @@
         },
         {
           "name": "await-in-dynamic-component",
-          "status": "fail",
-          "error_message": "Client compilation error: Parse error: SvelteError { code: \"element_unclosed\", message: \"`<svelte:component>` was left open\", span: (84, 85) }"
+          "status": "pass"
         },
         {
           "name": "observable-auto-subscribe",
@@ -11546,8 +11094,7 @@
         },
         {
           "name": "binding-this-member-expression-update",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "reactive-values-overwrite",
@@ -11567,8 +11114,7 @@
         },
         {
           "name": "dynamic-component-slot",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "before-render-chain-2",
@@ -11576,8 +11122,7 @@
         },
         {
           "name": "binding-input-checkbox-indeterminate",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-css-duration",
@@ -11602,8 +11147,7 @@
         },
         {
           "name": "reactive-value-assign-property",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "if-block-no-outro-else-with-outro",
@@ -11615,13 +11159,11 @@
         },
         {
           "name": "lifecycle-onmount-infinite-loop",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "ignore-unchanged-tag",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "deconflict-contextual-action",
@@ -11637,23 +11179,19 @@
         },
         {
           "name": "store-auto-subscribe-in-reactive-declaration-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "const-tag-each-destructure",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-namespace",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-this-each-object-spread",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-block-keyed-iife",
@@ -11678,13 +11216,11 @@
         },
         {
           "name": "each-block-destructured-array-computed-props",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-js-if-elseif-block-outro",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "attribute-unknown-without-value",
@@ -11696,8 +11232,7 @@
         },
         {
           "name": "binding-member-expression-no-warning",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-block-keyed-else",
@@ -11709,8 +11244,7 @@
         },
         {
           "name": "apply-directives-in-order-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "class-shortcut-with-transition",
@@ -11718,8 +11252,7 @@
         },
         {
           "name": "inline-expressions-subtree",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "await-then-catch-static",
@@ -11735,8 +11268,7 @@
         },
         {
           "name": "binding-select-unmatched",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "ondestroy-deep",
@@ -11744,8 +11276,7 @@
         },
         {
           "name": "head-title-dynamic",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-js-deferred-option-direction",
@@ -11753,13 +11284,11 @@
         },
         {
           "name": "transition-js-slot-5-cancelled-overflow",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "dynamic-element-animation",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-data-dynamic-late",
@@ -11767,7 +11296,8 @@
         },
         {
           "name": "after-render-triggers-update",
-          "status": "pass"
+          "status": "fail",
+          "error_message": "Client JS mismatch"
         },
         {
           "name": "target-dom-detached",
@@ -11825,8 +11355,7 @@
         },
         {
           "name": "if-block-elseif",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "store-auto-subscribe",
@@ -11834,8 +11363,7 @@
         },
         {
           "name": "immutable-svelte-meta-false",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-binding-blowback-e",
@@ -11847,13 +11375,11 @@
         },
         {
           "name": "component-binding-each-object",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "const-tag-if",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-input-number",
@@ -11869,8 +11395,7 @@
         },
         {
           "name": "component-svelte-fragment-let-in-slot",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-binding-accessors",
@@ -11894,8 +11419,7 @@
         },
         {
           "name": "window-event-custom",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-block-keyed",
@@ -11904,7 +11428,7 @@
         {
           "name": "component-binding-blowback-b",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "action-function",
@@ -11921,13 +11445,11 @@
         },
         {
           "name": "binding-select-in-each-block",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "store-resubscribe-observable",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-block-array-literal",
@@ -11939,8 +11461,7 @@
         },
         {
           "name": "each-block-destructured-default-binding",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-block-index-only",
@@ -11968,8 +11489,7 @@
         },
         {
           "name": "store-shadow-scope-declaration",
-          "status": "fail",
-          "error_message": "Client compilation error: Analysis error: dollar_prefix_invalid: Variable name cannot start with `$` except for special Svelte stores"
+          "status": "pass"
         },
         {
           "name": "transition-css-in-out-in-with-param",
@@ -11981,13 +11501,11 @@
         },
         {
           "name": "reactive-values-exported",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "await-in-each",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-block-scope-shadow",
@@ -12060,8 +11578,7 @@
         },
         {
           "name": "spread-own-props",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "event-handler-this-methods",
@@ -12098,7 +11615,7 @@
         {
           "name": "component-binding-blowback-c",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "dynamic-component-destroy-null",
@@ -12106,8 +11623,7 @@
         },
         {
           "name": "component-svelte-fragment",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "binding-input-group-if-gh-8372-2",
@@ -12123,8 +11639,7 @@
         },
         {
           "name": "const-tag-component-without-let",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-js-nested-each-keyed",
@@ -12168,8 +11683,7 @@
         },
         {
           "name": "each-block-keyed-dynamic-key",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "action-update",
@@ -12178,12 +11692,11 @@
         {
           "name": "component-slot-let-named-2",
           "status": "fail",
-          "error_message": "Client JS mismatch"
+          "error_message": "Server JS mismatch"
         },
         {
           "name": "immutable-svelte-meta",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "transition-js-if-outro-unrelated-component-binding-update",
@@ -12211,15 +11724,14 @@
       "id": "runtime-browser",
       "name": "Runtime Browser",
       "total": 31,
-      "passed": 18,
-      "failed": 13,
+      "passed": 28,
+      "failed": 3,
       "skipped": 0,
-      "percentage": 58.06451612903226,
+      "percentage": 90.32258064516128,
       "tests": [
         {
           "name": "binding-width-height-initialize",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-css-custom-properties",
@@ -12231,8 +11743,7 @@
         },
         {
           "name": "svelte-self-css-custom-properties-dynamic",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-slot-binding-dimensions",
@@ -12240,8 +11751,7 @@
         },
         {
           "name": "component-css-custom-properties-dynamic",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "hydrate-large-text-node",
@@ -12249,8 +11759,7 @@
         },
         {
           "name": "inline-style-directive-update-with-spread",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "inline-style-directive-important",
@@ -12258,8 +11767,7 @@
         },
         {
           "name": "component-css-custom-properties-dynamic-svg",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "svelte-self-css-custom-properties",
@@ -12276,17 +11784,15 @@
         {
           "name": "binding-width-height-this-timing",
           "status": "fail",
-          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"Expected `,` or `]` but found `:`\", labels: Some([LabeledSpan { label: Some(\"`,` or `]` expected\"), span: SourceSpan { offset: SourceOffset(524), length: 1 }, primary: true }, LabeledSpan { label: Some(\"Opened here\"), span: SourceSpan { offset: SourceOffset(508), length: 1 }, primary: false }]), help: None, note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
+          "error_message": "Client compilation error: Transform error: Code generation error: Parse errors: [OxcDiagnostic { inner: OxcDiagnosticInner { message: \"Expected `,` or `]` but found `:`\", labels: Some([LabeledSpan { label: Some(\"`,` or `]` expected\"), span: SourceSpan { offset: SourceOffset(526), length: 1 }, primary: true }, LabeledSpan { label: Some(\"Opened here\"), span: SourceSpan { offset: SourceOffset(510), length: 1 }, primary: false }]), help: None, note: None, severity: Error, code: OxcCode { scope: None, number: None }, url: None } }]"
         },
         {
           "name": "browser-events-ending-with-capture",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "svelte-component-css-custom-properties2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-event-handler-contenteditable-false",
@@ -12298,8 +11804,7 @@
         },
         {
           "name": "svelte-self-css-custom-properties2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "inline-style-directive-precedence",
@@ -12329,13 +11834,11 @@
         },
         {
           "name": "svelte-component-css-custom-properties",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "svelte-component-css-custom-properties-dynamic",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "sole-script-tag",
@@ -12359,10 +11862,10 @@
       "id": "hydration",
       "name": "Hydration",
       "total": 78,
-      "passed": 67,
-      "failed": 10,
+      "passed": 71,
+      "failed": 6,
       "skipped": 1,
-      "percentage": 87.01298701298701,
+      "percentage": 92.20779220779221,
       "tests": [
         {
           "name": "removes-undefined-attributes",
@@ -12467,8 +11970,7 @@
         },
         {
           "name": "safari-borking-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "noscript",
@@ -12500,8 +12002,7 @@
         },
         {
           "name": "dynamic-text-nil",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "each-text-only",
@@ -12642,8 +12143,7 @@
         },
         {
           "name": "element-dir-attribute-sibling",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "if-block-mismatch",
@@ -12663,8 +12163,7 @@
         },
         {
           "name": "claim-comment",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "raw",
@@ -12693,10 +12192,10 @@
       "id": "server-side-rendering",
       "name": "SSR",
       "total": 82,
-      "passed": 79,
-      "failed": 3,
+      "passed": 82,
+      "failed": 0,
       "skipped": 0,
-      "percentage": 96.34146341463415,
+      "percentage": 100,
       "tests": [
         {
           "name": "bindings-zero",
@@ -12764,8 +12263,7 @@
         },
         {
           "name": "falsy-dynamic-component",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "raw-mustaches",
@@ -12817,8 +12315,7 @@
         },
         {
           "name": "context-not-set-throws",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "head-multiple-title",
@@ -12962,8 +12459,7 @@
         },
         {
           "name": "attribute-template-literal-sanitization",
-          "status": "fail",
-          "error_message": "Server JS mismatch"
+          "status": "pass"
         },
         {
           "name": "css-injected-options",
