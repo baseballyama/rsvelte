@@ -1,12 +1,12 @@
 {
-  "generated_at": "2026-02-26T06:25:57.768854597+00:00",
+  "generated_at": "2026-02-26T08:09:44.978169298+00:00",
   "commit_sha": "04c0368aa8d8",
   "summary": {
     "total": 3175,
-    "passed": 2803,
-    "failed": 159,
+    "passed": 2811,
+    "failed": 151,
     "skipped": 213,
-    "percentage": 94.63200540175556
+    "percentage": 94.9020931802836
   },
   "categories": [
     {
@@ -3275,10 +3275,10 @@
       "id": "runtime-runes",
       "name": "Runtime Runes",
       "total": 866,
-      "passed": 774,
-      "failed": 64,
+      "passed": 775,
+      "failed": 63,
       "skipped": 28,
-      "percentage": 92.36276849642005,
+      "percentage": 92.48210023866349,
       "tests": [
         {
           "name": "directives",
@@ -5670,8 +5670,7 @@
         },
         {
           "name": "ownership-invalid-mutation-use-transform",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "event-handler-component-invalid-warning",
@@ -6842,10 +6841,10 @@
       "id": "runtime-legacy",
       "name": "Runtime Legacy",
       "total": 1202,
-      "passed": 1139,
-      "failed": 63,
+      "passed": 1146,
+      "failed": 56,
       "skipped": 0,
-      "percentage": 94.75873544093179,
+      "percentage": 95.34109816971714,
       "tests": [
         {
           "name": "svg",
@@ -7084,8 +7083,7 @@
         },
         {
           "name": "mutation-correct-return-value",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "bindings-coalesced",
@@ -7428,8 +7426,7 @@
         },
         {
           "name": "bitmask-overflow",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "await-then-catch-multiple",
@@ -7775,8 +7772,7 @@
         },
         {
           "name": "bitmask-overflow-slot",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "raw-anchor-first-child",
@@ -8532,8 +8528,7 @@
         },
         {
           "name": "assignment-to-computed-property",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "lifecycle-render-afterUpdate",
@@ -10009,8 +10004,7 @@
         },
         {
           "name": "action-receives-element-mounted",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "component-yield-multiple-in-each",
@@ -10313,8 +10307,7 @@
         },
         {
           "name": "bitmask-overflow-slot-2",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "self-reference-tree",
@@ -11296,8 +11289,7 @@
         },
         {
           "name": "after-render-triggers-update",
-          "status": "fail",
-          "error_message": "Client JS mismatch"
+          "status": "pass"
         },
         {
           "name": "target-dom-detached",

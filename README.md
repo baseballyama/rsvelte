@@ -99,8 +99,8 @@ Current compatibility with the official Svelte compiler test suite:
 | CSS | 178 | 179 | 99% |  |
 | Validator | 291 | 313 | 93% | 12 skipped |
 | Compiler Errors | 118 | 118 | 100% | 26 skipped |
-| Runtime Runes | 774 | 838 | 92% | 28 skipped |
-| Runtime Legacy | 1139 | 1202 | 95% |  |
+| Runtime Runes | 775 | 838 | 92% | 28 skipped |
+| Runtime Legacy | 1146 | 1202 | 95% |  |
 | Runtime Browser | 28 | 31 | 90% |  |
 | Hydration | 71 | 77 | 92% | 1 skipped |
 | SSR | 82 | 82 | 100% |  |

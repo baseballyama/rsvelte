@@ -110,8 +110,8 @@ Pre-commit hooks run `cargo fmt` and `cargo clippy` automatically.
 | SSR | 82/82 | ✅ 100% |
 | Compiler Snapshot | 18/18 | ✅ 100% |
 | CSS | 178/179 | 🟢 99% |
-| Runtime Legacy | 1139/1202 | 🟢 95% |
-| Runtime Runes | 774/838 | 🟢 92% |
+| Runtime Legacy | 1146/1202 | 🟢 95% |
+| Runtime Runes | 775/838 | 🟢 93% |
 | Hydration | 71/77 | 🟢 92% |
 | Runtime Browser | 28/31 | 🟢 90% |
 | Validator | 291/313 | 🟢 93% |
@@ -119,7 +119,7 @@ Pre-commit hooks run `cargo fmt` and `cargo clippy` automatically.
 | Print | 0/40 | ⏸️ N/A |
 | Migrate | 0/76 | ⏸️ N/A |
 
-**Overall: 2803/2962 (94.6%)**
+**Overall: 2811/2962 (94.9%)**
 
 ## Current Focus
 
